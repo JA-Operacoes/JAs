@@ -895,6 +895,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
 
             const resUp = await client.query(queryUpdate, values);
             await client.query('COMMIT');
+            res.locals.acao = "atualizou";
+            res.locals.idregistroalterado = resUp.rows[0].idstaffevento;
+            res.locals.idusuarioAlvo = null;
+            
             res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
         } catch (e) {
             if (client) await client.query('ROLLBACK');
@@ -916,7 +920,8 @@ function ordenarDatas(datas) {
 // =========================================================================
 // 🚀 ROTA POST - CADASTRO 100%
 // =========================================================================
-router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
+router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
+     uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
     const {
         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
@@ -985,6 +990,11 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         const resIns = await client.query(queryInsert, values);
         await client.query('COMMIT');
+        
+        res.locals.acao = "cadastrou";
+        res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
+        res.locals.idusuarioAlvo = null;
+
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
     } catch (e) {
         if (client) await client.query('ROLLBACK');

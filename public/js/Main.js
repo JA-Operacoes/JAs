@@ -3590,7 +3590,7 @@ async function buscarPedidosUsuario() {
 
     // Função interna para normalizar dados do solicitante
     function preencherSolicitante(p) {
-        const idSolicitante = p.idusuariosolicitante || p.idusuario;
+        const idSolicitante = p.solicitante || p.idusuariosolicitante || p.idusuario || p.idexecutor;
         return {
             ...p,
             solicitante: idSolicitante, 

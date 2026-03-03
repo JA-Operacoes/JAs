@@ -1192,7 +1192,8 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       WHERE o.idevento = $1 AND oe.idempresa = $2 
+       WHERE o.idevento = $1 AND oe.idempresa = $2
+       AND status <> 'R'
        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
       [idevento, idempresa, ano]
     );
@@ -1858,84 +1859,84 @@ router.patch('/notificacoes-financeiras/atualizar-status',
 
 router.post('/notificacoes-financeiras/atualizar-status', 
   logMiddleware('main', {
-  buscarDadosAnteriores: async (req) => {
-  const { idpedido } = req.body;
-  if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
+    buscarDadosAnteriores: async (req) => {
+        const { idpedido } = req.body;
+        if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
 
-  const { rows } = await pool.query(`
-  SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria
-  FROM staffeventos
-  WHERE idstaffevento = $1
-  `, [idpedido]);
+        const { rows } = await pool.query(`
+            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria
+            FROM staffeventos
+            WHERE idstaffevento = $1
+            `, [idpedido]);
 
-  if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
+            if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
 
-  return {
-  dadosanteriores: rows[0],
-  idregistroalterado: idpedido
-  };
-  }
+            return {
+            dadosanteriores: rows[0],
+            idregistroalterado: idpedido
+        };
+    }
   }),
   async (req, res) => {
-  try {
-  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-  const { idpedido, categoria, acao } = req.body; // acao = 'Aprovado' ou 'Rejeitado'
+    try {
+        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+        const { idpedido, categoria, acao } = req.body; // acao = 'Aprovado' ou 'Rejeitado'
 
-  if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
-  if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+        if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
+        if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
 
-  // 🔹 Verifica se o usuário é Master
-  const { rows: permissoes } = await pool.query(`
-  SELECT * FROM permissoes 
-  WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-  `, [idusuario]);
+        // 🔹 Verifica se o usuário é Master
+        const { rows: permissoes } = await pool.query(`
+        SELECT * FROM permissoes 
+        WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+        `, [idusuario]);
 
-  if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
+        if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
 
-  // 🔹 Mapeia categorias para colunas da tabela staffeventos
-  const mapCategorias = {
-  statuscaixinha: "statuscaixinha",
-  statusajustecusto: "statusajustecusto",
-  statusdiariadobrada: "statusdiariadobrada",
-  statusmeiadiaria: "statusmeiadiaria"
-  };
+        // 🔹 Mapeia categorias para colunas da tabela staffeventos
+        const mapCategorias = {
+            statuscaixinha: "statuscaixinha",
+            statusajustecusto: "statusajustecusto",
+            statusdiariadobrada: "statusdiariadobrada",
+            statusmeiadiaria: "statusmeiadiaria"
+        };
 
-  const coluna = mapCategorias[categoria];
-  if (!coluna) return res.status(400).json({ error: "Categoria inválida" });
+        const coluna = mapCategorias[categoria];
+        if (!coluna) return res.status(400).json({ error: "Categoria inválida" });
 
-  // 🔹 Atualiza apenas como string (mantendo compatibilidade com o que já existe)
-  const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-  // exemplo: 'Aprovado' ou 'Rejeitado'
+        // 🔹 Atualiza apenas como string (mantendo compatibilidade com o que já existe)
+        const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
+        // exemplo: 'Aprovado' ou 'Rejeitado'
 
-  // 🔹 Atualiza na tabela staffeventos
-  let { rows: updatedRows } = await pool.query(`
-  UPDATE staffeventos
-  SET ${coluna} = $2
-  WHERE idstaffevento = $1
-  RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
-  `, [idpedido, statusParaAtualizar]);
+        // 🔹 Atualiza na tabela staffeventos
+        let { rows: updatedRows } = await pool.query(`
+        UPDATE staffeventos
+        SET ${coluna} = $2
+        WHERE idstaffevento = $1
+        RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+        `, [idpedido, statusParaAtualizar]);
 
-  // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
-  if (updatedRows.length === 0) {
-  const { rows: updatedStaff } = await pool.query(`
-  UPDATE staff
-  SET ${coluna} = $2
-  WHERE idstaffevento = $1
-  RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
-  `, [idpedido, statusParaAtualizar]);
+        // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
+        if (updatedRows.length === 0) {
+        const { rows: updatedStaff } = await pool.query(`
+        UPDATE staff
+        SET ${coluna} = $2
+        WHERE idstaffevento = $1
+        RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+        `, [idpedido, statusParaAtualizar]);
 
-  updatedRows = updatedStaff;
-  }
+        updatedRows = updatedStaff;
+        }
 
-  if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
+        if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
 
-  res.json({ sucesso: true, atualizado: updatedRows[0] });
+        res.json({ sucesso: true, atualizado: updatedRows[0] });
 
-  } catch (err) {
-  console.error('Erro ao atualizar status do pedido:', err.stack || err);
-  res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
-  }
-  }
+        } catch (err) {
+         console.error('Erro ao atualizar status do pedido:', err.stack || err);
+         res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
+        }
+    }
 );
 
 // router.patch('/aditivoextra/:idAditivoExtra/status',
