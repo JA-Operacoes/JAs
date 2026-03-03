@@ -22,13 +22,43 @@ if (!fs.existsSync(comprovantesUploadDir)) {
     fs.mkdirSync(comprovantesUploadDir, { recursive: true });
 }
 
+// const storageComprovantes = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//     cb(null, comprovantesUploadDir); // Multer salva aqui
+//     },
+//     filename: (req, file, cb) => {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+//     }
+// });
+
 const storageComprovantes = multer.diskStorage({
     destination: (req, file, cb) => {
-    cb(null, comprovantesUploadDir); // Multer salva aqui
+        cb(null, comprovantesUploadDir); // Mantém o diretório definido para staff
     },
     filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        // 1. Captura o ID (Priorizando idStaffEvento que é o padrão para staff)
+        console.log("REQ.BODY NO FILENAME:", req.body);
+        const id = req.body.idstaffevento ||  req.body.id || '0';
+
+        // 2. Define o contexto baseado no fieldname (ex: comppgtocache, comppgtoajdcusto)
+        // Se houver um contexto personalizado (Aditivo, etc), ele prioriza
+        const contexto = req.body.contexto || file.fieldname;
+
+        // 3. Limpa o nome original do arquivo
+        const nomeOriginalLimpo = path.parse(file.originalname).name
+            .replace(/\s+/g, '') 
+            .replace(/[^a-zA-Z0-9]/g, '');
+
+        // 4. Data legível (AAAAMMDD) - Hoje é 20260303
+        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        // RESULTADO: comppgtocache-ID73-20260303-ReciboJoao.pdf
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
+        
+        cb(null, nomeFinal);
     }
 });
 

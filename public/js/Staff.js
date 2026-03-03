@@ -3940,6 +3940,11 @@ async function verificaStaff() {
 
             const formData = new FormData();
             // Adiciona todos os campos de texto ao FormData
+            if (metodo === "PUT") {
+                formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
+                formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento || ''); 
+            }
+            
             formData.append('avaliacao', avaliacao);
             formData.append('idfuncionario', idFuncionario);
             formData.append('nmfuncionario', nmFuncionario);
