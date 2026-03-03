@@ -830,6 +830,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
     if (dadosFechamento && dadosFechamento.length > 0) {
         const dataInicioSelecionada = document.getElementById('reportStartDate').value;
         const dataFimSelecionada = document.getElementById('reportEndDate').value;
+        
 
         html +=`
             <p>
@@ -841,7 +842,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD', 'VLR CACHÊ', 'VLR AJUDA', 'TOT CACHÊ', 'TOT AJUDA',`VLR ADICIONAL`, 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ',`VLR ADICIONAL`, 'TOT CACHÊ',  'QTD AJUDA', 'VLR AJUDA',  'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
             } else {
                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
@@ -853,7 +854,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'FUNÇÃO': 'text-left', 'NOME': 'text-left', 'PIX': 'text-left', 'CPF': 'text-left',
             'INÍCIO': 'text-left', 'TÉRMINO': 'text-left', 'VLR DIÁRIA': 'text-right',
             'VLR CACHÊ': 'text-right', 'VLR AJUDA': 'text-right', 'VLR ADICIONAL': 'text-right',
-            'STATUS CX': 'text-center', 'QTD': 'text-center', 'TOT DIÁRIAS': 'text-right', 
+            'STATUS CX': 'text-center', 'QTD': 'text-center','QTD CACHÊ': 'text-center','QTD AJUDA': 'text-center', 'TOT DIÁRIAS': 'text-right', 
             'TOT CACHÊ': 'text-right','TOT AJUDA': 'text-right','TOT GERAL': 'text-right', 
             'STATUS CACHÊ':'text-center', 'STATUS AJUDA':'text-center', 'STATUS PGTO': 'text-center', 
             'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHE': 'text-center', 'COMP AJUDA': 'text-center'
@@ -871,22 +872,25 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 // Lógica para destacar linha se houver valor adicional (positivo ou negativo)
                 const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
                 const styleDestaque = vlrAdic !== 0 ? 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"' : '';
+                const ehFuncionario = item.PERFIL_STAFF && (item.PERFIL_STAFF.includes('Interno'));
 
                 return `
                 <tr ${styleDestaque}>
                     <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
-                    <td class="${alinhamentos['NOME']}">${item.NOME || ''}</td>
+                    <td class="${alinhamentos['NOME']}">${item.NOME || ''}${ehFuncionario ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>' : ''}</td>
+                    
                     ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
                     <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
                     <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
                     
                     ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
-                        <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+                        <td class="${alinhamentos['QTD CACHÊ']}">${item.QTD_CACHE || ''}</td>
                         <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
-                        <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
-                        <td class="${alinhamentos['TOT CACHÊ']}">${formatarMoeda(item["TOT CACHÊ"])}</td>
-                        <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                         <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
+                        <td class="${alinhamentos['TOT CACHÊ']}">${formatarMoeda(item["TOT CACHÊ"])}</td>
+                        <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
+                        <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
+                        <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                         <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                         <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
                         <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
@@ -918,10 +922,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             ${tipo === 'cache_ajuda' ? `
                 <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtdDiarias || ''}</td> 
                 <td class="text-right" style="font-weight: bold;">-</td> 
-                <td class="text-right" style="font-weight: bold;">-</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrCache)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAjuda)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrCache)}</td>
+                <td class="text-center" style="font-weight: bold;">-</td> 
+                <td class="text-right" style="font-weight: bold;">-</td>
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAjuda)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                 <td colspan="4"></td> ` : 

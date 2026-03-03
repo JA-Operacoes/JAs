@@ -154,6 +154,7 @@ try {
             queryFechamentoPrincipal = `
                 SELECT
                     tse.idevento AS "idevento",
+                    tbf.perfil AS "PERFIL_STAFF",
                     tse.nmevento AS "nomeEvento",
                     tse.nmfuncao AS "FUNÇÃO",
                     tse.idcliente AS "idcliente",
@@ -264,6 +265,7 @@ try {
             FROM (
                 SELECT
                     tse.idevento,
+                    tbf.perfil AS "PERFIL_STAFF",
                     tse.nmevento AS "nomeEvento",
                     tse.idcliente,
                     tse.nmcliente AS "nomeCliente",
@@ -272,7 +274,7 @@ try {
                     COALESCE(tse.qtdpessoaslote, 1) AS "QTDPESSOAS", -- Garante valor mínimo 1
                     tse.nmfuncao AS "FUNÇÃO",
                     tse.statuspgtocaixinha AS "STATUS CAIXINHA",
-                    tbf.nome || ' (' || tbf.perfil || ')' AS "NOME",
+                    tbf.nome AS "NOME",
                     tbf.pix AS "PIX",
                     tbf.perfil AS "PERFIL_FUNC",
                     (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
@@ -412,6 +414,7 @@ try {
             )
             SELECT
                 tse.idevento,
+                tbf.perfil AS "PERFIL_STAFF",
                 tse.nmevento AS "nomeEvento",
                 tse.idcliente,
                 tse.nmcliente AS "nomeCliente",
@@ -479,95 +482,96 @@ try {
             `;
         } else if (tipo === 'cache_ajuda') {
             queryFechamentoPrincipal = `
-               WITH ano_evento AS (
-            SELECT DISTINCT EXTRACT(YEAR FROM (date_value::date))::int AS ano
-            FROM staffeventos tse,
-                jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-            WHERE tse.idstaff IN (SELECT idstaff FROM staffempresas WHERE idempresa = $1)
-        ),
-        feriados AS (
-            SELECT data::date FROM (
-                SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
-                SELECT make_date(a.ano, 12, 25) FROM ano_evento a
-            ) f(data)
-        ),
-        -- 🔹 CTE adicionada para capturar dobras e meias autorizadas
-        diarias_autorizadas AS (
-            SELECT
-                tse.idstaffevento,
-                (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtdiariadobrada, '[]'::jsonb)) AS d(data text, status text) WHERE d.status = 'Autorizado') AS qtd_dobras,
-                (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtmeiadiaria, '[]'::jsonb)) AS m(data text, status text) WHERE m.status = 'Autorizado') AS qtd_meias
-            FROM staffeventos tse
-            JOIN staffempresas semp ON tse.idstaff = semp.idstaff
-            WHERE semp.idempresa = $1 ${wherePeriodoFinal}
-        )
-        SELECT 
-            sub.*,
-            -- TOTAIS CALCULADOS
-            CAST(sub."VLR CACHÊ" * sub."QTD" AS NUMERIC(10,2)) AS "TOT CACHÊ",
-            CAST(sub."VLR AJUDA" * sub."QTD" AS NUMERIC(10,2)) AS "TOT AJUDA",
-            -- 🔹 TOT GERAL agora inclui o VLR ADICIONAL (que já contempla Ajuste e Caixinha na lógica abaixo)
-            CAST(((sub."VLR CACHÊ" + sub."VLR AJUDA") * sub."QTD") + sub."VLR ADICIONAL" AS NUMERIC(10,2)) AS "TOT GERAL",
-            
-            -- LÓGICA DO TOT PAGAR
-            CAST(CASE 
-                WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0 
-                WHEN (sub."STATUS CACHÊ" = 'Pago') THEN (sub."VLR AJUDA" * sub."QTD")
-                WHEN (sub."STATUS AJUDA" = 'Pago') THEN (sub."VLR CACHÊ" * sub."QTD") + sub."VLR ADICIONAL"
-                ELSE ((sub."VLR CACHÊ" + sub."VLR AJUDA") * sub."QTD") + sub."VLR ADICIONAL"
-            END AS NUMERIC(10,2)) AS "TOT PAGAR"
-        FROM (
-            SELECT 
-                tse.idevento, 
-                tse.nmcliente AS "nomeCliente",
-                tse.nmevento AS "nomeEvento", 
-                tse.nmfuncao AS "FUNÇÃO",
-                tbf.nome AS "NOME", 
-                tbf.pix AS "PIX",
-                (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
-                (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
-                
-                (SELECT COUNT(*)::int
-                FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
-                WHERE date_val::date >= $2::date AND date_val::date <= $3::date
-                AND (
-                    tbf.perfil ILIKE '%Free%' 
-                    OR ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
-                    AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+              WITH ano_evento AS (
+                    SELECT DISTINCT EXTRACT(YEAR FROM (date_value::date))::int AS ano
+                    FROM staffeventos tse,
+                        jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                    WHERE tse.idstaff IN (SELECT idstaff FROM staffempresas WHERE idempresa = $1)
+                ),
+                feriados AS (
+                    SELECT data::date FROM (
+                        SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 12, 25) FROM ano_evento a
+                    ) f(data)
+                ),
+                diarias_autorizadas AS (
+                    SELECT
+                        tse.idstaffevento,
+                        (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtdiariadobrada, '[]'::jsonb)) AS d(data text, status text) WHERE d.status = 'Autorizado') AS qtd_dobras,
+                        (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtmeiadiaria, '[]'::jsonb)) AS m(data text, status text) WHERE m.status = 'Autorizado') AS qtd_meias
+                    FROM staffeventos tse
+                    JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                    WHERE semp.idempresa = $1 ${wherePeriodoFinal}
                 )
-                ) AS "QTD",
+                SELECT 
+                    sub.*,
+                    CAST(sub."VLR CACHÊ" * sub."QTD_CACHE" AS NUMERIC(10,2)) AS "TOT CACHÊ",
+                    CAST(sub."VLR AJUDA" * sub."QTD_AJUDA" AS NUMERIC(10,2)) AS "TOT AJUDA",
+                    CAST((sub."VLR CACHÊ" * sub."QTD_CACHE") + (sub."VLR AJUDA" * sub."QTD_AJUDA") + sub."VLR ADICIONAL" AS NUMERIC(10,2)) AS "TOT GERAL",
+                    CAST(CASE 
+                        WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0 
+                        WHEN (sub."STATUS CACHÊ" = 'Pago') THEN (sub."VLR AJUDA" * sub."QTD_AJUDA")
+                        WHEN (sub."STATUS AJUDA" = 'Pago') THEN (sub."VLR CACHÊ" * sub."QTD_CACHE") + sub."VLR ADICIONAL"
+                        ELSE (sub."VLR CACHÊ" * sub."QTD_CACHE") + (sub."VLR AJUDA" * sub."QTD_AJUDA") + sub."VLR ADICIONAL"
+                    END AS NUMERIC(10,2)) AS "TOT PAGAR"
+                FROM (
+                    SELECT 
+                        tse.idevento, 
+                        tse.nmcliente AS "nomeCliente",
+                        tse.nmevento AS "nomeEvento", 
+                        tse.nmfuncao AS "FUNÇÃO",
+                        tbf.nome AS "NOME", 
+                        tbf.pix AS "PIX",
+                        tbf.perfil AS "PERFIL_STAFF",
+                        (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
+                        (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
+                        
+                        -- QTD_CACHE: Regra de negócio (Interno/Externo só ganha FDS e Feriado)
+                        (SELECT COUNT(*)::int
+                        FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                        WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                        AND (
+                            tbf.perfil ILIKE '%Free%' 
+                            OR ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                            AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+                        )
+                        ) AS "QTD_CACHE",
 
-                CAST(COALESCE(tse.vlrcache, 0) AS NUMERIC(10,2)) AS "VLR CACHÊ",
-                CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS NUMERIC(10,2)) AS "VLR AJUDA",
+                        -- QTD_AJUDA: Todos os dias trabalhados
+                        (SELECT COUNT(*)::int
+                        FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                        WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                        ) AS "QTD_AJUDA",
 
-                -- 🔹 CÁLCULO DO VLR ADICIONAL (IGUAL AO CACHÊ)
-                CAST((
-                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
-                    (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_dobras, 0) +
-                    ((COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias, 0)
-                ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
+                        CAST(COALESCE(tse.vlrcache, 0) AS NUMERIC(10,2)) AS "VLR CACHÊ",
+                        CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS NUMERIC(10,2)) AS "VLR AJUDA",
 
-                COALESCE(tse.statuspgto, 'Pendente') AS "STATUS CACHÊ",
-                COALESCE(tse.statuspgtoajdcto, 'Pendente') AS "STATUS AJUDA",
+                        CAST((
+                            COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
+                            COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
+                            (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_dobras, 0) +
+                            ((COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias, 0)
+                        ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
 
-                CASE WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP CACHÊ",
-                CASE WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP AJUDA"
-            FROM staffeventos tse
-            JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN staffempresas semp ON tse.idstaff = semp.idstaff
-            LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento -- 🔹 Join necessário
-            WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
-            AND jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql})) > 0
-        ) AS sub
-        ORDER BY sub."nomeEvento", sub."NOME";
+                        COALESCE(tse.statuspgto, 'Pendente') AS "STATUS CACHÊ",
+                        COALESCE(tse.statuspgtoajdcto, 'Pendente') AS "STATUS AJUDA",
+                        CASE WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP CACHÊ",
+                        CASE WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP AJUDA"
+                    FROM staffeventos tse
+                    JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+                    JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                    LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
+                    WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
+                    AND jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql})) > 0
+                ) AS sub
+                ORDER BY sub."nomeEvento", sub."NOME";
     `;
         }
     console.log("QUERY FECHAMENTO PRINCIPAL:", queryFechamentoPrincipal);
