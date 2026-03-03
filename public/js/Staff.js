@@ -882,6 +882,7 @@ const meiaDiariaInput = document.getElementById('meiaDiaria');
 const meiaDiariacheck = document.getElementById('meiaDiariacheck');
 const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
 const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
 const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
 const statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
 
@@ -3132,6 +3133,7 @@ async function verificaStaff() {
             const pavilhao = inputHiddenPavilhao.value.trim().toUpperCase() || '';
             const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
             const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
+            const custoFechadoAtivo = document.getElementById("custoFechadocheck")?.checked;
             const descBeneficioInput = document.getElementById("descBeneficio");
             const descBeneficio = descBeneficioInput?.value.trim() || "";
 
@@ -3155,6 +3157,8 @@ async function verificaStaff() {
 
             const inputStatusFechado = document.getElementById("statusCustoFechado");
             let statusFechado = inputStatusFechado ? inputStatusFechado.value : '';
+            const descCustoFechadoTextarea = document.getElementById("descCustoFechado");
+            const descCustoFechado = descCustoFechadoTextarea?.value.trim() || "";
 
             const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
             const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
@@ -3253,6 +3257,18 @@ async function verificaStaff() {
                 return Swal.fire(
                     "Campos obrigatórios!",
                     "Preencha a descrição do bônus antes de salvar.",
+                    "warning"
+                );
+            }
+
+            if (custoFechadoAtivo && !descCustoFechado) {
+                if (descCustoFechadoTextarea) {
+                    descCustoFechadoTextarea.focus();
+                }
+
+                return Swal.fire(
+                    "Campos obrigatórios!",
+                    "Por favor, preencha a justificativa do Cachê Fechado antes de salvar.",
                     "warning"
                 );
             }
@@ -4034,6 +4050,7 @@ async function verificaStaff() {
             }
 
             formData.append('descbeneficios', descBeneficioTextarea.value.trim());
+            formData.append('desccustofechado', descCustoFechadoTextarea.value.trim());
             formData.append('setor', setor);
 
             let statusPgto = document.querySelector("#statusPgto")?.value || ''; 
@@ -4114,21 +4131,17 @@ async function verificaStaff() {
             }
             const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
             
-            console.log("Status CUSTO FECHADO antes lógica:", statusFechado, fechadoCheck.checked, vlrCusto);
             if (!statusFechado || statusFechado.trim() === '') {
-                console.log("Entrou na lógica de custo fechado");
                 if (fechadoCheck.checked && vlrCustoNumerico > 0) {
-                    console.log("Custo fechado marcado e valor do custo é maior que 0, definindo como Pendente");
                     statusFechado = 'Pendente';
                 } else {
                     statusFechado = ''; // Mantém vazio se o checkbox não estiver marcado
                 }
             }
-            console.log("Status CUSTO FECHADO meio da lógica:", statusFechado);
+
             if (!statusFechado && !fechadoCheck.checked) {
                 statusFechado = '';
             }
-            console.log("Status CUSTO FECHADO depois lógica:", statusFechado);
 
             // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
             //     if (temComprovanteAjudaCusto) {
@@ -4304,6 +4317,7 @@ async function verificaStaff() {
             console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
 
             const ajusteCustoAtivoAtual = ajusteCustoAtivo;
+            const custoFechadoAtivoAtual = fechadoCheck.checked;
             const caixinhaAtivoAtual = caixinhaAtivo;
             const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
             const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
@@ -4342,6 +4356,16 @@ async function verificaStaff() {
             if (houveAlteracaoAjusteCusto && ajusteCustoAtivoAtual) {
                 if (!descAjusteCusto || descAjusteCusto.length < 15) {
                     if (descAjusteCusto) descAjusteCustoInput.focus();
+                    return Swal.fire(
+                        "Campos obrigatórios!",
+                        "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
+                        "warning"
+                    );
+                }
+            }
+            if (houveAlteracaoAjusteCusto && custoFechadoAtivoAtual) {
+                if (!descCustoFechado || descCustoFechado.length < 15) {
+                    if (descCustoFechadoTextarea) descCustoFechadoTextarea.focus();
                     return Swal.fire(
                         "Campos obrigatórios!",
                         "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
@@ -7304,7 +7328,7 @@ function calcularValorTotal() {
     {
         console.log("VALORES PARA RECALCULAR", vlrAlimentacaoDobra);
     }
-    const statusFechado = document.getElementById("statusCustoFechado").value;
+    const statusFechado = document.getElementById("statusCustoFechado")?.value || "";
     if (isFechado) {
             if (statusFechado === "Autorizado") {
                 total = cache;
@@ -9245,60 +9269,81 @@ function configurarEventosStaff() {
             statusCaixinhaInput.disabled = false;
         }
     }
-        // Dentro da função configurarEventosStaff()
-    const checkboxFechado = document.getElementById('Fechadocheck');
-    const divStatusContainer = document.getElementById('campoStatusCustoFechado');
-    const selectStatus = document.getElementById('selectStatusCustoFechado');
-    const inputStatusTxt = document.getElementById('statusCustoFechado');
-    const inputVlrCusto = document.getElementById('vlrCusto');
+// --- DENTRO DE configurarEventosStaff() ---
 
-    // Verifica se o usuário é Master ou Financeiro
-    const temAcessoStatus = temPermissaoMaster || temPermissaoFinanceiro;
+// 1. Pegamos os elementos de layout (Wrappers e Status)
+const divStatusContainer = document.getElementById('campoStatusCustoFechado');
+const wrapperInput = document.getElementById('wrapperInputCustoFechado');
+const wrapperSelect = document.getElementById('wrapperSelectCustoFechado');
+const inputStatusTxt = document.getElementById('statusCustoFechadoTexto');
+const selectStatus = document.getElementById('selectStatusCustoFechado');
+const textareaJustificativa = document.getElementById('descCustoFechado');
 
-    if (checkboxFechado) {
-    // 1. Executa assim que a função é chamada (caso já venha marcado do banco)
-    atualizarVisibilidadeCacheFechado();
+// 2. Usamos as permissões que já foram declaradas no topo do Staff.js
+// IMPORTANTE: Não use "const" ou "let" aqui para as variáveis abaixo, 
+// pois elas já existem no escopo global do seu arquivo.
+const temAcessoMasterOuFinanceiro = temPermissaoMaster || temPermissaoFinanceiro;
 
-    checkboxFechado.addEventListener('change', function() {
-        atualizarVisibilidadeCacheFechado(); // Chama a função centralizada
-        
-        if (this.checked) {
-            inputVlrCusto.removeAttribute('data-permanent-readonly');
-            // Regra de permissão para o SELECT
-            if (temAcessoStatus) {
-                selectStatus.style.display = 'block';
+if (fechadoCheck) { // 'fechadoCheck' é a variável global do seu topo de arquivo
+    const aplicarRegraVisibilidade = () => {
+        if (fechadoCheck.checked) {
+            if (divStatusContainer) divStatusContainer.style.display = 'flex';
+            if (divStatusContainer) divStatusContainer.style.flexDirection = 'row';
+            
+            // Justificativa sempre visível se o check estiver ativo
+            if (textareaJustificativa) textareaJustificativa.style.display = 'block';
+
+            if (temAcessoMasterOuFinanceiro) {
+                // MESTRE: Vê Select, esconde Input informativo
+                if (wrapperSelect) wrapperSelect.style.display = 'block';
+                if (wrapperInput) wrapperInput.style.display = 'none';
             } else {
-                selectStatus.style.display = 'none';
-                inputStatusTxt.value = "Pendente"; 
+                // STAFF: Vê Input informativo, esconde Select
+                if (wrapperSelect) wrapperSelect.style.display = 'none';
+                if (wrapperInput) wrapperInput.style.display = 'block';
+                if (inputStatusTxt && !inputStatusTxt.value) inputStatusTxt.value = "Pendente";
             }
         } else {
-            // Reseta valores ao desativar
-            inputVlrCusto.value = '';
-            inputStatusTxt.value = '';
-            selectStatus.selectedIndex = 0;
-            inputVlrCusto.setAttribute('data-permanent-readonly', 'true');
+            if (divStatusContainer) divStatusContainer.style.display = 'none';
         }
-        calcularValorTotal();
+    };
+
+    // Aplica a regra assim que o modal/página carrega
+    aplicarRegraVisibilidade();
+
+    // Sincronização: O que o Master escolhe no Select, aparece no Input do Staff
+    if (selectStatus) {
+        selectStatus.addEventListener('change', function() {
+            if (inputStatusTxt) inputStatusTxt.value = this.value;
+        });
+    }
+
+    // Evento de mudança no Checkbox "Cachê Fechado"
+    fechadoCheck.addEventListener('change', function() {
+        aplicarRegraVisibilidade();
+        
+        if (this.checked) {
+            // LIBERA O VALOR: Torna o campo de valor editável
+            if (vlrCustoInput) {
+                vlrCustoInput.readOnly = false;
+                vlrCustoInput.disabled = false;
+                vlrCustoInput.removeAttribute('data-permanent-readonly');
+            }
+        } else {
+            // BLOQUEIA E LIMPA: Ao desmarcar, reseta os campos
+            if (vlrCustoInput) {
+                vlrCustoInput.value = '';
+                vlrCustoInput.setAttribute('data-permanent-readonly', 'true');
+                vlrCustoInput.readOnly = true;
+            }
+            if (textareaJustificativa) textareaJustificativa.value = '';
+            if (inputStatusTxt) inputStatusTxt.value = '';
+            if (selectStatus) selectStatus.value = 'none';
+        }
+        
+        // Atualiza cálculos se a função existir
+        if (typeof calcularValorTotal === 'function') calcularValorTotal();
     });
-
-    // --- CORREÇÃO DO BUG NA TROCA DE NÍVEL ---
-    // Sempre que o nível ou a função mudar, o sistema pode tentar reexibir os campos.
-    // Nós forçamos ele a esconder novamente se o check estiver falso.
-    const selectNivel = document.getElementById('nivelExperiencia'); // Verifique se o ID é este
-    const selectFuncao = document.getElementById('funcaoStaff');      // Verifique se o ID é este
-
-    if (selectNivel) {
-        selectNivel.addEventListener('change', () => {
-            // Usamos um pequeno delay (200ms) para dar tempo do sistema 
-            // buscar o preço no banco e depois nós escondemos a div.
-            setTimeout(atualizarVisibilidadeCacheFechado, 200);
-        });
-    }
-    if (selectFuncao) {
-        selectFuncao.addEventListener('change', () => {
-            setTimeout(atualizarVisibilidadeCacheFechado, 200);
-        });
-    }
 }
     // 📢 FIM DO NOVO BLOCO    
 

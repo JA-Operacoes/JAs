@@ -699,6 +699,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           s.idstaff,
           s.avaliacao,
           se.statuscustofechado,
+          se.desccustofechado,
           (
             SELECT jsonb_agg(elem ORDER BY elem::date)
             FROM jsonb_array_elements_text(
@@ -879,9 +880,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
                 comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
                 nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, statuscustofechado = $46
+                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, statuscustofechado = $46, desccustofechado = $47
                 FROM staffempresas sme
-                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $47 AND sme.idempresa = $48
+                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $48 AND sme.idempresa = $49
                 RETURNING se.idstaffevento;
             `;
 
@@ -898,7 +899,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 paths.cache, paths.ajd, paths.ajd50, paths.cx,
                 body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                 body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
-                parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado,
+                parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado, body.desccustofechado,
                 idStaffEvento, idempresa
             ];
 
@@ -939,7 +940,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-        vlrtotcache, vlrtotajdcusto, statuscustofechado
+        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -973,9 +974,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado
+                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
             ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49
             ) RETURNING idstaffevento;
         `;
 
@@ -993,7 +994,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado
+            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado
         ];
 
         const resIns = await client.query(queryInsert, values);
