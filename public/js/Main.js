@@ -5589,9 +5589,15 @@ window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = n
     if (!file) return;
 
     const formData = new FormData();
-    formData.append('arquivo', file); 
+  
+
     formData.append('idStaff', idStaff);
     formData.append('tipo', tipo);
+    formData.append('contexto', tipo); // Garante que o contexto chegue preenchido
+    
+    // O arquivo deve ser o ÚLTIMO campo adicionado
+    // Verifique se no backend você usa upload.single('arquivo') ou 'comprovante'
+    formData.append('arquivo', file);
 
     // Captura o botão e o container para manipulação imediata
     const container = input.closest('.upload-container-uiverse');
@@ -5898,64 +5904,112 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         
         dados = resEventos?.eventos || [];
 
-        console.log("DADOS EVENTOS", dados);
+        console.log("DADOS EVENTOS", dados);       
 
-        
+        // dados = dados.filter(ev => {
+        //     const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
+        //     const chPendente = parseFloat(ev.cache?.pendente) || 0;
+            
+        //     // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
+        //     if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
+        //         console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
+        //             vencAjuda: ev.dataVencimentoAjuda,
+        //             vencCache: ev.dataVencimentoCache,
+        //             tipoFiltro: filtroTipo,
+        //             anoSelecionado: anoSelecionado
+        //         });
+        //     }
+
+        //     let estaVencido = false;
+        //     [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
+        //         if (item.d && item.d !== '---' && item.v > 0) {
+        //             const [d, m, a] = item.d.split('/').map(Number);
+        //             if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
+        //         }
+        //     });
+
+        //     if (estaVencido) return true; 
+
+        //     // Extração de datas para o filtro mensal/trimestral
+        //     const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
+        //     const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
+        //     const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
+        //     const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
+
+        //     //--- LÓGICA DE PERÍODOS EXPANDIDOS ---
+        //     if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
+        //         const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
+        //         let mesesNoPeriodo = [mesInicial];
+
+        //         if (filtroTipo === "trimestral") {
+        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
+        //         } else if (filtroTipo === "semestral") {
+        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
+        //         }
+
+        //         const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
+        //                             (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
+                
+        //         if (ev.dataVencimentoAjuda?.includes("/03")) {
+        //             console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
+        //         }
+
+        //         return passouNoFiltro;
+        //     }
+
+        //     // Se for diário ou semanal, mantém sua lógica original...
+        //     if (filtroTipo === "diario") {
+        //         return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
+        //     }
+
+        //     return true;
+        // });
 
         dados = dados.filter(ev => {
             const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
             const chPendente = parseFloat(ev.cache?.pendente) || 0;
             
-            // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
-            if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
-                console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
-                    vencAjuda: ev.dataVencimentoAjuda,
-                    vencCache: ev.dataVencimentoCache,
-                    tipoFiltro: filtroTipo,
-                    anoSelecionado: anoSelecionado
-                });
-            }
+            // 1. Identificar competência do evento (Mês/Ano)
+            const extrairComp = (ds) => {
+                if (!ds || ds === '---') return null;
+                const [d, m, a] = ds.split('/').map(Number);
+                return (a * 12) + m;
+            };
 
-            let estaVencido = false;
-            [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
-                if (item.d && item.d !== '---' && item.v > 0) {
-                    const [d, m, a] = item.d.split('/').map(Number);
-                    if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
-                }
-            });
+            const compAjuda = extrairComp(ev.dataVencimentoAjuda);
+            const compCache = extrairComp(ev.dataVencimentoCache);
+            const compAnoAlvo = (anoSelecionado * 12);
 
-            if (estaVencido) return true; 
+            // 2. Definir o Range do Filtro
+            const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value) || 1;
+            const inicioFiltro = compAnoAlvo + mesInicial;
+            
+            let alcance = 1;
+            if (filtroTipo === "trimestral") alcance = 3;
+            else if (filtroTipo === "semestral") alcance = 6;
+            
+            const fimFiltro = inicioFiltro + alcance - 1;
 
-            // Extração de datas para o filtro mensal/trimestral
-            const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
-            const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
-            const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
-            const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
-
-            // --- LÓGICA DE PERÍODOS EXPANDIDOS ---
+            // 3. LÓGICA DE FILTRAGEM (Prioridade ao Período)
             if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
-                const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
-                let mesesNoPeriodo = [mesInicial];
-
-                if (filtroTipo === "trimestral") {
-                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
-                } else if (filtroTipo === "semestral") {
-                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
-                }
-
-                const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
-                                    (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
                 
-                if (ev.dataVencimentoAjuda?.includes("/03")) {
-                    console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
-                }
+                // Verifica se a competência da Ajuda ou do Cachê entra no range
+                const ajudaNoPeriodo = (compAjuda >= inicioFiltro && compAjuda <= fimFiltro);
+                const cacheNoPeriodo = (compCache >= inicioFiltro && compCache <= fimFiltro);
 
-                return passouNoFiltro;
+                // IMPORTANTE: Se for "Aguardando Cadastro", ele pode não ter data de vencimento ainda.
+                // Verificamos se há algum indício de data no evento ou se ele pertence ao ano/mês inicial
+                const semDataMasNoMes = (!compAjuda && !compCache && mesInicial === (new Date().getMonth() + 1));
+
+                if (ajudaNoPeriodo || cacheNoPeriodo || semDataMasNoMes) {
+                    return true; // Deixa passar, independente de estar liquidado ou pendente
+                }
+                return false; // Fora do período
             }
 
-            // Se for diário ou semanal, mantém sua lógica original...
+            // 4. Caso seja filtro Diário
             if (filtroTipo === "diario") {
-                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
+                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR);
             }
 
             return true;
@@ -7365,10 +7419,15 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         <td style="text-align:center;">
                                             ${c.imagemconta && c.imagemconta !== '---' 
                                                 ? `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))">
-                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
+                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                    <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
+                                                    <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
                                                 </a>` 
-                                                : '<i class="fas fa-upload" style="color:#f0ad4e;" title="Aguardando envio"></i>'
+                                                : `<div>
+                                                    <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
+                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
+                                                </div>`
                                             }
                                         </td>
                                         <td style="text-align:center;">
@@ -7381,19 +7440,22 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         <td style="text-align:center;">${pgtoExibicao}</td>
                                         <td style="text-align:center;">
                                             ${(c.comprovantepgto && c.comprovantepgto !== '---')
-                                                ? // SE HOUVER ARQUIVO: Sempre mostra o ícone do comprovante
-                                                `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))">
-                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                ? `<a href="javascript:void(0)" 
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
+                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                    <i class="fas fa-receipt" style="font-size: 18px;"></i>
+                                                    <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
                                                 </a>`
-                                                : // SE NÃO HOUVER ARQUIVO: Verifica o status
-                                                (statusC === 'pago' 
-                                                    ? '<i class="fas fa-upload" style="color:#f0ad4e;" title="Enviar comprovante"></i>' 
+                                                : (statusC === 'pago' 
+                                                    ? `<div>
+                                                        <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
+                                                        <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
+                                                                                                                
+                                                    </div>` 
                                                     : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
                                                 )
                                             }
-                                        </td>
-                                    
+                                        </td>                                    
                                         <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(vExibicao)}</strong></td>
                                     </tr>`;
                             }).join('');
@@ -7509,13 +7571,13 @@ function renderBotaoPagamento(c) {
     const valorParaPagar = c.vlrprevisto || c.valor || 0;
     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
 
-    
+    const vinculo = (c.tipovinculo || "").toLowerCase();
 
     // 3. Retorno usando suas classes .btn-pago e .btn-suspenso
     return `
         <div class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
             <button class="btn-pago" 
-                    onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}')">
+                    onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}', '${vinculo}', '${c.descricao}')">
                 <i class="fas fa-money-bill-wave"></i> PAGAR
             </button>
             
@@ -7527,109 +7589,302 @@ function renderBotaoPagamento(c) {
     `;
 }
 
-async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, vencimento, obsExistente = "") {
-    const dataHoje = new Date().toISOString().split('T')[0];
+async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, vencimento, obsExistente = "", tipoVinculo = "", descricao = "") {
+    const dataHojeObj = new Date();
+    dataHojeObj.setHours(0, 0, 0, 0);
 
-    // --- FORMATAÇÃO DA DATA DE EXIBIÇÃO ---
-    let vencimentoFormatado = vencimento;
-    if (vencimento && vencimento.includes('-')) {
-        const [ano, mes, dia] = vencimento.split('-');
-        vencimentoFormatado = `${dia}/${mes}/${ano}`;
+    const isFuncionario = tipoVinculo === 'funcionario';
+
+    function obterProximoDiaUtil(data) {
+        let d = new Date(data);
+        while (d.getDay() === 0 || d.getDay() === 6) {
+            d.setDate(d.getDate() + 1);
+        }
+        return d;
     }
 
-    const { value: formValues } = await Swal.fire({
+    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento));
+    const eAtrasado = isFuncionario ? false : (dataHojeObj > dataVencimentoUtil);
+    const vencimentoFormatado = vencimento.split('-').reverse().join('/');
+
+    const { value: formValues, isDismissed } = await Swal.fire({
         title: 'Confirmar Pagamento',
         html: `
-            <div style="text-align: left; font-family: sans-serif;">
-                <label style="display:block; margin-bottom:5px;"><b>Valor Pago (R$):</b></label>
-                <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="margin-top:0; width: 85%;">
-                
-                <label style="display:block; margin: 15px 0 5px;"><b>Data do Pagamento:</b></label>
-                <input id="swal-dtpgto" class="swal2-input" type="date" value="${dataHoje}" style="margin-top:0; width: 85%;">
-                
-                <p style="font-size: 15px; color: #666; margin-top: 15px;">
-                    Vencimento original: <b>${vencimentoFormatado}</b>
-                </p>
+            <style>
+                input[type=number]::-webkit-inner-spin-button, 
+                input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+                input[type=number] { -moz-appearance: textfield; }
+                .swal-row { display: flex; gap: 10px; width: 95%; margin: 0 auto 10px auto; text-align: left; }
+                .swal-col { flex: 1; display: flex; flex-direction: column; }
+                .swal-col label { font-size: 12px; font-weight: bold; margin-bottom: 3px; }
+                .swal-col input { margin: 0 !important; width: 100% !important; height: 38px !important; font-size: 14px !important; }
+            </style>
+            <div style="font-family: sans-serif;">
+                <div class="swal-row">
+                    <div class="swal-col">
+                        <label>Valor Original (R$):</label>
+                        <input id="swal-vlr-original" class="swal2-input" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
+                    </div>
+                    <div class="swal-col">
+                        <label>Vencimento Original:</label>
+                        <input id="swal-dt-venc" class="swal2-input" type="text" value="${vencimentoFormatado}" readonly style="background: #f8f9fa;">
+                    </div>
+                </div>
 
-                <label style="display:block; margin: 15px 0 5px;"><b>Observação:</b></label>
-                <textarea id="swal-obs" class="swal2-textarea" style="margin-top:0; width: 85%; height: 60px; font-size:14px;">${obsExistente}</textarea>
+                <div class="swal-row">
+                    ${eAtrasado ? `
+                    <div class="swal-col">
+                        <label style="color: #d9534f;">Atraso (Juros/Multa):</label>
+                        <input id="swal-vlr-atraso" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #d9534f;">
+                    </div>
+                    ` : `<input id="swal-vlr-atraso" type="hidden" value="0">`}
+                    
+                    <div class="swal-col">
+                        <label style="color: #0275d8;">Desconto (R$):</label>
+                        <input id="swal-vlr-desconto" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #0275d8;">
+                    </div>
+                </div>
+
+                <div class="swal-row">
+                    <div class="swal-col">
+                        <label style="color: #28a745;">Valor Total Pago (R$):</label>
+                        <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
+                    </div>
+                    <div class="swal-col">
+                        <label>Data do Pagamento:</label>
+                        <input id="swal-dtpgto" class="swal2-input" type="date" value="${dataHojeObj.toISOString().split('T')[0]}">
+                    </div>
+                </div>
+
+                <div class="swal-row" style="flex-direction: column;">
+                    <label>Observação ${isFuncionario ? '(Opcional)' : ''}:</label>
+                    <textarea id="swal-obs" class="swal2-textarea" style="width: 100%; margin: 0; height: 70px; font-size:13px;">${obsExistente}</textarea>
+                </div>
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Confirmar Baixa',
-        cancelButtonText: 'Cancelar',
+        confirmButtonText: '<i class="fas fa-check"></i> Confirmar Baixa',
+        cancelButtonText: '<i class="fas fa-times"></i> Desistir',
         confirmButtonColor: '#28a745',
-        focusConfirm: false,
-        preConfirm: () => {
-            const vlr = document.getElementById('swal-vlrpago').value;
-            const data = document.getElementById('swal-dtpgto').value;
-            const obs = document.getElementById('swal-obs').value;
+        cancelButtonColor: '#6c757d',
+        reverseButtons: true, // Coloca o cancelar à esquerda e o confirmar à direita
+        didOpen: () => {
+            const inputOriginal = document.getElementById('swal-vlr-original');
+            const inputAtraso = document.getElementById('swal-vlr-atraso');
+            const inputDesconto = document.getElementById('swal-vlr-desconto');
+            const inputTotal = document.getElementById('swal-vlrpago');
 
-            if (!vlr || !data) {
-                Swal.showValidationMessage('Preencha o valor e a data!');
-                return false;
+            const calcularTotal = () => {
+                const total = parseFloat(inputOriginal.value || 0) + parseFloat(inputAtraso.value || 0) - parseFloat(inputDesconto.value || 0);
+                inputTotal.value = total.toFixed(2);
+            };
+
+            if(inputAtraso) inputAtraso.addEventListener('input', calcularTotal);
+            inputDesconto.addEventListener('input', calcularTotal);
+        },
+        preConfirm: () => {
+            const vlrTotal = document.getElementById('swal-vlrpago').value;
+            const dataPgto = document.getElementById('swal-dtpgto').value;
+            const vlrAtraso = parseFloat(document.getElementById('swal-vlr-atraso')?.value || 0);
+            const vlrDesconto = parseFloat(document.getElementById('swal-vlr-desconto').value || 0);
+            let obsFinal = document.getElementById('swal-obs').value.trim();
+
+            if (!vlrTotal || !dataPgto) return Swal.showValidationMessage('Preencha os campos obrigatórios!');
+
+            // Validação de Observação (Não obriga se for funcionário)
+            if (!isFuncionario && (eAtrasado || vlrAtraso > 0 || vlrDesconto > 0)) {
+                if (obsFinal === "" || obsFinal === obsExistente.trim()) {
+                    return Swal.showValidationMessage('Justifique a alteração na observação.');
+                }
             }
-            return { vlrpago: vlr, dtpagamento: data, observacao: obs };
+
+            let tags = "";
+            if (eAtrasado) tags += " Atrasado ";
+            if (vlrAtraso > 0) tags += `[Atraso: R$ ${vlrAtraso.toFixed(2)}] `;
+            if (vlrDesconto > 0) tags += `[Desconto: R$ ${vlrDesconto.toFixed(2)}] `;
+
+            if (tags && !obsFinal.includes(tags.trim())) {
+                obsFinal = obsFinal !== obsExistente.trim() ? `${obsFinal} | ${tags.trim()}` : `${obsExistente.trim()} | ${tags.trim()}`;
+            }
+
+            return { 
+                vlrpago: vlrTotal, 
+                dtpagamento: dataPgto, 
+                observacao: obsFinal,
+                vlrAtraso: vlrAtraso, 
+                vlrDesconto: vlrDesconto 
+            };
         }
     });
 
+    // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
+    if (isDismissed) return;
+
+    // if (formValues) {
+    //     enviarBaixaPagamento(idPagamento, idLancamento, formValues.vlrpago, formValues.dtpagamento, vencimento, formValues.observacao, formValues.vlrAtraso, formValues.vlrDesconto);
+    // }
+    // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
     if (formValues) {
-        // Importante: Mantemos o "vencimento" original (ISO) para o envio, se o seu backend exigir assim.
-        enviarBaixaPagamento(idPagamento, idLancamento, formValues.vlrpago, formValues.dtpagamento, vencimento, formValues.observacao);
+        const { vlrpago, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
+        
+        // Prepara o texto de resumo (Acréscimo ou Desconto)
+        let resumoAjuste = "";
+        if (vlrAtraso > 0) {
+            resumoAjuste = `<br><small style="color: #d9534f;">(Incluindo R$ ${vlrAtraso.toFixed(2)} de acréscimo)</small>`;
+        } else if (vlrDesconto > 0) {
+            resumoAjuste = `<br><small style="color: #0275d8;">(Com R$ ${vlrDesconto.toFixed(2)} de desconto)</small>`;
+        }
+
+        // --- 3. SEGUNDO SWAL: Confirmação Efetiva ---
+        const confirmacao = await Swal.fire({
+            title: 'Confirmar Valor?',
+            html: `
+                <div style="font-size: 16px; font-family: sans-serif;">
+                    Você está baixando o lançamento "${descricao}" com o pagamento do Valor Total de: <br>
+                    <b style="font-size: 24px; color: #28a745;">R$ ${parseFloat(vlrpago).toLocaleString('pt-br', {minimumFractionDigits: 2})}</b>
+                    ${resumoAjuste}
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sim, baixar agora!',
+            cancelButtonText: 'Não, revisar',
+            reverseButtons: true
+        });
+
+        // --- 4. ENVIO FINAL: Só acontece se o "Sim" for clicado ---
+        if (confirmacao.isConfirmed) {
+            enviarBaixaPagamento(
+                idPagamento, 
+                idLancamento, 
+                vlrpago, 
+                dtpagamento, 
+                vencimento, 
+                observacao, 
+                vlrAtraso, 
+                vlrDesconto
+            );
+        }
     }
 }
 window.abrirModalPagamento = abrirModalPagamento;
 
 // 2. FUNÇÃO QUE ENVIA PARA O BACKEND (A nova lógica de comunicação)
-async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+// async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+//     try {
+//         // A função fetchComToken provavelmente já retorna o corpo do JSON
+//         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 idpagamento: idPagamento,
+//                 idlancamento: idLancamento,
+//                 vlrpago: vlrpago,
+//                 dtpagamento: dtpagamento,
+//                 dtvcto: dtvcto,
+//                 observacao: observacao,
+//                 vlratraso: parseFloat(vlratraso),     // Novo campo
+//                 vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+//             })
+//         });
+
+//         // Agora verificamos 'dados' diretamente, sem o res.json()
+//         if (dados && dados.sucesso) {
+//             Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+
+//             // Busca a linha da tabela pelo ID que acabamos de criar
+//             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
+
+//             if (linha) {
+//                 const tbody = linha.parentElement;
+                
+//                 // Efeito visual suave
+//                 linha.style.transition = 'all 0.4s ease';
+//                 linha.style.opacity = '0';
+//                 linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+
+//                 setTimeout(() => {
+//                     linha.remove(); // Remove a <tr> da tabela
+                    
+//                     // Se a tabela ficar vazia, podemos limpar o accordion
+//                     if (tbody.querySelectorAll('tr').length === 0) {
+//                         const accordionBody = tbody.closest('.accordion-body');
+//                         accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+//                     }
+//                 }, 400);
+//             }
+//         }
+        
+//         else {
+//             Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+//         }
+//     } catch (err) {
+//         console.error("Erro na requisição:", err);
+//         Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+//     }
+// }
+
+async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
     try {
-        // A função fetchComToken provavelmente já retorna o corpo do JSON
+        // Garantimos que os valores numéricos sejam tratados como float para o backend
+        const corpoRequisicao = {
+            idpagamento: idPagamento,
+            idlancamento: idLancamento,
+            vlrpago: parseFloat(vlrpago),
+            dtpagamento: dtpagamento,
+            dtvcto: dtvcto,
+            observacao: observacao,
+            vlratraso: parseFloat(vlratraso),     // Novo campo
+            vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+        };
+
+        console.log("Corpo da requisição para baixa:", corpoRequisicao); // Log para debug
+
         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                idpagamento: idPagamento,
-                idlancamento: idLancamento,
-                vlrpago: vlrpago,
-                dtpagamento: dtpagamento,
-                dtvcto: dtvcto,
-                observacao: observacao
-            })
+            body: JSON.stringify(corpoRequisicao)
         });
 
-        // Agora verificamos 'dados' diretamente, sem o res.json()
         if (dados && dados.sucesso) {
-            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+            Swal.fire({ 
+                icon: 'success', 
+                title: 'Pagamento Confirmado!', 
+                text: isNaN(vlratraso) || vlratraso <= 0 ? '' : 'Acrescimos registrados com sucesso.',
+                timer: 1500, 
+                showConfirmButton: false 
+            });
 
-            // Busca a linha da tabela pelo ID que acabamos de criar
             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
 
             if (linha) {
                 const tbody = linha.parentElement;
                 
-                // Efeito visual suave
+                // Efeito visual de sucesso
                 linha.style.transition = 'all 0.4s ease';
                 linha.style.opacity = '0';
-                linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+                linha.style.backgroundColor = '#d4edda'; 
 
                 setTimeout(() => {
-                    linha.remove(); // Remove a <tr> da tabela
+                    linha.remove(); 
                     
-                    // Se a tabela ficar vazia, podemos limpar o accordion
-                    if (tbody.querySelectorAll('tr').length === 0) {
+                    // Verifica se o container ficou vazio para exibir mensagem amigável
+                    if (tbody && tbody.querySelectorAll('tr').length === 0) {
                         const accordionBody = tbody.closest('.accordion-body');
-                        accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+                        if (accordionBody) {
+                            accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999; font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
+                        }
                     }
                 }, 400);
             }
-        }
-        
-        else {
-            Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+        } else {
+            Swal.fire('Erro ao Processar', (dados ? dados.erro : 'Erro desconhecido no servidor.'), 'error');
         }
     } catch (err) {
-        console.error("Erro na requisição:", err);
-        Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+        console.error("Erro na requisição de baixa:", err);
+        Swal.fire('Erro de Conexão', 'Não foi possível comunicar com o servidor.', 'error');
     }
 }
 
@@ -7773,6 +8028,10 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     formData.append('tipo', tipoUpload); // Aqui enviamos 'comprovante' ou 'imagem'
     formData.append('comprovante', arquivo); 
 
+    const contextoNome = tipoUpload === 'imagem' ? 'imagemConta' : 'comprovantePagamento';
+    formData.append('contexto', contextoNome);
+    
+
     try {
         const response = await fetch('/main/vencimentoconta/uploads_comprovantesconta', {
             method: 'POST',
@@ -7857,7 +8116,7 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
     
     // Data de referência (Hoje) para saber o que é ATRASADO (Vencido)
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    hoje.setHours(0, 0, 0, 0);    
 
     // Data limite do que o usuário está vendo na tela agora
     let dataLimiteExibicao = new Date(hoje); 
