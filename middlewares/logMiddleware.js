@@ -27,8 +27,10 @@ function logMiddleware(modulo, options = {}) {
           const acaoFinal = res.locals.acao || defaultAcao || 'modificou';
           const idregistroalterado = res.locals.idregistroalterado || fetchedIdRegistroAlterado || null;
           const idusuarioAlvo = res.locals.idusuarioAlvo || null;
+          const idlog_origem = res.locals.idlog_origem || null;
 
-          const dadosnovos = req.body;
+          //const dadosnovos = req.body;
+          const dadosnovos = res.locals.dadosnovos || req.body;
 
           // AQUI: Decidimos se queremos registrar os dados anteriores.
           // Se a ação final for 'cadastrou', não há dados anteriores para esse ID.
@@ -41,11 +43,13 @@ function logMiddleware(modulo, options = {}) {
             idexecutor: req.usuario?.idusuario,
             idempresa: req.headers.idempresa || null,
             acao: acaoFinal,
+            data: new Date(),
             modulo: modulo,
             idregistroalterado: idregistroalterado,
             idusuarioalvo: idusuarioAlvo,
             dadosanteriores: finalDadosAnteriores, // Passa o objeto RAW (ou null)
-            dadosnovos: dadosnovos // Passa o objeto RAW
+            dadosnovos: dadosnovos, // Passa o objeto RAW
+            idlog_origem: idlog_origem
           });
 
         } catch (erro) {

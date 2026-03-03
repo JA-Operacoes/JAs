@@ -611,7 +611,8 @@ router.get("/eventos-abertos", async (req, res) => {
                         'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
                     ))
                     FROM json_array_elements(
-                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento)
+                        -- ADICIONADO (SELECT ... LIMIT 1) PARA EVITAR O ERRO
+                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento LIMIT 1)
                     ) AS b
                     LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento 
                         AND spf.idfuncao = (b->>'idfuncao')::int
@@ -1189,12 +1190,14 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 
     // 1️⃣ Busca TODOS os orçamentos da empresa no evento
     const { rows: orcamentos } = await pool.query(
-      `SELECT o.idorcamento, o.idcliente, o.idmontagem
-       FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       WHERE o.idevento = $1 AND oe.idempresa = $2
-       AND status <> 'R'
-       AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
+      `SELECT o.idorcamento, o.status, o.idcliente, o.idmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        WHERE o.idevento = $1
+        AND oe.idempresa = $2
+        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
+        AND o.status <> 'R'
+        ORDER BY o.dtinirealizacao DESC;`,
       [idevento, idempresa, ano]
     );
 
@@ -1511,6 +1514,7 @@ router.get("/atividades-recentes", async (req, res) => {
 // =======================================
 // NOTIFICAÇÕES FINANCEIRAS
 // =======================================
+
 router.get('/notificacoes-financeiras', async (req, res) => {
     try {
         // ... (Seções 1 a 4: Permissões, Filtro, tudo igual)
@@ -1553,52 +1557,139 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         // 🚨 IMPORTANTE: SEUS DADOS DE MEIA/DIÁRIA ESTÃO EM se.dtmeiadiaria E se.dtdiariadobrada.
         // A QUERY ESTÁ CORRETA NESTE PONTO.
         const query = `
-        WITH OriginalExecutor AS (
-            SELECT DISTINCT ON (idregistroalterado)
-            idregistroalterado AS idstaffevento, idexecutor, criado_em
-            FROM logs
-            WHERE modulo = 'staffeventos' AND idempresa = $1 
-            ORDER BY idregistroalterado, criado_em ASC
-        )
-        SELECT DISTINCT ON (se.idstaffevento) 
-            se.idstaffevento AS id, 
-            oe.idexecutor, 
-            (u.nome || ' ' || u.sobrenome) AS nomeexecutor,
-            f.nome AS nomefuncionario, 
-            e.nmevento AS evento,
-            se.vlrcaixinha, se.desccaixinha, se.statuscaixinha, se.vlrajustecusto, 
-            se.descajustecusto, se.statusajustecusto, se.dtdiariadobrada, 
-            se.descdiariadobrada, se.statusdiariadobrada, se.dtmeiadiaria, 
-            se.descmeiadiaria, se.statusmeiadiaria, se.datasevento, oe.criado_em, 
-            se.idfuncionario AS idusuarioalvo, 
-            COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
-            (us.nome || ' ' || us.sobrenome) AS nomesolicitante_real
-        FROM staffeventos se
-        INNER JOIN staffempresas semp ON se.idstaff = semp.idstaff
-        LEFT JOIN OriginalExecutor oe ON oe.idstaffevento = se.idstaffevento 
-        LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
-        LEFT JOIN usuarios u ON u.idusuario = oe.idexecutor 
-        LEFT JOIN usuarios us ON us.idusuario = se.idfuncionario
-        LEFT JOIN eventos e ON e.idevento = se.idevento
-        LEFT JOIN orcamentos o ON o.idevento = e.idevento
-        WHERE 
-        (
-            (se.statuscaixinha IS NOT NULL AND se.statuscaixinha <> '') OR
-            (se.statusajustecusto IS NOT NULL AND se.statusajustecusto <> '') OR
-            (se.statusdiariadobrada IS NOT NULL AND se.statusdiariadobrada <> '') OR 
-            (se.statusmeiadiaria IS NOT NULL AND se.statusmeiadiaria <> '')
-        )
-        AND 
-        ( 
-            (COALESCE(se.vlrcaixinha, '0')::numeric > 0) OR 
-            (COALESCE(se.vlrajustecusto, '0')::numeric != 0) OR 
-            (se.dtdiariadobrada IS NOT NULL AND se.dtdiariadobrada <> '[]'::jsonb) OR 
-            (se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria <> '[]'::jsonb)
-        ) AND semp.idempresa = $1
-        ${filtroSolicitante} 
-        ORDER BY se.idstaffevento, oe.criado_em DESC;
-        `;
+            WITH PedidosDetalhados AS (
+                -- 1. Bloco Caixinha (Define a estrutura mestre)
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statuscaixinha' AS categoria, 
+                    l.dadosnovos->>'statuscaixinha' AS status_atual,
+                    se.vlrcaixinha, se.desccaixinha, se.statuscaixinha,
+                    NULL::numeric AS vlrajustecusto, NULL AS descajustecusto, NULL AS statusajustecusto,
+                    NULL::numeric AS vlrcache, NULL AS desccustofechado, NULL AS statuscustofechado,
+                    NULL AS dtdiariadobrada, NULL AS descdiariadobrada, NULL AS statusdiariadobrada,
+                    NULL AS dtmeiadiaria, NULL AS descmeiadiaria, NULL AS statusmeiadiaria,
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statuscaixinha' 
+                AND (REPLACE(COALESCE(l.dadosnovos->>'vlrcaixinha', '0'), ',', '.'))::numeric <> 0
+                ${filtroSolicitante}
 
+                UNION ALL
+
+                -- 2. Bloco Ajuste de Custo
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statusajustecusto' AS categoria, 
+                    l.dadosnovos->>'statusajustecusto' AS status_atual,
+                    NULL, NULL, NULL, -- Caixinha
+                    se.vlrajustecusto, se.descajustecusto, se.statusajustecusto,
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    NULL, NULL, NULL, -- Meia Diária
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statusajustecusto' 
+                AND (REPLACE(COALESCE(l.dadosnovos->>'vlrajustecusto', '0'), ',', '.'))::numeric <> 0
+                ${filtroSolicitante}
+
+                UNION ALL
+
+                -- 3. Bloco Cachê Fechado
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statuscustofechado' AS categoria, 
+                    l.dadosnovos->>'statuscustofechado' AS status_atual,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    se.vlrcache, se.desccustofechado, se.statuscustofechado,
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    NULL, NULL, NULL, -- Meia Diária
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statuscustofechado' 
+                AND (REPLACE(COALESCE(l.dadosnovos->>'vlrcache', '0'), ',', '.'))::numeric <> 0
+                ${filtroSolicitante}
+
+                UNION ALL
+
+                -- 4. Bloco Diária Dobrada
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statusdiariadobrada' AS categoria, 
+                    l.dadosnovos->>'statusdiariadobrada' AS status_atual,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    se.dtdiariadobrada::text, se.descdiariadobrada, se.statusdiariadobrada,
+                    NULL, NULL, NULL, -- Meia Diária
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statusdiariadobrada'
+                AND se.dtdiariadobrada IS NOT NULL AND se.dtdiariadobrada::text <> '[]'
+                AND jsonb_array_length(se.dtdiariadobrada) > 0
+                ${filtroSolicitante}
+
+                UNION ALL
+
+                -- 5. Bloco Meia Diária
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statusmeiadiaria' AS categoria, 
+                    l.dadosnovos->>'statusmeiadiaria' AS status_atual,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    se.dtmeiadiaria::text, se.descmeiadiaria, se.statusmeiadiaria,
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statusmeiadiaria'
+                AND se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria::text <> '[]'
+                AND jsonb_array_length(se.dtmeiadiaria) > 0
+                ${filtroSolicitante}
+            )
+            SELECT DISTINCT ON (pd.idstaffevento, pd.categoria, pd.id_log)
+                pd.*,
+                COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+                u2.nome || ' ' || u2.sobrenome AS nome_aprovador,
+                l2.criado_em AS data_decisao
+            FROM PedidosDetalhados pd
+            LEFT JOIN orcamentos o ON o.idevento = (SELECT se2.idevento FROM staffeventos se2 WHERE se2.idstaffevento = pd.idstaffevento LIMIT 1)
+            LEFT JOIN logs l2 ON l2.idlog_origem = pd.id_log
+            LEFT JOIN usuarios u2 ON u2.idusuario = l2.idexecutor
+            WHERE pd.status_atual = 'Pendente' 
+            ORDER BY pd.idstaffevento, pd.categoria, pd.id_log, pd.criado_em ASC;
+        `;
         const { rows } = await pool.query(query, params); 
         console.log(`[FINANCEIRO DEBUG] Linhas retornadas do DB: ${rows.length}`);
         // console.log("Dados retornados", rows);
@@ -1633,7 +1724,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                     return JSON.stringify([{ 
                         status: status, 
                         valor: valor, 
-                        descricao: descricao 
+                        descricao: descricao                      
                     }]);
                 }
                 return null;
@@ -1641,18 +1732,28 @@ router.get('/notificacoes-financeiras', async (req, res) => {
             // ** CORREÇÃO APLICADA AQUI **
             const diariaDobrada = isJsonbArrayEmpty(r.dtdiariadobrada) ? null : r.dtdiariadobrada;
             const meiaDiaria = isJsonbArrayEmpty(r.dtmeiadiaria) ? null : r.dtmeiadiaria;
+       
             // Mapeamento que garante a estrutura de objeto principal com os campos aninhados:
             return {
+                id_log: r.id_log,
+                idStaffEvento: r.idstaffevento,
                 idpedido: r.id, 
                 solicitante: r.idexecutor || null,
-                nomeSolicitante: r.nomesolicitante_real || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
+                nomeSolicitante: r.nomesolicitante || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
                 funcionario: r.nomefuncionario || '-',
                 evento: r.evento,
                 dtCriacao: r.criado_em,
+                nomeAprovador: r.nome_aprovador || '-',
+                dataDecisao: r.data_decisao || null,
+                dataSolicitacao: r.criado_em || null,
+
+                // CAMPOS DE STATUS ANINHADOS: 
+                // Diárias (Agora só incluídas se não forem '[]')
                 statusmeiadiaria: meiaDiaria, 
                 statusdiariadobrada: diariaDobrada,
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
+                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache, r.desccustofechado),
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
                 datasevento: r.datasevento || '-',
@@ -1672,6 +1773,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     }
 });
 
+
 router.patch('/notificacoes-financeiras/atualizar-status',
     autenticarToken(),
     contextoEmpresa,
@@ -1688,7 +1790,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
                     statuscaixinha, 
                     statusajustecusto, 
                     dtdiariadobrada, 
-                    dtmeiadiaria
+                    dtmeiadiaria,
+                    statuscustofechado
                 FROM staffeventos 
                 WHERE idstaffevento = $1`;
             const result = await pool.query(query, [id]);
@@ -1699,7 +1802,7 @@ router.patch('/notificacoes-financeiras/atualizar-status',
         }
     }),
     async (req, res) => {
-        const { idpedido, categoria, acao, data } = req.body;
+        const { idpedido, categoria, acao, data, idlog_origem} = req.body;
         const idempresa = req.idempresa; 
         const idUsuarioAprovador = req.usuario?.idusuario;
 
@@ -1721,7 +1824,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
             'statuscaixinha': 'statuscaixinha',
             'statusajustecusto': 'statusajustecusto',
             'statusdiariadobrada': 'dtdiariadobrada', 
-            'statusmeiadiaria': 'dtmeiadiaria',      
+            'statusmeiadiaria': 'dtmeiadiaria',
+            'statuscustofechado': 'statuscustofechado'     
         };
         const colunaDB = mapCategoriaToColuna[categoria];
 
@@ -1731,7 +1835,11 @@ router.patch('/notificacoes-financeiras/atualizar-status',
 
         try {
             const idStaffEvento = idpedido;
-
+            const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
+            const dataDecisao = new Date().toISOString();
+            req.body.data = dataDecisao; 
+            // Se quiser garantir o idlog_origem também:
+            req.body.idlog_origem = idlog_origem;
             // 🛑 CRITÉRIO DE FILTRO DE EMPRESA CORRIGIDO: 
             // Usa se.idstaff para join com sem.idstaff, garantindo o filtro por empresa.
             const empresaConstraint = ` AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $3) `.trim();
@@ -1739,7 +1847,7 @@ router.patch('/notificacoes-financeiras/atualizar-status',
             // =========================================================
             // LÓGICA 1: Caixinha / Ajuste de Custo (Status Simples - STRING)
             // =========================================================
-            if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto') {
+            if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto' || categoria === 'statuscustofechado') {
 
                 const query = `
                     UPDATE staffeventos se
@@ -1754,15 +1862,33 @@ router.patch('/notificacoes-financeiras/atualizar-status',
 
                 const resultado = await pool.query(query, values);
 
+                // if (resultado.rows.length === 0) {
+                //     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. Status atual não é Pendente, ID não encontrado ou não pertence à empresa." });
+                // }
+
                 if (resultado.rows.length === 0) {
-                    return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. Status atual não é Pendente, ID não encontrado ou não pertence à empresa." });
+                    return res.status(400).json({ sucesso: false, erro: "Não pendente ou erro de permissão." });
                 }
+
+                res.locals.acao = "alterou";
+                res.locals.idregistroalterado = idStaffEvento;
+                res.locals.idlog_origem = idlog_origem;
+
+                console.log(`Status atualizado para ${acaoCapitalizada} na categoria ${categoria} para o pedido ${idpedido} data ${dataDecisao}.`);
+                
+
+
 
                 return res.json({
                     sucesso: true,
                     mensagem: `Status da ${categoria} atualizado para ${acaoCapitalizada} com sucesso.`,
+                    idlog_origem: idlog_origem, 
+                    data_decisao: dataDecisao, 
+                    acao: acao.toLowerCase(),
+                    categoria: categoria,
+                    idpedido: idpedido,
                     atualizado: resultado.rows[0] 
-                });
+                });                
 
             } 
 
@@ -1837,10 +1963,17 @@ router.patch('/notificacoes-financeiras/atualizar-status',
                     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. ID não encontrado ou não pertence à empresa." });
                 }
 
+                res.locals.acao = "alterou";
+                res.locals.idregistroalterado = idStaffEvento;
+                res.locals.idlog_origem = idlog_origem;
+
+
                 // D. Resposta de Sucesso
                 return res.json({
                     sucesso: true,
                     mensagem: `Status da diária em ${data} atualizado para ${acaoCapitalizada} com sucesso.`,
+                    idlog_origem: idlog_origem, 
+                    data_decisao: dataDecisao, 
                     atualizado: resultado.rows[0] 
                 });
             }
@@ -1864,14 +1997,15 @@ router.post('/notificacoes-financeiras/atualizar-status',
         if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
 
         const { rows } = await pool.query(`
-            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria
+            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
             FROM staffeventos
             WHERE idstaffevento = $1
-            `, [idpedido]);
+            `, [idpedido]
+        );
 
-            if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
+        if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
 
-            return {
+        return {
             dadosanteriores: rows[0],
             idregistroalterado: idpedido
         };
@@ -1887,9 +2021,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
         // 🔹 Verifica se o usuário é Master
         const { rows: permissoes } = await pool.query(`
-        SELECT * FROM permissoes 
-        WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-        `, [idusuario]);
+            SELECT * FROM permissoes 
+            WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+            `, [idusuario]
+        );
 
         if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
 
@@ -1898,7 +2033,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
             statuscaixinha: "statuscaixinha",
             statusajustecusto: "statusajustecusto",
             statusdiariadobrada: "statusdiariadobrada",
-            statusmeiadiaria: "statusmeiadiaria"
+            statusmeiadiaria: "statusmeiadiaria",
+            statuscustofechado: "statuscustofechado"
         };
 
         const coluna = mapCategorias[categoria];
@@ -1910,31 +2046,35 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
         // 🔹 Atualiza na tabela staffeventos
         let { rows: updatedRows } = await pool.query(`
-        UPDATE staffeventos
-        SET ${coluna} = $2
-        WHERE idstaffevento = $1
-        RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
-        `, [idpedido, statusParaAtualizar]);
+            UPDATE staffeventos
+            SET ${coluna} = $2
+            WHERE idstaffevento = $1
+            RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
+            `, [idpedido, statusParaAtualizar]
+        );
 
         // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
         if (updatedRows.length === 0) {
-        const { rows: updatedStaff } = await pool.query(`
-        UPDATE staff
-        SET ${coluna} = $2
-        WHERE idstaffevento = $1
-        RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
-        `, [idpedido, statusParaAtualizar]);
+            const { rows: updatedStaff } = await pool.query(`
+            UPDATE staff
+            SET ${coluna} = $2
+            WHERE idstaffevento = $1
+            RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
+            `, [idpedido, statusParaAtualizar]);
 
-        updatedRows = updatedStaff;
+            updatedRows = updatedStaff;
         }
 
-        if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
+  res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idpedido; 
+
+  if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
 
         res.json({ sucesso: true, atualizado: updatedRows[0] });
 
         } catch (err) {
-         console.error('Erro ao atualizar status do pedido:', err.stack || err);
-         res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
+            console.error('Erro ao atualizar status do pedido:', err.stack || err);
+            res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
         }
     }
 );
@@ -2177,61 +2317,23 @@ function calcularIntervaloDeDatas(periodo, params) {
 //     }
 // });
 
-// // Inicializa o middleware upload (Isso resolve o ReferenceError)
-// const upload = multer({ 
-//     storage: storage,
-//     limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
-//     fileFilter: (req, file, cb) => {
-//         const extensões = /jpeg|jpg|png|pdf/;
-//         const mimetype = extensões.test(file.mimetype);
-//         const extname = extensões.test(path.extname(file.originalname).toLowerCase());
 
-//         if (mimetype && extname) {
-//             return cb(null, true);
-//         }
-//         cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
-//     }
-// });
-
-
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//         const dir = './uploads/comprovantes/';
-//         if (!fs.existsSync(dir)){
-//             fs.mkdirSync(dir, { recursive: true });
-//         }
-//         cb(null, dir);
-//     },
-//     filename: function (req, file, cb) {
-//         // Prioridade de Nomeclatura: 
-//         // 1. Contexto enviado (Ex: Aditivo - Vaga Excedida)
-//         // 2. Se não houver, verifica se é Staff ou Conta genérica
-//         const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
-//         const id = req.body.id || req.body.idStaff || '0';
-        
-//         // Limpa o nome para o sistema de arquivos
-//         const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
-//         const ext = path.extname(file.originalname).toLowerCase();
-        
-//         cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
-//     }
-// });
 
 const storage = multer.diskStorage({
+    
     destination: function (req, file, cb) {
-        let dir = '';
+        console.log("REQ.BODY NO STORAGE FILENAME:", req.body); // Debug para verificar o conteúdo do body
+        let dir = './uploads/contas/comprovantespgto/'; // Padrão
 
-        // Lógica de roteamento de pastas
-        if (req.body.idStaff) {
-            // Staff -> ./uploads/comprovantes/
+        // 1. Se houver qualquer indício de Staff, vai para a pasta de staff
+        if (req.body.idStaff || req.body.idStaffEvento || req.body.tipo === 'staff') {
             dir = './uploads/staff_comprovantes/';
-        } else if (file.fieldname === 'imagemconta' || req.body.tipoUpload === 'boleto') {
-            // Imagem do Boleto -> ./uploads/contas/imagemboleto/
+        } 
+        // 2. Se for explicitamente uma imagem de conta (boleto)
+        else if (req.body.tipo === 'imagem') {
             dir = './uploads/contas/imagemboleto/';
-        } else {
-            // Comprovante de Conta -> ./uploads/contas/comprovantepgto/
-            dir = './uploads/contas/comprovantepgto/';
         }
+        // 3. Caso contrário, cai na pasta de comprovantes de conta (já definida no padrão)
 
         if (!fs.existsSync(dir)){
             fs.mkdirSync(dir, { recursive: true });
@@ -2239,16 +2341,31 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: function (req, file, cb) {
-        // Formato que você solicitou: Aditivo - Vaga Excedida, etc.
-        const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
-        const id = req.body.id || req.body.idStaff || '0';
+        const id = req.body.idPagamento || req.body.idStaff || '0';        
+        const tipo = req.body.tipo;
         
-        // Limpa o nome mantendo hifens e espaços simples conforme seu padrão
-        const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
+        // 1. Definir o Prefixo (Contexto)
+        let contexto = req.body.contexto;
+        if (!contexto) {
+            contexto = (req.body.idStaffEvento || tipo === 'staff') ? 'comppgtocache' : 
+                    (tipo === 'imagem' ? 'imagemboleto' : 'comprovantePagamento');
+        }
+
+        // 2. Tratar o nome original do arquivo para remover espaços e caracteres chatos
+        // Exemplo: "agua indaiatuba.jfif" -> "aguaIndaiatuba"
+        const nomeOriginalLimpo = path.parse(file.originalname).name
+            .replace(/\s+/g, '') // Remove espaços
+            .replace(/[^a-zA-Z0-9]/g, ''); // Remove símbolos
+
+        // 3. Criar uma data legível (AAAAMMDD) em vez de apenas o timestamp puro
+        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+
         const ext = path.extname(file.originalname).toLowerCase();
         
-        // Exemplo: Aditivo_-_Vaga_Excedida-ID176-1769529634285.jpeg
-        cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
+        // FORMATO FINAL: comprovantepgto-ID133-20260303-aguaIndaiatuba.jfif
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
+        
+        cb(null, nomeFinal);
     }
 });
 
@@ -2761,6 +2878,8 @@ router.get("/vencimentos", async (req, res) => {
           calc_full.full_max_dt AS periodo_eventofim_all,
           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
           COALESCE(tse.vlrajustecusto, 0) AS totalajustecusto_full,
+          
+          -- NOVA SOMA: Cachê + Ajuda de Custo --
           (COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
@@ -2877,7 +2996,14 @@ router.get("/vencimentos", async (req, res) => {
   }
 });
 
-router.post("/vencimentos/update-status", async (req, res) => {
+router.post("/vencimentos/update-status", logMiddleware("Vencimentos", {
+    buscarDadosAnteriores: async (req) => {
+        const { idStaff } = req.body;
+        const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuscaixinha FROM staffeventos WHERE idstaffevento = $1`;
+        const result = await pool.query(query, [idStaff]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
+    }
+}), async (req, res) => {
     let { idStaff, tipo, novoStatus } = req.body;
 
     // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
@@ -2908,6 +3034,9 @@ router.post("/vencimentos/update-status", async (req, res) => {
             [statusFinal, idStaff]
         );
 
+        res.locals.acao = 'Atualizou';
+        res.locals.idregistroalterado = idStaff; 
+
         if (result.rowCount > 0) {
             res.json({ success: true, statusSalvo: statusFinal });
         } else {
@@ -2919,7 +3048,14 @@ router.post("/vencimentos/update-status", async (req, res) => {
     }
 });
 
-router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (req, res) => {
+router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMiddleware("Vencimentos", {
+    buscarDadosAnteriores: async (req) => {
+        const { idStaff } = req.body;
+        const query = `SELECT idstaffevento, comppgtocache, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto FROM staffeventos WHERE idstaffevento = $1`;
+        const result = await pool.query(query, [idStaff]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
+    }
+}), async (req, res) => {
     const { idStaff, tipo } = req.body;
     
     if (!req.file) {
@@ -2964,6 +3100,9 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (
             `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`,
             [pathArquivo, idStaff]
         );
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idStaff; 
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: "Funcionário não encontrado no evento." });
@@ -3049,79 +3188,6 @@ router.get('/contas-pagar', async (req, res) => {
 });
 
 
-// router.post('/confirmar-pagamento-conta', 
-//    verificarPermissao('Pagamentos', 'alterar'),
-    
-//     logMiddleware('Pagamentos', { 
-//         buscarDadosAnteriores: async (req) => {
-//             const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.body.id]);
-//             return { dadosanteriores: result.rows[0], idregistroalterado: req.body.id };
-//         } 
-//     }),
-//     async (req, res) => {
-//     1. Recebemos 'observacao' do corpo da requisição
-//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao } = req.body;
-//     const client = await pool.connect();
-
-//     try {
-//         await client.query('BEGIN');
-
-//         let idFinal = idpagamento;
-
-//         if (!idpagamento || idpagamento === 'null') {
-//             CENÁRIO: Parcela projetada (Cria o registro e salva a observação)
-//             const insertQuery = `
-//                 INSERT INTO pagamentos (
-//                     idlancamento, 
-//                     vlrprevisto, 
-//                     vlrpago, 
-//                     dtvcto, 
-//                     status, 
-//                     numparcela, 
-//                     dtpgto,
-//                     observacao
-//                 )
-//                 VALUES (
-//                     $1, 
-//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
-//                     $2, $3, 'pago', 
-//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-//                     $4,
-//                     $5
-//                 )
-//                 RETURNING idpagamento;
-//             `;
-//             Adicionamos 'observacao' como o 5º parâmetro ($5)
-//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, dtpagamento, observacao]);
-//             idFinal = resInsert.rows[0].idpagamento;
-//         } 
-//         else {
-//             CENÁRIO: Parcela já existente (Atualiza valor, data e a observação)
-//             const updateQuery = `
-//                 UPDATE pagamentos 
-//                 SET status = 'pago', 
-//                     vlrpago = $1, 
-//                     dtpgto = $2,
-//                     observacao = $3 
-//                 WHERE idpagamento = $4;
-//             `;
-//             Note que aqui a observação é o $3 e o idpagamento passou a ser $4
-//             await client.query(updateQuery, [vlrpago, dtpagamento, observacao, idpagamento]);
-//         }
-
-//         await client.query('COMMIT');
-//         res.json({ sucesso: true, mensagem: "Pagamento confirmado!", idpagamento: idFinal });
-
-//     } catch (error) {
-//         await client.query('ROLLBACK');
-//         console.error("Erro na rota confirmar-pagamento:", error.message);
-//         res.status(500).json({ sucesso: false, erro: error.message });
-//     } finally {
-//         client.release();
-//     }
-// });
-
-
 // Rota específica para upload rápido via Main (Lista de Vencimentos)
 // router.post("/vencimentoconta/uploads_comprovantesconta", 
 //     //verificarPermissao('Pagamentos', 'alterar'),
@@ -3173,65 +3239,25 @@ router.get('/contas-pagar', async (req, res) => {
 // );
 
 
-// router.post('/confirmar-pagamento-conta', async (req, res) => {
-//     // Adicionamos 'status' no corpo da requisição
-//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
-//     const client = await pool.connect();
-
-//     // Define se é 'pago' ou 'suspenso' (padrão 'pago' para não quebrar o que já existe)
-//     const statusFinal = status || 'pago';
-//     console.log("Status recebido para atualização:", status, "Status final definido:", statusFinal, req.body);
-//     try {
-//         await client.query('BEGIN');
-
-//         let idFinal = idpagamento;
-
-//         if (!idpagamento || idpagamento === 'null' || idpagamento === null) {
-//             const insertQuery = `
-//                 INSERT INTO pagamentos (
-//                     idlancamento, vlrprevisto, vlrpago, dtvcto, 
-//                     status, numparcela, dtpgto, observacao
-//                 )
-//                 VALUES (
-//                     $1, 
-//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
-//                     $2, $3, $4, 
-//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-//                     $5, $6
-//                 )
-//                 RETURNING idpagamento;
-//             `;
-//             // $4 agora é o statusFinal, $5 data, $6 observação
-//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
-//             idFinal = resInsert.rows[0].idpagamento;
-//         } 
-//         else {
-//             const updateQuery = `
-//                 UPDATE pagamentos 
-//                 SET status = $1, 
-//                     vlrpago = $2, 
-//                     dtpgto = $3,
-//                     observacao = CONCAT(observacao, ' | SUSPENSO: ', $4) -- Mantém a antiga e soma a nova
-//                 WHERE idpagamento = $5;
-//             `;
-           
-//             await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idpagamento]);
-//         }
-
-//         await client.query('COMMIT');
-//         res.json({ sucesso: true, mensagem: `Lançamento atualizado como ${statusFinal}!`, idpagamento: idFinal });
-
-//     } catch (error) {
-//         await client.query('ROLLBACK');
-//         res.status(500).json({ sucesso: false, erro: error.message });
-//     } finally {
-//         client.release();
-//     }
-// });
 
 
-router.post('/confirmar-pagamento-conta', async (req, res) => {
-    const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
+
+router.post('/confirmar-pagamento-conta',
+    logMiddleware('pagamentos', {
+        buscarDadosAnteriores: async (req) => {
+            const { idlancamento, dtvcto } = req.body;
+            if (!idlancamento || !dtvcto) return null;
+
+            const query = `SELECT idpagamento, status, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpgto FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`;
+            const result = await pool.query(query, [idlancamento, dtvcto]);
+            
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: result.rows[0].idpagamento 
+            } : null;
+        }
+    }), async (req, res) => {
+    const { idpagamento, idlancamento, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpagamento, observacao, status } = req.body;
     const idempresa = req.headers.idempresa;
     const statusFinal = status || 'pago';
     const client = await pool.connect();
@@ -3240,7 +3266,7 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
 
     // 🟦 LOG DE ENTRADA (Aparecerá com fundo azul no terminal)
     console.log("\n\x1b[44m 📥 [REQUISIÇÃO RECEBIDA] \x1b[0m");
-    console.log(`> Lançamento: ${idlancamento} | Vcto: ${dtvcto}`);
+    console.log(`> Lançamento: ${idlancamento} | Vcto: ${dtvcto} | Valor Pago: ${vlrpago} | Atraso: ${vlratraso} | Desconto: ${vlrdesconto}`);
     console.log(`> ID vindo do Front: ${idpagamento} | Status: ${statusFinal}`);
 
     try {
@@ -3262,18 +3288,18 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
             // Adicionado idempresa no INSERT
             const insertQuery = `
                 INSERT INTO pagamentos (
-                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto, 
-                    status, numparcela, dtpgto, observacao
+                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto,  
+                    status, numparcela, dtpgto, observacao, vlratraso, vlrdesconto
                 )
                 VALUES (
                     $1, $2,
                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
                     $3, $4, $5, 
                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-                    $6, $7
+                    $6, $7, $8, $9
                 ) RETURNING idpagamento;`;
             
-            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
+            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao, vlratraso, vlrdesconto]);
             idFinal = resInsert.rows[0].idpagamento;
         } else {
             idFinal = registroExistente.idpagamento;
@@ -3282,13 +3308,17 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
             
             const updateQuery = `
                 UPDATE pagamentos 
-                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4 
-                WHERE idpagamento = $5;`;
+                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4, vlratraso = $5, vlrdesconto = $6 
+                WHERE idpagamento = $7;`;
             
-            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idFinal]);
+            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, idFinal]);
         }
 
         await client.query('COMMIT');
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idFinal; 
+
         console.log("\x1b[32m✅ SUCESSO: Transação finalizada.\x1b[0m\n");
         res.json({ sucesso: true, idpagamento: idFinal, mensagem: "Processado com sucesso" });
 
@@ -3303,52 +3333,74 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
 });
 
 
-router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprovante'), async (req, res) => {
-    const { idPagamento, tipo } = req.body;
+// router.post("/vencimentoconta/uploads_comprovantesconta", 
+//     upload.single('comprovante'),
+//     logMiddleware('pagamentos comp.', {
+//         buscarDadosAnteriores: async (req) => {
+//             const { idPagamento } = req.body;
+//             if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
+
+//             const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
+//             const result = await pool.query(query, [idPagamento]);
+
+//             return result.rows[0] ? { 
+//                 dadosanteriores: result.rows[0], 
+//                 idregistroalterado: idPagamento 
+//             } : null;
+//         }
+//     }), async (req, res) => {
+//     const { idPagamento, tipo } = req.body;
+//     const contexto = req.body.contexto
+
+//     console.log("ENTROU NA ROTA DE UPLOAD DE COMPROVANTE/IMAGEM DE CONTA", req.body);
     
-    if (!req.file) {
-        return res.status(400).json({ error: "Nenhum arquivo enviado." });
-    }
+//     if (!req.file) {
+//         return res.status(400).json({ error: "Nenhum arquivo enviado." });
+//     }
 
-    const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+//     //const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+//     const pathArquivo = req.file.filename;
 
-    try {
-        let coluna = "";
+//     try {
+//         let coluna = "";
 
-        // Mapeamento direto dos tipos vindo do frontend
-        if (tipo === 'comprovante') {
-            coluna = 'comprovantepgto';
-        } 
-        else if (tipo === 'imagem') {
-            coluna = 'imagemconta';
-        } 
+//         // Mapeamento direto dos tipos vindo do frontend
+//         if (tipo === 'comprovante') {
+//             coluna = 'comprovantepgto';
+//         } 
+//         else if (tipo === 'imagem') {
+//             coluna = 'imagemconta';
+//         } 
         
-        // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
-        if (!coluna) {
-            console.error("Tipo de upload inválido recebido:", tipo);
-            return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
-        }
+//         // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
+//         if (!coluna) {
+//             console.error("Tipo de upload inválido recebido:", tipo);
+//             return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+//         }
 
-        const result = await pool.query(
-            `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
-            [pathArquivo, idPagamento]
-        );
+//         const result = await pool.query(
+//             `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
+//             [pathArquivo, idPagamento]
+//         );
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Pagamento não encontrado em contas." });
-        }
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = idPagamento; 
 
-        res.json({ 
-            success: true, 
-            path: pathArquivo, 
-            colunaDestino: coluna 
-        });
+//         if (result.rowCount === 0) {
+//             return res.status(404).json({ error: "Pagamento não encontrado em contas." });
+//         }
 
-    } catch (error) {
-        console.error("Erro no processamento do upload:", error);
-        res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
-    }
-});
+//         res.json({ 
+//             success: true, 
+//             path: pathArquivo, 
+//             colunaDestino: coluna 
+//         });
+
+//     } catch (error) {
+//         console.error("Erro no processamento do upload:", error);
+//         res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
+//     }
+// });
 
 // =======================================
 
@@ -3356,6 +3408,84 @@ router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprov
 // =======================================
 // AGENDA
 // =======================================
+
+
+router.post("/vencimentoconta/uploads_comprovantesconta", 
+    upload.single('comprovante'),
+    logMiddleware('pagamentos comp.', {
+        buscarDadosAnteriores: async (req) => {
+            // Usamos o nome enviado pelo FormData: idPagamento
+            const idPagamento = req.body.idPagamento;
+            if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
+
+            const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
+            const result = await pool.query(query, [idPagamento]);
+
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: idPagamento 
+            } : null;
+        }
+    }), async (req, res) => {
+    // Extraímos os dados enviados pelo frontend
+    const { idPagamento, tipo } = req.body;
+
+    console.log(`[UPLOAD] Iniciando processamento. Tipo: ${tipo} | ID: ${idPagamento}`);
+    
+    // 1. Verificação de segurança: arquivo existe?
+    if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+    }
+
+    // 2. Definimos o que vai para o banco: APENAS o nome gerado pelo Multer
+    // Isso evita caminhos duplicados como "uploads/contas/uploads/contas..."
+    const nomeArquivoNoBanco = req.file.filename;
+
+    try {
+        let coluna = "";
+
+        // 3. Mapeamento da coluna baseado no tipo (conforme seu frontend envia)
+        if (tipo === 'comprovante') {
+            coluna = 'comprovantepgto';
+        } 
+        else if (tipo === 'imagem') {
+            coluna = 'imagemconta';
+        } 
+        
+        if (!coluna) {
+            console.error("Tipo de upload inválido:", tipo);
+            return res.status(400).json({ error: `Tipo '${tipo}' não reconhecido.` });
+        }
+
+        // 4. Executa o UPDATE no banco de dados
+        const result = await pool.query(
+            `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
+            [nomeArquivoNoBanco, idPagamento]
+        );
+
+        // 5. Verificação se o ID realmente existia
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Pagamento não encontrado no banco de dados." });
+        }
+
+        // Configurações para o logMiddleware concluir
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idPagamento; 
+
+        // 6. Retorno de sucesso para o frontend
+        res.json({ 
+            success: true, 
+            path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
+            colunaDestino: coluna 
+        });
+
+    } catch (error) {
+        console.error("Erro crítico no upload:", error);
+        res.status(500).json({ error: "Erro interno ao salvar no banco de dados." });
+    }
+});
+
+
 router.get("/agenda", async (req, res) => {
   try {
   // Tenta obter o idusuario do objeto de requisição (middleware de autenticação) ou do header
@@ -3378,7 +3508,20 @@ router.get("/agenda", async (req, res) => {
   }
 });
 
-router.post("/agenda", async (req, res) => {
+router.post("/agenda",logMiddleware('agenda', {
+        buscarDadosAnteriores: async (req) => {
+            const { titulo, data_evento } = req.body;
+            if (!titulo || !data_evento) return null;
+
+            const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE titulo = $1 AND data_evento = $2::date`;
+            const result = await pool.query(query, [titulo, data_evento]);
+
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: result.rows[0].idagenda 
+            } : null;
+        }
+    }), async (req, res) => {
   try {
   const idusuario = req.usuario?.idusuario || req.headers.idusuario;
   const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
@@ -3394,6 +3537,8 @@ router.post("/agenda", async (req, res) => {
   [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
 );
 
+    res.locals.acao = 'cadastrou';
+    res.locals.idregistroalterado = resultado.rows[0].idagenda; 
 
   res.status(201).json(resultado.rows[0]);
   } catch (err) {
@@ -3402,31 +3547,41 @@ router.post("/agenda", async (req, res) => {
   }
 });
 
-router.delete("/agenda/:idagenda", async (req, res) => {
-  try {
-  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-  const { idagenda } = req.params;
+router.delete("/agenda/:idagenda", logMiddleware('agenda', {
+        buscarDadosAnteriores: async (req) => {
+            const { idagenda } = req.params;
+            const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE idagenda = $1`;
+            const result = await pool.query(query, [idagenda]);
+            return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idagenda } : null;
+        }
+    }), 
+    async (req, res) => {
+        try {
+        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+        const { idagenda } = req.params;
 
-  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
+        if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
 
-  // Garantindo que o usuário só possa excluir seus próprios eventos
-  const resultado = await pool.query(
-  `DELETE FROM agendas
-  WHERE idagenda = $1 AND idusuario = $2
-  RETURNING idagenda`,
-  [idagenda, idusuario]
-);
+        // Garantindo que o usuário só possa excluir seus próprios eventos
+        const resultado = await pool.query(
+        `DELETE FROM agendas
+        WHERE idagenda = $1 AND idusuario = $2
+        RETURNING idagenda`,
+        [idagenda, idusuario]
+        );
 
+        res.locals.acao = 'excluiu';
+        res.locals.idregistroalterado = idagenda 
 
-  if (resultado.rowCount === 0) {
-  return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
-  }
+        if (resultado.rowCount === 0) {
+        return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
+    }
 
-  res.json({ sucesso: true, idagenda: idagenda });
-  } catch (err) {
-  console.error("Erro ao excluir evento:", err);
-  res.status(500).json({ erro: "Erro ao excluir evento" });
-  }
+    res.json({ sucesso: true, idagenda: idagenda });
+    } catch (err) {
+    console.error("Erro ao excluir evento:", err);
+    res.status(500).json({ erro: "Erro ao excluir evento" });
+    }
 });
 
 
@@ -3534,6 +3689,9 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     if (resultado.rows.length === 0) {
     throw new Error("A atualização falhou. Nenhuma linha afetada.");
     }
+
+    res.locals.acao = 'atualizou';
+    res.locals.idregistroalterado = idAditivoExtra; 
 
     // 4. Resposta de Sucesso
     res.json({

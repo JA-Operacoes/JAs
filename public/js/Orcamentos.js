@@ -3235,171 +3235,171 @@ async function verificaOrcamento() {
       linhas.forEach((linha) => {
     // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
     // Prioriza a leitura do input hidden, que é adicionado apenas na linha adicional.
-    const isAdicionalInput = linha.querySelector(".isAdicional");
-    const isAdicional = isAdicionalInput?.value === "true"; 
+      const isAdicionalInput = linha.querySelector(".isAdicional");
+      const isAdicional = isAdicionalInput?.value === "true"; 
 
-    // O console.log agora reflete o resultado da nova e mais robusta lógica
-    console.log("Processando linha. É adicional?", isAdicional, linha);
+      // O console.log agora reflete o resultado da nova e mais robusta lógica
+      console.log("Processando linha. É adicional?", isAdicional, linha);
 
-    const descontoItemValor = desformatarMoeda(
-      linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
-      "0"
-    );
-    const acrescimoItemValor = desformatarMoeda(
-      linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
-      "0"
-    );
-    const vlrVendaAtual = desformatarMoeda(
-      linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
-    );
-    const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
-    const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
-      ? vlrBaseLinhaRaw
-      : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
+      const descontoItemValor = desformatarMoeda(
+        linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
+        "0"
+      );
+      const acrescimoItemValor = desformatarMoeda(
+        linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
+        "0"
+      );
+      const vlrVendaAtual = desformatarMoeda(
+        linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
+      );
+      const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
+      const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
+        ? vlrBaseLinhaRaw
+        : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
 
-    const item = {
-        id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
-        nrorcamento:
-            parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
-        enviarnaproposta:
-            linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
-            false,
-        categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-        qtditens:
-            parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
-        idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
-        idequipamento:
-            parseInt(linha.querySelector(".idEquipamento")?.value) || null,
-        idsuprimento:
-            parseInt(linha.querySelector(".idSuprimento")?.value) || null,
-        produto: linha.querySelector(".produto")?.textContent.trim(),
-        setor:
-            linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
-            null,
+      const item = {
+          id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
+          nrorcamento:
+              parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
+          enviarnaproposta:
+              linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
+              false,
+          categoria: linha.querySelector(".Categoria")?.textContent.trim(),
+          qtditens:
+              parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
+          idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
+          idequipamento:
+              parseInt(linha.querySelector(".idEquipamento")?.value) || null,
+          idsuprimento:
+              parseInt(linha.querySelector(".idSuprimento")?.value) || null,
+          produto: linha.querySelector(".produto")?.textContent.trim(),
+          setor:
+              linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
+              null,
 
-        qtdDias:
-          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-          0,
-        qtddias:
-          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-          0,
+          qtdDias:
+            parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+            0,
+          qtddias:
+            parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+            0,
 
-        descontoitem: descontoItemValor,
-        percentdescontoitem: parsePercentValue(
-            linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
-        ),
-        acrescimoitem: acrescimoItemValor,
-        percentacrescimoitem: parsePercentValue(
-            linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
-        ),
+          descontoitem: descontoItemValor,
+          percentdescontoitem: parsePercentValue(
+              linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
+          ),
+          acrescimoitem: acrescimoItemValor,
+          percentacrescimoitem: parsePercentValue(
+              linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
+          ),
 
-        vlrdiaria: vlrVendaAtual,
-        totvdadiaria: desformatarMoeda(
-            linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
-        ),
-        ctodiaria: desformatarMoeda(
-            linha.querySelector(".vlrCusto.Moeda")?.textContent || "0"
-        ),
-        totctodiaria: desformatarMoeda(
-            linha.querySelector(".totCtoDiaria.Moeda")?.textContent || "0"
-        ),
+          vlrdiaria: vlrVendaAtual,
+          totvdadiaria: desformatarMoeda(
+              linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
+          ),
+          ctodiaria: desformatarMoeda(
+              linha.querySelector(".vlrCusto.Moeda")?.textContent || "0"
+          ),
+          totctodiaria: desformatarMoeda(
+              linha.querySelector(".totCtoDiaria.Moeda")?.textContent || "0"
+          ),
 
-        tpajdctoalimentacao:
-            linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
-        vlrajdctoalimentacao: desformatarMoeda(
-            linha.querySelector(".vlralimentacao-input")?.textContent || "0"
-        ),
-        tpajdctotransporte:
-            linha.querySelector(".tpAjdCusto-transporte")?.value || null,
-        vlrajdctotransporte: desformatarMoeda(
-            linha.querySelector(".vlrtransporte-input")?.textContent || "0"
-        ),
-        totajdctoitem: desformatarMoeda(
-            linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
-        ),
+          tpajdctoalimentacao:
+              linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
+          vlrajdctoalimentacao: desformatarMoeda(
+              linha.querySelector(".vlralimentacao-input")?.textContent || "0"
+          ),
+          tpajdctotransporte:
+              linha.querySelector(".tpAjdCusto-transporte")?.value || null,
+          vlrajdctotransporte: desformatarMoeda(
+              linha.querySelector(".vlrtransporte-input")?.textContent || "0"
+          ),
+          totajdctoitem: desformatarMoeda(
+              linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
+          ),
 
-        hospedagem: desformatarMoeda(
-            linha.querySelector(".extraCampo .hospedagem")?.value || "0"
-        ),
-        transporte: desformatarMoeda(
-            linha.querySelector(".extraCampo .transporteExtraInput")?.value ||
-            "0"
-        ),
+          hospedagem: desformatarMoeda(
+              linha.querySelector(".extraCampo .hospedagem")?.value || "0"
+          ),
+          transporte: desformatarMoeda(
+              linha.querySelector(".extraCampo .transporteExtraInput")?.value ||
+              "0"
+          ),
 
-        totgeralitem: desformatarMoeda(
-            linha.querySelector(".totGeral")?.textContent || "0"
-        ),
+          totgeralitem: desformatarMoeda(
+              linha.querySelector(".totGeral")?.textContent || "0"
+          ),
 
-        // Base do item para manter o valor original sem desconto/acréscimo
-        vlrbase: vlrBaseLinha,
+          // Base do item para manter o valor original sem desconto/acréscimo
+          vlrbase: vlrBaseLinha,
 
-        // 2. CORREÇÃO DE ATRIBUIÇÃO:
-        // Usa a variável local 'isAdicional' (calculada corretamente acima).
-        adicional: isAdicional, // <--- ESSA LINHA GARANTE QUE O TRUE É ENVIADO
-        
-        // 3. ATRIBUTO EXTRA BONIFICADO:
-        extrabonificado: linha.dataset?.extrabonificado === "true" || false,
-    };
+          // 2. CORREÇÃO DE ATRIBUIÇÃO:
+          // Usa a variável local 'isAdicional' (calculada corretamente acima).
+          adicional: isAdicional, // <--- ESSA LINHA GARANTE QUE O TRUE É ENVIADO
+          
+          // 3. ATRIBUTO EXTRA BONIFICADO:
+          extrabonificado: linha.dataset?.extrabonificado === "true" || false,
+      };
 
-    // 🎯 Aqui vem o tratamento correto dos períodos:
-    const campoPeriodo = linha.querySelector(".datas-item");
-    const valorPeriodoInput = campoPeriodo?.value?.trim() || "";
+      // 🎯 Aqui vem o tratamento correto dos períodos:
+      const campoPeriodo = linha.querySelector(".datas-item");
+      const valorPeriodoInput = campoPeriodo?.value?.trim() || "";
 
-    console.log(
-        "valorPeriodoInput",
-        valorPeriodoInput,
-        item.idfuncao,
-        item.idequipamento,
-        item.idsuprimento
-    );
+      console.log(
+          "valorPeriodoInput",
+          valorPeriodoInput,
+          item.idfuncao,
+          item.idequipamento,
+          item.idsuprimento
+      );
 
-    let dataInicioFormatada = null;
-    let dataFimFormatada = null;
+      let dataInicioFormatada = null;
+      let dataFimFormatada = null;
 
-    if (valorPeriodoInput) {
-        // Utilize a lógica de parsing que já existe na sua formatarRangeDataParaBackend
-        const partes = valorPeriodoInput
-            .replace(" até ", " to ")
-            .replace(" a ", " to ")
-            .split(" to ")
-            .map((d) => d.trim());
+      if (valorPeriodoInput) {
+          // Utilize a lógica de parsing que já existe na sua formatarRangeDataParaBackend
+          const partes = valorPeriodoInput
+              .replace(" até ", " to ")
+              .replace(" a ", " to ")
+              .split(" to ")
+              .map((d) => d.trim());
 
-        if (partes.length === 2) {
-            // ASSUMINDO que você já tem a função `formatarDataParaBackend`
-            // que converte "DD/MM/YYYY" para "YYYY-MM-DD"
-            dataInicioFormatada = formatarDataParaBackend(partes[0]);
-            dataFimFormatada = formatarDataParaBackend(partes[1]);
-        } else if (partes.length === 1) {
-            // Única data: "DD/MM/YYYY"
-            dataInicioFormatada = formatarDataParaBackend(partes[0]);
-            dataFimFormatada = formatarDataParaBackend(partes[0]); // Corrigido aqui!
-        } else {
-            // Formato inválido ou inesperado
-            dataInicioFormatada = null;
-            dataFimFormatada = null;
-        }
-    }
+          if (partes.length === 2) {
+              // ASSUMINDO que você já tem a função `formatarDataParaBackend`
+              // que converte "DD/MM/YYYY" para "YYYY-MM-DD"
+              dataInicioFormatada = formatarDataParaBackend(partes[0]);
+              dataFimFormatada = formatarDataParaBackend(partes[1]);
+          } else if (partes.length === 1) {
+              // Única data: "DD/MM/YYYY"
+              dataInicioFormatada = formatarDataParaBackend(partes[0]);
+              dataFimFormatada = formatarDataParaBackend(partes[0]); // Corrigido aqui!
+          } else {
+              // Formato inválido ou inesperado
+              dataInicioFormatada = null;
+              dataFimFormatada = null;
+          }
+      }
 
-    // ATRIBUIÇÃO CORRETA:
-    item.periododiariasinicio = dataInicioFormatada;
-    item.periododiariasfim = dataFimFormatada; // <--- AGORA ESTAMOS ATRIBUINDO A DATA DE FIM SEPARADAMENTE
+      // ATRIBUIÇÃO CORRETA:
+      item.periododiariasinicio = dataInicioFormatada;
+      item.periododiariasfim = dataFimFormatada; // <--- AGORA ESTAMOS ATRIBUINDO A DATA DE FIM SEPARADAMENTE
 
-    console.log("ITENS", item);
+      console.log("ITENS", item);
 
-    itensOrcamento.push(item);
-    // --- FIM DO NOVO TRECHO ---
+      itensOrcamento.push(item);
+      // --- FIM DO NOVO TRECHO ---
 
-    // Seus logs de depuração (opcionais, mas úteis para confirmar)
-    console.log("Valor do input recebido:", valorPeriodoInput); // Ex: "03/07/2025 a 05/07/2025"
-    console.log(
-        "item.periododiariasinicio (para o backend):",
-        item.periododiariasinicio
-    ); // Ex: "2025-07-03"
-    console.log(
-        "item.periododiariasfim (para o backend):",
-        item.periododiariasfim
-    ); // Ex: "2025-07-05"
-});
+      // Seus logs de depuração (opcionais, mas úteis para confirmar)
+      console.log("Valor do input recebido:", valorPeriodoInput); // Ex: "03/07/2025 a 05/07/2025"
+      console.log(
+          "item.periododiariasinicio (para o backend):",
+          item.periododiariasinicio
+      ); // Ex: "2025-07-03"
+      console.log(
+          "item.periododiariasfim (para o backend):",
+          item.periododiariasfim
+      ); // Ex: "2025-07-05"
+  });
 
       dadosOrcamento.itens = itensOrcamento;
 
@@ -3514,43 +3514,43 @@ async function verificaOrcamento() {
     }
   });
 
-// 1. Defina a trava no topo do arquivo (fora de qualquer função)
-let isCleaning = false; 
+  // 1. Defina a trava no topo do arquivo (fora de qualquer função)
+  let isCleaning = false; 
 
-// 2. Localize e substitua a configuração do botão Limpar
-const btnLimpar = document.getElementById("Limpar");
+  // 2. Localize e substitua a configuração do botão Limpar
+  const btnLimpar = document.getElementById("Limpar");
 
-if (btnLimpar) {
-  // Remova qualquer listener antigo se necessário e adicione este:
-  btnLimpar.addEventListener("click", async function (event) {
-    event.preventDefault();
+  if (btnLimpar) {
+    // Remova qualquer listener antigo se necessário e adicione este:
+    btnLimpar.addEventListener("click", async function (event) {
+      event.preventDefault();
 
-    // Ativa o modo de limpeza para silenciar Swals
-    isCleaning = true; 
+      // Ativa o modo de limpeza para silenciar Swals
+      isCleaning = true; 
 
-    try {
-      // Chama a função de limpeza (certifique-se de NÃO usar os parênteses () no addEventListener antigo)
-      if (typeof limparOrcamento === "function") {
-        limparOrcamento(); 
+      try {
+        // Chama a função de limpeza (certifique-se de NÃO usar os parênteses () no addEventListener antigo)
+        if (typeof limparOrcamento === "function") {
+          limparOrcamento(); 
+        }
+        
+        // Limpa manualmente o Status para garantir
+        const statusInput = document.getElementById("Status");
+        if (statusInput) statusInput.value = "";
+
+        recalcularTotaisGerais();
+        
+        console.log("🧹 Formulário limpo com sucesso.");
+      } catch (error) {
+        console.error("Erro ao limpar:", error);
+      } finally {
+        // Pequeno delay para garantir que eventos de 'change' disparados pela limpeza terminem
+        setTimeout(() => {
+          isCleaning = false;
+        }, 500);
       }
-      
-      // Limpa manualmente o Status para garantir
-      const statusInput = document.getElementById("Status");
-      if (statusInput) statusInput.value = "";
-
-      recalcularTotaisGerais();
-      
-      console.log("🧹 Formulário limpo com sucesso.");
-    } catch (error) {
-      console.error("Erro ao limpar:", error);
-    } finally {
-      // Pequeno delay para garantir que eventos de 'change' disparados pela limpeza terminem
-      setTimeout(() => {
-        isCleaning = false;
-      }, 500);
-    }
-  });
-}
+    });
+  }
 }
 
 async function atualizarCampoGeradoAnoPosterior(

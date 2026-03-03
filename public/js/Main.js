@@ -3489,102 +3489,6 @@ async function atualizarResumo() {
 //  Pedidos Financeiros
 // ==============================================================================================
 
-// async function buscarPedidosUsuario() {
-//     const idusuario = getIdExecutor(); 
-
-//     // ----------------------------------------------------
-//     // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
-//     // ----------------------------------------------------
-//     function preencherSolicitante(p) {
-//         return {
-//             ...p,
-//             // Usa idusuariosolicitante, ou idusuario (V40.0)
-//             solicitante: p.idusuariosolicitante || p.idusuario, 
-//             solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-//         };
-//     }
-//     // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
-//     // ----------------------------------------------------
-
-//     try {
-//         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
-//             headers: { idempresa: getIdEmpresa() }
-//         });  
-
-//         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
-        
-//         const podeVerTodos = usuarioTemPermissaoSupremo(); 
-//         const ehMasterStaff = usuarioTemPermissao(); 
-
-//         if (!resposta || !Array.isArray(resposta)) {
-//             console.error("Resposta inválida ou não é um array:", resposta);
-//             return [];
-//         }
-
-//         // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
-//         let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
-
-//         // pedidosProcessados = pedidosProcessados.map(p => ({
-//         //     ...p,
-//         //     // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
-//         //     status_aprovacao: p.status ? p.status.toLowerCase() : null, 
-//         //     categoria_item: p.categoria 
-//         // }));
-
-//         pedidosProcessados = pedidosProcessados.map(p => {
-//     // Tenta encontrar o status real em diferentes colunas que o banco pode usar
-//     // Prioriza o que NÃO for pendente se houver outra info disponível
-//     const statusReal = p.status_item || p.status_aprovacao || p.status || 'pendente';
-    
-//     return {
-//         ...p,
-//         status_aprovacao: statusReal.toString().toLowerCase().trim(),
-//         categoria_item: p.categoria || p.categoria_item
-//     };
-// });
-
-//         // 🛑 DEBUG V50: Confirma o status padronizado
-//         if (pedidosProcessados.length > 0) {
-//             console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
-//         }
-
-//         // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
-//         console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
-
-
-//         // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
-//         if (podeVerTodos) { 
-//             console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
-            
-//             pedidosProcessados = pedidosProcessados.map(p => ({ 
-//                 ...p, 
-//                 ehMasterStaff: ehMasterStaff,
-//                 podeVerTodos: true 
-//             }));
-
-//         } else {
-//             console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
-            
-//             // Filtra no array de 412 itens, usando a chave 'solicitante'
-//             pedidosProcessados = pedidosProcessados
-//                 .filter(p => String(p.solicitante) === String(idusuario))
-//                 .map(p => ({ 
-//                     ...p, 
-//                     ehMasterStaff: false,
-//                     podeVerTodos: false
-//                 }));
-//         }
-
-//         console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
-        
-//         return pedidosProcessados; 
-
-//     } catch (err) {
-//         console.error("Erro na requisição de pedidos:", err);
-//         return [];
-//     }
-// }
-
 async function buscarPedidosUsuario() {
     const idusuario = getIdExecutor(); 
 
@@ -3593,6 +3497,7 @@ async function buscarPedidosUsuario() {
         const idSolicitante = p.solicitante || p.idusuariosolicitante || p.idusuario || p.idexecutor;
         return {
             ...p,
+            id_log: p.id_log || p.idlog || null,
             solicitante: idSolicitante, 
             solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(idSolicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
         };
@@ -3603,6 +3508,7 @@ async function buscarPedidosUsuario() {
             headers: { idempresa: getIdEmpresa() }
         });  
 
+        console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta );
         const ehSupremo = usuarioTemPermissaoSupremo(); 
         const ehMaster = usuarioTemPermissao(); 
 
@@ -3610,6 +3516,7 @@ async function buscarPedidosUsuario() {
 
         // 1. Mapeamento e Normalização Inicial
         let pedidosProcessados = resposta.map(p => {
+           
             const tempPedido = preencherSolicitante(p);
             const statusReal = tempPedido.status_item || tempPedido.status_aprovacao || tempPedido.status || 'pendente';
             
@@ -3706,11 +3613,12 @@ async function mostrarPedidosUsuario() {
     const dataFieldMapping = {
         "statusdiariadobrada": "dtdiariadobrada",
         "statusmeiadiaria": "dtmeiadiaria",
+        "statuscustofechado": "vlrcache",
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", CAMPO_ADITIVO_EXTRA
     ];
 
     try {
@@ -3723,6 +3631,7 @@ async function mostrarPedidosUsuario() {
         ]);
 
         window.pedidosCompletosGlobais = pedidosPadrao;
+       
         // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
         let pedidosUnificados = pedidosPadrao;
         
@@ -3769,11 +3678,11 @@ async function mostrarPedidosUsuario() {
         });
 
         pedidosUnificados.push(...aditivosMapeados);
-        console.log(`DEBUG V55: Array Combinado (Financeiros + Aditivos Mapeados): ${pedidosUnificados.length} itens.`);
+       
         window.pedidosCompletosGlobais = pedidosUnificados;
         
         // 🛑 PASSO 3: DESMEMBRAMENTO COM VARREDURA DE STATUS 🛑
-        const pedidosDesmembrados = [];
+        const pedidosDesmembrados = [];       
 
         pedidosUnificados.forEach(pedidoOriginal => {
             const categoriasPresentes = camposTodos.filter(c => {
@@ -3847,26 +3756,42 @@ async function mostrarPedidosUsuario() {
         
         // 🛑 ITERAR AGORA SOBRE pedidosDesmembrados 🛑
         pedidosDesmembrados.forEach(p => {
+
+            console.log("OBJETO COMPLETO DO BANCO:", p);
             // Variáveis de Agrupamento
             const evento = p.evento || 'Sem Evento';
             const funcionario = p.funcionario || null; 
             const nmfuncao = p.nmfuncao || null;
             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
-            const chaveAgrupamento = funcionarioOuFuncao; 
-            const solicitanteAtual = p.nomeSolicitante; 
-            
-            const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
-            
-            const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
 
-            const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
+            console.log(`DEBUG AGRUPAMENTO - Funcionario: ${funcionarioOuFuncao}, ID_Log: ${p.id_log}, Solicitante: ${p.nomeSolicitante}`);
+            const chaveAgrupamento = funcionarioOuFuncao; //em comentario para teste da nova query
+           //const chaveAgrupamento = `${funcionarioOuFuncao}|${p.idlog || p.id_log || idGrupo}`;//novo para teste na nova query, para evitar agrupamento de itens diferentes com mesmo nome de funcionario ou funcao
+            //const chaveAgrupamento = `${funcionarioOuFuncao}|${idGrupo}`;
+            console.log(`CHAVE GERADA: "${chaveAgrupamento}"`);
+            const solicitanteAtual = p.nomeSolicitante || "N/D"; 
+            
+            // const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
+            
+            // const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
 
-            // Verifica e Adiciona a Chave
-            if (chavesDosItensAdicionados.has(chaveItemUnico)) {
-                console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
-                return; // Pula este item se ele já foi visto
-            }
+            // const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
+
+            const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+            const categoria = p.categoria_item || "geral";
+            const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
+
+             if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+                 console.warn(`🛑 DUPLICAÇÃO REAL IGNORADA: ${chaveItemUnico}`);
+                 return; 
+             }
+
+            //Verifica e Adiciona a Chave
+            // if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+            //     console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
+            //     return; // Pula este item se ele já foi visto
+            // }
             if (categoria === CAMPO_ADITIVO_EXTRA) {
                 console.log(`✅ Aditivo Extra ADICIONADO: Chave: ${chaveItemUnico}. ID Pedido: ${p.idpedido}, ID Aditivo Extra: ${p.idaditivoextra}`);
             }
@@ -3878,7 +3803,7 @@ async function mostrarPedidosUsuario() {
                     evento: evento,
                     funcionario: funcionario, 
                     nmfuncao: nmfuncao,
-                    idpedido: p.idpedido, 
+                    idpedido: p.idpedido,
                     dtCriacao: p.dtCriacao, 
                     todosSolicitantes: new Set(), 
                     registrosOriginais: [] 
@@ -4247,6 +4172,7 @@ function formatarNomeSolicitacao(campoNome) {
         "caixinha": "Caixinha",
         "meiadiaria": "Meia Diária",
         "diariadobrada": "Diária Dobrada",
+        "custofechado": "Cachê Fechado",
         "aditivoextra": "Aditivo Extra"
     };
 
@@ -4321,6 +4247,447 @@ function safeParse(input) {
 }
 
 
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     window.pedidosCompletosGlobais = pedidosCompletos;
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     let totalItensRenderizados = 0;
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
+//     const gruposFiltrados = [];
+//     const solicitantesPendentesPorChave = {}; // Resetamos para cada renderização
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao = categoria === 'funcionario'
+//             ? grupoConsolidado.funcionario
+//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         if (!chaveRenderizacao) return;
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+//         const pedidosConsolidadosPorId = new Map();
+//         let temAlgumMatchNesteGrupo = false; // Flag crucial
+
+//         registros.forEach(pedidoOriginal => {
+//             const id = pedidoOriginal.idstaffevento || pedidoOriginal.idpedido || pedidoOriginal.id;
+//             //const id = pedidoOriginal.idlog || pedidoOriginal.id_log || pedidoOriginal.idstaffevento || Math.random();
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             if (!pedidoConsolidado) {
+//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
+//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             }
+
+//             // Verifica status principal
+//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
+//                 temAlgumMatchNesteGrupo = true;
+//             }
+
+//             // Verifica sub-itens (Meia diária, caixinha, etc)
+//             camposTodos.forEach(campo => {
+//                 const itens = safeParse(pedidoOriginal[campo]);
+//                 const itensFiltrados = itens.filter(it => {
+//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+//                     return String(s).toLowerCase().trim() === statusDesejado;
+//                 });
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     pedidoConsolidado[campo] = itensFiltrados;
+//                     temAlgumMatchNesteGrupo = true;
+//                 } 
+//                 // else {
+//                 //     delete pedidoConsolidado[campo]; // Remove para não lixo no card
+//                 // }
+//             });
+//         });
+
+//         // 🛑 CORREÇÃO FINAL: Só cria o grupo e o nome se houver match
+//         if (temAlgumMatchNesteGrupo) {
+//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
+
+//             if (registrosValidos.length > 0) {
+//                 // // SÓ AQUI criamos a entrada no dicionário de nomes
+//                 // if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+//                 //     solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+//                 // }
+
+//                 // registrosValidos.forEach(p => {
+//                 //     const nome = p.nomeSolicitante || p.nmfuncionario || chaveRenderizacao;
+//                 //     solicitantesPendentesPorChave[chaveRenderizacao].add(nome);
+//                 // });
+
+//                 gruposFiltrados.push({
+//                     ...grupoConsolidado,
+//                     registrosOriginais: registrosValidos
+//                 });
+//             }
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     // gruposFiltrados.sort((a, b) =>
+//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
+//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
+//     // );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+        
+//         // 🛑 V97.0: Atualiza a contagem para 0
+//         if (typeof atualizarBadgeDeStatus === 'function') {
+//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
+//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
+//         }
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosDoGrupo.forEach(pedido => {
+//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
+//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
+
+//                     itensGrupo++;
+//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         tituloCard = formatarNomeSolicitacao(campo);
+//                         if (isDataUnica) { 
+//                             const dataBruta = String(infoItem.data || '').trim();
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                             const valor = parseFloat(infoItem.valor) || 0;
+//                             if (valor !== 0) {
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong><br>
+//                     `;
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} -<strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         }
+//                     } else if (isDataUnica) {
+//                         const dataBruta = String(infoItem.data || '').trim();
+//                         let dataFmt = 'Data indefinida';
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.datas) {
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d)
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal 
+//                             ? (pedido.dataEspecifica || '') 
+//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
+//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                        
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         // 🛑 AQUI ESTÁ O PULO DO GATO:
+//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
+//         if (itensGrupo === 0) return;
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
+//     container.onclick = null; 
+
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         // Verifica se clicou nos botões
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('[data-id]');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         // Determina qual função chamar e qual o status alvo
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//         const cardElement = target.closest('.pedido-card');
+
+//         // Modal de Confirmação
+//         const result = await Swal.fire({
+//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
+//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+
+//         if (result.isConfirmed) {
+//             try {
+//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
+                
+//                 let sucesso = false;
+//                 if (isAditivoExtra) {
+//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement); 
+//                 } else {
+//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate);
+//                 }
+
+                
+//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
+//                 if (sucesso) {
+//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
+
+//                     // O status que queremos gravar na memória (ex: 'autorizado')
+//                     // Ajustado para pegar da variável que você está usando no seu escopo
+//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
+
+//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
+//                     listas.forEach(lista => {
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
+//                                     // Atualiza o campo que a sua função de contagem "Original" usa
+//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
+//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
+//                     // ... (dentro do if (sucesso), após a remoção do card)
+
+//                     if (cardElement) {
+//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
+//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
+//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
+//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
+
+//                         // 2. Remove o card com um pequeno efeito
+//                         cardElement.style.transition = '0.3s';
+//                         cardElement.style.opacity = '0';
+                        
+//                         setTimeout(() => {
+//                             cardElement.remove();
+//                             console.log("🗑️ Card removido.");
+
+//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
+//                             if (corpoGrupo) {
+//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
+                                
+//                                 if (cardsRestantes === 0 && grupoContainer) {
+//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
+                                    
+//                                     grupoContainer.style.transition = '0.3s';
+//                                     grupoContainer.style.opacity = '0';
+                                    
+//                                     setTimeout(() => {
+//                                         grupoContainer.remove();
+//                                     }, 300);
+//                                 }
+//                             }
+                            
+//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
+//                             atualizarContadoresGlobais();
+                            
+//                         }, 300);
+//                     }
+
+//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
+//                 }
+    
+//             } catch (err) {
+//                 console.error("❌ Erro na execução:", err);
+//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
+//             }
+//         }
+//     });
+
+//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
+//     if (typeof atualizarBadgeDeStatus === 'function') {
+//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
+//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
+//     }
+
+//     if (typeof atualizarContadoresGlobais === 'function') {
+//         atualizarContadoresGlobais();
+//     }
+// } 
+
+
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     window.pedidosCompletosGlobais = pedidosCompletos;
     const container = document.getElementById(containerId);
@@ -4339,6 +4706,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statuscaixinha",
         "statusmeiadiaria",
         "statusdiariadobrada",
+        "statuscustofechado",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
@@ -4364,12 +4732,38 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         let temAlgumMatchNesteGrupo = false;
 
         registros.forEach(pedidoOriginal => {
-            const id = pedidoOriginal.idstaffevento || pedidoOriginal.idpedido || pedidoOriginal.id;
-            let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+            // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
+             console.log("🔍 Processando registro com ID:", pedidoOriginal );
+
+            // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
+
+            // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
+            
+
+            // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+            // if (!pedidoConsolidado) {
+            //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
+            //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+            // }
+
+            const categoriaItem = pedidoOriginal.categoria_item || "geral";
+            const idLog = pedidoOriginal.id_log || 'sem-log';
+
+            console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
+            
+            // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
+            // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
+            //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
+
+            //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
+
+            let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
 
             if (!pedidoConsolidado) {
-                pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-                pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+                // Criamos um novo objeto no mapa para cada ID de Log diferente
+                pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
+                pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
             }
 
             // Verifica status principal
@@ -4520,19 +4914,38 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         }
                     }
 
-                    htmlBody += `
-                        <div class="pedido-card">
-                            <div>
-                                <strong>${tituloCard}</strong><br>
-                    `;
+                    let dataSolicFormatada = '';
+                    if (pedido.dataSolicitacao) {
+                        const dataObj = new Date(pedido.dataSolicitacao);
+                        // Verifica se a data é válida antes de formatar
+                        dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+                    }
+                   
+                    let dataFormatada = '';
+                    if (pedido.dataDecisao) {
+                        const dataObj = new Date(pedido.dataDecisao);
+                        // Verifica se a data é válida antes de formatar
+                        dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    }
 
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
 
+                    const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
+                                ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
+                                : '';
+
+                    htmlBody += `
+                        <div class="pedido-card">
+                            <div>
+                                <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+                    `;
+                    
+
                     if (pedido.evento) {
                         if (categoria === 'funcionario' && pedido.funcionario) {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
                         } else {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} -<strong>Solicitante:</strong> ${nomeSolic}<br>`;
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
                         }
                     }
 
@@ -4543,12 +4956,23 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
+                        // if (valor !== 0) {
+                        //     const valorFmt = valor.toFixed(2).replace('.', ',');
+                        //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        // } else {
+                        //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        // }
+
+                        
+                        
+
                         if (valor !== 0) {
                             const valorFmt = valor.toFixed(2).replace('.', ',');
-                            htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                            htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         } else {
-                            htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                            htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
+
                     } else if (isDataUnica) {
                         const dataBruta = String(infoItem.data || '').trim();
                         let dataFmt = 'Data indefinida';
@@ -4556,17 +4980,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const dataObj = parseDateLocal(dataBruta);
                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
                         }
-                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     } else if (infoItem.datas) {
                         const datasFmt = infoItem.datas
                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
                             .filter(d => d)
                             .join(', ');
-                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     }
 
                     if (infoItem.descricao) {
-                        htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+                        // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
+                        // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
+                        htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
 
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
@@ -4575,12 +5001,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             ? (pedido.dataEspecifica || '') 
                             : (isDataUnica ? (infoItem.data || '').trim() : '');
                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-                        
+                        const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
                         htmlBody += `
                             <div class="flex gap-2 mt-2"
                                 data-id="${idParaAcao}"
                                 data-campo="${campoParaAcao}"
                                 data-data="${dataParaAcao}"
+                                data-logid="${idLogParaAcao}"
                                 data-aditivo="${isAditivoExtra}">
                                 <button class="aprovar">Autorizar</button>
                                 <button class="negar">Rejeitar</button>
@@ -4662,12 +5089,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         if (result.isConfirmed) {
             try {
                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
+                const idLogOriginal = actionDiv.getAttribute('data-logid');
                 
                 let sucesso = false;
                 if (isAditivoExtra) {
-                    sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement); 
+                    sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
                 } else {
-                    sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate);
+                    sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
                 }
 
                 
@@ -4753,15 +5181,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
-
-async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate) {
+async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {
         // Garantimos que os nomes das chaves (idpedido, categoria, acao, data) 
         // sejam exatamente o que o seu backend recebia no código antigo.
         const bodyData = {
             idpedido: idpedido,
             categoria: categoria, // O backend espera 'categoria', que é o seu 'campo'
-            acao: acao,
+            acao: acao,            
+            idlog_origem: idLog,
             data: dataParaUpdate && dataParaUpdate.trim() !== '' ? dataParaUpdate : null
         };
 
@@ -4986,6 +5414,16 @@ async function atualizarResumoPedidos() {
             buscarAditivoExtraCompleto()
         ]);
 
+        console.log("DEBUG - Pedidos Padrão (Financeiros):", pedidosPadrao);
+        console.log("DEBUG - Aditivos e Extras:", aditivosExtras);
+
+        // Filtro específico para o David se quiser ver apenas o dele no console:
+        console.log("DEBUG - Filtro David:", pedidosPadrao.filter(p => 
+            p.nomefuncionario?.includes("DAVID WAGNER") || 
+            p.funcionario?.includes("DAVID WAGNER")
+        ));
+        
+
         let pedidosUnificados = [...pedidosPadrao];
 
         // 2. Unificação Aditivo Extra (Inalterado, apenas a variável mudou de nome para clareza)
@@ -5151,9 +5589,15 @@ window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = n
     if (!file) return;
 
     const formData = new FormData();
-    formData.append('arquivo', file); 
+  
+
     formData.append('idStaff', idStaff);
     formData.append('tipo', tipo);
+    formData.append('contexto', tipo); // Garante que o contexto chegue preenchido
+    
+    // O arquivo deve ser o ÚLTIMO campo adicionado
+    // Verifique se no backend você usa upload.single('arquivo') ou 'comprovante'
+    formData.append('arquivo', file);
 
     // Captura o botão e o container para manipulação imediata
     const container = input.closest('.upload-container-uiverse');
@@ -5460,64 +5904,112 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         
         dados = resEventos?.eventos || [];
 
-        console.log("DADOS EVENTOS", dados);
+        console.log("DADOS EVENTOS", dados);       
 
-        
+        // dados = dados.filter(ev => {
+        //     const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
+        //     const chPendente = parseFloat(ev.cache?.pendente) || 0;
+            
+        //     // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
+        //     if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
+        //         console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
+        //             vencAjuda: ev.dataVencimentoAjuda,
+        //             vencCache: ev.dataVencimentoCache,
+        //             tipoFiltro: filtroTipo,
+        //             anoSelecionado: anoSelecionado
+        //         });
+        //     }
+
+        //     let estaVencido = false;
+        //     [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
+        //         if (item.d && item.d !== '---' && item.v > 0) {
+        //             const [d, m, a] = item.d.split('/').map(Number);
+        //             if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
+        //         }
+        //     });
+
+        //     if (estaVencido) return true; 
+
+        //     // Extração de datas para o filtro mensal/trimestral
+        //     const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
+        //     const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
+        //     const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
+        //     const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
+
+        //     //--- LÓGICA DE PERÍODOS EXPANDIDOS ---
+        //     if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
+        //         const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
+        //         let mesesNoPeriodo = [mesInicial];
+
+        //         if (filtroTipo === "trimestral") {
+        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
+        //         } else if (filtroTipo === "semestral") {
+        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
+        //         }
+
+        //         const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
+        //                             (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
+                
+        //         if (ev.dataVencimentoAjuda?.includes("/03")) {
+        //             console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
+        //         }
+
+        //         return passouNoFiltro;
+        //     }
+
+        //     // Se for diário ou semanal, mantém sua lógica original...
+        //     if (filtroTipo === "diario") {
+        //         return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
+        //     }
+
+        //     return true;
+        // });
 
         dados = dados.filter(ev => {
             const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
             const chPendente = parseFloat(ev.cache?.pendente) || 0;
             
-            // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
-            if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
-                console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
-                    vencAjuda: ev.dataVencimentoAjuda,
-                    vencCache: ev.dataVencimentoCache,
-                    tipoFiltro: filtroTipo,
-                    anoSelecionado: anoSelecionado
-                });
-            }
+            // 1. Identificar competência do evento (Mês/Ano)
+            const extrairComp = (ds) => {
+                if (!ds || ds === '---') return null;
+                const [d, m, a] = ds.split('/').map(Number);
+                return (a * 12) + m;
+            };
 
-            let estaVencido = false;
-            [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
-                if (item.d && item.d !== '---' && item.v > 0) {
-                    const [d, m, a] = item.d.split('/').map(Number);
-                    if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
-                }
-            });
+            const compAjuda = extrairComp(ev.dataVencimentoAjuda);
+            const compCache = extrairComp(ev.dataVencimentoCache);
+            const compAnoAlvo = (anoSelecionado * 12);
 
-            if (estaVencido) return true; 
+            // 2. Definir o Range do Filtro
+            const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value) || 1;
+            const inicioFiltro = compAnoAlvo + mesInicial;
+            
+            let alcance = 1;
+            if (filtroTipo === "trimestral") alcance = 3;
+            else if (filtroTipo === "semestral") alcance = 6;
+            
+            const fimFiltro = inicioFiltro + alcance - 1;
 
-            // Extração de datas para o filtro mensal/trimestral
-            const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
-            const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
-            const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
-            const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
-
-            // --- LÓGICA DE PERÍODOS EXPANDIDOS ---
+            // 3. LÓGICA DE FILTRAGEM (Prioridade ao Período)
             if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
-                const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
-                let mesesNoPeriodo = [mesInicial];
-
-                if (filtroTipo === "trimestral") {
-                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
-                } else if (filtroTipo === "semestral") {
-                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
-                }
-
-                const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
-                                    (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
                 
-                if (ev.dataVencimentoAjuda?.includes("/03")) {
-                    console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
-                }
+                // Verifica se a competência da Ajuda ou do Cachê entra no range
+                const ajudaNoPeriodo = (compAjuda >= inicioFiltro && compAjuda <= fimFiltro);
+                const cacheNoPeriodo = (compCache >= inicioFiltro && compCache <= fimFiltro);
 
-                return passouNoFiltro;
+                // IMPORTANTE: Se for "Aguardando Cadastro", ele pode não ter data de vencimento ainda.
+                // Verificamos se há algum indício de data no evento ou se ele pertence ao ano/mês inicial
+                const semDataMasNoMes = (!compAjuda && !compCache && mesInicial === (new Date().getMonth() + 1));
+
+                if (ajudaNoPeriodo || cacheNoPeriodo || semDataMasNoMes) {
+                    return true; // Deixa passar, independente de estar liquidado ou pendente
+                }
+                return false; // Fora do período
             }
 
-            // Se for diário ou semanal, mantém sua lógica original...
+            // 4. Caso seja filtro Diário
             if (filtroTipo === "diario") {
-                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
+                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR);
             }
 
             return true;
@@ -5548,12 +6040,20 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
             const podeVerAcoes = usuarioTemPermissaoSupremo();
             return lista.map(f => {
+                console.log(`DEBUG VALORES [${f.nome}]:`, {
+            cache_original: f.totalcache_full,
+            ajuste_custo: f.totalajustecusto_full,
+            soma_calculada_no_banco: f.cache_com_ajuste
+        });
                 const info = {
                     // 'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
                     'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
+                    
                     'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
-                    'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' }
+                    'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
+                    'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
                 }[filtro];
+                
                 const estaPago = info.status.toLowerCase().startsWith('pago');
                 const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                 //return `<tr><td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td><td style="text-align:center">${f.qtddiarias_filtradas || 0}</td><td style="text-align:center"><small>${f.periodo_eventoini_fmt || '---'}</small></td>${podeVerAcoes ? `<td style="text-align:center">${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}</td>` : ''}<td class="comprovantes-cell">${estaPago ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}</td><td class="status-celula status-${classeStatus}">${info.status}</td><td>${formatarMoeda(info.valor || 0)}</td></tr>`;
@@ -6919,10 +7419,15 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         <td style="text-align:center;">
                                             ${c.imagemconta && c.imagemconta !== '---' 
                                                 ? `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))">
-                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
+                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                    <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
+                                                    <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
                                                 </a>` 
-                                                : '<i class="fas fa-upload" style="color:#f0ad4e;" title="Aguardando envio"></i>'
+                                                : `<div>
+                                                    <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
+                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
+                                                </div>`
                                             }
                                         </td>
                                         <td style="text-align:center;">
@@ -6935,19 +7440,22 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         <td style="text-align:center;">${pgtoExibicao}</td>
                                         <td style="text-align:center;">
                                             ${(c.comprovantepgto && c.comprovantepgto !== '---')
-                                                ? // SE HOUVER ARQUIVO: Sempre mostra o ícone do comprovante
-                                                `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))">
-                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                ? `<a href="javascript:void(0)" 
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
+                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                    <i class="fas fa-receipt" style="font-size: 18px;"></i>
+                                                    <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
                                                 </a>`
-                                                : // SE NÃO HOUVER ARQUIVO: Verifica o status
-                                                (statusC === 'pago' 
-                                                    ? '<i class="fas fa-upload" style="color:#f0ad4e;" title="Enviar comprovante"></i>' 
+                                                : (statusC === 'pago' 
+                                                    ? `<div>
+                                                        <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
+                                                        <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
+                                                                                                                
+                                                    </div>` 
                                                     : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
                                                 )
                                             }
-                                        </td>
-                                    
+                                        </td>                                    
                                         <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(vExibicao)}</strong></td>
                                     </tr>`;
                             }).join('');
@@ -7063,13 +7571,13 @@ function renderBotaoPagamento(c) {
     const valorParaPagar = c.vlrprevisto || c.valor || 0;
     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
 
-    
+    const vinculo = (c.tipovinculo || "").toLowerCase();
 
     // 3. Retorno usando suas classes .btn-pago e .btn-suspenso
     return `
         <div class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
             <button class="btn-pago" 
-                    onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}')">
+                    onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}', '${vinculo}', '${c.descricao}')">
                 <i class="fas fa-money-bill-wave"></i> PAGAR
             </button>
             
@@ -7081,109 +7589,302 @@ function renderBotaoPagamento(c) {
     `;
 }
 
-async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, vencimento, obsExistente = "") {
-    const dataHoje = new Date().toISOString().split('T')[0];
+async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, vencimento, obsExistente = "", tipoVinculo = "", descricao = "") {
+    const dataHojeObj = new Date();
+    dataHojeObj.setHours(0, 0, 0, 0);
 
-    // --- FORMATAÇÃO DA DATA DE EXIBIÇÃO ---
-    let vencimentoFormatado = vencimento;
-    if (vencimento && vencimento.includes('-')) {
-        const [ano, mes, dia] = vencimento.split('-');
-        vencimentoFormatado = `${dia}/${mes}/${ano}`;
+    const isFuncionario = tipoVinculo === 'funcionario';
+
+    function obterProximoDiaUtil(data) {
+        let d = new Date(data);
+        while (d.getDay() === 0 || d.getDay() === 6) {
+            d.setDate(d.getDate() + 1);
+        }
+        return d;
     }
 
-    const { value: formValues } = await Swal.fire({
+    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento));
+    const eAtrasado = isFuncionario ? false : (dataHojeObj > dataVencimentoUtil);
+    const vencimentoFormatado = vencimento.split('-').reverse().join('/');
+
+    const { value: formValues, isDismissed } = await Swal.fire({
         title: 'Confirmar Pagamento',
         html: `
-            <div style="text-align: left; font-family: sans-serif;">
-                <label style="display:block; margin-bottom:5px;"><b>Valor Pago (R$):</b></label>
-                <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="margin-top:0; width: 85%;">
-                
-                <label style="display:block; margin: 15px 0 5px;"><b>Data do Pagamento:</b></label>
-                <input id="swal-dtpgto" class="swal2-input" type="date" value="${dataHoje}" style="margin-top:0; width: 85%;">
-                
-                <p style="font-size: 15px; color: #666; margin-top: 15px;">
-                    Vencimento original: <b>${vencimentoFormatado}</b>
-                </p>
+            <style>
+                input[type=number]::-webkit-inner-spin-button, 
+                input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+                input[type=number] { -moz-appearance: textfield; }
+                .swal-row { display: flex; gap: 10px; width: 95%; margin: 0 auto 10px auto; text-align: left; }
+                .swal-col { flex: 1; display: flex; flex-direction: column; }
+                .swal-col label { font-size: 12px; font-weight: bold; margin-bottom: 3px; }
+                .swal-col input { margin: 0 !important; width: 100% !important; height: 38px !important; font-size: 14px !important; }
+            </style>
+            <div style="font-family: sans-serif;">
+                <div class="swal-row">
+                    <div class="swal-col">
+                        <label>Valor Original (R$):</label>
+                        <input id="swal-vlr-original" class="swal2-input" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
+                    </div>
+                    <div class="swal-col">
+                        <label>Vencimento Original:</label>
+                        <input id="swal-dt-venc" class="swal2-input" type="text" value="${vencimentoFormatado}" readonly style="background: #f8f9fa;">
+                    </div>
+                </div>
 
-                <label style="display:block; margin: 15px 0 5px;"><b>Observação:</b></label>
-                <textarea id="swal-obs" class="swal2-textarea" style="margin-top:0; width: 85%; height: 60px; font-size:14px;">${obsExistente}</textarea>
+                <div class="swal-row">
+                    ${eAtrasado ? `
+                    <div class="swal-col">
+                        <label style="color: #d9534f;">Atraso (Juros/Multa):</label>
+                        <input id="swal-vlr-atraso" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #d9534f;">
+                    </div>
+                    ` : `<input id="swal-vlr-atraso" type="hidden" value="0">`}
+                    
+                    <div class="swal-col">
+                        <label style="color: #0275d8;">Desconto (R$):</label>
+                        <input id="swal-vlr-desconto" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #0275d8;">
+                    </div>
+                </div>
+
+                <div class="swal-row">
+                    <div class="swal-col">
+                        <label style="color: #28a745;">Valor Total Pago (R$):</label>
+                        <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
+                    </div>
+                    <div class="swal-col">
+                        <label>Data do Pagamento:</label>
+                        <input id="swal-dtpgto" class="swal2-input" type="date" value="${dataHojeObj.toISOString().split('T')[0]}">
+                    </div>
+                </div>
+
+                <div class="swal-row" style="flex-direction: column;">
+                    <label>Observação ${isFuncionario ? '(Opcional)' : ''}:</label>
+                    <textarea id="swal-obs" class="swal2-textarea" style="width: 100%; margin: 0; height: 70px; font-size:13px;">${obsExistente}</textarea>
+                </div>
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Confirmar Baixa',
-        cancelButtonText: 'Cancelar',
+        confirmButtonText: '<i class="fas fa-check"></i> Confirmar Baixa',
+        cancelButtonText: '<i class="fas fa-times"></i> Desistir',
         confirmButtonColor: '#28a745',
-        focusConfirm: false,
-        preConfirm: () => {
-            const vlr = document.getElementById('swal-vlrpago').value;
-            const data = document.getElementById('swal-dtpgto').value;
-            const obs = document.getElementById('swal-obs').value;
+        cancelButtonColor: '#6c757d',
+        reverseButtons: true, // Coloca o cancelar à esquerda e o confirmar à direita
+        didOpen: () => {
+            const inputOriginal = document.getElementById('swal-vlr-original');
+            const inputAtraso = document.getElementById('swal-vlr-atraso');
+            const inputDesconto = document.getElementById('swal-vlr-desconto');
+            const inputTotal = document.getElementById('swal-vlrpago');
 
-            if (!vlr || !data) {
-                Swal.showValidationMessage('Preencha o valor e a data!');
-                return false;
+            const calcularTotal = () => {
+                const total = parseFloat(inputOriginal.value || 0) + parseFloat(inputAtraso.value || 0) - parseFloat(inputDesconto.value || 0);
+                inputTotal.value = total.toFixed(2);
+            };
+
+            if(inputAtraso) inputAtraso.addEventListener('input', calcularTotal);
+            inputDesconto.addEventListener('input', calcularTotal);
+        },
+        preConfirm: () => {
+            const vlrTotal = document.getElementById('swal-vlrpago').value;
+            const dataPgto = document.getElementById('swal-dtpgto').value;
+            const vlrAtraso = parseFloat(document.getElementById('swal-vlr-atraso')?.value || 0);
+            const vlrDesconto = parseFloat(document.getElementById('swal-vlr-desconto').value || 0);
+            let obsFinal = document.getElementById('swal-obs').value.trim();
+
+            if (!vlrTotal || !dataPgto) return Swal.showValidationMessage('Preencha os campos obrigatórios!');
+
+            // Validação de Observação (Não obriga se for funcionário)
+            if (!isFuncionario && (eAtrasado || vlrAtraso > 0 || vlrDesconto > 0)) {
+                if (obsFinal === "" || obsFinal === obsExistente.trim()) {
+                    return Swal.showValidationMessage('Justifique a alteração na observação.');
+                }
             }
-            return { vlrpago: vlr, dtpagamento: data, observacao: obs };
+
+            let tags = "";
+            if (eAtrasado) tags += " Atrasado ";
+            if (vlrAtraso > 0) tags += `[Atraso: R$ ${vlrAtraso.toFixed(2)}] `;
+            if (vlrDesconto > 0) tags += `[Desconto: R$ ${vlrDesconto.toFixed(2)}] `;
+
+            if (tags && !obsFinal.includes(tags.trim())) {
+                obsFinal = obsFinal !== obsExistente.trim() ? `${obsFinal} | ${tags.trim()}` : `${obsExistente.trim()} | ${tags.trim()}`;
+            }
+
+            return { 
+                vlrpago: vlrTotal, 
+                dtpagamento: dataPgto, 
+                observacao: obsFinal,
+                vlrAtraso: vlrAtraso, 
+                vlrDesconto: vlrDesconto 
+            };
         }
     });
 
+    // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
+    if (isDismissed) return;
+
+    // if (formValues) {
+    //     enviarBaixaPagamento(idPagamento, idLancamento, formValues.vlrpago, formValues.dtpagamento, vencimento, formValues.observacao, formValues.vlrAtraso, formValues.vlrDesconto);
+    // }
+    // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
     if (formValues) {
-        // Importante: Mantemos o "vencimento" original (ISO) para o envio, se o seu backend exigir assim.
-        enviarBaixaPagamento(idPagamento, idLancamento, formValues.vlrpago, formValues.dtpagamento, vencimento, formValues.observacao);
+        const { vlrpago, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
+        
+        // Prepara o texto de resumo (Acréscimo ou Desconto)
+        let resumoAjuste = "";
+        if (vlrAtraso > 0) {
+            resumoAjuste = `<br><small style="color: #d9534f;">(Incluindo R$ ${vlrAtraso.toFixed(2)} de acréscimo)</small>`;
+        } else if (vlrDesconto > 0) {
+            resumoAjuste = `<br><small style="color: #0275d8;">(Com R$ ${vlrDesconto.toFixed(2)} de desconto)</small>`;
+        }
+
+        // --- 3. SEGUNDO SWAL: Confirmação Efetiva ---
+        const confirmacao = await Swal.fire({
+            title: 'Confirmar Valor?',
+            html: `
+                <div style="font-size: 16px; font-family: sans-serif;">
+                    Você está baixando o lançamento "${descricao}" com o pagamento do Valor Total de: <br>
+                    <b style="font-size: 24px; color: #28a745;">R$ ${parseFloat(vlrpago).toLocaleString('pt-br', {minimumFractionDigits: 2})}</b>
+                    ${resumoAjuste}
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sim, baixar agora!',
+            cancelButtonText: 'Não, revisar',
+            reverseButtons: true
+        });
+
+        // --- 4. ENVIO FINAL: Só acontece se o "Sim" for clicado ---
+        if (confirmacao.isConfirmed) {
+            enviarBaixaPagamento(
+                idPagamento, 
+                idLancamento, 
+                vlrpago, 
+                dtpagamento, 
+                vencimento, 
+                observacao, 
+                vlrAtraso, 
+                vlrDesconto
+            );
+        }
     }
 }
 window.abrirModalPagamento = abrirModalPagamento;
 
 // 2. FUNÇÃO QUE ENVIA PARA O BACKEND (A nova lógica de comunicação)
-async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+// async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+//     try {
+//         // A função fetchComToken provavelmente já retorna o corpo do JSON
+//         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 idpagamento: idPagamento,
+//                 idlancamento: idLancamento,
+//                 vlrpago: vlrpago,
+//                 dtpagamento: dtpagamento,
+//                 dtvcto: dtvcto,
+//                 observacao: observacao,
+//                 vlratraso: parseFloat(vlratraso),     // Novo campo
+//                 vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+//             })
+//         });
+
+//         // Agora verificamos 'dados' diretamente, sem o res.json()
+//         if (dados && dados.sucesso) {
+//             Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+
+//             // Busca a linha da tabela pelo ID que acabamos de criar
+//             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
+
+//             if (linha) {
+//                 const tbody = linha.parentElement;
+                
+//                 // Efeito visual suave
+//                 linha.style.transition = 'all 0.4s ease';
+//                 linha.style.opacity = '0';
+//                 linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+
+//                 setTimeout(() => {
+//                     linha.remove(); // Remove a <tr> da tabela
+                    
+//                     // Se a tabela ficar vazia, podemos limpar o accordion
+//                     if (tbody.querySelectorAll('tr').length === 0) {
+//                         const accordionBody = tbody.closest('.accordion-body');
+//                         accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+//                     }
+//                 }, 400);
+//             }
+//         }
+        
+//         else {
+//             Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+//         }
+//     } catch (err) {
+//         console.error("Erro na requisição:", err);
+//         Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+//     }
+// }
+
+async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
     try {
-        // A função fetchComToken provavelmente já retorna o corpo do JSON
+        // Garantimos que os valores numéricos sejam tratados como float para o backend
+        const corpoRequisicao = {
+            idpagamento: idPagamento,
+            idlancamento: idLancamento,
+            vlrpago: parseFloat(vlrpago),
+            dtpagamento: dtpagamento,
+            dtvcto: dtvcto,
+            observacao: observacao,
+            vlratraso: parseFloat(vlratraso),     // Novo campo
+            vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+        };
+
+        console.log("Corpo da requisição para baixa:", corpoRequisicao); // Log para debug
+
         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                idpagamento: idPagamento,
-                idlancamento: idLancamento,
-                vlrpago: vlrpago,
-                dtpagamento: dtpagamento,
-                dtvcto: dtvcto,
-                observacao: observacao
-            })
+            body: JSON.stringify(corpoRequisicao)
         });
 
-        // Agora verificamos 'dados' diretamente, sem o res.json()
         if (dados && dados.sucesso) {
-            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+            Swal.fire({ 
+                icon: 'success', 
+                title: 'Pagamento Confirmado!', 
+                text: isNaN(vlratraso) || vlratraso <= 0 ? '' : 'Acrescimos registrados com sucesso.',
+                timer: 1500, 
+                showConfirmButton: false 
+            });
 
-            // Busca a linha da tabela pelo ID que acabamos de criar
             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
 
             if (linha) {
                 const tbody = linha.parentElement;
                 
-                // Efeito visual suave
+                // Efeito visual de sucesso
                 linha.style.transition = 'all 0.4s ease';
                 linha.style.opacity = '0';
-                linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+                linha.style.backgroundColor = '#d4edda'; 
 
                 setTimeout(() => {
-                    linha.remove(); // Remove a <tr> da tabela
+                    linha.remove(); 
                     
-                    // Se a tabela ficar vazia, podemos limpar o accordion
-                    if (tbody.querySelectorAll('tr').length === 0) {
+                    // Verifica se o container ficou vazio para exibir mensagem amigável
+                    if (tbody && tbody.querySelectorAll('tr').length === 0) {
                         const accordionBody = tbody.closest('.accordion-body');
-                        accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+                        if (accordionBody) {
+                            accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999; font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
+                        }
                     }
                 }, 400);
             }
-        }
-        
-        else {
-            Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+        } else {
+            Swal.fire('Erro ao Processar', (dados ? dados.erro : 'Erro desconhecido no servidor.'), 'error');
         }
     } catch (err) {
-        console.error("Erro na requisição:", err);
-        Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+        console.error("Erro na requisição de baixa:", err);
+        Swal.fire('Erro de Conexão', 'Não foi possível comunicar com o servidor.', 'error');
     }
 }
 
@@ -7327,6 +8028,10 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     formData.append('tipo', tipoUpload); // Aqui enviamos 'comprovante' ou 'imagem'
     formData.append('comprovante', arquivo); 
 
+    const contextoNome = tipoUpload === 'imagem' ? 'imagemConta' : 'comprovantePagamento';
+    formData.append('contexto', contextoNome);
+    
+
     try {
         const response = await fetch('/main/vencimentoconta/uploads_comprovantesconta', {
             method: 'POST',
@@ -7411,7 +8116,7 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
     
     // Data de referência (Hoje) para saber o que é ATRASADO (Vencido)
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    hoje.setHours(0, 0, 0, 0);    
 
     // Data limite do que o usuário está vendo na tela agora
     let dataLimiteExibicao = new Date(hoje); 
@@ -8222,6 +8927,11 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
 // ======================
 // ABRIR AGENDA
 // ======================
+async function inicializarAgendaCard() {
+    window.eventosSalvos = await carregarAgendaUsuario();
+    atualizarMiniCardAgenda();
+}
+
 document.getElementById("card-agenda").addEventListener("click", async function() {
   const painel = document.getElementById("painelDetalhes");
   painel.innerHTML = "";
@@ -8346,9 +9056,57 @@ calendarioDiv.appendChild(cabecalhoDiasSemana);
   btnAdicionar.addEventListener("click", abrirPopupNovoEvento);
 });
 
-// ==================================================================================
-// GERA CALENDÁRIO MENSAL
-// ==================================================================================
+function atualizarMiniCardAgenda() {
+    const listaUl = document.getElementById("listaAgendaUsuario");
+    if (!listaUl) return;
+
+    listaUl.innerHTML = "";
+
+    // Pega a data de hoje formatada (AAAA-MM-DD) para comparar
+    const hoje = new Date();
+    const hojeStr = hoje.getFullYear() + '-' + 
+                    String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(hoje.getDate()).padStart(2, '0');
+
+    // Filtra eventos de hoje
+    const eventosHoje = (window.eventosSalvos || []).filter(ev => {
+        const dataEv = new Date(ev.data_evento).toISOString().split('T')[0];
+        return dataEv === hojeStr;
+    });
+
+    if (eventosHoje.length === 0) {
+        listaUl.innerHTML = `<li class="agenda-vazia">Agenda Livre</li>`;
+        return;
+    }
+
+    // Mostra os 3 primeiros eventos (para não estourar o card)
+    eventosHoje.slice(0, 3).forEach(ev => {
+        const li = document.createElement("li");
+        li.className = "mini-item-agenda";
+        
+        // Define uma cor ou ícone baseado no tipo
+        let corStatus = ev.tipo === 'Reunião' ? '#ff4d4d' : '#4CAF50';
+
+        li.innerHTML = `
+            <div class="mini-hora" style="border-left: 3px solid ${corStatus}">
+                ${ev.hora_evento || '--:--'}
+            </div>
+            <div class="mini-detalhes">
+                <span class="mini-titulo">${ev.titulo}</span>
+                <span class="mini-tipo">${ev.tipo}</span>
+            </div>
+        `;
+        listaUl.appendChild(li);
+    });
+
+    if (eventosHoje.length > 3) {
+        const mais = document.createElement("li");
+        mais.className = "mini-mais";
+        mais.textContent = `+ ${eventosHoje.length - 3} outros hoje`;
+        listaUl.appendChild(mais);
+    }
+}
+
 function gerarCalendarioMensal(mesParam) {
   const diasDiv = document.getElementById("diasCalendario");
   if (!diasDiv) return;
@@ -8416,9 +9174,6 @@ function gerarCalendarioMensal(mesParam) {
   }
 }
 
-// ==================================================================================
-// SELEÇÃO DE DIA
-// ==================================================================================
 function selecionarDia(div, data) {
   const calendario = document.getElementById("diasCalendario");
   if (calendario) {
@@ -8434,9 +9189,6 @@ function selecionarDia(div, data) {
   carregarEventosDoDia(data);
 }
 
-// ==================================================================================
-// CARREGA EVENTOS DO DIA
-// ==================================================================================
 function carregarEventosDoDia(data) {
   const lista = document.getElementById("listaEventosDia");
   if (!lista) return;
@@ -8511,10 +9263,6 @@ function carregarEventosDoDia(data) {
   }
 }
 
-
-// ==================================================================================
-// POPUP DE NOVO EVENTO
-// ==================================================================================
 function abrirPopupNovoEvento() {
   const overlay = document.createElement("div");
   overlay.className = "popup-overlay";
@@ -8590,9 +9338,6 @@ function abrirPopupNovoEvento() {
   });
 }
 
-// ==================================================================================
-// FUNÇÕES DE INTEGRAÇÃO COM O BACKEND
-// ==================================================================================
 async function salvarEventoAgenda(dadosEvento) {
   try {
     const json = await fetchComToken("/main/agenda", {
@@ -8639,6 +9384,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   await atualizarEventosEmAberto();
   await atualizarProximoEvento();
   await inicializarCardVencimentos();
+  await inicializarAgendaCard();
 });
 
 

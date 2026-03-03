@@ -95,6 +95,7 @@ router.get(
       `;
       
       const resultItens = await client.query(queryItens, [orcamento.idorcamento]);
+      console.log("✅ Itens do orçamento encontrados:", resultItens.rows.length);
       orcamento.itens = resultItens.rows;
 
       // --- BUSCA DOS PAVILHÕES ---
