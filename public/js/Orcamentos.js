@@ -1827,9 +1827,9 @@ function adicionarLinhaOrc() {
   aplicarMascaraMoeda();
   limparSelects();
 }
-
+let isCleaning = false;
 async function adicionarLinhaAdicional(isBonificado = false) {
-  if (isCleaning) return;
+  // if (isCleaning) return;
     // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
     if (isBonificado === false) { 
         const result = await Swal.fire({

@@ -960,7 +960,8 @@ function ordenarDatas(datas) {
 // =========================================================================
 // 🚀 ROTA POST - CADASTRO 100%
 // =========================================================================
-router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
+router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
+     uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
     const {
         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
