@@ -2,92 +2,137 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width", initial-scale="1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/index/Main.css">
     <link rel="stylesheet" href="css/index/Style-ED.css">
     <link rel="stylesheet" href="css/Footer/Footer-ED.css">
-
     <link rel="stylesheet" href="css/Roots/Roots.css">
-    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">   
     <link rel="stylesheet" href="css/scroolbar/scroolbar.css">
-    
+   
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
     <!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
     <link rel="stylesheet" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">
     
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>      
-   
-    <title>Home - Sistema Grupo JA</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
     <link rel="shortcut icon" href="img/icons/EDfavicon.ico" type="image/x-icon">
+
+    
+       
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>      
+
+    <title>Home - Sistema Grupo JA</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    
     <script src="utils/utils.js" type="module"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>  
+    
 </head>
 
-<body>
+<body class="tema-ED">
 
-    <header>      
+    
+<header>      
+    <div class="interface">
+        <div class="logotipo">
+            <div class="logo-ed"><a ><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
+            <div class="logo-ja-oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>           
+            <div class="logo-ea"><a class="minilogos" href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
+            <div class="logo-es"><a class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+            <div class="logo-ep"><a class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
+            <div class="logo-expo"><a class="minilogos"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div>
+            <div class="logo-sn-foods"><a class="minilogos" href="SNFoods-index.html" ><img src= "img/SN_Foods.png" alt="SN_Foods"></a></div>
+            <div class="logo-tsd"><a class="minilogos" href="TSD-index.html"><img src= "img/logo-tsd.png" alt="TSD"></a></div>
+        </div>
+
         <div class="interface">
-            <div class="logotipo">
-                <div class="logo-ed"><a  href="ED-index.html"><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
-                <div class="logo-ja-oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>                
-                <div class="logo-ea"><a class="minilogos" href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
-                <div class="logo-ep"><a class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
-                <div class="logo-es"><a class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>                
-                <div class="logo-expo"><a class="minilogos "href="EXPO-index.html"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div>
-                <div class="logo-sn-foods"><a class="minilogos" href="SNFoods-index.html" ><img src= "img/SN_Foods.png" alt="SN_Foods"></a></div>
-                <div class="logo-tsd"><a class="minilogos" href="TSD-index.html" ><img src= "img/logo-tsd.png" alt="TSD"></a></div>
-            </div>
-
-
-            <div class="interface">
-                <nav>
-                    <ul id = "menu-horizontal">
-                        <li class="Cadastro"> 
-                            <a href="#">Cadastros</a>
-                            <div class ="drop">
-                                <div class ="drop-content">
-                                    <a href="#" class="abrir-modal" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Funcao" data-url="CadFuncao.html">Funções</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Funcionarios" data-url="CadFuncionarios.html">Funcionários</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Equipamentos" data-url="CadEquipamentos.html">Equipamentos</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Suprimentos" data-url="CadSuprimentos.html">Suprimentos</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Eventos" data-url="CadEventos.html">Eventos</a>
-                                    <a href="#" class="abrir-modal" data-modulo="LocalMontagem" data-url="CadLocalMontagem.html">Local Montagem</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Staff" data-url="CadStaff.html">Staff</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Empresas" data-url="CadEmpresa.html">Empresas</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Bancos" data-url="CadBancos.html">Bancos</a>
-                                    <a href="#" class="abrir-modal" data-modulo="Modulos" data-url="CadModulos.html">Módulos</a>
-                                <a href="#" class="abrir-modal" data-modulo="Categoriafuncao" data-url="CadCategoriaFuncao.html">Categoria Função</a>
-                                <a href="#" class="abrir-modal" data-modulo="Indiceanual" data-url="CadIndices.html">Atualizar Indices</a>
-                                </div>
-                            </div>
-                        </li>
-                        <li class="Cadastro">
-                        <a href="#">Relatórios</a> 
-                        <div class="drop"> 
-                            <div class="drop-content">
-                                <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="ajuda_custo">Relatório de Fechamento</a>
-                                
-                                 <a href="#" class="abrir-modal" data-modulo="RelIndices" data-url="RelIndices.html">Relatório de Índices Aplicados</a>
+            <nav>
+                <ul id = "menu-horizontal">
+                    <li class="Cadastro"> 
+                        <a href="#">Cadastros</a>
+                        <div class ="drop">
+                            <div class ="drop-content">
+                                 <a href="#" class="abrir-modal" data-modulo="Indiceanual" data-url="CadIndices.html">Cadastro/Atualização de Índices</a>
+                                <a href="#" class="abrir-modal" data-modulo="Bancos" data-url="CadBancos.html">Bancos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Categoriafuncao" data-url="CadCategoriaFuncao.html">Categoria de Função</a>
+                                <a href="#" class="abrir-modal" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
+                                <a href="#" class="abrir-modal" data-modulo="Equipamentos" data-url="CadEquipamentos.html">Equipamentos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Eventos" data-url="CadEventos.html">Eventos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Empresas" data-url="CadEmpresa.html">Empresas</a>
+                                <a href="#" class="abrir-modal" data-modulo="Fornecedores" data-url="CadFornecedores.html">Fornecedores</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcao" data-url="CadFuncao.html">Funções</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcionarios" data-url="CadFuncionarios.html">Funcionários</a>
+                                <a href="#" class="abrir-modal" data-modulo="LocalMontagem" data-url="CadLocalMontagem.html">Local Montagem</a>
+                                <a href="#" class="abrir-modal" data-modulo="Modulos" data-url="CadModulos.html">Módulos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Staff" data-url="CadStaff.html">Staff</a>
+                                <a href="#" class="abrir-modal" data-modulo="Suprimentos" data-url="CadSuprimentos.html">Suprimentos</a> 
+                                <a href="#" class="abrir-modal" data-modulo="Textospredefinidos" data-url="CadTextos.html">Textos Pré definidos</a>                           
                             </div>
                         </div>
                     </li>
-                        <li class="Orcamento">
-                            <a href="#" class="abrir-modal" data-modulo="Orcamentos" data-url="Orcamento.html">Orçamento</a>
-                        </li>
-                        <li class="Usuarios">
-                            <a href="CadUsuarios.html" class="abrir-modal" data-modulo="Usuarios">Usuários</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
+                    <li class="Relatorios">
+                        <a href="#">Relatórios</a> 
+                        <div class="drop"> 
+                            <div class="drop-content">
+                                <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="ajuda_custo">Relatório de Fechamento</a>                                
+                                <a href="#" class="abrir-modal" data-modulo="RelIndices" data-url="RelIndices.html">Relatório de Índices Aplicados</a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="Orcamento">
+                        <a href="#" class="abrir-modal" data-modulo="Orcamentos" data-url="Orcamento.html">Orçamento</a>
+                    </li>
+                    <li class="Usuarios">
+                        <a href="CadUsuarios.html" class="abrir-modal" data-modulo="Usuarios">Usuários</a>
+                    </li>
+                    <!-- <li class="Financeiro"> 
+                        <a href="#">Financeiro</a>
+                        <div class="drop">
+                            <div class="drop-content">
+                                <a href="#" class="abrir-modal" data-modulo="Contas" data-url="CadContas.html">Cadastro de Contas</a>
+                                <a href="#" class="abrir-modal" data-modulo="ContasPagar" data-url="ContasPagar.html">Contas a Pagar</a>
+                                <a href="#" class="abrir-modal" data-modulo="ContasReceber" data-url="ContasReceber.html">Contas a Receber</a>
+                            </div>
+                        </div>
+                    </li> -->
+                    <li class="Financeiro">
+                        <a href="#">Financeiro</a>
+                        <div class="drop">
+                            <div class="drop-content">
+                                <div class="sub-drop">
+                                    <a href="#" class="sub-title">Cadastros <span style="float:left; margin-right: 5px;">&laquo;</span></a>
+                                    <div class="sub-drop-content">
+                                        <a href="#" class="abrir-modal" data-modulo="TipoConta" data-url="CadTipoConta.html">Tipo de Conta</a>
+                                        <a href="#" class="abrir-modal" data-modulo="PlanoContas" data-url="CadPlanoContas.html">Plano de Contas</a>
+                                        <a href="#" class="abrir-modal" data-modulo="Contas" data-url="CadContas.html">Contas</a>
+                                        <a href="#" class="abrir-modal" data-modulo="CentroCusto" data-url="CadCentroCusto.html">Centro de Custo</a>
+                                    </div>
+                                </div>
+
+                                <a href="#" class="abrir-modal" data-modulo="ContasPagar" data-url="ContasPagar.html">Contas a Pagar</a>
+
+                                <div class="sub-drop">
+                                    <a href="#" class="sub-title">Contas a Pagar<span style="float:left; margin-right: 5px;">&laquo;</span></a>
+                                    <div class="sub-drop-content">
+                                        <a href="#" class="abrir-modal" data-modulo="Lancamentos" data-url="CadLancamentos.html">Lançamentos de Contas</a>
+                                        <a href="#" class="abrir-modal" data-modulo="Pagamentos" data-url="CadPagamentos.html">Pagamentos de Contas</a>
+                                    </div>
+                                </div>
+
+                                <a href="#" class="abrir-modal" data-modulo="ContasReceber" data-url="ContasReceber.html">Contas a Receber</a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </nav>
         </div>
+    </div>
     </header>
-        
+
     <div id="modal-overlay" class="moda-overlay" ></div>
     <div id="modal-container"></div>
 
@@ -126,19 +171,86 @@
                         <h3>Detalhes</h3>
                         <p>Selecione um card para ver mais informações.</p>
                     </div>
+                    <div class="Versao-sistema">
+                        <span id="app-version"></span>
+                    </div>
                 </div>
             </div>
+            
+            
+            <div class="cards" id="Cards">
+                <div class="card" id="cardContainerVencimentos" style="display: none;">
+                    <div class="card-vencimentos">
+                        <div class="vec-header">
+                            <span class="vec-title">Financeiro</span>
+                            <span id="filtoanual">
+                                <select id="selectAno" onchange="carregarDadosDoFiltro()"></select>
+                            </span>
+                        </div>
 
-            <div class="cards">
-                <div class="card ">  
+                        <div class="vec-body">
+                            <div class="venc-grupo total-group">
+                                <h4>Geral (Staff + Contas):</h4>
+                                <span>Previsto: <span id="vencimentosTotal" class="venc-total total-vencimentos">R$ 0,00</span></span>
+                                <span>Pagos: <span id="vencimentosPagos" class="venc-total total-vencimentos">R$ 0,00</span></span>
+                                <span>Vencidos: <span id="vencimentosVencidas" style="color: #dc2e2e;">R$ 0,00</span></span>
+                                
+                            </div>
+                            <span>Total Anual: <strong id="vencTotalGeral">R$ 0,00</strong></span>
+                            <hr>
+
+                            <div class="venc-grupo a-vencer-group">
+                                <h4>Previsto Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaAVencer">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCacheAVencer">R$ 0,00</span></span>
+                            </div>
+                            <div class="venc-grupo Pagos-group">
+                                <h4>Pagos Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaPagos">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCachePagos">R$ 0,00</span></span>
+                            </div>
+                            <div class="venc-grupo vencido-group">
+                                <h4>Vencidos Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaVencidos" style="color: #dc2e2e;">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCacheVencidos" style="color: #dc2e2e;">R$ 0,00</span></span>
+                            </div>
+                            <span>Total Staff: <strong id="vencTotalStaff">R$ 0,00</strong></span>
+                            <hr>
+
+                            <div class="venc-grupo contas-group">
+                                <h4>Contas / Fornecedores:</h4>
+                                <span>Previsto: <span id="vencContasPendente">R$ 0,00</span></span>
+                                <span>Pagos: <span id="vencContasPagos">R$ 0,00</span></span>
+                                <span>Vencidos: <span id="vencContasVencidas" style="color: #dc2e2e;">R$ 0,00</span></span>
+                            </div>
+                            <span>Total Contas: <strong id="vencTotalContas">R$ 0,00</strong></span>
+
+                            
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" id="card-agenda">
+                    <div class="card-agenda">
+                        <div class="Agen-header">
+                            <span class="agen-title">Minha Agenda</span>
+                        </div>
+                        <div class="Agen-body"><ul id="listaAgendaUsuario"></ul></div>
+                    </div>
+                </div>
+                
+                <div class="card" id="cardContainerOrcamentos">  
                     <div class="card-orcamentos">
                         <div class="orc-header">
-                        <span class="orc-title">Orçamentos</span>
-                        <span id="orcamentosTotal" class="orc-total">0</span>
+                            <span class="orc-title">Orçamentos</span>
+                            <span id="orcamentosTotal" class="orc-total">0</span>
                         </div>
                         <div class="orc-body">
-                        <span>Abertos: <span id="orcamentosPendentes">0</span></span>
-                        <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                            <span>Abertos: <span id="orcamentosPendentes">0</span></span>
+                            <span>Proposta Em Negociação: <span id="orcamentosProposta">0</span></span>
+                            <span>Proposta Aprovada: <span id="orcamentosEmAndamento">0</span></span>
+                            <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                            <span>Recusados: <span id="orcamentosRecusados">0</span></span>
                         </div>
                     </div>
                 </div>
@@ -155,18 +267,27 @@
                         </div>
                     </div>
 
-                    <div class="card" id="card-atividades">
-                        <div class="card-atividades">
-                            <div class="ativ-header">
-                                <span class="ativ-title">Minhas Atividades</span>
+                    <div class="card">
+                        <div class="card-eventos-em-abertos">
+                            <div class="evt-header">
+                                <span class="evt-title">Eventos em Abertos</span>
+                                <!-- <span class="evt-title">Painel Operacional</span> -->
+                                <span class="evt-total" id="qtdEventosAbertos">0</span>
                             </div>
-                            <div class="ativ-body"><ul id="listaAtividadesUsuario"></ul></div>
+                            <div class="evt-body">
+                                <span>Nenhum evento em aberto 🎉</span>
+                            </div>
+                            <div class="evt-footer" style="display: none;">
+                                <span>Clique para ver mais em aberto</span>
+                            </div>
                         </div>
                     </div>
+
                     <div class="card">
                         <div class="card-financeiro">
                             <div class="fin-header">
-                            <span class="fin-title">Pedidos a visualizar</span>
+                            <span class="fin-title">Pedidos</span>
+                            <span id="pedidosTotal" class="orc-total">0</span>
                             </div>
                             <div class="fin-body">
                             <span>Autorizados: <span id="pedidosAutorizados">0</span></span>
@@ -175,48 +296,21 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="card" id="card-atividades">
+                        <div class="card-atividades">
+                            <div class="ativ-header">
+                                <span class="ativ-title">Minhas Atividades</span>
+                            </div>
+                            <div class="ativ-body"><ul id="listaAtividadesUsuario"></ul></div>
+                        </div>
+                    </div>
+                    
             </div>
 
         </main>
     </div>
-
-    <footer id="footer-content">
-
-        <div id="grid">
-            <div class="footer-logo">
-                <img src="img/JA_ED.png" alt="logo-expo">
-                <p><strong> Da Ideia à Execução</strong></p>
-            </div>
-            
-            <div id="Social-Icons">
-                <p>Siga-nos Nas Redes Sociais</p>
-
-                <div class="footer-links">
-                    <a href="https://www.instagram.com/ja.eventoss_/" class="footer-links" id="instagram">
-                        <i class="fa-brands fa-instagram"></i>
-                    </a>
-                    <a href=""  class="footer-links" id="">
-                        <i class="fa-brands fa-facebook-f"></i>
-                    </a>
-                    <a href="" class="footer-links"  id="">
-                    </a>
-                </div>
-            </div>
-<!-- 
-            <div class="prototipo">
-                <p></p>
-            </div> -->
-        </div>
-        
-        
-        <div class="copyRigths">
-            &#169
-            2025 Todos os Direitos Reservados
-        </div>
-        
-</div>
-
-</footer>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scrollbar/8.3.1/smooth-scrollbar.min.js"></script>
@@ -227,11 +321,13 @@
     <script src="js/Index.js" type="module" defer ></script>
     <script src="js/Aside.js" type="module" defer></script>
     <script src="js/Formataçoes.js" type="module" defer ></script>
-    <!-- <script src="js/Main.js" type="module" defer></script> -->
+    <script src="js/Main.js" type="module" defer></script>
     <script src="js/tema.js" type="module" defer></script> 
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    
 </body>
 </html>
