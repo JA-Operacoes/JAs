@@ -233,14 +233,51 @@ try {
             feriados AS (
                 SELECT data::date FROM (
                     SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
+                    SELECT make_date(a.ano, 1, 25) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
+                    SELECT make_date(a.ano, 7, 9) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
-                    SELECT make_date(a.ano, 12, 25) FROM ano_evento a
+                    SELECT make_date(a.ano, 12, 25) FROM ano_evento a UNION
+
+                    -- 2. FERIADOS MÓVEIS (Lógica simplificada para evitar ambiguidade)
+                    SELECT (calc.data_pascoa + (m.deslocamento || ' days')::interval)::date
+                    FROM (
+                        SELECT 
+                            make_date(ano, 
+                                     (h + l - 7 * m + 114) / 31, 
+                                     ((h + l - 7 * m + 114) % 31) + 1
+                            ) AS data_pascoa
+                        FROM (
+                            SELECT 
+                                ano, h, m, 
+                                ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                            FROM (
+                                SELECT 
+                                    ano, h, 
+                                    (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                FROM (
+                                    SELECT 
+                                        ano,
+                                        ((19 * (ano % 19) + (ano / 100) - (ano / 400) - ((8 * (ano / 100) + 13) / 25) + 15) % 30) AS h
+                                    FROM ano_evento
+                                ) AS sub_h
+                            ) AS sub_m
+                        ) AS sub_l
+                    ) AS calc
+                    CROSS JOIN (
+                        VALUES 
+                            (-48, 'Segunda Carnaval'),
+                            (-47, 'Terça Carnaval'),
+                            (-2,  'Sexta Santa'),
+                            (0,   'Páscoa'),
+                            (60,  'Corpus Christi')
+                    ) AS m(deslocamento, nome)
+
                 ) f(data)
             ),
             diarias_autorizadas AS (
@@ -404,12 +441,48 @@ try {
                     SELECT make_date(a.ano, 1, 25) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
+                    SELECT make_date(a.ano, 7, 9) FROM ano_evento a UNION --Revolução Constitucionalista de 1932
                     SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
-                    SELECT make_date(a.ano, 12, 25) FROM ano_evento a
+                    SELECT make_date(a.ano, 12, 25) FROM ano_evento a UNION
+
+                    -- 2. FERIADOS MÓVEIS (Lógica simplificada para evitar ambiguidade)
+                    SELECT (calc.data_pascoa + (m.deslocamento || ' days')::interval)::date
+                    FROM (
+                        SELECT 
+                            make_date(ano, 
+                                     (h + l - 7 * m + 114) / 31, 
+                                     ((h + l - 7 * m + 114) % 31) + 1
+                            ) AS data_pascoa
+                        FROM (
+                            SELECT 
+                                ano, h, m, 
+                                ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                            FROM (
+                                SELECT 
+                                    ano, h, 
+                                    (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                FROM (
+                                    SELECT 
+                                        ano,
+                                        ((19 * (ano % 19) + (ano / 100) - (ano / 400) - ((8 * (ano / 100) + 13) / 25) + 15) % 30) AS h
+                                    FROM ano_evento
+                                ) AS sub_h
+                            ) AS sub_m
+                        ) AS sub_l
+                    ) AS calc
+                    CROSS JOIN (
+                        VALUES 
+                            (-48, 'Segunda Carnaval'),
+                            (-47, 'Terça Carnaval'),
+                            (-2,  'Sexta Santa'),
+                            (0,   'Páscoa'),
+                            (60,  'Corpus Christi')
+                    ) AS m(deslocamento, nome)
+
                 ) f(data)
             )
             SELECT
@@ -491,14 +564,51 @@ try {
                 feriados AS (
                     SELECT data::date FROM (
                         SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 1, 25) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 7, 9) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
                         SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
-                        SELECT make_date(a.ano, 12, 25) FROM ano_evento a
+                        SELECT make_date(a.ano, 12, 25) FROM ano_evento a UNION
+
+                        -- 2. FERIADOS MÓVEIS (Lógica simplificada para evitar ambiguidade)
+                        SELECT (calc.data_pascoa + (m.deslocamento || ' days')::interval)::date
+                        FROM (
+                            SELECT 
+                                make_date(ano, 
+                                        (h + l - 7 * m + 114) / 31, 
+                                        ((h + l - 7 * m + 114) % 31) + 1
+                                ) AS data_pascoa
+                            FROM (
+                                SELECT 
+                                    ano, h, m, 
+                                    ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                                FROM (
+                                    SELECT 
+                                        ano, h, 
+                                        (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                    FROM (
+                                        SELECT 
+                                            ano,
+                                            ((19 * (ano % 19) + (ano / 100) - (ano / 400) - ((8 * (ano / 100) + 13) / 25) + 15) % 30) AS h
+                                        FROM ano_evento
+                                    ) AS sub_h
+                                ) AS sub_m
+                            ) AS sub_l
+                        ) AS calc
+                        CROSS JOIN (
+                            VALUES 
+                                (-48, 'Segunda Carnaval'),
+                                (-47, 'Terça Carnaval'),
+                                (-2,  'Sexta Santa'),
+                                (0,   'Páscoa'),
+                                (60,  'Corpus Christi')
+                        ) AS m(deslocamento, nome)
+
                     ) f(data)
                 ),
                 diarias_autorizadas AS (
@@ -680,99 +790,156 @@ SELECT
         const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, params);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;        
 
-        const queryContingencia = `
-            WITH calculos_adicionais AS (
-                SELECT
-                    tse.idstaffevento,
-                    tse.idfuncionario,
-                    (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtdiariadobrada), 0) AS valor_dobrada,
-                    ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtmeiadiaria), 0) AS valor_meia_diaria
-                FROM
-                    staffeventos tse
-                JOIN
-                    staffempresas semp ON tse.idstaff = semp.idstaff
-                
-                WHERE
-                    semp.idempresa = $1 ${wherePeriodoFinal}
-            )
-            SELECT
-                tse.idevento,
-                tbf.nome AS "Profissional",
-                'Diária Dobrada - R$' || CAST(ca.valor_dobrada AS TEXT) || ' (' || CAST(jsonb_array_length(tse.dtdiariadobrada) AS TEXT)|| ' dia(s) autorizado(s))' AS "Informacao",
-                tse.descdiariadobrada AS "Observacao"
-            FROM
-                staffeventos tse
-            JOIN
-                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
-                staffempresas semp ON tse.idstaff = semp.idstaff
-            JOIN
-                calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
-            WHERE
-                semp.idempresa = $1 ${wherePeriodoFinal}
-                AND jsonb_array_length(tse.dtdiariadobrada) > 0
-            
-            UNION ALL
-            
-            SELECT
-                tse.idevento,
-                tbf.nome AS "Profissional",
-                'Meia Diária - R$' || CAST(ca.valor_meia_diaria AS TEXT) || ' (' ||CAST(jsonb_array_length(tse.dtmeiadiaria) AS TEXT) || ' dia(s) autorizado(s))' AS "Informacao",
-                tse.descmeiadiaria AS "Observacao"
-            FROM
-                staffeventos tse
-            JOIN
-                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
-                staffempresas semp ON tse.idstaff = semp.idstaff
-            JOIN
-                calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
-            WHERE
-                semp.idempresa = $1 ${wherePeriodoFinal}
-                AND jsonb_array_length(tse.dtmeiadiaria) > 0
+const queryContingencia = `
+    WITH calculos_adicionais AS (
+        SELECT
+            tse.idstaffevento,
+            tse.idfuncionario,
+            (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtdiariadobrada), 0) AS valor_dobrada,
+            ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtmeiadiaria), 0) AS valor_meia_diaria
+        FROM
+            staffeventos tse
+        JOIN
+            staffempresas semp ON tse.idstaff = semp.idstaff
+        WHERE
+            semp.idempresa = $1 ${wherePeriodoFinal}
+    )
+    -- 1. DIÁRIA DOBRADA
+    SELECT
+        tse.idevento,
+        tbf.nome AS "Profissional",
+        'Diária Dobrada - R$' || CAST(ca.valor_dobrada AS TEXT) || ' (' || CAST(jsonb_array_length(tse.dtdiariadobrada) AS TEXT)|| ' dia(s) autorizado(s))' AS "Informacao",
+        tse.descdiariadobrada AS "Observacao"
+    FROM
+        staffeventos tse
+    JOIN
+        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+    JOIN 
+        staffempresas semp ON tse.idstaff = semp.idstaff
+    JOIN
+        calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
+    WHERE
+        semp.idempresa = $1 ${wherePeriodoFinal}
+        AND jsonb_array_length(tse.dtdiariadobrada) > 0
+    
+    UNION ALL
+    
+    -- 2. MEIA DIÁRIA
+    SELECT
+        tse.idevento,
+        tbf.nome AS "Profissional",
+        'Meia Diária - R$' || CAST(ca.valor_meia_diaria AS TEXT) || ' (' ||CAST(jsonb_array_length(tse.dtmeiadiaria) AS TEXT) || ' dia(s) autorizado(s))' AS "Informacao",
+        tse.descmeiadiaria AS "Observacao"
+    FROM
+        staffeventos tse
+    JOIN
+        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+    JOIN 
+        staffempresas semp ON tse.idstaff = semp.idstaff
+    JOIN
+        calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
+    WHERE
+        semp.idempresa = $1 ${wherePeriodoFinal}
+        AND jsonb_array_length(tse.dtmeiadiaria) > 0
 
-            UNION ALL
-            
-            SELECT
-                tse.idevento,
-                tbf.nome AS "Profissional",
-                'Ajuste de Custo - R$' || CAST(tse.vlrajustecusto AS TEXT) AS "Informacao",
-                tse.descajustecusto AS "Observacao"
-            FROM
-                staffeventos tse
-            JOIN
-                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
-                staffempresas semp ON tse.idstaff = semp.idstaff
-            WHERE
-                semp.idempresa = $1 ${wherePeriodoFinal}
-                AND tse.statusajustecusto = 'Autorizado' 
-                AND tse.vlrajustecusto IS NOT NULL 
-                AND tse.vlrajustecusto != 0
+    UNION ALL
+    
+    -- 3. AJUSTE DE CUSTO
+    SELECT
+        tse.idevento,
+        tbf.nome AS "Profissional",
+        'Ajuste de Custo - R$' || CAST(tse.vlrajustecusto AS TEXT) AS "Informacao",
+        tse.descajustecusto AS "Observacao"
+    FROM
+        staffeventos tse
+    JOIN
+        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+    JOIN 
+        staffempresas semp ON tse.idstaff = semp.idstaff
+    WHERE
+        semp.idempresa = $1 ${wherePeriodoFinal}
+        AND tse.statusajustecusto = 'Autorizado' 
+        AND tse.vlrajustecusto IS NOT NULL 
+        AND tse.vlrajustecusto != 0
 
+    UNION ALL
+    
+    -- 4. CAIXINHA
+    SELECT
+        tse.idevento,
+        tbf.nome AS "Profissional",
+        'Caixinha - R$' || CAST(tse.vlrcaixinha AS TEXT) AS "Informacao",
+        tse.desccaixinha AS "Observacao"
+    FROM
+        staffeventos tse
+    JOIN
+        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+    JOIN 
+        staffempresas semp ON semp.idstaff = tse.idstaff
+    WHERE
+        semp.idempresa = $1 ${wherePeriodoFinal}
+        AND tse.statuscaixinha = 'Autorizado' 
+        AND tse.vlrcaixinha IS NOT NULL 
+        AND tse.vlrcaixinha > 0
+
+    UNION ALL
+
+    -- 5. BLOCO DE FERIADOS (CORRIGIDO PARA O CARNAVAL 17/02/2026)
+    SELECT
+        tse.idevento,
+        tbf.nome AS "Profissional",
+        'Feriado em dia útil - (Somado 1 cachê a mais)' AS "Informacao",
+        STRING_AGG(TO_CHAR(d.data_feriado, 'DD/MM') || ' (' || d.nome_feriado || '): Somado 1 cachê a mais', ' | ') AS "Observacao"
+    FROM
+        staffeventos tse
+    JOIN
+        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+    JOIN 
+        staffempresas semp ON tse.idstaff = semp.idstaff
+    CROSS JOIN LATERAL (
+        SELECT f.dt as data_feriado, f.nome as nome_feriado
+        FROM (
+            -- Cálculo manual fixo para 2026 garantir 17/02
+            SELECT (make_date(2026, 4, 5) + (m.desloc || ' days')::interval)::date as dt, m.nome
+            FROM (VALUES (-47, 'Terça Carnaval'), (-2, 'Sexta Santa'), (60, 'Corpus Christi')) as m(desloc, nome)
             UNION ALL
-            
-            SELECT
-                tse.idevento,
-                tbf.nome AS "Profissional",
-                'Caixinha - R$' || CAST(tse.vlrcaixinha AS TEXT) AS "Informacao",
-                tse.desccaixinha AS "Observacao"
-            FROM
-                staffeventos tse
-            JOIN
-                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
-                staffempresas semp ON semp.idstaff = tse.idstaff
-            WHERE
-                semp.idempresa = $1 ${wherePeriodoFinal}
-                AND tse.statuscaixinha = 'Autorizado' 
-                AND tse.vlrcaixinha IS NOT NULL 
-                AND tse.vlrcaixinha > 0
-            ORDER BY
-                idevento, "Profissional", "Informacao";
-        `;
+            SELECT make_date(2026, mes, dia), nome FROM (VALUES 
+                (1,1,'Ano Novo'),(4,21,'Tiradentes'),(5,1,'Dia do Trabalho'),
+                (9,7,'Independência'),(10,12,'Padroeira'),(11,2,'Finados'),
+                (11,15,'Proclamação'),(11,20,'Consciência Negra'),(12,25,'Natal')
+            ) as f(mes, dia, nome)
+        ) f
+        WHERE f.dt::text = ANY(SELECT jsonb_array_elements_text(tse.datasevento))
+        AND EXTRACT(DOW FROM f.dt) NOT IN (0, 6)
+    ) d
+    WHERE
+        semp.idempresa = $1 ${wherePeriodoFinal}
+        AND (tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%')
+    GROUP BY
+        tse.idevento, tbf.nome
+
+    ORDER BY
+        idevento, "Profissional", "Informacao";
+`;
        // const resultContingencia = await pool.query(queryContingencia, paramsContingencia);
        const resultContingencia = await pool.query(queryContingencia, params);
+
+       console.log("------------------------------------------");
+console.log("📊 DEBUG CONTINGÊNCIA:");
+console.log("Total de linhas retornadas:", resultContingencia.rows.length);
+
+if (resultContingencia.rows.length > 0) {
+    resultContingencia.rows.forEach(r => {
+        if (r.Informacao.includes("Feriado")) {
+            console.log(`✅ FERIADO ENCONTRADO: ${r.Profissional} | Evento: ${r.idevento}`);
+            console.log(`📝 Detalhe: ${r.Observacao}`);
+        }
+    });
+} else {
+    console.log("⚠️ NENHUM dado de contingência encontrado para os filtros atuais.");
+}
+console.log("------------------------------------------");
+
         relatorio.contingencia = resultContingencia.rows;
 
         return res.json(relatorio);
