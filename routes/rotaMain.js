@@ -2880,7 +2880,8 @@ router.get("/vencimentos", async (req, res) => {
           COALESCE(tse.vlrajustecusto, 0) AS totalajustecusto_full,
           
           -- NOVA SOMA: Cachê + Ajuda de Custo --
-          (COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
+          --(COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
+          COALESCE(tse.vlrtotcache, 0) AS cache_com_ajuste,
           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
           tse.statuspgto, 

@@ -7555,32 +7555,58 @@ function renderAcoesComprovante(c) {
 }
 
 
+// function renderBotaoPagamento(c) {
+//     // 1. Se já estiver pago, mostra o ícone de confirmação
+//     if (c.status && c.status.toLowerCase() === 'pago') {
+//         return `<i class="fas fa-check-double" style="color: #2E8B57;" title="Lançamento Confirmado"></i>`;
+//     }
+
+//     // 2. Tratamento da observação para evitar quebra no JS
+//     const textoObs = (c.observacao || c.observacao_vencimento || "")
+//         .replace(/[\n\r]/g, ' ')
+//         .replace(/'/g, "\\'")
+//         .replace(/"/g, '\\"');
+
+//     const dataVcto = c.dtvcto || c.vencimento || "";
+//     const valorParaPagar = c.vlrprevisto || c.valor || 0;
+//     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
+
+//     const vinculo = (c.tipovinculo || "").toLowerCase();
+
+//     // 3. Retorno usando suas classes .btn-pago e .btn-suspenso
+//     return `
+//         <div class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
+//             <button class="btn-pago" 
+//                     onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}', '${vinculo}', '${c.descricao}')">
+//                 <i class="fas fa-money-bill-wave"></i> PAGAR
+//             </button>
+            
+//             <button class="btn-suspenso" 
+//                     onclick="suspenderConta(${c.idlancamento}, ${idPgto}, '${dataVcto}', '${textoObs}')">
+//                 <i class="fas fa-pause"></i> SUSP.
+//             </button>
+//         </div>
+//     `;
+// }
+
 function renderBotaoPagamento(c) {
-    // 1. Se já estiver pago, mostra o ícone de confirmação
     if (c.status && c.status.toLowerCase() === 'pago') {
         return `<i class="fas fa-check-double" style="color: #2E8B57;" title="Lançamento Confirmado"></i>`;
     }
 
-    // 2. Tratamento da observação para evitar quebra no JS
-    const textoObs = (c.observacao || c.observacao_vencimento || "")
-        .replace(/[\n\r]/g, ' ')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"');
-
+    const textoObs = (c.observacao || c.observacao_vencimento || "").replace(/[\n\r]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '\\"');
     const dataVcto = c.dtvcto || c.vencimento || "";
     const valorParaPagar = c.vlrprevisto || c.valor || 0;
     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
-
     const vinculo = (c.tipovinculo || "").toLowerCase();
 
-    // 3. Retorno usando suas classes .btn-pago e .btn-suspenso
+    // Adicionamos o ID dinâmico: container-acoes-${c.idlancamento}
     return `
-        <div class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
+        <div id="container-acoes-${c.idlancamento}" class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
             <button class="btn-pago" 
                     onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}', '${vinculo}', '${c.descricao}')">
                 <i class="fas fa-money-bill-wave"></i> PAGAR
             </button>
-            
             <button class="btn-suspenso" 
                     onclick="suspenderConta(${c.idlancamento}, ${idPgto}, '${dataVcto}', '${textoObs}')">
                 <i class="fas fa-pause"></i> SUSP.
@@ -7771,64 +7797,71 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
 }
 window.abrirModalPagamento = abrirModalPagamento;
 
-// 2. FUNÇÃO QUE ENVIA PARA O BACKEND (A nova lógica de comunicação)
-// async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+
+// async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
 //     try {
-//         // A função fetchComToken provavelmente já retorna o corpo do JSON
+//         // Garantimos que os valores numéricos sejam tratados como float para o backend
+//         const corpoRequisicao = {
+//             idpagamento: idPagamento,
+//             idlancamento: idLancamento,
+//             vlrpago: parseFloat(vlrpago),
+//             dtpagamento: dtpagamento,
+//             dtvcto: dtvcto,
+//             observacao: observacao,
+//             vlratraso: parseFloat(vlratraso),     // Novo campo
+//             vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+//         };
+
+//         console.log("Corpo da requisição para baixa:", corpoRequisicao); // Log para debug
+
 //         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
 //             method: 'POST',
 //             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({
-//                 idpagamento: idPagamento,
-//                 idlancamento: idLancamento,
-//                 vlrpago: vlrpago,
-//                 dtpagamento: dtpagamento,
-//                 dtvcto: dtvcto,
-//                 observacao: observacao,
-//                 vlratraso: parseFloat(vlratraso),     // Novo campo
-//                 vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
-//             })
+//             body: JSON.stringify(corpoRequisicao)
 //         });
 
-//         // Agora verificamos 'dados' diretamente, sem o res.json()
 //         if (dados && dados.sucesso) {
-//             Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+//             Swal.fire({ 
+//                 icon: 'success', 
+//                 title: 'Pagamento Confirmado!', 
+//                 text: isNaN(vlratraso) || vlratraso <= 0 ? '' : 'Acrescimos registrados com sucesso.',
+//                 timer: 1500, 
+//                 showConfirmButton: false 
+//             });
 
-//             // Busca a linha da tabela pelo ID que acabamos de criar
 //             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
 
 //             if (linha) {
 //                 const tbody = linha.parentElement;
                 
-//                 // Efeito visual suave
+//                 // Efeito visual de sucesso
 //                 linha.style.transition = 'all 0.4s ease';
 //                 linha.style.opacity = '0';
-//                 linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+//                 linha.style.backgroundColor = '#d4edda'; 
 
 //                 setTimeout(() => {
-//                     linha.remove(); // Remove a <tr> da tabela
+//                     linha.remove(); 
                     
-//                     // Se a tabela ficar vazia, podemos limpar o accordion
-//                     if (tbody.querySelectorAll('tr').length === 0) {
+//                     // Verifica se o container ficou vazio para exibir mensagem amigável
+//                     if (tbody && tbody.querySelectorAll('tr').length === 0) {
 //                         const accordionBody = tbody.closest('.accordion-body');
-//                         accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+//                         if (accordionBody) {
+//                             accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999; font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
+//                         }
 //                     }
 //                 }, 400);
 //             }
-//         }
-        
-//         else {
-//             Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+//         } else {
+//             Swal.fire('Erro ao Processar', (dados ? dados.erro : 'Erro desconhecido no servidor.'), 'error');
 //         }
 //     } catch (err) {
-//         console.error("Erro na requisição:", err);
-//         Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+//         console.error("Erro na requisição de baixa:", err);
+//         Swal.fire('Erro de Conexão', 'Não foi possível comunicar com o servidor.', 'error');
 //     }
 // }
 
 async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
     try {
-        // Garantimos que os valores numéricos sejam tratados como float para o backend
         const corpoRequisicao = {
             idpagamento: idPagamento,
             idlancamento: idLancamento,
@@ -7836,11 +7869,9 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
             dtpagamento: dtpagamento,
             dtvcto: dtvcto,
             observacao: observacao,
-            vlratraso: parseFloat(vlratraso),     // Novo campo
-            vlrdesconto: parseFloat(vlrdesconto)   // Novo campo
+            vlratraso: parseFloat(vlratraso),
+            vlrdesconto: parseFloat(vlrdesconto)
         };
-
-        console.log("Corpo da requisição para baixa:", corpoRequisicao); // Log para debug
 
         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
             method: 'POST',
@@ -7849,41 +7880,35 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
         });
 
         if (dados && dados.sucesso) {
+            // Toast rápido para não atrapalhar o fluxo
             Swal.fire({ 
                 icon: 'success', 
-                title: 'Pagamento Confirmado!', 
-                text: isNaN(vlratraso) || vlratraso <= 0 ? '' : 'Acrescimos registrados com sucesso.',
-                timer: 1500, 
-                showConfirmButton: false 
+                title: 'Confirmado!', 
+                timer: 1000, 
+                showConfirmButton: false,
+                position: 'top-end',
+                toast: true
             });
 
+            // LOCALIZA O CONTAINER DOS BOTÕES
+            const container = document.getElementById(`container-acoes-${idLancamento}`);
             const linha = document.getElementById(`linha-pgto-${idLancamento}`);
 
-            if (linha) {
-                const tbody = linha.parentElement;
+            if (container) {
+                // Substitui os botões por um ícone de check (estilo "pago")
+                container.innerHTML = `<i class="fas fa-check-double" style="color: #2E8B57; font-size: 1.2rem;" title="Pago agora"></i>`;
                 
-                // Efeito visual de sucesso
-                linha.style.transition = 'all 0.4s ease';
-                linha.style.opacity = '0';
-                linha.style.backgroundColor = '#d4edda'; 
-
-                setTimeout(() => {
-                    linha.remove(); 
-                    
-                    // Verifica se o container ficou vazio para exibir mensagem amigável
-                    if (tbody && tbody.querySelectorAll('tr').length === 0) {
-                        const accordionBody = tbody.closest('.accordion-body');
-                        if (accordionBody) {
-                            accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999; font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
-                        }
-                    }
-                }, 400);
+                // Opcional: muda a cor da linha para indicar sucesso sem removê-la
+                if (linha) {
+                    linha.style.backgroundColor = '#f0fff4'; // Verde bem clarinho
+                    linha.style.transition = 'background-color 0.5s ease';
+                }
             }
         } else {
-            Swal.fire('Erro ao Processar', (dados ? dados.erro : 'Erro desconhecido no servidor.'), 'error');
+            Swal.fire('Erro ao Processar', (dados ? dados.erro : 'Erro interno.'), 'error');
         }
     } catch (err) {
-        console.error("Erro na requisição de baixa:", err);
+        console.error("Erro:", err);
         Swal.fire('Erro de Conexão', 'Não foi possível comunicar com o servidor.', 'error');
     }
 }
@@ -7900,6 +7925,61 @@ function verificarSeAccordionVazio(container) {
 }
 
 
+// async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
+//     // 1. Abre o Swal apenas com a Textarea
+//     const { value: novaObservacao } = await Swal.fire({
+//         title: 'Suspender Lançamento',
+//         text: "Informe o motivo da suspensão:",
+//         input: 'textarea',
+//         inputValue: obsAntiga, 
+//         inputPlaceholder: 'Digite a observação aqui...',
+//         icon: 'warning',
+//         showCancelButton: true,
+//         confirmButtonColor: '#ffc107',
+//         confirmButtonText: 'Confirmar Suspensão',
+//         cancelButtonText: 'Cancelar',
+//         inputValidator: (value) => {
+//             if (!value) return 'A observação é obrigatória!';
+//         }
+//     });
+
+//     if (novaObservacao) {
+//         try {
+//             // Se o idPagamento for de outro mês (como o 32 que você viu), 
+//             // a rota deve ignorá-lo e procurar pelo par (idLancamento + dataVcto)
+//             const pgtoIdEnviado = (idPagamento === 'null' || idPagamento === null) ? null : idPagamento;
+
+//             const res = await fetchComToken('/main/confirmar-pagamento-conta', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({
+//                     idpagamento: pgtoIdEnviado,
+//                     idlancamento: idLancamento,
+//                     vlrpago: 0,
+//                     dtvcto: dataVcto, // Essencial para o Node não errar a parcela
+//                     dtpagamento: new Date().toISOString().split('T')[0],
+//                     observacao: novaObservacao,
+//                     status: 'suspenso'
+//                 })
+//             });
+
+//             // Log para debug no console do navegador
+//             console.log("Resposta da rota:", res);
+
+//             if (res && res.sucesso) {
+//                 await Swal.fire('Suspenso!', 'Status alterado para suspenso.', 'success');
+//                 location.reload();
+//             } else {
+//                 // Se res.sucesso for false, mostra o erro que veio do Node
+//                 Swal.fire('Erro', res.erro || 'Erro ao processar suspensão', 'error');
+//             }
+//         } catch (error) {
+//             console.error("Erro técnico:", error);
+//             Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
+//         }
+//     }
+// }
+
 async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
     // 1. Abre o Swal apenas com a Textarea
     const { value: novaObservacao } = await Swal.fire({
@@ -7913,6 +7993,7 @@ async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
         confirmButtonColor: '#ffc107',
         confirmButtonText: 'Confirmar Suspensão',
         cancelButtonText: 'Cancelar',
+        reverseButtons: true,
         inputValidator: (value) => {
             if (!value) return 'A observação é obrigatória!';
         }
@@ -7920,8 +8001,6 @@ async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
 
     if (novaObservacao) {
         try {
-            // Se o idPagamento for de outro mês (como o 32 que você viu), 
-            // a rota deve ignorá-lo e procurar pelo par (idLancamento + dataVcto)
             const pgtoIdEnviado = (idPagamento === 'null' || idPagamento === null) ? null : idPagamento;
 
             const res = await fetchComToken('/main/confirmar-pagamento-conta', {
@@ -7931,21 +8010,45 @@ async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
                     idpagamento: pgtoIdEnviado,
                     idlancamento: idLancamento,
                     vlrpago: 0,
-                    dtvcto: dataVcto, // Essencial para o Node não errar a parcela
+                    dtvcto: dataVcto, 
                     dtpagamento: new Date().toISOString().split('T')[0],
                     observacao: novaObservacao,
                     status: 'suspenso'
                 })
             });
 
-            // Log para debug no console do navegador
-            console.log("Resposta da rota:", res);
-
             if (res && res.sucesso) {
-                await Swal.fire('Suspenso!', 'Status alterado para suspenso.', 'success');
-                location.reload();
+                // 2. Feedback rápido (Toast) que não trava a tela
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Lançamento Suspenso!',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    position: 'top-end',
+                    toast: true
+                });
+
+                // 3. Atualiza o front sem Recarregar
+                const container = document.getElementById(`container-acoes-${idLancamento}`);
+                const linha = document.getElementById(`linha-pgto-${idLancamento}`);
+
+                if (container) {
+                    // Substitui os botões pelo status de suspenso
+                    container.innerHTML = `
+                        <span style="color: #856404; font-weight: bold; font-size: 0.85rem; background: #fff3cd; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffeeba;">
+                            <i class="fas fa-pause-circle"></i> SUSPENSO
+                        </span>
+                    `;
+                    
+                    // Aplica um estilo visual na linha para destacar a suspensão
+                    if (linha) {
+                        linha.style.backgroundColor = '#fffef0'; // Amarelo bem suave
+                        linha.style.opacity = '0.7';
+                        linha.style.transition = 'all 0.5s ease';
+                    }
+                }
+
             } else {
-                // Se res.sucesso for false, mostra o erro que veio do Node
                 Swal.fire('Erro', res.erro || 'Erro ao processar suspensão', 'error');
             }
         } catch (error) {
@@ -7954,6 +8057,7 @@ async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
         }
     }
 }
+
 window.suspenderConta = suspenderConta;
 
 async function reverterSuspensao(idLancamento, idPagamento, dataVcto, obsAtual = "") {
