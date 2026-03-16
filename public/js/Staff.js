@@ -811,104 +811,207 @@ if (typeof window.StaffOriginal === "undefined") {
 }
 
 
-const eventsTableBody = document.querySelector('#eventsDataTable tbody');
-const noResultsMessage = document.getElementById('noResultsMessage');
-const idFuncionarioHiddenInput = document.getElementById('idFuncionario');
-const apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
-const perfilFuncionarioInput = document.getElementById("perfilFuncionario");
-const previewFotoImg = document.getElementById('previewFoto');
-const fileNameSpan = document.getElementById('fileName');
-const uploadHeaderDiv = document.getElementById('uploadHeader');
-const fileInput = document.getElementById('file');
-const avaliacaoSelect = document.getElementById('avaliacao'); // Se usar
-const tarjaDiv = document.getElementById('tarjaAvaliacao'); // Se usar
-//const bFuncionarioCadstrado = false;
+// const eventsTableBody = document.querySelector('#eventsDataTable tbody');
+// const noResultsMessage = document.getElementById('noResultsMessage');
+// const idFuncionarioHiddenInput = document.getElementById('idFuncionario');
+// const apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
+// const perfilFuncionarioInput = document.getElementById("perfilFuncionario");
+// const previewFotoImg = document.getElementById('previewFoto');
+// const fileNameSpan = document.getElementById('fileName');
+// const uploadHeaderDiv = document.getElementById('uploadHeader');
+// const fileInput = document.getElementById('file');
+// const avaliacaoSelect = document.getElementById('avaliacao'); // Se usar
+// const tarjaDiv = document.getElementById('tarjaAvaliacao'); // Se usar
+// //const bFuncionarioCadstrado = false;
 
-const idStaffInput = document.getElementById('idStaff'); // Campo ID Staff
-const idStaffEventoInput = document.getElementById('idStaffEvento');
-const idFuncaoInput = document.getElementById('idFuncao');
-const descFuncaoSelect = document.getElementById('descFuncao'); // Select de Função
-const vlrCustoInput = document.getElementById('vlrCusto');
-const ajusteCustoInput = document.getElementById('ajusteCusto');
-const transporteInput = document.getElementById('transporte');
-const alimentacaoInput = document.getElementById('alimentacao');
-const statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
-const caixinhaInput = document.getElementById('caixinha');
-const descBeneficioTextarea = document.getElementById('descBeneficio');
-const nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
-const nmPavilhaoSelect = document.getElementById('nmPavilhao');
-const idClienteInput = document.getElementById('idCliente');
-const nmClienteSelect = document.getElementById('nmCliente');
-const idEventoInput = document.getElementById('idEvento');
-const nmEventoSelect = document.getElementById('nmEvento');
-const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
-
-const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-const campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
-const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
-const selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+// const idStaffInput = document.getElementById('idStaff'); // Campo ID Staff
+// const idStaffEventoInput = document.getElementById('idStaffEvento');
+// const idFuncaoInput = document.getElementById('idFuncao');
+// const descFuncaoSelect = document.getElementById('descFuncao'); // Select de Função
+// const vlrCustoInput = document.getElementById('vlrCusto');
+// const ajusteCustoInput = document.getElementById('ajusteCusto');
+// const transporteInput = document.getElementById('transporte');
+// const alimentacaoInput = document.getElementById('alimentacao');
+// const statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+// const caixinhaInput = document.getElementById('caixinha');
+// const descBeneficioTextarea = document.getElementById('descBeneficio');
+// const nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
+// const nmPavilhaoSelect = document.getElementById('nmPavilhao');
+// const idClienteInput = document.getElementById('idCliente');
+// const nmClienteSelect = document.getElementById('nmCliente');
+// const idEventoInput = document.getElementById('idEvento');
+// const nmEventoSelect = document.getElementById('nmEvento');
+// const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
 
 
-const vlrTotalInput = document.getElementById('vlrTotal');
+// const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+// const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+// const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+// const campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+// const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+// const selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
 
-//const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
-const caixinhacheck = document.getElementById('Caixinhacheck');
-const campoCaixinha = document.getElementById('campoCaixinha');
-const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-const descCaixinhaTextarea = document.getElementById('descCaixinha');
-const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-const statusCaixinhaInput = document.getElementById('statusCaixinha');
-const selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
-const statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+// // let ajusteCustocheck = document.getElementById('ajusteCustocheck');
+// // let campoAjusteCusto = document.getElementById('campoAjusteCusto');
+// // let ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+// // let campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+// // let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+// // let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
 
-const setorInput = document.getElementById('setor');
 
-const statusPagtoInput = document.getElementById('statusPgto');
+// const vlrTotalInput = document.getElementById('vlrTotal');
 
+// //const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
+// const caixinhacheck = document.getElementById('Caixinhacheck');
+// const campoCaixinha = document.getElementById('campoCaixinha');
+// const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+// const descCaixinhaTextarea = document.getElementById('descCaixinha');
+// const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+// const statusCaixinhaInput = document.getElementById('statusCaixinha');
+// const selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
+// const statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+
+// const setorInput = document.getElementById('setor');
+
+// const statusPagtoInput = document.getElementById('statusPgto');
+
+// const temPermissaoMaster = temPermissao("Staff", "master");
+// const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
+// const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
+
+// const diariaDobradaInput = document.getElementById('diariaDobrada');
+// const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+// const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+// const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+// const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
+// const statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
+
+// const meiaDiariaInput = document.getElementById('meiaDiaria');
+// const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+// const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+// const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+// const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
+// const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
+// const statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
+
+// const containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
+// const containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
+// const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+// const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+// const check50 = document.getElementById('check50');
+// const check100 = document.getElementById('check100');
+
+// const container1 = document.getElementById('labelFileAjdCusto').parentElement;
+// const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+// const mensagemConcluido = document.getElementById('mensagemConcluido');
+
+
+// const seniorCheck = document.getElementById('Seniorcheck');
+// const seniorCheck2 = document.getElementById('Seniorcheck2');
+// const plenoCheck = document.getElementById('Plenocheck');
+// const juniorCheck = document.getElementById('Juniorcheck');
+// const baseCheck = document.getElementById('Basecheck');
+// const fechadoCheck =  document.getElementById('Fechadocheck');
+
+// const qtdPessoasInput = document.getElementById('qtdPessoas');
+
+// const idEquipeInput = document.getElementById('idEquipe');
+// const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+let eventsTableBody = document.querySelector('#eventsDataTable tbody');
+let noResultsMessage = document.getElementById('noResultsMessage');
+let idFuncionarioHiddenInput = document.getElementById('idFuncionario');
+let apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
+let perfilFuncionarioInput = document.getElementById("perfilFuncionario");
+let previewFotoImg = document.getElementById('previewFoto');
+let fileNameSpan = document.getElementById('fileName');
+let uploadHeaderDiv = document.getElementById('uploadHeader');
+let fileInput = document.getElementById('file');
+let avaliacaoSelect = document.getElementById('avaliacao');
+let tarjaDiv = document.getElementById('tarjaAvaliacao');
+ 
+let idStaffInput = document.getElementById('idStaff');
+let idStaffEventoInput = document.getElementById('idStaffEvento');
+let idFuncaoInput = document.getElementById('idFuncao');
+let descFuncaoSelect = document.getElementById('descFuncao');
+let vlrCustoInput = document.getElementById('vlrCusto');
+let ajusteCustoInput = document.getElementById('ajusteCusto');
+let transporteInput = document.getElementById('transporte');
+let alimentacaoInput = document.getElementById('alimentacao');
+let statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+let caixinhaInput = document.getElementById('caixinha');
+let descBeneficioTextarea = document.getElementById('descBeneficio');
+let nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
+let nmPavilhaoSelect = document.getElementById('nmPavilhao');
+let idClienteInput = document.getElementById('idCliente');
+let nmClienteSelect = document.getElementById('nmCliente');
+let idEventoInput = document.getElementById('idEvento');
+let nmEventoSelect = document.getElementById('nmEvento');
+let datasEventoInput = document.getElementById('datasEvento');
+ 
+let ajusteCustocheck = document.getElementById('ajusteCustocheck');
+let campoAjusteCusto = document.getElementById('campoAjusteCusto');
+let ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+let campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+ 
+let vlrTotalInput = document.getElementById('vlrTotal');
+ 
+let caixinhacheck = document.getElementById('Caixinhacheck');
+let campoCaixinha = document.getElementById('campoCaixinha');
+let campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+let descCaixinhaTextarea = document.getElementById('descCaixinha');
+let campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+let statusCaixinhaInput = document.getElementById('statusCaixinha');
+let selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
+let statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+ 
+let setorInput = document.getElementById('setor');
+let statusPagtoInput = document.getElementById('statusPgto');
+ 
 const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
-
-const diariaDobradaInput = document.getElementById('diariaDobrada');
-const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
-const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
-const statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
-
-const meiaDiariaInput = document.getElementById('meiaDiaria');
-const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
-const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
-const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
-const statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
-
-const containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
-const containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
-const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-
-const check50 = document.getElementById('check50');
-const check100 = document.getElementById('check100');
-
-const container1 = document.getElementById('labelFileAjdCusto').parentElement;
-const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
-const mensagemConcluido = document.getElementById('mensagemConcluido');
-
-const seniorCheck = document.getElementById('Seniorcheck');
-const seniorCheck2 = document.getElementById('Seniorcheck2');
-const plenoCheck = document.getElementById('Plenocheck');
-const juniorCheck = document.getElementById('Juniorcheck');
-const baseCheck = document.getElementById('Basecheck');
-const fechadoCheck =  document.getElementById('Fechadocheck');
-
-const qtdPessoasInput = document.getElementById('qtdPessoas');
-
-const idEquipeInput = document.getElementById('idEquipe');
-const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+ 
+let diariaDobradaInput = document.getElementById('diariaDobrada');
+let diariaDobradacheck = document.getElementById('diariaDobradacheck');
+let campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+let descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+let campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
+let statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
+ 
+let meiaDiariaInput = document.getElementById('meiaDiaria');
+let meiaDiariacheck = document.getElementById('meiaDiariacheck');
+let campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+let descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+let descCustoFechadoTextarea = document.getElementById('descCustoFechado');
+let campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
+let statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
+ 
+let containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
+let containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
+let containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+let containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+ 
+let check50 = document.getElementById('check50');
+let check100 = document.getElementById('check100');
+ 
+let container1 = document.getElementById('labelFileAjdCusto').parentElement;
+let container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+let mensagemConcluido = document.getElementById('mensagemConcluido');
+ 
+let seniorCheck = document.getElementById('Seniorcheck');
+let seniorCheck2 = document.getElementById('Seniorcheck2');
+let plenoCheck = document.getElementById('Plenocheck');
+let juniorCheck = document.getElementById('Juniorcheck');
+let baseCheck = document.getElementById('Basecheck');
+let fechadoCheck = document.getElementById('Fechadocheck');
+ 
+let qtdPessoasInput = document.getElementById('qtdPessoas');
+ 
+let idEquipeInput = document.getElementById('idEquipe');
+let nmEquipeSelect = document.getElementById('nmEquipe');
 
 const DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
 const DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
@@ -1727,6 +1830,7 @@ function getDadosFormulario() {
 
 
 const carregarTabelaStaff = async (funcionarioId) => {
+    const eventsTableBody = document.querySelector('#eventsDataTable tbody');
     // Reset inicial da tela
     eventsTableBody.innerHTML = '';
     noResultsMessage.style.display = 'none';
@@ -1742,6 +1846,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
     const url = `/staff/${funcionarioId}`;
 
+
     try {
         const response = await fetch(url, {
             method: 'GET',
@@ -1750,6 +1855,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
             }
         });
+
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -2521,10 +2627,99 @@ async function limparCamposStaffParcial() {
 
 }
 
-console.log("não carregou Verificar");
+
 async function verificaStaff() {
 
-    console.log("Carregando Staff...");
+    console.log("%cCarregando Staff...", "background: blue;");
+     eventsTableBody           = document.querySelector('#eventsDataTable tbody');
+    noResultsMessage          = document.getElementById('noResultsMessage');
+    idFuncionarioHiddenInput  = document.getElementById('idFuncionario');
+    apelidoFuncionarioInput   = document.getElementById('apelidoFuncionario');
+    perfilFuncionarioInput    = document.getElementById('perfilFuncionario');
+    previewFotoImg            = document.getElementById('previewFoto');
+    fileNameSpan              = document.getElementById('fileName');
+    uploadHeaderDiv           = document.getElementById('uploadHeader');
+    fileInput                 = document.getElementById('file');
+    avaliacaoSelect           = document.getElementById('avaliacao');
+    tarjaDiv                  = document.getElementById('tarjaAvaliacao');
+ 
+    idStaffInput              = document.getElementById('idStaff');
+    idStaffEventoInput        = document.getElementById('idStaffEvento');
+    idFuncaoInput             = document.getElementById('idFuncao');
+    descFuncaoSelect          = document.getElementById('descFuncao');
+    vlrCustoInput             = document.getElementById('vlrCusto');
+    ajusteCustoInput          = document.getElementById('ajusteCusto');
+    transporteInput           = document.getElementById('transporte');
+    alimentacaoInput          = document.getElementById('alimentacao');
+    statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+    caixinhaInput             = document.getElementById('caixinha');
+    descBeneficioTextarea     = document.getElementById('descBeneficio');
+    nmLocalMontagemSelect     = document.getElementById('nmLocalMontagem');
+    nmPavilhaoSelect          = document.getElementById('nmPavilhao');
+    idClienteInput            = document.getElementById('idCliente');
+    nmClienteSelect           = document.getElementById('nmCliente');
+    idEventoInput             = document.getElementById('idEvento');
+    nmEventoSelect            = document.getElementById('nmEvento');
+    datasEventoInput          = document.getElementById('datasEvento');
+ 
+    ajusteCustocheck          = document.getElementById('ajusteCustocheck');
+    campoAjusteCusto          = document.getElementById('campoAjusteCusto');
+    ajusteCustoTextarea       = document.getElementById('descAjusteCusto');
+    campoStatusajusteCusto    = document.getElementById('campoStatusAjusteCusto');
+    statusAjusteCustoInput    = document.getElementById('statusAjusteCusto');
+    selectStatusAjusteCusto   = document.getElementById('selectStatusAjusteCusto');
+ 
+    vlrTotalInput             = document.getElementById('vlrTotal');
+ 
+    caixinhacheck             = document.getElementById('Caixinhacheck');
+    campoCaixinha             = document.getElementById('campoCaixinha');
+    campoPgtoCaixinha         = document.getElementById('campoPgtoCaixinha');
+    descCaixinhaTextarea      = document.getElementById('descCaixinha');
+    campoStatusCaixinha       = document.getElementById('campoStatusCaixinha');
+    statusCaixinhaInput       = document.getElementById('statusCaixinha');
+    selectStatusCaixinha      = document.getElementById('selectStatusCaixinha');
+    statusPgtoCaixinhaInput   = document.getElementById('statusPgtoCaixinha');
+ 
+    setorInput                = document.getElementById('setor');
+    statusPagtoInput          = document.getElementById('statusPgto');
+ 
+    diariaDobradaInput        = document.getElementById('diariaDobrada');
+    diariaDobradacheck        = document.getElementById('diariaDobradacheck');
+    campoDiariaDobrada        = document.getElementById('campoDiariaDobrada');
+    descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+    campoStatusDiariaDobrada  = document.getElementById('campoStatusDiariaDobrada');
+    statusDiariaDobradaInput  = document.getElementById('statusDiariaDobrada');
+ 
+    meiaDiariaInput           = document.getElementById('meiaDiaria');
+    meiaDiariacheck           = document.getElementById('meiaDiariacheck');
+    campoMeiaDiaria           = document.getElementById('campoMeiaDiaria');
+    descMeiaDiariaTextarea    = document.getElementById('descMeiaDiaria');
+    descCustoFechadoTextarea  = document.getElementById('descCustoFechado');
+    campoStatusMeiaDiaria     = document.getElementById('campoStatusMeiaDiaria');
+    statusMeiaDiariaInput     = document.getElementById('statusMeiaDiaria');
+ 
+    containerDiariaDobradaCheck  = document.querySelector('#diariaDobradacheck')?.closest('.input-container-checkbox');
+    containerMeiaDiariacheck     = document.querySelector('#meiaDiariacheck')?.closest('.input-container-checkbox');
+    containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+    containerStatusMeiaDiaria    = document.getElementById('containerStatusMeiaDiaria');
+ 
+    check50                   = document.getElementById('check50');
+    check100                  = document.getElementById('check100');
+ 
+    container1                = document.getElementById('labelFileAjdCusto')?.parentElement;
+    container2                = document.getElementById('labelFileAjdCusto2')?.parentElement;
+    mensagemConcluido         = document.getElementById('mensagemConcluido');
+ 
+    seniorCheck               = document.getElementById('Seniorcheck');
+    seniorCheck2              = document.getElementById('Seniorcheck2');
+    plenoCheck                = document.getElementById('Plenocheck');
+    juniorCheck               = document.getElementById('Juniorcheck');
+    baseCheck                 = document.getElementById('Basecheck');
+    fechadoCheck              = document.getElementById('Fechadocheck');
+ 
+    qtdPessoasInput           = document.getElementById('qtdPessoas');
+    idEquipeInput             = document.getElementById('idEquipe');
+    nmEquipeSelect            = document.getElementById('nmEquipe');
 
     configurarPreviewPDF();
     configurarPreviewImagem();
@@ -2547,6 +2742,8 @@ async function verificaStaff() {
             console.warn("⚠️ [verificaStaff] Picker principal não está pronto para forçar a atualização.");
         }
     }, 0);
+
+    
 
 
     const botaoEnviar = document.querySelector("#Enviar");
@@ -2794,6 +2991,7 @@ async function verificaStaff() {
     seniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
     seniorCheck2.addEventListener('change', debouncedOnCriteriosChanged);
 
+    
     ajusteCustoInput.addEventListener('change', () => {
         let valor = ajusteCustoInput.value.replace(',', '.');
         if (!isNaN(parseFloat(valor))) {
@@ -2801,6 +2999,7 @@ async function verificaStaff() {
         } else {
             ajusteCustoInput.value = '0,00';
         }
+        console.log("formatação do valor :","background:yellow;", ajusteCustoInput.value)
     });
 
     const selectAjusteCusto = document.getElementById('selectStatusAjusteCusto');
@@ -2809,7 +3008,7 @@ async function verificaStaff() {
         selectAjusteCusto.addEventListener('change', () => {
             aplicarCorNoSelect(selectAjusteCusto);
             statusAjusteCustoInput.value = selectStatusAjusteCusto.value;
-            console.log("Status de Ajuste de Custo sincronizado para:", statusAjusteCustoInput.value);
+            console.log("Status de Ajuste de Custo sincronizado para:","background:darkyellow;", statusAjusteCustoInput.value);
         });
     }
 
@@ -3071,7 +3270,7 @@ async function verificaStaff() {
         });
     }   
 
-    const datasEventoInput = document.getElementById('datasEvento');
+    // const datasEventoInput = document.getElementById('datasEvento');
     if (datasEventoInput) {
             console.log("ENTROU NO PERIODO EVENTO DO VERIFICASTAFF");
     }
@@ -3426,7 +3625,6 @@ async function verificaStaff() {
                 )) {
                 conflicts.push(apiResult.conflictingEvent);
             }
-
   
             //const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
             const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
@@ -3816,23 +4014,21 @@ async function verificaStaff() {
                                 // Cadastrar outro (Limpeza total)
                                 limparCamposStaff();
                             } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
-                                // 🚪 FINALIZAR E SAIR
-                                console.log("🚀 Fechando modal e resetando sistema...");
-                                
                                 prefillEventFired = false; 
                                 window.orcamentoAtual = null; 
                                 
                                 const tableBody = document.getElementById('eventsTableBody');
                                 if (tableBody) tableBody.innerHTML = ''; 
 
+                                // Deixa o fecharModal cuidar de tudo, inclusive chamar o onStaffModalClosed
                                 if (typeof fecharModal === "function") {
                                     fecharModal();
-                                    // Recarregar é a forma mais segura de limpar TODOS os eventos do JS
-                                    window.location.reload(); 
                                 } else {
                                     document.getElementById("modal-overlay").style.display = "none";
                                     document.body.classList.remove("modal-open");
-                                    window.location.reload();
+                                    if (typeof window.onStaffModalClosed === 'function') {
+                                        window.onStaffModalClosed(true);
+                                    }
                                 }
                             }
 
@@ -4609,18 +4805,17 @@ async function verificaStaff() {
                     limparCamposStaff(); // Sua função de limpeza total
 
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
-                    // Se escolheu "Finalizar e Sair"
                     console.log("Usuário escolheu: Finalizar e Sair");
                     
-                    // Chama a função global para fechar a modal
                     if (typeof fecharModal === "function") {
                         fecharModal();
-                        window.location.reload();
                     } else {
-                        // Fallback (se a fecharModal não estiver no escopo)
                         document.getElementById("modal-overlay").style.display = "none";
                         document.getElementById("modal-container").innerHTML = "";
                         document.body.classList.remove("modal-open");
+                        if (typeof window.onStaffModalClosed === 'function') {
+                            window.onStaffModalClosed(true);
+                        }
                     }
                 }
                 
@@ -4629,14 +4824,51 @@ async function verificaStaff() {
             } catch (error) {
                 console.error("❌ Erro ao enviar dados do funcionário:", error);
                 
-                // ❌ Reabilita o botão após o erro
                 const botaoEnviar = document.getElementById("botaoEnviar");
                 if (botaoEnviar) {
                     botaoEnviar.disabled = false;
                     botaoEnviar.textContent = 'Salvar'; 
                 }
-                
-                Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+
+                // Tenta parsear o JSON que vem dentro do error.message
+                let titulo = "Erro ao salvar funcionário";
+                let htmlErro = `<p>${error.message || "Erro desconhecido."}</p>`;
+
+                try {
+                    const jsonMatch = error.message?.match(/\{.*\}/s);
+                    if (jsonMatch) {
+                        const dados = JSON.parse(jsonMatch[0]);
+
+                        if (dados.tipoErro === "LIMITE_EXCEDIDO") {
+                            titulo = dados.title;
+                            htmlErro = `
+                                <p>O limite de <strong>${dados.tipo}</strong> para essa função foi atingido.</p>
+                                <br>
+                                <table style="margin: 0 auto; text-align: center; border-collapse: collapse; width: 80%">
+                                    <tr style="background: #f0f0f0;">
+                                        <th style="padding: 8px 20px;">Limite</th>
+                                        <th style="padding: 8px 20px;">Tentou</th>
+                                        <th style="padding: 8px 20px;">Usado</th>
+                                        <th style="padding: 8px 20px;">Saldo</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 20px;">${dados.limite}</td>
+                                        <td style="padding: 8px 20px;">${dados.tentativa}</td>
+                                        <td style="padding: 8px 20px;">${dados.usado}</td>
+                                        <td style="padding: 8px 20px; color: ${dados.saldo <= 0 ? '#d63030' : '#28a745'}; font-weight: bold;">${dados.saldo}</td>
+                                    </tr>
+                                </table>
+                            `;
+                        }
+                    }
+                } catch (_) { /* mantém o htmlErro padrão */ }
+
+                Swal.fire({
+                    title: titulo,
+                    html: htmlErro,
+                    icon: "error",
+                    confirmButtonText: "Entendi"
+                });
             }
         })
         document.getElementById("selectStatusCustoFechado").addEventListener("change", function() {
@@ -9193,11 +9425,14 @@ function configurarEventosStaff() {
     // Inicializa o estado dos campos extra/caixinha no carregamento
     const inputAjusteCusto = document.getElementById('ajusteCusto');
     const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+    const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+    const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
     const campoAjusteCusto = document.getElementById('campoAjusteCusto');
 
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
+    if (ajusteCustocheck && campoStatusAjusteCusto && ajusteCustoTextarea) {
         ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
+            campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+            campoStatusAjusteCusto.style.display = this.checked ? 'block' : 'none';
 
             ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
             ajusteCustoTextarea.required = this.checked;
@@ -9207,8 +9442,8 @@ function configurarEventosStaff() {
             }
 
         });
-
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+         campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+        campoStatusAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
 
         ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
         ajusteCustoTextarea.required = ajusteCustocheck.checked;
@@ -9222,9 +9457,10 @@ function configurarEventosStaff() {
 
     const caixinhacheck = document.getElementById('Caixinhacheck');
     const campoCaixinha = document.getElementById('campoCaixinha');
+    const descCaixinhaTextarea = document.getElementById('descCaixinha');
     const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
 
-    if (caixinhacheck && campoCaixinha) {
+    if (caixinhacheck && campoCaixinha && descCaixinhaTextarea) {
         caixinhacheck.addEventListener('change', function() {
             campoCaixinha.style.display = this.checked ? 'block' : 'none';
             campoPgtoCaixinha.style.display = this.checked ? 'block' : 'none';

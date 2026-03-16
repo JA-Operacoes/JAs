@@ -9,6 +9,8 @@ const logMiddleware = require('../middlewares/logMiddleware');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Para manipulação de arquivos (apagar antigos)
+const { title } = require("process");
+const { text } = require("stream/consumers");
 
 const parseFloatOrNull = (v) => {
     if (v === undefined || v === null || v === '' || v === 'NaN' || v === 'null') return 0;
@@ -960,18 +962,99 @@ function ordenarDatas(datas) {
 // =========================================================================
 // 🚀 ROTA POST - CADASTRO 100%
 // =========================================================================
+// router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
+//      uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
+//     const {
+//         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//         vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
+//         vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
+//         statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
+//         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
+//         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
+//         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
+//         vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+//     } = req.body;
+
+//     const idempresa = req.idempresa;
+//     let client;
+
+//     try {
+//         client = await pool.connect();
+//         await client.query('BEGIN');
+
+//         // 1. Verificar/Criar Staff
+//         const staffResult = await client.query(`
+//             SELECT s.idstaff FROM staff s 
+//             JOIN staffempresas se ON s.idstaff = se.idstaff 
+//             WHERE s.idfuncionario = $1 AND se.idempresa = $2`, [idfuncionario, idempresa]);
+
+//         let idstaffExistente = staffResult.rows[0]?.idstaff;
+//         if (!idstaffExistente) {
+//             const resS = await client.query(`INSERT INTO staff (idfuncionario) VALUES ($1) RETURNING idstaff`, [idfuncionario]);
+//             idstaffExistente = resS.rows[0].idstaff;
+//             await client.query(`INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)`, [idstaffExistente, idempresa]);
+//         }
+
+//         // 2. Inserir Evento
+//         const queryInsert = `
+//             INSERT INTO staffeventos (
+//                 idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//                 idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao, vlrcache, vlralmoco,
+//                 vlralimentacao, vlrtransporte, vlrajustecusto, vlrcaixinha, descajustecusto,
+//                 datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
+//                 descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha,
+//                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
+//                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
+//                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
+//                 statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+//             ) VALUES (
+//                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49
+//             ) RETURNING idstaffevento;
+//         `;
+
+//         const values = [
+//             idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//             parseFloatOrNull(vlrcache), parseFloatOrNull(vlralmoco), parseFloatOrNull(vlralimentacao),
+//             parseFloatOrNull(vlrtransporte), parseFloatOrNull(vlrajustecusto), parseFloatOrNull(vlrcaixinha),
+//             descajustecusto, datasevento, parseFloatOrNull(vlrtotal),
+//             req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
+//             req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
+//             req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
+//             descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada,
+//             statusmeiadiaria, datadiariadobrada,
+//             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
+//             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
+//             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
+//             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado
+//         ];
+
+//         const resIns = await client.query(queryInsert, values);
+//         await client.query('COMMIT');
+
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = resIns.rows[0].idstaffevento; 
+
+//         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
+//     } catch (e) {
+//         if (client) await client.query('ROLLBACK');
+//         res.status(500).json({ error: e.message });
+//     } finally { if (client) client.release(); }
+// });
 router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
-     uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
+    uploadComprovantesMiddleware, logMiddleware('staffeventos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }), async (req, res) => {
+    
     const {
-        idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-        idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-        vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
-        vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
-        statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
-        datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
-        nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
-        statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+       idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+    idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+    vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
+    vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
+    statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
+    datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
+    nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
+    statuspgtoajdcto, statuspgtocaixinha, idorcamento,
+    vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -981,7 +1064,59 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         client = await pool.connect();
         await client.query('BEGIN');
 
-        // 1. Verificar/Criar Staff
+        // --- 1. VALIDAÇÃO DE LIMITE (TRAVA) ---
+        // Buscamos a definição da vaga no orçamento
+        const queryOrca = `
+            SELECT 
+                bool_or(cachefechado) as eh_cache_fechado,
+                SUM(CASE WHEN cachefechado = true THEN qtddias ELSE qtditens END) as limite_total
+            FROM orcamentoitens 
+            WHERE idorcamento = $1 AND idfuncao = $2 AND (setor = $3 OR $3 IS NULL)
+            GROUP BY idfuncao
+        `;
+        const resOrca = await client.query(queryOrca, [idorcamento, idfuncao, setor]);
+
+        if (resOrca.rows.length > 0) {
+            const { eh_cache_fechado, limite_total } = resOrca.rows[0];
+
+            // Buscamos o que já foi consumido no banco
+            const queryConsumido = `
+                SELECT 
+                    COUNT(DISTINCT idfuncionario) as total_pessoas,
+                    SUM(jsonb_array_length(datasevento)) as total_diarias
+                FROM staffeventos 
+                WHERE idorcamento = $1 AND idfuncao = $2 AND (setor = $3 OR $3 IS NULL)
+            `;
+            const resConsumido = await client.query(queryConsumido, [idorcamento, idfuncao, setor]);
+            
+            const jaUtilizado = eh_cache_fechado 
+                ? parseInt(resConsumido.rows[0].total_diarias || 0) 
+                : parseInt(resConsumido.rows[0].total_pessoas || 0);
+
+            // Calculamos o que está sendo tentado agora
+            // Se for cache fechado, somamos as novas diárias. Se não, somamos 1 pessoa.
+            const datasArray = Array.isArray(datasevento) ? datasevento : JSON.parse(datasevento || "[]");
+            const tentativaAtual = eh_cache_fechado ? datasArray.length : 1;
+
+            if (jaUtilizado + tentativaAtual > limite_total) {
+                await client.query('ROLLBACK');
+                const saldoFinal = limite_total - jaUtilizado;
+                
+                // IMPORTANTE: Enviamos campos separados para o Swal usar no HTML
+                return res.status(400).json({ 
+                    tipoErro: "LIMITE_EXCEDIDO", 
+                    title: "Limite de Orçamento Excedido",
+                    tipo: eh_cache_fechado ? 'diárias' : 'vagas',
+                    limite: limite_total,
+                    tentativa: tentativaAtual,
+                    usado: jaUtilizado,
+                    saldo: saldoFinal < 0 ? 0 : saldoFinal
+                });
+            }
+        }
+        // --- FIM DA VALIDAÇÃO ---
+
+        // 2. Verificar/Criar Staff (Sua lógica original continua abaixo...)
         const staffResult = await client.query(`
             SELECT s.idstaff FROM staff s 
             JOIN staffempresas se ON s.idstaff = se.idstaff 
@@ -994,7 +1129,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             await client.query(`INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)`, [idstaffExistente, idempresa]);
         }
 
-        // 2. Inserir Evento
+        // 3. Inserir Evento (Sua query de insert original...)
         const queryInsert = `
             INSERT INTO staffeventos (
                 idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
@@ -1031,14 +1166,14 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         const resIns = await client.query(queryInsert, values);
         await client.query('COMMIT');
 
-        res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = resIns.rows[0].idstaffevento; 
-
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
     } catch (e) {
         if (client) await client.query('ROLLBACK');
+        console.error("Erro ao salvar staff:", e);
         res.status(500).json({ error: e.message });
-    } finally { if (client) client.release(); }
+    } finally { 
+        if (client) client.release(); 
+    }
 });
 
 // router.post('/aditivoextra/solicitacao', 
