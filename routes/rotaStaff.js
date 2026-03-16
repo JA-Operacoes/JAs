@@ -602,8 +602,10 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
                 se.nmevento, 
                 se.nmcliente, 
                 se.datasevento, 
+                se.idevento,
                 se.idstaffevento,
-                se.idfuncao 
+                se.idfuncao,
+                se.nmfuncao 
             FROM 
                 staffeventos se
             INNER JOIN 
@@ -702,6 +704,8 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.descajustecusto,
           se.descbeneficios,
           se.vlrtotal,
+          se.vlrtotcache,
+          se.vlrtotajdcusto,
           se.datasevento,
           se.comppgtocache,
           se.comppgtoajdcusto,
@@ -1626,12 +1630,31 @@ router.post('/aditivoextra/solicitacao',
       tipoSolicitacao, 
       justificativa, 
       idFuncionario,
-      dataSolicitada 
+      dataSolicitada,
+      idEventoSolicitado,    
+      idEventoConflitante    
+      
     } = req.body; 
 
     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
     const idUsuarioSolicitante = req.usuario?.idusuario; 
     const statusInicial = 'Pendente';
+
+   const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+    ? dataSolicitada.split(',').map(d => d.trim()) 
+    : null;
+
+    
+
+    // Se idEvento vier como um objeto vazio {} como mostra o seu log, tratamos também
+    // const idEventoTratado = (typeof idEvento === 'object' && Object.keys(idEvento).length === 0) || idEvento === '' 
+    //     ? null 
+    //     : idEvento;
+
+    const idFuncionarioTratado = (idFuncionario === '' || idFuncionario === 'undefined') ? null : idFuncionario;
+
+    const idEventoSolicitadoTratado = (idEventoSolicitado === '' || idEventoSolicitado === 'undefined' || idEventoSolicitado == null) ? null : idEventoSolicitado;
+    const idEventoConflitanteTratado = (idEventoConflitante === '' || idEventoConflitante === 'undefined' || idEventoConflitante == null) ? null : idEventoConflitante;
 
     // 1. Validações de Contexto
     if (!idUsuarioSolicitante || !idEmpresaContexto) {
@@ -1648,6 +1671,7 @@ router.post('/aditivoextra/solicitacao',
     else if (!qtdSolicitada) campoFaltante = 'qtdSolicitada';
     else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
     else if (!justificativa) campoFaltante = 'justificativa';
+    
 
     if (campoFaltante) { 
         return res.status(400).json({ 
@@ -1656,11 +1680,11 @@ router.post('/aditivoextra/solicitacao',
         });
     }
 
-    // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
-    const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
-    const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
-        ? dataTratada 
-        : null;
+    // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
+    // const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
+    // const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
+    //     ? dataTratada 
+    //     : null;
 
     // 4. Verificação de Duplicidade (CORRIGIDA)
     try {
@@ -1670,7 +1694,8 @@ router.post('/aditivoextra/solicitacao',
               AND idFuncionario = $2 
               AND idFuncao = $3 
               AND tipoSolicitacao = $4 
-              AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
+              --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND (dtsolicitada = $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
               AND idEmpresa = $6
               AND status = 'Pendente'
         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
@@ -1687,9 +1712,9 @@ router.post('/aditivoextra/solicitacao',
             INSERT INTO AditivoExtra (
               idOrcamento, idFuncao, idEmpresa, tipoSolicitacao, 
               qtdSolicitada, justificativa, idUsuarioSolicitante,
-              status, idFuncionario, dtSolicitada
+              status, idFuncionario, dtSolicitada, ideventosolicitado, ideventoconflitante
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING idAditivoExtra;
         `;
 
@@ -1702,8 +1727,10 @@ router.post('/aditivoextra/solicitacao',
           justificativa, 
           idUsuarioSolicitante,
           statusInicial,
-          idFuncionario || null,
-          dataParaBanco
+          idFuncionarioTratado || null,
+          dataParaBanco,
+          idEventoSolicitadoTratado,
+          idEventoConflitanteTratado
         ];
 
         const resultado = await pool.query(queryInsert, values);
@@ -1734,11 +1761,180 @@ router.post('/aditivoextra/solicitacao',
     }
 });
 
+// router.get('/aditivoextra/verificar-status',
+//     autenticarToken(),
+//     contextoEmpresa,
+//     async (req, res) => {
+//         const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante } = req.query;
+//         const idEmpresa = req.idempresa;
+
+//         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
+//             return res.status(400).json({ sucesso: false, erro: "Parâmetros incompletos." });
+//         }
+
+//         try {
+//             let params = [idOrcamento, idFuncao, idEmpresa];
+//             let filtroTipo = "";
+
+//             if (tipoSolicitacao === 'QUALQUER_VAGA') {
+//                 // 🎯 Busca tanto o padrão antigo quanto o novo
+//                 filtroTipo = "AND UPPER(ae.tipoSolicitacao) IN ('ADITIVO - VAGA EXCEDIDA', 'EXTRA BONIFICADO - VAGA EXCEDIDA')";
+//             } else if (tipoSolicitacao === 'QUALQUER_DATA') {
+//                 // 🎯 Busca tanto "DATA FORA" quanto "DATAS FORA"
+//                 filtroTipo = "AND (UPPER(ae.tipoSolicitacao) LIKE '%DATA%FORA%ORÇAMENTO%')";
+//             } else if (tipoSolicitacao === 'QUALQUER_FUNC') {
+//                 filtroTipo = "AND ae.tipoSolicitacao ILIKE '%FuncExcedido%'";
+//             } else {
+//                 // Busca exata ignorando maiúsculas/minúsculas
+//                 filtroTipo = "AND UPPER(ae.tipoSolicitacao) = UPPER($4)";
+//                 params.push(tipoSolicitacao);
+//             }
+
+//             // // 2. FILTRO DE DATA
+//             // let filtroData = "";
+//             // if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+//             //     // O índice da data depende se o $4 foi usado ou não
+//             //     const dataIndex = params.length + 1;
+//             //     filtroData = ` AND (ae.dtsolicitada::date = $${dataIndex}::date OR ae.dtsolicitada IS NULL)`;
+//             //     params.push(dataSolicitada);
+//             // }
+
+//             // 2. FILTRO DE DATA (AJUSTADO PARA LISTAS) - BLOCO GLOBAL
+//             // Localize o bloco de FILTRO DE DATA na sua rota GET
+//             let filtroData = "";
+//             if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+//                 const dataIndex = params.length + 1;
+                
+//                 // 🎯 A CORREÇÃO:
+//                 // Transformamos a string "2026-03-01,2026-03-02" em um Array do Postgres
+//                 // E usamos o operador && (overlap) para ver se QUALQUER uma dessas datas 
+//                 // já existe no array do banco de dados.
+                
+//                 const arrayDatas = dataSolicitada.split(',').map(d => d.trim());
+                
+//                 filtroData = ` AND (ae.dtsolicitada && $${dataIndex}::date[] OR ae.dtsolicitada IS NULL)`;
+                
+//                 params.push(arrayDatas); // Passamos o array do JS, o driver 'pg' converte para array do Postgres
+//             }
+
+//             let filtroEvento = "";
+//             if (idEventoSolicitado || idEventoConflitante) {
+//                 const idxEvento = params.length + 1;
+//                 filtroEvento = `AND (ae.ideventosolicitado = $${idxEvento} OR ae.ideventoconflitante = $${idxEvento})`;
+//                 // Usa o que estiver disponível
+//                 params.push(idEventoSolicitado || idEventoConflitante);
+//             }
+//             // --- 1. BUSCA A ÚLTIMA SOLICITAÇÃO ---
+//             const solicitacaoQuery = `
+//                 SELECT ae.*, f.nome AS "nmfuncionariodono"
+//                 FROM AditivoExtra ae
+//                 LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+//                 WHERE ae.idOrcamento = $1 AND ae.idFuncao = $2 AND ae.idEmpresa = $3
+//                 ${filtroTipo}
+//                 ${filtroData}
+//                 ${filtroEvento}
+//                 ORDER BY ae.dtSolicitacao DESC LIMIT 1;
+//             `;
+//             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
+//             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
+
+//             // --- 2. VERIFICAÇÃO ESPECÍFICA (CORRIGIDA) ---
+//             let autorizadoEspecifico = false;
+//             if (idFuncionario && idFuncionario !== 'undefined') {
+//                 let paramsCheck = [idOrcamento, idFuncao, idFuncionario, idEmpresa];
+//                 let filtroTipoCheck = "";
+
+//                 if (tipoSolicitacao === 'QUALQUER_VAGA') {
+//                     filtroTipoCheck = "AND UPPER(ae.tipoSolicitacao) IN ('ADITIVO - VAGA EXCEDIDA', 'EXTRA BONIFICADO - VAGA EXCEDIDA')";
+//                 } else if (tipoSolicitacao === 'QUALQUER_DATA') {
+//                     filtroTipoCheck = "AND (UPPER(ae.tipoSolicitacao) LIKE '%DATA%FORA%ORÇAMENTO%')";
+//                 } else {
+//                     filtroTipoCheck = "AND UPPER(ae.tipoSolicitacao) = UPPER($5)";
+//                     paramsCheck.push(tipoSolicitacao);
+//                 }
+
+//                 let filtroDataCheck = "";
+//                 if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+//                     const idxD = paramsCheck.length + 1;
+//                    // filtroDataCheck = ` AND (ae.dtsolicitada::date = $${idxD}::date OR ae.dtsolicitada IS NULL)`;
+//                     const listaDatasCheck = dataSolicitada.split(',').map(d => d.trim());
+//                     filtroDataCheck = ` AND (ae.dtsolicitada && $${idxD}::date[] OR ae.dtsolicitada IS NULL)`;
+//                     paramsCheck.push(listaDatasCheck);
+//                     //paramsCheck.push(dataSolicitada);
+                    
+//                 }
+
+//                 const checkQuery = `
+//                     SELECT ae.status, ae.tipoSolicitacao -- 🎯 Adicionamos o tipoSolicitacao aqui
+//                     FROM AditivoExtra ae 
+//                     WHERE ae.idOrcamento = $1 
+//                     AND ae.idFuncao = $2 
+//                     AND ae.idFuncionario = $3 
+//                     AND ae.idEmpresa = $4
+//                     AND ae.status IN ('Autorizado', 'Aprovado', 'Pendente', 'Em Análise') -- 🎯 Pegamos pendentes também
+//                     ${filtroTipoCheck} 
+//                     ${filtroDataCheck}
+//                     ORDER BY ae.dtSolicitacao DESC LIMIT 1
+//                 `;
+                
+//                 const checkResult = await pool.query(checkQuery, paramsCheck);
+                
+//                 // Se achou algo, enviamos os detalhes
+//                 if (checkResult.rows.length > 0) {
+//                     autorizadoEspecifico = checkResult.rows[0].status === 'Autorizado' || checkResult.rows[0].status === 'Aprovado';
+//                     solicitacaoPendente = checkResult.rows[0]; // Retorna o objeto completo
+//                 }
+//             }
+
+//             // --- 3. BUSCA TOTAIS ---
+//             const orcamentoQuery = `
+//                 SELECT 
+//                     (SELECT COALESCE(SUM(oi.qtditens), 0) FROM orcamentoitens oi WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
+//                     (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0) FROM staffeventos se WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas"
+//             `;
+//             const orcamentoResult = await pool.query(orcamentoQuery, [idOrcamento, idFuncao]);
+//             const dadosBase = orcamentoResult.rows[0];
+
+//             const aditivoResult = await pool.query(`
+//                 SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+//                 WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Aditivo%'
+//             `, [idOrcamento, idFuncao, idEmpresa]);
+
+//             const extraResult = await pool.query(`
+//                 SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+//                 WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Extra%'
+//             `, [idOrcamento, idFuncao, idEmpresa]);
+
+//             const totaisFuncao = {
+//                 totalOrcado: parseInt(dadosBase.totalOrcado) || 0,
+//                 totalVagasPreenchidas: parseInt(dadosBase.totalVagasPreenchidas) || 0,
+//                 totalAditivoAprovado: parseInt(aditivoResult.rows[0].total) || 0,
+//                 totalExtraAprovado: parseInt(extraResult.rows[0].total) || 0
+//             };
+
+//             // --- 4. RESPOSTA FINAL ---
+//             res.json({
+//                 sucesso: true,
+//                 dados: { 
+//                     solicitacaoRecente, 
+//                     autorizadoEspecifico,
+//                     totaisFuncao: totaisFuncao // 🚀 AJUSTE: Agora enviando o objeto preenchido
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error("ERRO CRÍTICO NO BANCO:", error.stack);
+//             res.status(500).json({ sucesso: false, erro: error.message });
+//         }
+//     }
+// );
+
+
 router.get('/aditivoextra/verificar-status',
     autenticarToken(),
     contextoEmpresa,
     async (req, res) => {
-        const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada } = req.query;
+        const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante } = req.query;
         const idEmpresa = req.idempresa;
 
         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
@@ -1746,33 +1942,110 @@ router.get('/aditivoextra/verificar-status',
         }
 
         try {
+
+            if (tipoSolicitacao === 'FuncExcedido') {
+                const paramsFE = [idEmpresa, idFuncionario];
+                let filtroData = "";
+
+                if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+                    const arrayDatas = dataSolicitada.split(',').map(d => d.trim());
+                    paramsFE.push(arrayDatas);
+                    filtroData = ` AND (ae.dtsolicitada && $${paramsFE.length}::date[])`;
+                }
+
+                // BUSCA 1: Solicitação IDÊNTICA (mesmo evento + mesma função + mesma data)
+                // Para bloquear completamente
+                const paramsDuplicata = [...paramsFE];
+                let filtroDuplicata = filtroData;
+
+                if (idEventoSolicitado) {
+                    paramsDuplicata.push(idEventoSolicitado);
+                    filtroDuplicata += ` AND ae.ideventosolicitado = $${paramsDuplicata.length}`;
+                }
+                if (idFuncao) {
+                    paramsDuplicata.push(idFuncao);
+                    filtroDuplicata += ` AND ae.idfuncao = $${paramsDuplicata.length}`;
+                }
+
+                const queryDuplicata = `
+                    SELECT ae.*, f.nome AS "nmfuncionariodono",
+                    e.nmevento AS "nmeventosolicitado" 
+                    FROM AditivoExtra ae
+                    LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario        
+                    LEFT JOIN eventos e ON e.idevento = ae.ideventosolicitado
+                    WHERE ae.idEmpresa = $1
+                    AND ae.idfuncionario = $2
+                    AND ae.tipoSolicitacao ILIKE '%FuncExcedido%'
+                    AND ae.status = 'Pendente'
+                    AND ae.ideventosolicitado IS NOT NULL   
+                    ${filtroDuplicata}
+                    ORDER BY ae.dtSolicitacao DESC LIMIT 1
+                `;
+
+                const resultDuplicata = await pool.query(queryDuplicata, paramsDuplicata);
+                const solicitacaoDuplicada = resultDuplicata.rows[0] || null;
+
+                // BUSCA 2: Qualquer solicitação na mesma data (mesmo que evento diferente)
+                // Para avisar que existe outra pendente
+                const queryGeral = `
+                    SELECT ae.*, f.nome AS "nmfuncionariodono",
+                    ev.nmevento AS "nmeventosolicitado"
+                    FROM AditivoExtra ae
+                    LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+                    LEFT JOIN eventos ev ON ev.idevento = ae.ideventosolicitado
+                    WHERE ae.idEmpresa = $1
+                    AND ae.idfuncionario = $2
+                    AND ae.tipoSolicitacao ILIKE '%FuncExcedido%'
+                    AND ae.status IN ('Pendente', 'Autorizado')
+                    ${filtroData}
+                    ORDER BY ae.dtSolicitacao DESC LIMIT 1
+                `;
+
+                const resultGeral = await pool.query(queryGeral, paramsFE);
+                const solicitacaoGeral = resultGeral.rows[0] || null;
+                
+                return res.json({
+                    sucesso: true,
+                    dados: {
+                        solicitacaoDuplicada,           // ← mesma data + mesmo evento + mesma função = BLOQUEAR
+                        solicitacaoRecente: solicitacaoGeral, // ← mesma data, qualquer evento = AVISAR
+                        autorizadoEspecifico: solicitacaoGeral?.status === 'Autorizado' && 
+                                            String(solicitacaoGeral?.ideventosolicitado) === String(idEventoSolicitado),
+                        totaisFuncao: null
+                    }
+                });
+            }
+            // ✅ FIM DO BLOCO FuncExcedido — código abaixo inalterado
+
             let params = [idOrcamento, idFuncao, idEmpresa];
             let filtroTipo = "";
 
             if (tipoSolicitacao === 'QUALQUER_VAGA') {
-                // 🎯 Busca tanto o padrão antigo quanto o novo
                 filtroTipo = "AND UPPER(ae.tipoSolicitacao) IN ('ADITIVO - VAGA EXCEDIDA', 'EXTRA BONIFICADO - VAGA EXCEDIDA')";
             } else if (tipoSolicitacao === 'QUALQUER_DATA') {
-                // 🎯 Busca tanto "DATA FORA" quanto "DATAS FORA"
                 filtroTipo = "AND (UPPER(ae.tipoSolicitacao) LIKE '%DATA%FORA%ORÇAMENTO%')";
             } else if (tipoSolicitacao === 'QUALQUER_FUNC') {
                 filtroTipo = "AND ae.tipoSolicitacao ILIKE '%FuncExcedido%'";
             } else {
-                // Busca exata ignorando maiúsculas/minúsculas
                 filtroTipo = "AND UPPER(ae.tipoSolicitacao) = UPPER($4)";
                 params.push(tipoSolicitacao);
             }
 
-            // 2. FILTRO DE DATA
             let filtroData = "";
             if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
-                // O índice da data depende se o $4 foi usado ou não
                 const dataIndex = params.length + 1;
-                filtroData = ` AND (ae.dtsolicitada::date = $${dataIndex}::date OR ae.dtsolicitada IS NULL)`;
-                params.push(dataSolicitada);
+                const arrayDatas = dataSolicitada.split(',').map(d => d.trim());
+                filtroData = ` AND (ae.dtsolicitada && $${dataIndex}::date[] OR ae.dtsolicitada IS NULL)`;
+                params.push(arrayDatas);
             }
 
-            // --- 1. BUSCA A ÚLTIMA SOLICITAÇÃO ---
+            let filtroEvento = "";
+            if (idEventoSolicitado || idEventoConflitante) {
+                const idxEvento = params.length + 1;
+                filtroEvento = `AND (ae.ideventosolicitado = $${idxEvento} OR ae.ideventoconflitante = $${idxEvento})`;
+                params.push(idEventoSolicitado || idEventoConflitante);
+            }
+
             const solicitacaoQuery = `
                 SELECT ae.*, f.nome AS "nmfuncionariodono"
                 FROM AditivoExtra ae
@@ -1780,12 +2053,12 @@ router.get('/aditivoextra/verificar-status',
                 WHERE ae.idOrcamento = $1 AND ae.idFuncao = $2 AND ae.idEmpresa = $3
                 ${filtroTipo}
                 ${filtroData}
+                ${filtroEvento}
                 ORDER BY ae.dtSolicitacao DESC LIMIT 1;
             `;
             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
 
-            // --- 2. VERIFICAÇÃO ESPECÍFICA (CORRIGIDA) ---
             let autorizadoEspecifico = false;
             if (idFuncionario && idFuncionario !== 'undefined') {
                 let paramsCheck = [idOrcamento, idFuncao, idFuncionario, idEmpresa];
@@ -1803,18 +2076,19 @@ router.get('/aditivoextra/verificar-status',
                 let filtroDataCheck = "";
                 if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
                     const idxD = paramsCheck.length + 1;
-                    filtroDataCheck = ` AND (ae.dtsolicitada::date = $${idxD}::date OR ae.dtsolicitada IS NULL)`;
-                    paramsCheck.push(dataSolicitada);
+                    const listaDatasCheck = dataSolicitada.split(',').map(d => d.trim());
+                    filtroDataCheck = ` AND (ae.dtsolicitada && $${idxD}::date[] OR ae.dtsolicitada IS NULL)`;
+                    paramsCheck.push(listaDatasCheck);
                 }
 
                 const checkQuery = `
-                    SELECT ae.status, ae.tipoSolicitacao -- 🎯 Adicionamos o tipoSolicitacao aqui
+                    SELECT ae.status, ae.tipoSolicitacao
                     FROM AditivoExtra ae 
                     WHERE ae.idOrcamento = $1 
                     AND ae.idFuncao = $2 
                     AND ae.idFuncionario = $3 
                     AND ae.idEmpresa = $4
-                    AND ae.status IN ('Autorizado', 'Aprovado', 'Pendente', 'Em Análise') -- 🎯 Pegamos pendentes também
+                    AND ae.status IN ('Autorizado', 'Aprovado', 'Pendente', 'Em Análise')
                     ${filtroTipoCheck} 
                     ${filtroDataCheck}
                     ORDER BY ae.dtSolicitacao DESC LIMIT 1
@@ -1822,14 +2096,12 @@ router.get('/aditivoextra/verificar-status',
                 
                 const checkResult = await pool.query(checkQuery, paramsCheck);
                 
-                // Se achou algo, enviamos os detalhes
                 if (checkResult.rows.length > 0) {
                     autorizadoEspecifico = checkResult.rows[0].status === 'Autorizado' || checkResult.rows[0].status === 'Aprovado';
-                    solicitacaoPendente = checkResult.rows[0]; // Retorna o objeto completo
+                    solicitacaoPendente = checkResult.rows[0];
                 }
             }
 
-            // --- 3. BUSCA TOTAIS ---
             const orcamentoQuery = `
                 SELECT 
                     (SELECT COALESCE(SUM(oi.qtditens), 0) FROM orcamentoitens oi WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
@@ -1855,13 +2127,12 @@ router.get('/aditivoextra/verificar-status',
                 totalExtraAprovado: parseInt(extraResult.rows[0].total) || 0
             };
 
-            // --- 4. RESPOSTA FINAL ---
             res.json({
                 sucesso: true,
                 dados: { 
                     solicitacaoRecente, 
                     autorizadoEspecifico,
-                    totaisFuncao: totaisFuncao // 🚀 AJUSTE: Agora enviando o objeto preenchido
+                    totaisFuncao: totaisFuncao
                 }
             });
 
@@ -1871,5 +2142,4 @@ router.get('/aditivoextra/verificar-status',
         }
     }
 );
-
 module.exports = router;

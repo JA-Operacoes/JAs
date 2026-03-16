@@ -185,6 +185,10 @@
                         <input id="Fechadocheck" type="checkbox" />
                         <label for="Fechadocheck">Cachê Fechado</label>
                     </div>
+                    <div class="Vertical">
+                        <input id="Liberadocheck" type="checkbox" />
+                        <label for="Liberadocheck">Cachê Diário Liberado</label>
+                    </div>
                     </div>
                   </div>
                   
@@ -271,7 +275,7 @@
                   <div class="Valores">
                     <div class="form2">
                         <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly data-permanent-readonly="true" required>
-                        <label for="vlrCusto">Cache</label>
+                        <label for="vlrCusto">Cachê</label>
                     </div>
                     <div id="campoStatusCustoFechado" style="display: none;">
                         <div class="form2" id="wrapperJustificativaCustoFechado">
@@ -285,12 +289,12 @@
 
                         <div class="form2" id="wrapperSelectCustoFechado" style="display: none;">
                             <select id="selectStatusCustoFechado">
-                                <option value="none" disabled selected></option>
+                                <option value="none" disabled selected>Autorização do Cachê Fechado/Liberado</option>
                                 <option value="Pendente">Pendente</option>
                                 <option value="Autorizado">Autorizado</option>
                                 <option value="Rejeitado">Rejeitado</option>
                             </select>
-                            <label>Autorização do Cachê Fechado</label>
+                            <!-- <label>Autorização do Cachê Fechado/Liberado</label> -->
                         </div>
                     </div>
                     <div class="form2">
@@ -367,8 +371,10 @@
                         <label for="ajusteCusto">Ajuste de Custo</label>
                       </div>
                       <textarea name="ajusteCusto[]" id="descAjusteCusto" placeholder="Descritivo do Ajuste de Custo" style="display: none;" required></textarea>
+                      
                       <div class="form2" id="campoStatusAjusteCusto" style="display: none;">
                         <input type="text" id="statusAjusteCusto" name ="statusAjusteCusto"  readonly data-permanent-readonly="true" required/>
+                       <!-- <label for="statusajustecusto">Status do Ajuste</label>  -->
                         <select id="selectStatusAjusteCusto" style="display:none;">
                           <option value="none" disabled selected>Autorização do Ajuste de Custo</option>
                           <option value="Pendente">Pendente</option>
@@ -376,6 +382,7 @@
                           <option value="Rejeitado">Rejeitado</option>
                         </select>
                       </div>
+                       
                     </div>
 
                     <div class="form-2colunas caixinha">
@@ -396,7 +403,7 @@
                       </div> 
                       <div class="form2" id="campoPgtoCaixinha" style="display: none;">                      
                         <input type="text" class="preenchido" name="statusPgtoCaixinha" id="statusPgtoCaixinha" required data-permanent-readonly="true" readonly >
-                        <label for="statusPgtoCaixinha" >Status do Pgto Caixinha</label>
+                        <label for="statusPgtoCaixinha">Status do Pgto Caixinha</label>
                       </div>                      
                     </div>
 
@@ -439,12 +446,6 @@
                           </div>
                         </div>
                     </div>
-                    
-
-                    
-
-                    
-
                     <div class="form-2colunasDatas">
                       <div id="grupoDiariaDobrada" class="status-group">
                           <label><strong>Diária Dobrada</strong></label>
