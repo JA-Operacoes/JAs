@@ -1,9 +1,15 @@
+
 import { fetchComToken, aplicarTema  } from '../utils/utils.js';
 
 function getUrlParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
 }
+
+const temPermissaoMaster = temPermissao("Staff", "master");
+const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
+const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
+
 
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
 let statusExtraBonificadoFinal = null;
@@ -13,6 +19,9 @@ let nmFuncaoDoFormulario = '';
 let bLiberacaoAutorizada = false;
 
 let decisaoUsuarioDataFora = null;
+
+let nivelOriginalCarregado = null;
+let nivelFoiTrocado = false;
 
 // Crie uma flag global para rastrear se o evento foi capturado
 let prefillEventFired = false; 
@@ -163,6 +172,9 @@ if (window.__modalInitialParams) {
 function configurarFlatpickrs() {
     console.log("Configurando Flatpickrs..."); 
     
+    console.log("🔍 diariaDobrada el:", document.querySelector("#diariaDobrada"));
+    console.log("🔍 meiaDiaria el:", document.querySelector("#meiaDiaria"));
+    console.log("🔍 campoDiariaDobrada:", document.getElementById("campoDiariaDobrada"));
     // --- 1. Inicialização da Diária Dobrada ---
     const diariaDobradaEl = document.querySelector("#diariaDobrada");
     
@@ -200,7 +212,17 @@ function configurarFlatpickrs() {
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasDobrada); 
                 }, 0);
-            },
+            },            
+            
+            onOpen: function(selectedDates, dateStr, instance) {
+    const campo = document.getElementById('campoDiariaDobrada');
+    const campoStatus = document.getElementById('campoStatusDiariaDobrada');
+    const check = document.getElementById('diariaDobradacheck');
+    if (campo) campo.style.display = 'block';
+    if (campoStatus) campoStatus.style.display = 'block';
+    if (check) check.checked = true;
+    console.log("🟢 onOpen diariaDobrada - campoStatus:", campoStatus?.style.display);
+},
             
             onChange: (selectedDates, dateStr, instance) => {
                 // Lógica de prevenção de remoção para datas não pendentes
@@ -316,6 +338,14 @@ function configurarFlatpickrs() {
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasMeiaDiaria);
                 }, 0);
+            },
+            onOpen: function(selectedDates, dateStr, instance) {
+                const campo = document.getElementById('campoMeiaDiaria');
+                const campoStatus = document.getElementById('campoStatusMeiaDiaria');
+                const check = document.getElementById('meiaDiariacheck');
+                if (campo) campo.style.display = 'block';
+                if (campoStatus) campoStatus.style.display = 'block';
+                if (check) check.checked = true;
             },
             onChange: (selectedDates, dateStr, instance) => {
                 // Lógica de verificação de duplicatas (conflito com Diária Dobrada)
@@ -860,6 +890,8 @@ if (typeof window.StaffOriginal === "undefined") {
 
 
 // const vlrTotalInput = document.getElementById('vlrTotal');
+const vlrTotalCacheInput = document.getElementById('vlrTotalCache');
+const vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
 
 // //const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
 // const caixinhacheck = document.getElementById('Caixinhacheck');
@@ -970,9 +1002,6 @@ let statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
 let setorInput = document.getElementById('setor');
 let statusPagtoInput = document.getElementById('statusPgto');
  
-const temPermissaoMaster = temPermissao("Staff", "master");
-const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
-const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
  
 let diariaDobradaInput = document.getElementById('diariaDobrada');
 let diariaDobradacheck = document.getElementById('diariaDobradacheck');
@@ -1007,6 +1036,7 @@ let plenoCheck = document.getElementById('Plenocheck');
 let juniorCheck = document.getElementById('Juniorcheck');
 let baseCheck = document.getElementById('Basecheck');
 let fechadoCheck = document.getElementById('Fechadocheck');
+const liberadoCheck =  document.getElementById('Liberadocheck');
  
 let qtdPessoasInput = document.getElementById('qtdPessoas');
  
@@ -1059,6 +1089,35 @@ function atualizarLayout() {
 //     }
 // };
 
+function verificarBloqueioAlteracaoDatas() {
+    const statuspgto = (document.getElementById('statusPgto')?.value || '').trim().toUpperCase();
+    const statuspgtoajdcto = (document.getElementById('statusPgtoAjudaCusto')?.value || '').trim().toUpperCase();
+
+    let mensagem = null;
+
+    if (statuspgto === 'PAGO') {
+        mensagem = 'Não é possível alterar as datas pois o <strong>Cachê já foi Pago</strong>.';
+    } else if (statuspgtoajdcto === 'PAGO' || statuspgtoajdcto === 'PAGO50') {
+        mensagem = 'Não é possível alterar as datas pois a <strong>Ajuda de Custo já foi Paga</strong>.';
+    }
+
+    if (mensagem) {
+        // Bloqueia os três pickers usando a função existente
+        alternarBloqueioFlatpickr(window.datasEventoPicker, true);
+        alternarBloqueioFlatpickr(window.diariaDobradaPicker, true);
+        alternarBloqueioFlatpickr(window.meiaDiariaPicker, true);
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Alteração Bloqueada!',
+            html: mensagem,
+            confirmButtonText: 'Entendido'
+        });
+        return true;
+    }
+
+    return false;
+}
 
 const alternarBloqueioFlatpickr = (instancia, bloquear) => {
     if (!instancia || !instancia.input) return;
@@ -1087,7 +1146,8 @@ const alternarBloqueioFlatpickr = (instancia, bloquear) => {
     }
 };
 
-// A sua função principal de carregamento de dados
+
+
 const carregarDadosParaEditar = (eventData, bloquear) => {
     console.log("Objeto eventData recebido:", eventData);
     console.log("Valor de dtdiariadobrada:", eventData.dtdiariadobrada);    
@@ -1098,7 +1158,6 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     // 1. Lógica do Botão Enviar
     if (btn) {
         const precisaComprovante = verificarNecessidadeComprovante(eventData);
-        // Se for financeiro (bloquear=true) mas precisa de comprovante, o botão DEVE aparecer
         if (bloquear && !precisaComprovante) {
             btn.style.display = 'none';
             btn.disabled = true;
@@ -1108,28 +1167,20 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         }
     }
 
-    
+    // 2. Travamento de campos
     if (fieldsetEvento) {
         const camposParaTravar = fieldsetEvento.querySelectorAll('input:not([type="file"]), select, textarea');
-        
         camposParaTravar.forEach(campo => {
-            // --- NOVA TRAVA DE SEGURANÇA ---
-            // Se o campo tiver o atributo de readonly permanente, ignoramos ele no loop
             if (campo.hasAttribute('data-permanent-readonly')) {
                 campo.readOnly = true;
-                campo.style.cursor = 'default'; // ou 'not-allowed' se preferir
-                return; // Pula para o próximo campo sem alterar este
-            }
-
-            if (campo.id === 'check50' || campo.id === 'check100') {
+                campo.style.cursor = 'default';
                 return;
             }
+            if (campo.id === 'check50' || campo.id === 'check100') return;
 
             if (bloquear) {
                 campo.readOnly = true; 
-                if (campo.tagName === 'SELECT' || campo.type === 'checkbox') {
-                    campo.disabled = true;
-                }
+                if (campo.tagName === 'SELECT' || campo.type === 'checkbox') campo.disabled = true;
                 campo.style.cursor = 'not-allowed';
             } else {
                 campo.readOnly = false;
@@ -1140,14 +1191,19 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         });
     }
 
-    // 3. Liberar apenas os Uploads Necessários (Financeiro)
-    // Chamamos a função que você já tem ou a lógica de habilitar file inputs
     configurarUploadsFinanceiro(eventData);
 
+    // Cache para calcularValorTotal saber se deve abortar ou recalcular
+    window.currentEventDataCache = {
+        vlrtotcache: parseFloat(eventData.vlrtotcache || 0),
+        vlrtotajdcusto: parseFloat(eventData.vlrtotajdcusto || 0)
+    };
 
     retornoDados = true;
     limparCamposEvento();
     currentEditingStaffEvent = eventData;
+
+    // ATIVA A TRAVA DE CARREGAMENTO
     isFormLoadedFromDoubleClick = true;
 
     const uploadHeaderDiv = document.getElementById('uploadHeader');
@@ -1158,22 +1214,22 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     if (uploadContainer) uploadContainer.style.display = 'none';
     if (fileInput) fileInput.disabled = true;
 
-    // Carregando dados básicos nos inputs do formulário.
+    // IDs e Dados Básicos
     idStaffInput.value = eventData.idstaff || '';
     idStaffEventoInput.value = eventData.idstaffevento;
     idFuncaoInput.value = eventData.idfuncao;
     idClienteInput.value = eventData.idcliente;
     idEventoInput.value = eventData.idevento;
-    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
+    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
     idEquipeInput.value = eventData.idequipe || '';
 
-
-    const valorAjudaCustoViagem = eventData.tipoajudacustoviagem; // Esse é o 1, 2 ou 3
-
+    // Checks de Viagem
+    const valorAjudaCustoViagem = eventData.tipoajudacustoviagem;
     document.getElementById('viagem1Check').checked = (valorAjudaCustoViagem === 1);
     document.getElementById('viagem2Check').checked = (valorAjudaCustoViagem === 2);
     document.getElementById('viagem3Check').checked = (valorAjudaCustoViagem === 3);
 
+    // Containers Diária Dobrada e Meia Diária
     if (containerDiariaDobradaCheck) {
         containerDiariaDobradaCheck.style.display = 'block';
         containerStatusDiariaDobrada.style.display = 'block';
@@ -1183,34 +1239,31 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         containerStatusMeiaDiaria.style.display = 'block';
     }
 
-  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
-
+    // Recarga de Função e Custos Globais
     if (descFuncaoSelect) {
         descFuncaoSelect.value = eventData.idfuncao || '';
-        
-        // Pega a opção que foi selecionada automaticamente pelo ID
         const selectedOption = descFuncaoSelect.options[descFuncaoSelect.selectedIndex];
-
         if (selectedOption) {
             console.log("📥 Recarregando custos da função para permitir troca de nível...");
-            
-            // RECARGA DAS VARIÁVEIS GLOBAIS (O pulo do gato)
-            // Certifique-se de que os nomes das variáveis batem com os que você usa nos eventos 'change'
-            window.vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
-            window.vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
-            window.vlrCustoPlenoFuncao  = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
-            window.vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
-            window.vlrCustoBaseFuncao   = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;
-            
-            // Também recarrega as variáveis de Senior 2 se você as separou, 
-            // ou usa a Senior padrão se for a mesma
-            window.vlrCustoSeniorFuncao2 = window.vlrCustoSeniorFuncao; 
+            vlrCustoSeniorFuncao  = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+            vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
+            vlrCustoPlenoFuncao   = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
+            vlrCustoJuniorFuncao  = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
+            vlrCustoBaseFuncao    = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;
+            vlrCustoSeniorFuncao2 = vlrCustoSeniorFuncao; 
+            vlrAlimentacaoFuncao  = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+            vlrTransporteFuncao   = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
 
-            window.vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
-            window.vlrTransporteFuncao  = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
-
-            // Regra específica para exibir o Senior 2 se for Fiscal
             const descFuncaoTexto = selectedOption.textContent.trim().toUpperCase();
+
+            if (descFuncaoTexto === "AJUDANTE DE MARCAÇÃO") {
+                if (seniorCheck) seniorCheck.disabled = true;
+                if (seniorCheck2) seniorCheck2.disabled = true;
+                if (plenoCheck)  plenoCheck.disabled = true;
+                if (juniorCheck) juniorCheck.disabled = true;
+                if (baseCheck)   baseCheck.disabled = false;                
+            }
+
             if (descFuncaoTexto === "FISCAL DE MARCAÇÃO") {
                 const inputSenior2 = document.getElementById("Seniorcheck2");
                 const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
@@ -1219,95 +1272,39 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         }
     }
 
-
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
-    
 
-    
     const equipeId = eventData.idequipe || '';
-    
     const nomeEquipe = eventData.nmequipe || 'Equipe não informada'; 
-    
-    if (nmEquipeSelect) {
-        // Agora, o input readonly nmEquipeSelect recebe o NOME (string) para exibição.
-        nmEquipeSelect.value = nomeEquipe; 
-    }
-    
-    // Atualiza os console.logs para exibir o nome.
+    if (nmEquipeSelect) nmEquipeSelect.value = nomeEquipe; 
     console.log("ID da Equipe:", equipeId);
     console.log("Nome da Equipe (nmEquipe):", nomeEquipe); 
-    // 🌟 FIM DA CORREÇÃO
 
-    // Lógica para preencher Local de Montagem e Pavilhão.
+    // Lógica de Pavilhão/Montagem
     if (nmLocalMontagemSelect) {
         nmLocalMontagemSelect.value = eventData.idmontagem || '';
-        nmLocalMontagemSelect.dispatchEvent(new Event('change'));
-
-        // setTimeout(() => {
-        //     if (nmPavilhaoSelect) {
-        //         const historicalPavilhaoName = eventData.pavilhao || '';
-        //         let selected = false;
-        //         for (let i = 0; i < nmPavilhaoSelect.options.length; i++) {
-        //             if (nmPavilhaoSelect.options[i].textContent.toUpperCase().trim() === historicalPavilhaoName.toUpperCase().trim()) {
-        //                 nmPavilhaoSelect.value = nmPavilhaoSelect.options[i].value;
-        //                 selected = true;
-        //                 break;
-        //             }
-        //         }
-        //         if (!selected && historicalPavilhaoName) {
-        //             const tempOption = document.createElement('option');
-        //             tempOption.value = historicalPavilhaoName;
-        //             tempOption.textContent = `${historicalPavilhaoName} (Histórico)`;
-        //             nmPavilhaoSelect.prepend(tempOption);
-        //             nmPavilhaoSelect.value = historicalPavilhaoName;
-        //         } else if (!historicalPavilhaoName) {
-        //             nmPavilhaoSelect.value = '';
-        //         }
-        //     }
-        // }, 200);
-
-        // O timeout é usado para garantir que carregarPavilhaoStaff() tenha terminado de preencher as opções
+        nmLocalMontagemSelect.dispatchEvent(new Event('change'));        
         setTimeout(() => {
             const nmPavilhaoSelect = document.getElementById('nmPavilhao');
             const inputHiddenPavilhao = document.getElementById('idPavilhao');
-
             if (nmPavilhaoSelect) {
                 const historicalPavilhaoString = eventData.pavilhao || '';
-                
-                // 1. Processar a string salva do banco em um array de nomes
                 const savedPavilhaoNames = historicalPavilhaoString
                     .split(',')
                     .map(name => name.trim().toUpperCase())
                     .filter(name => name.length > 0); 
-
-                // 2. Limpar todas as seleções anteriores (essencial para selects múltiplos)
-                Array.from(nmPavilhaoSelect.options).forEach(option => {
-                    option.selected = false;
-                });
-
-                // 3. Iterar e selecionar os pavilhões
+                Array.from(nmPavilhaoSelect.options).forEach(option => { option.selected = false; });
                 for (let i = 0; i < nmPavilhaoSelect.options.length; i++) {
                     const option = nmPavilhaoSelect.options[i];
-                    const optionText = option.textContent.trim().toUpperCase();
-                    
-                    // Verifica se o texto da opção está contido na lista de nomes salvos
-                    if (savedPavilhaoNames.includes(optionText)) {
+                    if (savedPavilhaoNames.includes(option.textContent.trim().toUpperCase())) {
                         option.selected = true;
                     }
                 }
-
-                // 4. Preencher o input hidden com a string completa salva
-                // Isso garante que o valor correto seja enviado se o usuário não fizer alterações.
-                if (inputHiddenPavilhao) {
-                    inputHiddenPavilhao.value = historicalPavilhaoString;
-                }
-
-                console.log("Pavilhões selecionados com base nos dados históricos:", historicalPavilhaoString); 
-
+                if (inputHiddenPavilhao) inputHiddenPavilhao.value = historicalPavilhaoString;
+                console.log("Pavilhões selecionados:", historicalPavilhaoString); 
             }
         }, 200);
-
     } else {
         if (nmPavilhaoSelect) {
             nmPavilhaoSelect.innerHTML = `<option value="${eventData.pavilhao || ''}">${eventData.pavilhao || 'Selecione Pavilhão'}</option>`;
@@ -1317,185 +1314,219 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
 
     qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
-    // Preenchendo campos financeiros e de custo.
+    // Campos Financeiros
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
-    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
+    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
     alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
-    statusPgtoAjudaCustoInput.value = eventData.statuspgtoajdcto.toUpperCase() || '';
     
     descBeneficioTextarea.value = eventData.descbeneficios || '';
-
     ajusteCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
-    ajusteCustoTextarea.value = eventData.descajusteCusto || '';
-    statusAjusteCustoInput.value = eventData.statusajustecusto;
+    ajusteCustoTextarea.value = eventData.descajustecusto || 'Pendente';
+    statusAjusteCustoInput.value = eventData.statusajustecusto || 'Pendente';
 
     caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
     descCaixinhaTextarea.value = eventData.desccaixinha || '';
-    statusCaixinhaInput.value = eventData.statuscaixinha;
-    statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || '';
+    statusCaixinhaInput.value = eventData.statuscaixinha || 'Pendente';
+    statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
 
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
-
     console.log("VALOR TOTAL", vlrTotalInput.value);
+
+    // Outros Campos de Status
     setorInput.value = (eventData.setor || '').toUpperCase();
-    statusPagtoInput.value = (eventData.statuspgto || '').toUpperCase();
+    statusPagtoInput.value = (eventData.statuspgto || 'Pendente').toUpperCase();
+    statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase();
+       
 
-
-    // Lógica para checkboxes de Bônus e Caixinha
-    if (ajusteCustocheck) {
-        ajusteCustocheck.checked = parseFloat(eventData.vlrajustecusto || 0);
-
-        console.log("AJUSTE DE CUSTO", ajusteCustocheck, eventData.vlrajustecusto);
-
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        campoStatusajusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        ajusteCustoTextarea.value = eventData.descajustecusto || '';
-    }
-    if (caixinhacheck) {
-        caixinhacheck.checked = parseFloat(eventData.vlrcaixinha || 0) > 0;
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        campoStatusCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        campoPgtoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        descCaixinhaTextarea.style.display = caixinhacheck.checked ? 'block' : 'none';
-        descCaixinhaTextarea.required = caixinhacheck.checked;
-        descCaixinhaTextarea.value = eventData.desccaixinha || '';
-    }
+  
 
     // Lógica para Comprovantes 50% e 100%
-    if (temPermissaoFinanceiro ) {
+    if (temPermissaoFinanceiro) {
         const comp50Preenchido = eventData.comppgtoajdcusto50 && eventData.comppgtoajdcusto50.length > 0;
         const comp100Preenchido = eventData.comppgtoajdcusto && eventData.comppgtoajdcusto.length > 0;
-
         check50.checked = comp50Preenchido;
         check100.checked = comp100Preenchido;
-
         container1.style.display = check100.checked ? 'flex' : 'none';
         container2.style.display = check50.checked ? 'flex' : 'none';
-
-        
     }
 
+    // Cores dos Status de Pagamento
     const statusPagtoValue = statusPagtoInput.value.toUpperCase();
     statusPagtoInput.classList.remove('pendente', 'pago', 'suspenso');
-    if (statusPagtoValue === "PENDENTE") {
-        statusPagtoInput.classList.add('pendente');
-    } else if (statusPagtoValue === "PAGO") {
-        statusPagtoInput.classList.add('pago');
-    }else if (statusPagtoValue === "SUSPENSO") {
-        statusPagtoInput.classList.add('suspenso');
-    }
+    if (statusPagtoValue === "PENDENTE") statusPagtoInput.classList.add('pendente');
+    else if (statusPagtoValue === "PAGO") statusPagtoInput.classList.add('pago');
+    else if (statusPagtoValue === "SUSPENSO") statusPagtoInput.classList.add('suspenso');
 
     const statusPgtoCxValue = statusPgtoCaixinhaInput.value.toUpperCase();
     statusPgtoCaixinhaInput.classList.remove('pendente', 'pago', 'suspenso');
-    if (statusPgtoCxValue === "PENDENTE") {
-        statusPgtoCaixinhaInput.classList.add('pendente');
-    } else if (statusPgtoCxValue === "PAGO") {
-        statusPgtoCaixinhaInput.classList.add('pago');
-    }else if (statusPgtoCxValue === "SUSPENSO") {
-        statusPgtoCaixinhaInput.classList.add('suspenso');
-    }
+    if (statusPgtoCxValue === "PENDENTE") statusPgtoCaixinhaInput.classList.add('pendente');
+    else if (statusPgtoCxValue === "PAGO") statusPgtoCaixinhaInput.classList.add('pago');
+    else if (statusPgtoCxValue === "SUSPENSO") statusPgtoCaixinhaInput.classList.add('suspenso');
 
     const statusPgtoAjdCtoValue = statusPgtoAjudaCustoInput.value.toUpperCase();
     statusPgtoAjudaCustoInput.classList.remove('pendente', 'pago', 'pago50', 'suspenso');
-    if (statusPgtoAjdCtoValue === "PENDENTE") {
-        statusPgtoAjudaCustoInput.classList.add('pendente');
-    } else if (statusPgtoAjdCtoValue === "PAGO") {
-        statusPgtoAjudaCustoInput.classList.add('pago');
-    }else if (statusPgtoAjdCtoValue === "PAGO50") {
+    if (statusPgtoAjdCtoValue === "PENDENTE") statusPgtoAjudaCustoInput.classList.add('pendente');
+    else if (statusPgtoAjdCtoValue === "PAGO") statusPgtoAjudaCustoInput.classList.add('pago');
+    else if (statusPgtoAjdCtoValue === "PAGO50") {
         statusPgtoAjudaCustoInput.value = "PAGO 50%";
         statusPgtoAjudaCustoInput.classList.add('pago50');
-    }else if (statusPgtoAjdCtoValue === "SUSPENSO") {
-        statusPgtoAjudaCustoInput.classList.add('suspenso');
     }
+    else if (statusPgtoAjdCtoValue === "SUSPENSO") statusPgtoAjudaCustoInput.classList.add('suspenso');
+
+    // Preenchimento de Níveis
+    nivelOriginalCarregado = (eventData.nivelexperiencia || '').trim().toUpperCase();
+    nivelFoiTrocado = false;
 
     const nivelBanco = (eventData.nivelexperiencia || "").trim().toUpperCase();
+    if (seniorCheck2) seniorCheck2.closest('.Vertical').style.display = 'none';
 
-// Reset de visibilidade (opcional, para garantir)
-if (seniorCheck2) seniorCheck2.closest('.Vertical').style.display = 'none';
-
-switch(nivelBanco) {
-    case "BASE":
-        if (baseCheck) baseCheck.checked = true;
-        break;
-    case "JUNIOR":
-        if (juniorCheck) juniorCheck.checked = true;
-        break;
-    case "PLENO":
-        if (plenoCheck) plenoCheck.checked = true;
-        break;
-    case "SENIOR":
-        if (seniorCheck) seniorCheck.checked = true;
-        break;
-    case "SENIOR2":
-    case "SENIOR 2": // Trata as duas formas possíveis
-        if (seniorCheck2) {
-            // 1. Primeiro mostramos a DIV pai
-            const divPaiSenior2 = seniorCheck2.closest('.Vertical');
-            if (divPaiSenior2) {
-                divPaiSenior2.style.setProperty("display", "flex", "important");
+    switch(nivelBanco) {
+        case "BASE":    if (baseCheck) baseCheck.checked = true; break;
+        case "JUNIOR":  if (juniorCheck) juniorCheck.checked = true; break;
+        case "PLENO":   if (plenoCheck) plenoCheck.checked = true; break;
+        case "SENIOR":  if (seniorCheck) seniorCheck.checked = true; break;
+        case "SENIOR2":
+        case "SENIOR 2":
+            if (seniorCheck2) {
+                seniorCheck2.closest('.Vertical').style.setProperty("display", "flex", "important");
+                seniorCheck2.checked = true;
+                console.log("✅ Senior 2 marcado na edição.");
             }
-            // 2. Depois marcamos o check
-            seniorCheck2.checked = true;
-            console.log("✅ Senior 2 marcado na edição.");
+            break;
+        case "FECHADO":
+        case "LIBERADO":
+            const isFechado = (nivelBanco === "FECHADO");
+            if (isFechado && fechadoCheck) fechadoCheck.checked = true;
+            if (!isFechado && liberadoCheck) liberadoCheck.checked = true;
+            
+            document.getElementById('campoStatusCustoFechado').style.display = 'flex';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'block';
+
+            const txtDesc = document.getElementById('descCustoFechado');
+            if (txtDesc) {
+                txtDesc.value = eventData.desccustofechado || eventData.descCustoFechado || '';
+                txtDesc.style.display = 'block';
+            }
+
+            const statusFechadoBanco = eventData.statuscustofechado || 'Pendente';
+            const temAcesso = temPermissaoMaster;
+            const selectStatusFechado = document.getElementById('selectStatusCustoFechado');
+            const inputStatusFechado = document.getElementById('statusCustoFechadoTexto');
+            const hiddenStatusFechado = document.getElementById('statusCustoFechado');
+
+            if (hiddenStatusFechado) hiddenStatusFechado.value = statusFechadoBanco;
+
+            if (temAcesso) {
+                document.getElementById('wrapperSelectCustoFechado').style.display = 'block';
+                document.getElementById('wrapperInputCustoFechado').style.display = 'none';
+                if (selectStatusFechado) {
+                    selectStatusFechado.value = statusFechadoBanco;
+                    aplicarCorNoSelect(selectStatusFechado);
+                }
+            } else {
+                document.getElementById('wrapperSelectCustoFechado').style.display = 'none';
+                document.getElementById('wrapperInputCustoFechado').style.display = 'block';
+                if (inputStatusFechado) {
+                    inputStatusFechado.value = statusFechadoBanco;
+                    aplicarCorStatusInput(inputStatusFechado);
+                }
+            }
+            break;
+    }
+
+    // Calendários
+    inicializarEPreencherCampos(eventData);    
+    atualizarContadorDatas();
+
+
+    // ← MOVER PARA CÁ (depois do inicializarEPreencherCampos)
+    if (ajusteCustocheck) {
+        const vlrAjuste = parseFloat(eventData.vlrajustecusto || 0);        
+        ajusteCustocheck.checked = vlrAjuste != 0;
+        
+        const mostrar = ajusteCustocheck.checked ? 'block' : 'none';
+    console.log("🔍 vlrAjuste:", vlrAjuste, "| mostrar:", mostrar);
+    console.log("🔍 campoStatusajusteCusto element:", campoStatusajusteCusto);
+    console.log("🔍 selectStatusAjusteCusto display:", document.getElementById('selectStatusAjusteCusto')?.style.display);
+    console.log("🔍 selectStatusAjusteCusto value:", document.getElementById('selectStatusAjusteCusto')?.value);
+    console.log("🔍 selectStatusAjusteCusto options:", Array.from(document.getElementById('selectStatusAjusteCusto')?.options || []).map(o => o.value));
+
+    if (campoAjusteCusto) campoAjusteCusto.style.display = mostrar;
+    if (campoStatusajusteCusto) campoStatusajusteCusto.style.display = mostrar;
+    
+    console.log("🔍 campoStatusajusteCusto display APÓS setar:", campoStatusajusteCusto?.style.display);
+        if (ajusteCustoTextarea) {
+            ajusteCustoTextarea.style.display = mostrar;
+            ajusteCustoTextarea.required = ajusteCustocheck.checked;
+            ajusteCustoTextarea.value = eventData.descajustecusto || '';
         }
-        break;
-    case "FECHADO":
-        if (fechadoCheck) {
-            fechadoCheck.checked = true;
+    }
 
-            // --- ADICIONE ESTA PARTE PARA MOSTRAR OS CAMPOS ---
-            const divStatusContainer = document.getElementById('campoStatusCustoFechado');
-            const selectStatus = document.getElementById('selectStatusCustoFechado');
-            const inputStatusTxt = document.getElementById('statusCustoFechado');
-            const inputVlrCusto = document.getElementById('vlrCusto');
-
-            if (divStatusContainer) divStatusContainer.style.display = 'block';
-            if (inputVlrCusto) {
-                inputVlrCusto.readOnly = false;
-                inputVlrCusto.removeAttribute('data-permanent-readonly');
-            }
-
-            // Preenche o valor do status vindo do banco (eventData)
-            if (inputStatusTxt) {
-                inputStatusTxt.value = eventData.statuscustofechado || '';
-            }
-
-            // Seleciona o valor correspondente no Select
-            if (selectStatus) {
-                selectStatus.value = eventData.statuscustofechado || '';
-                
-                // Só mostra o select se for Master ou Financeiro
-                const temAcessoStatus = temPermissaoMaster || temPermissaoFinanceiro;
-                selectStatus.style.display = temAcessoStatus ? 'block' : 'none';
-            }
-
-            // ------------------------------------------------
+    if (caixinhacheck) {
+        const vlrCaixa = parseFloat(eventData.vlrcaixinha || 0);
+        caixinhacheck.checked = vlrCaixa != 0;
+        
+        const mostrarCx = caixinhacheck.checked ? 'block' : 'none';
+        if (campoCaixinha) campoCaixinha.style.display = mostrarCx;
+        if (campoStatusCaixinha) campoStatusCaixinha.style.display = mostrarCx;
+        if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = mostrarCx;
+        if (descCaixinhaTextarea) {
+            descCaixinhaTextarea.style.display = mostrarCx;
+            descCaixinhaTextarea.required = caixinhacheck.checked;
+            descCaixinhaTextarea.value = eventData.desccaixinha || '';
         }
-        break;
-}
+    }
 
+
+    // Bloqueia pickers silenciosamente durante carregamento se já foi pago
+    const statuspgtoCarreg = (eventData.statuspgto || '').trim().toUpperCase();
+    const statuspgtoajdctoCarreg = (eventData.statuspgtoajdcto || '').trim().toUpperCase();
+    if (statuspgtoCarreg === 'PAGO' || statuspgtoajdctoCarreg === 'PAGO' || statuspgtoajdctoCarreg === 'PAGO50') {
+        alternarBloqueioFlatpickr(window.datasEventoPicker, true);
+        alternarBloqueioFlatpickr(window.diariaDobradaPicker, true);
+        alternarBloqueioFlatpickr(window.meiaDiariaPicker, true);
+        console.log("🔒 Pickers bloqueados: pagamento já realizado.");
+    }
+
+    // Bloqueia/desbloqueia pickers conforme bloquear (permissão financeiro)
+    const pickers = [window.datasEventoPicker, window.diariaDobradaPicker, window.meiaDiariaPicker];
+    pickers.forEach(p => alternarBloqueioFlatpickr(p, bloquear));
+
+    // Comprovantes
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
     preencherComprovanteCampo(eventData.comppgtoajdcusto50, 'AjdCusto2');
     preencherComprovanteCampo(eventData.comppgtocaixinha, 'Caixinha');
 
-    // --- PONTO CHAVE: Chama a nova função para lidar com os Flatpickrs ---
-    inicializarEPreencherCampos(eventData);
-    atualizarContadorDatas();
+    // 🌟 Restauração dos valores financeiros
+    console.log("🌟 Restaurando valores do banco:", eventData.vlrtotal, eventData.vlrtotcache, eventData.vlrtotajdcusto);
 
-    const pickers = [
-        window.datasEventoPicker,
-        window.diariaDobradaPicker,
-        window.meiaDiariaPicker
-    ];
+    vlrTotalInput.value = 'R$ ' + parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
 
-    pickers.forEach(p => alternarBloqueioFlatpickr(p, bloquear));
+    const vlrtotcache = parseFloat(eventData.vlrtotcache || 0);
+    const vlrtotajdcusto = parseFloat(eventData.vlrtotajdcusto || 0);
 
-    
+    if (vlrtotcache > 0 && vlrtotajdcusto > 0) {
+        // Banco tem valores → restaura direto sem recalcular
+        vlrTotalCacheInput.value = 'R$ ' + vlrtotcache.toFixed(2).replace('.', ',');
+        vlrTotalAjdCustoInput.value = 'R$ ' + vlrtotajdcusto.toFixed(2).replace('.', ',');
+    }
+    // Se zerados → calcularValorTotal já foi/será chamado pelo inicializarEPreencherCampos
+
+    // setTimeout garante que, após todos os listeners rodarem, os valores do banco prevalecem
+    setTimeout(() => {
+        if (parseFloat(eventData.vlrtotcache || 0) > 0) {
+            vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
+            transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
+            alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
+            vlrTotalInput.value = 'R$ ' + parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
+            vlrTotalCacheInput.value = 'R$ ' + parseFloat(eventData.vlrtotcache || 0).toFixed(2).replace('.', ',');
+            vlrTotalAjdCustoInput.value = 'R$ ' + parseFloat(eventData.vlrtotajdcusto || 0).toFixed(2).replace('.', ',');
+        }
+        isFormLoadedFromDoubleClick = false; 
+        console.log("✅ Carregamento finalizado.");
+    }, 1000);
 };
-
 
 const verificarNecessidadeComprovante = (ed) => {
     // Regra 1: Cachê
@@ -1528,12 +1559,7 @@ const configurarUploadsFinanceiro = (ed) => {
     if (upCaixinha) upCaixinha.disabled = !(parseFloat(ed.vlrcaixinha || 0) > 0 && (ed.statuscaixinha || "").toLowerCase() === 'pago' && !ed.comppgtocaixinha);
 };
 
-/**
- * Inicializa e preenche os campos do formulário com os dados de um evento.
- * Esta versão garante que as datas e o status apareçam corretamente no campo de entrada
- * na carga inicial, após seleção de datas e após o fechamento do calendário.
- * @param {object} eventData - O objeto de dados do evento contendo as datas e status.
- */
+
 function inicializarEPreencherCampos(eventData) {
     console.log("Inicializando Flatpickrs com dados de evento...");
 
@@ -1543,7 +1569,35 @@ function inicializarEPreencherCampos(eventData) {
     if (window.meiaDiariaPicker) window.meiaDiariaPicker.destroy();
     if (window.datasEventoPicker) window.datasEventoPicker.destroy();
 
-    configurarFlatpickrs();
+    configurarFlatpickrs();    
+
+
+    // Garante que ao clicar no input, mostra o campo mesmo após recriar os pickers
+    configurarFlatpickrs();    
+
+    // Garante que ao clicar no input, mostra o campo mesmo após recriar os pickers
+    setTimeout(() => {
+        if (window.diariaDobradaPicker?.altInput) {
+            window.diariaDobradaPicker.altInput.addEventListener('mousedown', function() {
+                console.log("🟢 MOUSEDOWN altInput diariaDobrada");
+                document.getElementById('campoDiariaDobrada').style.display = 'block';
+                document.getElementById('campoStatusDiariaDobrada').style.display = 'block';
+                const textarea = document.getElementById('descDiariaDobrada');
+                if (textarea) textarea.style.display = 'block';
+                if (diariaDobradacheck) diariaDobradacheck.checked = true;
+            });
+        }
+        if (window.meiaDiariaPicker?.altInput) {
+            window.meiaDiariaPicker.altInput.addEventListener('mousedown', function() {
+                console.log("🟢 MOUSEDOWN altInput meiaDiaria");
+                document.getElementById('campoMeiaDiaria').style.display = 'block';
+                document.getElementById('campoStatusMeiaDiaria').style.display = 'block';
+                const textarea = document.getElementById('descMeiaDiaria');
+                if (textarea) textarea.style.display = 'block';
+                if (meiaDiariacheck) meiaDiariacheck.checked = true;
+            });
+        }
+    }, 200);
 
      // Pega as datas e status dos dados do evento
      datasDobrada = parseDatesWithStatus(eventData.dtdiariadobrada);
@@ -1679,14 +1733,16 @@ function inicializarEPreencherCampos(eventData) {
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
-        document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || '';
+        const statusAjusteNormalizado = (eventData.statusajustecusto || '').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+        document.getElementById('selectStatusAjusteCusto').value = statusAjusteNormalizado; // ex: 'PENDENTE' → 'Pendente'
         console.log("VALOR DO STATUS AJUSTE CUSTO:", eventData.statusajustecusto);
         aplicarCoresAsOpcoes('selectStatusAjusteCusto');
         aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
 
         document.getElementById('selectStatusCaixinha').style.display = 'block';
         statusCaixinhaInput.style.display = 'none';
-        document.getElementById('selectStatusCaixinha').value = eventData.statuscaixinha || '';
+        const statusCaixinhaNormalizado = (eventData.statuscaixinha || '').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+        document.getElementById('selectStatusCaixinha').value = statusCaixinhaNormalizado;
         aplicarCoresAsOpcoes('selectStatusCaixinha');
         aplicarCorNoSelect(document.getElementById('selectStatusCaixinha'));
         
@@ -1733,19 +1789,18 @@ function inicializarEPreencherCampos(eventData) {
         }
 
      } else {      
-           
-        console.log("NÃO É MASTER");
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
-        console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
-
-        // CORREÇÃO AQUI: use 'statusajustecusto' (tudo minúsculo)
-        statusAjusteCustoInput.value = eventData.statusajustecusto || ''; 
+        
+        // NORMALIZAR: primeira letra maiúscula, resto minúsculo
+        const statusAjuste = eventData.statusajustecusto || 'Pendente';
+        statusAjusteCustoInput.value = statusAjuste.charAt(0).toUpperCase() + statusAjuste.slice(1).toLowerCase();
         aplicarCorStatusInput(statusAjusteCustoInput);
 
         document.getElementById('selectStatusCaixinha').style.display = 'none';
         statusCaixinhaInput.style.display = 'block';
-        statusCaixinhaInput.value = eventData.statuscaixinha || '';
+        const statusCx = eventData.statuscaixinha || 'Pendente';
+        statusCaixinhaInput.value = statusCx.charAt(0).toUpperCase() + statusCx.slice(1).toLowerCase();
         aplicarCorStatusInput(statusCaixinhaInput);
 
         // Esconde os grupos (label + container)
@@ -1888,25 +1943,50 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
                 // --- 2. DEFINIÇÃO DOS TOTAIS (Prioridade para o Banco, senão calcula) ---
                 let totais;
+                // const temValoresNoBanco = 
+                //     eventData.vlrtotajdcusto !== undefined && eventData.vlrtotajdcusto !== null && parseFloat(eventData.vlrtotajdcusto) !== 0 &&
+                //     eventData.vlrtotcache !== undefined && eventData.vlrtotcache !== null && parseFloat(eventData.vlrtotcache) !== 0;
+
+                // if (temValoresNoBanco) {
+                //     totais = {
+                //         qtdDias: qtdDiasCalculada, 
+                //         totalAjdCusto: parseFloat(eventData.vlrtotajdcusto),
+                //         totalCache: parseFloat(eventData.vlrtotcache),
+                //         vlrDobraCalculado: parseFloat(eventData.vlrtotdiariadobrada || 0),
+                //         vlrMeiaCalculada: parseFloat(eventData.vlrtotmeiadiaria || 0),
+                //         totalGeral: parseFloat(eventData.vlrtotgeral || 0)
+                //     };
+                // } else {
+                //     totais = calcularTotaisLinha(eventData);
+                //     totais.qtdDias = qtdDiasCalculada; // Garante consistência
+                // }
+
                 const temValoresNoBanco = 
                     eventData.vlrtotajdcusto !== undefined && eventData.vlrtotajdcusto !== null && parseFloat(eventData.vlrtotajdcusto) !== 0 &&
                     eventData.vlrtotcache !== undefined && eventData.vlrtotcache !== null && parseFloat(eventData.vlrtotcache) !== 0;
 
-                if (temValoresNoBanco) {
+                const statusFechado = (eventData.statuscustofechado || '').toLowerCase().trim();
+
+                // Deve calcular APENAS se não tem valores no banco E não é Fechado/Pendente
+                const deveCalcular = !temValoresNoBanco && statusFechado !== 'pendente';
+
+                if (temValoresNoBanco || statusFechado === 'pendente') {
+                    // Usa banco — tanto quando tem valores salvos quanto quando é Fechado ainda Pendente
                     totais = {
                         qtdDias: qtdDiasCalculada, 
-                        totalAjdCusto: parseFloat(eventData.vlrtotajdcusto),
-                        totalCache: parseFloat(eventData.vlrtotcache),
+                        totalAjdCusto: parseFloat(eventData.vlrtotajdcusto || 0),
+                        totalCache: parseFloat(eventData.vlrtotcache || 0),
                         vlrDobraCalculado: parseFloat(eventData.vlrtotdiariadobrada || 0),
                         vlrMeiaCalculada: parseFloat(eventData.vlrtotmeiadiaria || 0),
-                        totalGeral: parseFloat(eventData.vlrtotgeral || 0)
+                        totalGeral: parseFloat(eventData.vlrtotal || 0)
                     };
                 } else {
+                    // Calcula dinamicamente apenas quando não tem valores E não é Fechado/Pendente
                     totais = calcularTotaisLinha(eventData);
-                    totais.qtdDias = qtdDiasCalculada; // Garante consistência
+                    totais.qtdDias = qtdDiasCalculada;
                 }
 
-                    console.log("Totais calculados para o evento:", totais, "Valor do banco:", eventData);
+                //console.log("Totais calculados para o evento:", totais, "Valor do banco:", eventData);
                 
                 // Lógica de bloqueio de edição
                 const vlrAjd = totais.totalAjdCusto; 
@@ -2116,43 +2196,9 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 } else {
                     spanCache.classList.add('pendente'); // Define um padrão caso esteja vazio no banco
                 }
-                statusCellCache.appendChild(spanCache);
+                statusCellCache.appendChild(spanCache);                
 
                 
-
-                // CAIXINHA
-                // const vlrCaixinha = parseFloat(eventData.vlrcaixinha || 0);
-                // const vlrCaixinhaCell = row.insertCell();
-
-                // if (vlrCaixinha > 0) {
-                //     vlrCaixinhaCell.textContent = vlrCaixinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                //     // AQUI permanece a lógica de classe CSS conforme solicitado
-                //     if (eventData.statuscaixinha && eventData.statuscaixinha.trim() !== "") {
-                //         const sCaixinha = eventData.statuscaixinha.toLowerCase().trim();
-                //         const spanCxn = document.createElement('span');
-                //         spanCxn.textContent = ` (${eventData.statuscaixinha})`;
-                //         spanCxn.classList.add('status-custom', `statusStaff-${sCaixinha}`);
-                //         vlrCaixinhaCell.appendChild(spanCxn);
-                //     }
-                // } else {
-                //     vlrCaixinhaCell.textContent = "---";
-                // }
-
-                
-
-                // // STATUS CAIXINHA
-                // const statusCaixinhaCell = row.insertCell();
-                // if (vlrCaixinha > 0) {
-                //     const sCaixinha = (eventData.statuscaixinha || '').toLowerCase().trim();
-                //     const spanCaixinha = document.createElement('span');
-                //     spanCaixinha.textContent = sCaixinha.toUpperCase();
-                //     spanCaixinha.classList.add('status-pgto', sCaixinha);
-                //     statusCaixinhaCell.appendChild(spanCaixinha);
-                // } else {
-                //     statusCaixinhaCell.textContent = '---';
-                // }
-
                 const statusCaixinhaCell = row.insertCell();
                 const vlrCaixinhaCell = parseFloat(eventData.vlrcaixinha || 0);
 
@@ -2160,7 +2206,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     const sCaixinha = (eventData.statuscaixinha || '').toLowerCase().trim();
                     const spanCaixinha = document.createElement('span');
                     
-                    spanCaixinha.textContent = sCaixinha === "" ? "PENDENTE" : sCaixinha.toUpperCase();
+                    spanCaixinha.textContent = sCaixinha === "" ? "Pendente" : sCaixinha.toUpperCase();
                     
                     // CORREÇÃO: Prevenção contra token vazio
                     spanCaixinha.classList.add('status-pgto');
@@ -2259,20 +2305,87 @@ const formatarDataComStatus = (campo) => {
     }).join('<br>'); 
 };
 
+// const calcularTotaisLinha = (eventData) => {
+//     const vlrCache = parseFloat(eventData.vlrcache || 0);
+//     const vlrAlim = parseFloat(eventData.vlralimentacao || 0);
+//     const vlrTransp = parseFloat(eventData.vlrtransporte || 0);
+//     const qtdpessoas = parseInt(eventData.qtdpessoaslote || 1);
+//     const multiplicador = (eventData.perfil === "Lote") ? qtdpessoas : 1;
+//     const vlrAlimExtra = parseFloat(eventData.vlralimentacao || 0); // Valor fixo conforme sua regra
+
+//     // Função interna para limpar JSONB corrompido ou com aspas duplicadas
+//     const parseSeguro = (campo) => {
+//         if (!campo || campo === '[]') return [];
+//         try {
+//             if (typeof campo === 'string') {
+//                 // Remove aspas duplicadas e limpa o início/fim da string
+//                 let strLimpa = campo.replace(/""/g, '"');
+//                 if (strLimpa.startsWith('"') && strLimpa.endsWith('"')) {
+//                     strLimpa = strLimpa.substring(1, strLimpa.length - 1);
+//                 }
+//                 return JSON.parse(strLimpa);
+//             }
+//             return campo;
+//         } catch (e) {
+//             console.error("Erro no parseSeguro:", e);
+//             return [];
+//         }
+//     };
+
+//     // 1. Quantidade de dias (Base)
+//     const datas = parseSeguro(eventData.datasevento);
+//     const qtdDias = datas.length;
+
+//     // 2. Cálculos Iniciais (Diárias Normais)
+//     let totalCache = (qtdDias * vlrCache) * multiplicador;
+//     let totalAjdCusto = (qtdDias * (vlrAlim + vlrTransp)) * multiplicador;
+
+//     // 3. Processamento de Diárias Dobradas
+//     const dobras = parseSeguro(eventData.dtdiariadobrada);
+//     const autorizadasDobra = dobras.filter(item => item.status === 'Autorizado').length;
+    
+//     const extrasDobraCache = (vlrCache * autorizadasDobra);
+//     const extrasDobraAjd = (vlrAlimExtra * autorizadasDobra);
+
+//     // 4. Processamento de Meias Diárias
+//     const meias = parseSeguro(eventData.dtmeiadiaria);
+//     const autorizadasMeia = meias.filter(item => item.status === 'Autorizado').length;
+    
+//     const extrasMeiaCache = ((vlrCache / 2) * autorizadasMeia);
+//     const extrasMeiaAjd = (vlrAlimExtra * autorizadasMeia);
+
+//     // 5. Ajustes e Caixinha
+//     const vlrAjuste = (eventData.statusajustecusto === 'Autorizado') ? parseFloat(eventData.vlrajustecusto || 0) : 0;
+//     const vlrCaixinha = (eventData.statuscaixinha === 'Autorizado') ? parseFloat(eventData.vlrcaixinha || 0) : 0;
+
+//     // Consolidação dos Totais
+//     totalCache += (extrasDobraCache + extrasMeiaCache + vlrAjuste + extrasDobraAjd + extrasMeiaAjd);
+//     //totalAjdCusto += (extrasDobraAjd + extrasMeiaAjd);
+
+//     return {
+//         qtdDias,
+//         totalCache,
+//         totalAjdCusto,
+//         vlrDobraCalculado: extrasDobraCache + extrasDobraAjd, // Para exibir na coluna
+//         vlrMeiaCalculada: extrasMeiaCache + extrasMeiaAjd,    // Para exibir na coluna
+//         totalGeral: totalCache + totalAjdCusto + vlrCaixinha
+//     };
+// };
+
+
 const calcularTotaisLinha = (eventData) => {
     const vlrCache = parseFloat(eventData.vlrcache || 0);
     const vlrAlim = parseFloat(eventData.vlralimentacao || 0);
     const vlrTransp = parseFloat(eventData.vlrtransporte || 0);
     const qtdpessoas = parseInt(eventData.qtdpessoaslote || 1);
-    const multiplicador = (eventData.perfil === "Lote") ? qtdpessoas : 1;
-    const vlrAlimExtra = parseFloat(eventData.vlralimentacao || 0); // Valor fixo conforme sua regra
+    const perfil = eventData.perfil || '';
+    const multiplicador = (perfil === "Lote") ? qtdpessoas : 1;
+    const vlrAlimExtra = parseFloat(eventData.vlralimentacao || 0);
 
-    // Função interna para limpar JSONB corrompido ou com aspas duplicadas
     const parseSeguro = (campo) => {
         if (!campo || campo === '[]') return [];
         try {
             if (typeof campo === 'string') {
-                // Remove aspas duplicadas e limpa o início/fim da string
                 let strLimpa = campo.replace(/""/g, '"');
                 if (strLimpa.startsWith('"') && strLimpa.endsWith('"')) {
                     strLimpa = strLimpa.substring(1, strLimpa.length - 1);
@@ -2286,45 +2399,60 @@ const calcularTotaisLinha = (eventData) => {
         }
     };
 
-    // 1. Quantidade de dias (Base)
+    // 1. Quantidade de dias e cálculo por perfil
     const datas = parseSeguro(eventData.datasevento);
     const qtdDias = datas.length;
 
-    // 2. Cálculos Iniciais (Diárias Normais)
-    let totalCache = (qtdDias * vlrCache) * multiplicador;
-    let totalAjdCusto = (qtdDias * (vlrAlim + vlrTransp)) * multiplicador;
+    let totalCache = 0;
+    let totalAjdCusto = 0;
 
-    // 3. Processamento de Diárias Dobradas
+    // MESMA LÓGICA DO calcularValorTotal
+    datas.forEach(dateStr => {
+        const date = new Date(dateStr);
+        
+        if (perfil === "Freelancer") {
+            totalCache += vlrCache;
+            totalAjdCusto += vlrAlim + vlrTransp;
+        } else if (perfil === "Lote") {
+            totalCache += vlrCache * qtdpessoas;
+            totalAjdCusto += (vlrAlim + vlrTransp) * qtdpessoas;
+        } else {
+            // CLT/Padrão: cachê só em fim de semana/feriado
+            if (isFinalDeSemanaOuFeriado(date)) {
+                totalCache += vlrCache;
+            }
+            totalAjdCusto += vlrAlim + vlrTransp;
+        }
+    });
+
+    // 2. Diárias Dobradas
     const dobras = parseSeguro(eventData.dtdiariadobrada);
     const autorizadasDobra = dobras.filter(item => item.status === 'Autorizado').length;
-    
-    const extrasDobraCache = (vlrCache * autorizadasDobra);
-    const extrasDobraAjd = (vlrAlimExtra * autorizadasDobra);
+    const extrasDobraCache = vlrCache * autorizadasDobra;
+    const extrasDobraAjd = vlrAlimExtra * autorizadasDobra;
 
-    // 4. Processamento de Meias Diárias
+    // 3. Meias Diárias
     const meias = parseSeguro(eventData.dtmeiadiaria);
     const autorizadasMeia = meias.filter(item => item.status === 'Autorizado').length;
-    
-    const extrasMeiaCache = ((vlrCache / 2) * autorizadasMeia);
-    const extrasMeiaAjd = (vlrAlimExtra * autorizadasMeia);
+    const extrasMeiaCache = (vlrCache / 2) * autorizadasMeia;
+    const extrasMeiaAjd = vlrAlimExtra * autorizadasMeia;
 
-    // 5. Ajustes e Caixinha
+    // 4. Ajustes e Caixinha
     const vlrAjuste = (eventData.statusajustecusto === 'Autorizado') ? parseFloat(eventData.vlrajustecusto || 0) : 0;
     const vlrCaixinha = (eventData.statuscaixinha === 'Autorizado') ? parseFloat(eventData.vlrcaixinha || 0) : 0;
 
-    // Consolidação dos Totais
-    totalCache += (extrasDobraCache + extrasMeiaCache + vlrAjuste + extrasDobraAjd + extrasMeiaAjd);
-    //totalAjdCusto += (extrasDobraAjd + extrasMeiaAjd);
+    totalCache += extrasDobraCache + extrasMeiaCache + vlrAjuste + extrasDobraAjd + extrasMeiaAjd;
 
     return {
         qtdDias,
         totalCache,
         totalAjdCusto,
-        vlrDobraCalculado: extrasDobraCache + extrasDobraAjd, // Para exibir na coluna
-        vlrMeiaCalculada: extrasMeiaCache + extrasMeiaAjd,    // Para exibir na coluna
+        vlrDobraCalculado: extrasDobraCache + extrasDobraAjd,
+        vlrMeiaCalculada: extrasMeiaCache + extrasMeiaAjd,
         totalGeral: totalCache + totalAjdCusto + vlrCaixinha
     };
 };
+
 
 function aplicarCoresAsOpcoes(selectElementId) {
   //  console.log("Aplicando cores às opções do select:", selectElementId);
@@ -2361,271 +2489,271 @@ function aplicarCorStatusInput(elementoInput) {
     }
 }
 
-async function limparCamposStaffParcial() {
+// async function limparCamposStaffParcial() {
 
-    currentEditingStaffEvent = null; // Garanta que esta também seja limpa
-    isFormLoadedFromDoubleClick = false;
+//     currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+//     isFormLoadedFromDoubleClick = false;
 
-    const previewFoto = document.getElementById('previewFoto');
-    const fileName = document.getElementById('fileName');
-    const fileInput = document.getElementById('file');
-    const uploadHeader = document.getElementById('uploadHeader');
-    const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
-    const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
-    const labelFuncionario = document.getElementById('labelFuncionario');
+//     const previewFoto = document.getElementById('previewFoto');
+//     const fileName = document.getElementById('fileName');
+//     const fileInput = document.getElementById('file');
+//     const uploadHeader = document.getElementById('uploadHeader');
+//     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+//     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+//     const labelFuncionario = document.getElementById('labelFuncionario');
 
-    if (labelFuncionario) {
-        labelFuncionario.style.display = "none"; // esconde
-        labelFuncionario.textContent = "";       // limpa o texto
-        labelFuncionario.style.color = "";       // reseta cor
-        console.log("Label Funcionário limpo.");
-    }
+//     if (labelFuncionario) {
+//         labelFuncionario.style.display = "none"; // esconde
+//         labelFuncionario.textContent = "";       // limpa o texto
+//         labelFuncionario.style.color = "";       // reseta cor
+//         console.log("Label Funcionário limpo.");
+//     }
 
-    if (previewFoto) {
-        previewFoto.src = "#";
-        previewFoto.style.display = "none";
-        console.log("Preview da foto limpo.");
-    }
-    if (fileName) {
-        fileName.textContent = "Nenhum arquivo selecionado";
-    }
-    if (fileInput) {
-        fileInput.value = "";
-    }
-    if (uploadHeader) {
-        uploadHeader.style.display = "block";
-    }
-    if (linkFotoFuncionarios) {
-        linkFotoFuncionarios.value = "";
-    }
-    if (nomeFuncionarioExibido) {
-        nomeFuncionarioExibido.textContent = "";
-    }
+//     if (previewFoto) {
+//         previewFoto.src = "#";
+//         previewFoto.style.display = "none";
+//         console.log("Preview da foto limpo.");
+//     }
+//     if (fileName) {
+//         fileName.textContent = "Nenhum arquivo selecionado";
+//     }
+//     if (fileInput) {
+//         fileInput.value = "";
+//     }
+//     if (uploadHeader) {
+//         uploadHeader.style.display = "block";
+//     }
+//     if (linkFotoFuncionarios) {
+//         linkFotoFuncionarios.value = "";
+//     }
+//     if (nomeFuncionarioExibido) {
+//         nomeFuncionarioExibido.textContent = "";
+//     }
 
-    // 1. Limpeza de IDs e Nome do Staff/Funcionário
-    document.querySelector("#idStaff").value = '';
-    document.querySelector("#idFuncionario").value = '';
-    const nmFuncionario = document.getElementById("nmFuncionario");
-    if (nmFuncionario) nmFuncionario.value = ''; 
+//     // 1. Limpeza de IDs e Nome do Staff/Funcionário
+//     document.querySelector("#idStaff").value = '';
+//     document.querySelector("#idFuncionario").value = '';
+//     const nmFuncionario = document.getElementById("nmFuncionario");
+//     if (nmFuncionario) nmFuncionario.value = ''; 
 
-    const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
-    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
-    const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
-    const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
+//     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
+//     const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
+//     const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+//     const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
 
-    document.querySelector("#apelidoFuncionario").value = '';
-    const apelido = document.getElementById("apelidoFuncionario");
-    if (apelido) apelido.value = '';
+//     document.querySelector("#apelidoFuncionario").value = '';
+//     const apelido = document.getElementById("apelidoFuncionario");
+//     if (apelido) apelido.value = '';
 
-    document.querySelector("#perfilFuncionario").value = '';
-    const perfil = document.getElementById("perfilFuncionario");
-    if (perfil) perfil.value = '';
+//     document.querySelector("#perfilFuncionario").value = '';
+//     const perfil = document.getElementById("perfilFuncionario");
+//     if (perfil) perfil.value = '';
 
-    // 2. Limpeza de valores financeiros
-    document.querySelector("#vlrCusto").value = ''; // Cachê
-    document.querySelector("#transporte").value = '';
-    document.querySelector("#alimentacao").value = '';
-    document.querySelector("#caixinha").value = '';
-    document.getElementById('vlrTotal').value = '';
+//     // 2. Limpeza de valores financeiros
+//     document.querySelector("#vlrCusto").value = ''; // Cachê
+//     document.querySelector("#transporte").value = '';
+//     document.querySelector("#alimentacao").value = '';
+//     document.querySelector("#caixinha").value = '';
+//     document.getElementById('vlrTotal').value = '';
 
-    const ajusteCustoInput = document.querySelector("#ajusteCusto");
-    if (ajusteCustoInput) ajusteCustoInput.style.display = 'none'; // 🎯 Novo
+//     const ajusteCustoInput = document.querySelector("#ajusteCusto");
+//     if (ajusteCustoInput) ajusteCustoInput.style.display = 'none'; // 🎯 Novo
 
-    const caixinhaInput = document.querySelector("#caixinha");
-    if (caixinhaInput) caixinhaInput.style.display = 'none'; // 🎯 Novo
+//     const caixinhaInput = document.querySelector("#caixinha");
+//     if (caixinhaInput) caixinhaInput.style.display = 'none'; // 🎯 Novo
 
-    // 3. Limpeza de Níveis de Experiência (Checkboxes)
+//     // 3. Limpeza de Níveis de Experiência (Checkboxes)
     
-    if (isAjudanteDeMarcacao) {
-        console.log("Função 'Ajudante de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
-    } else {
-        document.getElementById('Seniorcheck').checked = false;
-        document.getElementById('Plenocheck').checked = false;
-        document.getElementById('Juniorcheck').checked = false;
-        document.getElementById('Basecheck').checked = false;
-        document.getElementById('Fechadocheck').checked = false;
-        console.log("Níveis de experiência limpos.");
-    }
-    if (isFiscalDeMarcacao) {
-        console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
-    } else {
-        document.getElementById('Seniorcheck2').checked = false;
-        document.getElementById('Seniorcheck').checked = false;
-        document.getElementById('Plenocheck').checked = false;
-        document.getElementById('Juniorcheck').checked = false;
-        document.getElementById('Basecheck').checked = false;
-        document.getElementById('Fechadocheck').checked = false;
-        console.log("Níveis de experiência limpos.");
-    }
+//     if (isAjudanteDeMarcacao) {
+//         console.log("Função 'Ajudante de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
+//     if (isFiscalDeMarcacao) {
+//         console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck2').checked = false;
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
     
-    // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
-    // Usamos o método clear() em todas as instâncias do flatpickr.
+//     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
+//     // Usamos o método clear() em todas as instâncias do flatpickr.
     
-    // Período do Evento
-    // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker && typeof datasEventoPicker.clear === 'function') {
-    //     datasEventoPicker.clear();
-    //     console.log("Datas do Evento (Flatpickr) limpas.");
-    // }
+//     // Período do Evento
+//     // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker && typeof datasEventoPicker.clear === 'function') {
+//     //     datasEventoPicker.clear();
+//     //     console.log("Datas do Evento (Flatpickr) limpas.");
+//     // }
 
-    // Diária Dobrada
-    const diariaDobradaCheck = document.getElementById("diariaDobradacheck");
-    if (typeof window.diariaDobradaPicker !== 'undefined' && window.diariaDobradaPicker && typeof window.diariaDobradaPicker.clear === 'function') {
-        diariaDobradaPicker.clear();
-    }
-    if (diariaDobradaCheck) {
-        diariaDobradaCheck.checked = false; 
-        // Oculta o campo de data (input do Flatpickr)
-        const diariaDobradaInput = document.getElementById("datasDobrada"); // ⚠️ Verifique o ID do input de datas dobradas
-        if (diariaDobradaInput) {
-            diariaDobradaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
-        }
-    }
+//     // Diária Dobrada
+//     const diariaDobradaCheck = document.getElementById("diariaDobradacheck");
+//     if (typeof window.diariaDobradaPicker !== 'undefined' && window.diariaDobradaPicker && typeof window.diariaDobradaPicker.clear === 'function') {
+//         diariaDobradaPicker.clear();
+//     }
+//     if (diariaDobradaCheck) {
+//         diariaDobradaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const diariaDobradaInput = document.getElementById("datasDobrada"); // ⚠️ Verifique o ID do input de datas dobradas
+//         if (diariaDobradaInput) {
+//             diariaDobradaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
     
-    // Meia Diária
-    const meiaDiariaCheck = document.getElementById("meiaDiariacheck");
-    if (typeof window.meiaDiariaPicker !== 'undefined' && window.meiaDiariaPicker && typeof window.meiaDiariaPicker.clear === 'function') {
-        meiaDiariaPicker.clear();
-    }
-    if (meiaDiariaCheck) {
-        meiaDiariaCheck.checked = false; 
-        // Oculta o campo de data (input do Flatpickr)
-        const meiaDiariaInput = document.getElementById("datasMeiaDiaria");
-        if (meiaDiariaInput) {
-            meiaDiariaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
-        }
-    }
+//     // Meia Diária
+//     const meiaDiariaCheck = document.getElementById("meiaDiariacheck");
+//     if (typeof window.meiaDiariaPicker !== 'undefined' && window.meiaDiariaPicker && typeof window.meiaDiariaPicker.clear === 'function') {
+//         meiaDiariaPicker.clear();
+//     }
+//     if (meiaDiariaCheck) {
+//         meiaDiariaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const meiaDiariaInput = document.getElementById("datasMeiaDiaria");
+//         if (meiaDiariaInput) {
+//             meiaDiariaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
 
-    // 5. ⚠️ Limpeza de outros Checkboxes (Caixinha/AjusteCusto)
-    const caixinhaCheck = document.getElementById("Caixinhacheck");
-    if (caixinhaCheck) {
-        caixinhaCheck.checked = false;
-    }
+//     // 5. ⚠️ Limpeza de outros Checkboxes (Caixinha/AjusteCusto)
+//     const caixinhaCheck = document.getElementById("Caixinhacheck");
+//     if (caixinhaCheck) {
+//         caixinhaCheck.checked = false;
+//     }
     
-    const ajusteCustoCheck = document.getElementById("ajusteCustocheck");
-    if (ajusteCustoCheck) {
-        ajusteCustoCheck.checked = false;
-    }
+//     const ajusteCustoCheck = document.getElementById("ajusteCustocheck");
+//     if (ajusteCustoCheck) {
+//         ajusteCustoCheck.checked = false;
+//     }
 
-    // ✅ Limpeza de PDFs por classe
-    const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
-    const fileInputsPDF = document.querySelectorAll('.filePDFInput');
-    const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+//     // ✅ Limpeza de PDFs por classe
+//     const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+//     const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+//     const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
 
-    fileNamesPDF.forEach(p => {
-        p.textContent = "Nenhum arquivo selecionado";
-    });
-    fileInputsPDF.forEach(input => {
-        input.value = "";
-    });
-    hiddenInputsPDF.forEach(input => {
-        input.value = "";
-    });
-    console.log("Campos de arquivos PDF limpos.");
-
-
-    const beneficioTextarea = document.getElementById('descBeneficio');
-    if (beneficioTextarea) {
-        beneficioTextarea.style.display = 'none'; // Oculta o textarea
-        beneficioTextarea.required = false;      // Remove a obrigatoriedade
-        beneficioTextarea.value = '';            // Limpa o conteúdo
-    }
-
-    const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-    if (ajusteCustoTextarea) {
-        ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-        ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
-        ajusteCustoTextarea.value = '';            // Limpa o conteúdo
-    }
-
-    const descCaixinhaTextarea = document.getElementById('descCaixinha');
-    if (descCaixinhaTextarea) {
-        descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-        descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
-        descCaixinhaTextarea.value = '';            // Limpa o conteúdo
-    }
-
-    const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
-    if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária';
-
-    const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
-    if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada';
-
-    const statusPgto = document.getElementById('statuspgto');
-    if (statusPgto) statusPgto.value = '';
-
-    const statusAjusteCusto = document.getElementById('statusAjusteCusto');
-    if (statusAjusteCusto) {
-        statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
-        statusAjusteCusto.style.display = 'none'; // 🎯 Novo: Oculta o select
-    }
-
-    const statusCaixinha = document.getElementById('statuscaixinha');
-    if (statusCaixinha) {
-        statusCaixinha.value = 'Autorização da Caixinha';
-        statusCaixinha.style.display = 'none'; // 🎯 Novo: Oculta o select
-    }
-
-    const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-    const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-
-    if (containerStatusDiariaDobrada) {
-        containerStatusDiariaDobrada.innerHTML = '';
-        containerStatusDiariaDobrada.style.display = 'none';
-    }
-
-    if (containerStatusMeiaDiaria) {
-        containerStatusMeiaDiaria.innerHTML = '';
-        containerStatusMeiaDiaria.style.display = 'none';
-    }
-
-    const avaliacaoSelect = document.getElementById('avaliacao');
-    if (avaliacaoSelect) {
-        avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
-        // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
-        const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
-        if (tarjaAvaliacao) {
-            tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
-            tarjaAvaliacao.textContent = ''; // Limpa o texto
-            console.log("Campos de avaliação (select e tarja) limpos.");
-        }
-    }
-
-    const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
-    if (tabelaCorpo) {
-        // Remove todas as linhas filhas do tbody
-        while (tabelaCorpo.firstChild) {
-            tabelaCorpo.removeChild(tabelaCorpo.firstChild);
-        }
-        console.log("Corpo da tabela (tabela) limpo.");
-
-        // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
-        let emptyRow = tabelaCorpo.insertRow();
-        let emptyCell = emptyRow.insertCell(0);
-        emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
-        emptyCell.textContent = "Nenhum item adicionado.";
-        emptyCell.style.textAlign = "center";
-        emptyCell.style.padding = "20px";
-        console.log("Linha vazia adicionada à tabela 'tabela'.");
-    } else {
-        console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
-    }
+//     fileNamesPDF.forEach(p => {
+//         p.textContent = "Nenhum arquivo selecionado";
+//     });
+//     fileInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     hiddenInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     console.log("Campos de arquivos PDF limpos.");
 
 
-    limparCamposComprovantes();
-    limparFoto();
+//     const beneficioTextarea = document.getElementById('descBeneficio');
+//     if (beneficioTextarea) {
+//         beneficioTextarea.style.display = 'none'; // Oculta o textarea
+//         beneficioTextarea.required = false;      // Remove a obrigatoriedade
+//         beneficioTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+//     if (ajusteCustoTextarea) {
+//         ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+//         ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
+//         ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const descCaixinhaTextarea = document.getElementById('descCaixinha');
+//     if (descCaixinhaTextarea) {
+//         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+//         descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
+//         descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+//     if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária';
+
+//     const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+//     if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada';
+
+//     const statusPgto = document.getElementById('statuspgto');
+//     if (statusPgto) statusPgto.value = '';
+
+//     const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+//     if (statusAjusteCusto) {
+//         statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+//         statusAjusteCusto.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const statusCaixinha = document.getElementById('statuscaixinha');
+//     if (statusCaixinha) {
+//         statusCaixinha.value = 'Autorização da Caixinha';
+//         statusCaixinha.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+//     if (containerStatusDiariaDobrada) {
+//         containerStatusDiariaDobrada.innerHTML = '';
+//         containerStatusDiariaDobrada.style.display = 'none';
+//     }
+
+//     if (containerStatusMeiaDiaria) {
+//         containerStatusMeiaDiaria.innerHTML = '';
+//         containerStatusMeiaDiaria.style.display = 'none';
+//     }
+
+//     const avaliacaoSelect = document.getElementById('avaliacao');
+//     if (avaliacaoSelect) {
+//         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+//         // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+//         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+//         if (tarjaAvaliacao) {
+//             tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+//             tarjaAvaliacao.textContent = ''; // Limpa o texto
+//             console.log("Campos de avaliação (select e tarja) limpos.");
+//         }
+//     }
+
+//     const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+//     if (tabelaCorpo) {
+//         // Remove todas as linhas filhas do tbody
+//         while (tabelaCorpo.firstChild) {
+//             tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+//         }
+//         console.log("Corpo da tabela (tabela) limpo.");
+
+//         // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+//         let emptyRow = tabelaCorpo.insertRow();
+//         let emptyCell = emptyRow.insertCell(0);
+//         emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+//         emptyCell.textContent = "Nenhum item adicionado.";
+//         emptyCell.style.textAlign = "center";
+//         emptyCell.style.padding = "20px";
+//         console.log("Linha vazia adicionada à tabela 'tabela'.");
+//     } else {
+//         console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+//     }
 
 
-    // 6. Notifica o usuário
-    Swal.fire({
-        title: "Pronto para o próximo!",
-        text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
-        icon: "info",
-        timer: 2000,
-        showConfirmButton: false
-    });
+//     limparCamposComprovantes();
+//     limparFoto();
 
 
-}
+//     // 6. Notifica o usuário
+//     Swal.fire({
+//         title: "Pronto para o próximo!",
+//         text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
+//         icon: "info",
+//         timer: 2000,
+//         showConfirmButton: false
+//     });
+
+
+// }
 
 
 async function verificaStaff() {
@@ -2761,52 +2889,7 @@ async function verificaStaff() {
     mostrarTarja();
     });
 
-    // document.getElementById('btnGerarFichaPendente').onclick = async function() {
-    //     // 1. Primeiro Filtro: Tipo de Evento
-    //     const { value: tipoFiltro } = await Swal.fire({
-    //         title: 'Gerar Ficha de Trabalho',
-    //         input: 'select',
-    //         inputOptions: {
-    //             'todos': 'Todos os Eventos',
-    //             'a_realizar': 'Eventos a Realizar (Futuros)',
-    //             'realizados': 'Eventos Realizados (Passados)'
-    //         },
-    //         inputPlaceholder: 'Selecione uma opção',
-    //         showCancelButton: true,
-    //         confirmButtonText: 'Próximo',
-    //         cancelButtonText: 'Cancelar'
-    //     });
-
-    //     if (!tipoFiltro) return;
-
-    //     let dataCorteInicio = null;
-    //     let dataCorteFim = null;
-
-    //     // 2. Se for "Realizados", perguntar o período (Opcional)
-    //     if (tipoFiltro === 'realizados') {
-    //         const { value: periodo } = await Swal.fire({
-    //             title: 'Filtrar por Período?',
-    //             html: `
-    //                 <input type="month" id="mesFiltro" class="swal2-input">
-    //                 <p style="font-size: 0.8em; color: gray;">Deixe em branco para ver todos os passados</p>
-    //             `,
-    //             showCancelButton: true,
-    //             confirmButtonText: 'Filtrar',
-    //             preConfirm: () => {
-    //                 return document.getElementById('mesFiltro').value;
-    //             }
-    //         });
-            
-    //         if (periodo) {
-    //             const [ano, mes] = periodo.split('-');
-    //             dataCorteInicio = new Date(ano, mes - 1, 1);
-    //             dataCorteFim = new Date(ano, mes, 0); // Último dia do mês
-    //         }
-    //     }
-
-    //     processarGeracaoFicha(tipoFiltro, dataCorteInicio, dataCorteFim);
-    // };
-
+    
     document.getElementById('btnGerarFichaPendente').onclick = async function() {        
         // Configuração de estilo comum
         const configEstilo = {
@@ -3013,243 +3096,420 @@ async function verificaStaff() {
     }
 
 
-    ajusteCustocheck.addEventListener('change', (e) => {
-        const isCheckedBeforeSwal = ajusteCustocheck.checked;
-        const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-        const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
+    // ajusteCustocheck.addEventListener('change', (e) => {
+    //     const isCheckedBeforeSwal = ajusteCustocheck.checked;
+    //     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+    //     const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
 
-           // Se qualquer um dos elementos não for encontrado, interrompe a execução
-        if (!ajusteCustoInput || !ajusteCustoTextarea || !campoStatusAjusteCusto) {
-            console.error("Um ou mais elementos do bônus não foram encontrados. Verifique os IDs.");
-            // Opcional: Adicionar um alerta para o usuário
-            Swal.fire('Erro!', 'Ocorreu um problema ao carregar os campos do bônus. Tente recarregar a página.', 'error');
-            return; // Sai da função para evitar o erro
-        }
+    //        // Se qualquer um dos elementos não for encontrado, interrompe a execução
+    //     if (!ajusteCustoInput || !ajusteCustoTextarea || !campoStatusAjusteCusto) {
+    //         console.error("Um ou mais elementos do bônus não foram encontrados. Verifique os IDs.");
+    //         // Opcional: Adicionar um alerta para o usuário
+    //         Swal.fire('Erro!', 'Ocorreu um problema ao carregar os campos do bônus. Tente recarregar a página.', 'error');
+    //         return; // Sai da função para evitar o erro
+    //     }
 
-        console.log("AJUSTE DE CUSTO CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusAjusteCusto.value);
+    //     console.log("AJUSTE DE CUSTO CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusAjusteCusto.value);
 
-        // Inicia com valores padrão para o caso de novo cadastro
-        let valorAjusteCustoOriginal = 0;
-        let descAjusteCustoOriginal = '';
-        let statusAjusteCustoOriginal = '';
+    //     // Inicia com valores padrão para o caso de novo cadastro
+    //     let valorAjusteCustoOriginal = 0;
+    //     let descAjusteCustoOriginal = '';
+    //     let statusAjusteCustoOriginal = '';
 
-        // Se estiver em modo de edição, sobrescreve com os valores originais
-        if (currentEditingStaffEvent) {
-            valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00);
-            descAjusteCustoOriginal = currentEditingStaffEvent.descajustecusto || '';
-            statusAjusteCustoOriginal = currentEditingStaffEvent.statusajustecusto || '';
-        }
+    //     // Se estiver em modo de edição, sobrescreve com os valores originais
+    //     if (currentEditingStaffEvent) {
+    //         valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00);
+    //         descAjusteCustoOriginal = currentEditingStaffEvent.descajustecusto || '';
+    //         statusAjusteCustoOriginal = currentEditingStaffEvent.statusajustecusto || '';
+    //     }
 
-        if (!isCheckedBeforeSwal) {
-            // Lógica para quando o usuário desmarca a caixa
-            if (statusAjusteCustoOriginal !== 'Pendente') {
-                e.preventDefault();
-                Swal.fire({
-                    title: 'Atenção!',
-                    text: `Não é possível remover o Ajuste de Custo pois seu status é "${statusAjusteCustoOriginal}".`,
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6',
-                    confirmButtonText: 'Ok'
-                }).then(() => {
-                    ajusteCustocheck.checked = true;
-                    ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-                    ajusteCustoTextarea.value = descAjusteCustoOriginal;
-                    campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
+    //     if (!isCheckedBeforeSwal) {
+    //         // Lógica para quando o usuário desmarca a caixa
+    //         if (statusAjusteCustoOriginal !== 'Pendente') {
+    //             e.preventDefault();
+    //             Swal.fire({
+    //                 title: 'Atenção!',
+    //                 text: `Não é possível remover o Ajuste de Custo pois seu status é "${statusAjusteCustoOriginal}".`,
+    //                 icon: 'error',
+    //                 confirmButtonColor: '#3085d6',
+    //                 confirmButtonText: 'Ok'
+    //             }).then(() => {
+    //                 ajusteCustocheck.checked = true;
+    //                 ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
+    //                 ajusteCustoTextarea.value = descAjusteCustoOriginal;
+    //                 campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
 
-                    // Exibe os campos novamente
-                    campoAjusteCusto.style.display = 'block';
-                    ajusteCustoTextarea.style.display = 'block';
-                    campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
+    //                 // Exibe os campos novamente
+    //                 campoAjusteCusto.style.display = 'block';
+    //                 ajusteCustoTextarea.style.display = 'block';
+    //                 campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
 
-                    calcularValorTotal();
-                });
-            } else if (valorAjusteCustoOriginal > 0) {
-                e.preventDefault();
-                Swal.fire({
-                    title: 'Atenção!',
-                    text: 'Você tem um valor preenchido para o Ajuste de Custo. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Sim, continuar!',
-                    cancelButtonText: 'Não, cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        ajusteCustocheck.checked = false;
-                        campoAjusteCusto.style.display = 'none';
-                        ajusteCustoTextarea.style.display = 'none';
-                        campoStatusAjusteCusto.style.display = 'none';
-                        ajusteCustoInput.value = '0,00';
-                        ajusteCustoTextarea.value = '';
-                        campoStatusAjusteCusto.value = '';
-                        calcularValorTotal();
-                    } else {
-                        ajusteCustocheck.checked = true;
-                        ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-                        ajusteCustoTextarea.value = descAjusteCustoOriginal;
-                        campoStatusajusteCusto.value = statusAjusteCustoOriginal;
+    //                 calcularValorTotal();
+    //             });
+    //         } else if (valorAjusteCustoOriginal > 0) {
+    //             e.preventDefault();
+    //             Swal.fire({
+    //                 title: 'Atenção!',
+    //                 text: 'Você tem um valor preenchido para o Ajuste de Custo. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
+    //                 icon: 'warning',
+    //                 showCancelButton: true,
+    //                 confirmButtonColor: '#3085d6',
+    //                 cancelButtonColor: '#d33',
+    //                 confirmButtonText: 'Sim, continuar!',
+    //                 cancelButtonText: 'Não, cancelar'
+    //             }).then((result) => {
+    //                 if (result.isConfirmed) {
+    //                     ajusteCustocheck.checked = false;
+    //                     campoAjusteCusto.style.display = 'none';
+    //                     ajusteCustoTextarea.style.display = 'none';
+    //                     campoStatusAjusteCusto.style.display = 'none';
+    //                     ajusteCustoInput.value = '0,00';
+    //                     ajusteCustoTextarea.value = '';
+    //                     campoStatusAjusteCusto.value = '';
+    //                     calcularValorTotal();
+    //                 } else {
+    //                     ajusteCustocheck.checked = true;
+    //                     ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
+    //                     ajusteCustoTextarea.value = descAjusteCustoOriginal;
+    //                     campoStatusajusteCusto.value = statusAjusteCustoOriginal;
 
-                        // Exibe os campos novamente
-                        campoAjusteCusto.style.display = 'block';
-                        ajusteCustoTextarea.style.display = 'block';
-                        campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
+    //                     // Exibe os campos novamente
+    //                     campoAjusteCusto.style.display = 'block';
+    //                     ajusteCustoTextarea.style.display = 'block';
+    //                     campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
 
-                        calcularValorTotal();
-                    }
-                });
-            } else {
-                // Se não há valor e o status é pendente, simplesmente desmarque
-                campoAjusteCusto.style.display = 'none';
-                ajusteCustoTextarea.style.display = 'none';
-                campoStatusAjusteCusto.style.display = 'none';
-                ajusteCustoInput.value = '0,00';
-                ajusteCustoTextarea.value = '';
-                campoStatusAjusteCusto.value = '';
-                calcularValorTotal();
+    //                     calcularValorTotal();
+    //                 }
+    //             });
+    //         } else {
+    //             // Se não há valor e o status é pendente, simplesmente desmarque
+    //             campoAjusteCusto.style.display = 'none';
+    //             ajusteCustoTextarea.style.display = 'none';
+    //             campoStatusAjusteCusto.style.display = 'none';
+    //             ajusteCustoInput.value = '0,00';
+    //             ajusteCustoTextarea.value = '';
+    //             campoStatusAjusteCusto.value = '';
+    //             calcularValorTotal();
+    //         }
+    //     } else {
+    //         // Lógica padrão quando o usuário marca a caixa
+    //         campoAjusteCusto.style.display = 'block';
+    //         ajusteCustoTextarea.style.display = 'block';
+    //         campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
+
+    //         // Os valores já foram definidos no início do listener
+    //         ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
+    //         ajusteCustoTextarea.value = descAjusteCustoOriginal;
+    //         campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
+
+    //         calcularValorTotal();
+    //     }
+    // });
+
+    // const selectCaixinha = document.getElementById('selectStatusCaixinha');
+
+    // if (selectCaixinha) {
+    //     selectCaixinha.addEventListener('change', () => {
+    //         aplicarCorNoSelect(selectCaixinha);
+    //         statusCaixinhaInput.value = selectStatusCaixinha.value;
+    //         console.log("Status de Caixinha sincronizado para:", statusCaixinhaInput.value);
+    //     });
+    // }
+
+    // caixinhaInput.addEventListener('change', () => {
+    //     let valor = caixinhaInput.value.replace(',', '.');
+    //     if (!isNaN(parseFloat(valor))) {
+    //         caixinhaInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
+    //     } else {
+    //         caixinhaInput.value = '0,00';
+    //     }
+    // });
+
+    // caixinhacheck.addEventListener('change', (e) => {       
+
+    //     // Assegura que o campo de valor e a descrição sejam acessados corretamente
+    //     const caixinhaInput = document.getElementById('caixinha');
+    //     const descCaixinhaTextarea = document.getElementById('descCaixinha');
+    //     const campoStatusCaixinha = document.getElementById('statusCaixinha');
+
+    //     // Inicia com valores padrão para o caso de novo cadastro
+    //     let valorCaixinhaOriginal = 0;
+    //     let descCaixinhaOriginal = '';
+    //     let statusCaixinhaOriginal = '';
+
+    //     // Se estiver em modo de edição, sobrescreve com os valores originais
+    //     if (currentEditingStaffEvent) {
+    //         valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
+    //         descCaixinhaOriginal = currentEditingStaffEvent.desccaixinha || '';
+    //         statusCaixinhaOriginal = currentEditingStaffEvent.statuscaixinha || '';
+    //     }
+
+    //     const isCheckedBeforeSwal = caixinhacheck.checked;
+    //     console.log("CAIXINHA CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusCaixinha.value, statusCaixinhaOriginal);
+
+    //     if (!isCheckedBeforeSwal) {
+    //         // Lógica para quando o usuário desmarca a caixa
+    //         if ((statusCaixinhaOriginal !== 'Pendente') && (statusCaixinhaOriginal !== '') && (statusCaixinhaOriginal !== null)) {
+    //             e.preventDefault();
+    //             Swal.fire({
+    //                 title: 'Atenção!',
+    //                 text: `Não é possível remover a Caixinha pois seu status é "${statusCaixinhaOriginal}".`,
+    //                 icon: 'error',
+    //                 confirmButtonColor: '#3085d6',
+    //                 confirmButtonText: 'Ok'
+    //             }).then(() => {
+    //                 caixinhacheck.checked = true;
+    //                 caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
+    //                 descCaixinhaTextarea.value = descCaixinhaOriginal;
+    //                 campoStatusCaixinha.value = statusCaixinhaOriginal;
+
+    //                 // Exibe os campos novamente
+    //                 campoCaixinha.style.display = 'block';
+    //                 descCaixinhaTextarea.style.display = 'block';
+    //                 campoPgtoCaixinha.style.display = 'block';
+    //                 campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+
+    //                 calcularValorTotal();
+    //             });
+    //         } else if (valorCaixinhaOriginal > 0) {
+    //             e.preventDefault();
+    //             Swal.fire({
+    //                 title: 'Atenção!',
+    //                 text: 'Você tem um valor preenchido para o Caixinha. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
+    //                 icon: 'warning',
+    //                 showCancelButton: true,
+    //                 confirmButtonColor: '#3085d6',
+    //                 cancelButtonColor: '#d33',
+    //                 confirmButtonText: 'Sim, continuar!',
+    //                 cancelButtonText: 'Não, cancelar'
+    //             }).then((result) => {
+    //                 if (result.isConfirmed) {
+    //                     caixinhacheck.checked = false;
+    //                     campoCaixinha.style.display = 'none';
+    //                     descCaixinhaTextarea.style.display = 'none';
+    //                     campoStatusCaixinha.style.display = 'none';
+    //                     campoPgtoCaixinha.style.display = 'none';
+    //                     caixinhaInput.value = '0,00';
+    //                     descCaixinhaTextarea.value = '';
+    //                     campoStatusCaixinha.value = '';
+    //                     calcularValorTotal();
+    //                 } else {
+    //                     caixinhacheck.checked = true;
+    //                     caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
+    //                     descCaixinhaTextarea.value = descCaixinhaOriginal;
+    //                     campoStatusCaixinha.value = statusCaixinhaOriginal;
+
+    //                     // Exibe os campos novamente
+    //                     campoCaixinha.style.display = 'block';
+    //                     descCaixinhaTextarea.style.display = 'block';
+    //                     campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+    //                     campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
+
+    //                     calcularValorTotal();
+    //                 }
+    //             });
+    //         } else {
+    //             // Se não há valor e o status é pendente, simplesmente desmarque
+    //             campoCaixinha.style.display = 'none';
+    //             descCaixinhaTextarea.style.display = 'none';
+    //             campoStatusCaixinha.style.display = 'none';
+    //             campoPgtoCaixinha.style.display = 'none';
+    //             caixinhaInput.value = '0,00';
+    //             descCaixinhaTextarea.value = '';
+    //             campoStatusCaixinha.value = '';
+    //             calcularValorTotal();
+    //         }
+    //     } else {
+    //         // Lógica padrão quando o usuário marca a caixa
+    //         campoCaixinha.style.display = 'block';
+    //         descCaixinhaTextarea.style.display = 'block';
+    //         campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+    //         campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
+
+    //         // Os valores já foram definidos no início do listener
+    //         caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
+    //         descCaixinhaTextarea.value = descCaixinhaOriginal;
+    //         campoStatusCaixinha.value = statusCaixinhaOriginal;
+
+    //         calcularValorTotal();
+    //     }
+    // });
+
+        const cacheBaseLiberado = () => {
+            const selectStatus = document.getElementById("selectStatusCustoFechado")?.value;
+            const inputStatus = document.getElementById("statusCustoFechadoTexto")?.value;
+            
+            const status = ((selectStatus && selectStatus !== "none") ? selectStatus : (inputStatus || "")).trim();
+            
+            console.log("🔍 [Trava Segurança] Status atual:", status);
+
+            // Se o status for VAZIO ou "none", significa que é um NOVO registro 
+            // ou o usuário ainda está preenchendo. Vamos LIBERAR.
+            if (status === "" || status === "none") {
+                return true; 
             }
+
+            // Se o status já existe e é impeditivo, aí sim BLOQUEIA.
+            if (status === "Pendente" || status === "Rejeitado") {
+                return false; 
+            }
+
+            // Para qualquer outro status (Autorizado, Pago, etc), LIBERA.
+            return true;
+        };
+
+        // 1. Lógica para Ajuste de Custo
+    // 1. Lógica para Ajuste de Custo (Corrigida para níveis de acesso)
+    ajusteCustocheck.addEventListener('change', async (e) => {
+        const isChecked = ajusteCustocheck.checked;
+        const textarea = document.getElementById('descAjusteCusto');
+        
+        // Elementos do Status (Ajuste esses IDs conforme o seu HTML real)
+        const inputStatus = document.getElementById('statusAjusteCusto'); 
+        const selectStatus = document.getElementById('selectStatusAjusteCusto');
+        
+        // Tenta encontrar o container/div que envolve o status (geralmente tem um ID parecido)
+        const wrapperStatus = document.getElementById('campoStatusAjusteCusto') || 
+                            inputStatus?.closest('.form2') || 
+                            inputStatus?.parentElement;
+
+        // TRAVA DE SEGURANÇA
+        if (isChecked && !cacheBaseLiberado()) {
+            e.preventDefault();
+            ajusteCustocheck.checked = false;
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Solicitação Bloqueada',
+                text: 'Você não pode adicionar Ajuste de Custo enquanto o Cachê Base estiver Pendente.',
+                confirmButtonColor: '#3085d6'
+            });
+        }
+
+        let vOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) : 0;
+        let dOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.descajustecusto || '' : '';
+        let sOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.statusajustecusto || '' : '';
+
+        if (!isChecked) {
+            // Lógica de fechamento (Remover)
+            if (sOriginal !== 'Pendente' && sOriginal !== '' && sOriginal !== null) {
+                e.preventDefault();
+                ajusteCustocheck.checked = true;
+                return Swal.fire('Erro!', `Status "${sOriginal}" não permite remoção.`, 'error');
+            }
+            
+            campoAjusteCusto.style.display = 'none';
+            textarea.style.display = 'none';
+            if (wrapperStatus) wrapperStatus.style.display = 'none';
+            
+            ajusteCustoInput.value = '0,00';
+            textarea.value = '';
         } else {
-            // Lógica padrão quando o usuário marca a caixa
+            // 1. Exibe os containers de texto e valor primeiro
             campoAjusteCusto.style.display = 'block';
-            ajusteCustoTextarea.style.display = 'block';
-            campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
+            textarea.style.display = 'block';
 
-            // Os valores já foram definidos no início do listener
-            ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-            ajusteCustoTextarea.value = descAjusteCustoOriginal;
-            campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
-
-            calcularValorTotal();
-        }
-    });
-
-    const selectCaixinha = document.getElementById('selectStatusCaixinha');
-
-    if (selectCaixinha) {
-        selectCaixinha.addEventListener('change', () => {
-            aplicarCorNoSelect(selectCaixinha);
-            statusCaixinhaInput.value = selectStatusCaixinha.value;
-            console.log("Status de Caixinha sincronizado para:", statusCaixinhaInput.value);
-        });
-    }
-
-    caixinhaInput.addEventListener('change', () => {
-        let valor = caixinhaInput.value.replace(',', '.');
-        if (!isNaN(parseFloat(valor))) {
-            caixinhaInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
-        } else {
-            caixinhaInput.value = '0,00';
-        }
-    });
-
-    caixinhacheck.addEventListener('change', (e) => {       
-
-        // Assegura que o campo de valor e a descrição sejam acessados corretamente
-        const caixinhaInput = document.getElementById('caixinha');
-        const descCaixinhaTextarea = document.getElementById('descCaixinha');
-        const campoStatusCaixinha = document.getElementById('statusCaixinha');
-
-        // Inicia com valores padrão para o caso de novo cadastro
-        let valorCaixinhaOriginal = 0;
-        let descCaixinhaOriginal = '';
-        let statusCaixinhaOriginal = '';
-
-        // Se estiver em modo de edição, sobrescreve com os valores originais
-        if (currentEditingStaffEvent) {
-            valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
-            descCaixinhaOriginal = currentEditingStaffEvent.desccaixinha || '';
-            statusCaixinhaOriginal = currentEditingStaffEvent.statuscaixinha || '';
-        }
-
-        const isCheckedBeforeSwal = caixinhacheck.checked;
-        console.log("CAIXINHA CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusCaixinha.value, statusCaixinhaOriginal);
-
-        if (!isCheckedBeforeSwal) {
-            // Lógica para quando o usuário desmarca a caixa
-            if ((statusCaixinhaOriginal !== 'Pendente') && (statusCaixinhaOriginal !== '') && (statusCaixinhaOriginal !== null)) {
-                e.preventDefault();
-                Swal.fire({
-                    title: 'Atenção!',
-                    text: `Não é possível remover a Caixinha pois seu status é "${statusCaixinhaOriginal}".`,
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6',
-                    confirmButtonText: 'Ok'
-                }).then(() => {
-                    caixinhacheck.checked = true;
-                    caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-                    descCaixinhaTextarea.value = descCaixinhaOriginal;
-                    campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-                    // Exibe os campos novamente
-                    campoCaixinha.style.display = 'block';
-                    descCaixinhaTextarea.style.display = 'block';
-                    campoPgtoCaixinha.style.display = 'block';
-                    campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-
-                    calcularValorTotal();
-                });
-            } else if (valorCaixinhaOriginal > 0) {
-                e.preventDefault();
-                Swal.fire({
-                    title: 'Atenção!',
-                    text: 'Você tem um valor preenchido para o Caixinha. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Sim, continuar!',
-                    cancelButtonText: 'Não, cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        caixinhacheck.checked = false;
-                        campoCaixinha.style.display = 'none';
-                        descCaixinhaTextarea.style.display = 'none';
-                        campoStatusCaixinha.style.display = 'none';
-                        campoPgtoCaixinha.style.display = 'none';
-                        caixinhaInput.value = '0,00';
-                        descCaixinhaTextarea.value = '';
-                        campoStatusCaixinha.value = '';
-                        calcularValorTotal();
-                    } else {
-                        caixinhacheck.checked = true;
-                        caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-                        descCaixinhaTextarea.value = descCaixinhaOriginal;
-                        campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-                        // Exibe os campos novamente
-                        campoCaixinha.style.display = 'block';
-                        descCaixinhaTextarea.style.display = 'block';
-                        campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-                        campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-                        calcularValorTotal();
-                    }
-                });
-            } else {
-                // Se não há valor e o status é pendente, simplesmente desmarque
-                campoCaixinha.style.display = 'none';
-                descCaixinhaTextarea.style.display = 'none';
-                campoStatusCaixinha.style.display = 'none';
-                campoPgtoCaixinha.style.display = 'none';
-                caixinhaInput.value = '0,00';
-                descCaixinhaTextarea.value = '';
-                campoStatusCaixinha.value = '';
-                calcularValorTotal();
+            // 2. Localiza o container do status (O ID que sua função usa como 'campo' + baseId)
+            // Se você passa 'StatusAjusteCusto', ela procura 'campoStatusAjusteCusto'
+            const wrapperStatus = document.getElementById('campoStatusAjusteCusto');
+            
+            if (wrapperStatus) {
+                // FORÇAMOS a exibição antes da função checar
+                wrapperStatus.style.setProperty('display', 'block', 'important');
             }
+
+            // 3. Define o valor inicial no input escondido para a função poder ler
+            const campoInputMinúsculo = document.getElementById('statusajustecusto');
+            if (campoInputMinúsculo) {
+                campoInputMinúsculo.value = sOriginal || 'Pendente';
+            }
+
+            // 4. Agora sim chamamos a sua função de permissão
+
+            
+            // IMPORTANTE: O nome passado aqui deve resultar no ID do seu container quando concatenado com 'campo'
+            alternarStatusPorPermissao('StatusAjusteCusto', temPermissaoMaster);
+
+            ajusteCustoInput.value = vOriginal.toFixed(2).replace('.', ',');
+            textarea.value = dOriginal;
+        }
+        calcularValorTotal();
+    });
+
+    // 2. Lógica para Caixinha
+    // 2. Lógica para Caixinha (Sincronizada com Nível de Acesso e Trava)
+    caixinhacheck.addEventListener('change', async (e) => {
+        const isChecked = caixinhacheck.checked;
+        const textarea = document.getElementById('descCaixinha');
+        
+        // Elementos do Status da Caixinha
+        const inputStatus = document.getElementById('statusCaixinha'); 
+        const selectStatus = document.getElementById('selectStatusCaixinha');
+        
+        // Container do status (Wrapper)
+        const wrapperStatus = document.getElementById('campoStatusCaixinha') || 
+                            inputStatus?.closest('.form2') || 
+                            inputStatus?.parentElement;
+
+        // TRAVA DE SEGURANÇA: Bloqueia se o Cachê Base estiver pendente
+        if (isChecked && !cacheBaseLiberado()) {
+            e.preventDefault();
+            caixinhacheck.checked = false;
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Solicitação Bloqueada',
+                text: 'Você não pode adicionar Caixinha enquanto o Cachê Base estiver Pendente.',
+                confirmButtonColor: '#3085d6'
+            });
+        }
+
+        let vOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) : 0;
+        let dOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.desccaixinha || '' : '';
+        let sOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.statuscaixinha || '' : '';
+
+        if (!isChecked) {
+            // Lógica para quando desmarca
+            if (sOriginal !== 'Pendente' && sOriginal !== '' && sOriginal !== null) {
+                e.preventDefault();
+                caixinhacheck.checked = true;
+                return Swal.fire('Erro!', `Não é possível remover: status atual é "${sOriginal}".`, 'error');
+            }
+
+            if (parseFloat(caixinhaInput.value.replace(',', '.')) > 0) {
+                const result = await Swal.fire({
+                    title: 'Remover Caixinha?',
+                    text: 'Os dados preenchidos serão perdidos. Confirmar?',
+                    icon: 'warning',
+                    showCancelButton: true
+                });
+                if (!result.isConfirmed) {
+                    caixinhacheck.checked = true;
+                    return;
+                }
+            }
+
+            // Esconde tudo
+            campoCaixinha.style.display = 'none';
+            textarea.style.display = 'none';
+            campoPgtoCaixinha.style.display = 'none';
+            if (wrapperStatus) wrapperStatus.style.display = 'none';
+            
+            caixinhaInput.value = '0,00';
+            textarea.value = '';
         } else {
-            // Lógica padrão quando o usuário marca a caixa
+            // Lógica de abertura (Exibir)
             campoCaixinha.style.display = 'block';
-            descCaixinhaTextarea.style.display = 'block';
-            campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+            textarea.style.display = 'block';
             campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
 
-            // Os valores já foram definidos no início do listener
-            caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-            descCaixinhaTextarea.value = descCaixinhaOriginal;
-            campoStatusCaixinha.value = statusCaixinhaOriginal;
 
-            calcularValorTotal();
+
+            caixinhaInput.value = vOriginal.toFixed(2).replace('.', ',');
+            textarea.value = dOriginal;
+
+            const campoInput = document.getElementById('statuscaixinha');
+            if (campoInput) campoInput.value = sOriginal || 'Pendente';
         }
+        calcularValorTotal();
     });
 
     const selectDiariaDobrada = document.getElementById('selectStatusDiariaDobrada');
@@ -3272,22 +3532,33 @@ async function verificaStaff() {
 
     // const datasEventoInput = document.getElementById('datasEvento');
     if (datasEventoInput) {
-            console.log("ENTROU NO PERIODO EVENTO DO VERIFICASTAFF");
+         console.log("ENTROU NO PERIODO EVENTO DO VERIFICASTAFF");
     }
+
+    document.getElementById("selectStatusCustoFechado")?.addEventListener("change", function() {
+        // Sincroniza o hidden com o select visível
+        const hiddenStatus = document.getElementById("statusCustoFechado");
+        if (hiddenStatus) hiddenStatus.value = this.value;
+        
+        // Aplica cor no select
+        aplicarCorNoSelect(this);
+        
+        console.log("✅ statusCustoFechado (hidden) atualizado para:", this.value);
+    });
 
     const botaoEnviarOriginal = document.getElementById("Enviar");
     if (botaoEnviarOriginal) {
-        const BotaoEnviar = botaoEnviarOriginal.cloneNode(true); // Clona o botão, removendo listeners antigos
+        const BotaoEnviar = botaoEnviarOriginal.cloneNode(true);
         botaoEnviarOriginal.parentNode.replaceChild(BotaoEnviar, botaoEnviarOriginal);
         console.log("[botaoEnviar] Listener antigo removido para evitar salvamento duplicado.");
 
-        // Agora usa o novo botão clonado na função existente:
         BotaoEnviar.addEventListener("click", async (event) => {
-            event.preventDefault();                
-            
-                
+            event.preventDefault();
+
+            // =========================================================
+            // 1. COLETA DE DADOS DO FORMULÁRIO
+            // =========================================================
             const datasEventoRawValue = window.datasEventoPicker?.selectedDates || [];
-            
             const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
             const diariaDobradaRawValue = window.diariaDobradaPicker?.selectedDates || [];
@@ -3297,7 +3568,7 @@ async function verificaStaff() {
             const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
             statusOrcamentoAtual = document.getElementById("status");
-           
+
             const selectAvaliacao = document.getElementById("avaliacao");
             const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
             const idStaff = document.querySelector("#idStaff").value.trim();
@@ -3310,7 +3581,6 @@ async function verificaStaff() {
             const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
             const ajusteCusto = document.querySelector("#ajusteCusto").value.trim() || '0';
             const transporte = document.querySelector("#transporte").value.trim() || '0';
-    
             const alimentacao = document.querySelector("#alimentacao").value.trim() || '0';
             const caixinha = document.querySelector("#caixinha").value.trim() || '0';
             const idCliente = document.querySelector("#idCliente").value;
@@ -3321,243 +3591,165 @@ async function verificaStaff() {
             const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
             const idEquipe = document.querySelector("#idEquipe").value;
             const nmEquipe = document.querySelector("#nmEquipe").value.trim().toUpperCase();
-       
-
-            const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
+            const idMontagem = document.querySelector("#idMontagem").value;
             const selectLocalMontagem = document.getElementById("nmLocalMontagem");
             const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
-            const selectPavilhao = document.getElementById("nmPavilhao");
-        
             const inputHiddenPavilhao = document.getElementById('idPavilhao');
             const pavilhao = inputHiddenPavilhao.value.trim().toUpperCase() || '';
-            const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
-            const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
-            const custoFechadoAtivo = document.getElementById("custoFechadocheck")?.checked;
-            const descBeneficioInput = document.getElementById("descBeneficio");
-            const descBeneficio = descBeneficioInput?.value.trim() || "";
-
-            const descAjusteCustoInput = document.getElementById("descAjusteCusto");
-            const descAjusteCusto = descAjusteCustoInput.value.trim() || "";           
-
             const setor = document.querySelector("#setor").value.trim().toUpperCase();
 
+            const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
+            const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
+
+            const descBeneficioInput = document.getElementById("descBeneficio");
+            const descBeneficio = descBeneficioInput?.value.trim() || "";
+            const descAjusteCustoInput = document.getElementById("descAjusteCusto");
+            const descAjusteCusto = descAjusteCustoInput.value.trim() || "";
             const descCaixinhaInput = document.getElementById("descCaixinha");
             const descCaixinha = descCaixinhaInput?.value.trim() || "";
-                //const statusCaixinha = document.getElementById("statusCaixinha").value;
-
-            const selectStatusAjusteCusto = document.getElementById("statusAjusteCusto");
-            console.log("Elemento `statusAjusteCusto`:", selectStatusAjusteCusto);
-            let statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
-
-            console.log("Valor `statusAjusteCusto`:", statusAjusteCusto);
-
-            const selectStatusCaixinha = document.getElementById("statusCaixinha");
-            let statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
+            const descCustoFechadoTextarea = document.getElementById("descCustoFechado");
+            const descCustoFechado = descCustoFechadoTextarea?.value.trim() || "";
 
             const inputStatusFechado = document.getElementById("statusCustoFechado");
             let statusFechado = inputStatusFechado ? inputStatusFechado.value : '';
-            const descCustoFechadoTextarea = document.getElementById("descCustoFechado");
-            const descCustoFechado = descCustoFechadoTextarea?.value.trim() || "";
+
+            let statusAjusteCusto = document.getElementById("statusAjusteCusto")?.value?.trim() || '';
+            let statusCaixinha = document.getElementById("statusCaixinha")?.value?.trim() || '';
 
             const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
             const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
             let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
             let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
 
-            const seniorCheck = document.getElementById('Seniorcheck');
+            const seniorCheck  = document.getElementById('Seniorcheck');
             const seniorCheck2 = document.getElementById('Seniorcheck2');
-            const plenoCheck = document.getElementById('Plenocheck');
-            const juniorCheck = document.getElementById('Juniorcheck');
-            const baseCheck = document.getElementById('Basecheck');
+            const plenoCheck   = document.getElementById('Plenocheck');
+            const juniorCheck  = document.getElementById('Juniorcheck');
+            const baseCheck    = document.getElementById('Basecheck');
             const fechadoCheck = document.getElementById('Fechadocheck');
+            const liberadoCheck = document.getElementById('Liberadocheck');
 
             const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
 
-            console.log("QTD PESSOAS", qtdPessoas);
+            // Totais
+            const vlrTotal = document.getElementById('vlrTotal').value;
+            const total = parseFloat(vlrTotal.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0.00;
 
-            console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
+            const vlrTotCache = document.getElementById('vlrTotalCache').value;
+            const vlrtotcache = parseFloat(vlrTotCache.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0.00;
 
+            const vlrTotalAjdCusto = document.getElementById('vlrTotalAjdCusto').value;
+            const vlrtotajdcusto = parseFloat(vlrTotalAjdCusto.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0.00;
+
+            // =========================================================
+            // 2. VALIDAÇÕES OBRIGATÓRIAS
+            // =========================================================
             if (periodoDoEvento.length === 0) {
                 return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
             }
             if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
-                return Swal.fire(
-                    "Campo obrigatório!",
-                    "Por favor, selecione os dias de Dobra no evento.",
-                    "warning"
-                );
+                return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Dobra no evento.", "warning");
             }
             if (meiaDiariacheck.checked && periodoMeiaDiaria.length === 0) {
-                return Swal.fire(
-                    "Campo obrigatório!",
-                    "Por favor, selecione os dias de Dobra no evento.",
-                    "warning"
-                );
-            }   
-            const vlrTotal = document.getElementById('vlrTotal').value;
-            const total = parseFloat(
-            vlrTotal
-                .replace('R$', '')
-                .replace(/\./g, '')
-                .replace(',', '.')
-                .trim()
-            ) || 0.00;
-
-            const vlrTotCache = document.getElementById('vlrTotalCache').value;
-            const vlrtotcache = parseFloat(
-            vlrTotCache
-                .replace('R$', '')
-                .replace(/\./g, '')
-                .replace(',', '.')
-                .trim()
-            ) || 0.00;
-
-            const vlrTotalAjdCusto = document.getElementById('vlrTotalAjdCusto').value;
-            const vlrtotajdcusto = parseFloat(
-            vlrTotalAjdCusto
-                .replace('R$', '')
-                .replace(/\./g, '')
-                .replace(',', '.')
-                .trim()
-            ) || 0.00;
-
-            
-            if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
+                return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Meia Diária no evento.", "warning");
+            }
+            if (!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento) {
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
             }
-
-            if (!seniorCheck2.checked &&  !seniorCheck.checked &&   !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked &&  !fechadoCheck.checked) {
-                return Swal.fire(
-                    "Nível de Experiência não selecionado!",
-                    "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
-                    "warning"
-                );
+            if (!seniorCheck2.checked && !seniorCheck.checked && !plenoCheck.checked && !juniorCheck.checked && !baseCheck.checked && !fechadoCheck.checked && !liberadoCheck.checked) {
+                return Swal.fire("Nível de Experiência não selecionado!", "Por favor, selecione pelo menos um nível de experiência.", "warning");
+            }
+            if (caixinhaAtivo && !descCaixinha) {
+                descCaixinhaInput?.focus();
+                return Swal.fire("Campos obrigatórios!", "Preencha a descrição do benefício (Caixinha) antes de salvar.", "warning");
+            }
+            if (ajusteCustoAtivo && !descAjusteCusto) {
+                descAjusteCustoInput?.focus();
+                return Swal.fire("Campos obrigatórios!", "Preencha a descrição do bônus antes de salvar.", "warning");
+            }
+            if (fechadoCheck.checked && !descCustoFechado) {
+                descCustoFechadoTextarea?.focus();
+                return Swal.fire("Campos obrigatórios!", "Por favor, preencha a justificativa do Cachê Fechado antes de salvar.", "warning");
+            }
+            if (liberadoCheck.checked && !descCustoFechado) {
+                descCustoFechadoTextarea?.focus();
+                return Swal.fire("Campos obrigatórios!", "Por favor, preencha a justificativa do Cachê Liberado antes de salvar.", "warning");
             }
 
-            if ((caixinhaAtivo) && !descCaixinha) {
-
-                if (descCaixinhaInput) {
-                    descCaixinhaInput.focus();
-                }
-
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do benefício (Caixinha) antes de salvar.",
-                    "warning"
-                );
-            }
-
-            if ((ajusteCustoAtivo) && !descAjusteCusto) {
-
-                if (descAjusteCustoInput) {
-                    descAjusteCustoInput.focus();
-                }
-
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do bônus antes de salvar.",
-                    "warning"
-                );
-            }
-
-            if (custoFechadoAtivo && !descCustoFechado) {
-                if (descCustoFechadoTextarea) {
-                    descCustoFechadoTextarea.focus();
-                }
-
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Por favor, preencha a justificativa do Cachê Fechado antes de salvar.",
-                    "warning"
-                );
-            }
-
+            // Validação de viagem fora SP
             const viagem1Marcada = document.getElementById('viagem1Check')?.checked || false;
             const viagem2Marcada = document.getElementById('viagem2Check')?.checked || false;
             const viagem3Marcada = document.getElementById('viagem3Check')?.checked || false;
-
-            // 1. VERIFICAÇÃO DE OBRIGATORIEDADE
-            if (bForaSP) {
-                // bForaSP está TRUE (Evento é fora de SP)
-                const nenhumaViagemMarcada = !viagem1Marcada && !viagem2Marcada && !viagem3Marcada;
-
-                if (nenhumaViagemMarcada) {
-                    await Swal.fire({
-                        title: "Viagem Obrigatória",
-                        html: "Este evento está cadastrado para ser realizado <strong>fora de São Paulo (SP)</strong>.<br><br>É obrigatório selecionar pelo menos uma opção de <strong>Deslocamento/Viagem</strong> (Viagem 1, Viagem 2 ou Viagem 3) para continuar com o agendamento.",
-                        icon: "error",
-                        confirmButtonText: "Entendi"
-                    });
-                    return; // 🛑 BLOQUEIA O AGENDAMENTO
-                }
+            if (bForaSP && !viagem1Marcada && !viagem2Marcada && !viagem3Marcada) {
+                await Swal.fire({
+                    title: "Viagem Obrigatória",
+                    html: "Este evento está cadastrado para ser realizado <strong>fora de São Paulo (SP)</strong>.<br><br>É obrigatório selecionar pelo menos uma opção de <strong>Deslocamento/Viagem</strong>.",
+                    icon: "error",
+                    confirmButtonText: "Entendi"
+                });
+                return;
             }
 
+            // =========================================================
+            // 3. ALERTA DE TROCA DE NÍVEL (FECHADO/LIBERADO → OUTRO)
+            // =========================================================
+            if (nivelFoiTrocado) {
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Atenção!',
+                    html: `O nível de experiência foi alterado de <strong>${nivelOriginalCarregado}</strong>.<br><br>
+                        A solicitação de <strong>Cachê ${nivelOriginalCarregado}</strong> será <strong>removida</strong>.<br><br>
+                        Deseja continuar?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, continuar',
+                    cancelButtonText: 'Não, cancelar'
+                });
+                if (!result.isConfirmed) return;
+            }
+
+            // =========================================================
+            // 4. DEFINIÇÃO DE MÉTODO (POST ou PUT)
+            // =========================================================
             const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
             const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
             const idStaffEvento = document.querySelector("#idStaffEvento").value;
-
             const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
-
-            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;           
-
-
-            console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
+            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
 
             let metodo = isEditingInitial ? "PUT" : "POST";
             let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
 
             const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
-
             const idStaffEventoNumero = parseInt(idStaffEvento, 10);
 
-            if (idStaffEventoFromObject === idStaffEventoNumero)
-            {
-                console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
-            } else {
-                console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-            }            
-
             if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
-                console.log("ENTROU NO METODO PUT");
                 metodo = "PUT";
                 url = `/staff/${idStaffEvento}`;
                 console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
-            } else {
-
+            } else if (!isEditingInitial) {
                 metodo = "POST";
                 url = "/staff";
-                console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url, "Status Orcamento", statusOrcamentoAtual);
-
                 currentEditingStaffEvent = null;
                 isFormLoadedFromDoubleClick = false;
             }
-                      
-            console.log("Modo final:", metodo, "ID EVENTO PARA API:", idEventoEmEdicao);
 
-            if (pavilhao === "SELECIONE O PAVILHÃO") {
-                pavilhao = "";
-            }
+            console.log("Modo final:", metodo, "ID EVENTO PARA API:", idEventoEmEdicao);
 
             if (metodo === "POST" && !temPermissaoCadastrar) {
                 return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
             }
-
             if (metodo === "PUT" && !temPermissaoAlterar) {
                 return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
             }
 
-            console.log("--- INÍCIO handleFormSubmit ---");
-            console.log("Método inicial:", metodo); // POST ou PUT
-            console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
-            console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
-
-            const idFuncionarioParaVerificacao = idFuncionario; 
+            // =========================================================
+            // 5. VARIÁVEIS PARA VERIFICAÇÕES
+            // =========================================================
+            const idFuncionarioParaVerificacao = idFuncionario;
             const idFuncaoDoFormulario = idFuncao;
-            nmFuncaoDoFormulario = descFuncao;     
+            nmFuncaoDoFormulario = descFuncao;
             const idEventoPrincipal = idEvento;
-
-            console.log("IdFuncaoDoFormulario do Botão Enviar:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario, "IdEvento:", idEventoPrincipal);
 
             // Validação de pavilhão obrigatório
             const idorcamento = getUrlParameter('idorcamento');
@@ -3572,98 +3764,48 @@ async function verificaStaff() {
                 }
             }
 
-            const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
-           
-
-            //-----NOVO TRECHO PARA VERIFICAÇÃO DE FUNCIONÁRIO COM LIMITE DE AGENDAMENTOS POR DIA -----
+            // =========================================================
+            // 6. VERIFICAÇÃO DE DISPONIBILIDADE
+            // =========================================================
             const datasParaVerificacao = periodoDoEvento.map(d => {
-                // 1. Verifica se 'd' é um objeto Date
-                if (d instanceof Date) {
-                    return d.toISOString().split('T')[0];
-                }
-                // 2. Se não for Date, mas for string, retorna a string diretamente.
-                // (Assumindo que strings já estão no formato YYYY-MM-DD, conforme exigido pela API)
-                if (typeof d === 'string') {
-                    return d;
-                }
-                // 3. Caso contrário, ignora (ou trata como erro)
-                return null; 
-            }).filter(d => d !== null);           
+                if (d instanceof Date) return d.toISOString().split('T')[0];
+                if (typeof d === 'string') return d;
+                return null;
+            }).filter(d => d !== null);
 
-           
-            // 1. CHAME A API E OBTENHA TODOS OS CONFLITOS E A CATEGORIA DA FUNÇÃO
             console.log("Iniciando verificação de disponibilidade do staff...");
-          
             const apiResult = await verificarDisponibilidadeStaff(
-                idFuncionarioParaVerificacao,             
+                idFuncionarioParaVerificacao,
                 periodoDoEvento,
                 idFuncaoDoFormulario,
                 idEventoEmEdicao
             );
-            
-            console.log("DIAGNÓSTICO: API retornou! apiResult:", apiResult);
 
-            console.log("Resultado da API (Disponível):", apiResult.isAvailable, "Conflito Encontrado:", apiResult.conflictingEvent);
-
-           
-
-            const { 
-                isAvailable, 
-                conflicts: initialConflicts = [], // Garante que initialConflicts é [] se a propriedade 'conflicts' não vier
-                conflictingEvent // Adiciona para fácil acesso
+            const {
+                isAvailable,
+                conflicts: initialConflicts = [],
+                conflictingEvent
             } = apiResult;
- 
-            let conflicts = initialConflicts;      
-            
-            console.log("DIAGNÓSTICO: Número total de eventos conflitantes retornados pela API (conflicts.length):", conflicts.length);
 
+            let conflicts = initialConflicts;
             const totalConflitosExistentes = conflicts.length;
-            
-            
-            if (apiResult.conflictingEvent && !conflicts.some(c => 
-                    Number(c.idstaffevento) === Number(apiResult.conflictingEvent.idstaffevento)
-                )) {
+
+            if (apiResult.conflictingEvent && !conflicts.some(c =>
+                Number(c.idstaffevento) === Number(apiResult.conflictingEvent.idstaffevento)
+            )) {
                 conflicts.push(apiResult.conflictingEvent);
             }
-  
-            //const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
             const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
 
-
-            console.log("Valores para busca de duplicidade:");
-            console.log(`- idFuncaoDoFormulario: ${idFuncaoDoFormulario}, Tipo: ${typeof idFuncaoDoFormulario}, Nome: ${nmFuncaoDoFormulario}`);
-            console.log(`- idEventoPrincipal: ${idEventoPrincipal}, Tipo: ${typeof idEventoPrincipal}`); // NOVO LOG
-            console.log(`- idEventoEmEdicao: ${idEventoEmEdicao}, Tipo: ${typeof idEventoEmEdicao}`);          
-
-        //     const periodoStringAtual = (periodoDoEvento || []).sort().join(',');
-        // const periodoStringOriginal = (window.dadosOriginais?.periodo || []).sort().join(',');
-        // const idFuncionarioOriginal = String(window.dadosOriginais?.idFuncionario || "");
-        // const idFuncionarioAtual = String(idStaffEvento); // idFuncionario capturado no início do clique
-
-        // // Se for edição e NÃO mudou data nem funcionário, pulamos tudo
-        // const isEdicao = !!idRegistroEmEdicaoParaFiltro; // ou a lógica que você usa para identificar PUT
-        // const mudouAgenda = (periodoStringAtual !== periodoStringOriginal) || (idFuncionarioAtual !== idFuncionarioOriginal);
-        // console.log("PeriodoStringAtual:", periodoStringAtual, "PeriodoStringOriginal:", periodoStringOriginal, "IdFuncionarioAtual:", idFuncionarioAtual, "IdFuncionarioOriginal:", idFuncionarioOriginal);
-
-
-        // console.log("Verificação de alteração de agenda:", mudouAgenda, isEdicao);
-
-
-        // if (isEdicao && !mudouAgenda) {
-        //     console.log("✅ Alteração informativa detectada. Pulando validações de conflito e duplicidade.");
-        //     // Aqui o código sai desse bloco gigante e vai direto para a parte final de montagem do FormData e Fetch
-        // } else {
-
+            // =========================================================
+            // 7. VERIFICAÇÃO DE DUPLICIDADE
+            // =========================================================
             if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
-                console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
                 try {
                     const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
-                        idFuncionario: idFuncionario,
-                        nmFuncionario: nmFuncionario,
-                        setor: setor,
+                        idFuncionario, nmFuncionario, setor,
                         nmlocalmontagem: nmLocalMontagem,
-                        nmevento: nmEvento,
-                        nmcliente: nmCliente,
+                        nmevento: nmEvento, nmcliente: nmCliente,
                         datasevento: JSON.stringify(periodoDoEvento),
                         idFuncao: idFuncao
                     }).toString();
@@ -3673,490 +3815,426 @@ async function verificaStaff() {
                         headers: { 'Content-Type': 'application/json' }
                     });
 
-                    console.log("DuplicateCheckResult", duplicateCheckResult);
-
                     if (duplicateCheckResult.isDuplicate) {
-                        console.log("IsDuplicate");
-
                         const existingEventData = duplicateCheckResult.existingEvent;
-
-                        console.log("EXISTINGEVENTEDATA", existingEventData);
-                        
-                        // 1. Obtém o ID do evento que estamos tentando salvar (se for uma edição)
-                        const idEventoFormulario = idEvento;
-                        
-                        console.log("IDEVENTOFORMULARIO", idEventoFormulario);
-                        // 2. Define o ID do evento retornado pelo backend
-                        const idEventoDuplicado = existingEventData?.idstaffevento;
-                        
-                        console.log("IDEVENTODUPLICADO", idEventoDuplicado);
-                        // 3. Verifica se o duplicado é o próprio evento em edição (Self-Conflict).
-                        const isSelfConflict = idEventoFormulario && String(idEventoFormulario) === String(idEventoDuplicado);
-
-                        console.log("ISSELFCONFLICT", isSelfConflict);
-                        // Variáveis de comparação:
-                        //const idEventoDoFormulario = document.getElementById('idEvento')?.value; // ID do evento no formulário
-                        //const idFuncaoDoFormulario = document.getElementById('descFuncaoSelect')?.value; // ID da função no formulário
-
-                        console.log("IDS EVENTO E FUNCAO DO FORMULARIO", idFuncaoDoFormulario, idEventoFormulario);
-
+                        //const isSelfConflict = idEvento && String(idEvento) === String(existingEventData?.idstaffevento);
+                        const idStaffEventoAtual = document.querySelector("#idStaffEvento")?.value;
+                        const isSelfConflict = idStaffEventoAtual && String(idStaffEventoAtual) === String(existingEventData?.idstaffevento);   
                         const isSameFunction = Number(existingEventData?.idfuncao) === Number(idFuncaoDoFormulario);
-                        // 5. Verifica se o duplicado é para o MESMO evento.
-                        const isSameEvent = Number(existingEventData?.idevento) === Number(idEventoFormulario);
+                        const isSameEvent = Number(existingEventData?.idevento) === Number(idEvento);
 
-                        console.log("IS SAME FUNCTION E EVENT", isSameFunction, isSameEvent);
-                        
-                        // A. SE É O PRÓPRIO EVENTO EM EDIÇÃO (Self-Conflict)
                         if (isSelfConflict) {
-                            console.log("Evento existente detectado e em modo de edição. É o mesmo registro (Self-Conflict). Prosseguindo para verificação de alteração.");
-                            metodo = "PUT"; // Garante que o método continua PUT
-                            url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
-                            currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
-                            // Prossegue para checagem de limites.
-                            
-                        // B. SE É UM CONFLITO E NÃO É O PRÓPRIO EVENTO EM EDIÇÃO (Conflito Real de Agenda)
-                        } else { 
-                            
-                            // Conflito 1: Duplicidade Estrita (mesma função, ID diferente).
-                            if (isSameFunction) {
-                                
-                                console.log("!!! DUPLICADO ENCONTRADO (STRICT) !!!");
-
-                                await Swal.fire({
-                                    icon: "error", // Altera para ícone de erro
-                                    title: "Cadastro Duplicado!",
-                                    html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com a função <strong>${existingEventData.nmfuncao}</strong> e datas selecionadas JÁ ESTÁ CADASTRADO, não permitindo cadastrar novamente.<br><br>É necessário editar o registro existente, e não criar um novo.`,
-                                    confirmButtonText: "Entendido",
-                                });
-
-                                console.log("Usuário bloqueado de cadastrar duplicidade estrita.");
-                                return; // 🛑 BLOQUEIA e encerra a execução.
-                                
-                            }                             
+                            metodo = "PUT";
+                            url = `/staff/${existingEventData.idstaffevento}`;
+                            currentEditingStaffEvent = existingEventData;
+                        } else if (isSameFunction) {
+                            await Swal.fire({
+                                icon: "error",
+                                title: "Cadastro Duplicado!",
+                                html: `O evento para <strong>${nmFuncionario}</strong> com a função <strong>${existingEventData.nmfuncao}</strong> JÁ ESTÁ CADASTRADO.<br><br>Edite o registro existente.`,
+                                confirmButtonText: "Entendido",
+                            });
+                            return;
                         }
-
-                    } else {
-
-                        console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
                     }
                 } catch (error) {
                     console.error("Erro na verificação de duplicidade:", error);
-                    Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
-                    return; // Bloqueia o envio se houver erro na verificação
+                    Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade.", "error");
+                    return;
                 }
-            } else {
-                console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
             }
 
-            // Variável Local (Adapte conforme onde você obtém a categoria)
-            const categoriaFuncaoDoFormulario = categoriaFuncao || 'PADRAO'; 
-            
-            // Variável de ID Fiscal (manter para o limite 2)
-            const FUNCOES_EXCECAO_IDS = ['6']; // FISCAL NOTURNO ID 6, etc.
-           
-            //const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-
-            // 2. FILTRAR E CONTAR CONFLITOS
-            // Filtra os eventos conflitantes que NÃO são o registro de staff que estamos AGORA editando/atualizando.
+            // =========================================================
+            // 8. VERIFICAÇÃO DE LIMITE DE AGENDAMENTOS
+            // =========================================================
+            const categoriaFuncaoDoFormulario = categoriaFuncao || 'PADRAO';
+            const FUNCOES_EXCECAO_IDS = ['6'];
             const conflitosReais = conflicts ? conflicts.filter(c => String(c.idstaffevento) !== String(idRegistroEmEdicaoParaFiltro)) : [];
 
-            // Obtém o número total de eventos já agendados (excluindo o atual)
-           // const totalConflitosExistentes = conflitosReais.length;
-            
             let limiteMaximo;
             let motivoLiberacao = null;
 
-            // 3. Define o limite de acordo com a categoria
             if (categoriaFuncaoDoFormulario === 'ATENDIMENTO PRÉ-EVENTO') {
                 limiteMaximo = 4;
-                motivoLiberacao = "A categoria <br>ATENDIMENTO PRÉ-EVENTO</br> permite até 4 agendamentos, por funcionário parao mesmo dia.";
-            } 
-            else {
-                //if (FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario))) {
-                //limiteMaximo = 2; //JOÃO PEDIU PARA RETIRAR LIMITE, DEIXAR COMO 0 E FAZER SOLICITAÇÃO SÓ CADASTRA SE ELE AUTORIZAR
-                //motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
-                limiteMaximo = 1; // SEM LIMITE PADRÃO
-                motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia. Funções específicas podem ter limites diferentes.";
-            }        
-           
-            console.log("LIBERAÇÃO AUTORIZADA", categoriaFuncaoDoFormulario, "Limite definido:", limiteMaximo, bLiberacaoAutorizada);
+                motivoLiberacao = "A categoria ATENDIMENTO PRÉ-EVENTO permite até 4 agendamentos por funcionário para o mesmo dia.";
+            } else {
+                limiteMaximo = 1;
+                motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia.";
+            }
 
-            if (totalConflitosExistentes > 0)  {
-
-                //trecho incluido para verificar se já existe uma solicitação de limite "FuncExcedido")
-                const statusBanco = await verificarStatusAditivoExtra(
-                    idOrcamentoAtual, 
-                    idFuncaoDoFormulario, 
-                    'FuncExcedido', 
-                    idFuncionarioParaVerificacao, 
-                    nmFuncionario, 
-                    nmFuncaoDoFormulario
+            if (totalConflitosExistentes > 0) {
+                const datasConflitantes = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
+                const aditivoExistente = await verificarStatusAditivoExtra(
+                    idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido',
+                    idFuncionarioParaVerificacao, nmFuncionario, nmFuncaoDoFormulario,
+                    datasConflitantes, idEventoPrincipal, conflitosReais[0]?.idevento
                 );
 
-                // 2. Se a função retornou que está bloqueado (Ex: Pendente), para aqui.
-                if (statusBanco.bloqueado) {
-                    return; 
-                }
-                // fim do trecho de verificação de bloqueio existente.
+                if (aditivoExistente && aditivoExistente.bloqueado) return;
 
                 if (bLiberacaoAutorizada === false) {
                     const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
                     const datasFormatadas = formatarDatas(datasConflito);
-                    
-                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <br>${totalConflitosExistentes}</br> atividade(s) `;
-                    
-                    // Adiciona as datas conflitantes à mensagem
-                    if (datasConflito.length > 0) {
-                        msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
-                    }
 
-                    // 3.1: VERIFICA SE O LIMITE FOI ATINGIDO OU EXCEDIDO (SOLICITA AUTORIZAÇÃO)
+                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <strong>${totalConflitosExistentes}</strong> atividade(s) `;
+                    if (datasConflito.length > 0) msg += `na(s) data(s): <strong>${datasFormatadas}</strong>.`;
+
+                    // CASO A: Excedeu o limite → Solicitar autorização
                     if (totalConflitosExistentes >= limiteMaximo) {
-                        
-                        // --- NOVO PASSO 1: VERIFICAÇÃO DE STATUS EXISTENTE (PENDENTE/AUTORIZADO) ---
-                    
-                        if (!idOrcamentoAtual) {
-                            await Swal.fire("Erro", "Não foi possível obter o ID do Orçamento (idOrcamento) necessário para a solicitação.", "error");
-                            return; 
+                        if (aditivoExistente?.encontrado && aditivoExistente.status === 'Autorizado') {
+                            await Swal.fire({
+                                title: "Autorização Existente",
+                                html: `Já existe uma solicitação <strong>AUTORIZADA</strong>. O agendamento será processado.`,
+                                icon: "success", confirmButtonText: "Prosseguir"
+                            });
+                            return;
                         }
 
-                        const aditivoExistente = await verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido', idFuncionarioParaVerificacao, nmFuncionario, nmFuncaoDoFormulario);
+                        msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> Máximo: ${limiteMaximo}.`;
+                        conflitosReais.forEach(c => { msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (${c.nmfuncao})`; });
+                        msg += `<br><br>Deseja SOLICITAR AUTORIZAÇÃO?`;
 
-                        if (aditivoExistente === false) {
-                            return; // 🛑 BLOQUEIA O AGENDAMENTO AQUI E SAI DA FUNÇÃO PRINCIPAL.
-                        }
-
-                        if (aditivoExistente.bloqueado) {
-                            return; // 🛑 PARA TUDO AQUI. O Swal já foi mostrado dentro da função.
-                        }
-                        
-                        if (aditivoExistente.encontrado) {
-                            
-                            // A. STATUS PENDENTE: BLOQUEIA
-                            if (aditivoExistente.status === 'Pendente') {
-                                // await Swal.fire({
-                                //     title: "Solicitação Pendente",
-                                //     html: `Já existe uma solicitação de exceção <strong>PENDENTE</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). Aguarde a aprovação.`,
-                                //     icon: "info",
-                                //     confirmButtonText: "Entendi"
-                                // });
-                                //return; // Bloqueia o agendamento
-                            }
-
-                            // B. STATUS AUTORIZADO: PROSSEGUE SEM NOVA SOLICITAÇÃO
-                            if (aditivoExistente.status === 'Autorizado') {
-                                await Swal.fire({
-                                    title: "Autorização Existente",
-                                    html: `Já existe uma solicitação de exceção <strong>AUTORIZADA</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). O agendamento será processado sem gerar um novo aditivo.`,
-                                    icon: "success",
-                                    confirmButtonText: "Prosseguir com o Agendamento"
-                                });
-                                return; // PROSSEGUE (pula o restante do bloco IF)
-                            }
-                            
-                            // C. Se o status for Rejeitado ou outro, o código continua para criar uma nova solicitação.
-                        }
-                        
-                        // --- PASSO 2: CRIAÇÃO DE NOVA SOLICITAÇÃO DE ADITIVO (Se necessário) ---
-                        
-                        // Mensagem padrão para solicitação de autorização
-                        msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> O limite máximo é de <strong>${limiteMaximo}</strong> agendamentos por funcionário para o mesmo dia.`;
-                        msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                        conflitosReais.forEach(c => {
-                            msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-                        });
-
-                        msg += `<br><br>Para continuar, você deve SOLICITAR AUTORIZAÇÃO por exceder o limite. Deseja prosseguir?`;
-                        
-                        let justificativa = '';
-                        let isConfirmed = false;
-                        const swalResult =  await Swal.fire({
-                        //const { value: justificativa, isConfirmed } = await Swal.fire({
-                            title: "Solicitar Autorização de Exceção?",
-                            html: `
-                                ${msg}<br>
+                        const swalResult = await Swal.fire({
+                            title: "Solicitar Autorização?",
+                            html: `${msg}<br>
                                 <label for="swal-input-justificativa">Justificativa:</label>
-                                <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>
-                            `, 
-                            icon: "warning", 
-                            showCancelButton: true,
-                            confirmButtonText: "Sim, Solicitar Autorização e Agendar",
-                            cancelButtonText: "Não, Cancelar Agendamento",
+                                <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>`,
+                            icon: "warning", showCancelButton: true,
+                            confirmButtonText: "Sim, Solicitar e Agendar",
+                            cancelButtonText: "Não, Cancelar",
                             preConfirm: () => {
                                 const input = document.getElementById('swal-input-justificativa').value.trim();
-                                if (!input) {
-                                    Swal.showValidationMessage('A justificativa é obrigatória para a solicitação.');
-                                    return false;
-                                }
-                                return input; 
+                                if (!input) { Swal.showValidationMessage('A justificativa é obrigatória.'); return false; }
+                                return input;
                             }
                         });
 
-                        justificativa = swalResult.value || '';
-                        isConfirmed = swalResult.isConfirmed;
+                        if (!swalResult.isConfirmed) return;
 
-                        if (!isConfirmed) {
-                            return; // **Cancela o envio**
-                        }
-                        console.log("Justificativa confirmada e pronta para processamento:", justificativa);
-                        
-                        try { 
-                            // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO (MOVIDO PARA DENTRO DO TRY)
+                        const justificativa = swalResult.value;
+                        try {
                             const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                            let justificativaFinal = justificativa;
+                            const detalheConflitos = conflitosReais.map(c => {
+                                const dataFormatada = c.data_conflito ? new Date(c.data_conflito).toLocaleDateString('pt-BR') : '';
+                                return `[${c.nmevento || 'N/A'} - ${c.nmfuncao}${dataFormatada ? ' em ' + dataFormatada : ''}]`;
+                            }).join(', ');
 
-                            if (dtInicio && dtFim) {
-                                // Adiciona o período do novo agendamento à justificativa
-                                justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                            }
-                            
-                            console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                            
+                            let justificativaFinal = '';
+                            if (dtInicio && dtFim) justificativaFinal += `[Período Novo: ${dtInicio} a ${dtFim}] `;
+                            if (detalheConflitos) justificativaFinal += `| Agendado em: ${detalheConflitos} `;
+                            justificativaFinal += `- Justificativa Usuário: ${justificativa}`;
+
                             const result = await salvarSolicitacaoAditivoExtra(
-                                idOrcamentoAtual, 
-                                idFuncaoDoFormulario,                       
-                                1, // Solicitando +1 (para o agendamento atual)
-                                'FuncExcedido', 
-                                justificativaFinal, // Usar a justificativa ajustada
-                                idFuncionarioParaVerificacao
-                            );                       
-                            
+                                idOrcamentoAtual, idFuncaoDoFormulario, 1, 'FuncExcedido',
+                                justificativaFinal, idFuncionarioParaVerificacao,
+                                datasConflitantes, idEventoPrincipal, conflitosReais[0]?.idevento
+                            );
 
-                            // Flag para rastrear o resultado e o ID, e se foi cancelado
-                            let solicitacaoInfo = { 
-                                salva: false, 
-                                id: null, 
-                                cancelada: !isConfirmed 
-                            };
-
-                            // 1. TENTA SALVAR A SOLICITAÇÃO APENAS SE O USUÁRIO CONFIRMOU A JUSTIFICATIVA
-                            if (isConfirmed) {
-                                try { 
-                                    // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO
-                                    // Certifique-se de que a função getPeriodoEvento foi definida antes (conforme discutido anteriormente)
-                                    const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                                    let justificativaFinal = justificativa;
-
-                                    if (dtInicio && dtFim) {
-                                        justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                                    }
-                                    
-                                    console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                                    
-                                    const result = await salvarSolicitacaoAditivoExtra(
-                                        idOrcamentoAtual, 
-                                        idFuncaoDoFormulario,             
-                                        1, // Solicitando +1
-                                        'FuncExcedido', 
-                                        justificativaFinal,
-                                        idFuncionarioParaVerificacao
-                                    );
-
-                                    if (!result.sucesso) {
-                                        await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: <strong>${result.erro}</strong>`, "error");
-                                        return; // Bloqueia o agendamento em caso de falha no servidor/API
-                                    }
-
-                                    // Sucesso
-                                    solicitacaoInfo.salva = true;
-                                    solicitacaoInfo.id = result.idAditivoExtra;
-                                    
-                                } catch (error) {
-                                    console.error("Erro inesperado no fluxo de aditivo:", error);
-                                    await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                                    return; // Bloqueia o agendamento em caso de erro crítico
-                                }
-                            }
-
-                            // 2. EXIBIÇÃO DO SWAL DE DECISÃO FINAL (Unificado para Sucesso ou Cancelamento)
-
-                            let swalTitle;
-                            let htmlMessage;
-                            let swalIcon;
-
-                            if (solicitacaoInfo.salva) {
-                                swalTitle = "Solicitação Pendente Registrada!";
-                                htmlMessage = `Sua solicitação de exceção foi registrada com sucesso e está <strong>Pendente de aprovação<strong>. O agendamento do staff <strong>NÃO<strong> foi realizado.`;
-                                swalIcon = "info";
-                            } else if (solicitacaoInfo.cancelada) {
-                                swalTitle = "Agendamento Cancelado";
-                                htmlMessage = `Você optou por <strong>NÃO</strong> solicitar a autorização de exceção. O agendamento foi cancelado.`;
-                                swalIcon = "warning";
-                            } else {
-                                // Se não salvou e não foi cancelado (o que indica que o 'return' foi chamado acima devido a um erro de API)
+                            if (!result.sucesso) {
+                                await Swal.fire("Erro", `Falha ao registrar: ${result.erro}`, "error");
                                 return;
                             }
-
-                            htmlMessage += `<br><br>Qual a próxima ação?`;
-
-                            const resultDecisao = await Swal.fire({
-                                title: swalTitle,
-                                html: htmlMessage,
-                                icon: swalIcon,
-                                showCancelButton: true,
-                                showDenyButton: true,
-                                confirmButtonText: "Cadastrar mais um (Manter evento/função)",
-                                cancelButtonText: "Finalizar e Sair",
-                                denyButtonText: "Cadastrar novo staff (Limpar tudo)",
-                                reverseButtons: true,
-                                focusCancel: true
-                            });
-
-                            // 3. TRATAMENTO DA DECISÃO DO USUÁRIO
-                            if (resultDecisao.isConfirmed) {
-                                // Manter dados (Limpeza parcial)
-                                if (typeof limparCamposStaffParcial === "function") {
-                                    limparCamposStaffParcial();
-                                } else {
-                                    limparCamposStaff();
-                                }
-                            } else if (resultDecisao.isDenied) {
-                                // Cadastrar outro (Limpeza total)
-                                limparCamposStaff();
-                            } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
-                                prefillEventFired = false; 
-                                window.orcamentoAtual = null; 
-                                
-                                const tableBody = document.getElementById('eventsTableBody');
-                                if (tableBody) tableBody.innerHTML = ''; 
-
-                                // Deixa o fecharModal cuidar de tudo, inclusive chamar o onStaffModalClosed
-                                if (typeof fecharModal === "function") {
-                                    fecharModal();
-                                } else {
-                                    document.getElementById("modal-overlay").style.display = "none";
-                                    document.body.classList.remove("modal-open");
-                                    if (typeof window.onStaffModalClosed === 'function') {
-                                        window.onStaffModalClosed(true);
-                                    }
-                                }
-                            }
-
-                            return; // 🛑 ESSENCIAL: Bloqueia o agendamento do staff. A decisão já foi tomada.
-
                         } catch (error) {
-                            console.error("Erro inesperado no fluxo de aditivo:", error);
-                            await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                            return; // Bloqueia o agendamento
+                            console.error("Erro no salvamento:", error);
+                            await Swal.fire("Erro Crítico", error.message, "error");
+                            return;
                         }
 
-
-                    } else {
-                        // 3.2: Conflito, mas DENTRO do Limite (Aviso com Permissão - Lógica Original)
-                        
-                        // *** AVISO: Conflito, mas DENTRO do Limite ***
-                        
-                        msg += `<br><br>Você está tentando agendar o <strong>${(totalConflitosExistentes + 1)}º</strong> evento.`;
-                        msg += `<br>Motivo do Prosseguimento: <strong>${motivoLiberacao}</strong>`;
-                        
-                        msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                        conflitosReais.forEach(c => {
-                            msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
+                        const resultDecisao = await Swal.fire({
+                            title: "Solicitação Registrada!",
+                            html: `A exceção está <strong>Pendente</strong>. O agendamento não foi realizado ainda.<br><br>O que deseja fazer?`,
+                            icon: "info", showCancelButton: true, showDenyButton: true,
+                            confirmButtonText: "Cadastrar mais um (Mesmo Evento)",
+                            denyButtonText: "Novo Staff (Limpar tudo)",
+                            cancelButtonText: "Finalizar e Sair"
                         });
 
-                        msg += `<br><br>Deseja continuar com o agendamento? (Limite total: ${limiteMaximo})`;
+                        if (resultDecisao.isConfirmed) {
+                            (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
+                        } else if (resultDecisao.isDenied) {
+                            limparCamposStaff();
+                        } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
+                            window.location.reload();
+                        }
+                        return;
+
+                    // CASO B: Dentro do limite → Apenas aviso
+                    } else {
+                        msg += `<br><br>Você está no <strong>${(totalConflitosExistentes + 1)}º</strong> agendamento (Limite: ${limiteMaximo}).`;
+                        msg += `<br>Motivo: ${motivoLiberacao}<br><br>Deseja continuar?`;
 
                         const { isConfirmed } = await Swal.fire({
-                            title: "Atenção: Conflito de Agendamento!",
-                            html: msg,
-                            icon: "warning",
-                            showCancelButton: true,
-                            confirmButtonText: "Sim, continuar",
-                            cancelButtonText: "Não, cancelar",
+                            title: "Aviso de Conflito", html: msg, icon: "warning",
+                            showCancelButton: true, confirmButtonText: "Sim, continuar", cancelButtonText: "Não, cancelar",
                         });
-
-                        if (!isConfirmed) {
-                            return; // **Cancela o envio**
-                        }
-                        
+                        if (!isConfirmed) return;
                     }
                 }
             }
-        
-           // } // Fecha o bloco ELSE do isEdicao e mudouAgenda
 
-            //----- FIM DO TRECHO DE VERIFICAÇÃO DE LIMITE DE AGENDAMENTOS POR DIA -----
-
-            console.log("Preparando dados para envio:", {
-                nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-                periodoDoEvento, vlrTotal
-            });
-
-            if (metodo === "POST")
-            {
-                const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; // Adicione um fallback para um array vazio
-
-                // Corrija a linha para usar o 'chaining opcional' e um fallback
-                const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; 
-
-                const periodoDoEvento = [...datasSelecionadas, ...datasDobradas];
+            // =========================================================
+            // 9. VERIFICAÇÃO DE LIMITE DE VAGAS (POST)
+            // =========================================================
+            if (metodo === "POST" && !isFormLoadedFromDoubleClick) {
+                const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
+                const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
 
                 const criteriosDeVerificacao = {
-                
                     nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
                     nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
                     nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
-                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,                    
+                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
                     pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
                     datasEvento: datasSelecionadas,
                     datasEventoDobradas: datasDobradas,
                     idFuncao: descFuncaoSelect.value
                 };
 
-                // if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
-
-                //     return;
-                // }
-
-                //NOVO: Verificação de limite de vagas orçadas
-                if (!isFormLoadedFromDoubleClick) {
-                   // controlarBotaoSalvarStaff(false);
-                    // 1. VERIFICAÇÃO DE LIMITE DE QUANTIDADE (VAGAS)
-                    const resultadoFuncao = await verificarLimiteDeFuncao(criteriosDeVerificacao);
-
-                    if (!resultadoFuncao.allowed) {
-                        controlarBotaoSalvarStaff(false); //se puder cadastrar mais liberar o botão dqui
-                        return; // Bloqueia o cadastro se o usuário cancelou no modal de quantidade
-                    }
-
-                    // Inicializa com o resultado da verificação de QUANTIDADE
-                    statusAditivoFinal = resultadoFuncao.statusAditivo;
-                    statusExtraBonificadoFinal = resultadoFuncao.statusExtraBonificado;
-
-                    // 2. VERIFICAÇÃO DE DATAS FORA DO ORÇAMENTO (Variável Global)
-                    // Verifica se houve decisão de Aditivo/Extra na etapa de seleção de datas
-                    if (typeof decisaoUsuarioDataFora !== 'undefined' && decisaoUsuarioDataFora !== null) {
-                        console.log("Aplicando decisão manual por Data Fora do Orçamento:", decisaoUsuarioDataFora);
-
-                        if (decisaoUsuarioDataFora === 'ADITIVO') {
-                            statusAditivoFinal = 'Pendente';
-                        } else if (decisaoUsuarioDataFora === 'EXTRA') {
-                            statusExtraBonificadoFinal = 'Pendente';
-                        }
-                    }
-                    
-                    console.log(
-                        "Status Final Consolidado -> Aditivo:", statusAditivoFinal, 
-                        "| Extra Bonificado:", statusExtraBonificadoFinal
-                    );
-                    
+                const resultadoFuncao = await verificarLimiteDeFuncao(criteriosDeVerificacao);
+                if (!resultadoFuncao.allowed) {
+                    controlarBotaoSalvarStaff(false);
+                    return;
                 }
-                
 
-            }            
+                statusAditivoFinal = resultadoFuncao.statusAditivo;
+                statusExtraBonificadoFinal = resultadoFuncao.statusExtraBonificado;
+
+                if (typeof decisaoUsuarioDataFora !== 'undefined' && decisaoUsuarioDataFora !== null) {
+                    if (decisaoUsuarioDataFora === 'ADITIVO') statusAditivoFinal = 'Pendente';
+                    else if (decisaoUsuarioDataFora === 'EXTRA') statusExtraBonificadoFinal = 'Pendente';
+                }
+            }
+
+            // =========================================================
+            // 10. CÁLCULO DE STATUS
+            // =========================================================
+            const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
+
+            // Status Caixinha
+            if (!statusCaixinha || statusCaixinha.trim() === '') {
+                const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
+                const textoDescricao = descCaixinhaTextarea.value?.trim() || '';
+                statusCaixinha = (valorCaixinhaNumerico > 0 || (textoDescricao !== '' && textoDescricao !== '-')) ? 'Pendente' : '';
+            }
+            if (statusCaixinha === 'Autorizado') statusPgtoCaixinha = 'Pendente';
+
+            // Status Ajuste de Custo
+            if (!statusAjusteCusto || statusAjusteCusto.trim() === '') {
+                const vlrAjusteNum = parseFloat(ajusteCusto) || 0;
+                const descAjusteTxt = document.getElementById("descAjusteCusto").value.trim();
+                const checkAjusteManual = document.getElementById("ajusteCustocheck");
+                statusAjusteCusto = (vlrAjusteNum > 0 || (descAjusteTxt !== '' && descAjusteTxt !== '-') || checkAjusteManual?.checked) ? 'Pendente' : '';
+            }
+
+            // Status Custo Fechado/Liberado
+            if (!statusFechado || statusFechado.trim() === '') {
+                statusFechado = ((fechadoCheck.checked || liberadoCheck.checked) && vlrCustoNumerico > 0) ? 'Pendente' : '';
+            }
+            if (!fechadoCheck.checked && !liberadoCheck.checked) statusFechado = '';
+
+            // Se houve troca de nível, zera statusFechado e descCustoFechado no envio
+            const statusFechadoParaEnvio = nivelFoiTrocado ? null : statusFechado;
+            const descCustoFechadoParaEnvio = nivelFoiTrocado ? null : descCustoFechado;
+
+            let statusPgto = document.querySelector("#statusPgto")?.value || '';
+            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
+            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';
+
+            // =========================================================
+            // 11. COMPROVANTES
+            // =========================================================
+            const fileCacheInput = document.getElementById('fileCache');
+            const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
+            let comppgtocacheDoForm;
+            if (fileCacheInput.files?.[0]) { comppgtocacheDoForm = 'novo-arquivo'; }
+            else if (hiddenRemoverCacheInput.value === 'true') { comppgtocacheDoForm = ''; }
+            else { comppgtocacheDoForm = currentEditingStaffEvent?.comppgtocache || ''; }
+
+            const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+            const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
+            let comppgtoajdcustoDoForm;
+            if (fileAjdCustoInput.files?.[0]) { comppgtoajdcustoDoForm = 'novo-arquivo'; }
+            else if (hiddenRemoverAjdCustoInput.value === 'true') { comppgtoajdcustoDoForm = ''; }
+            else { comppgtoajdcustoDoForm = currentEditingStaffEvent?.comppgtoajdcusto || ''; }
+
+            const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
+            const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
+            let comppgtoajdcusto50DoForm;
+            if (fileAjdCusto2Input.files?.[0]) { comppgtoajdcusto50DoForm = 'novo-arquivo'; }
+            else if (hiddenRemoverAjdCusto2Input.value === 'true') { comppgtoajdcusto50DoForm = ''; }
+            else { comppgtoajdcusto50DoForm = currentEditingStaffEvent?.comppgtoajdcusto50 || ''; }
+
+            const fileCaixinhaInput = document.getElementById('fileCaixinha');
+            const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
+            let comppgtocaixinhaDoForm;
+            if (fileCaixinhaInput.files?.[0]) { comppgtocaixinhaDoForm = 'novo-arquivo'; }
+            else if (hiddenRemoverCaixinhaInput.value === 'true') { comppgtocaixinhaDoForm = ''; }
+            else { comppgtocaixinhaDoForm = currentEditingStaffEvent?.comppgtocaixinha || ''; }
 
 
+            // =========================================================
+            // 12. MONTAGEM DO NÍVEL DE EXPERIÊNCIA
+            // =========================================================
+            let nivelExperienciaSelecionado = "";
+            if (seniorCheck2.checked) nivelExperienciaSelecionado = "Senior 2";
+            else if (seniorCheck.checked) nivelExperienciaSelecionado = "Senior";
+            else if (plenoCheck.checked) nivelExperienciaSelecionado = "Pleno";
+            else if (juniorCheck.checked) nivelExperienciaSelecionado = "Junior";
+            else if (baseCheck.checked) nivelExperienciaSelecionado = "Base";
+            else if (fechadoCheck.checked) nivelExperienciaSelecionado = "Fechado";
+            else if (liberadoCheck.checked) nivelExperienciaSelecionado = "Liberado";
+
+            // =========================================================
+            // 13. VERIFICAÇÕES EXTRAS PARA PUT
+            // =========================================================
+            
+            if (metodo === "PUT") {
+                if (!isEditingInitial) {
+                    return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
+                }
+
+                const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) > 0;
+                const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
+                const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
+                const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+
+                const dataDiariaDobradaOriginal = currentEditingStaffEvent.dtdiariadobrada || [];
+                const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
+                const dataDiariaDobradaOriginalLimpa = dataDiariaDobradaOriginal.map(item => typeof item === 'object' ? item.data : item);
+                const dataMeiaDiariaOriginalLimpa = dataMeiaDiariaOriginal.map(item => typeof item === 'object' ? item.data : item);
+
+                const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0);
+                const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
+                const custoFechadoAtivoAtual = fechadoCheck.checked;
+                const diariaDobradaAtual = diariaDobradacheck.checked;
+                const meiaDiariaAtual = meiaDiariacheck.checked;
+                const nivelExperienciaAtual = nivelExperienciaSelecionado;
+                const qtdPessoasAtual = qtdPessoas;
+
+                const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivo) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
+                const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivo) || (caixinhaValorOriginal !== caixinhaValorAtual);
+                const houveAlteracaoDiariaDobrada = (dataDiariaDobradaOriginalLimpa.toString() !== periodoDobrado.toString());
+                const houveAlteracaoMeiaDiaria = (dataMeiaDiariaOriginalLimpa.toString() !== periodoMeiaDiaria.toString());
+
+                if (houveAlteracaoCaixinha && caixinhaAtivo && (!descCaixinha || descCaixinha.length < 15)) {
+                    descCaixinhaInput?.focus();
+                    return Swal.fire("Campos obrigatórios!", "A descrição da Caixinha deve ter no mínimo 15 caracteres.", "warning");
+                }
+                if (houveAlteracaoAjusteCusto && ajusteCustoAtivo && (!descAjusteCusto || descAjusteCusto.length < 15)) {
+                    descAjusteCustoInput?.focus();
+                    return Swal.fire("Campos obrigatórios!", "A descrição do Bônus deve ter no mínimo 15 caracteres.", "warning");
+                }
+                if (houveAlteracaoAjusteCusto && custoFechadoAtivoAtual && (!descCustoFechado || descCustoFechado.length < 15)) {
+                    descCustoFechadoTextarea?.focus();
+                    return Swal.fire("Campos obrigatórios!", "A descrição do Cachê Fechado deve ter no mínimo 15 caracteres.", "warning");
+                }
+                if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
+                    const descDD = document.getElementById("descDiariaDobrada").value.trim();
+                    if (!descDD || descDD.length < 15) {
+                        document.getElementById("descDiariaDobrada")?.focus();
+                        return Swal.fire("Campo obrigatório!", "A descrição da Diária Dobrada deve ter no mínimo 15 caracteres.", "warning");
+                    }
+                }
+                if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
+                    const descMD = document.getElementById("descMeiaDiaria").value.trim();
+                    if (!descMD || descMD.length < 15) {
+                        document.getElementById("descMeiaDiaria")?.focus();
+                        return Swal.fire("Campo obrigatório!", "A descrição da Meia Diária deve ter no mínimo 15 caracteres.", "warning");
+                    }
+                }
+
+                // Verificação de alterações
+                const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+                    console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${condition}`);
+                    return condition;
+                };
+
+                const houveAlteracao =
+                    logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
+                    logAndCheck('Equipe', currentEditingStaffEvent.nmequipe?.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe?.toUpperCase() != nmEquipe) ||
+                    logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
+                    logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao) ||
+                    logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
+                    logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) ||
+                    logAndCheck('Valor AjusteCusto', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), ajusteCustoValorAtual, parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual) ||
+                    logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
+                    logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(alimentacao.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(alimentacao.replace(',', '.') || 0)) ||
+                    logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
+                    logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descajustecusto || '').trim(), descAjusteCusto.trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim()) ||
+                    logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
+                    logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), descCaixinha.trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim()) ||
+                    logAndCheck('Setor', (currentEditingStaffEvent.setor?.toUpperCase() || '').trim(), setor.trim(), (currentEditingStaffEvent.setor?.toUpperCase() || '').trim() != setor.trim()) ||
+                    logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
+                    logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), (statusAjusteCusto || '').trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != (statusAjusteCusto || '').trim()) ||
+                    logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), (statusCaixinha || '').trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != (statusCaixinha || '').trim()) ||
+                    logAndCheck('StatusCustoFechado', (currentEditingStaffEvent.statuscustofechado || '').trim(), (statusFechadoParaEnvio || '').trim(), (currentEditingStaffEvent.statuscustofechado || '').trim() != (statusFechadoParaEnvio || '').trim()) ||
+                    logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
+                    logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
+                    logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
+                    logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
+                    logAndCheck('Comprovante Cache', normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), normalizeEmptyValue(comppgtocacheDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm)) ||
+                    logAndCheck('Comprovante AjdCusto', normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto), normalizeEmptyValue(comppgtoajdcustoDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)) ||
+                    logAndCheck('Comprovante AjdCusto50', normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50), normalizeEmptyValue(comppgtoajdcusto50DoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)) ||
+                    logAndCheck('Comprovante Caixinha', normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha), normalizeEmptyValue(comppgtocaixinhaDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)) ||
+                    logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginalLimpa), JSON.stringify(periodoDobrado), JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(periodoDobrado)) ||
+                    logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginalLimpa), JSON.stringify(periodoMeiaDiaria), JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(periodoMeiaDiaria)) ||
+                    logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), (statusDiariaDobrada || '').trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != (statusDiariaDobrada || '').trim()) ||
+                    logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), (statusMeiaDiaria || '').trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != (statusMeiaDiaria || '').trim()) ||
+                    logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
+                    logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0)) ||
+                    nivelFoiTrocado; // ← Se houve troca de nível, força alteração
+
+                if (!houveAlteracao) {
+                    return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+                }
+
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do staff.",
+                    icon: "question", showCancelButton: true,
+                    confirmButtonText: "Sim, salvar", cancelButtonText: "Cancelar",
+                    reverseButtons: true, focusCancel: true
+                });
+                if (!isConfirmed) return;
+            }          
+           
+            
+
+            // =========================================================
+            // 14. DIÁRIA DOBRADA E MEIA DIÁRIA
+            // =========================================================
+            if (diariaDobrada && statusDiariaDobrada === "Autorização de Diária Dobrada") statusDiariaDobrada = "Pendente";
+            else if (!diariaDobrada) statusDiariaDobrada = '';
+
+            if (meiaDiaria && statusMeiaDiaria === "Autorização de Meia Diária") statusMeiaDiaria = "Pendente";
+            else if (!meiaDiaria) statusMeiaDiaria = '';
+
+            let dadosDiariaDobrada = [];
+            if (periodoDobrado?.length > 0) {
+                dadosDiariaDobrada = periodoDobrado.map(data => {
+                    const statusData = datasDobrada.find(item => item.data === data);
+                    return { data, status: statusData ? statusData.status : statusDiariaDobrada };
+                });
+            }
+
+            let dadosMeiaDiaria = [];
+            if (periodoMeiaDiaria?.length > 0) {
+                dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
+                    const statusData = datasMeiaDiaria.find(item => item.data === data);
+                    return { data, status: statusData ? statusData.status : statusMeiaDiaria };
+                });
+            }
+
+            // =========================================================
+            // 15. MONTAGEM DO FORMDATA
+            // =========================================================
             const formData = new FormData();
-            // Adiciona todos os campos de texto ao FormData
+
             if (metodo === "PUT") {
                 formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-                formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento || ''); 
+                formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento || '');
             }
-            
+
             formData.append('avaliacao', avaliacao);
             formData.append('idfuncionario', idFuncionario);
             formData.append('nmfuncionario', nmFuncionario);
@@ -4171,7 +4249,7 @@ async function verificaStaff() {
             formData.append('pavilhao', pavilhao);
             formData.append('vlrcache', vlrCusto);
             formData.append('vlrajustecusto', ajusteCusto);
-            formData.append('vlrtransporte', transporte);     
+            formData.append('vlrtransporte', transporte);
             formData.append('vlralimentacao', alimentacao);
             formData.append('vlrcaixinha', caixinha);
             formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
@@ -4179,631 +4257,99 @@ async function verificaStaff() {
             formData.append('vlrtotal', total.toString());
             formData.append('vlrtotcache', vlrtotcache.toString());
             formData.append('vlrtotajdcusto', vlrtotajdcusto.toString());
-
-
-            const fileCacheInput = document.getElementById('fileCache');
-            const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
-            let comppgtocacheDoForm;
-
-            if (fileCacheInput.files && fileCacheInput.files[0]) {
-
-                formData.append('comppgtocache', fileCacheInput.files[0]);
-                comppgtocacheDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCacheInput.value === 'true') {
-
-                formData.append('limparComprovanteCache', 'true');
-                comppgtocacheDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
-
-                comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
-            } else {
-
-                comppgtocacheDoForm = '';
-            }
-
-
-            const fileAjdCustoInput = document.getElementById('fileAjdCusto');
-            const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
-
-            const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
-            const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
-            let comppgtoajdcustoDoForm;
-            let comppgtoajdcusto50DoForm;
-
-            if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
-                formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-                comppgtoajdcustoDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCustoInput.value === 'true') {
-                formData.append('limparComprovanteAjdCusto', 'true');
-                comppgtoajdcustoDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
-                comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
-            } else {
-                comppgtoajdcustoDoForm = '';
-            }
-
-            if (fileAjdCusto2Input.files && fileAjdCusto2Input.files[0]) {
-                formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
-                comppgtoajdcusto50DoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCusto2Input.value === 'true') {
-                formData.append('limparComprovanteAjdCusto2', 'true');
-                comppgtoajdcusto50DoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto50) {
-                comppgtoajdcusto50DoForm = currentEditingStaffEvent.comppgtoajdcusto50;
-            } else {
-                comppgtoajdcusto50DoForm = '';
-            }
-
-            const fileCaixinhaInput = document.getElementById('fileCaixinha');
-            const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
-            let comppgtocaixinhaDoForm;
-
-            if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
-                formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-                comppgtocaixinhaDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCaixinhaInput.value === 'true') {
-                formData.append('limparComprovanteCaixinha', 'true');
-                comppgtocaixinhaDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
-                comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
-            } else {
-                comppgtocaixinhaDoForm = '';
-            }
-
             formData.append('descbeneficios', descBeneficioTextarea.value.trim());
-            formData.append('desccustofechado', descCustoFechadoTextarea.value.trim());
+            formData.append('desccustofechado', descCustoFechadoParaEnvio || '');  // ← null se houve troca de nível
             formData.append('setor', setor);
-
-            let statusPgto = document.querySelector("#statusPgto")?.value || ''; 
-            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || ''; 
-            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';           
-
-            console.log("VALORES CUSTOS ANTES", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte);
-            const custosVazios = ajusteCusto === 0 && caixinha === 0 && alimentacao === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
-
-            const vlrAjusteCusto = parseFloat(ajusteCusto);
-            const vlrCache = parseFloat(vlrCusto);
-            const vlrAlimentacao = parseFloat(alimentacao);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
-
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteAjudaCusto50 = !!comppgtoajdcusto50DoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
-
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
-
-
-            // if (cachePago && ajudaCustoPaga && caixinhasPagos) {
-            //     statusPgto = "Pago";
-            // } else if (
-            //     (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-            //     ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-            //     (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
-            // ) {
-
-            //     statusPgto = "Pago";
-            // } else {
-            //     statusPgto = "Pendente";
-            // }       
-            
-            
-            // if (statusPgto !== "Pago") {
-            //     if (vlrCache > 0 && !!comppgtocacheDoForm) {
-            //         statusPgto = "Pago";
-            //     } else {
-            //         statusPgto = "Pendente";
-            //     }
-            // }
-            if (!statusCaixinha || statusCaixinha.trim() === '') { 
-                
-                // Pegamos os valores de dentro dos elementos que você declarou
-                const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
-                const textoDescricao = descCaixinhaTextarea.value ? descCaixinhaTextarea.value.trim() : '';
-
-                // A sua regra: Só vira Pendente se tiver valor > 0 ou se tiver algo escrito
-                if (valorCaixinhaNumerico > 0 || (textoDescricao !== '' && textoDescricao !== '-')) {
-                    statusCaixinha = 'Pendente';
-                } else {
-                    statusCaixinha = ''; // Mantém vazio para não gerar card sem necessidade
-                }
-            }
-            if (statusCaixinha === 'Autorizado') {
-                // Se está autorizado, o status de pagamento da caixinha deve ser Pendente
-                statusPgtoCaixinha = 'Pendente';
-            } 
-
-            const checkAjusteManual = document.getElementById("ajusteCustocheck");
-            const vlrAjusteNum = parseFloat(ajusteCusto) || 0;
-            const descAjusteTxt = document.getElementById("descAjusteCusto").value.trim();
-
-            // LÓGICA CORRIGIDA:
-            if (!statusAjusteCusto || statusAjusteCusto.trim() === '') {
-                // Só vira 'Pendente' se: tiver valor OU tiver descrição OU o checkbox estiver marcado
-                if (vlrAjusteNum > 0 || (descAjusteTxt !== '' && descAjusteTxt !== '-') || (checkAjusteManual && checkAjusteManual.checked)) {
-                    statusAjusteCusto = 'Pendente';
-                } else {
-                    statusAjusteCusto = ''; // Caso contrário, mantém vazio
-                }
-            }
-            const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
-            
-            if (!statusFechado || statusFechado.trim() === '') {
-                if (fechadoCheck.checked && vlrCustoNumerico > 0) {
-                    statusFechado = 'Pendente';
-                } else {
-                    statusFechado = ''; // Mantém vazio se o checkbox não estiver marcado
-                }
-            }
-
-            if (!statusFechado && !fechadoCheck.checked) {
-                statusFechado = '';
-            }
-
-            // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
-            //     if (temComprovanteAjudaCusto) {
-            //         statusPgtoAjusteCusto = "Pago";
-            //     } else if (temComprovanteAjudaCusto50) {
-            //         statusPgtoAjusteCusto = "Pago50";
-            //     } else {
-            //         statusPgtoAjusteCusto = "Pendente";
-            //     }
-            // } else {
-            //     // Se já estava Pago ou Pago50, mas agora subiram o comprovante total, forçamos "Pago"
-            //     if (temComprovanteAjudaCusto) {
-            //         statusPgtoAjusteCusto = "Pago";
-            //     }
-            // }
-
-            // if (statusPgtoCaixinha !== "Pago") {
-            //     if (temComprovanteCaixinha) {
-            //         statusPgtoCaixinha = "Pago";
-            //     } else {
-            //         statusPgtoCaixinha = "Pendente";
-            //     }
-            // }
-
-            //if (vlrAjusteCusto === 0) statusPgtoAjusteCusto = '';
-            //if (vlrCaixinha === 0) statusPgtoCaixinha = '';
-
             formData.append('statuspgto', statusPgto);
-            formData.append('statuspgtoajdcto', statusPgtoAjusteCusto);
-            formData.append('statuspgtocaixinha', statusPgtoCaixinha);
+            const vlrAjusteEnvio = parseFloat(ajusteCustoInput?.value?.replace(',', '.') || 0);
+            const statusAjusteEnvio = vlrAjusteEnvio !== 0 
+                ? (document.getElementById('selectStatusAjusteCusto')?.value || statusAjusteCustoInput?.value || 'Pendente')
+                : '';
+            formData.append('statusajustecusto', statusAjusteEnvio.toUpperCase());
 
-            formData.append('statusajustecusto', statusAjusteCusto);
-            formData.append('statuscaixinha', statusCaixinha);
-            formData.append('statuscustofechado', statusFechado);
+            // statuspgtoajdcto = pagamento da AJUDA DE CUSTO (transporte/alimentação), não do ajuste
+            const vlrAjdCustoEnvio = parseFloat(transporteInput?.value?.replace(',', '.') || 0) 
+                + parseFloat(alimentacaoInput?.value?.replace(',', '.') || 0);
+            const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0 
+                ? (statusPgtoAjudaCustoInput?.value || 'Pendente') 
+                : '';
+            formData.append('statuspgtoajdcto', statusPgtoAjdEnvio.toUpperCase());
+
+            const vlrCaixaEnvio = parseFloat(caixinhaInput?.value?.replace(',', '.') || 0);
+            const statusCaixaEnvio = vlrCaixaEnvio !== 0
+                ? (document.getElementById('selectStatusCaixinha')?.value || statusCaixinhaInput?.value || 'Pendente')
+                : '';
+            formData.append('statuscaixinha', statusCaixaEnvio.toUpperCase());
+
+            const statusPgtoCxEnvio = vlrCaixaEnvio !== 0
+                ? (statusPgtoCaixinhaInput?.value || 'Pendente')
+                : '';
+            formData.append('statuspgtocaixinha', statusPgtoCxEnvio.toUpperCase());
+
+            formData.append('statuscustofechado', statusFechadoParaEnvio || '');   // ← null se houve troca de nível
             formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
-            formData.append('desccaixinha', descCaixinhaTextarea.value.trim()); 
-            
-            let tipoAjudaCustoViagem = 0; // Valor padrão (nenhum ou erro)
+            formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
+            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+            formData.append('qtdpessoas', qtdPessoas.toString());
+            formData.append('idequipe', idEquipe);
+            formData.append('nmequipe', nmEquipe);
+            formData.append('statusdiariadobrada', statusDiariaDobrada);
+            formData.append('statusmeiadiaria', statusMeiaDiaria);
+            formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
+            formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
+            formData.append('idorcamento', idOrcamentoAtual);
 
+            let tipoAjudaCustoViagem = 0;
             if (document.getElementById('viagem1Check').checked) tipoAjudaCustoViagem = 1;
             else if (document.getElementById('viagem2Check').checked) tipoAjudaCustoViagem = 2;
             else if (document.getElementById('viagem3Check').checked) tipoAjudaCustoViagem = 3;
-
             formData.append('tipoajudacustoviagem', tipoAjudaCustoViagem.toString());
-        
-            let nivelExperienciaSelecionado ="";
 
-            if (seniorCheck2.checked) {
-                nivelExperienciaSelecionado =  "Senior 2";
-            } 
-            if (seniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Senior";
-            } 
-            if (plenoCheck.checked) {
-                nivelExperienciaSelecionado =  "Pleno";
-            } 
-            if (juniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Junior";
-            } 
-            if (baseCheck.checked) {
-                nivelExperienciaSelecionado =  "Base";
-            }
-            if (fechadoCheck.checked) {
-                nivelExperienciaSelecionado =  "Fechado";
-            }
+            // Comprovantes
+            if (fileCacheInput.files?.[0]) formData.append('comppgtocache', fileCacheInput.files[0]);
+            else if (hiddenRemoverCacheInput.value === 'true') formData.append('limparComprovanteCache', 'true');
 
-            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
-            formData.append('qtdpessoas', qtdPessoas.toString());
+            if (fileAjdCustoInput.files?.[0]) formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+            else if (hiddenRemoverAjdCustoInput.value === 'true') formData.append('limparComprovanteAjdCusto', 'true');
 
-            console.log("ENVIANDO ID E NOME EQUIPE", idEquipe, nmEquipe);
-            formData.append('idequipe', idEquipe);
-            formData.append('nmequipe', nmEquipe);
+            if (fileAjdCusto2Input.files?.[0]) formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
+            else if (hiddenRemoverAjdCusto2Input.value === 'true') formData.append('limparComprovanteAjdCusto2', 'true');
 
-            console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
+            if (fileCaixinhaInput.files?.[0]) formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
+            else if (hiddenRemoverCaixinhaInput.value === 'true') formData.append('limparComprovanteCaixinha', 'true');
 
-        
-            if (diariaDobrada === true ){
-                if (statusDiariaDobrada === "Autorização de Diária Dobrada"){
-
-                    statusDiariaDobrada = "Pendente";
-                }
-            }else{
-                statusDiariaDobrada = '';
-            }
-            if (meiaDiaria === true && statusMeiaDiaria === "Autorização de Meia Diária"){          
-                if (statusMeiaDiaria === "Autorização de Meia Diária"){
-                    statusMeiaDiaria = "Pendente";
-                }
-                
-            }else{
-                statusMeiaDiaria = '';
-            }
-
-            let dadosDiariaDobrada = [];
-            if (periodoDobrado && periodoDobrado.length > 0) {
-                dadosDiariaDobrada = periodoDobrado.map(data => {
-                    const statusData = datasDobrada.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusDiariaDobrada
-                    };
-                });
-            }
-
-            let dadosMeiaDiaria = [];
-            if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
-                dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
-                    const statusData = datasMeiaDiaria.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusMeiaDiaria
-                    };
-                });
-            }
-                    
-        
-        console.log("STATUS ANTES DE SALVAR", statusDiariaDobrada, statusMeiaDiaria, dadosDiariaDobrada, dadosMeiaDiaria, diariaDobrada, meiaDiaria);
-
-        formData.append('statusdiariadobrada', statusDiariaDobrada);
-        formData.append('statusmeiadiaria', statusMeiaDiaria);
-        formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-        formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));   
-        
-        console.log("ID ORÇAMENTO ATUAL PARA PUT:", idOrcamentoAtual);
-        formData.append('idorcamento', idOrcamentoAtual);
-        
-
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
-        console.log("Dados do FormData:", {
-            nmFuncionario, descFuncao, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-            nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria, nivelExperienciaSelecionado
-        });
-
-        console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
-
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
-        console.log("Dados do FormData sendo enviados:");
-
-        for (let pair of formData.entries()) {
-            console.log(pair[0]+ ': ' + pair[1]);
-        }
-
-
-        if (metodo === "PUT") {
-            if (!isEditingInitial) {
-                console.log("Erro: Dados originais não encontrados para PUT");
-                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-            }
-
-            const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) > 0;
-            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) > 0;
-            const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
-            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
-
-            const diariaDobradaOriginal = currentEditingStaffEvent.diariadobrada || false;
-            const meiaDiariaOriginal = currentEditingStaffEvent.meiadiaria || false;
-
-            const dataDiariaDobradaOriginal = currentEditingStaffEvent.dtdiariadobrada || [];
-            const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
-
-            const dataDiariaDobradaOriginalLimpa = (dataDiariaDobradaOriginal || []).map(item => 
-                typeof item === 'object' ? item.data : item
-            );
-
-            const dataMeiaDiariaOriginalLimpa = (dataMeiaDiariaOriginal || []).map(item => 
-                typeof item === 'object' ? item.data : item
-            );
-
-            const nivelExperienciaOriginal = currentEditingStaffEvent.nivelexperiencia || "";
-
-            console.log("Valores originais - ajusteCusto Ativo:", ajusteCustoAtivoOriginal, "ajusteCusto Valor:", ajusteCustoValorOriginal);
-            console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
-
-            const ajusteCustoAtivoAtual = ajusteCustoAtivo;
-            const custoFechadoAtivoAtual = fechadoCheck.checked;
-            const caixinhaAtivoAtual = caixinhaAtivo;
-            const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
-            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
-
-            const diariaDobradaAtual = diariaDobradacheck.checked;
-            const meiaDiariaAtual = meiaDiariacheck.checked;
-            const dataDiariaDobradaAtual = periodoDobrado;
-            const dataMeiaDiariaAtual = periodoMeiaDiaria;
-
-            const nivelExperienciaAtual = nivelExperienciaSelecionado;
-            const qtdPessoasAtual = qtdPessoas;
-
-            const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
-            const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
-
-            const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
-            const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) || (dataMeiaDiariaOriginal.toString() !== dataMeiaDiariaAtual.toString());
-
-            console.log("Houve alteração ajusteCusto?", houveAlteracaoAjusteCusto);
-            console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
-            console.log("Houve alteração Diária Dobrada?", houveAlteracaoDiariaDobrada);
-            console.log("Houve alteração Meia Diária?", houveAlteracaoMeiaDiaria);
-
-
-            if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {
-                if (!descCaixinha || descCaixinha.length < 15) {
-                    if (descCaixinhaInput) descCaixinhaInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do benefício (Caixinha) deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            if (houveAlteracaoAjusteCusto && ajusteCustoAtivoAtual) {
-                if (!descAjusteCusto || descAjusteCusto.length < 15) {
-                    if (descAjusteCusto) descAjusteCustoInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-            if (houveAlteracaoAjusteCusto && custoFechadoAtivoAtual) {
-                if (!descCustoFechado || descCustoFechado.length < 15) {
-                    if (descCustoFechadoTextarea) descCustoFechadoTextarea.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
-                const descDiariaDobradaInput = document.getElementById("descDiariaDobrada");
-                const descDiariaDobrada = descDiariaDobradaInput.value.trim();
-
-                if (!descDiariaDobrada || descDiariaDobrada.length < 15) {
-                    if (descDiariaDobradaInput) {
-                        descDiariaDobradaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Diária Dobrada deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
-                const descMeiaDiariaInput = document.getElementById("descMeiaDiaria");
-                const descMeiaDiaria = descMeiaDiariaInput.value.trim();
-
-                if (!descMeiaDiaria || descMeiaDiaria.length < 15) {
-                    if (descMeiaDiariaInput) {
-                        descMeiaDiariaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Meia Diária deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
-
-            
-
-            let houveAlteracao = false;
-            if (
-                currentEditingStaffEvent.idfuncionario != idFuncionario ||
-                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0.00) != parseFloat(vlrCusto.replace(',', '.') || 0.00) ||
-                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) != ajusteCustoValorAtual ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0.00) != parseFloat(transporte.replace(',', '.') || 0.00) ||               
-                parseFloat(currentEditingStaffEvent.vlralimentacao || 0.00) != parseFloat(alimentacao.replace(',', '.') || 0.00) ||
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) != caixinhaValorAtual ||
-                (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim() ||
-                (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
-                (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim() ||
-                (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
-                currentEditingStaffEvent.idcliente != idCliente ||
-                currentEditingStaffEvent.idevento != idEvento ||
-                currentEditingStaffEvent.idmontagem != idMontagem ||
-                currentEditingStaffEvent.idequipe != idEquipe ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
-                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
-                (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
-                (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
-                (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
-                (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
-                (currentEditingStaffEvent.statuscustofechado || '').trim() != statusFechado.trim() ||
-                currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
-                currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
-                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
-                currentEditingStaffEvent.qtdpessoas != qtdPessoasAtual 
-            ) {
-                houveAlteracao = true;
-            }
-
-            const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
-            const isDifferent = condition;
-                console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
-                return isDifferent;
-            };
-            houveAlteracao =
-                logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
-                logAndCheck('Equipe', currentEditingStaffEvent.nmequipe.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe.toUpperCase() != nmEquipe) ||
-                logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
-                logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
-                logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
-                logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
-                logAndCheck('Valor AjusteCusto', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), ajusteCustoValorAtual, parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual) ||
-                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(alimentacao.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(alimentacao.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
-                logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descajustecusto || '').trim(), descAjusteCusto.trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim()) ||
-                logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
-                logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), descCaixinha.trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim()) ||
-                logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
-                logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
-                //logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), statusAjusteCusto.trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim()) ||
-                logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), (statusAjusteCusto || '').trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != (statusAjusteCusto || '').trim()) ||
-                logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), (statusCaixinha || '').trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != (statusCaixinha || '').trim()) ||
-                logAndCheck('StatusCustoFechado', (currentEditingStaffEvent.statuscustofechado || '').trim(), (statusFechado || '').trim(), (currentEditingStaffEvent.statuscustofechado || '').trim() != (statusFechado || '').trim()) ||
-                logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
-                logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
-                logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
-                logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
-
-                logAndCheck(
-                    'Comprovante Cache',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
-                    normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
-                    normalizeEmptyValue(comppgtoajdcustoDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo 50',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50),
-                    normalizeEmptyValue(comppgtoajdcusto50DoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Caixinha',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
-                    normalizeEmptyValue(comppgtocaixinhaDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
-                ) ||
-
-                //logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginal), JSON.stringify(dataDiariaDobradaAtual), JSON.stringify(dataDiariaDobradaOriginal) !== JSON.stringify(dataDiariaDobradaAtual)) ||
-                //logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginal), JSON.stringify(dataMeiaDiariaAtual), JSON.stringify(dataMeiaDiariaOriginal) !== JSON.stringify(dataMeiaDiariaAtual)) ||
-
-                logAndCheck(
-                    'Datas Diária Dobrada', 
-                    JSON.stringify(dataDiariaDobradaOriginalLimpa), 
-                    JSON.stringify(dataDiariaDobradaAtual), 
-                    JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(dataDiariaDobradaAtual)
-                ) ||
-                logAndCheck(
-                    'Datas Meia Diária', 
-                    JSON.stringify(dataMeiaDiariaOriginalLimpa), 
-                    JSON.stringify(dataMeiaDiariaAtual), 
-                    JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(dataMeiaDiariaAtual)
-                ) ||
-
-                logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), (statusDiariaDobrada|| '').trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != (statusDiariaDobrada|| '').trim()) ||
-                logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), (statusMeiaDiaria|| '').trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != (statusMeiaDiaria|| '').trim()) ||
-                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
-                logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0));
-        
-                console.log("Houve alteração geral?", houveAlteracao);
-
-                if (!houveAlteracao) {
-                    console.log("Nenhuma alteração detectada, bloqueando salvamento.");
-                    return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-                }
-
-                const { isConfirmed } = await Swal.fire({
-                    title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do staff.",
-                    icon: "question",
-                    showCancelButton: true,
-                    confirmButtonText: "Sim, salvar",
-                    cancelButtonText: "Cancelar",
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-
-                if (!isConfirmed) {
-                    console.log("Alteração cancelada pelo usuário");
-                    return;
-                }
-            }
-
-            // --- EXECUTA O FETCH PARA POST OU PUT ---
+            // =========================================================
+            // 16. ENVIO DA REQUISIÇÃO
+            // =========================================================
             try {
-                console.log("ENTRANDO NO TRY. Método:", metodo);
+                console.log("Preparando envio. Método:", metodo, "URL:", url);
+                for (let pair of formData.entries()) console.log(pair[0] + ': ' + pair[1]);
 
-                const respostaApi = await fetchComToken(url, {
-                    method: metodo,
-                    //headers: { 'Content-Type': 'application/json' },
-                    body: formData
-                });
+                const respostaApi = await fetchComToken(url, { method: metodo, body: formData });
 
-                // 🛑 Reabilita o botão após o sucesso do FETCH
-                const botaoEnviar = document.getElementById("botaoEnviar");
-                if (botaoEnviar) {
-                    botaoEnviar.disabled = false;
-                    botaoEnviar.textContent = 'Salvar'; 
-                }
+                // Reseta flag de troca de nível após salvar com sucesso
+                nivelFoiTrocado = false;
+                nivelOriginalCarregado = null;
 
                 await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
-
-                // 1. RECUPERAÇÃO DO ESTADO ORIGINAL:
                 await carregarTabelaStaff(idFuncionario);
                 window.StaffOriginal = null;
 
-                // =========================================================================
-                // 🛑 NOVO BLOCO DE PERGUNTA (Substituindo o antigo limparCamposStaff())
-                // =========================================================================
-
                 const result = await Swal.fire({
                     title: "Deseja continuar?",
-                    text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
-                    icon: "question",
-                    showCancelButton: true,
-                    showDenyButton: true,
+                    text: "O cadastro foi concluído. Quer cadastrar mais um ou finalizar?",
+                    icon: "question", showCancelButton: true, showDenyButton: true,
                     confirmButtonText: "Cadastrar mais um (Manter dados)",
-                    cancelButtonText: "Finalizar e Sair", // Opção de fechar a modal
-                    denyButtonText: "Cadastrar novo staff (Limpar tudo)", // Opção de cadastrar outro staff (limpar tudo)
-                    reverseButtons: true,
-                    focusCancel: true
+                    cancelButtonText: "Finalizar e Sair",
+                    denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+                    reverseButtons: true, focusCancel: true
                 });
-                
+
                 if (result.isConfirmed) {
-                    // Se escolheu "Cadastrar mais um (Manter dados)"
-                    console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
-                    
-                    // Chama a nova função de limpeza parcial
-                    if (typeof limparCamposStaffParcial === "function") {
-                        limparCamposStaffParcial();
-                    } else {
-                        console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
-                        limparCamposStaff(); // Fallback para limpeza total
-                    }
-
+                    (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
                 } else if (result.isDenied) {
-                    // Se escolheu "Cadastrar novo staff (Limpar tudo)"
-                    console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
-                    limparCamposStaff(); // Sua função de limpeza total
-
+                    limparCamposStaff();
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
                     console.log("Usuário escolheu: Finalizar e Sair");
                     
@@ -4811,15 +4357,12 @@ async function verificaStaff() {
                         fecharModal();
                     } else {
                         document.getElementById("modal-overlay").style.display = "none";
-                        document.getElementById("modal-container").innerHTML = "";
                         document.body.classList.remove("modal-open");
                         if (typeof window.onStaffModalClosed === 'function') {
                             window.onStaffModalClosed(true);
                         }
                     }
                 }
-                
-                // =========================================================================
 
             } catch (error) {
                 console.error("❌ Erro ao enviar dados do funcionário:", error);
@@ -4870,11 +4413,14 @@ async function verificaStaff() {
                     confirmButtonText: "Entendi"
                 });
             }
-        })
-        document.getElementById("selectStatusCustoFechado").addEventListener("change", function() {
-    document.getElementById("statusCustoFechado").value = this.value;
-});
+        });
     }
+
+    
+        // document.getElementById("selectStatusCustoFechado").addEventListener("change", function() {
+        //     document.getElementById("statusCustoFechado").value = this.value;
+
+        // }
 }
   
 const debounce = (func, delay) => {
@@ -5751,6 +5297,8 @@ function limparStaffOriginal() {
         datasEventos: "",
         diariaDobrada: "",
         vlrTotal: "",
+        vlrTotCache:"",
+        vlrTotAjdCusto: "",
         nmPavilhao: "",
 
         // 📎 Comprovantes PDF
@@ -5818,6 +5366,214 @@ async function carregarEquipeStaff() {
 
 }
 
+// async function carregarFuncaoStaff() {
+//     try{
+//         const funcaofetch = await fetchComToken('/staff/funcao');
+//         console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);       
+
+//         let selects = document.querySelectorAll(".descFuncao");
+
+//         const inputIdEquipe = document.getElementById("idEquipe");
+//         const inputNmEquipe = document.getElementById("nmEquipe");
+
+//         selects.forEach(select => {
+//             select.innerHTML = "";
+
+//             console.log('Funcao recebidos:', funcaofetch); // Log das Funções recebidas
+//             let opcaoPadrao = document.createElement("option");
+//             opcaoPadrao.setAttribute("value", "");
+//             opcaoPadrao.textContent = "Selecione Função";
+//             select.appendChild(opcaoPadrao);
+
+//             funcaofetch.forEach(funcao => {
+//                // if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
+//                     let option = document.createElement("option");
+//                     option.value = funcao.idfuncao;
+//                     option.textContent = funcao.descfuncao;
+//                     option.setAttribute("data-idFuncao", funcao.idfuncao);
+//                     option.setAttribute("data-descproduto", funcao.descfuncao);
+//                     option.setAttribute("data-ctosenior", funcao.ctofuncaosenior);
+//                     option.setAttribute("data-ctosenior2", funcao.ctofuncaosenior2);
+//                     option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
+//                     option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
+//                     option.setAttribute("data-ctobase", funcao.ctofuncaobase);
+//                     option.setAttribute("data-vda", funcao.vdafuncao); 
+                    
+//                     // 🟢 Linha Adicionada para trazer o valor do funcionário
+//                     option.setAttribute("data-vlrfuncionario", funcao.vlrfuncionario || 0); 
+                    
+//                     option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
+//                     option.setAttribute("data-transporte", funcao.transporte || 0);
+//                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
+//                     option.setAttribute("data-idequipe", funcao.idequipe || '');
+//                     option.setAttribute("data-nmequipe", funcao.nmequipe || '');                     
+//                     option.setAttribute("data-categoriafuncao", funcao.nmcategoriafuncao || '');
+//                     option.setAttribute("data-categoria", "Produto(s)");
+//                     select.appendChild(option);
+//                // }else {
+//                //      // Opcional: Log para saber quais funções foram filtradas.
+//                //      console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
+//                // }
+//             });
+
+//             select.addEventListener("change", function (event) {
+//                 if (isFormLoadedFromDoubleClick) {
+//                     console.log("💾 Edição detectada: Preservando valores históricos do banco.");
+                    
+//                     // Resetamos a flag para que, SE o usuário mudar a função MANUALMENTE 
+//                     // após abrir o formulário, aí sim o sistema passe a buscar os preços novos.
+//                     isFormLoadedFromDoubleClick = false; 
+//                     return; 
+//                 }
+
+//                 document.getElementById("vlrCusto").value = '';
+//                 document.getElementById("alimentacao").value = '';
+//                 document.getElementById("transporte").value = '';
+                
+//                 // Referências aos checkboxes (use IDs consistentes com o seu HTML)
+//                 const seniorCheck = document.getElementById("seniorCheck") || document.getElementById("Seniorcheck"); 
+//                 const seniorCheck2 = document.getElementById("seniorCheck2") || document.getElementById("Seniorcheck2"); 
+//                 const plenoCheck = document.getElementById("plenoCheck") || document.getElementById("Plenocheck"); 
+//                 const juniorCheck = document.getElementById("juniorCheck") || document.getElementById("Juniorcheck"); 
+//                 const baseCheck = document.getElementById("baseCheck") || document.getElementById("Basecheck"); 
+//                 const fechadoCheck = document.getElementById("fechadoCheck") || document.getElementById("Fechadocheck"); 
+//                 const liberadoCheck = document.getElementById("Liberadocheck") || document.getElementById("liberadocheck"); 
+
+//                 if (seniorCheck) seniorCheck.checked = false;
+//                 if (seniorCheck2) seniorCheck2.checked = false; 
+//                 if (plenoCheck) plenoCheck.checked = false;
+//                 if (juniorCheck) juniorCheck.checked = false;
+//                 if (baseCheck) baseCheck.checked = false;
+//                 if (fechadoCheck) fechadoCheck.checked = false;
+//                 if (liberadoCheck) liberadoCheck.checked = false;
+
+//                 inputIdEquipe.value = '';
+//                 inputNmEquipe.value = '';
+
+//                 const selectedOption = this.options[this.selectedIndex];
+//                 const descFuncao = selectedOption.textContent;
+
+//                 // 1. Obtém o valor do perfil
+//                 const perfilFuncionarioInput = document.getElementById('perfilFuncionario');
+//                 const perfilSelecionado = perfilFuncionarioInput?.value?.toUpperCase().trim() || ''; 
+
+//                 document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao"); 
+//                 const idEquipeSelecionado = selectedOption.getAttribute("data-idequipe");
+//                 const nmEquipeSelecionado = selectedOption.getAttribute("data-nmequipe");
+                
+//                 if (idEquipeSelecionado) {
+//                     inputIdEquipe.value = idEquipeSelecionado;
+//                     inputNmEquipe.value = nmEquipeSelecionado;
+//                     console.log(`Equipe preenchida: ID ${idEquipeSelecionado}, Nome ${nmEquipeSelecionado}`);
+//                 } 
+
+//                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+//                 vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
+//                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
+//                 vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
+//                 vlrCustoBaseFuncao = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;         
+//                 vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+//                 vlrTransporteFuncao = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
+//                 vlrTransporteSeniorFuncao = parseFloat(selectedOption.getAttribute("data-transpsenior")) || 0;
+
+//                 // 🔴 CORREÇÃO: Lendo o atributo com o nome todo em minúsculo (kebab-case) 
+//                 // e armazenando na variável com 'F' maiúsculo para consistência.
+//                 vlrFuncionario = parseFloat(selectedOption.getAttribute("data-vlrfuncionario")) || 0;
+                
+//                 categoriaFuncao = selectedOption.getAttribute("data-categoriafuncao") || '';
+                
+//                 // ----------------------------------------------------
+//                 // LÓGICA DE OVERRIDE POR FUNÇÃO E PERFIL
+//                 // ----------------------------------------------------
+//                 if  (descFuncao === "FISCAL DE MARCAÇÃO") {
+//                     console.log(`🔵 REGRA ATIVA: ${descFuncao}.`);
+
+//                     // 1. Mostra a DIV pai do Senior 2
+//                     const inputSenior2 = document.getElementById("Seniorcheck2");
+//                     const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                    
+//                     if (divPaiSenior2) {
+//                         divPaiSenior2.style.setProperty("display", "flex", "important");
+//                     }
+//                 } else {
+//                     // Esconde o Senior 2 se mudar para outra função
+//                     const inputSenior2 = document.getElementById("Seniorcheck2");
+//                     const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+//                     if (divPaiSenior2) divPaiSenior2.style.display = 'none';
+//                     if (inputSenior2) inputSenior2.checked = false;
+//                 }
+//                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
+//                     console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
+                    
+//                     // 1. Marca/Trava o "Base"
+//                     if (baseCheck) baseCheck.checked = true;
+//                     if (seniorCheck) seniorCheck.disabled = true;
+//                     if (plenoCheck) plenoCheck.disabled = true;
+//                     if (juniorCheck) juniorCheck.disabled = true;
+//                     if (baseCheck) baseCheck.disabled = false; 
+//                     if (fechadoCheck) fechadoCheck.disabled = false; 
+//                     if (liberadoCheck) liberadoCheck.disabled = false; 
+                    
+//                     // 2. Preenche os custos com o valor Base da Função
+//                     document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+//                     document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+//                     document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    
+//                     if (typeof calcularValorTotal === 'function') {
+//                         calcularValorTotal();
+//                     }
+                    
+//                 } 
+//                 // Verifica se o perfil é INTERNO ou EXTERNO
+//                 else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) { 
+//                     console.log(`🔴 REGRA PERFIL ATIVA: Perfil 'FUNCIONARIO' (${perfilSelecionado}) detectado.`);
+//                     // 💡 DEBUG: Confira o valor que foi lido do atributo 'data-vlrfuncionario':
+//                     console.log(`💡 DEBUG: vlrFuncionario lido: ${vlrFuncionario}`);
+
+//                     // 1. Marca/Trava o "Base"
+//                     if (baseCheck) baseCheck.checked = true;
+//                     if (seniorCheck) seniorCheck.disabled = true;
+//                     if (plenoCheck) plenoCheck.disabled = true;
+//                     if (juniorCheck) juniorCheck.disabled = true;
+//                     if (baseCheck) baseCheck.disabled = false;
+//                     if (fechadoCheck) fechadoCheck.disabled = false; 
+//                     if (liberadoCheck) liberadoCheck.disabled = false;  
+
+//                     // 2. Preenche os custos com o vlrFuncionario
+//                     // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
+//                     document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
+//                     document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+//                     document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    
+//                     if (typeof calcularValorTotal === 'function') {
+//                         calcularValorTotal();
+//                     }
+
+//                 }
+//                 // Perfil/Função Padrão (FREELANCER, LOTE, ou Função/Perfil padrão)
+//                 else{
+//                     console.log("🟢 PERFIL/FUNÇÃO PADRÃO: Habilita Checkboxes e chama onCriteriosChanged.");
+                    
+//                     // 1. Re-habilita todos os checkboxes
+//                     if (seniorCheck) seniorCheck.disabled = false;
+//                     if (plenoCheck) plenoCheck.disabled = false;
+//                     if (juniorCheck) juniorCheck.disabled = false;
+//                     if (baseCheck) baseCheck.disabled = false;
+//                     if (fechadoCheck) fechadoCheck.disabled = false; 
+//                     if (liberadoCheck) liberadoCheck.disabled = false; 
+                    
+//                     // 2. Chama onCriteriosChanged para preencher os valores de custo inicial
+//                     if (typeof onCriteriosChanged === 'function') {
+//                         onCriteriosChanged();
+//                     }
+//                 }
+//             });
+//         });
+//     }catch(error){
+//     console.error("Erro ao carregar funcao:", error);
+//     }
+// }
+
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
@@ -5839,6 +5595,7 @@ async function carregarFuncaoStaff() {
 
             funcaofetch.forEach(funcao => {
                // if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
+               console.log(`Função ${funcao.descfuncao} - ctosenior: ${funcao.ctofuncaosenior}, ctopleno: ${funcao.ctofuncaopleno}, ctobase: ${funcao.ctofuncaobase}`);
                     let option = document.createElement("option");
                     option.value = funcao.idfuncao;
                     option.textContent = funcao.descfuncao;
@@ -5935,81 +5692,154 @@ async function carregarFuncaoStaff() {
                 // ----------------------------------------------------
                 // LÓGICA DE OVERRIDE POR FUNÇÃO E PERFIL
                 // ----------------------------------------------------
-                if  (descFuncao === "FISCAL DE MARCAÇÃO") {
-                    console.log(`🔵 REGRA ATIVA: ${descFuncao}.`);
+                // if  (descFuncao === "FISCAL DE MARCAÇÃO") {
+                //     console.log(`🔵 REGRA ATIVA: ${descFuncao}.`);
 
-                    // 1. Mostra a DIV pai do Senior 2
-                    const inputSenior2 = document.getElementById("Seniorcheck2");
-                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                //     // 1. Mostra a DIV pai do Senior 2
+                //     const inputSenior2 = document.getElementById("Seniorcheck2");
+                //     const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
                     
-                    if (divPaiSenior2) {
-                        divPaiSenior2.style.setProperty("display", "flex", "important");
-                    }
+                //     if (divPaiSenior2) {
+                //         divPaiSenior2.style.setProperty("display", "flex", "important");
+                //     }
+                // } else {
+                //     // Esconde o Senior 2 se mudar para outra função
+                //     const inputSenior2 = document.getElementById("Seniorcheck2");
+                //     const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                //     if (divPaiSenior2) divPaiSenior2.style.display = 'none';
+                //     if (inputSenior2) inputSenior2.checked = false;
+                // }
+                // if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
+                //     console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
+                    
+                //     // 1. Marca/Trava o "Base"
+                //     if (baseCheck) baseCheck.checked = true;
+                //     if (seniorCheck) seniorCheck.disabled = true;
+                //     if (plenoCheck) plenoCheck.disabled = true;
+                //     if (juniorCheck) juniorCheck.disabled = true;
+                //     if (baseCheck) baseCheck.disabled = false; 
+                    
+                //     // 2. Preenche os custos com o valor Base da Função
+                //     document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                //     document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                //     document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    
+                //     if (typeof calcularValorTotal === 'function') {
+                //         calcularValorTotal();
+                //     }
+                    
+                // } 
+                // // Verifica se o perfil é INTERNO ou EXTERNO
+                // else if(perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO") { 
+                //     console.log(`🔴 REGRA PERFIL ATIVA: Perfil 'FUNCIONARIO' (${perfilSelecionado}) detectado.`);
+                //     // 💡 DEBUG: Confira o valor que foi lido do atributo 'data-vlrfuncionario':
+                //     console.log(`💡 DEBUG: vlrFuncionario lido: ${vlrFuncionario}`);
+
+                //     // 1. Marca/Trava o "Base"
+                //     if (baseCheck) baseCheck.checked = true;
+                //     if (seniorCheck) seniorCheck.disabled = true;
+                //     if (plenoCheck) plenoCheck.disabled = true;
+                //     if (juniorCheck) juniorCheck.disabled = true;
+                //     if (baseCheck) baseCheck.disabled = false; 
+
+                //     // 2. Preenche os custos com o vlrFuncionario
+                //     // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
+                //     document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
+                //     document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                //     document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    
+                //     if (typeof calcularValorTotal === 'function') {
+                //         calcularValorTotal();
+                //     }
+
+                // }
+                // // Perfil/Função Padrão (FREELANCER, LOTE, ou Função/Perfil padrão)
+                // else{
+                //     console.log("🟢 PERFIL/FUNÇÃO PADRÃO: Habilita Checkboxes e chama onCriteriosChanged.");
+                    
+                //     // 1. Re-habilita todos os checkboxes
+                //     if (seniorCheck) seniorCheck.disabled = false;
+                //     if (plenoCheck) plenoCheck.disabled = false;
+                //     if (juniorCheck) juniorCheck.disabled = false;
+                //     if (baseCheck) baseCheck.disabled = false;
+                    
+                //     // 2. Chama onCriteriosChanged para preencher os valores de custo inicial
+                //     if (typeof onCriteriosChanged === 'function') {
+                //         onCriteriosChanged();
+                //     }
+                // }
+
+                // 1. CONTROLE DO SENIOR 2 (baseado apenas na função)
+                // 1. CONTROLE DO SENIOR 2 (só para FISCAL)
+                const inputSenior2 = document.getElementById("Seniorcheck2");
+                const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+
+                if (descFuncao === "FISCAL DE MARCAÇÃO") {
+                    if (divPaiSenior2) divPaiSenior2.style.setProperty("display", "flex", "important");
                 } else {
-                    // Esconde o Senior 2 se mudar para outra função
-                    const inputSenior2 = document.getElementById("Seniorcheck2");
-                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
                     if (divPaiSenior2) divPaiSenior2.style.display = 'none';
                     if (inputSenior2) inputSenior2.checked = false;
                 }
+
+                // 2. CONTROLE DE NÍVEIS E CUSTOS
+                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO";
+
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
-                    console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
+                    // Sempre trava Senior, Pleno, Junior — independente do perfil
+                    if (seniorCheck)  seniorCheck.disabled = true;
+                    if (seniorCheck2) seniorCheck2.disabled = true;
+                    if (plenoCheck)   plenoCheck.disabled = true;
+                    if (juniorCheck)  juniorCheck.disabled = true;
+                    if (baseCheck)    { baseCheck.checked = true; baseCheck.disabled = false; }
+                    if (fechadoCheck) fechadoCheck.disabled = false;
+                    if (liberadoCheck) liberadoCheck.disabled = false;
+
+                    // Custo varia conforme o perfil
+                    if (isInternoOuExterno) {
+                        const selectFuncao = document.querySelector(".descFuncao");
+                        const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+                        const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+                        document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');
+                        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    } else {
+                        // Freelancer, Lote
+                        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                        document.getElementById("alimentacao").value = (0).toFixed(2).replace('.', ',');
+                        document.getElementById("transporte").value = (0).toFixed(2).replace('.', ',');    
+                    }
                     
-                    // 1. Marca/Trava o "Base"
-                    if (baseCheck) baseCheck.checked = true;
-                    if (seniorCheck) seniorCheck.disabled = true;
-                    if (plenoCheck) plenoCheck.disabled = true;
-                    if (juniorCheck) juniorCheck.disabled = true;
-                    if (baseCheck) baseCheck.disabled = false; 
-                    
-                    // 2. Preenche os custos com o valor Base da Função
-                    document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
-                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                    if (typeof calcularValorTotal === 'function') calcularValorTotal();
+
+                } else if (isInternoOuExterno) {
+                    // Interno/externo em qualquer outra função (incluindo FISCAL)
+                    if (baseCheck)    { baseCheck.checked = true; baseCheck.disabled = false; }
+                    if (seniorCheck)  seniorCheck.disabled = true;
+                    if (seniorCheck2) seniorCheck2.disabled = true;
+                    if (plenoCheck)   plenoCheck.disabled = true;
+                    if (juniorCheck)  juniorCheck.disabled = true;
+                    if (fechadoCheck) fechadoCheck.disabled = false;
+                    if (liberadoCheck) liberadoCheck.disabled = false;
+
+                    const selectFuncao = document.querySelector(".descFuncao");
+                    const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+                    const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+
+                    document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');
                     document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
-                    
-                    if (typeof calcularValorTotal === 'function') {
-                        calcularValorTotal();
-                    }
-                    
-                } 
-                // Verifica se o perfil é INTERNO ou EXTERNO
-                else if(perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO") { 
-                    console.log(`🔴 REGRA PERFIL ATIVA: Perfil 'FUNCIONARIO' (${perfilSelecionado}) detectado.`);
-                    // 💡 DEBUG: Confira o valor que foi lido do atributo 'data-vlrfuncionario':
-                    console.log(`💡 DEBUG: vlrFuncionario lido: ${vlrFuncionario}`);
+                    if (typeof calcularValorTotal === 'function') calcularValorTotal();
 
-                    // 1. Marca/Trava o "Base"
-                    if (baseCheck) baseCheck.checked = true;
-                    if (seniorCheck) seniorCheck.disabled = true;
-                    if (plenoCheck) plenoCheck.disabled = true;
-                    if (juniorCheck) juniorCheck.disabled = true;
-                    if (baseCheck) baseCheck.disabled = false; 
+                } else {
+                    // Freelancer/Lote em função padrão (não é AJUDANTE)
+                    if (seniorCheck)  seniorCheck.disabled = false;
+                    if (plenoCheck)   plenoCheck.disabled = false;
+                    if (juniorCheck)  juniorCheck.disabled = false;
+                    if (baseCheck)    baseCheck.disabled = false;
+                    if (fechadoCheck) fechadoCheck.disabled = false;
+                    if (liberadoCheck) liberadoCheck.disabled = false;
 
-                    // 2. Preenche os custos com o vlrFuncionario
-                    // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
-                    document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
-                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
-                    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
-                    
-                    if (typeof calcularValorTotal === 'function') {
-                        calcularValorTotal();
-                    }
-
-                }
-                // Perfil/Função Padrão (FREELANCER, LOTE, ou Função/Perfil padrão)
-                else{
-                    console.log("🟢 PERFIL/FUNÇÃO PADRÃO: Habilita Checkboxes e chama onCriteriosChanged.");
-                    
-                    // 1. Re-habilita todos os checkboxes
-                    if (seniorCheck) seniorCheck.disabled = false;
-                    if (plenoCheck) plenoCheck.disabled = false;
-                    if (juniorCheck) juniorCheck.disabled = false;
-                    if (baseCheck) baseCheck.disabled = false;
-                    
-                    // 2. Chama onCriteriosChanged para preencher os valores de custo inicial
-                    if (typeof onCriteriosChanged === 'function') {
-                        onCriteriosChanged();
-                    }
+                    if (typeof onCriteriosChanged === 'function') onCriteriosChanged();
                 }
             });
         });
@@ -6022,7 +5852,7 @@ async function carregarFuncionarioStaff() {
     try{
         
         const funcionariofetch = await fetchComToken('/staff/funcionarios');
-        console.log("ENTROU NO CARREGAR FUNCIONARIO STAFF", funcionariofetch);
+        //console.log("ENTROU NO CARREGAR FUNCIONARIO STAFF", funcionariofetch);
 
         let selects = document.querySelectorAll(".nmFuncionario");
 
@@ -6049,7 +5879,7 @@ async function carregarFuncionarioStaff() {
             });
 
             select.addEventListener("change", function () {
-            //    limparCamposEvento();
+                //limparCamposStaffParcial();
 
             const selectedOption = this.options[this.selectedIndex];
 
@@ -6097,36 +5927,159 @@ async function carregarFuncionarioStaff() {
                 console.log("Perfil selecionado:", perfilSelecionado);
 
                 // Se não for freelancer, mostra label em verde
+                // if (perfilSelecionado) {
+                //     labelFuncionario.style.display = "block"; // sempre visível                    
+                    
+                //     if (perfilSelecionado.toLowerCase() === "freelancer") {
+                //         isLote = false;
+                //         labelFuncionario.textContent = "FREE-LANCER";
+                //         labelFuncionario.style.color = "red";
+                //     } if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+                //         isLote = false;
+                //         labelFuncionario.textContent = "FUNCIONÁRIO";
+                //         labelFuncionario.style.color = "green"
+                //         descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+
+                //             // 1. Marca/Trava o "Base"
+                //         if (baseCheck) baseCheck.checked = true;
+                //         if (seniorCheck) seniorCheck.disabled = true;
+                //         if (plenoCheck) plenoCheck.disabled = true;
+                //         if (juniorCheck) juniorCheck.disabled = true;
+                //         if (baseCheck) baseCheck.disabled = false;
+                //         if (fechadoCheck) fechadoCheck.disabled = false; 
+                //         if (liberadoCheck) liberadoCheck.disabled = false;  
+
+                //         // // 2. Preenche os custos com o vlrFuncionario
+                //         // // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
+                //         // document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
+                //         // document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                //         // document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+
+                //         // CORREÇÃO: Relê vlrFuncionario direto do select de função no momento atual
+                //         const selectFuncao = document.querySelector(".descFuncao");
+                //         const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+                //         const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+
+                //         // ANTES: document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0)...
+                //         document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                //         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                //         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                        
+                //         if (typeof calcularValorTotal === 'function') {
+                //             calcularValorTotal();
+                //         }
+
+
+                //     }else if (perfilSelecionado.toLowerCase() === "lote") {
+                //         isLote = true;
+                //         labelFuncionario.textContent = "LOTE";
+                //         labelFuncionario.style.color = "blue";                    
+                //     }
+                    
+
+                // } else {
+                //     labelFuncionario.style.display = "none"; // se não tiver perfil
+                // }
+
+                // if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
+                //     qtdPessoasDiv.style.display = 'block';
+                // } else {
+                //     qtdPessoasDiv.style.display = 'none';
+                //     // Limpa o valor do input quando ele é escondido
+                //     document.getElementById('qtdPessoas').value = '';
+                // }
+
                 if (perfilSelecionado) {
-                    labelFuncionario.style.display = "block"; // sempre visível                    
+                    labelFuncionario.style.display = "block";
                     
                     if (perfilSelecionado.toLowerCase() === "freelancer") {
                         isLote = false;
                         labelFuncionario.textContent = "FREE-LANCER";
                         labelFuncionario.style.color = "red";
-                    } if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+                    } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
                         isLote = false;
                         labelFuncionario.textContent = "FUNCIONÁRIO";
-                        labelFuncionario.style.color = "green"
+                        labelFuncionario.style.color = "green";
                         descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
 
-                    }else if (perfilSelecionado.toLowerCase() === "lote") {
+                        if (baseCheck) baseCheck.checked = true;
+                        if (seniorCheck) seniorCheck.disabled = true;
+                        if (plenoCheck) plenoCheck.disabled = true;
+                        if (juniorCheck) juniorCheck.disabled = true;
+                        if (baseCheck) baseCheck.disabled = false;
+                        if (fechadoCheck) fechadoCheck.disabled = false; 
+                        if (liberadoCheck) liberadoCheck.disabled = false;  
+
+                        const selectFuncao = document.querySelector(".descFuncao");
+                        const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+                        const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+                        const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
+                        const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
+
+                        document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                        // AJUDANTE interno/externo: tem alimentação e transporte
+                        // Qualquer outra função interno/externo: tem alimentação e transporte
+                        // (só freelancer AJUDANTE não tem)
+                        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                        
+                        if (typeof calcularValorTotal === 'function') calcularValorTotal();
+                    } else if (perfilSelecionado.toLowerCase() === "lote") {
                         isLote = true;
                         labelFuncionario.textContent = "LOTE";
                         labelFuncionario.style.color = "blue";                    
                     }
+
+                    // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+                    // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+                if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "externo") {
+                    const selectFuncao = document.querySelector(".descFuncao");
+                    const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+                    
+                    if (optionFuncaoAtual && optionFuncaoAtual.value !== "") {
+                        vlrCustoSeniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior")) || 0;
+                        vlrCustoSeniorFuncao2 = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior2")) || 0;
+                        vlrCustoPlenoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctopleno")) || 0;
+                        vlrCustoJuniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctojunior")) || 0;
+                        vlrCustoBaseFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctobase")) || 0;
+                        vlrAlimentacaoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-alimentacao")) || 0;
+                        vlrTransporteFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-transporte")) || 0;
+
+                        const descFuncaoAtual = optionFuncaoAtual.textContent.trim().toUpperCase();
+                        const isFuncaoTravada = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO" || descFuncaoAtual === "FISCAL DE MARCAÇÃO";
+                        const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
+
+                        // Só reabilita se NÃO for função travada
+                        if (!isFuncaoTravada) {
+                            if (seniorCheck)  seniorCheck.disabled = false;
+                            if (seniorCheck2) seniorCheck2.disabled = false;
+                            if (plenoCheck)   plenoCheck.disabled = false;
+                            if (juniorCheck)  juniorCheck.disabled = false;
+                            if (baseCheck)    baseCheck.disabled = false;
+                        }
+
+                        if (isAjudante) {
+                            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                            document.getElementById("alimentacao").value = (0).toFixed(2).replace('.', ',');
+                            document.getElementById("transporte").value = (0).toFixed(2).replace('.', ',');
+                            if (typeof calcularValorTotal === 'function') calcularValorTotal();
+                        } else {
+                            if (typeof onCriteriosChanged === 'function') onCriteriosChanged();
+                        }
+                        
+                    }
+                }
+
                 } else {
-                    labelFuncionario.style.display = "none"; // se não tiver perfil
+                    labelFuncionario.style.display = "none";
                 }
 
                 if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
                     qtdPessoasDiv.style.display = 'block';
                 } else {
                     qtdPessoasDiv.style.display = 'none';
-                    // Limpa o valor do input quando ele é escondido
                     document.getElementById('qtdPessoas').value = '';
                 }
-
                 
 
                 const fotoPathFromData = selectedOption.getAttribute("data-foto"); // Este é o caminho real da foto
@@ -6174,6 +6127,7 @@ async function carregarFuncionarioStaff() {
                     }
                 }
                 carregarTabelaStaff(idFuncionarioSelecionado);
+                
                 calcularValorTotal();
 
             });
@@ -6185,7 +6139,7 @@ async function carregarFuncionarioStaff() {
 }
 
 async function  carregarClientesStaff() {
-    console.log("Função CARREGAR Cliente chamada");
+    //console.log("Função CARREGAR Cliente chamada");
 
     try{
         const clientes = await fetchComToken('staff/clientes');
@@ -6414,484 +6368,1275 @@ async function carregarPavilhaoStaff(idMontagem, idorcamento = null, idfuncao = 
     }
 }
 
+// function limparCamposEvento() {
+//     console.log("Limpeza parcial do formulário iniciada (apenas campos do evento).");
+//     bLiberacaoAutorizada = false; // Reset da variável de controle de liberação
+
+//     const btn = document.getElementById('Enviar');
+//     if (btn) {
+//         btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
+//         btn.disabled = false;
+//     }
+
+//     // Lista de campos que se referem a um evento específico
+//     const camposEvento = [
+//         "idStaff", "descFuncao", "vlrCusto", "ajusteCusto", "transporte", "alimentacao", "caixinha",
+//         "nmLocalMontagem", "nmPavilhao", "descBeneficio", "descAjusteCusto", "nmCliente", "nmEvento", "vlrTotal",
+//         "vlrTotalHidden", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto",
+//         "statusAjusteCusto", "statusCaixinha", "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria",
+//         "descMeiaDiaria", "qtdPessoas","idequipe","nmEquipe", "descCustoFechado"
+//     ];
+
+//     camposEvento.forEach(id => {
+//         const campo = document.getElementById(id);
+//         if (campo) {
+//             campo.value = "";
+//             // console.log(`Campo "${id}" limpo.`); // Descomente para debug
+//         }
+//     });
+    
+//     // Limpa os campos de comprovantes
+//     limparCamposComprovantes();
+
+//     // Resetar campos opcionais
+//     const ajusteCustoCheck = document.getElementById('ajusteCustocheck');
+//     if (ajusteCustoCheck) ajusteCustoCheck.checked = false;
+//     const caixinhaCheck = document.getElementById('Caixinhacheck');
+//     if (caixinhaCheck) caixinhaCheck.checked = false;
+
+//     const meiaDiariaCheck = document.getElementById('meiaDiariaCheck');
+//     if (meiaDiariaCheck) meiaDiariaCheck.checked = false;
+
+//     const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+//     if (diariaDobradacheck) diariaDobradacheck.checked = false;
+
+//     const seniorCheck = document.getElementById('Seniorcheck');
+//     if (seniorCheck) seniorCheck.checked = false;
+
+//     const plenoCheck = document.getElementById('Plenocheck');
+//     if (plenoCheck) plenoCheck.checked = false;
+
+//     const juniorCheck = document.getElementById('Juniorcheck');
+//     if (juniorCheck) juniorCheck.checked = false;
+
+//     const baseCheck = document.getElementById('Basecheck');
+//     if (baseCheck) baseCheck.checked = false;
+    
+//     const check50 = document.getElementById('check50');
+//     if (check50) check50.checked = false;
+
+//     const check100 = document.getElementById('check100');
+//     if (check100) check100.checked = false;
+
+//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+//     if (containerStatusDiariaDobrada) {
+//         containerStatusDiariaDobrada.innerHTML = '';
+//         containerStatusDiariaDobrada.style.display = 'none';
+//     }
+
+//     if (containerStatusMeiaDiaria) {
+//         containerStatusMeiaDiaria.innerHTML = '';
+//         containerStatusMeiaDiaria.style.display = 'none';
+//     }
+
+//     // Limpa as descrições de bônus e benefícios
+//     document.getElementById('ajusteCusto').value = '';
+//     document.getElementById('descBeneficio').value = '';
+
+//     document.getElementById('statusCaixinha').value = 'Autorização da Caixinha';
+
+//     document.getElementById('statusAjusteCusto').value = 'Autorização do Ajuste de Custo';
+
+//     document.getElementById('statusDiariaDobrada').value = 'Autorização de Diária Dobrada';
+//     document.getElementById('descDiariaDobrada').value = '';
+//     document.getElementById('campoStatusDiariaDobrada').style.display = 'none';
+
+//     document.getElementById('statusMeiaDiaria').value = 'Autorização de Meia Diária';
+//     document.getElementById('descMeiaDiaria').value = '';
+//     document.getElementById('campoStatusMeiaDiaria').style.display = 'none';
+
+//     // Garanta que os containers opcionais sejam ocultados
+//     document.getElementById('campoAjusteCusto').style.display = 'none';
+//     document.getElementById('campoCaixinha').style.display = 'none';
+//     document.getElementById('campoStatusCaixinha').style.display = 'none';
+//     document.getElementById('campoPgtoCaixinha').style.display = 'none';
+
+
+//     if (window.diariaDobradaPicker) {
+//         window.diariaDobradaPicker.clear(); 
+//     }
+//     if (window.meiaDiariaPicker) {
+//         window.meiaDiariaPicker.clear();
+//     }
+//     if (window.datasEventoPicker) {
+//         window.datasEventoPicker.clear();
+//     }
+
+//     // --- ADICIONE OU ATUALIZE ESTE BLOCO DENTRO DA FUNÇÃO ---
+
+//     // 1. Reset de Checkboxes (Garante que nenhum fique marcado do funcionário anterior)
+//     const checksParaLimpar = [
+//         'Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 
+//         'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 
+//         'viagem2Check', 'viagem3Check', 'check50', 'check100'
+//     ];
+//     checksParaLimpar.forEach(id => {
+//         const cb = document.getElementById(id);
+//         if (cb) cb.checked = false;
+//     });
+
+//     // 2. Ocultar Textareas e Wrappers de Justificativa
+//     const camposParaOcultar = [
+//         'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+//         'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+//     ];
+    
+//     camposParaOcultar.forEach(id => {
+//         const elemento = document.getElementById(id);
+//         if (elemento) {
+//             elemento.style.display = 'none';
+//             elemento.required = false;
+//             elemento.value = '';
+//         }
+//     });
+
+//     // 3. Ocultar Containers de Status e Wrappers específicos
+//     // Caso você use uma Div que envolve o "descCustoFechado", oculte-a também:
+//     const wrapperCustoFechado = document.getElementById('wrapperJustificativaCustoFechado'); // Ajuste o ID se for diferente
+//     if (wrapperCustoFechado) wrapperCustoFechado.style.display = 'none';
+
+//     const campoStatusCustoFechado = document.getElementById('campoStatusCustoFechado');
+//     if (campoStatusCustoFechado) campoStatusCustoFechado.style.display = 'none';
+
+//     // 4. Limpeza de Containers de Status (Aditivos/Extras)
+//     const containersParaLimpar = [
+//         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+//         'containerStatusAditivo', 'containerStatusExtraBonificado'
+//     ];
+
+//     containersParaLimpar.forEach(id => {
+//         const container = document.getElementById(id);
+//         if (container) {
+//             container.innerHTML = '';
+//             container.style.display = 'none';
+//         }
+//     });
+
+//     console.log("Campos de Custo Fechado e Níveis resetados.");
+
+//     // Limpa o objeto em memória do staff original
+//     limparStaffOriginal();
+
+//     console.log("Limpeza parcial do formulário concluída.");
+// }
+
 function limparCamposEvento() {
     console.log("Limpeza parcial do formulário iniciada (apenas campos do evento).");
-    bLiberacaoAutorizada = false; // Reset da variável de controle de liberação
+    bLiberacaoAutorizada = false; 
 
     const btn = document.getElementById('Enviar');
     if (btn) {
-        btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
+        btn.style.display = 'block';
         btn.disabled = false;
     }
 
-    // Lista de campos que se referem a um evento específico
+    // 1. Lista principal de inputs (removido duplicados como ajusteCusto)
     const camposEvento = [
         "idStaff", "descFuncao", "vlrCusto", "ajusteCusto", "transporte", "alimentacao", "caixinha",
-        "nmLocalMontagem", "nmPavilhao", "descBeneficio", "descAjusteCusto", "nmCliente", "nmEvento", "vlrTotal",
+        "nmLocalMontagem", "nmPavilhao", "nmCliente", "nmEvento", "vlrTotal",
         "vlrTotalHidden", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto",
         "statusAjusteCusto", "statusCaixinha", "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria",
-        "descMeiaDiaria", "qtdPessoas","idequipe","nmEquipe"
+        "descMeiaDiaria", "qtdPessoas", "idequipe", "nmEquipe"
     ];
 
     camposEvento.forEach(id => {
         const campo = document.getElementById(id);
-        if (campo) {
-            campo.value = "";
-            // console.log(`Campo "${id}" limpo.`); // Descomente para debug
+        if (campo) campo.value = "";
+    });
+
+    // 2. Reset de Checkboxes (Unificado em uma única lista para evitar repetição)
+    const checksParaLimpar = [
+        'ajusteCustocheck', 'Caixinhacheck', 'meiaDiariaCheck', 'diariaDobradacheck',
+        'Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 
+        'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 
+        'viagem2Check', 'viagem3Check', 'check50', 'check100'
+    ];
+    checksParaLimpar.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    // 3. Ocultar Textareas e resetar valores (Incluindo o descCustoFechado)
+    const camposParaOcultar = [
+        'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+        'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+    ];
+    
+    camposParaOcultar.forEach(id => {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+            elemento.style.display = 'none';
+            elemento.required = false;
+            elemento.value = '';
         }
     });
-    
-    // Limpa os campos de comprovantes
+
+    // 4. Containers de Status e Wrappers
+    const containersParaLimpar = [
+        'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+        'containerStatusAditivo', 'containerStatusExtraBonificado',
+        'campoStatusDiariaDobrada', 'campoStatusMeiaDiaria', 'campoAjusteCusto',
+        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha',
+        'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado'
+    ];
+
+    containersParaLimpar.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            if (id.startsWith('container')) container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    });
+
+    // 5. Reset de valores padrões de Status
+    const statusPadrao = {
+        'statusCaixinha': 'Autorização da Caixinha',
+        'statusAjusteCusto': 'Autorização do Ajuste de Custo',
+        'statusDiariaDobrada': 'Autorização de Diária Dobrada',
+        'statusMeiaDiaria': 'Autorização de Meia Diária'
+    };
+
+    for (let id in statusPadrao) {
+        const el = document.getElementById(id);
+        if (el) el.value = statusPadrao[id];
+    }
+
+    // 6. Limpeza de Pickers e Complementos
+    if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
+    if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+    if (window.datasEventoPicker) window.datasEventoPicker.clear();
+
     limparCamposComprovantes();
-
-    // Resetar campos opcionais
-    const ajusteCustoCheck = document.getElementById('ajusteCustocheck');
-    if (ajusteCustoCheck) ajusteCustoCheck.checked = false;
-    const caixinhaCheck = document.getElementById('Caixinhacheck');
-    if (caixinhaCheck) caixinhaCheck.checked = false;
-
-    const meiaDiariaCheck = document.getElementById('meiaDiariaCheck');
-    if (meiaDiariaCheck) meiaDiariaCheck.checked = false;
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    if (diariaDobradacheck) diariaDobradacheck.checked = false;
-
-    const seniorCheck = document.getElementById('Seniorcheck');
-    if (seniorCheck) seniorCheck.checked = false;
-
-    const plenoCheck = document.getElementById('Plenocheck');
-    if (plenoCheck) plenoCheck.checked = false;
-
-    const juniorCheck = document.getElementById('Juniorcheck');
-    if (juniorCheck) juniorCheck.checked = false;
-
-    const baseCheck = document.getElementById('Basecheck');
-    if (baseCheck) baseCheck.checked = false;
-
-    const check50 = document.getElementById('check50');
-    if (check50) check50.checked = false;
-
-    const check100 = document.getElementById('check100');
-    if (check100) check100.checked = false;
-
-    const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-    const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-
-    if (containerStatusDiariaDobrada) {
-        containerStatusDiariaDobrada.innerHTML = '';
-        containerStatusDiariaDobrada.style.display = 'none';
-    }
-
-    if (containerStatusMeiaDiaria) {
-        containerStatusMeiaDiaria.innerHTML = '';
-        containerStatusMeiaDiaria.style.display = 'none';
-    }
-
-    // Limpa as descrições de bônus e benefícios
-    document.getElementById('ajusteCusto').value = '';
-    document.getElementById('descBeneficio').value = '';
-
-    document.getElementById('statusCaixinha').value = 'Autorização da Caixinha';
-
-    document.getElementById('statusAjusteCusto').value = 'Autorização do Ajuste de Custo';
-
-    document.getElementById('statusDiariaDobrada').value = 'Autorização de Diária Dobrada';
-    document.getElementById('descDiariaDobrada').value = '';
-    document.getElementById('campoStatusDiariaDobrada').style.display = 'none';
-
-    document.getElementById('statusMeiaDiaria').value = 'Autorização de Meia Diária';
-    document.getElementById('descMeiaDiaria').value = '';
-    document.getElementById('campoStatusMeiaDiaria').style.display = 'none';
-
-    // Garanta que os containers opcionais sejam ocultados
-    document.getElementById('campoAjusteCusto').style.display = 'none';
-    document.getElementById('campoCaixinha').style.display = 'none';
-    document.getElementById('campoStatusCaixinha').style.display = 'none';
-    document.getElementById('campoPgtoCaixinha').style.display = 'none';
-
-
-    if (window.diariaDobradaPicker) {
-        window.diariaDobradaPicker.clear(); 
-    }
-    if (window.meiaDiariaPicker) {
-        window.meiaDiariaPicker.clear();
-    }
-    if (window.datasEventoPicker) {
-        window.datasEventoPicker.clear();
-    }
-
-    // Limpa o objeto em memória do staff original
     limparStaffOriginal();
 
     console.log("Limpeza parcial do formulário concluída.");
 }
 
+// function limparCamposStaff() {
+//     const campos = [
+//         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
+//         "nmLocalMontagem", "nmPavilhao", "alimentacao", "transporte", "vlrBeneficio", "descBeneficio",
+//         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
+//         "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", "statusDiariaDobrada",
+//         "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas",
+//         "idequipe","nmEquipe","setor"
+//     ];
+
+//     const btn = document.getElementById('Enviar');
+//     if (btn) {
+//         btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
+//         btn.disabled = false;
+//     }
+    
+//     campos.forEach(id => {
+//         const campo = document.getElementById(id);
+//         if (campo) {
+//             campo.value = "";
+//             console.log(`Campo "${id}" limpo.`);
+//         }
+//     });
+
+//     // Limpeza robusta para o Select Multiple de Pavilhão
+//     // Força a limpeza visual de campos 'multiple' como o Pavilhão
+//     const selectPavilhao = document.getElementById('nmPavilhao');
+//     if (selectPavilhao) {
+//         // Desmarca todas as opções selecionadas uma por uma
+//         Array.from(selectPavilhao.options).forEach(option => {
+//             option.selected = false;
+//         });
+//         console.log("Seleções de nmPavilhao resetadas manualmente.");
+//     }
+
+//     // Garante que o input de Setor também seja limpo (adicione se não estiver no array 'campos')
+//     const campoSetor = document.getElementById('setor');
+//     if (campoSetor) {
+//         campoSetor.value = "";
+//     }
+
+//     currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+//     isFormLoadedFromDoubleClick = false;
+
+//     const previewFoto = document.getElementById('previewFoto');
+//     const fileName = document.getElementById('fileName');
+//     const fileInput = document.getElementById('file');
+//     const uploadHeader = document.getElementById('uploadHeader');
+//     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+//     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+//     const labelFuncionario = document.getElementById('labelFuncionario');
+
+//     if (labelFuncionario) {
+//         labelFuncionario.style.display = "none"; // esconde
+//         labelFuncionario.textContent = "";    // limpa o texto
+//         labelFuncionario.style.color = "";    // reseta cor
+//         console.log("Label Funcionário limpo.");
+//     }
+
+//     if (previewFoto) {
+//         previewFoto.src = "#";
+//         previewFoto.style.display = "none";
+//         console.log("Preview da foto limpo.");
+//     }
+//     if (fileName) {
+//         fileName.textContent = "Nenhum arquivo selecionado";
+//     }
+//     if (fileInput) {
+//         fileInput.value = "";
+//     }
+//     if (uploadHeader) {
+//         uploadHeader.style.display = "block";
+//     }
+//     if (linkFotoFuncionarios) {
+//         linkFotoFuncionarios.value = "";
+//     }
+//     if (nomeFuncionarioExibido) {
+//         nomeFuncionarioExibido.textContent = "";
+//     }    
+
+//     const contadorDatas = document.getElementById('contadorDatas');
+
+//     if (contadorDatas) {
+//         contadorDatas.textContent = "Nenhuma data selecionada.";
+//     }
+
+//     // Limpeza do Picker Principal (Datas do Evento)
+//     if (window.datasEventoPicker) {
+//         window.datasEventoPicker.clear();
+//         // O MutationObserver deve pegar a alteração no contadorDatas, 
+//         // mas é bom garantir que o contador reflita a limpeza.
+//         if (contadorDatas) {
+//             contadorDatas.textContent = "Nenhuma data selecionada."; 
+//         }
+//         console.log("Datas do evento limpas via Flatpickr.");
+//     }
+    
+//     // Limpeza dos Pickers Auxiliares (Diária Dobrada e Meia Diária)
+//     if (window.diariaDobradaPicker) {
+//         window.diariaDobradaPicker.clear();
+//     }
+
+//     if (window.meiaDiariaPicker) {
+//         window.meiaDiariaPicker.clear();
+//     }
+//     console.log("Pickers auxiliares (Diária Dobrada e Meia Diária) limpos.");
+
+//     // ✅ Limpeza de PDFs por classe
+//     const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+//     const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+//     const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
+//     fileNamesPDF.forEach(p => {
+//         p.textContent = "Nenhum arquivo selecionado";
+//     });
+//     fileInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     hiddenInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     console.log("Campos de arquivos PDF limpos.");
+
+//     // Resetar campos opcionais
+//     const ajusteCustoCheck = document.getElementById('ajusteCustocheck');
+//     const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+//     const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
+
+//     const caixinhaCheck = document.getElementById('Caixinhacheck');
+//     const campoCaixinha = document.getElementById('campoCaixinha');
+//     const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+//     const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+
+
+//     if (ajusteCustoCheck) {
+//         ajusteCustoCheck.checked = false;
+//         if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
+//         const inputAjusteCusto = document.getElementById('ajusteCusto');
+//         if (inputAjusteCusto) inputAjusteCusto.value = '';
+
+//         const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+//         if (ajusteCustoTextarea) {
+//             ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+//             ajusteCustoTextarea.required = false;    // Remove a obrigatoriedade
+//             ajusteCustoTextarea.value = '';        // Limpa o conteúdo
+//         }
+
+//         if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
+
+//     }
+//     if (caixinhaCheck) {
+//         caixinhaCheck.checked = false;
+//         if (campoCaixinha) campoCaixinha.style.display = 'none';
+//         const inputCaixinha = document.getElementById('caixinha');
+//         if (inputCaixinha) inputCaixinha.value = '';
+//         if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
+
+//         const descCaixinhaTextarea = document.getElementById('descCaixinha');
+//         if (descCaixinhaTextarea) {
+//             descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+//             descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
+//             descCaixinhaTextarea.value = '';       // Limpa o conteúdo
+//         }
+
+//         if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
+//         if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
+//     }
+
+//     const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+//     const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
+//     const meiaDiariaCheck = document.getElementById('meiaDiariacheck');
+    
+//     if (meiaDiariaCheck){
+//         meiaDiariaCheck.checked = false;
+        
+//         if (campoMeiaDiaria) campoMeiaDiaria.style.display = 'none';
+//         const inputMeiaDiaria = document.getElementById('meiaDiaria');
+//         if (inputMeiaDiaria) inputMeiaDiaria.value = '';
+//         if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
+
+//         const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+//         if (descMeiaDiariaTextarea) {
+//             descMeiaDiariaTextarea.style.display = 'none'; // Oculta o textarea
+//             descMeiaDiariaTextarea.required = false;     // Remove a obrigatoriedade
+//             descMeiaDiariaTextarea.value = '';     // Limpa o conteúdo
+//         }
+//     } 
+
+//     const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+//     const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
+//     const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    
+//     if (diariaDobradacheck){
+//         diariaDobradacheck.checked = false;
+//         if (campoDiariaDobrada) campoDiariaDobrada.style.display = 'none';
+//         const inputDiariaDobrada = document.getElementById('diariaDobrada');
+//         if (inputDiariaDobrada) inputDiariaDobrada.value = '';
+//         if (campoStatusDiariaDobrada) campoStatusDiariaDobrada.style.display = 'none';
+        
+//         const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+//         if (descDiariaDobradaTextarea) {
+//             descDiariaDobradaTextarea.style.display = 'none'; // Oculta o textarea
+//             descDiariaDobradaTextarea.required = false;      // Remove a obrigatoriedade
+//             descDiariaDobradaTextarea.value = '';      // Limpa o conteúdo
+//         }
+//     } 
+
+//     // O trecho abaixo estava duplicado ou incorreto, removido/corrigido.
+//     // O trecho com 'meiaDiariacheck' e 'campoDiariaDobrada' estava logicamente incorreto.
+//     // O `meiaDiariacheck` já foi tratado no bloco `meiaDiariaCheck`.
+    
+//     // if (meiaDiariacheck){
+//     //     meiaDiariacheck.checked = false;
+//     //     if (meiaDiariacheck) campoDiariaDobrada.style.display = 'none'; // ERROR: está referenciando campoDiariaDobrada
+//     //     const inputMeiaDiaria = document.getElementById('meiaDiaria');
+//     //     if (inputMeiaDiaria) iinputMeiaDiaria.value = ''; // ERROR: iinputMeiaDiaria
+//     //     if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
+        
+//     //     const descMeiaDiariaTextarea = document.getElementById('descDiariaDobrada'); // ERROR: descDiariaDobrada
+//     //     if (descMeiaDiariaTextarea) {
+//     //         descMeiaDiariaTextarea.style.display = 'none'; 
+//     //         descMeiaDiariaTextarea.required = false;      
+//     //         descMeiaDiariaTextarea.value = '';      
+//     //     }
+        
+//     //     if (campoStatusMeiaDiaria) ampoStatusMeiaDiaria.style.display = 'none'; // ERROR: ampoStatusMeiaDiaria
+//     // } 
+
+//     const check50 = document.getElementById('check50');
+//     const check100 = document.getElementById('check100');
+    
+//     if (check50) {
+//         check50.checked = false;
+//     }
+//     if (check100) {
+//         check100.checked = false;
+//     }
+
+//     const senior2Check = document.getElementById('Seniorcheck');
+//     if (senior2Check) senior2Check.checked = false;
+
+//     const seniorCheck = document.getElementById('Seniorcheck');
+//     if (seniorCheck) seniorCheck.checked = false;
+
+//     const plenoCheck = document.getElementById('Plenocheck');
+//     if (plenoCheck) plenoCheck.checked = false;
+
+//     const juniorCheck = document.getElementById('Juniorcheck');
+//     if (juniorCheck) juniorCheck.checked = false;
+
+//     const baseCheck = document.getElementById('Basecheck');
+//     if (baseCheck) baseCheck.checked = false;
+
+//     const fechadoCheck = document.getElementById('Fechadocheck');
+//     if (fechadoCheck) fechadoCheck.checked = false;
+
+//     const liberadoCheck = document.getElementById('Liberadocheck');
+//     if (liberadoCheck) liberadoCheck.checked = false;
+
+//     const viagem1Check = document.getElementById('viagem1Check');
+//     if (viagem1Check) viagem1Check.checked = false;
+
+//     const viagem2Check = document.getElementById('viagem2Check');
+//     if (viagem2Check) viagem2Check.checked = false;
+
+//     const viagem3Check = document.getElementById('viagem3Check');
+//     if (viagem3Check) viagem3Check.checked = false;
+
+//     const beneficioTextarea = document.getElementById('descBeneficio');
+//     if (beneficioTextarea) {
+//         beneficioTextarea.style.display = 'none'; // Oculta o textarea
+//         beneficioTextarea.required = false;      // Remove a obrigatoriedade
+//         beneficioTextarea.value = '';      // Limpa o conteúdo
+//     }
+
+//     const descAjusteCustoTextarea = document.getElementById('descAjusteCusto');
+//     if (descAjusteCustoTextarea) {
+//         descAjusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+//         descAjusteCustoTextarea.required = false;    // Remove a obrigatoriedade
+//         descAjusteCustoTextarea.value = '';        // Limpa o conteúdo
+//     }
+
+//     const descCaixinhaTextarea = document.getElementById('descCaixinha');
+//     if (descCaixinhaTextarea) {
+//         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+//         descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
+//         descCaixinhaTextarea.value = '';       // Limpa o conteúdo
+//     }
+
+//     const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
+//     if (descCustoFechadoTextarea) {
+//         descCustoFechadoTextarea.style.display = 'none'; // Oculta o textarea
+//         descCustoFechadoTextarea.required = false;   // Remove a obrigatoriedade
+//         descCustoFechadoTextarea.value = '';       // Limpa o conteúdo
+//     }
+
+//     // 🎯 CORREÇÃO: Alinhando a string para 'Autorização de...' para bater com a lógica de salvamento
+//     const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+//     if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária'; // <-- Corrigido para "de"
+
+//     // 🎯 CORREÇÃO: Alinhando a string para 'Autorização de...' para bater com a lógica de salvamento
+//     const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+//     if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada'; // <-- Corrigido para "de"
+
+//     const statusPgto = document.getElementById('statuspgto');
+//     if (statusPgto) statusPgto.value = '';
+
+//     const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+//     if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+
+//     const statusCaixinha = document.getElementById('statuscaixinha');
+//     if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';   
+
+//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+//     const containerStatusAditivo = document.getElementById('containerStatusAditivo');
+//     const containerStatusExtraBonificado = document.getElementById('containerStatusExtraBonificado');
+
+//     if (containerStatusDiariaDobrada) {
+//         containerStatusDiariaDobrada.innerHTML = '';
+//         containerStatusDiariaDobrada.style.display = 'none';
+//     }
+
+//     if (containerStatusMeiaDiaria) {
+//         containerStatusMeiaDiaria.innerHTML = '';
+//         containerStatusMeiaDiaria.style.display = 'none';
+//     }
+
+    
+//     if (containerStatusAditivo) {
+//         containerStatusAditivo.innerHTML = '';
+//         containerStatusAditivo.style.display = 'none';
+//     }
+
+//     if (containerStatusExtraBonificado) {
+//         containerStatusExtraBonificado.innerHTML = '';
+//         containerStatusExtraBonificado.style.display = 'none';
+//     }
+
+//     const avaliacaoSelect = document.getElementById('avaliacao');
+//     if (avaliacaoSelect) {
+//         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+//         // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+//         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+//         if (tarjaAvaliacao) {
+//             tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+//             tarjaAvaliacao.textContent = ''; // Limpa o texto
+//             console.log("Campos de avaliação (select e tarja) limpos.");
+//         }
+//     }
+
+//     const tabelaCorpo = document.getElementById("eventsDataTable") ? document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0] : null;
+
+//     if (tabelaCorpo) {
+//         // Remove todas as linhas filhas do tbody
+//         while (tabelaCorpo.firstChild) {
+//             tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+//         }
+//         console.log("Corpo da tabela (tabela) limpo.");
+
+//         // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+//         let emptyRow = tabelaCorpo.insertRow();
+//         let emptyCell = emptyRow.insertCell(0);
+//         emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+//         emptyCell.textContent = "Nenhum item adicionado.";
+//         emptyCell.style.textAlign = "center";
+//         emptyCell.style.padding = "20px";
+//         console.log("Linha vazia adicionada à tabela 'tabela'.");
+//     } else {
+//         console.warn("Tabela com ID 'eventsDataTable' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+//     }
+
+//     // --- ADICIONE OU ATUALIZE ESTE BLOCO DENTRO DA FUNÇÃO ---
+
+//     // 1. Reset de Checkboxes (Garante que nenhum fique marcado do funcionário anterior)
+//     const checksParaLimpar = [
+//         'Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 
+//         'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 
+//         'viagem2Check', 'viagem3Check', 'check50', 'check100'
+//     ];
+//     checksParaLimpar.forEach(id => {
+//         const cb = document.getElementById(id);
+//         if (cb) cb.checked = false;
+//     });
+
+//     // 2. Ocultar Textareas e Wrappers de Justificativa
+//     const camposParaOcultar = [
+//         'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+//         'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+//     ];
+    
+//     camposParaOcultar.forEach(id => {
+//         const elemento = document.getElementById(id);
+//         if (elemento) {
+//             elemento.style.display = 'none';
+//             elemento.required = false;
+//             elemento.value = '';
+//         }
+//     });
+
+//     // 3. Ocultar Containers de Status e Wrappers específicos
+//     // Caso você use uma Div que envolve o "descCustoFechado", oculte-a também:
+//     const wrapperCustoFechado = document.getElementById('wrapperJustificativaCustoFechado'); // Ajuste o ID se for diferente
+//     if (wrapperCustoFechado) wrapperCustoFechado.style.display = 'none';
+
+//     const campoStatusCustoFechado = document.getElementById('campoStatusCustoFechado');
+//     if (campoStatusCustoFechado) campoStatusCustoFechado.style.display = 'none';
+
+//     // 4. Limpeza de Containers de Status (Aditivos/Extras)
+//     const containersParaLimpar = [
+//         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+//         'containerStatusAditivo', 'containerStatusExtraBonificado'
+//     ];
+
+//     containersParaLimpar.forEach(id => {
+//         const container = document.getElementById(id);
+//         if (container) {
+//             container.innerHTML = '';
+//             container.style.display = 'none';
+//         }
+//     });
+
+//     console.log("Campos de Custo Fechado e Níveis resetados.");
+
+
+//     limparCamposComprovantes();
+//     limparFoto();
+
+//     // ✅ Limpa objeto em memória
+//     limparStaffOriginal();
+//     console.log("StaffOriginal resetado.");
+// }
+
 function limparCamposStaff() {
+    console.log("Iniciando limpeza completa do formulário Staff.");
+
+    // 1. Reset de variáveis de controle
+    currentEditingStaffEvent = null;
+    isFormLoadedFromDoubleClick = false;
+
+    // 2. Habilitar botão Enviar
+    const btn = document.getElementById('Enviar');
+    if (btn) {
+        btn.style.display = 'block';
+        btn.disabled = false;
+    }
+
+    // 3. Lista de campos de texto/valor simples
     const campos = [
         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
         "nmLocalMontagem", "nmPavilhao", "alimentacao", "transporte", "vlrBeneficio", "descBeneficio",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
-        "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", "statusDiariaDobrada",
-        "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas",
-        "idequipe","nmEquipe","setor"
+        "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", 
+        "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", 
+        "labelFuncionario", "perfilFuncionario", "qtdPessoas", "idequipe", "nmEquipe", "setor",
+        "ajusteCusto", "caixinha", "meiaDiaria", "diariaDobrada", "avaliacao"
     ];
 
-    const btn = document.getElementById('Enviar');
-    if (btn) {
-        btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
-        btn.disabled = false;
-    }
-    
     campos.forEach(id => {
         const campo = document.getElementById(id);
-        if (campo) {
-            campo.value = "";
-            console.log(`Campo "${id}" limpo.`);
+        if (campo) campo.value = "";
+    });
+
+    // 4. Reset de Checkboxes (Unificado para evitar repetições de Senior, Viagens, etc)
+    const checksParaLimpar = [
+        'ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck',
+        'Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 
+        'Fechadocheck', 'Liberadocheck', 'viagem1Check', 'viagem2Check', 'viagem3Check', 
+        'check50', 'check100'
+    ];
+    checksParaLimpar.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    // 5. Ocultar Textareas e torná-los não obrigatórios (Incluindo Custo Fechado)
+    const textareasParaOcultar = [
+        'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+        'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+    ];
+    textareasParaOcultar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = 'none';
+            el.required = false;
+            el.value = '';
         }
     });
 
-    // Limpeza robusta para o Select Multiple de Pavilhão
-    // Força a limpeza visual de campos 'multiple' como o Pavilhão
+    // 6. Containers, Wrappers e Status Visuais
+    const containersParaOcultar = [
+        'campoAjusteCusto', 'campoStatusAjusteCusto', 'campoCaixinha', 'campoStatusCaixinha', 
+        'campoPgtoCaixinha', 'campoMeiaDiaria', 'campoStatusMeiaDiaria', 'campoDiariaDobrada', 
+        'campoStatusDiariaDobrada', 'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria', 
+        'containerStatusAditivo', 'containerStatusExtraBonificado', 'campoStatusCustoFechado',
+        'wrapperJustificativaCustoFechado', 'labelFuncionario'
+    ];
+    containersParaOcultar.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            if (id.startsWith('container')) container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    });
+
+    // 7. Reset de valores de Status Padrão (Strings de Autorização)
+    const statusPadrao = {
+        'statusMeiaDiaria': 'Autorização de Meia Diária',
+        'statusDiariaDobrada': 'Autorização de Diária Dobrada',
+        'statusAjusteCusto': 'Autorização do Ajuste de Custo',
+        'statuscaixinha': 'Autorização da Caixinha'
+    };
+    for (let id in statusPadrao) {
+        const el = document.getElementById(id);
+        if (el) el.value = statusPadrao[id];
+    }
+
+    // 8. Limpeza de Foto e Uploads
+    if (document.getElementById('previewFoto')) {
+        const preview = document.getElementById('previewFoto');
+        preview.src = "#";
+        preview.style.display = "none";
+    }
+    if (document.getElementById('fileName')) document.getElementById('fileName').textContent = "Nenhum arquivo selecionado";
+    if (document.getElementById('file')) document.getElementById('file').value = "";
+    if (document.getElementById('uploadHeader')) document.getElementById('uploadHeader').style.display = "block";
+    if (document.getElementById('nomeFuncionarioExibido')) document.getElementById('nomeFuncionarioExibido').textContent = "";
+
+    // 9. Pickers (Flatpickr) e Contadores
+    if (window.datasEventoPicker) window.datasEventoPicker.clear();
+    if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
+    if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+    
+    const contador = document.getElementById('contadorDatas');
+    if (contador) contador.textContent = "Nenhuma data selecionada.";
+
+    // 10. Limpeza de Select Multiple (Pavilhão)
     const selectPavilhao = document.getElementById('nmPavilhao');
     if (selectPavilhao) {
-        // Desmarca todas as opções selecionadas uma por uma
-        Array.from(selectPavilhao.options).forEach(option => {
-            option.selected = false;
-        });
-        console.log("Seleções de nmPavilhao resetadas manualmente.");
+        Array.from(selectPavilhao.options).forEach(opt => opt.selected = false);
     }
 
-    // Garante que o input de Setor também seja limpo (adicione se não estiver no array 'campos')
-    const campoSetor = document.getElementById('setor');
-    if (campoSetor) {
-        campoSetor.value = "";
+    // 11. Limpeza de PDFs (Classes)
+    document.querySelectorAll('.fileNamePDF').forEach(p => p.textContent = "Nenhum arquivo selecionado");
+    document.querySelectorAll('.filePDFInput, .hiddenPDF').forEach(input => input.value = "");
+
+    // 12. Tarja de Avaliação
+    const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+    if (tarjaAvaliacao) {
+        tarjaAvaliacao.className = 'tarja-avaliacao';
+        tarjaAvaliacao.textContent = '';
     }
 
-    currentEditingStaffEvent = null; // Garanta que esta também seja limpa
-    isFormLoadedFromDoubleClick = false;
-
-    const previewFoto = document.getElementById('previewFoto');
-    const fileName = document.getElementById('fileName');
-    const fileInput = document.getElementById('file');
-    const uploadHeader = document.getElementById('uploadHeader');
-    const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
-    const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
-    const labelFuncionario = document.getElementById('labelFuncionario');
-
-    if (labelFuncionario) {
-        labelFuncionario.style.display = "none"; // esconde
-        labelFuncionario.textContent = "";    // limpa o texto
-        labelFuncionario.style.color = "";    // reseta cor
-        console.log("Label Funcionário limpo.");
-    }
-
-    if (previewFoto) {
-        previewFoto.src = "#";
-        previewFoto.style.display = "none";
-        console.log("Preview da foto limpo.");
-    }
-    if (fileName) {
-        fileName.textContent = "Nenhum arquivo selecionado";
-    }
-    if (fileInput) {
-        fileInput.value = "";
-    }
-    if (uploadHeader) {
-        uploadHeader.style.display = "block";
-    }
-    if (linkFotoFuncionarios) {
-        linkFotoFuncionarios.value = "";
-    }
-    if (nomeFuncionarioExibido) {
-        nomeFuncionarioExibido.textContent = "";
-    }    
-
-    const contadorDatas = document.getElementById('contadorDatas');
-
-    if (contadorDatas) {
-        contadorDatas.textContent = "Nenhuma data selecionada.";
-    }
-
-    // Limpeza do Picker Principal (Datas do Evento)
-    if (window.datasEventoPicker) {
-        window.datasEventoPicker.clear();
-        // O MutationObserver deve pegar a alteração no contadorDatas, 
-        // mas é bom garantir que o contador reflita a limpeza.
-        if (contadorDatas) {
-            contadorDatas.textContent = "Nenhuma data selecionada."; 
-        }
-        console.log("Datas do evento limpas via Flatpickr.");
-    }
-    
-    // Limpeza dos Pickers Auxiliares (Diária Dobrada e Meia Diária)
-    if (window.diariaDobradaPicker) {
-        window.diariaDobradaPicker.clear();
-    }
-
-    if (window.meiaDiariaPicker) {
-        window.meiaDiariaPicker.clear();
-    }
-    console.log("Pickers auxiliares (Diária Dobrada e Meia Diária) limpos.");
-
-    // ✅ Limpeza de PDFs por classe
-    const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
-    const fileInputsPDF = document.querySelectorAll('.filePDFInput');
-    const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
-
-    fileNamesPDF.forEach(p => {
-        p.textContent = "Nenhum arquivo selecionado";
-    });
-    fileInputsPDF.forEach(input => {
-        input.value = "";
-    });
-    hiddenInputsPDF.forEach(input => {
-        input.value = "";
-    });
-    console.log("Campos de arquivos PDF limpos.");
-
-    // Resetar campos opcionais
-    const ajusteCustoCheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-    const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
-
-    const caixinhaCheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-    const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-    const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-
-
-    if (ajusteCustoCheck) {
-        ajusteCustoCheck.checked = false;
-        if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
-        const inputAjusteCusto = document.getElementById('ajusteCusto');
-        if (inputAjusteCusto) inputAjusteCusto.value = '';
-
-        const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-        if (ajusteCustoTextarea) {
-            ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-            ajusteCustoTextarea.required = false;    // Remove a obrigatoriedade
-            ajusteCustoTextarea.value = '';        // Limpa o conteúdo
-        }
-
-        if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
-
-    }
-    if (caixinhaCheck) {
-        caixinhaCheck.checked = false;
-        if (campoCaixinha) campoCaixinha.style.display = 'none';
-        const inputCaixinha = document.getElementById('caixinha');
-        if (inputCaixinha) inputCaixinha.value = '';
-        if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-
-        const descCaixinhaTextarea = document.getElementById('descCaixinha');
-        if (descCaixinhaTextarea) {
-            descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-            descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
-            descCaixinhaTextarea.value = '';       // Limpa o conteúdo
-        }
-
-        if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-        if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
-    }
-
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
-    const meiaDiariaCheck = document.getElementById('meiaDiariacheck');
-    
-    if (meiaDiariaCheck){
-        meiaDiariaCheck.checked = false;
-        
-        if (campoMeiaDiaria) campoMeiaDiaria.style.display = 'none';
-        const inputMeiaDiaria = document.getElementById('meiaDiaria');
-        if (inputMeiaDiaria) inputMeiaDiaria.value = '';
-        if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-
-        const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
-        if (descMeiaDiariaTextarea) {
-            descMeiaDiariaTextarea.style.display = 'none'; // Oculta o textarea
-            descMeiaDiariaTextarea.required = false;     // Remove a obrigatoriedade
-            descMeiaDiariaTextarea.value = '';     // Limpa o conteúdo
-        }
-    } 
-
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    
-    if (diariaDobradacheck){
-        diariaDobradacheck.checked = false;
-        if (campoDiariaDobrada) campoDiariaDobrada.style.display = 'none';
-        const inputDiariaDobrada = document.getElementById('diariaDobrada');
-        if (inputDiariaDobrada) inputDiariaDobrada.value = '';
-        if (campoStatusDiariaDobrada) campoStatusDiariaDobrada.style.display = 'none';
-        
-        const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
-        if (descDiariaDobradaTextarea) {
-            descDiariaDobradaTextarea.style.display = 'none'; // Oculta o textarea
-            descDiariaDobradaTextarea.required = false;      // Remove a obrigatoriedade
-            descDiariaDobradaTextarea.value = '';      // Limpa o conteúdo
-        }
-    } 
-
-    // O trecho abaixo estava duplicado ou incorreto, removido/corrigido.
-    // O trecho com 'meiaDiariacheck' e 'campoDiariaDobrada' estava logicamente incorreto.
-    // O `meiaDiariacheck` já foi tratado no bloco `meiaDiariaCheck`.
-    
-    // if (meiaDiariacheck){
-    //     meiaDiariacheck.checked = false;
-    //     if (meiaDiariacheck) campoDiariaDobrada.style.display = 'none'; // ERROR: está referenciando campoDiariaDobrada
-    //     const inputMeiaDiaria = document.getElementById('meiaDiaria');
-    //     if (inputMeiaDiaria) iinputMeiaDiaria.value = ''; // ERROR: iinputMeiaDiaria
-    //     if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-        
-    //     const descMeiaDiariaTextarea = document.getElementById('descDiariaDobrada'); // ERROR: descDiariaDobrada
-    //     if (descMeiaDiariaTextarea) {
-    //         descMeiaDiariaTextarea.style.display = 'none'; 
-    //         descMeiaDiariaTextarea.required = false;      
-    //         descMeiaDiariaTextarea.value = '';      
-    //     }
-        
-    //     if (campoStatusMeiaDiaria) ampoStatusMeiaDiaria.style.display = 'none'; // ERROR: ampoStatusMeiaDiaria
-    // } 
-
-    const check50 = document.getElementById('check50');
-    const check100 = document.getElementById('check100');
-    
-    if (check50) {
-        check50.checked = false;
-    }
-    if (check100) {
-        check100.checked = false;
-    }
-
-    const seniorCheck = document.getElementById('Seniorcheck');
-    if (seniorCheck) seniorCheck.checked = false;
-
-    const plenoCheck = document.getElementById('Plenocheck');
-    if (plenoCheck) plenoCheck.checked = false;
-
-    const juniorCheck = document.getElementById('Juniorcheck');
-    if (juniorCheck) juniorCheck.checked = false;
-
-    const baseCheck = document.getElementById('Basecheck');
-    if (baseCheck) baseCheck.checked = false;
-
-    const fechadoCheck = document.getElementById('Fechadocheck');
-    if (fechadoCheck) fechadoCheck.checked = false;
-
-    const viagem1Check = document.getElementById('viagem1Check');
-    if (viagem1Check) viagem1Check.checked = false;
-
-    const viagem2Check = document.getElementById('viagem2Check');
-    if (viagem2Check) viagem2Check.checked = false;
-
-    const viagem3Check = document.getElementById('viagem3Check');
-    if (viagem3Check) viagem3Check.checked = false;
-
-    const beneficioTextarea = document.getElementById('descBeneficio');
-    if (beneficioTextarea) {
-        beneficioTextarea.style.display = 'none'; // Oculta o textarea
-        beneficioTextarea.required = false;      // Remove a obrigatoriedade
-        beneficioTextarea.value = '';      // Limpa o conteúdo
-    }
-
-    const descAjusteCustoTextarea = document.getElementById('descAjusteCusto');
-    if (descAjusteCustoTextarea) {
-        descAjusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-        descAjusteCustoTextarea.required = false;    // Remove a obrigatoriedade
-        descAjusteCustoTextarea.value = '';        // Limpa o conteúdo
-    }
-
-    const descCaixinhaTextarea = document.getElementById('descCaixinha');
-    if (descCaixinhaTextarea) {
-        descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-        descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
-        descCaixinhaTextarea.value = '';       // Limpa o conteúdo
-    }
-
-    // 🎯 CORREÇÃO: Alinhando a string para 'Autorização de...' para bater com a lógica de salvamento
-    const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
-    if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária'; // <-- Corrigido para "de"
-
-    // 🎯 CORREÇÃO: Alinhando a string para 'Autorização de...' para bater com a lógica de salvamento
-    const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
-    if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada'; // <-- Corrigido para "de"
-
-    const statusPgto = document.getElementById('statuspgto');
-    if (statusPgto) statusPgto.value = '';
-
-    const statusAjusteCusto = document.getElementById('statusAjusteCusto');
-    if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
-
-    const statusCaixinha = document.getElementById('statuscaixinha');
-    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';   
-
-    const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-    const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-    const containerStatusAditivo = document.getElementById('containerStatusAditivo');
-    const containerStatusExtraBonificado = document.getElementById('containerStatusExtraBonificado');
-
-    if (containerStatusDiariaDobrada) {
-        containerStatusDiariaDobrada.innerHTML = '';
-        containerStatusDiariaDobrada.style.display = 'none';
-    }
-
-    if (containerStatusMeiaDiaria) {
-        containerStatusMeiaDiaria.innerHTML = '';
-        containerStatusMeiaDiaria.style.display = 'none';
-    }
-
-    
-    if (containerStatusAditivo) {
-        containerStatusAditivo.innerHTML = '';
-        containerStatusAditivo.style.display = 'none';
-    }
-
-    if (containerStatusExtraBonificado) {
-        containerStatusExtraBonificado.innerHTML = '';
-        containerStatusExtraBonificado.style.display = 'none';
-    }
-
-    const avaliacaoSelect = document.getElementById('avaliacao');
-    if (avaliacaoSelect) {
-        avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
-        // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
-        const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
-        if (tarjaAvaliacao) {
-            tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
-            tarjaAvaliacao.textContent = ''; // Limpa o texto
-            console.log("Campos de avaliação (select e tarja) limpos.");
-        }
-    }
-
-    const tabelaCorpo = document.getElementById("eventsDataTable") ? document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0] : null;
-
+    // 13. Limpeza da Tabela
+    const tabelaCorpo = document.querySelector("#eventsDataTable tbody");
     if (tabelaCorpo) {
-        // Remove todas as linhas filhas do tbody
-        while (tabelaCorpo.firstChild) {
-            tabelaCorpo.removeChild(tabelaCorpo.firstChild);
-        }
-        console.log("Corpo da tabela (tabela) limpo.");
-
-        // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
-        let emptyRow = tabelaCorpo.insertRow();
-        let emptyCell = emptyRow.insertCell(0);
-        emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
-        emptyCell.textContent = "Nenhum item adicionado.";
-        emptyCell.style.textAlign = "center";
-        emptyCell.style.padding = "20px";
-        console.log("Linha vazia adicionada à tabela 'tabela'.");
-    } else {
-        console.warn("Tabela com ID 'eventsDataTable' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+        tabelaCorpo.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:20px;">Nenhum item adicionado.</td></tr>`;
     }
 
-
+    // Funções auxiliares externas
     limparCamposComprovantes();
     limparFoto();
-
-    // ✅ Limpa objeto em memória
     limparStaffOriginal();
-    console.log("StaffOriginal resetado.");
+
+    console.log("StaffOriginal e campos resetados com sucesso.");
+}
+
+// async function limparCamposStaffParcial() {
+
+//     currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+//     isFormLoadedFromDoubleClick = false;
+
+//     const previewFoto = document.getElementById('previewFoto');
+//     const fileName = document.getElementById('fileName');
+//     const fileInput = document.getElementById('file');
+//     const uploadHeader = document.getElementById('uploadHeader');
+//     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+//     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+//     const labelFuncionario = document.getElementById('labelFuncionario');
+
+//     if (labelFuncionario) {
+//         labelFuncionario.style.display = "none"; // esconde
+//         labelFuncionario.textContent = "";       // limpa o texto
+//         labelFuncionario.style.color = "";       // reseta cor
+//         console.log("Label Funcionário limpo.");
+//     }
+
+//     if (previewFoto) {
+//         previewFoto.src = "#";
+//         previewFoto.style.display = "none";
+//         console.log("Preview da foto limpo.");
+//     }
+//     if (fileName) {
+//         fileName.textContent = "Nenhum arquivo selecionado";
+//     }
+//     if (fileInput) {
+//         fileInput.value = "";
+//     }
+//     if (uploadHeader) {
+//         uploadHeader.style.display = "block";
+//     }
+//     if (linkFotoFuncionarios) {
+//         linkFotoFuncionarios.value = "";
+//     }
+//     if (nomeFuncionarioExibido) {
+//         nomeFuncionarioExibido.textContent = "";
+//     }
+
+//     // 1. Limpeza de IDs e Nome do Staff/Funcionário
+//     document.querySelector("#idStaff").value = '';
+//     document.querySelector("#idFuncionario").value = '';
+//     const nmFuncionario = document.getElementById("nmFuncionario");
+//     if (nmFuncionario) nmFuncionario.value = ''; 
+
+//     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
+//     const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
+//     const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+//     const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
+
+//     document.querySelector("#apelidoFuncionario").value = '';
+//     const apelido = document.getElementById("apelidoFuncionario");
+//     if (apelido) apelido.value = '';
+
+//     document.querySelector("#perfilFuncionario").value = '';
+//     const perfil = document.getElementById("perfilFuncionario");
+//     if (perfil) perfil.value = '';
+
+//     // 2. Limpeza de valores financeiros
+//     document.querySelector("#vlrCusto").value = ''; // Cachê
+//     document.querySelector("#transporte").value = '';
+//     document.querySelector("#alimentacao").value = '';
+//     document.querySelector("#caixinha").value = '';
+//     document.getElementById('vlrTotal').value = '';
+//     document.getElementById('vlrCacheTotal').value = '';
+//     document.getElementById('vlrAjdCustoTotal').value = '';
+
+//     const ajusteCustoInput = document.querySelector("#ajusteCusto");
+//     if (ajusteCustoInput) ajusteCustoInput.style.display = 'none'; // 🎯 Novo
+
+//     const caixinhaInput = document.querySelector("#caixinha");
+//     if (caixinhaInput) caixinhaInput.style.display = 'none'; // 🎯 Novo
+
+//     // 3. Limpeza de Níveis de Experiência (Checkboxes)
+    
+//     if (isAjudanteDeMarcacao) {
+//         console.log("Função 'Ajudante de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         document.getElementById('Liberadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
+//     if (isFiscalDeMarcacao) {
+//         console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck2').checked = false;
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         document.getElementById('Liberadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
+    
+//     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
+//     // Usamos o método clear() em todas as instâncias do flatpickr.
+    
+//     // Período do Evento
+//     // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker && typeof datasEventoPicker.clear === 'function') {
+//     //     datasEventoPicker.clear();
+//     //     console.log("Datas do Evento (Flatpickr) limpas.");
+//     // }
+
+//     // Diária Dobrada
+//     const diariaDobradaCheck = document.getElementById("diariaDobradacheck");
+//     if (typeof window.diariaDobradaPicker !== 'undefined' && window.diariaDobradaPicker && typeof window.diariaDobradaPicker.clear === 'function') {
+//         diariaDobradaPicker.clear();
+//     }
+//     if (diariaDobradaCheck) {
+//         diariaDobradaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const diariaDobradaInput = document.getElementById("datasDobrada"); // ⚠️ Verifique o ID do input de datas dobradas
+//         if (diariaDobradaInput) {
+//             diariaDobradaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
+    
+//     // Meia Diária
+//     const meiaDiariaCheck = document.getElementById("meiaDiariacheck");
+//     if (typeof window.meiaDiariaPicker !== 'undefined' && window.meiaDiariaPicker && typeof window.meiaDiariaPicker.clear === 'function') {
+//         meiaDiariaPicker.clear();
+//     }
+//     if (meiaDiariaCheck) {
+//         meiaDiariaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const meiaDiariaInput = document.getElementById("datasMeiaDiaria");
+//         if (meiaDiariaInput) {
+//             meiaDiariaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
+
+//     // 5. ⚠️ Limpeza de outros Checkboxes (Caixinha/AjusteCusto)
+//     const caixinhaCheck = document.getElementById("Caixinhacheck");
+//     if (caixinhaCheck) {
+//         caixinhaCheck.checked = false;
+//     }
+    
+//     const ajusteCustoCheck = document.getElementById("ajusteCustocheck");
+//     if (ajusteCustoCheck) {
+//         ajusteCustoCheck.checked = false;
+//     }
+
+//     // ✅ Limpeza de PDFs por classe
+//     const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+//     const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+//     const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
+//     fileNamesPDF.forEach(p => {
+//         p.textContent = "Nenhum arquivo selecionado";
+//     });
+//     fileInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     hiddenInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     console.log("Campos de arquivos PDF limpos.");
+
+
+//     const beneficioTextarea = document.getElementById('descBeneficio');
+//     if (beneficioTextarea) {
+//         beneficioTextarea.style.display = 'none'; // Oculta o textarea
+//         beneficioTextarea.required = false;      // Remove a obrigatoriedade
+//         beneficioTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+//     if (ajusteCustoTextarea) {
+//         ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+//         ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
+//         ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const descCaixinhaTextarea = document.getElementById('descCaixinha');
+//     if (descCaixinhaTextarea) {
+//         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+//         descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
+//         descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+//     if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária';
+
+//     const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+//     if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada';
+
+//     const statusPgto = document.getElementById('statuspgto');
+//     if (statusPgto) statusPgto.value = '';
+
+//     const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+//     if (statusAjusteCusto) {
+//         statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+//         statusAjusteCusto.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const statusCaixinha = document.getElementById('statuscaixinha');
+//     if (statusCaixinha) {
+//         statusCaixinha.value = 'Autorização da Caixinha';
+//         statusCaixinha.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+//     if (containerStatusDiariaDobrada) {
+//         containerStatusDiariaDobrada.innerHTML = '';
+//         containerStatusDiariaDobrada.style.display = 'none';
+//     }
+
+//     if (containerStatusMeiaDiaria) {
+//         containerStatusMeiaDiaria.innerHTML = '';
+//         containerStatusMeiaDiaria.style.display = 'none';
+//     }
+
+//     const avaliacaoSelect = document.getElementById('avaliacao');
+//     if (avaliacaoSelect) {
+//         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+//         // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+//         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+//         if (tarjaAvaliacao) {
+//             tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+//             tarjaAvaliacao.textContent = ''; // Limpa o texto
+//             console.log("Campos de avaliação (select e tarja) limpos.");
+//         }
+//     }
+
+//     const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+//     if (tabelaCorpo) {
+//         // Remove todas as linhas filhas do tbody
+//         while (tabelaCorpo.firstChild) {
+//             tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+//         }
+//         console.log("Corpo da tabela (tabela) limpo.");
+
+//         // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+//         let emptyRow = tabelaCorpo.insertRow();
+//         let emptyCell = emptyRow.insertCell(0);
+//         emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+//         emptyCell.textContent = "Nenhum item adicionado.";
+//         emptyCell.style.textAlign = "center";
+//         emptyCell.style.padding = "20px";
+//         console.log("Linha vazia adicionada à tabela 'tabela'.");
+//     } else {
+//         console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+//     }
+
+// // --- ADICIONE OU ATUALIZE ESTE BLOCO DENTRO DA FUNÇÃO ---
+
+//     // 1. Reset de Checkboxes (Garante que nenhum fique marcado do funcionário anterior)
+//     const checksParaLimpar = [
+//         'Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 
+//         'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 
+//         'viagem2Check', 'viagem3Check', 'check50', 'check100'
+//     ];
+//     checksParaLimpar.forEach(id => {
+//         const cb = document.getElementById(id);
+//         if (cb) cb.checked = false;
+//     });
+
+//     // 2. Ocultar Textareas e Wrappers de Justificativa
+//     const camposParaOcultar = [
+//         'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+//         'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+//     ];
+    
+//     camposParaOcultar.forEach(id => {
+//         const elemento = document.getElementById(id);
+//         if (elemento) {
+//             elemento.style.display = 'none';
+//             elemento.required = false;
+//             elemento.value = '';
+//         }
+//     });
+
+//     // 3. Ocultar Containers de Status e Wrappers específicos
+//     // Caso você use uma Div que envolve o "descCustoFechado", oculte-a também:
+//     const wrapperCustoFechado = document.getElementById('wrapperJustificativaCustoFechado'); // Ajuste o ID se for diferente
+//     if (wrapperCustoFechado) wrapperCustoFechado.style.display = 'none';
+
+//     const campoStatusCustoFechado = document.getElementById('campoStatusCustoFechado');
+//     if (campoStatusCustoFechado) campoStatusCustoFechado.style.display = 'none';
+
+//     // 4. Limpeza de Containers de Status (Aditivos/Extras)
+//     const containersParaLimpar = [
+//         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+//         'containerStatusAditivo', 'containerStatusExtraBonificado'
+//     ];
+
+//     containersParaLimpar.forEach(id => {
+//         const container = document.getElementById(id);
+//         if (container) {
+//             container.innerHTML = '';
+//             container.style.display = 'none';
+//         }
+//     });
+
+//     console.log("Campos de Custo Fechado e Níveis resetados.");
+
+//     limparCamposComprovantes();
+//     limparFoto();
+
+
+//     // 6. Notifica o usuário
+//     Swal.fire({
+//         title: "Pronto para o próximo!",
+//         text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
+//         icon: "info",
+//         timer: 2000,
+//         showConfirmButton: false
+//     });
+
+
+// }
+
+async function limparCamposStaffParcial() {
+    console.log("Iniciando limpeza parcial do Staff (Funcionário e Valores).");
+
+    // 1. Reset de variáveis de controle e Foto
+    currentEditingStaffEvent = null;
+    isFormLoadedFromDoubleClick = false;
+
+    const idsFoto = ['previewFoto', 'fileName', 'file', 'uploadHeader', 'linkFotoFuncionarios', 'nomeFuncionarioExibido', 'labelFuncionario'];
+    idsFoto.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (id === 'previewFoto') { el.src = "#"; el.style.display = "none"; }
+        else if (id === 'fileName') el.textContent = "Nenhum arquivo selecionado";
+        else if (id === 'uploadHeader') el.style.display = "block";
+        else if (id === 'nomeFuncionarioExibido' || id === 'labelFuncionario') {
+            el.textContent = "";
+            if (id === 'labelFuncionario') { el.style.display = "none"; el.style.color = ""; }
+        } else { el.value = ""; }
+    });
+
+    // 2. Identificação da Função (Regra de Negócio para Níveis)
+    const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
+    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim().toUpperCase();
+    const pularLimpezaNiveis = (descfuncaoAtual === 'AJUDANTE DE MARCAÇÃO' || descfuncaoAtual === 'FISCAL DE MARCAÇÃO');
+
+    // 3. Limpeza de Inputs de Texto e Valores
+    const camposTexto = [
+        "idStaff", "idFuncionario", "nmFuncionario", "apelidoFuncionario", "perfilFuncionario",
+        "vlrCusto", "transporte", "alimentacao", "caixinha", "vlrTotal", "vlrCacheTotal", 
+        "vlrAjdCustoTotal", "ajusteCusto", "avaliacao"
+    ];
+    camposTexto.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = "";
+    });
+
+    // 4. Reset de Checkboxes (Unificado)
+    const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100'];
+    
+    // Só adiciona os níveis à lista de limpeza se não for função de marcação
+    if (!pularLimpezaNiveis) {
+        checksParaLimpar.push('Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 'viagem2Check', 'viagem3Check');
+    }
+
+    checksParaLimpar.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    // 5. Ocultar Textareas e Justificativas (Incluindo Custo Fechado)
+    const camposParaOcultar = [
+        'descBeneficio', 'descAjusteCusto', 'descCaixinha', 
+        'descMeiaDiaria', 'descDiariaDobrada', 'descCustoFechado'
+    ];
+    camposParaOcultar.forEach(id => {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+            elemento.style.display = 'none';
+            elemento.required = false;
+            elemento.value = '';
+        }
+    });
+
+    // 6. Containers de Status, Inputs de Data e Wrappers
+    const containersParaLimpar = [
+        'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+        'containerStatusAditivo', 'containerStatusExtraBonificado',
+        'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado',
+        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha',
+        'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
+    ];
+    containersParaLimpar.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            if (id.startsWith('container')) container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    });
+
+    // 7. Reset de Valores de Status Padrão
+    const statusPadrao = {
+        'statusMeiaDiaria': 'Autorização de Meia Diária',
+        'statusDiariaDobrada': 'Autorização de Diária Dobrada',
+        'statusAjusteCusto': 'Autorização do Ajuste de Custo',
+        'statuscaixinha': 'Autorização da Caixinha',
+        'statuspgto': ''
+    };
+    for (let id in statusPadrao) {
+        const el = document.getElementById(id);
+        if (el) el.value = statusPadrao[id];
+    }
+
+    // 8. Flatpickr e Comprovantes
+    if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
+    if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+    
+    // Limpeza de PDFs por classe
+    document.querySelectorAll('.fileNamePDF').forEach(p => p.textContent = "Nenhum arquivo selecionado");
+    document.querySelectorAll('.filePDFInput, .hiddenPDF').forEach(input => input.value = "");
+
+    // 9. Reset da Tabela de Eventos
+    const tabelaCorpo = document.querySelector("#eventsDataTable tbody");
+    if (tabelaCorpo) {
+        tabelaCorpo.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:20px;">Nenhum item adicionado.</td></tr>`;
+    }
+
+    // 10. Tarja de Avaliação
+    const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+    if (tarjaAvaliacao) {
+        tarjaAvaliacao.className = 'tarja-avaliacao';
+        tarjaAvaliacao.textContent = '';
+    }
+
+    // Funções de limpeza externa
+    limparCamposComprovantes();
+    limparFoto();
+    limparStaffOriginal();
+
+    Swal.fire({
+        title: "Pronto para o próximo!",
+        text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
+        icon: "info",
+        timer: 2000,
+        showConfirmButton: false
+    });
 }
 
 function getPeriodoDatas(inputValue) {
@@ -6970,105 +7715,113 @@ function formatarDataParaBackend(dataString) {
     return null; // Retorna null se nenhum dos formatos for reconhecido
 }
 
+function verificarStatusCache() {
+    const isFechado = document.getElementById('Fechadocheck')?.checked;
+    const isLiberado = document.getElementById('Liberadocheck')?.checked;
+
+    // Se não é Fechado nem Liberado, não há restrição
+    if (!isFechado && !isLiberado) return true;
+
+    // Se é Fechado/Liberado, verifica o status
+    const statusCache = document.getElementById('statusCustoFechado')?.value || '';
+    const statusUpper = statusCache.trim().toUpperCase();
+
+    if (statusUpper === 'PENDENTE' || statusUpper === '') {
+        Swal.fire({
+            title: 'Solicitação Bloqueada',
+            text: 'A solicitação de adicionais está bloqueada até a liberação do Cachê Fechado/Liberado.',
+            icon: 'warning',
+            confirmButtonText: 'Entendi'
+        });
+        return false;
+    }
+    return true;
+}
+
+// AJUSTE DE CUSTO
+document.getElementById('ajusteCustocheck').addEventListener('click', function(e) {
+    // Se estiver desmarcado e o usuário tentar marcar
+    if (!this.classList.contains('is-active') && !this.checked) {
+        // Deixe o change lidar com a marcação, mas aqui validamos o bloqueio
+    }
+});
+
 document.getElementById('ajusteCustocheck').addEventListener('change', function () {
-  const campo = document.getElementById('campoAjusteCusto');
-  const input = document.getElementById('ajusteCusto');
-  const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
-  const inputStatusAjusteCusto = document.getElementById('statusAjusteCusto');
+    const campo = document.getElementById('campoAjusteCusto');
+    const input = document.getElementById('ajusteCusto');
+    const campoStatus = document.getElementById('campoStatusAjusteCusto');
+    const inputStatus = document.getElementById('statusAjusteCusto');
 
-  if (this.checked) {
-    campo.style.display = 'block';
-    input.required = true;
-    input.style.width = '100%'; // aplica largura total
-
-    campoStatusAjusteCusto.style.display = 'block';
-    inputStatusAjusteCusto.required = true;
-    inputStatusAjusteCusto.style.width = '100%';
-
-  } else {
-    campo.style.display = 'none';
-    input.value = '';
-    input.required = false;
-
-    campoStatusAjusteCusto.style.display = 'none';
-    inputStatusAjusteCusto.value = '';
-    inputStatusAjusteCusto.required = false;
-  }
-});
-
-document.getElementById('ajusteCusto').addEventListener('change', function () {
-
-    const valorAjusteCusto = document.getElementById('ajusteCusto').value;
-
-    console.log("VALOR DO ajusteCusto", valorAjusteCusto);
-
-    const valorAjusteCustoNumerico = parseFloat(valorAjusteCusto.replace('R$', '').replace('.', '').replace(',', '.'));
-
-    if (valorAjusteCustoNumerico > 0) {
-        document.getElementById('statusAjusteCusto').value = 'Pendente';
+    if (this.checked) {
+        // Tenta marcar: Valida se pode
+        if (!verificarStatusCache()) {
+            this.checked = false; // Desmarca forçadamente
+            return;
+        }
+        
+        // Se puder marcar, mostra os campos
+        campo.style.display = 'block';
+        input.required = true;
+        campoStatus.style.display = 'block';
+        inputStatus.required = true;
     } else {
-        // Se o valor for 0 ou negativo, limpa o status
-        document.getElementById('statusAjusteCusto').value = '';
+        // AO DESMARCAR: Remove obrigatoriedade ANTES de esconder
+        input.required = false;
+        inputStatus.required = false;
+        
+        campo.style.display = 'none';
+        campoStatus.style.display = 'none';
+        
+        // Limpa os valores para não enviar lixo no POST
+        input.value = '';
+        inputStatus.value = '';
     }
-
 });
 
-document.getElementById('caixinha').addEventListener('change', function () {
-
-    const valorCaixinha = document.getElementById('caixinha').value;
-
-    console.log("VALOR DA CAIXINHA", valorCaixinha);
-
-    const valorCaixinhaNumerico = parseFloat(valorCaixinha.replace('R$', '').replace('.', '').replace(',', '.'));
-
-    if (valorCaixinhaNumerico > 0) {
-        document.getElementById('statusCaixinha').value = 'Pendente';
-    } else {
-        // Se o valor for 0 ou negativo, limpa o status
-        document.getElementById('statusCaixinha').value = '';
-    }
-
-});
-
+// CAIXINHA
 document.getElementById('Caixinhacheck').addEventListener('change', function () {
-  const campo = document.getElementById('campoCaixinha');
-  const input = document.getElementById('caixinha');
+    const input = document.getElementById('caixinha');
+    const inputStatus = document.getElementById('statusCaixinha');
+    const inputPgto = document.getElementById('statusPgtoCaixinha');
 
-  const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-  const inputStatusCaixinha = document.getElementById('statusCaixinha');
+    if (this.checked) {
+        if (!verificarStatusCache()) {
+            this.checked = false;
+            return;
+        }
+        
+        document.getElementById('campoCaixinha').style.display = 'block';
+        document.getElementById('campoStatusCaixinha').style.display = 'block';
+        document.getElementById('campoPgtoCaixinha').style.display = 'block';
+        
+        input.required = true;
+        inputStatus.required = true;
+        inputPgto.required = true;
+    } else {
+        input.required = false;
+        inputStatus.required = false;
+        inputPgto.required = false;
 
-  const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-  const inputStatusPgtoCaixinha = document.getElementById('statusPgtoCaixinha');
-
-  if (this.checked) {
-    campo.style.display = 'block';
-    input.required = true;
-    input.style.width = '170px'; // aplica largura total
-
-    campoStatusCaixinha.style.display = 'block';
-    inputStatusCaixinha.required = true;
-    inputStatusCaixinha.style.width = '170px';
-
-    campoPgtoCaixinha.style.display = 'block';
-    inputStatusPgtoCaixinha.required = true;
-    inputStatusPgtoCaixinha.style.width = '170px';
-  } else {
-    campo.style.display = 'none';
-    input.value = '';
-    input.required = false;
-
-    campoStatusCaixinha.style.display = 'none';
-    inputStatusCaixinha.value = '';
-    inputStatusCaixinha.required = false;
-
-    campoPgtoCaixinha.style.display = 'none';
-    inputStatusPgtoCaixinha.value = '';
-    inputStatusPgtoCaixinha.required = false;
-  }
+        document.getElementById('campoCaixinha').style.display = 'none';
+        document.getElementById('campoStatusCaixinha').style.display = 'none';
+        document.getElementById('campoPgtoCaixinha').style.display = 'none';
+        
+        input.value = '';
+        inputStatus.value = '';
+        inputPgto.value = '';
+    }
 });
+
 
 document.getElementById('Seniorcheck').addEventListener('change', function () {
     if (seniorCheck.checked) {
+        if (verificarBloqueioStatusAutorizado(this)) return;   
+        
+        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+            nivelFoiTrocado = true;
+        }
+
+        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
         // Lógica para quando o checkbox de Senior estiver marcado
         if (!validarCamposEssenciais()) {
             seniorCheck.checked = false; // Desmarca se a validação falhar
@@ -7080,6 +7833,8 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;
         fechadoCheck.checked = false;
+        liberadoCheck.checked = false;
+        fechadoCheck.dispatchEvent(new Event('change'));
 
         //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
@@ -7102,9 +7857,16 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
 });
 
 document.getElementById('Seniorcheck2').addEventListener('change', function () {
-    const seniorCheck2 = this;
+    const seniorCheck2 = this;    
+          
 
-    if (seniorCheck2.checked) {
+    if (seniorCheck2.checked) {   
+        if (verificarBloqueioStatusAutorizado(this)) return;    
+        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+            nivelFoiTrocado = true;
+        } 
+
+        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
         // 1. Validação essencial igual ao seu Basecheck
         if (typeof validarCamposEssenciais === 'function' && !validarCamposEssenciais()) {
             seniorCheck2.checked = false; 
@@ -7117,6 +7879,8 @@ document.getElementById('Seniorcheck2').addEventListener('change', function () {
         if (document.getElementById("Juniorcheck")) document.getElementById("Juniorcheck").checked = false;
         if (document.getElementById("Basecheck")) document.getElementById("Basecheck").checked = false;
         if (document.getElementById("Fechadocheck")) document.getElementById("Fechadocheck").checked = false;
+        if (document.getElementById("Liberadocheck")) document.getElementById("Liberadocheck").checked = false;
+        fechadoCheck.dispatchEvent(new Event('change'));
 
         // 3. Preenche custos (Usando o valor sênior conforme sua regra)
         // Certifique-se que vlrCustoSeniorFuncao esteja acessível aqui
@@ -7137,6 +7901,12 @@ document.getElementById('Seniorcheck2').addEventListener('change', function () {
 
 document.getElementById('Plenocheck').addEventListener('change', function () {
     if (plenoCheck.checked) {
+        if (verificarBloqueioStatusAutorizado(this)) return;
+        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+            nivelFoiTrocado = true;
+        }
+    
+        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
         // Lógica para quando o checkbox de Pleno estiver marcado
         if (!validarCamposEssenciais()) {
             plenoCheck.checked = false; // Desmarca se a validação falhar
@@ -7147,6 +7917,8 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;
         fechadoCheck.checked = false;
+        liberadoCheck.checked = false;
+        fechadoCheck.dispatchEvent(new Event('change'));
         
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
@@ -7168,6 +7940,12 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
 
 document.getElementById('Juniorcheck').addEventListener('change', function () {
     if (juniorCheck.checked) {
+        if (verificarBloqueioStatusAutorizado(this)) return;
+        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+            nivelFoiTrocado = true;
+        }
+        
+        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
         // Lógica para quando o checkbox de Junior estiver marcado
         if (!validarCamposEssenciais()) {
             juniorCheck.checked = false; // Desmarca se a validação falhar
@@ -7178,6 +7956,8 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         baseCheck.checked = false;
         fechadoCheck.checked = false;
+        liberadoCheck.checked = false;
+        fechadoCheck.dispatchEvent(new Event('change'));
 
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
@@ -7200,6 +7980,13 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
 
 document.getElementById('Basecheck').addEventListener('change', function () {
     if (baseCheck.checked) {
+        if (verificarBloqueioStatusAutorizado(this)) return;
+
+        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+            nivelFoiTrocado = true;
+        }
+       
+        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
         // Lógica para quando o checkbox de Base estiver marcado
 
         if (!validarCamposEssenciais()) {
@@ -7211,6 +7998,9 @@ document.getElementById('Basecheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         juniorCheck.checked = false;
         fechadoCheck.checked = false;
+        liberadoCheck.checked = false;
+        fechadoCheck.dispatchEvent(new Event('change'));
+        
 
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
@@ -7230,35 +8020,139 @@ document.getElementById('Basecheck').addEventListener('change', function () {
     }
 });
 
-document.getElementById('Fechadocheck').addEventListener('change', function () {
-    if (fechadoCheck.checked) {
-        // Lógica para quando o checkbox de Base estiver marcado
 
+document.getElementById('Fechadocheck').addEventListener('change', function () {
+    if (verificarBloqueioStatusAutorizado(this)) return;
+
+    if (this.checked) {        
+        console.log("ENTROU NO FECHADOCHECK");
+        
         if (!validarCamposEssenciais()) {
-            fechadoCheck.checked = false; // Desmarca se a validação falhar
+            this.checked = false;
             return;
         }
-        seniorCheck2.checked = false;
-        seniorCheck.checked = false;
-        plenoCheck.checked = false;
-        juniorCheck.checked = false;
-        baseCheck.checked = false;
 
-        document.getElementById("vlrCusto").value =  0 .toFixed(2);
+        [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, liberadoCheck].forEach(c => {
+            if(c && c !== this) c.checked = false;
+        });
 
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput) {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-            
-            if (periodoDatas.length > 0) {
-                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
-                calcularValorTotal();
-                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+        if (!isFormLoadedFromDoubleClick) {
+            // Se está editando um registro existente → restaura valor do banco
+            if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'FECHADO') {
+                document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
+                document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
+                document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
+                restaurarStatusCustoFechado();
+                console.log("↩️ Restaurando valores do banco para Fechado.");
+            } else {
+                // Novo registro → zera
+                document.getElementById("vlrCusto").value = (0).toFixed(2);
+                document.getElementById("alimentacao").value = (0).toFixed(2);
+                document.getElementById("transporte").value = (0).toFixed(2);
             }
-            console.log("Período de datas obtido para Base:", periodoDatas);
         }
     }
 });
+
+document.getElementById('Liberadocheck').addEventListener('change', function () {
+    console.log("ENTROU NO LIBERADO", isFormLoadedFromDoubleClick);
+    if (verificarBloqueioStatusAutorizado(this)) return;
+
+    if (this.checked) {
+        if (!validarCamposEssenciais()) {
+            this.checked = false;
+            return;
+        }
+
+        [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, fechadoCheck].forEach(c => {
+            if(c && c !== this) c.checked = false;
+        });
+
+        if (!isFormLoadedFromDoubleClick) {
+            // Se está editando um registro existente → restaura valor do banco
+            if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'LIBERADO') {
+                document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
+                document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
+                document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
+                restaurarStatusCustoFechado();
+                console.log("↩️ Restaurando valores do banco para Liberado.");
+            } else {
+                // Novo registro → zera cache, mantém alimentação e transporte da função
+                document.getElementById("vlrCusto").value = (0).toFixed(2);
+                document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+                document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                const datasEventoInput = document.getElementById('datasEvento');
+                if (datasEventoInput) {
+                    const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                    if (periodoDatas.length > 0) calcularValorTotal();
+                }
+            }
+        }
+    }
+});
+
+function restaurarStatusCustoFechado() {
+    const statusFechadoBanco = currentEditingStaffEvent.statuscustofechado || 'Pendente';
+    const txtDesc = document.getElementById('descCustoFechado');
+    if (txtDesc) txtDesc.value = currentEditingStaffEvent.desccustofechado || '';
+
+    const temAcesso = temPermissaoMaster || temPermissaoFinanceiro;
+    const selectStatusFechado = document.getElementById('selectStatusCustoFechado');
+    const inputStatusFechado = document.getElementById('statusCustoFechadoTexto');
+    const hiddenStatusFechado = document.getElementById('statusCustoFechado');
+
+    if (hiddenStatusFechado) hiddenStatusFechado.value = statusFechadoBanco;
+
+    if (temAcesso) {
+        document.getElementById('wrapperSelectCustoFechado').style.display = 'block';
+        document.getElementById('wrapperInputCustoFechado').style.display = 'none';
+        if (selectStatusFechado) {
+            selectStatusFechado.value = statusFechadoBanco;
+            aplicarCorNoSelect(selectStatusFechado);
+        }
+    } else {
+        document.getElementById('wrapperSelectCustoFechado').style.display = 'none';
+        document.getElementById('wrapperInputCustoFechado').style.display = 'block';
+        if (inputStatusFechado) {
+            inputStatusFechado.value = statusFechadoBanco;
+            aplicarCorStatusInput(inputStatusFechado);
+        }
+    }
+}
+
+function verificarBloqueioStatusAutorizado(checkboxElement) {
+    const elStatus = document.getElementById('selectStatusCustoFechado') || document.getElementById('statusCustoFechadoTexto');
+    const statusAtual = (elStatus ? elStatus.value : "").toUpperCase();
+
+    // Se está AUTORIZADO e NÃO é o carregamento inicial (ou seja, é clique humano)
+    if (statusAtual === "AUTORIZADO" && !isFormLoadedFromDoubleClick) {
+        Swal.fire({
+            title: "Ação Bloqueada!",
+            text: "Este cachê já foi AUTORIZADO. Para alterar o nível, o status deve ser alterado para Pendente ou Rejeitado primeiro.",
+            icon: "error"
+        });
+        
+        // 1. Desmarca o que o usuário clicou errado
+        checkboxElement.checked = false;
+
+        // 2. CORREÇÃO: Usa a variável GLOBAL para saber o que marcar de volta
+        const nivelOriginal = (currentEditingStaffEvent.nivelexperiencia || "").trim().toUpperCase();
+        console.log("Restaurando para o nível autorizado:", nivelOriginal);
+
+        // 3. Remarca o original
+        if (nivelOriginal === "BASE") if (baseCheck) baseCheck.checked = true;
+        if (nivelOriginal === "JUNIOR") if (juniorCheck) juniorCheck.checked = true;
+        if (nivelOriginal === "PLENO") if (plenoCheck) plenoCheck.checked = true;
+        if (nivelOriginal === "SENIOR") if (seniorCheck) seniorCheck.checked = true;
+        if (nivelOriginal === "SENIOR2" || nivelOriginal === "SENIOR 2") if (seniorCheck2) seniorCheck2.checked = true;
+        if (nivelOriginal === "FECHADO") if (fechadoCheck) fechadoCheck.checked = true;
+        if (nivelOriginal === "LIBERADO") if (liberadoCheck) liberadoCheck.checked = true;
+
+        return true; 
+    }
+    return false; 
+}
 
 function validarCamposEssenciais() {
     const nmFuncionario = document.getElementById("nmFuncionario");
@@ -7290,9 +8184,46 @@ function validarCamposEssenciais() {
     return true;
 }
 
+function onCriteriosChanged() {
+    console.log("🔵 onCriteriosChanged chamado");
+    
+    const checks = [
+        { el: seniorCheck2, nome: 'seniorCheck2' },
+        { el: seniorCheck,  nome: 'seniorCheck' },
+        { el: plenoCheck,   nome: 'plenoCheck' },
+        { el: juniorCheck,  nome: 'juniorCheck' },
+        { el: baseCheck,    nome: 'baseCheck' },
+        { el: fechadoCheck, nome: 'fechadoCheck' },
+        { el: liberadoCheck,nome: 'liberadoCheck' },
+    ];
+
+    const marcado = checks.find(c => c.el?.checked);
+    
+    if (marcado) {
+        console.log(`🔵 Disparando change em: ${marcado.nome}`);
+        marcado.el.dispatchEvent(new Event('change'));
+    } 
+}
+
 function atualizarVisibilidadeCacheFechado() {
     const check = document.getElementById('Fechadocheck');
     const divStatus = document.getElementById('campoStatusCustoFechado');
+    const inputVlrCusto = document.getElementById('vlrCusto');
+
+    if (check && divStatus) {
+        if (!check.checked) {
+            divStatus.style.display = 'none';
+            inputVlrCusto.readOnly = true;
+        } else {
+            divStatus.style.display = 'flex';
+            inputVlrCusto.readOnly = false;
+        }
+    }
+}
+
+function atualizarVisibilidadeCacheLiberado() {
+    const check = document.getElementById('Liberadocheck');
+    const divStatus = document.getElementById('campoStatusCustoLiberado');
     const inputVlrCusto = document.getElementById('vlrCusto');
 
     if (check && divStatus) {
@@ -7472,6 +8403,19 @@ if (document.getElementById('viagem3Check')) {
     });
 }
 
+document.getElementById('diariaDobradacheck')?.addEventListener('change', function() {
+    campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
+    document.getElementById('campoStatusDiariaDobrada').style.display = this.checked ? 'block' : 'none';
+    const textarea = document.getElementById('descDiariaDobrada');
+    if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('meiaDiariacheck')?.addEventListener('change', function() {
+    campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
+    document.getElementById('campoStatusMeiaDiaria').style.display = this.checked ? 'block' : 'none';
+    const textarea = document.getElementById('descMeiaDiaria');
+    if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
+});
 
 function limparDescricoesViagem(textoAtual) {
     let textoLimpo = textoAtual;
@@ -7525,7 +8469,7 @@ function feriadosMoveis(ano) {
 // Modifica a função isFeriado para incluir móveis
 function isFeriado(date) {
     const mmdd = `${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-    const feriadosFixos = ["01-01","04-21","05-01","09-07","10-12","11-02","11-15","12-25"];
+    const feriadosFixos = ["01-01","01-25","04-21","05-01","07-09","09-07","10-12","11-02","11-15","12-25"];
 
     // Checa feriados fixos
     if (feriadosFixos.includes(mmdd)) return true;
@@ -7543,6 +8487,15 @@ function isFinalDeSemanaOuFeriado(date) {
 
 
 function calcularValorTotal() {
+    if (isFormLoadedFromDoubleClick) {
+        const cache = window.currentEventDataCache || { vlrtotcache: 0, vlrtotajdcusto: 0 };
+        if (cache.vlrtotcache > 0 && cache.vlrtotajdcusto > 0) {
+            console.log("Cálculo abortado: dados do banco serão restaurados pelo setTimeout.");
+            return;
+        }
+        console.log("⚠️ Totais zerados no banco, calculando mesmo durante carregamento.");
+    }
+    
     console.log("Iniciando o cálculo do valor total...");
 
     // Pega os valores dos inputs e converte para número
@@ -7554,6 +8507,7 @@ function calcularValorTotal() {
     const perfilFuncionario = document.getElementById("perfilFuncionario").value;
     const qtdpessoas = parseInt(document.getElementById("qtdPessoas").value) || 1;
     const isFechado = document.getElementById('Fechadocheck').checked;
+    const isLiberado = document.getElementById('Liberadocheck').checked;
     // Inicializa o valor total com os itens que são sempre calculados
   
     let total = 0;
@@ -7566,7 +8520,8 @@ function calcularValorTotal() {
         console.log("VALORES PARA RECALCULAR", vlrAlimentacaoDobra);
     }
     const statusFechado = document.getElementById("statusCustoFechado")?.value || "";
-    if (isFechado) {
+    
+    if (isFechado || isLiberado) {
             if (statusFechado === "Autorizado") {
                 total = cache;
                 totalCache = cache;
@@ -7578,53 +8533,53 @@ function calcularValorTotal() {
             }
     } else {
 
-    // Pega o número de diárias selecionadas
-    const contadorTexto = document.getElementById('contadorDatas').innerText;
-    const match = contadorTexto.match(/\d+/);
-    const numeroDias = match ? parseInt(match[0]) : 0;
+        // Pega o número de diárias selecionadas
+        const contadorTexto = document.getElementById('contadorDatas').innerText;
+        const match = contadorTexto.match(/\d+/);
+        const numeroDias = match ? parseInt(match[0]) : 0;
 
-    const datasParaProcessar = window.datasEventoPicker 
-        ? window.datasEventoPicker.selectedDates // Fonte de dados mais confiável: a instância Flatpickr
-        : datasEventoSelecionadas; // Fallback para a variável global, se a instância não estiver disponível
+        const datasParaProcessar = window.datasEventoPicker 
+            ? window.datasEventoPicker.selectedDates // Fonte de dados mais confiável: a instância Flatpickr
+            : datasEventoSelecionadas; // Fallback para a variável global, se a instância não estiver disponível
 
-    // Conta apenas o número de datas do evento
-    console.log("Número de diárias:", contadorTexto, match, numeroDias, cache, ajusteCusto, transporte, alimentacao, caixinha, datasParaProcessar);
+        // Conta apenas o número de datas do evento
+        console.log("Número de diárias:", contadorTexto, match, numeroDias, cache, ajusteCusto, transporte, alimentacao, caixinha, datasParaProcessar);
 
-    //(datasEventoSelecionadas || []).forEach(data => {
-    (datasParaProcessar || []).forEach(data => {
-        console.log("Processando data:", data, perfilFuncionario);
+        //(datasEventoSelecionadas || []).forEach(data => {
+        (datasParaProcessar || []).forEach(data => {
+            console.log("Processando data:", data, perfilFuncionario);
 
-        if (perfilFuncionario === "Freelancer") {
-            total += cache + transporte + alimentacao;
-            totalCache += cache;
-            totalAjdCusto += transporte + alimentacao;
-        } else if (perfilFuncionario === "Lote") {
-             if (qtdpessoas <= 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Atenção',
-                    text: "Perfil 'Lote' selecionado, o preenchimento da quantidade de pessoas é OBRIGATÓRIO."
-                });
-             }
-             total += (cache + transporte + alimentacao) * qtdpessoas;
-             totalCache += cache * qtdpessoas;
-             totalAjdCusto += (transporte + alimentacao) * qtdpessoas;
-             console.log(`Perfil 'Lote' detectado. Diária (${data.toLocaleDateString()}) para ${qtdpessoas} pessoas: ${total.toFixed(2)}`);
-        } else {
-            if (isFinalDeSemanaOuFeriado(data)) {
-                total += cache + transporte +  alimentacao;
-                totalCache += cache;   
-                totalAjdCusto += transporte + alimentacao;         
-            } else {
-                total += transporte + alimentacao;
+            if (perfilFuncionario === "Freelancer") {
+                total += cache + transporte + alimentacao;
+                totalCache += cache;
                 totalAjdCusto += transporte + alimentacao;
-                console.log(`Data ${data.toLocaleDateString()} não é fim de semana nem feriado. Cachê não adicionado.`);
+            } else if (perfilFuncionario === "Lote") {
+                if (qtdpessoas <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Atenção',
+                        text: "Perfil 'Lote' selecionado, o preenchimento da quantidade de pessoas é OBRIGATÓRIO."
+                    });
+                }
+                total += (cache + transporte + alimentacao) * qtdpessoas;
+                totalCache += cache * qtdpessoas;
+                totalAjdCusto += (transporte + alimentacao) * qtdpessoas;
+                console.log(`Perfil 'Lote' detectado. Diária (${data.toLocaleDateString()}) para ${qtdpessoas} pessoas: ${total.toFixed(2)}`);
+            } else {
+                if (isFinalDeSemanaOuFeriado(data)) {
+                    total += cache + transporte +  alimentacao;
+                    totalCache += cache;   
+                    totalAjdCusto += transporte + alimentacao;         
+                } else {
+                    total += transporte + alimentacao;
+                    totalAjdCusto += transporte + alimentacao;
+                    console.log(`Data ${data.toLocaleDateString()} não é fim de semana nem feriado. Cachê não adicionado.`);
+                }
             }
-        }
-    });
-}
+        });
+    }
 
-document.getElementById('vlrTotal').value = 'R$ ' + total.toFixed(2).replace('.', ',');
+    document.getElementById('vlrTotal').value = 'R$ ' + total.toFixed(2).replace('.', ',');
 
     console.log("Total inicial (sem adicionais):", total.toFixed(2));
 
@@ -7742,7 +8697,7 @@ document.getElementById('vlrTotal').value = 'R$ ' + total.toFixed(2).replace('.'
 });
 
 // // Adiciona listeners para os checkboxes de diária também!
-['diariaDobradacheck', 'meiaDiariacheck'].forEach(function(id) {
+['diariaDobradacheck', 'meiaDiariacheck', 'viagem1Check', 'viagem2Check', 'viagem3Check'].forEach(function(id) {
     const el = document.getElementById(id);
     if(el) el.addEventListener('change', calcularValorTotal);
 });
@@ -8441,7 +9396,12 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     // Se ainda assim não tiver data, avisa o usuário em vez de chutar "hoje"
     if (!dataReal) {
         console.warn("⚠️ Nenhuma data selecionada no Flatpickr.");
-        dataReal = "2026-01-20"; // Fallback para a data do seu evento se tudo falhar
+        return Swal.fire({
+            icon: 'error',
+            title: 'Data não informada',
+            text: 'Por favor, selecione uma data válida para o ajuste antes de salvar.',
+            confirmButtonColor: '#3085d6'
+        });
     }
 
     // 2. Formata para o padrão brasileiro DD/MM/YYYY
@@ -8855,7 +9815,7 @@ function getPeriodoEvento(datas) {
 // }
 
 //atualizado em 29/01 para tratar aditivo/extra bonificado
-async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario, nmFuncionario, nmFuncao, dataEspecifica) {
+async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario, nmFuncionario, nmFuncao, dataEspecifica, idEventoSolicitado, idEventoConflitante) {
     
     // 🔍 LOG DE DEPURAÇÃO MELHORADO
     console.log("Valores recebidos:", { idOrcamentoAtual, idFuncaoDoFormulario, idFuncionario, nmFuncionario });
@@ -8869,6 +9829,10 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
   //  const cleanIdFunc = (idFuncionario && idFuncionario !== 'undefined' && idFuncionario !== 'null') ? idFuncionario : null;
   //  const cleanNmFunc = (nmFuncionario && nmFuncionario !== 'undefined' && nmFuncionario !== 'null') ? nmFuncionario : null;
     const dataLimpa = (dataEspecifica && dataEspecifica !== 'undefined' && dataEspecifica !== '') ? dataEspecifica : null;
+    
+    // ADICIONAR:
+    const eventoSolicitadoLimpo = (idEventoSolicitado && idEventoSolicitado !== 'undefined') ? idEventoSolicitado : null;
+    const eventoConflitanteLimpo = (idEventoConflitante && idEventoConflitante !== 'undefined') ? idEventoConflitante : null;
 
     const params = new URLSearchParams({
         idOrcamento: idOrcamentoAtual,
@@ -8883,6 +9847,10 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
     if (idFuncionario) {
         params.append('idFuncionario', idFuncionario);
     }
+
+    // ADICIONAR:
+    if (eventoSolicitadoLimpo) params.append('idEventoSolicitado', eventoSolicitadoLimpo);
+    if (eventoConflitanteLimpo) params.append('idEventoConflitante', eventoConflitanteLimpo);
     
     // 🏷️ 2. FORMATAR MENSAGEM (O "Cérebro" do seu novo padrão de leitura)
     
@@ -8904,7 +9872,13 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
             return { bloqueado: false, erroServidor: true };
         }
 
-        const { solicitacaoRecente, autorizadoEspecifico, totaisFuncao } = response.dados;
+        //const { solicitacaoRecente, autorizadoEspecifico, totaisFuncao } = response.dados;
+
+        const { solicitacaoRecente, solicitacaoDuplicada, autorizadoEspecifico, totaisFuncao } = response.dados;
+
+        console.log("🔍 [Frontend FuncExcedido] solicitacaoDuplicada:", solicitacaoDuplicada);
+        console.log("🔍 [Frontend FuncExcedido] solicitacaoRecente:", solicitacaoRecente);
+        console.log("🔍 [Frontend FuncExcedido] autorizadoEspecifico:", autorizadoEspecifico);
 
         // 🎯 AJUSTE NA MENSAGEM: 
         // Se houver uma solicitação no banco, usamos o tipo real dela (ex: "ADITIVO - DATA FORA...")
@@ -8928,15 +9902,123 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 
         const infoMsg = formatarMensagemPersonalizada(tipoExibicao, nmFuncao);
 
+  
+            // --- 1. CASO AUTORIZADO ESPECÍFICO ---
+            // if (autorizadoEspecifico) {
+            //     // 🎯 Simplificamos a lógica aqui usando o nome já tratado
+            //     const mensagemFinal = `Autorização de ${infoMsg.textoBase} detectada.`;
+
+            //     // Variável global para controle de liberação
+
+            //     bLiberacaoAutorizada = true;
+            //     console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada);
+            //     await Swal.fire({
+            //         icon: 'success',
+            //         title: 'Liberação Detectada!',
+            //         html: `${mensagemFinal}<hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
+            //         timer: 3000,
+            //         showConfirmButton: false
+            //     });
+            //     return { bloqueado: false, autorizado: true };
+                
+            // }
+
+        
+            // // --- 2. CASO PENDENTE (Bloqueio) ---
+            // // Se você tiver a parte de "Em Análise", use o infoMsg.textoBase também
+            // if (solicitacaoRecente && (solicitacaoRecente.status === 'Pendente' || solicitacaoRecente.status === 'Em Análise')) {
+            //     await Swal.fire({
+            //         icon: 'info',
+            //         title: 'Solicitação em Análise',
+            //         html: `Já existe uma solicitação de ${infoMsg.textoBase} para esta função.<br><br>` +
+            //             `Aguarde a aprovação para prosseguir.`,
+            //         confirmButtonText: 'Entendido'
+            //     });
+            //     return { bloqueado: true };
+            // }    
+            
+        // --- 0. CASO EXCLUSIVO FuncExcedido ---
+        if (tipoSolicitacao === 'FuncExcedido') {
+
+            // CASO A: Solicitação IDÊNTICA → BLOQUEAR
+            if (solicitacaoDuplicada) {
+                // Formatar datas do registro duplicado
+                const datasConflito = Array.isArray(solicitacaoDuplicada.dtsolicitada) 
+                    ? solicitacaoDuplicada.dtsolicitada
+                        .filter(d => d)
+                        .map(d => new Date(d).toLocaleDateString('pt-BR'))
+                        .join(', ')
+                    : 'não informadas';
+
+                const nomeEvento = solicitacaoDuplicada.nmeventosolicitado || 'mesmo evento';
+
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Solicitação já existe!',
+                    html: `Já existe uma solicitação <strong>PENDENTE</strong> para 
+                        <strong>${nmFuncionario}</strong> no evento <strong>${nomeEvento}</strong>
+                        para a(s) data(s): <strong>${datasConflito}</strong>.<br><br>
+                        Aguarde a aprovação ou rejeição antes de fazer nova solicitação.`,
+                    confirmButtonText: 'Entendido'
+                });
+                return { bloqueado: true };
+            }
+
+            // CASO B: Autorizado para este evento específico → LIBERAR
+            if (autorizadoEspecifico) {
+                bLiberacaoAutorizada = true;
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Liberação Detectada!',
+                    html: `Autorização de <strong>"Limite Diário Excedido"</strong> detectada.<br>
+                        <hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+                return { bloqueado: false, autorizado: true };
+            }
+
+            // CASO C: Pendente em outro evento na mesma data → AVISAR e perguntar
+            if (solicitacaoRecente && solicitacaoRecente.status === 'Pendente') {
+                const nomeEventoPendente = solicitacaoRecente.nmeventosolicitado || 'outro evento';
+                const datasConflito = Array.isArray(solicitacaoRecente.dtsolicitada)
+                    ? solicitacaoRecente.dtsolicitada
+                        .filter(d => d)
+                        .map(d => new Date(d).toLocaleDateString('pt-BR'))
+                        .join(', ')
+                    : 'não informadas';
+
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Solicitação Pendente em Outro Evento!',
+                    html: `Já existe uma solicitação <strong>PENDENTE</strong> para 
+                        <strong>${nmFuncionario}</strong> no evento <strong>${nomeEventoPendente}</strong>
+                        na(s) data(s): <strong>${datasConflito}</strong>.<br><br>
+                        Deseja fazer uma nova solicitação para o evento atual mesmo assim?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, fazer nova solicitação',
+                    cancelButtonText: 'Não, cancelar'
+                });
+                if (!result.isConfirmed) return { bloqueado: true };
+                return { bloqueado: false, encontrado: true, status: 'Pendente' };
+            }
+
+            // CASO D: Nada encontrado → continua normalmente
+            return { 
+                bloqueado: false, 
+                encontrado: solicitacaoRecente !== null,
+                status: solicitacaoRecente?.status || null,
+                detalhes: solicitacaoRecente
+            };
+        }
+
+        // ← daqui para baixo só chega para outros tipos (Aditivo, Extra, Data Fora)
+
         // --- 1. CASO AUTORIZADO ESPECÍFICO ---
         if (autorizadoEspecifico) {
-            // 🎯 Simplificamos a lógica aqui usando o nome já tratado
             const mensagemFinal = `Autorização de ${infoMsg.textoBase} detectada.`;
-
-            // Variável global para controle de liberação
-
             bLiberacaoAutorizada = true;
-             console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada);
+            console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada);
             await Swal.fire({
                 icon: 'success',
                 title: 'Liberação Detectada!',
@@ -8945,12 +10027,9 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 showConfirmButton: false
             });
             return { bloqueado: false, autorizado: true };
-             
         }
 
-       
         // --- 2. CASO PENDENTE (Bloqueio) ---
-        // Se você tiver a parte de "Em Análise", use o infoMsg.textoBase também
         if (solicitacaoRecente && (solicitacaoRecente.status === 'Pendente' || solicitacaoRecente.status === 'Em Análise')) {
             await Swal.fire({
                 icon: 'info',
@@ -8960,8 +10039,10 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 confirmButtonText: 'Entendido'
             });
             return { bloqueado: true };
-        }        
+        }
 
+       
+        
         // --- 2. TRATAMENTO DE SOLICITAÇÃO EXISTENTE (PENDENTE/REJEITADA) ---
         if (solicitacaoRecente) {
             const status = solicitacaoRecente.status;   
@@ -9097,10 +10178,11 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acessível
 
 
-async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada) {
-    console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario });
+async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante) {
+    console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idStaffEvento });
     const tipoPadronizado = tipo ? tipo.toUpperCase().trim() : "";
     const quantidadeGarantida = (qtd && qtd > 0) ? qtd : 1;
+    const datasFormatadas = Array.isArray(dataSolicitada) ? dataSolicitada.join(',') : dataSolicitada;
 
     // Objeto de dados a ser enviado
     const dadosParaEnvio = { 
@@ -9110,7 +10192,10 @@ async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormula
         tipoSolicitacao: tipoPadronizado, 
         justificativa,
         idFuncionario: idFuncionario || null,
-        dataSolicitada: Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada
+        dataSolicitada: datasFormatadas,
+       // datasolicitada: Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada, // Para bater com o nome da coluna no banco
+        idEventoSolicitado: idEventoSolicitado,
+        idEventoConflitante: idEventoConflitante
     };
 
     console.log("DADOS QUE SERÃO ENVIADOS AO SERVIDOR:", JSON.stringify(dadosParaEnvio));
@@ -9423,71 +10508,104 @@ function configurarEventosStaff() {
     }
 
     // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-    const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+    // const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+    // const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+    // const inputAjusteCusto = document.getElementById('ajusteCusto');
+    // const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
+    // const inputStatusAjusteCusto = document.getElementById('statusAjusteCusto');
 
-    if (ajusteCustocheck && campoStatusAjusteCusto && ajusteCustoTextarea) {
-        ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-            campoStatusAjusteCusto.style.display = this.checked ? 'block' : 'none';
+    // if (ajusteCustocheck) {
+    //     ajusteCustocheck.addEventListener('change', function() {
+    //         if (this.checked) {
+    //             // Tenta abrir: verifica trava
+    //             if (!verificarStatusCacheBase()) {
+    //                 this.checked = false;
+    //                 return;
+    //             }
+    //             // Abre campos
+    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'block';
+    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'block';
+    //             if (ajusteCustoTextarea) {
+    //                 ajusteCustoTextarea.style.display = 'block';
+    //                 ajusteCustoTextarea.required = true;
+    //             }
+    //             if (inputAjusteCusto) inputAjusteCusto.required = true;
+    //         } else {
+    //             // Fecha e LIMPA TUDO (Remove o erro de validação ao desmarcar)
+    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
+    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
+                
+    //             if (inputAjusteCusto) {
+    //                 inputAjusteCusto.value = '';
+    //                 inputAjusteCusto.required = false;
+    //             }
+    //             if (ajusteCustoTextarea) {
+    //                 ajusteCustoTextarea.value = '';
+    //                 ajusteCustoTextarea.style.display = 'none';
+    //                 ajusteCustoTextarea.required = false;
+    //             }
+    //             if (inputStatusAjusteCusto) {
+    //                 inputStatusAjusteCusto.value = '';
+    //                 inputStatusAjusteCusto.required = false;
+    //             }
+    //         }
+    //     });
+    // }
 
-            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
-            ajusteCustoTextarea.required = this.checked;
-            if (!this.checked) {
-        if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
-        ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
-            }
 
-        });
-         campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        campoStatusAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+    // const caixinhacheck = document.getElementById('Caixinhacheck');
+    // const campoCaixinha = document.getElementById('campoCaixinha');
+    // const inputCaixinha = document.getElementById('caixinha');
+    // const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+    // const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
 
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        if (!ajusteCustocheck.checked) {
-            if (inputAjusteCusto) inputAjusteCusto.value = '';
-            ajusteCustoTextarea.value = '';
-        }
-    }
+    // if (caixinhacheck) {
+    //     caixinhacheck.addEventListener('change', function() {
+    //         if (this.checked) {
+    //             if (!verificarStatusCacheBase()) {
+    //                 this.checked = false;
+    //                 return;
+    //             }
+    //             if (campoCaixinha) campoCaixinha.style.display = 'block';
+    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'block';
+    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'block';
+    //             if (inputCaixinha) inputCaixinha.required = true;
+    //         } else {
+    //             if (campoCaixinha) campoCaixinha.style.display = 'none';
+    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
+    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
+                
+    //             if (inputCaixinha) {
+    //                 inputCaixinha.value = '';
+    //                 inputCaixinha.required = false;
+    //             }
+    //             // Limpa status e pagamentos
+    //             const stCaixinha = document.getElementById('statusCaixinha');
+    //             const pgCaixinha = document.getElementById('statusPgtoCaixinha');
+    //             if (stCaixinha) stCaixinha.value = '';
+    //             if (pgCaixinha) pgCaixinha.value = '';
+    //         }
+    //     });
+    // }
 
+    // const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    // const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+    // if (diariaDobradacheck && campoDiariaDobrada) {
+    //     diariaDobradacheck.addEventListener('change', function() {
+    //         campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
 
+    //     });
+    //     campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
+    // }
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-    const descCaixinhaTextarea = document.getElementById('descCaixinha');
-    const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-
-    if (caixinhacheck && campoCaixinha && descCaixinhaTextarea) {
-        caixinhacheck.addEventListener('change', function() {
-            campoCaixinha.style.display = this.checked ? 'block' : 'none';
-            campoPgtoCaixinha.style.display = this.checked ? 'block' : 'none';
-        });
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        campoPgtoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
-        diariaDobradacheck.addEventListener('change', function() {
-            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-        });
-        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-
-    }
-
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
-        meiaDiariacheck.addEventListener('change', function() {
-            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-         });
-        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
+    // const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+    // const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+    // if (meiaDiariacheck && campoMeiaDiaria) {
+    //     meiaDiariacheck.addEventListener('change', function() {
+    //         campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
+    //      });
+    //     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
+    // }
 
     // Chama mostrarTarja() para inicializar a tarja com base no valor do select
     if (typeof mostrarTarja === 'function') {
@@ -9510,83 +10628,200 @@ function configurarEventosStaff() {
             statusCaixinhaInput.disabled = false;
         }
     }
-// --- DENTRO DE configurarEventosStaff() ---
+    // --- DENTRO DE configurarEventosStaff() ---
 
-// 1. Pegamos os elementos de layout (Wrappers e Status)
-const divStatusContainer = document.getElementById('campoStatusCustoFechado');
-const wrapperInput = document.getElementById('wrapperInputCustoFechado');
-const wrapperSelect = document.getElementById('wrapperSelectCustoFechado');
-const inputStatusTxt = document.getElementById('statusCustoFechadoTexto');
-const selectStatus = document.getElementById('selectStatusCustoFechado');
-const textareaJustificativa = document.getElementById('descCustoFechado');
+    // 1. Pegamos os elementos de layout (Wrappers e Status)
+    const divStatusContainer = document.getElementById('campoStatusCustoFechado');
+    const wrapperInput = document.getElementById('wrapperInputCustoFechado');
+    const wrapperSelect = document.getElementById('wrapperSelectCustoFechado');
+    const inputStatusTxt = document.getElementById('statusCustoFechadoTexto');
+    const selectStatus = document.getElementById('selectStatusCustoFechado');
+    const textareaJustificativa = document.getElementById('descCustoFechado');
 
-// 2. Usamos as permissões que já foram declaradas no topo do Staff.js
-// IMPORTANTE: Não use "const" ou "let" aqui para as variáveis abaixo, 
-// pois elas já existem no escopo global do seu arquivo.
-const temAcessoMasterOuFinanceiro = temPermissaoMaster || temPermissaoFinanceiro;
+    // 2. Usamos as permissões que já foram declaradas no topo do Staff.js
+    // IMPORTANTE: Não use "const" ou "let" aqui para as variáveis abaixo, 
+    // pois elas já existem no escopo global do seu arquivo.
+    const temAcessoMasterOuFinanceiro = temPermissaoMaster || temPermissaoFinanceiro;
 
-if (fechadoCheck) { // 'fechadoCheck' é a variável global do seu topo de arquivo
-    const aplicarRegraVisibilidade = () => {
-        if (fechadoCheck.checked) {
-            if (divStatusContainer) divStatusContainer.style.display = 'flex';
-            if (divStatusContainer) divStatusContainer.style.flexDirection = 'row';
+    // if (fechadoCheck || liberadoCheck) { // 'fechadoCheck' é a variável global do seu topo de arquivo
+    //     const aplicarRegraVisibilidade = () => {
+    //         if (fechadoCheck.checked || liberadoCheck.checked) {
+    //             if (divStatusContainer) divStatusContainer.style.display = 'flex';
+    //             if (divStatusContainer) divStatusContainer.style.flexDirection = 'row';
+                
+    //             // Justificativa sempre visível se o check estiver ativo
+    //             if (textareaJustificativa) textareaJustificativa.style.display = 'block';
+
+    //             if (temAcessoMasterOuFinanceiro) {
+    //                 // MESTRE: Vê Select, esconde Input informativo
+    //                 if (wrapperSelect) wrapperSelect.style.display = 'block';
+    //                 if (wrapperInput) wrapperInput.style.display = 'none';
+    //             } else {
+    //                 // STAFF: Vê Input informativo, esconde Select
+    //                 if (wrapperSelect) wrapperSelect.style.display = 'none';
+    //                 if (wrapperInput) wrapperInput.style.display = 'block';
+    //                 if (inputStatusTxt && !inputStatusTxt.value) inputStatusTxt.value = "Pendente";
+    //             }
+    //         } else {
+    //             if (divStatusContainer) divStatusContainer.style.display = 'none';
+    //         }
+    //     };
+
+    //     // Aplica a regra assim que o modal/página carrega
+    //     aplicarRegraVisibilidade();
+
+    //     // Sincronização: O que o Master escolhe no Select, aparece no Input do Staff
+    //     if (selectStatus) {
+    //         selectStatus.addEventListener('change', function() {
+    //             if (inputStatusTxt) inputStatusTxt.value = this.value;
+    //         });
+    //     }
+
+    //     // Evento de mudança no Checkbox "Cachê Fechado"
+    //     fechadoCheck.addEventListener('change', function() {
+    //         aplicarRegraVisibilidade();
             
-            // Justificativa sempre visível se o check estiver ativo
-            if (textareaJustificativa) textareaJustificativa.style.display = 'block';
+    //         if (this.checked) {
+    //             // LIBERA O VALOR: Torna o campo de valor editável
+    //             if (vlrCustoInput) {
+    //                 vlrCustoInput.readOnly = false;
+    //                 vlrCustoInput.disabled = false;
+    //                 vlrCustoInput.removeAttribute('data-permanent-readonly');
+    //             }
+    //         } else {
+    //             // BLOQUEIA E LIMPA: Ao desmarcar, reseta os campos
+    //             if (vlrCustoInput) {
+    //                 vlrCustoInput.value = '';
+    //                 vlrCustoInput.setAttribute('data-permanent-readonly', 'true');
+    //                 vlrCustoInput.readOnly = true;
+    //             }
+    //             if (textareaJustificativa) textareaJustificativa.value = '';
+    //             if (inputStatusTxt) inputStatusTxt.value = '';
+    //             if (selectStatus) selectStatus.value = 'none';
+    //         }
+            
+    //         // Atualiza cálculos se a função existir
+    //         if (typeof calcularValorTotal === 'function') calcularValorTotal();
+    //     });
 
-            if (temAcessoMasterOuFinanceiro) {
-                // MESTRE: Vê Select, esconde Input informativo
-                if (wrapperSelect) wrapperSelect.style.display = 'block';
-                if (wrapperInput) wrapperInput.style.display = 'none';
-            } else {
-                // STAFF: Vê Input informativo, esconde Select
-                if (wrapperSelect) wrapperSelect.style.display = 'none';
-                if (wrapperInput) wrapperInput.style.display = 'block';
-                if (inputStatusTxt && !inputStatusTxt.value) inputStatusTxt.value = "Pendente";
-            }
-        } else {
-            if (divStatusContainer) divStatusContainer.style.display = 'none';
-        }
-    };
-
-    // Aplica a regra assim que o modal/página carrega
-    aplicarRegraVisibilidade();
-
-    // Sincronização: O que o Master escolhe no Select, aparece no Input do Staff
-    if (selectStatus) {
-        selectStatus.addEventListener('change', function() {
-            if (inputStatusTxt) inputStatusTxt.value = this.value;
-        });
-    }
-
-    // Evento de mudança no Checkbox "Cachê Fechado"
-    fechadoCheck.addEventListener('change', function() {
-        aplicarRegraVisibilidade();
+    //     liberadoCheck.addEventListener('change', function() {
+    //         aplicarRegraVisibilidade();
+            
+    //         if (this.checked) {
+    //             // LIBERA O VALOR: Torna o campo de valor editável
+    //             if (vlrCustoInput) {
+    //                 vlrCustoInput.readOnly = false;
+    //                 vlrCustoInput.disabled = false;
+    //                 vlrCustoInput.removeAttribute('data-permanent-readonly');
+    //             }
+    //         } else {
+    //             // BLOQUEIA E LIMPA: Ao desmarcar, reseta os campos
+    //             if (vlrCustoInput) {
+    //                 vlrCustoInput.value = '';
+    //                 vlrCustoInput.setAttribute('data-permanent-readonly', 'true');
+    //                 vlrCustoInput.readOnly = true;
+    //             }
+    //             if (textareaJustificativa) textareaJustificativa.value = '';
+    //             if (inputStatusTxt) inputStatusTxt.value = '';
+    //             if (selectStatus) selectStatus.value = 'none';
+    //         }
+            
+    //         // Atualiza cálculos se a função existir
+    //         if (typeof calcularValorTotal === 'function') calcularValorTotal();
+    //     });
+    // }
+        // 📢 FIM DO NOVO BLOCO   
         
-        if (this.checked) {
-            // LIBERA O VALOR: Torna o campo de valor editável
-            if (vlrCustoInput) {
-                vlrCustoInput.readOnly = false;
-                vlrCustoInput.disabled = false;
-                vlrCustoInput.removeAttribute('data-permanent-readonly');
+        if (fechadoCheck && liberadoCheck) { 
+            const aplicarRegraVisibilidade = () => {
+                // Verifica se QUALQUER um dos dois está marcado
+                const algumAtivo = fechadoCheck.checked || liberadoCheck.checked;
+
+                if (algumAtivo) {
+                    // EXIBE os containers principais
+                    if (divStatusContainer) {
+                        divStatusContainer.style.display = 'flex';
+                        divStatusContainer.style.flexDirection = 'row';
+                    }
+                    if (textareaJustificativa) {
+                        textareaJustificativa.style.display = 'block';
+                    }
+
+                    // Regra de Permissão (Master/Financeiro vs Staff)
+                    if (temAcessoMasterOuFinanceiro) {
+                        if (wrapperSelect) wrapperSelect.style.display = 'block';
+                        if (wrapperInput) wrapperInput.style.display = 'none';
+                    } else {
+                        if (wrapperSelect) wrapperSelect.style.display = 'none';
+                        if (wrapperInput) wrapperInput.style.display = 'block';
+                        if (inputStatusTxt && !inputStatusTxt.value) inputStatusTxt.value = "Pendente";
+                    }
+                } else {
+                    // OCULTA TUDO se nenhum dos dois estiver marcado
+                    if (divStatusContainer) divStatusContainer.style.display = 'none';
+                    if (textareaJustificativa) {
+                        textareaJustificativa.style.display = 'none';
+                        textareaJustificativa.value = ''; // Limpa ao ocultar
+                    }
+                    // Limpa os status para não enviar lixo ao banco
+                    if (inputStatusTxt) inputStatusTxt.value = '';
+                    if (selectStatus) selectStatus.value = 'none';
+                }
+            };
+
+            // Aplica no carregamento
+            aplicarRegraVisibilidade();
+
+            // Sincronização do Select para o Input
+            if (selectStatus) {
+                selectStatus.addEventListener('change', function() {
+                    if (inputStatusTxt) inputStatusTxt.value = this.value;
+                });
             }
-        } else {
-            // BLOQUEIA E LIMPA: Ao desmarcar, reseta os campos
-            if (vlrCustoInput) {
-                vlrCustoInput.value = '';
-                vlrCustoInput.setAttribute('data-permanent-readonly', 'true');
-                vlrCustoInput.readOnly = true;
-            }
-            if (textareaJustificativa) textareaJustificativa.value = '';
-            if (inputStatusTxt) inputStatusTxt.value = '';
-            if (selectStatus) selectStatus.value = 'none';
+
+            // Listeners simplificados: ambos chamam a mesma regra de visibilidade e o bloqueio de valor
+            const monitorarChecks = (el) => {
+                el.addEventListener('change', function() {
+                    aplicarRegraVisibilidade();
+                    
+                    // Seleciona os inputs de alimentação e transporte
+                    const inputAlim = document.getElementById("alimentacao");
+                    const inputTrans = document.getElementById("transporte");
+
+                    if (this.checked) {
+                        // --- LIBERA TUDO ---
+                        if (vlrCustoInput) {
+                            vlrCustoInput.readOnly = false;
+                            vlrCustoInput.disabled = false;
+                            vlrCustoInput.removeAttribute('data-permanent-readonly');
+                        }
+                        if (inputAlim) inputAlim.readOnly = false; // 🔓 Libera alimentação
+                        if (inputTrans) inputTrans.readOnly = false; // 🔓 Libera transporte
+
+                    } else if (!fechadoCheck.checked && !liberadoCheck.checked) {
+                        // --- BLOQUEIA TUDO (Só se ambos estiverem desmarcados) ---
+                        if (vlrCustoInput) {
+                            vlrCustoInput.value = '';
+                            vlrCustoInput.setAttribute('data-permanent-readonly', 'true');
+                            vlrCustoInput.readOnly = true;
+                        }
+                        if (inputAlim) {
+                            inputAlim.readOnly = true; // 🔒 Bloqueia
+                            inputAlim.value = (0).toFixed(2);
+                        }
+                        if (inputTrans) {
+                            inputTrans.readOnly = true; // 🔒 Bloqueia
+                            inputTrans.value = (0).toFixed(2);
+                        }
+                    }
+
+                    if (typeof calcularValorTotal === 'function') calcularValorTotal();
+                });
+            };
+
+            monitorarChecks(fechadoCheck);
+            monitorarChecks(liberadoCheck);
         }
-        
-        // Atualiza cálculos se a função existir
-        if (typeof calcularValorTotal === 'function') calcularValorTotal();
-    });
-}
-    // 📢 FIM DO NOVO BLOCO    
 
     const datasDoFlatpickr = window.datasEventoPicker?.selectedDates.map(d => d.toISOString().split('T')[0]) || [];
 
@@ -9605,7 +10840,7 @@ function validarCamposAntesDoPeriodo() {
     if (document.getElementById('descFuncao').value === '') {
         return 'Função';
     }
-    const idsNivelExperiencia = ['Seniorcheck2','Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck','Fechadocheck'];
+    const idsNivelExperiencia = ['Seniorcheck2','Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck','Fechadocheck','Liberadocheck'];
     
     // A função 'isAnyChecked' será TRUE se pelo menos UMA checkbox estiver marcada
     const isAnyChecked = idsNivelExperiencia.some(id => {

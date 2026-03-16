@@ -428,7 +428,7 @@ border: 1px solid #dc3545;
  justify-content: center;
  align-items: center;
  flex-direction: row;
-  gap: 0.5rem 1rem; /* espaço entre linhas e colunas */
+  gap: 5px; /* espaço entre linhas e colunas */
 
 }
 .checkbox > div {
