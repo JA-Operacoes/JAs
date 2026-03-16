@@ -842,7 +842,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ',`VLR ADICIONAL`, 'TOT CACHÊ',  'QTD AJUDA', 'VLR AJUDA',  'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ',`VLR ADICIONAL`, 'TOT DIÁRIAS',  'QTD AJUDA', 'VLR AJUDA',  'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
             } else {
                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
@@ -855,7 +855,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'INÍCIO': 'text-left', 'TÉRMINO': 'text-left', 'VLR DIÁRIA': 'text-right',
             'VLR CACHÊ': 'text-right', 'VLR AJUDA': 'text-right', 'VLR ADICIONAL': 'text-right',
             'STATUS CX': 'text-center', 'QTD': 'text-center','QTD CACHÊ': 'text-center','QTD AJUDA': 'text-center', 'TOT DIÁRIAS': 'text-right', 
-            'TOT CACHÊ': 'text-right','TOT AJUDA': 'text-right','TOT GERAL': 'text-right', 
+            'TOT DIÁRIAS': 'text-right','TOT AJUDA': 'text-right','TOT GERAL': 'text-right', 
             'STATUS CACHÊ':'text-center', 'STATUS AJUDA':'text-center', 'STATUS PGTO': 'text-center', 
             'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHE': 'text-center', 'COMP AJUDA': 'text-center'
         };
@@ -884,10 +884,10 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
                     
                     ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
-                        <td class="${alinhamentos['QTD CACHÊ']}">${item.QTD_CACHE || ''}</td>
+                        <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
                         <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
                         <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
-                        <td class="${alinhamentos['TOT CACHÊ']}">${formatarMoeda(item["TOT CACHÊ"])}</td>
+                        <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                         <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
                         <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
                         <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
@@ -920,13 +920,13 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
             
             ${tipo === 'cache_ajuda' ? `
-                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtdDiarias || ''}</td> 
+                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
                 <td class="text-right" style="font-weight: bold;">-</td> 
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrCache)}</td>
-                <td class="text-center" style="font-weight: bold;">-</td> 
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAdicional)}</td>
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td> 
                 <td class="text-right" style="font-weight: bold;">-</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAjuda)}</td>
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                 <td colspan="4"></td> ` : 
@@ -935,7 +935,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                 ${(tipo !== 'ajuda_custo') ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
                 ${tipo === 'cache' ? '<td></td>' : ''}
-                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtdDiarias || ''}</td> 
+                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                 <td></td> <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
