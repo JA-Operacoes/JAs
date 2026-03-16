@@ -39,33 +39,27 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     const empresaDefaultInfo = empresas.find(emp => emp.id === idempresaDefault);
 
     // 📌 Verifica se a empresa padrão existe e se está ativa
-    if (empresaDefaultInfo && empresaDefaultInfo.ativo) {
-      localStorage.setItem("idempresa", idempresaDefault);
+   if (empresaDefaultInfo && empresaDefaultInfo.ativo) {
+    localStorage.setItem("idempresa", idempresaDefault);
 
-      // Requisição para buscar o tema da empresa, usando o `idempresaDefault`
-      const empresaDefaultResponse = await fetchComToken(`/aside/empresasTema/${idempresaDefault}`);
-    
-      if (!empresaDefaultResponse.ok) {
-          console.error("Não foi possível buscar os dados da empresa padrão.");
-          // Em caso de falha, redireciona para a página de seleção
-          window.location.href = "OPER-index.html"; 
-          return;
-      }
-    
-      const empresaDefaultData = await empresaDefaultResponse.json();
-      const nmfantasia = empresaDefaultData.nmfantasia;
+    try {
+        // Buscamos os dados completos da empresa padrão (incluindo urlindex)
+        const empresaData = await fetchComToken(`/aside/empresasTema/${idempresaDefault}`);
 
-      // Constrói a URL dinamicamente e redireciona
-      const pagina = `${nmfantasia.replace(/ /g, '').toUpperCase()}-index.html`;
-      window.location.href = pagina;
-    } else {
-      // Se a empresa padrão não existir ou estiver inativa, limpa o localStorage
-      // e redireciona para a página de seleção.
-      localStorage.removeItem("idempresa"); 
-      localStorage.removeItem("permissoes");
-      console.log("Empresa padrão não encontrada ou inativa. Redirecionando para página de seleção.");
-      window.location.href = "OPER-index.html";
-    }
+        // Redireciona para o valor exato que está no banco de dados
+        if (empresaData && empresaData.urlindex) {
+            console.log(`Redirecionando para página do banco: ${empresaData.urlindex}`);
+            window.location.href = empresaData.urlindex;
+        } else {
+            // Se o campo no banco estiver vazio, ele cai no seu padrão de segurança
+            console.warn("urlindex não definido no banco para esta empresa.");
+            window.location.href = "OPER-index.html";
+        }
+    } catch (error) {
+        console.error("Erro ao buscar rota da empresa:", error);
+        window.location.href = "OPER-index.html";
+    }
+}
 
     // if (idempresaDefault) {
     //   localStorage.setItem("idempresa", idempresaDefault);  

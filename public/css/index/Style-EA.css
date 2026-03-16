@@ -20,44 +20,49 @@ header{
 }
 
 .interface{
-  max-width: 2560px;
-  max-height: 90px;
-  padding: 0 ;
-  margin: 0 ;
-  display: flex;
-  align-items:center;
-  justify-content: space-between;
-}
+    max-width: 2560px;
+    max-height: 90px;
+    padding: 0 ;
+    margin: 0 ;
+    display: flex;
+    align-items:center;
+    justify-content: space-between;
+  }
+  .logotipo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding:20px 10px;
+    gap:10px;
+  }
+  
+  .logotipo img{
+    max-width: 90px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+  }
+  
+  .minilogos{
+    display: flex;
+    align-items: center;
+  }
+  
+  .minilogos img{
+    max-width: 25px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+    align-items: center;
+  
+  }
 
-.logotipo{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding:5px 10px;
-  gap:10px;
-}
+    [class^="logo-"] {
+    display: none !important; /* Esconde todos os logos por padrão */
+  }
 
-.logotipo img{
-  max-width: 100px;
-  height: auto;
-  display: flex;
-  justify-content: flex-start;
-  object-fit: contain;
-}
-
-.minilogos{
-  display: flex;
-  align-items: center;
-}
-
-.minilogos img{
-  max-width: 25px;
-  height: auto;
-  display: flex;
-  justify-content: flex-start;
-  object-fit: contain;
-  align-items: center;
-}
 
 span{
   gap: 3px;
@@ -66,24 +71,6 @@ span{
 nav {
   transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
 }
-
-/* Quando o mouse passar sobre cada logo, a cor do menu muda */
-.logo-expo:hover ~ nav {
-  background-color: #f47722;
-}
-
-.logo-ES:hover ~ nav {
-  background-color: #6ec62d;
-}
-
-.logo-EP:hover ~ nav {
-  background-color: #989997;
-}
-
-.logo-ED:hover ~ nav {
-  background-color: #4db3e9;
-}
-
 
   nav ul{
   width: 100%;
@@ -122,7 +109,7 @@ nav {
   #painel-container {
     position: relative;
     width: 210px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 70px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -176,7 +163,7 @@ nav {
     width: 50%;
     text-align: center;
     cursor: pointer;
-    background-color: var(--EA-dark);
+    background-color: var(--primary-color);
     color: white ;
     padding: 11px;
     float: left;
@@ -187,12 +174,12 @@ nav {
     font-size: 15px;
   }
   .aba:hover{
-    background: var(--EA-color);
+    background: var(--hover-color);
     color: white;
   }
   
   .aba.ativa {
-    background: var(--EA-color);
+    background: var(--primary-color);
     color: white;
   }
   
@@ -259,7 +246,7 @@ nav {
     padding: 10px;
   }
   #lista-dados:hover{
-    background-color: var(--EA-color);
+    background-color: var(--primary-color);
     color: white;
     border: 2px solid black;
     border-radius: 10px;
@@ -298,8 +285,8 @@ nav {
     position: absolute;
     top: 100px;
     right: -20px;
-    background: #2e2e2e;
-    opacity: 60%;
+    background: #000000;
+    /* opacity: 60%; */
     color: white;
     width: 20px;
     height: 40px;
@@ -312,7 +299,7 @@ nav {
   }
   
   #toggle-btn:hover{
-    background-color: var(--EA-color);
+    background-color: var(--dark-base-color);
     box-shadow: #000000;
   }
   
@@ -357,7 +344,7 @@ nav {
   }
   
   ul[id^="lista-dados"] li:hover {
-    background-color: var(--EA-color);
+    background-color: var(--primary-color);
     border: 2px solid black;
     border-radius: 10px;
   }
@@ -394,9 +381,11 @@ nav {
     font-family: var(--Font-primary) ;
   }
 
-/* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
 .Cadastro, 
-  .Orçamento{
+  .Orcamento,
+  .Relatorios,
+  .Financeiro,
+  .Usuarios{
     position: relative;
     display: flex;
     justify-content: center;
@@ -405,7 +394,10 @@ nav {
   
   /* /submenu/ */
   .Cadastro .drop,
-  .Orçamento .drop{
+  .Orcamento .drop,
+  .Relatorios .drop,
+  .Financeiro .drop,
+  .Usuarios .drop{
     position:absolute;
     max-height: none;
     background-color:#65636b;
@@ -418,14 +410,77 @@ nav {
   
   /* /submenu/ */
   .Cadastro .drop a,
-  .Orçamento .drop a{
+  .Orcamento .drop a,
+  .Relatorios .drop a,
+  .Financeiro .drop a,
+  .Usuarios .drop a{
+    display: block;
+    color: white;
+    text-decoration: none;
   padding: 20px;
   
   }
   .Cadastro:hover .drop,
-  .Orçamento:hover .drop{
+  .Orcamento:hover .drop,
+  .Relatorios:hover .drop,
+  .Financeiro:hover .drop,
+  .Usuarios:hover .drop{
     height: 300px;
   }
+
+  /* SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
+  /* 1. Reset de visibilidade para o Financeiro */
+  .Financeiro:hover .drop, 
+  .Financeiro:hover .drop-content {
+      overflow: visible !important;
+      display: block !important;
+  }
+
+  /* 2. O item "Cadastros" precisa de ser relativo */
+  .sub-drop {
+      position: relative !important;
+      display: block !important;
+      width: 100%;
+  }
+
+  /* 3. O Submenu Lateral - CONFIGURAÇÃO DE FORÇA BRUTA */
+  .sub-drop-content {
+      display: none !important; /* Escondido total por padrão */
+      position: absolute !important;
+      top: 0 !important;
+      right: 100% !important;  /* Alinha a face direita do submenu na face esquerda do pai */
+      left: auto !important;   /* Reseta o valor anterior */
+      background-color: #474646 !important;
+      min-width: 210px !important;
+      z-index: 9999999 !important;
+      box-shadow: 8px 0px 15px rgba(0,0,0,0.5) !important;
+  }
+
+  /* 4. GATILHO DE EXIBIÇÃO - Quando passar o rato em Cadastros */
+  .sub-drop:hover > .sub-drop-content {
+      display: block !important; /* Força o aparecimento */
+  }
+
+  /* 5. SEGURANÇA PARA O MODAL */
+  body.modal-open .sub-drop-content,
+  body.modal-open .drop-content {
+      display: none !important;
+  }
+
+  /* 6. ESTILO DOS LINKS (Para garantir que não ficam transparentes) */
+  .sub-drop-content a {
+      padding: 12px 16px !important;
+      display: block !important;
+      color: #ffffff !important;
+      background-color: #474646 !important;
+      border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+      text-decoration: none !important;
+  }
+
+  .sub-drop-content a:hover {
+      background-color: var(--primary-color) !important;
+  }
+  
   
   /* NAV vertical para mobile */
   nav ul {

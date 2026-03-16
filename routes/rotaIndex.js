@@ -23,7 +23,7 @@ router.get('/modulos', async (req, res) => {
 router.get('/empresas', async (req, res) => {
     console.log("🔍 Buscando lista de empresas na Rota Index");
     try {
-        const result = await db.query('SELECT idempresa, nmfantasia FROM empresas');
+        const result = await db.query('SELECT idempresa, nmfantasia, urlindex FROM empresas');
         res.json(result.rows);
     } catch (err) {
         console.error('Erro ao listar empresas:', err);
