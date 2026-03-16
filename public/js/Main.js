@@ -1887,8 +1887,8 @@ function renderizarEventos(targetEl, eventos) {
   // 🛑 CORREÇÃO PARA O TypeError: Adiciona a checagem '!eventos'
   // Se for null/undefined, a condição é satisfeita e retorna a mensagem de erro.
   if (!eventos || !Array.isArray(eventos) || eventos.length === 0) {
-  targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
-  return;
+    targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
+    return;
   }
 
   targetEl.innerHTML = ""; // Limpa o loading
@@ -1896,23 +1896,24 @@ function renderizarEventos(targetEl, eventos) {
   // 🛠️ Melhoria: Usamos forEach com try...catch para isolar a renderização de cada evento.
   // Isso impede que um evento com dados malformados quebre o loop e a lista inteira (o seu problema dos 4->3).
   eventos.forEach((evt, index) => {
-  try {
-  // Mapeamos e criamos o card dentro do try/catch
-  const eventoNormalizado = normalizarEvento(evt);
-  const card = criarCard(eventoNormalizado);
+    try {
+    // Mapeamos e criamos o card dentro do try/catch
+    const eventoNormalizado = normalizarEvento(evt);
+    const card = criarCard(eventoNormalizado);
 
-  card.style.setProperty('--index', index);
-  targetEl.appendChild(card);
-  } catch (error) {
-  // Caso um evento específico falhe (ex: JSON truncado), loga o erro e insere um alerta.
-  console.error(`❌ Erro crítico ao renderizar evento ID ${evt.idevento || 'desconhecido'} (${evt.nmevento || 'Sem Nome'}).`, error);
-  const erroCard = document.createElement("div");
-  erroCard.className = "evento-card erro-render";
-  erroCard.innerHTML = `⚠️ Erro ao carregar o evento <b>${evt.nmevento || 'Desconhecido'}</b> (ID: ${evt.idevento || '??'}).`;
-  targetEl.appendChild(erroCard);
-  }
+    card.style.setProperty('--index', index);
+        targetEl.appendChild(card);
+    } catch (error) {
+    // Caso um evento específico falhe (ex: JSON truncado), loga o erro e insere um alerta.
+        console.error(`❌ Erro crítico ao renderizar evento ID ${evt.idevento || 'desconhecido'} (${evt.nmevento || 'Sem Nome'}).`, error);
+        const erroCard = document.createElement("div");
+        erroCard.className = "evento-card erro-render";
+        erroCard.innerHTML = `⚠️ Erro ao carregar o evento <b>${evt.nmevento || 'Desconhecido'}</b> (ID: ${evt.idevento || '??'}).`;
+        targetEl.appendChild(erroCard);
+    }
   });
 }
+
 try {
     const idempresa = localStorage.getItem("idempresa");
     
@@ -3518,12 +3519,15 @@ async function buscarPedidosUsuario() {
         let pedidosProcessados = resposta.map(p => {
            
             const tempPedido = preencherSolicitante(p);
+
+            //console.log("DEBUG: Pedido Original:", p);          
+          
             const statusReal = tempPedido.status_item || tempPedido.status_aprovacao || tempPedido.status || 'pendente';
-            
+                       
             return {
                 ...tempPedido,
                 status_aprovacao: statusReal.toString().toLowerCase().trim(),
-                categoria_item: tempPedido.categoria || tempPedido.categoria_item
+                categoria_item: p.categoria
             };
         });
 
@@ -3614,11 +3618,12 @@ async function mostrarPedidosUsuario() {
         "statusdiariadobrada": "dtdiariadobrada",
         "statusmeiadiaria": "dtmeiadiaria",
         "statuscustofechado": "vlrcache",
+        "statuscacheliberado": "vlrcache",
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", "statuscacheliberado", CAMPO_ADITIVO_EXTRA
     ];
 
     try {
@@ -3666,12 +3671,17 @@ async function mostrarPedidosUsuario() {
                 categoria_item: CAMPO_ADITIVO_EXTRA,
                 status: statusLower,
                 cor: corStatus,
+                dataSolicitacao: ae.criado_em,
+                dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
+                dataDecisao: ae.datadecisao || null, 
+                nomeAprovador: ae.nomeaprovador || null,     
                 [CAMPO_ADITIVO_EXTRA]: [{
                     idfuncionario: ae.idfuncionario,
                     status: statusLower,
                     tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
                     descricao: ae.justificativa, 
-                    quantidade: ae.qtdsolicitada,      
+                    quantidade: ae.qtdsolicitada,
+                                        
                 }]
             };
             aditivosMapeados.push(pedidoAditivo);
@@ -3685,7 +3695,9 @@ async function mostrarPedidosUsuario() {
         const pedidosDesmembrados = [];       
 
         pedidosUnificados.forEach(pedidoOriginal => {
+           
             const categoriasPresentes = camposTodos.filter(c => {
+                 
                 const valor = pedidoOriginal[c];
                 if (c === CAMPO_ADITIVO_EXTRA) {
                     return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
@@ -3694,13 +3706,18 @@ async function mostrarPedidosUsuario() {
                 return valor && valor.toString().trim() !== ''; 
             });
 
-            if (categoriasPresentes.length > 0) {
-                categoriasPresentes.forEach(categoria => {
-                    const dataField = dataFieldMapping[categoria];
-                    let statusIdentificado = 'pendente'; 
-                    let parsedData = null;
+            console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
 
-                    // 1. Tenta extrair do JSON interno (ex: dtdiariadobrada)
+            
+            if (categoriasPresentes.length > 0) {
+                
+                categoriasPresentes.forEach(categoria => {                    
+                    const dataField = dataFieldMapping[categoria];
+                    let statusIdentificado = 'pendente';                    
+                    
+                    let parsedData = null;
+                    
+                    //1. Tenta extrair do JSON interno (ex: dtdiariadobrada)
                     if (dataField && pedidoOriginal[dataField]) {
                         parsedData = safeParse(pedidoOriginal[dataField]);
                         if (Array.isArray(parsedData) && parsedData.length > 0) {
@@ -3728,7 +3745,8 @@ async function mostrarPedidosUsuario() {
                     if (statusFinal.includes('autoriz') || statusFinal.includes('aprov')) statusFinal = STATUS_AUTORIZADO;
                     else if (statusFinal.includes('rejeit') || statusFinal.includes('recus')) statusFinal = STATUS_REJEITADO;
                     else statusFinal = STATUS_PENDENTE;
-
+                    
+                    
                     const pedidoDesmembrado = { 
                         ...pedidoOriginal,
                         categoria_item: categoria,
@@ -3736,6 +3754,13 @@ async function mostrarPedidosUsuario() {
                         status_aprovacao: statusFinal // Garante que a função contarStatus leia este valor
                     };
                     
+                    // if (categoria === CAMPO_ADITIVO_EXTRA && Array.isArray(pedidoOriginal.dataSolicitada)) {
+                    //     // Definimos uma nova propriedade ou sobrescrevemos a dataSolicitacao 
+                    //     // para que o front use a data do evento e não a data de criação (09/03)
+                    //     pedidoDesmembrado.dataSolicitacao = pedidoOriginal.dataSolicitada[0];
+                    //     pedidoDesmembrado.dataExibicao = pedidoOriginal.dataSolicitada[0]; 
+                    // }
+
                     if (Array.isArray(parsedData)) {
                         pedidoDesmembrado[dataField] = parsedData;
                     }
@@ -3747,7 +3772,8 @@ async function mostrarPedidosUsuario() {
                 pedidosDesmembrados.push(pedidoOriginal);
             }
         });
-        
+
+
 
         // 4. AGRUPAMENTO COM CONTROLE DE DUPLICATAS POR ITEM (REFINADO)
         const pedidosAgrupados = {};
@@ -3762,6 +3788,7 @@ async function mostrarPedidosUsuario() {
             const evento = p.evento || 'Sem Evento';
             const funcionario = p.funcionario || null; 
             const nmfuncao = p.nmfuncao || null;
+           
             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
 
@@ -3779,8 +3806,15 @@ async function mostrarPedidosUsuario() {
             // const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
 
             const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+           
+            if (p.categoria === 'statuscacheliberado') {
+                p.categoria_item = 'statuscacheliberado';
+            }
+          
             const categoria = p.categoria_item || "geral";
             const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
+
+            console.log(`CHAVE ITEM: ${chaveItemUnico} | id_log: ${p.id_log} | idpedido: ${p.idpedido} | idaditivoextra: ${p.idaditivoextra}`);
 
              if (chavesDosItensAdicionados.has(chaveItemUnico)) {
                  console.warn(`🛑 DUPLICAÇÃO REAL IGNORADA: ${chaveItemUnico}`);
@@ -3810,14 +3844,15 @@ async function mostrarPedidosUsuario() {
                 };
             }
 
+
+
             if (solicitanteAtual) {
                 pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
             }
             
             // Adiciona o item (único) ao grupo
             pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
-        });
-       
+        });       
 
 
         const pedidosParaClassificar = Object.values(pedidosAgrupados);
@@ -3865,31 +3900,31 @@ async function mostrarPedidosUsuario() {
 
        // --- SUBSTITUIÇÃO DA SEPARAÇÃO DAS ABAS ---
 
-// Filtro para a aba Funções (Onde devem aparecer os excessos de vaga)
-window.gruposFuncoesGlobais = pedidos.filter(p => {
-    const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-    const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+        // Filtro para a aba Funções (Onde devem aparecer os excessos de vaga)
+        window.gruposFuncoesGlobais = pedidos.filter(p => {
+            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
 
-    // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
-    if (tipoSolicitacao.includes("Vaga Excedida")) {
-        return true; 
-    }
+            // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
+            if (tipoSolicitacao.includes("Vaga Excedida")) {
+                return true; 
+            }
 
-    return !p.funcionario; // Regra padrão para o restante
-});
+            return !p.funcionario; // Regra padrão para o restante
+        });
 
-// Filtro para a aba Funcionários
-window.gruposFuncionariosGlobais = pedidos.filter(p => {
-    const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-    const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+        // Filtro para a aba Funcionários
+        window.gruposFuncionariosGlobais = pedidos.filter(p => {
+            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
 
-    // Se for vaga excedida, NÃO entra aqui
-    if (tipoSolicitacao.includes("Vaga Excedida")) {
-        return false;
-    }
+            // Se for vaga excedida, NÃO entra aqui
+            if (tipoSolicitacao.includes("Vaga Excedida")) {
+                return false;
+            }
 
-    return !!p.funcionario;
-});
+            return !!p.funcionario;
+        });
 
         // Agora, contamos quantos registros individuais existem dentro de cada grupo
         const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
@@ -4160,19 +4195,26 @@ function carregarSubAbasInicial(targetContent, categoria, pedidos, statusCounts)
 }
 
 
-function formatarNomeSolicitacao(campoNome) {
+function formatarNomeSolicitacao(campoNome, categoriaDoBanco) {
+
     if (!campoNome) return 'N/D';
-    
+
+    if (campoNome === 'statuscustofechado' && categoriaDoBanco === 'statuscacheliberado') {
+        campoNome = 'statuscacheliberado';
+    }
+   // console.log(`DEBUG V72.0: Formatando campo "${campoNome}"...`);
     // 1. Remove o prefixo 'status' e converte para minúsculas para comparação
     let nomeLimpo = campoNome.toLowerCase().replace("status", "");
     
+   // console.log(`DEBUG V72.0: Nome limpo "${nomeLimpo}"...`);
     // 2. Mapeamento de quebra de palavras conhecida (V72.0)
     const mapeamento = {
         "ajustecusto": "Ajuste de Custo",
         "caixinha": "Caixinha",
         "meiadiaria": "Meia Diária",
         "diariadobrada": "Diária Dobrada",
-        "custofechado": "Cachê Fechado",
+        "custofechado": "Cachê Fechado / Liberado",
+        "cacheliberado": "Cachê Liberado",
         "aditivoextra": "Aditivo Extra"
     };
 
@@ -4182,6 +4224,8 @@ function formatarNomeSolicitacao(campoNome) {
 
     // 3. Fallback: Tenta quebrar pelo Camel Case e Capitalizar
     let nomeFormatado = nomeLimpo.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+    console.log(`DEBUG V72.0: Campo "${campoNome}" formatado como "${nomeFormatado}".`);
     
     // Capitaliza a primeira letra de cada palavra
     return nomeFormatado.split(' ')
@@ -4247,446 +4291,6 @@ function safeParse(input) {
 }
 
 
-// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
-//     window.pedidosCompletosGlobais = pedidosCompletos;
-//     const container = document.getElementById(containerId);
-//     if (!container) return;
-
-//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
-//     container.style.display = 'flex';
-//     container.style.flexDirection = 'column';
-//     container.style.flexWrap = 'nowrap';
-//     container.style.gap = '10px';
-
-//     container.innerHTML = '';
-
-//     const camposTodos = [
-//         "statusajustecusto",
-//         "statuscaixinha",
-//         "statusmeiadiaria",
-//         "statusdiariadobrada",
-//         CAMPO_ADITIVO_EXTRA
-//     ];
-//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
-//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
-
-//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
-//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
-//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
-
-//     let totalItensRenderizados = 0;
-//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
-//     const gruposFiltrados = [];
-//     const solicitantesPendentesPorChave = {}; // Resetamos para cada renderização
-
-//     pedidosCompletos.forEach(grupoConsolidado => {
-//         let chaveRenderizacao = categoria === 'funcionario'
-//             ? grupoConsolidado.funcionario
-//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
-
-//         if (!chaveRenderizacao) return;
-
-//         const registros = grupoConsolidado.registrosOriginais || [];
-//         const pedidosConsolidadosPorId = new Map();
-//         let temAlgumMatchNesteGrupo = false; // Flag crucial
-
-//         registros.forEach(pedidoOriginal => {
-//             const id = pedidoOriginal.idstaffevento || pedidoOriginal.idpedido || pedidoOriginal.id;
-//             //const id = pedidoOriginal.idlog || pedidoOriginal.id_log || pedidoOriginal.idstaffevento || Math.random();
-//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
-
-//             if (!pedidoConsolidado) {
-//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
-//             }
-
-//             // Verifica status principal
-//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
-//             if (statusPrincipal === statusDesejado) {
-//                 pedidoConsolidado.temMatch = true;
-//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
-//                 temAlgumMatchNesteGrupo = true;
-//             }
-
-//             // Verifica sub-itens (Meia diária, caixinha, etc)
-//             camposTodos.forEach(campo => {
-//                 const itens = safeParse(pedidoOriginal[campo]);
-//                 const itensFiltrados = itens.filter(it => {
-//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
-//                     return String(s).toLowerCase().trim() === statusDesejado;
-//                 });
-
-//                 if (itensFiltrados.length > 0) {
-//                     pedidoConsolidado.temMatch = true;
-//                     pedidoConsolidado[campo] = itensFiltrados;
-//                     temAlgumMatchNesteGrupo = true;
-//                 } 
-//                 // else {
-//                 //     delete pedidoConsolidado[campo]; // Remove para não lixo no card
-//                 // }
-//             });
-//         });
-
-//         // 🛑 CORREÇÃO FINAL: Só cria o grupo e o nome se houver match
-//         if (temAlgumMatchNesteGrupo) {
-//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
-
-//             if (registrosValidos.length > 0) {
-//                 // // SÓ AQUI criamos a entrada no dicionário de nomes
-//                 // if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
-//                 //     solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
-//                 // }
-
-//                 // registrosValidos.forEach(p => {
-//                 //     const nome = p.nomeSolicitante || p.nmfuncionario || chaveRenderizacao;
-//                 //     solicitantesPendentesPorChave[chaveRenderizacao].add(nome);
-//                 // });
-
-//                 gruposFiltrados.push({
-//                     ...grupoConsolidado,
-//                     registrosOriginais: registrosValidos
-//                 });
-//             }
-//         }
-//     });
-    
-//     // FIM DA SEÇÃO 1: Consolidação.
-
-//     // Ordenação... (inalterada)
-//     // gruposFiltrados.sort((a, b) =>
-//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
-//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
-//     // );
-
-//     if (gruposFiltrados.length === 0) {
-//         const msg = document.createElement("p");
-//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
-//         container.appendChild(msg);
-        
-//         // 🛑 V97.0: Atualiza a contagem para 0
-//         if (typeof atualizarBadgeDeStatus === 'function') {
-//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
-//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
-//         }
-//         return;
-//     }
-
-//     // --- 2. RENDERIZAÇÃO ---
-//     const listaGrupos = document.createElement("div");
-//     listaGrupos.className = "lista-funcionarios";
-
-//     gruposFiltrados.forEach(grupo => {
-//         const pedidosDoGrupo = grupo.registrosOriginais;
-//         if (!pedidosDoGrupo?.length) return;
-
-//         const chaveNome = categoria === 'funcionario'
-//             ? grupo.funcionario
-//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
-
-//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
-
-//         const divGrupo = document.createElement("div");
-//         divGrupo.className = "funcionario";
-
-//         const header = document.createElement("div");
-//         header.className = "funcionario-header";
-
-//         const body = document.createElement("div");
-//         body.className = "funcionario-body hidden";
-
-//         let htmlBody = '';
-//         let itensGrupo = 0;
-
-//         // Itera sobre os pedidos consolidados
-//         pedidosDoGrupo.forEach(pedido => {
-//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
-//             camposRenderizaveis.forEach(campo => { 
-//                 const itensFiltrados = pedido[campo];
-//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
-
-//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
-
-//                 itensParaRenderizar.forEach(infoItem => {
-//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
-//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
-
-//                     itensGrupo++;
-//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
-
-//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
-//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
-//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
-
-//                     let tituloCard;
-//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
-//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
-
-//                     if (isPedidoPrincipal) {
-//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
-//                         if (pedido.dataPrincipal) {
-//                             tituloCard += ` (${pedido.dataPrincipal})`;
-//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
-//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
-//                             tituloCard += ` (R$ ${valorFmt})`;
-//                         }
-//                     } else if (isAditivoExtra) {
-//                         const tipo = infoItem.tipoSolicitacao;
-//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
-//                             ? "Limite Diário Excedido por Função/Evento"
-//                             : tipo;
-//                     } else {
-//                         tituloCard = formatarNomeSolicitacao(campo);
-//                         if (isDataUnica) { 
-//                             const dataBruta = String(infoItem.data || '').trim();
-//                             let dataFmt = '';
-//                             if (dataBruta !== '') {
-//                                 const dataObj = parseDateLocal(dataBruta); 
-//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
-//                             }
-//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
-//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                             const valor = parseFloat(infoItem.valor) || 0;
-//                             if (valor !== 0) {
-//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
-//                                 tituloCard += ` (R$ ${valorFmt})`;
-//                             }
-//                         }
-//                     }
-
-//                     htmlBody += `
-//                         <div class="pedido-card">
-//                             <div>
-//                                 <strong>${tituloCard}</strong><br>
-//                     `;
-
-//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
-
-//                     if (pedido.evento) {
-//                         if (categoria === 'funcionario' && pedido.funcionario) {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
-//                         } else {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} -<strong>Solicitante:</strong> ${nomeSolic}<br>`;
-//                         }
-//                     }
-
-//                     if (isPedidoPrincipal) {
-//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (isAditivoExtra) {
-//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
-//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                         const valor = parseFloat(infoItem.valor) || 0; 
-//                         if (valor !== 0) {
-//                             const valorFmt = valor.toFixed(2).replace('.', ',');
-//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         } else {
-//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         }
-//                     } else if (isDataUnica) {
-//                         const dataBruta = String(infoItem.data || '').trim();
-//                         let dataFmt = 'Data indefinida';
-//                         if (dataBruta !== '') {
-//                             const dataObj = parseDateLocal(dataBruta);
-//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
-//                         }
-//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (infoItem.datas) {
-//                         const datasFmt = infoItem.datas
-//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
-//                             .filter(d => d)
-//                             .join(', ');
-//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     }
-
-//                     if (infoItem.descricao) {
-//                         htmlBody += `Descrição: ${infoItem.descricao}<br>`;
-//                     }
-
-//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
-//                         const dataParaAcao = isPedidoPrincipal 
-//                             ? (pedido.dataEspecifica || '') 
-//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
-//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-                        
-//                         htmlBody += `
-//                             <div class="flex gap-2 mt-2"
-//                                 data-id="${idParaAcao}"
-//                                 data-campo="${campoParaAcao}"
-//                                 data-data="${dataParaAcao}"
-//                                 data-aditivo="${isAditivoExtra}">
-//                                 <button class="aprovar">Autorizar</button>
-//                                 <button class="negar">Rejeitar</button>
-//                             </div>
-//                         `;
-//                     }
-
-//                     htmlBody += `
-//                             </div>
-//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
-//                         </div>
-//                     `;
-//                 });
-//             });
-//         });
-
-//         // 🛑 AQUI ESTÁ O PULO DO GATO:
-//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
-//         if (itensGrupo === 0) return;
-
-//         body.innerHTML = htmlBody;
-
-//         header.innerHTML = `
-//             <div>
-//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
-//                 <strong>${chaveNome}</strong><br>
-//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
-//             </div>
-//             <div class="flex items-center gap-2">
-//                 <span>${itensGrupo}</span>
-//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-//             </div>
-//         `;
-
-//         header.addEventListener("click", () => {
-//             body.classList.toggle("hidden");
-//             header.querySelector('i').classList.toggle('rotate-180');
-//         });
-
-//         divGrupo.appendChild(header);
-//         divGrupo.appendChild(body);
-//         listaGrupos.appendChild(divGrupo);
-//     });
-
-//     container.appendChild(listaGrupos);
-
-//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
-//     container.onclick = null; 
-
-//     container.addEventListener('click', async function(event) {
-//         const target = event.target;
-//         // Verifica se clicou nos botões
-//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
-
-//         const actionDiv = target.closest('[data-id]');
-//         if (!actionDiv) return;
-
-//         const isAprovar = target.classList.contains('aprovar');
-//         const idReferencia = actionDiv.getAttribute('data-id'); 
-//         const campoParaBackend = actionDiv.getAttribute('data-campo');
-//         const dataParaUpdate = actionDiv.getAttribute('data-data');
-//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
-
-//         // Determina qual função chamar e qual o status alvo
-//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
-//         const cardElement = target.closest('.pedido-card');
-
-//         // Modal de Confirmação
-//         const result = await Swal.fire({
-//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
-//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
-//             icon: 'warning',
-//             showCancelButton: true,
-//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-//             confirmButtonText: 'Confirmar'
-//         });
-
-//         if (result.isConfirmed) {
-//             try {
-//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
-                
-//                 let sucesso = false;
-//                 if (isAditivoExtra) {
-//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement); 
-//                 } else {
-//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate);
-//                 }
-
-                
-//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
-//                 if (sucesso) {
-//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
-
-//                     // O status que queremos gravar na memória (ex: 'autorizado')
-//                     // Ajustado para pegar da variável que você está usando no seu escopo
-//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
-
-//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
-//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
-//                     listas.forEach(lista => {
-//                         lista.forEach(grupo => {
-//                             grupo.registrosOriginais?.forEach(p => {
-//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
-//                                     // Atualiza o campo que a sua função de contagem "Original" usa
-//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
-//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
-//                                 }
-//                             });
-//                         });
-//                     });
-
-//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
-//                     // ... (dentro do if (sucesso), após a remoção do card)
-
-//                     if (cardElement) {
-//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
-//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
-//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
-//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
-
-//                         // 2. Remove o card com um pequeno efeito
-//                         cardElement.style.transition = '0.3s';
-//                         cardElement.style.opacity = '0';
-                        
-//                         setTimeout(() => {
-//                             cardElement.remove();
-//                             console.log("🗑️ Card removido.");
-
-//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
-//                             if (corpoGrupo) {
-//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
-                                
-//                                 if (cardsRestantes === 0 && grupoContainer) {
-//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
-                                    
-//                                     grupoContainer.style.transition = '0.3s';
-//                                     grupoContainer.style.opacity = '0';
-                                    
-//                                     setTimeout(() => {
-//                                         grupoContainer.remove();
-//                                     }, 300);
-//                                 }
-//                             }
-                            
-//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
-//                             atualizarContadoresGlobais();
-                            
-//                         }, 300);
-//                     }
-
-//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
-//                 }
-    
-//             } catch (err) {
-//                 console.error("❌ Erro na execução:", err);
-//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
-//             }
-//         }
-//     });
-
-//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
-//     if (typeof atualizarBadgeDeStatus === 'function') {
-//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
-//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
-//     }
-
-//     if (typeof atualizarContadoresGlobais === 'function') {
-//         atualizarContadoresGlobais();
-//     }
-// } 
-
 
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     window.pedidosCompletosGlobais = pedidosCompletos;
@@ -4707,6 +4311,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statusmeiadiaria",
         "statusdiariadobrada",
         "statuscustofechado",
+        "statuscacheliberado",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
@@ -4748,7 +4353,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             // }
 
             const categoriaItem = pedidoOriginal.categoria_item || "geral";
-            const idLog = pedidoOriginal.id_log || 'sem-log';
+            const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
 
             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
             
@@ -4776,7 +4381,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
             // Verifica sub-itens (Meia diária, caixinha, etc)
             camposTodos.forEach(campo => {
+                console.log(`🔍 Verificando campo "${campo}" para o item ID: ${idLog} - Categoria: ${categoriaItem}`);
                 const itens = safeParse(pedidoOriginal[campo]);
+                
+                
                 const itensFiltrados = itens.filter(it => {
                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
                     return String(s).toLowerCase().trim() === statusDesejado;
@@ -4790,7 +4398,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 } 
                 // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
                 // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
-            });
+            });            
+
         });
 
         if (temAlgumMatchNesteGrupo) {
@@ -4859,6 +4468,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
         // Itera sobre os pedidos consolidados
         pedidosDoGrupo.forEach(pedido => {
+            console.log("Pedidos do grupo:", pedido);
             // Itera sobre camposTodos e o placeholder 'pedido_principal'
             camposRenderizaveis.forEach(campo => { 
                 const itensFiltrados = pedido[campo];
@@ -4888,6 +4498,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             tituloCard += ` (${pedido.dataPrincipal})`;
                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+                            
                             tituloCard += ` (R$ ${valorFmt})`;
                         }
                     } else if (isAditivoExtra) {
@@ -4896,7 +4507,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             ? "Limite Diário Excedido por Função/Evento"
                             : tipo;
                     } else {
-                        tituloCard = formatarNomeSolicitacao(campo);
+                        //tituloCard = formatarNomeSolicitacao(campo);
+                        const categoriaParaFormatar = infoItem.categoria || campo;
+                        const categoriaDoBanco = pedido.categoria;
+
+                        console.log(`Formatando título para categoria: ${categoriaParaFormatar} (Campo: ${campo})`);
+
+                        tituloCard = formatarNomeSolicitacao(categoriaParaFormatar, categoriaDoBanco);
                         if (isDataUnica) { 
                             const dataBruta = String(infoItem.data || '').trim();
                             let dataFmt = '';
@@ -4914,11 +4531,38 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         }
                     }
 
-                    let dataSolicFormatada = '';
+                    let dataQfezSolicitacaoFormatada = '';
                     if (pedido.dataSolicitacao) {
                         const dataObj = new Date(pedido.dataSolicitacao);
                         // Verifica se a data é válida antes de formatar
-                        dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+                        dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+                    }
+
+                    let dataSolicitadaFormatada = '';
+
+                    if (pedido.dataSolicitada) {
+                        // 1. Garante que temos um array (se vier string com vírgula, vira array)
+                        const datasArray = Array.isArray(pedido.dataSolicitada) 
+                            ? pedido.dataSolicitada 
+                            : pedido.dataSolicitada.toString().split(',');
+
+                        // 2. Mapeia cada data formatando para pt-BR
+                        const datasFormatadas = datasArray.map(dataStr => {
+                            if (dataStr == null) return '';
+                            const dataObj = new Date(dataStr.trim());
+                            
+                            // Se a data for válida, formata. Se não, retorna o texto original.
+                            if (!isNaN(dataObj.getTime())) {
+                                // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
+                                return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
+                                    (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
+                                    dataObj.getUTCFullYear();
+                            }
+                            return dataStr;
+                        });
+
+                        // 3. Junta tudo com vírgula e espaço para exibir na tela
+                        dataSolicitadaFormatada = datasFormatadas.join(', ');
                     }
                    
                     let dataFormatada = '';
@@ -4937,7 +4581,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     htmlBody += `
                         <div class="pedido-card">
                             <div>
-                                <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+                                <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
                     `;
                     
 
@@ -4952,8 +4596,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
-                        if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
-                        htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br><strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                        htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
                         // if (valor !== 0) {
@@ -4961,14 +4605,23 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                         // } else {
                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-                        // }
-
+                        // }                       
                         
+                        console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
                         
 
                         if (valor !== 0) {
                             const valorFmt = valor.toFixed(2).replace('.', ',');
-                            htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                            if (p.categoria === 'statuscustofechado' || p.categoria === 'statuscacheliberado') {
+                                const valorAlimentFmt = infoItem.vlralimentacao?.toFixed(2).replace('.', ',') || '0,00';
+                                const valorTranspFmt = infoItem.vlrtransporte?.toFixed(2).replace('.', ',') || '0,00';
+                                htmlBody += `<strong>Valor Cachê:</strong> R$ ${valorFmt} - <strong>Valor Alimentação:</strong> R$ ${valorAlimentFmt} - <strong>Valor Transporte:</strong> R$ ${valorTranspFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                            
+                            }
+                            else{
+                                htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                            }
+                           
                         } else {
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
@@ -5196,7 +4849,7 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
         console.log("📦 Enviando para o servidor:", bodyData);
 
         const resposta = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyData)
         });
@@ -5415,13 +5068,7 @@ async function atualizarResumoPedidos() {
         ]);
 
         console.log("DEBUG - Pedidos Padrão (Financeiros):", pedidosPadrao);
-        console.log("DEBUG - Aditivos e Extras:", aditivosExtras);
-
-        // Filtro específico para o David se quiser ver apenas o dele no console:
-        console.log("DEBUG - Filtro David:", pedidosPadrao.filter(p => 
-            p.nomefuncionario?.includes("DAVID WAGNER") || 
-            p.funcionario?.includes("DAVID WAGNER")
-        ));
+        console.log("DEBUG - Aditivos e Extras:", aditivosExtras);        
         
 
         let pedidosUnificados = [...pedidosPadrao];
@@ -6767,6 +6414,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     { id: 'vencidos', label: 'Atrasadas', color: '#d9534f' },
                     { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },
                     { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
+                    { id: 'vencer em 5 dias', label: 'Vence em 5 dias', color: '#17a2b8' },
                     { id: 'liquidado', label: 'Pagas', color: '#28a745' }
                 ];
 
@@ -7255,6 +6903,9 @@ function criarAccordionVinculo(tipo, lista, hoje) {
     const dHoje = new Date(hoje); 
     dHoje.setHours(0,0,0,0);
 
+    const dProximos5Dias = new Date(dHoje);
+    dProximos5Dias.setDate(dHoje.getDate() + 5);
+
     // 1. CÁLCULO DO RESUMO DO CABEÇALHO (Ignora suspensos)
     const resumoVinculo = lista.reduce((acc, c) => {
         const statusOriginal = (c.status || 'pendente').toLowerCase();
@@ -7272,6 +6923,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
         let statusCalculo = statusOriginal;
         if (statusOriginal !== 'pago' && dParcela && dParcela < dHoje) {
             statusCalculo = 'atrasado';
+        }
+
+        if (statusCalculo !== 'pago' && statusCalculo !== 'atrasado' && dParcela) {
+            if (dParcela > dHoje && dParcela <= dProximos5Dias) {
+                acc.venceEm5Dias += vSaldo || vTotalItem;
+                acc.temProximos5 = true;
+            }
         }
 
         if (statusCalculo === 'pago') {
@@ -7293,7 +6951,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             acc.pendente += vSaldo || vTotalItem;
         }
         return acc;
-    }, { pagos: 0, pendente: 0, total: 0, vencidos: 0, valorHoje: 0, aVencer: 0, temVencido: false, temHoje: false });
+    }, { pagos: 0, pendente: 0, total: 0, vencidos: 0, valorHoje: 0, aVencer: 0, temVencido: false, temHoje: false, temProximos5: false });
 
     // 2. MONTAGEM DOS ALERTAS DO HEADER
     let alertasTexto = [];
@@ -7309,6 +6967,9 @@ function criarAccordionVinculo(tipo, lista, hoje) {
     if (resumoVinculo.pagos > 0) {
         alertasTexto.push(`<strong style="color:#2E8B57; font-size: 16px;">PAGOS: ${formatarMoeda(resumoVinculo.pagos)}</strong>`);
     }
+    if (resumoVinculo.temProximos5) {
+        alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 6px;"><span class="dot-alerta" style="background-color: #17a2b8; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#17a2b8; font-size: 16px;">5 DIAS: ${formatarMoeda(resumoVinculo.venceEm5Dias)}</strong></span>`);
+    }
 
     let subStatusHtml = alertasTexto.length > 0 
         ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">${alertasTexto.join(' <span style="color:#ddd">|</span> ')}</div>`
@@ -7320,6 +6981,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
     let statusParaFiltro = "a_vencer";
     if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
     else if (resumoVinculo.temHoje) statusParaFiltro = "hoje";
+    else if (resumoVinculo.temProximos5) statusParaFiltro = "vence_5_dias";
     else if (resumoVinculo.pendente <= 0) statusParaFiltro = "liquidado";
     item.setAttribute("data-status-filtro", statusParaFiltro);
 
@@ -7402,8 +7064,16 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 if (ehSuspenso) { filterLinha = "suspenso"; }
                                 else if (statusC === 'pago') { filterLinha = "liquidado"; }
                                 else {
+                                    const dParcelaLinha = vctoISO ? new Date(vctoISO + "T12:00:00") : null;
+                                    if(dParcelaLinha) dParcelaLinha.setHours(0,0,0,0);
+
                                     if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
                                     else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
+                                    else if (dParcelaLinha && dParcelaLinha <= dProximos5Dias) { // AQUI
+                                        filterLinha = "vence_5_dias";
+                                        estiloVencido = "color: #17a2b8; font-weight: bold;";
+                                        avisoStatus = `<span style="background:#17a2b8; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
+                                    }
                                     else { filterLinha = "a_vencer"; }
                                 }
 
@@ -8388,10 +8058,11 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                 const celulaComprovantes = linhaTr.querySelector('.comprovantes-cell');
 
                 // 1. Atualiza Cor e Texto do Status
-                if (celulaStatus) {
+                if (celulaStatus) {                    
                     const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                     celulaStatus.className = `status-celula status-${classeStatus}`;
                     celulaStatus.innerText = statusParaEnviar;
+             
                 }
 
                 // 2. Atualiza Botões de Ação (Pago/Suspenso/Lock)
