@@ -255,7 +255,7 @@ select#selectAno {
   align-items: center;
 }
 
-#categoria-wrapper{
+.categoria-wrapper{
   position: relative;
   width: 260px;
   height: 36px;
@@ -265,6 +265,16 @@ select#selectAno {
   display: flex;
   flex-direction: row;
   box-shadow: 4px 4px var(--border-color);
+}
+
+.categoria-wrapper .input:checked + .btn {
+  background-color: var(--primary-color);
+  transition: 0.2s cubic-bezier(0, 0, 0, 1);
+}
+
+.categoria-wrapper .input:checked + .btn .span {
+  color: var(--font-color);
+  transition: 0.25s cubic-bezier(0, 0, 0, 1);
 }
 
 .option.disabled-option {

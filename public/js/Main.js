@@ -5692,18 +5692,20 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             ajuste_custo: f.totalajustecusto_full,
             soma_calculada_no_banco: f.cache_com_ajuste
         });
-                const info = {
-                    // 'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
-                    'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
-                    
-                    'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
-                    'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
-                    'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
-                }[filtro];
-                
-                const estaPago = info.status.toLowerCase().startsWith('pago');
-                const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-                //return `<tr><td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td><td style="text-align:center">${f.qtddiarias_filtradas || 0}</td><td style="text-align:center"><small>${f.periodo_eventoini_fmt || '---'}</small></td>${podeVerAcoes ? `<td style="text-align:center">${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}</td>` : ''}<td class="comprovantes-cell">${estaPago ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}</td><td class="status-celula status-${classeStatus}">${info.status}</td><td>${formatarMoeda(info.valor || 0)}</td></tr>`;
+        const info = {
+            // 'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
+            'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
+            
+            'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
+            'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
+            'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
+        }[filtro];
+        
+        const estaPago = info.status.toLowerCase().startsWith('pago');
+        const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+        const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+        //return `<tr><td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td><td style="text-align:center">${f.qtddiarias_filtradas || 0}</td><td style="text-align:center"><small>${f.periodo_eventoini_fmt || '---'}</small></td>${podeVerAcoes ? `<td style="text-align:center">${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}</td>` : ''}<td class="comprovantes-cell">${estaPago ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}</td><td class="status-celula status-${classeStatus}">${info.status}</td><td>${formatarMoeda(info.valor || 0)}</td></tr>`;
             return `
                     <tr>
                         <td>
@@ -5716,7 +5718,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         </td>
 
                         <td style="text-align:center">
-                            <small>${f.periodo_eventoini_fmt || '---'}</small>
+                            <small>${periodoFormatado || '---'}</small>
                         </td>
 
                         ${podeVerAcoes ? `
@@ -6065,6 +6067,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 const fHtml = criarFiltroCategorias(null, null); 
                 body.querySelector(".container-filtro-local").appendChild(fHtml);
+
+const primeiroBtn = fHtml.querySelector('.categoria-wrapper .input:checked + .btn');
+if (primeiroBtn) primeiroBtn.style.cssText = 'background-color: var(--primary-color); border-radius: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer;';
+const primeiroSpan = fHtml.querySelector('.categoria-wrapper .input:checked + .btn .span');
+if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
+
                 fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
                     r.addEventListener('change', (e) => {
                         const v = e.target.value;
@@ -8577,12 +8585,14 @@ function criarFiltroCategorias(conteudoGeral, valoresResumoElement) {
     const container = document.createElement("div");
     container.className = "filtro-categoria-container"; // Uma classe pai para controle extra se precisar
 
+    //  <div class="wrapper" id="categoria-wrapper">
+    // 
     container.innerHTML = `
       <label class="label-select">Categoria de Pagamento</label>
-      <div class="wrapper" id="categoria-wrapper">
+      <div class="categoria-wrapper">
         <div class="option">
             <input checked value="ajuda_custo" name="categoria" type="radio" class="input" />
-            <div class="btn"><span class="span">Ajud. Custo</span></div>
+            <div class="btn"><span class="span">Ajuda Custo</span></div>
         </div>
         <div class="option">
             <input value="cache" name="categoria" type="radio" class="input" />
@@ -8596,9 +8606,34 @@ function criarFiltroCategorias(conteudoGeral, valoresResumoElement) {
     `;
 
     // Adiciona o evento de clique em cada rádio
+    // container.querySelectorAll("input[name='categoria']").forEach(radio => {
+    //     radio.addEventListener("change", () => {
+    //         // Chama a função de carregamento sempre que mudar a categoria
+    //         if (typeof carregarDetalhesVencimentos === "function") {
+    //             carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+    //         }
+    //     });
+    // });
+
     container.querySelectorAll("input[name='categoria']").forEach(radio => {
-        radio.addEventListener("change", () => {
-            // Chama a função de carregamento sempre que mudar a categoria
+        radio.addEventListener("change", (e) => {
+            // 1. Limpa o estilo inline de TODOS os btns e spans
+            container.querySelectorAll('.btn').forEach(b => {
+                b.style.backgroundColor = '';
+            });
+            container.querySelectorAll('.span').forEach(s => {
+                s.style.color = '';
+            });
+
+            // 2. Aplica o estilo no btn selecionado
+            const btnAtivo = e.target.nextElementSibling;
+            if (btnAtivo) {
+                btnAtivo.style.backgroundColor = 'var(--primary-color)';
+                const spanAtivo = btnAtivo.querySelector('.span');
+                if (spanAtivo) spanAtivo.style.color = 'var(--font-color)';
+            }
+
+            // 3. Chama a função de carregamento se existir
             if (typeof carregarDetalhesVencimentos === "function") {
                 carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
             }
