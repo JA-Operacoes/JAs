@@ -311,198 +311,6 @@ router.get("/eventos-staff", async (req, res) => {
 // =======================================
 // EVENTOS EM ABERTOS E FECHADOS
 // =======================================
-// router.get("/eventos-abertos/semfiltros", async (req, res) => {
-//     try {
-//         const idempresa = req.headers.idempresa || req.query.idempresa;
-//         const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
-//         const params = [idempresa, ano];
-
-//         const baseSql = `
-//             WITH vagas_orc AS (
-//                 SELECT 
-//                     o.idevento,
-//                     lm.descmontagem AS nmlocalmontagem,
-//                     o.idmontagem, 
-//                     MAX(o.nrorcamento) AS nrorcamento,
-//                     SUM(i.qtditens) AS total_vagas,
-//                     MIN(o.dtinimarcacao) AS dtinimarcacao,
-//                     MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-//                     MIN(o.dtinimontagem) AS dtinimontagem,
-//                     MAX(o.dtfimmontagem) AS dtfimmontagem,
-//                     MIN(o.dtinirealizacao) AS dtinirealizacao,
-//                     MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-//                     MIN(o.dtinidesmontagem) AS dtinidesmontagem,
-//                     MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-//                     array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-//                     array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-//                     array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-//                     (
-//                         SELECT json_agg(row_to_json(t))
-//                         FROM (
-//                             SELECT 
-//                                 eq2.idequipe,
-//                                 eq2.nmequipe AS equipe,
-//                                 i2.idfuncao, 
-//                                 f2.descfuncao AS nome_funcao, 
-//                                 SUM(i2.qtditens) AS total_vagas
-//                             FROM orcamentoitens i2
-//                             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-//                             JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-//                             JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-//                             WHERE o2.idevento = o.idevento
-//                             AND i2.categoria = 'Produto(s)'
-//                             AND o2.status <> 'R'
-//                             AND (
-//                                 o2.status = 'F' 
-//                                 OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true)
-//                             )
-//                             GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-//                         ) AS t
-//                     ) AS equipes_detalhes_base
-//                 FROM orcamentoitens i
-//                 JOIN orcamentos o ON i.idorcamento = o.idorcamento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-//                 LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-//                 LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-//                 LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-//                 LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-//                 WHERE o.idevento IS NOT NULL
-//                 AND oe.idempresa = $1 
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND i.categoria = 'Produto(s)' 
-//                 AND o.status <> 'R'
-//                 AND (
-//                     o.status = 'F'
-//                     OR (o.status IN ('P', 'E') AND o.contratarstaff = true)
-//                 )
-//                 GROUP BY o.idevento, lm.descmontagem, o.idmontagem
-//             ),
-//             staff_por_funcao AS ( 
-//                 SELECT 
-//                     se.idevento,
-//                     se.idfuncao,
-//                     COUNT(DISTINCT se.idstaff) AS preenchidas 
-//                 FROM staffeventos se
-//                 JOIN orcamentos o ON o.idevento = se.idevento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 WHERE oe.idempresa = $1 
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 AND EXISTS (
-//                     SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//                     WHERE EXTRACT(YEAR FROM d.dt::date) = $2
-//                 )
-//                 GROUP BY se.idevento, se.idfuncao
-//             ),
-//             staff_contagem AS (
-//                 SELECT 
-//                     vo.idevento,
-//                     COALESCE(SUM(spf.preenchidas), 0) AS total_staff_preenchido
-//                 FROM vagas_orc vo
-//                 LEFT JOIN staff_por_funcao spf ON spf.idevento = vo.idevento
-//                 GROUP BY vo.idevento
-//             ),
-//             staff_datas_por_funcao AS (
-//                 SELECT
-//                     se.idevento,
-//                     se.idfuncao,
-//                     array_agg(DISTINCT d.dt) AS datas_staff
-//                 FROM staffeventos se
-//                 LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) ON TRUE
-//                 JOIN orcamentos o ON se.idevento = o.idevento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 WHERE oe.idempresa = $1
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND EXTRACT(YEAR FROM d.dt::date) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 GROUP BY se.idevento, se.idfuncao
-//             ),
-//             cliente_info AS (
-//                 SELECT DISTINCT ON (o.idevento)
-//                     o.idevento, c.idcliente, c.nmfantasia
-//                 FROM orcamentos o
-//                 JOIN clientes c ON c.idcliente = o.idcliente
-//                 WHERE o.idevento IS NOT NULL
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 ORDER BY o.idevento, o.dtinirealizacao DESC 
-//             )
-//             SELECT 
-//                 e.idevento, e.nmevento, vo.nmlocalmontagem, vo.idmontagem, vo.nrorcamento,
-//                 ci.idcliente, ci.nmfantasia,
-//                 COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,
-//                 COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
-//                 COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
-//                 COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
-//                 COALESCE(vo.dtfimdesmontagem, CURRENT_DATE) AS dtfimdesmontagem,
-//                 COALESCE(vo.total_vagas, 0) AS total_vagas,
-//                 COALESCE(sc.total_staff_preenchido, 0) AS total_staff,
-//                 (COALESCE(vo.total_vagas, 0) - COALESCE(sc.total_staff_preenchido, 0)) AS vagas_restantes,
-//                 COALESCE(vo.equipes_ids, ARRAY[]::int[]) AS equipes_ids,
-//                 COALESCE(vo.equipes_nomes, ARRAY[]::text[]) AS equipes_nomes,
-//                 (
-//                     SELECT json_agg(
-//                         json_build_object(
-//                             'idequipe', (b->>'idequipe')::int,
-//                             'equipe', b->>'equipe',
-//                             'idfuncao', (b->>'idfuncao')::int,
-//                             'nome_funcao', b->>'nome_funcao',
-//                             'total_vagas', (b->>'total_vagas')::int,
-//                             'preenchidas', COALESCE(spf.preenchidas, 0), 
-//                             'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-//                         )
-//                     )
-//                     FROM json_array_elements(vo.equipes_detalhes_base) AS b
-//                     LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int 
-//                     LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
-//                 ) AS equipes_detalhes,
-//                 'aberto' AS status_evento
-//             FROM eventos e
-//             INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
-//             LEFT JOIN staff_contagem sc ON sc.idevento = e.idevento
-//             LEFT JOIN cliente_info ci ON ci.idevento = e.idevento
-//             WHERE (vo.dtfimdesmontagem IS NULL OR vo.dtfimdesmontagem >= CURRENT_DATE)
-//             ORDER BY COALESCE(vo.dtinirealizacao, CURRENT_DATE) ASC;
-//         `;
-
-//         const { rows } = await pool.query(baseSql, params);
-        
-//         const mappedRows = rows.map(evt => {
-//             const resumoEquipesMap = (evt.equipes_detalhes || []).reduce((acc, func) => {
-//                 const nomeEquipe = func.equipe;
-//                 const totalVagas = func.total_vagas || 0;
-//                 const preenchidas = func.preenchidas || 0;
-//                 if (!acc[nomeEquipe]) acc[nomeEquipe] = { total: 0, preenchido: 0 };
-//                 acc[nomeEquipe].total += totalVagas;
-//                 acc[nomeEquipe].preenchido += preenchidas;
-//                 return acc;
-//             }, {});
-
-//             const resumoFormatado = Object.entries(resumoEquipesMap).map(([equipe, dados]) => {
-//                 const restante = dados.total - dados.preenchido;
-//                 let cor = "🟢"; 
-//                 if (dados.total === 0) cor = "⚪"; 
-//                 else if (dados.preenchido === 0) cor = "🔴"; 
-//                 else if (restante > 0) cor = "🟡"; 
-
-//                 return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
-//             }).join(" | ");
-
-//             return { ...evt, resumoEquipes: resumoFormatado };
-//         });
-
-//         return res.json(mappedRows);
-//     } catch (err) {
-//         console.error("Erro em /eventos-abertos:", err);
-//         res.status(500).json({ error: "Erro interno ao buscar eventos abertos." });
-//     }
-// });
 
 router.get("/eventos-abertos", async (req, res) => {
     try {
@@ -560,40 +368,56 @@ router.get("/eventos-abertos", async (req, res) => {
 
         const sql = `
             WITH vagas_orc AS (
-                SELECT 
-                    o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, 
-                    MAX(o.nrorcamento) AS nrorcamento,
-                    SUM(i.qtditens) AS total_vagas,
-                    MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-                    MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
-                    MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-                    MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-                    array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-                    array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-                    array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-                    (SELECT json_agg(row_to_json(t)) FROM (
-                        SELECT eq2.idequipe, eq2.nmequipe AS equipe, i2.idfuncao, f2.descfuncao AS nome_funcao, SUM(i2.qtditens) AS total_vagas
-                        FROM orcamentoitens i2
-                        JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-                        JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-                        JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-                        WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' AND o2.status <> 'R'
-                        AND (o2.status = 'F' OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true))
-                        GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-                    ) AS t) AS equipes_detalhes_base
-                FROM orcamentoitens i
-                JOIN orcamentos o ON i.idorcamento = o.idorcamento
-                JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-                LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-                LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-                LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-                LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-                LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-                WHERE oe.idempresa = $1 
-                AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
-                AND i.categoria = 'Produto(s)' AND o.status <> 'R'
-                AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-                GROUP BY o.idevento, lm.descmontagem, o.idmontagem
+            SELECT 
+                o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, 
+                MAX(o.nrorcamento) AS nrorcamento,
+                -- LÓGICA MISTA: 
+                -- Se o cache está fechado, contamos 1 vaga por item (independente da qtd).
+                -- Se o cache NÃO está fechado, mantemos a soma da qtditens original.
+                SUM(CASE 
+                    WHEN i.cachefechado = true THEN 1
+                    ELSE i.qtditens 
+                END) AS total_vagas,
+                MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
+                MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
+                MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+                MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
+                array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
+                array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
+                array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
+                (SELECT json_agg(row_to_json(t)) FROM (
+                    SELECT 
+                        eq2.idequipe, 
+                        eq2.nmequipe AS equipe, 
+                        i2.idfuncao, 
+                        f2.descfuncao AS nome_funcao, 
+                        -- REPETE A LÓGICA NO DETALHE DO JSON
+                        SUM(CASE 
+                            WHEN i2.cachefechado = true THEN 1
+                            ELSE i2.qtditens 
+                        END) AS total_vagas,
+                        bool_and(i2.cachefechado) as cache_fechado
+                    FROM orcamentoitens i2
+                    JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
+                    JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
+                    JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
+                    WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' AND o2.status <> 'R'
+                    AND (o2.status = 'F' OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true))
+                    GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
+                ) AS t) AS equipes_detalhes_base
+            FROM orcamentoitens i
+            JOIN orcamentos o ON i.idorcamento = o.idorcamento
+            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
+            LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
+            LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
+            LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
+            LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
+            WHERE oe.idempresa = $1 
+            AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
+            AND i.categoria = 'Produto(s)' AND o.status <> 'R'
+            AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
+            GROUP BY o.idevento, lm.descmontagem, o.idmontagem
             ),
             staff_por_funcao AS (
                 SELECT 
@@ -698,191 +522,6 @@ router.get("/eventos-abertos", async (req, res) => {
         res.status(500).json({ error: "Erro interno.", message: err.message });
     }
 });
-
-// router.get("/eventos-fechados/semfiltros", async (req, res) => {
-//     try {
-//         const idempresa = req.headers.idempresa || req.query.idempresa;
-//         const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido." });
-//         const params = [idempresa, ano];
-
-//         const baseSql = `
-//         WITH vagas_orc AS (
-//             SELECT 
-//                 o.idevento, o.idmontagem,
-//                 lm.descmontagem AS nmlocalmontagem,
-//                 MAX(o.nrorcamento) AS nrorcamento,
-//                 SUM(i.qtditens) AS total_vagas,
-//                 MIN(o.dtinimarcacao) AS dtinimarcacao,
-//                 MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-//                 MIN(o.dtinimontagem) AS dtinimontagem,
-//                 MAX(o.dtfimmontagem) AS dtfimmontagem,
-//                 MIN(o.dtinirealizacao) AS dtinirealizacao,
-//                 MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-//                 MIN(o.dtinidesmontagem) AS dtinidesmontagem,
-//                 MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-//                 array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-//                 array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-//                 array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-//                 (
-//                     SELECT json_agg(row_to_json(t))
-//                     FROM (
-//             SELECT 
-//                 eq2.idequipe,
-//                 eq2.nmequipe AS equipe,
-//                 i2.idfuncao, 
-//                 f2.descfuncao AS nome_funcao, 
-//                 SUM(i2.qtditens) AS total_vagas,
-//                 MIN(i2.periododiariasinicio) AS dtini_vaga,
-//                 MAX(i2.periododiariasfim) AS dtfim_vaga
-//             FROM orcamentoitens i2
-//             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-//             JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-//             JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-//             WHERE o2.idevento = o.idevento
-//             AND i2.categoria = 'Produto(s)' 
-//             GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-//                     ) AS t
-//                 ) AS equipes_detalhes_base
-//             FROM orcamentoitens i
-//             JOIN orcamentos o ON i.idorcamento = o.idorcamento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-//             LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-//             LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-//             LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-//             LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-//             WHERE o.idevento IS NOT NULL
-//             AND oe.idempresa = $1
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND i.categoria = 'Produto(s)'
-//             GROUP BY o.idevento, o.idmontagem, lm.descmontagem
-//         ),
-//         staff_por_funcao AS ( 
-//             SELECT 
-//                 se.idevento, se.idfuncao,
-//                 COUNT(DISTINCT se.idstaff) AS preenchidas 
-//             FROM staffeventos se
-//             JOIN orcamentos o ON o.idevento = se.idevento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             WHERE oe.idempresa = $1 
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND EXISTS (
-//                 SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//                 WHERE EXTRACT(YEAR FROM d.dt::date) = $2
-//             )
-//             GROUP BY se.idevento, se.idfuncao
-//         ),
-//         staff_contagem AS (
-//             SELECT 
-//                 vo.idevento,
-//                 COALESCE(SUM(spf.preenchidas), 0) AS total_staff_preenchido
-//             FROM vagas_orc vo
-//             LEFT JOIN staff_por_funcao spf ON spf.idevento = vo.idevento
-//             GROUP BY vo.idevento
-//         ),
-//         staff_datas_por_funcao AS (
-//             SELECT
-//                 se.idevento, se.idfuncao,
-//                 array_agg(DISTINCT d.dt) AS datas_staff
-//             FROM staffeventos se
-//             LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) ON TRUE
-//             JOIN orcamentos o ON se.idevento = o.idevento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             WHERE oe.idempresa = $1
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND EXTRACT(YEAR FROM d.dt::date) = $2
-//             GROUP BY se.idevento, se.idfuncao
-//         ), 
-//         cliente_info AS ( 
-//             SELECT DISTINCT ON (o.idevento)
-//                 o.idevento, c.idcliente, c.nmfantasia
-//             FROM orcamentos o
-//             JOIN clientes c ON c.idcliente = o.idcliente
-//             WHERE o.idevento IS NOT NULL
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             ORDER BY o.idevento, o.dtinirealizacao DESC 
-//         )
-//         SELECT 
-//             e.idevento, e.nmevento, vo.idmontagem, vo.nmlocalmontagem, vo.nrorcamento,
-//             ci.idcliente, ci.nmfantasia,
-//             COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,
-//             COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
-//             COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
-//             COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
-//             COALESCE(vo.dtfimdesmontagem, CURRENT_DATE) AS dtfimdesmontagem,
-//             COALESCE(vo.total_vagas, 0) AS total_vagas,
-//             COALESCE(sc.total_staff_preenchido, 0) AS total_staff,
-//             (COALESCE(vo.total_vagas, 0) - COALESCE(sc.total_staff_preenchido, 0)) AS vagas_restantes,
-//             COALESCE(vo.equipes_ids, ARRAY[]::int[]) AS equipes_ids,
-//             COALESCE(vo.equipes_nomes, ARRAY[]::text[]) AS equipes_nomes,
-//             (
-//                 SELECT json_agg(
-//                     json_build_object(
-//             'idequipe', (b->>'idequipe')::int,
-//             'equipe', b->>'equipe',
-//             'idfuncao', (b->>'idfuncao')::int,
-//             'nome_funcao', b->>'nome_funcao',
-//             'total_vagas', (b->>'total_vagas')::int,
-//             'preenchidas', COALESCE(spf.preenchidas, 0), 
-//             'dtini_vaga', b->>'dtini_vaga',
-//             'dtfim_vaga', b->>'dtfim_vaga',
-//             'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-//                     )
-//                 )
-//                 FROM json_array_elements(vo.equipes_detalhes_base) AS b
-//                 LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int 
-//                 LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
-//             ) AS equipes_detalhes,
-//             'fechado' AS status_evento
-//         FROM eventos e
-//         INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
-//         LEFT JOIN staff_contagem sc ON sc.idevento = e.idevento
-//         LEFT JOIN cliente_info ci ON ci.idevento = e.idevento
-//         WHERE (vo.dtfimdesmontagem IS NOT NULL AND vo.dtfimdesmontagem < CURRENT_DATE)
-//         ORDER BY COALESCE(vo.dtinirealizacao, CURRENT_DATE) DESC;
-//         `;
-
-//         const { rows } = await pool.query(baseSql, params);
-        
-//         const mappedRows = rows.map(evt => {
-//             const resumoEquipesMap = (evt.equipes_detalhes || []).reduce((acc, func) => {
-//                 const nomeEquipe = func.equipe;
-//                 const totalVagas = func.total_vagas || 0;
-//                 const preenchidas = func.preenchidas || 0;
-
-//                 // Agrega Vagas e Staff Preenchido por NOME DA EQUIPE
-//                 if (!acc[nomeEquipe]) {
-//                     acc[nomeEquipe] = { total: 0, preenchido: 0 };
-//                 }
-
-//                 acc[nomeEquipe].total += totalVagas;
-//                 acc[nomeEquipe].preenchido += preenchidas;
-
-//                 return acc;
-//             }, {});
-
-//             const resumoFormatado = Object.entries(resumoEquipesMap).map(([equipe, dados]) => {
-//                 const restante = dados.total - dados.preenchido;
-//                 let cor = "🟢"; // Verde: Completo ou Superou
-
-//                 if (dados.total === 0) cor = "⚪"; // Sem vagas
-//                 else if (dados.preenchido === 0) cor = "🔴"; // Vermelho: 0 preenchido
-//                 else if (restante > 0) cor = "🟡"; // Amarelo: Parcialmente preenchido
-
-//                 return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
-//             }).join(" | ");
-
-//             return { ...evt, resumoEquipes: resumoFormatado };
-//         });
-
-//         return res.json(mappedRows);
-//     } catch (err) {
-//         console.error("Erro em /eventos-fechados:", err);
-//         res.status(500).json({ error: "Erro interno ao buscar eventos fechados." });
-//     }
-// });
 
 router.get("/eventos-fechados", async (req, res) => {
     try {
@@ -1073,134 +712,6 @@ router.get("/eventos-fechados", async (req, res) => {
     }
 });
 
-// router.get("/detalhes-eventos-abertos", async (req, res) => {
-//   try {
-//     const idevento = req.query.idevento || req.headers.idevento;
-//     const idempresa = req.query.idempresa || req.headers.idempresa;
-//     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//     if (!idevento || !idempresa) {
-//       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
-//     }
-
-//     // 1️⃣ Busca orçamento principal
-//     const { rows: orcamentos } = await pool.query(
-//       `SELECT o.idorcamento, o.idcliente, o.idmontagem
-//        FROM orcamentos o
-//        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//        WHERE o.idevento = $1 AND oe.idempresa = $2 
-//        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
-//       [idevento, idempresa, ano]
-//     );
-
-//     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
-//     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
-
-//     // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
-//     const { rows: itensOrcamento } = await pool.query(
-//       `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
-//               COALESCE(i.setor, '') AS setor_orcamento,
-//               SUM(i.qtditens) AS qtd_orcamento,
-//               MIN(i.periododiariasinicio) AS dtini_vaga,
-//               MAX(i.periododiariasfim) AS dtfim_vaga
-//        FROM orcamentoitens i
-//        JOIN funcao f ON f.idfuncao = i.idfuncao
-//        JOIN equipe eq ON eq.idequipe = f.idequipe
-//        WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
-//        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-//       [idorcamento]
-//     );
-
-//     // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
-//     const { rows: staffCount } = await pool.query(
-//       `SELECT se.idfuncao, 
-//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-//               COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
-//        FROM staffeventos se
-//        WHERE se.idevento = $1 
-//          AND se.idcliente = $2
-//          AND EXISTS (
-//              SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
-//          )
-//        GROUP BY se.idfuncao, localizacao`,
-//       [idevento, idcliente, ano]
-//     );
-
-//     // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
-//     const { rows: datasStaffRaw } = await pool.query(
-//       `SELECT se.idfuncao, 
-//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-//               array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
-//        FROM staffeventos se
-//        CROSS JOIN LATERAL (
-//            SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
-//            WHERE EXTRACT(YEAR FROM dt::date) = $2
-//        ) AS d
-//        WHERE se.idevento = $1 AND se.idcliente = $3
-//        GROUP BY se.idfuncao, localizacao`,
-//       [idevento, ano, idcliente]
-//     );
-
-//     // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
-//     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-//       const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
-//       acc[key] = row.datas_staff;
-//       return acc;
-//     }, {});
-
-//     // 5️⃣ Agrupamento por equipe e montagem do objeto final
-//     const equipesMap = {};
-//     for (const item of itensOrcamento) {
-//       const idequipeKey = item.idequipe || "SEM_EQUIPE";
-
-//       if (!equipesMap[idequipeKey]) {
-//         equipesMap[idequipeKey] = {
-//           equipe: item.equipe || "Sem equipe",
-//           idequipe: item.idequipe,
-//           funcoes: [],
-//         };
-//       }
-
-//       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
-
-//       // Busca a quantidade
-//       const cadastrado = staffCount.find(s => 
-//         String(s.idfuncao) === String(item.idfuncao) && 
-//         String(s.localizacao).trim().toUpperCase() === setorNormalizado
-//       ); 
-
-//       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      
-//       // Busca as datas no mapa usando a mesma chave normalizada
-//       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
-//       const datas_staff = datasStaffMap[chaveDatas] || [];
-
-//       equipesMap[idequipeKey].funcoes.push({
-//         idfuncao: item.idfuncao,
-//         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
-//         setor_orcamento: item.setor_orcamento,
-//         qtd_orcamento: Number(item.qtd_orcamento) || 0,
-//         qtd_cadastrada,
-//         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
-//         dtini_vaga: item.dtini_vaga,
-//         dtfim_vaga: item.dtfim_vaga,
-//         datas_staff: datas_staff // Agora as datas voltarão a aparecer
-//       });
-//     }
-
-//     res.status(200).json({ 
-//       equipes: Object.values(equipesMap), 
-//       idmontagem,
-//       idorcamento
-//     });
-
-//   } catch (err) {
-//     console.error("Erro ao processar detalhes dos eventos:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
@@ -1211,46 +722,50 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca TODOS os orçamentos da empresa no evento
+    // 1️⃣ Busca Orçamentos (Inalterado)
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.status, o.idcliente, o.idmontagem
         FROM orcamentos o
         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-        WHERE o.idevento = $1
-        AND oe.idempresa = $2
-        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
-        AND o.status <> 'R'
+        WHERE o.idevento = $1 AND oe.idempresa = $2 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3 AND o.status <> 'R'
         ORDER BY o.dtinirealizacao DESC;`,
       [idevento, idempresa, ano]
     );
 
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
 
-    // Extrai a lista de IDs de orçamento e dados comuns
     const idsOrcamentos = orcamentos.map(o => o.idorcamento);
-    const idcliente = orcamentos[0].idcliente; // Assume-se que o cliente é o mesmo
+    const idcliente = orcamentos[0].idcliente;
     const idmontagem = orcamentos[0].idmontagem;
 
-    // 2️⃣ Busca Vagas (Usando ANY para pegar itens de TODOS os orçamentos da lista)
+    // 2️⃣ Busca Vagas (Ajuste na sintaxe do CASE)
     const { rows: itensOrcamento } = await pool.query(
-      `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
-              COALESCE(i.setor, '') AS setor_orcamento,
-              SUM(i.qtditens) AS qtd_orcamento,
-              MIN(i.periododiariasinicio) AS dtini_vaga,
-              MAX(i.periododiariasfim) AS dtfim_vaga
-       FROM orcamentoitens i
-       JOIN funcao f ON f.idfuncao = i.idfuncao
-       JOIN equipe eq ON eq.idequipe = f.idequipe
-       WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
-       GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-      [idsOrcamentos] // Passa o array de IDs
+        `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
+          COALESCE(i.setor, '') AS setor_orcamento,
+          -- Aqui está a mágica:
+          SUM(CASE 
+              WHEN i.cachefechado = true THEN i.qtddias 
+              ELSE i.qtditens                                     
+          END) AS qtd_orcamento,
+          MIN(i.periododiariasinicio) AS dtini_vaga,
+          MAX(i.periododiariasfim) AS dtfim_vaga,
+          -- Retornamos se QUALQUER item desse grupo é cache fechado
+          bool_or(i.cachefechado = true) as tem_cache_fechado,
+          i.idorcamento -- 🎯 IMPORTANTE: Adicione o idorcamento para o frontend usar
+   FROM orcamentoitens i
+   JOIN funcao f ON f.idfuncao = i.idfuncao
+   JOIN equipe eq ON eq.idequipe = f.idequipe
+   WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
+   GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento`,
+        [idsOrcamentos]
     );
 
-    // 3️⃣ Busca quantidades cadastradas (Inalterado, já usa idevento e idcliente)
+    // 3️⃣ Busca Realizado (Adicionada vírgula e diarias_consumidas)
     const { rows: staffCount } = await pool.query(
       `SELECT se.idfuncao, 
               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada_pessoas,
+              SUM(jsonb_array_length(se.datasevento)) AS diarias_consumidas
        FROM staffeventos se
        WHERE se.idevento = $1 
          AND se.idcliente = $2
@@ -1283,7 +798,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return acc;
     }, {});
 
-    // 5️⃣ Agrupamento final (Agora processará itens do orçamento 166 e 230 juntos)
+    // 5️⃣ Agrupamento final (Com a lógica condicional interna)
     const equipesMap = {};
     for (const item of itensOrcamento) {
       const idequipeKey = item.idequipe || "SEM_EQUIPE";
@@ -1302,27 +817,39 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         String(s.localizacao).trim().toUpperCase() === setorNormalizado
       ); 
 
-      const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+      // --- LÓGICA DE TRANSIÇÃO ---
+      // Se for cache fechado, pegamos a soma de diárias, senão a contagem de pessoas
+      let qtd_cadastrada = 0;
+      if (cadastrado) {
+        qtd_cadastrada = item.tem_cache_fechado 
+          ? Number(cadastrado.diarias_consumidas) 
+          : Number(cadastrado.qtd_cadastrada_pessoas);
+      }
+      // ---------------------------
+
       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
       const datas_staff = datasStaffMap[chaveDatas] || [];
+
+    //   console.log("[DEBUG] item cache:", item.idfuncao, item.tem_cache_fechado);
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
         setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
-        qtd_cadastrada,
+        qtd_cadastrada, // Agora reflete ou pessoas ou diárias
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff
+        datas_staff: datas_staff,
+        cache_fechado: item.tem_cache_fechado 
       });
     }
 
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
       idmontagem,
-      idorcamento: idsOrcamentos[0] // Retorna o principal para referência
+      idorcamento: idsOrcamentos[0] 
     });
 
   } catch (err) {
@@ -3501,7 +3028,7 @@ router.get('/contas-pagar', async (req, res) => {
         `;
 
         const { rows } = await pool.query(query, [idEmpresa, anoFiltro]);
-        console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
+        // console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
         res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });

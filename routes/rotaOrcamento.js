@@ -88,7 +88,7 @@ router.get(
             descontoitem, percentdescontoitem, acrescimoitem, percentacrescimoitem,
             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
             vlrajdctotransporte, totajdctoitem, hospedagem, transporte,            
-            totgeralitem, setor
+            totgeralitem, setor, cachefechado
         FROM orcamentoitens
         WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
@@ -1035,14 +1035,14 @@ router.post(
                             periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
                             percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
                             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte, vlrajdctotransporte,
-                            totajdctoitem, hospedagem, transporte, totgeralitem, setor
+                            totajdctoitem, hospedagem, transporte, totgeralitem, setor, cachefechado
                         ) VALUES (
                             $1, $2, $3, $4, $5,
                             $6, $7, $8, $9, $10,
                             $11, $12, $13, $14,
                             $15, $16, $17, $18, $19,
                             $20, $21, $22, $23,
-                            $24, $25, $26, $27, $28
+                            $24, $25, $26, $27, $28, $29
                         );
                     `;
           const itemValues = [
@@ -1074,6 +1074,7 @@ router.post(
             item.transporte,
             item.totgeralitem,
             item.setor,
+            item.cachefechado
           ];
           await client.query(insertItemQuery, itemValues);
         }
@@ -2172,8 +2173,8 @@ router.put("/:id",
                 tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
                 totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
                 adicional = $28, 
-                vlrbase = $29 -- <-- ADICIONADO VLRBASE
-            WHERE idorcamentoitem = $30 AND idorcamento = $31;
+                vlrbase = $29, cachefechado = $30
+            WHERE idorcamentoitem = $31 AND idorcamento = $32;
           `;
 
           const itemValues = [
@@ -2187,8 +2188,9 @@ router.put("/:id",
             item.totajdctoitem, item.hospedagem, item.transporte,
             item.totgeralitem, item.setor ?? '', isAdicional,
             valorBase, // $29
-            item.id,   // $30
-            idOrcamento // $31
+            item.cachefechado, // $30
+            item.id,   // $31
+            idOrcamento // $32
           ];
 
           await client.query(updateItemQuery, itemValues);
@@ -2207,7 +2209,7 @@ router.put("/:id",
                 vlrajdctotransporte, totajdctoitem,
                 hospedagem, transporte, totgeralitem,
                 setor, adicional, 
-                vlrbase -- <-- ADICIONADO VLRBASE
+                vlrbase, cachefechado
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6, $7, $8,
@@ -2218,7 +2220,7 @@ router.put("/:id",
                 $21, $22, $23,
                 $24, $25, $26,
                 $27, $28, $29,
-                $30 -- <-- VALOR DO VLRBASE
+                $30, $31
             )
           `;
 
@@ -2233,7 +2235,8 @@ router.put("/:id",
             item.vlrajdctotransporte, item.totajdctoitem,
             item.hospedagem, item.transporte, item.totgeralitem,
             item.setor ?? '', isAdicional,
-            valorBase // $30
+            valorBase, // $30
+            item.cachefechado // $31
           ];
 
           await client.query(insertItemQuery, itemValues);

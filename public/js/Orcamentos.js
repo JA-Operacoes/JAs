@@ -1361,6 +1361,87 @@ function inicializarLinha(linha) {
   }
 }
 
+
+window.toggleEditavel = function(checkbox) {
+    const linha = checkbox.closest("tr");
+    const inputQtdDias = linha.querySelector("input.qtdDias");
+    const inputQtdProduto = linha.querySelector("input.qtdProduto"); // Input de quantidade
+    const increment = linha.querySelector(".increment");
+    const decrement = linha.querySelector(".decrement");
+
+    if (checkbox.checked) {
+        // --- ATIVA CACHÊ FECHADO ---
+        
+        // 1. Libera o campo de Dias
+        inputQtdDias.readOnly = false;
+        inputQtdDias.removeAttribute("readonly");
+
+        // 2. Bloqueia a Quantidade de Produtos/Pessoas
+        // Usamos pointerEvents = "none" para ignorar o clique e opacity para feedback visual
+        if (inputQtdProduto) {
+            inputQtdProduto.style.pointerEvents = "none"; 
+            inputQtdProduto.style.tabIndex = "-1"; // Impede acesso via tecla TAB
+            inputQtdProduto.style.opacity = "0.6";
+            inputQtdProduto.style.cursor = "not-allowed";
+        }
+
+        // 3. Bloqueia os botões + e -
+        if (increment && decrement) {
+            increment.disabled = true; // Desabilita o botão logicamente
+            decrement.disabled = true;
+            increment.style.pointerEvents = "none"; // Impede o clique fisicamente
+            decrement.style.pointerEvents = "none";
+            increment.style.cursor = "not-allowed";
+            decrement.style.cursor = "not-allowed";
+            increment.style.opacity = "0.5";
+            decrement.style.opacity = "0.5";
+        }
+
+        inputQtdDias.focus();
+        console.log("🔓 Modo Cachê Fechado: Dias liberados, Quantidade bloqueada.");
+
+    } else {
+        // --- VOLTA AO MODO AUTOMÁTICO ---
+        
+        // 1. Bloqueia o campo de Dias
+        inputQtdDias.readOnly = true;
+        inputQtdDias.setAttribute("readonly", "readonly");
+        inputQtdDias.style.backgroundColor = "";
+        inputQtdDias.style.border = "";
+
+        // 2. Libera a Quantidade
+        if (inputQtdProduto) {
+            inputQtdProduto.style.pointerEvents = "auto";
+            inputQtdProduto.style.tabIndex = "0";
+            inputQtdProduto.style.opacity = "1";
+        }
+
+        // 3. Libera os botões + e -
+        if (increment && decrement) {
+            increment.disabled = false;
+            decrement.disabled = false;
+            increment.style.pointerEvents = "auto";
+            decrement.style.pointerEvents = "auto";
+            increment.style.cursor = "pointer";
+            decrement.style.cursor = "pointer";
+            increment.style.opacity = "1";
+            decrement.style.opacity = "1";
+        }
+
+        // Volta para o cálculo automático do Flatpickr
+        const inputData = linha.querySelector(".datas-item");
+        if (inputData && inputData._flatpickr) {
+            atualizarQtdDias(inputData, inputData._flatpickr.selectedDates);
+        }
+        console.log("🔒 Modo Automático: Bloqueado.");
+    }
+
+    // Recalcula a linha sempre que trocar a flag
+    if (typeof recalcularLinha === "function") {
+        recalcularLinha(linha);
+    }
+};
+
 function adicionarLinhaOrc() {
   let tabela = document
     .getElementById("tabela")
@@ -1398,6 +1479,19 @@ function adicionarLinhaOrc() {
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
                     <input class="checkbox__trigger visuallyhidden" type="checkbox" checked />
+                    <span class="checkbox__symbol">
+                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 14l8 7L24 7"></path>
+                        </svg>
+                    </span>
+                    <p class="checkbox__textwrapper"></p>
+                </label>
+            </div>
+        </td>
+        <td class="cacheFechado">
+            <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" />
                     <span class="checkbox__symbol">
                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 14l8 7L24 7"></path>
@@ -1903,6 +1997,20 @@ async function adicionarLinhaAdicional(isBonificado = false) {
         </div>
       </td>
 
+      <td class="cacheFechado">
+            <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" />
+                    <span class="checkbox__symbol">
+                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 14l8 7L24 7"></path>
+                        </svg>
+                    </span>
+                    <p class="checkbox__textwrapper"></p>
+                </label>
+            </div>
+        </td>
+
       <td class="Categoria"><input type="text" class="categoria-input" value=""></td>
 
       <td class="qtdProduto">
@@ -2020,6 +2128,31 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     const incrementButton = novaLinha.querySelector(".qtdProduto .increment");
     const decrementButton = novaLinha.querySelector(".qtdProduto .decrement");
     const quantityInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
+
+    if (incrementButton && quantityInput) {
+        incrementButton.addEventListener("click", function () {
+            // VERIFICAÇÃO: Se o checkbox de cache fechado estiver marcado, não faz nada
+            const chk = novaLinha.querySelector(".chk-cache-fechado");
+            if (chk && chk.checked) return; 
+
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            recalcularLinha(this.closest("tr"));
+        });
+    }
+
+    if (decrementButton && quantityInput) {
+        decrementButton.addEventListener("click", function () {
+            // VERIFICAÇÃO: Se o checkbox de cache fechado estiver marcado, não faz nada
+            const chk = novaLinha.querySelector(".chk-cache-fechado");
+            if (chk && chk.checked) return;
+
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 0) {
+                quantityInput.value = currentValue - 1;
+                recalcularLinha(this.closest("tr"));
+            }
+        });
+    }
 
     if (incrementButton && quantityInput) {
         incrementButton.addEventListener("click", function () {
@@ -2325,51 +2458,44 @@ function atualizarQtdDias(input, selectedDatesArray) {
 
   var linha = input.closest("tr");
   var inputQtdDias = linha.querySelector("input.qtdDias");
-  var datas = input.value.split(" to ");
-  console.log("📆 Datas selecionadas:", datas);
+  
+  // Verifica se o modo Cachê Fechado está ativo
+  var chkCacheFechado = linha.querySelector(".chk-cache-fechado"); 
 
+  if (chkCacheFechado && chkCacheFechado.checked) {
+    console.log("🚫 Cachê Fechado ativo: Mantendo valor manual e recalculando financeiros.");
+    // No modo manual, não mexemos no inputQtdDias.value, apenas recalculamos a linha
+    if (typeof recalcularLinha === "function") {
+      recalcularLinha(linha);
+    }
+    return; // Interrompe aqui
+  }
+
+  // Lógica padrão de cálculo automático (só executa se o checkbox estiver desmarcado)
   let diffDias = 0;
-
   if (selectedDatesArray && selectedDatesArray.length === 2) {
     const startDate = selectedDatesArray[0];
     const endDate = selectedDatesArray[1];
 
-    // Verifique se as datas são válidas
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error("Datas selecionadas inválidas.");
-      diffDias = "-"; // Ou outro indicador de erro
+      diffDias = "-";
     } else if (endDate >= startDate) {
       const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      // +1 para incluir o dia de início e o dia de fim no cálculo
       diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    } else {
-      diffDias = "-"; // Data final é anterior à data inicial
-    }
-  } else if (
-    selectedDatesArray &&
-    selectedDatesArray.length === 1 &&
-    selectedDatesArray[0]
-  ) {
-    // Apenas um dia selecionado (caso mode não seja range ou o usuário selecione apenas um dia)
-    if (!isNaN(selectedDatesArray[0].getTime())) {
-      diffDias = 1;
     } else {
       diffDias = "-";
     }
+  } else if (selectedDatesArray && selectedDatesArray.length === 1 && selectedDatesArray[0]) {
+    diffDias = !isNaN(selectedDatesArray[0].getTime()) ? 1 : "-";
   } else {
-    // Nenhuma data selecionada ou seleção incompleta
-    diffDias = 0; // Ou "-" se preferir um valor que indica vazio
+    diffDias = 0;
   }
 
   inputQtdDias.value = diffDias;
-  console.log("📤 Valor final enviado para input.qtdDias:", inputQtdDias.value);
+  console.log("📤 Valor automático enviado para input.qtdDias:", inputQtdDias.value);
 
-  // Atualiza a linha automaticamente
   if (typeof recalcularLinha === "function") {
-    console.log("🔁 Chamando recalcularLinha...");
     recalcularLinha(linha);
-  } else {
-    console.warn("⚠️ Função recalcularLinha não está definida.");
   }
 }
 
@@ -3264,6 +3390,7 @@ async function verificaOrcamento() {
           enviarnaproposta:
               linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
               false,
+          cachefechado: !!linha.querySelector('.cacheFechado input[type="checkbox"]')?.checked || false,
           categoria: linha.querySelector(".Categoria")?.textContent.trim(),
           qtditens:
               parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
@@ -4467,6 +4594,19 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
                 </div>
             </td>
+            <td class="cacheFechado">
+            <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
+                    <span class="checkbox__symbol">
+                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 14l8 7L24 7"></path>
+                        </svg>
+                    </span>
+                    <p class="checkbox__textwrapper"></p>
+                </label>
+            </div>
+        </td>
             <td class="Categoria">${item.categoria || ""}</td>
             <td class="qtdProduto">
                 <div class="add-less">
@@ -4560,7 +4700,15 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       });
       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
     }
+      if (item.cachefechado === true || item.cachefechado === "true") {
+        const chkCache = newRow.querySelector(".chk-cache-fechado");
+        if (chkCache) {
+            // Chamamos a função passando o elemento para que ela trave os botões
+            window.toggleEditavel(chkCache); 
+        }
+    }
   });
+
 
   if (aplicarReajuste) {
     const aviso = document.getElementById("avisoReajusteMensagem");
@@ -5016,21 +5164,30 @@ function recalcularLinha(linha) {
     if (!linha) return;
 
     try {
-        // --- 1. CAPTURA DE QUANTIDADES (Obrigatórias) ---
+        // --- 1. VERIFICAÇÃO DE CACHÊ FECHADO ---
+        const chkCacheFechado = linha.querySelector(".chk-cache-fechado");
+        const isCacheFechado = chkCacheFechado && chkCacheFechado.checked;
+
+        // --- 2. CAPTURA DE QUANTIDADES ---
         const qtdItens = parseFloat(linha.querySelector(".qtdProduto input")?.value || linha.querySelector(".qtdItens")?.value) || 0;
         const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || linha.querySelector(".qtddias")?.value) || 0;
-        const totalFator = qtdItens * qtdDias;
 
-        // --- 2. VALOR DE VENDA (Base Imutável e REAJUSTADO) ---
+        // LÓGICA NOVA: Se for cachê fechado, a quantidade de itens não multiplica o valor (fator vira apenas os dias)
+        const fatorMultiplicador = isCacheFechado ? qtdDias : (qtdItens * qtdDias);
+        
+        // Mantemos o totalFator original caso precise para algum log, 
+        // mas usaremos o fatorMultiplicador para o dinheiro.
+        const totalFator = fatorMultiplicador; 
+
+        // --- 3. VALOR DE VENDA (Base Imutável e REAJUSTADO) ---
         const celulaVenda = linha.querySelector(".vlrVenda");
-        // Sempre prioriza o dataset.vlrbase, que já pode estar reajustado
         let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase);
         if (isNaN(vlrVendaOriginal) || vlrVendaOriginal <= 0) {
           vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || desformatarMoeda(celulaVenda?.textContent) || 0;
           linha.dataset.vlrbase = vlrVendaOriginal;
         }
 
-        // --- 3. AJUSTES (Desconto e Acréscimo) ---
+        // --- 4. AJUSTES (Desconto e Acréscimo) ---
         const lerAjuste = (seletor) => {
             const el = linha.querySelector(seletor);
             if (!el) return 0;
@@ -5040,7 +5197,7 @@ function recalcularLinha(linha) {
         const desconto = lerAjuste(".descontoItem .ValorInteiros");
         const acrescimo = lerAjuste(".acrescimoItem .ValorInteiros");
 
-        // --- 4. LOGÍSTICA (Alimentação, Transporte, Hospedagem) ---
+        // --- 5. LOGÍSTICA (Alimentação, Transporte, Hospedagem) ---
         const lerCustoUnitario = (seletor) => {
             const el = linha.querySelector(seletor);
             return desformatarMoeda(el?.tagName === "INPUT" ? el.value : el?.textContent) || 0;
@@ -5053,18 +5210,19 @@ function recalcularLinha(linha) {
         const hospedagemTotal = desformatarMoeda(linha.querySelector(".hospedagem")?.value) || 0;
         const transporteExtra = desformatarMoeda(linha.querySelector(".transporteExtraInput")?.value) || 0;
 
-        // --- 5. MATEMÁTICA FINANCEIRA ---
+        // --- 6. MATEMÁTICA FINANCEIRA ---
         let vlrVendaFinalUnit = vlrVendaOriginal - desconto + acrescimo;
 
         // Regra de Bonificação (Se for brinde, venda é zero)
         if (linha.dataset?.extrabonificado === "true") vlrVendaFinalUnit = 0;
 
+        // O cálculo agora usa o fatorMultiplicador que respeita a flag de Cachê Fechado
         const totalVendaLinha = (vlrVendaFinalUnit * totalFator) + (hospedagemTotal * totalFator) + transporteExtra;
         const totalAjudaCusto = (vlrAlimUnit + vlrTranspUnit) * totalFator;
         const totalCustoBase = vlrCustoFixoUnit * totalFator;
         const custoTotalReal = totalCustoBase + totalAjudaCusto;
 
-        // --- 6. ATUALIZAÇÃO SEGURA DA DOM ---
+        // --- 7. ATUALIZAÇÃO SEGURA DA DOM ---
         const atualizar = (seletor, valor, isInput = false) => {
             const el = linha.querySelector(seletor);
             if (!el) return;
@@ -5078,7 +5236,7 @@ function recalcularLinha(linha) {
         atualizar(".totAjdCusto", totalAjudaCusto);
         atualizar(".totGeral", custoTotalReal);
 
-        // --- 7. SINCRONIA GERAL ---
+        // --- 8. SINCRONIA GERAL ---
         if (typeof recalcularTotaisGerais === "function") {
             recalcularTotaisGerais();
         }

@@ -841,104 +841,207 @@ if (typeof window.StaffOriginal === "undefined") {
 }
 
 
-const eventsTableBody = document.querySelector('#eventsDataTable tbody');
-const noResultsMessage = document.getElementById('noResultsMessage');
-const idFuncionarioHiddenInput = document.getElementById('idFuncionario');
-const apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
-const perfilFuncionarioInput = document.getElementById("perfilFuncionario");
-const previewFotoImg = document.getElementById('previewFoto');
-const fileNameSpan = document.getElementById('fileName');
-const uploadHeaderDiv = document.getElementById('uploadHeader');
-const fileInput = document.getElementById('file');
-const avaliacaoSelect = document.getElementById('avaliacao'); // Se usar
-const tarjaDiv = document.getElementById('tarjaAvaliacao'); // Se usar
-//const bFuncionarioCadstrado = false;
+// const eventsTableBody = document.querySelector('#eventsDataTable tbody');
+// const noResultsMessage = document.getElementById('noResultsMessage');
+// const idFuncionarioHiddenInput = document.getElementById('idFuncionario');
+// const apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
+// const perfilFuncionarioInput = document.getElementById("perfilFuncionario");
+// const previewFotoImg = document.getElementById('previewFoto');
+// const fileNameSpan = document.getElementById('fileName');
+// const uploadHeaderDiv = document.getElementById('uploadHeader');
+// const fileInput = document.getElementById('file');
+// const avaliacaoSelect = document.getElementById('avaliacao'); // Se usar
+// const tarjaDiv = document.getElementById('tarjaAvaliacao'); // Se usar
+// //const bFuncionarioCadstrado = false;
 
-const idStaffInput = document.getElementById('idStaff'); // Campo ID Staff
-const idStaffEventoInput = document.getElementById('idStaffEvento');
-const idFuncaoInput = document.getElementById('idFuncao');
-const descFuncaoSelect = document.getElementById('descFuncao'); // Select de Função
-const vlrCustoInput = document.getElementById('vlrCusto');
-const ajusteCustoInput = document.getElementById('ajusteCusto');
-const transporteInput = document.getElementById('transporte');
-const alimentacaoInput = document.getElementById('alimentacao');
-const statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
-const caixinhaInput = document.getElementById('caixinha');
-const descBeneficioTextarea = document.getElementById('descBeneficio');
-const nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
-const nmPavilhaoSelect = document.getElementById('nmPavilhao');
-const idClienteInput = document.getElementById('idCliente');
-const nmClienteSelect = document.getElementById('nmCliente');
-const idEventoInput = document.getElementById('idEvento');
-const nmEventoSelect = document.getElementById('nmEvento');
-const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
-
-const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-const campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
-const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
-const selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+// const idStaffInput = document.getElementById('idStaff'); // Campo ID Staff
+// const idStaffEventoInput = document.getElementById('idStaffEvento');
+// const idFuncaoInput = document.getElementById('idFuncao');
+// const descFuncaoSelect = document.getElementById('descFuncao'); // Select de Função
+// const vlrCustoInput = document.getElementById('vlrCusto');
+// const ajusteCustoInput = document.getElementById('ajusteCusto');
+// const transporteInput = document.getElementById('transporte');
+// const alimentacaoInput = document.getElementById('alimentacao');
+// const statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+// const caixinhaInput = document.getElementById('caixinha');
+// const descBeneficioTextarea = document.getElementById('descBeneficio');
+// const nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
+// const nmPavilhaoSelect = document.getElementById('nmPavilhao');
+// const idClienteInput = document.getElementById('idCliente');
+// const nmClienteSelect = document.getElementById('nmCliente');
+// const idEventoInput = document.getElementById('idEvento');
+// const nmEventoSelect = document.getElementById('nmEvento');
+// const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
 
 
-const vlrTotalInput = document.getElementById('vlrTotal');
+// const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+// const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+// const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+// const campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+// const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+// const selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+
+// // let ajusteCustocheck = document.getElementById('ajusteCustocheck');
+// // let campoAjusteCusto = document.getElementById('campoAjusteCusto');
+// // let ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+// // let campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+// // let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+// // let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+
+
+// const vlrTotalInput = document.getElementById('vlrTotal');
 const vlrTotalCacheInput = document.getElementById('vlrTotalCache');
 const vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
 
-//const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
-const caixinhacheck = document.getElementById('Caixinhacheck');
-const campoCaixinha = document.getElementById('campoCaixinha');
-const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-const descCaixinhaTextarea = document.getElementById('descCaixinha');
-const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-const statusCaixinhaInput = document.getElementById('statusCaixinha');
-const selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
-const statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+// //const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
+// const caixinhacheck = document.getElementById('Caixinhacheck');
+// const campoCaixinha = document.getElementById('campoCaixinha');
+// const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+// const descCaixinhaTextarea = document.getElementById('descCaixinha');
+// const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+// const statusCaixinhaInput = document.getElementById('statusCaixinha');
+// const selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
+// const statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
 
-const setorInput = document.getElementById('setor');
+// const setorInput = document.getElementById('setor');
 
-const statusPagtoInput = document.getElementById('statusPgto');
+// const statusPagtoInput = document.getElementById('statusPgto');
+
+// const temPermissaoMaster = temPermissao("Staff", "master");
+// const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
+// const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
+
+// const diariaDobradaInput = document.getElementById('diariaDobrada');
+// const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+// const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+// const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+// const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
+// const statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
+
+// const meiaDiariaInput = document.getElementById('meiaDiaria');
+// const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+// const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+// const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+// const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
+// const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
+// const statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
+
+// const containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
+// const containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
+// const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+// const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+// const check50 = document.getElementById('check50');
+// const check100 = document.getElementById('check100');
+
+// const container1 = document.getElementById('labelFileAjdCusto').parentElement;
+// const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+// const mensagemConcluido = document.getElementById('mensagemConcluido');
 
 
-const diariaDobradaInput = document.getElementById('diariaDobrada');
-const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
-const campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
-const statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
+// const seniorCheck = document.getElementById('Seniorcheck');
+// const seniorCheck2 = document.getElementById('Seniorcheck2');
+// const plenoCheck = document.getElementById('Plenocheck');
+// const juniorCheck = document.getElementById('Juniorcheck');
+// const baseCheck = document.getElementById('Basecheck');
+// const fechadoCheck =  document.getElementById('Fechadocheck');
 
-const meiaDiariaInput = document.getElementById('meiaDiaria');
-const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
-const descCustoFechadoTextarea = document.getElementById('descCustoFechado');
-const campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
-const statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
+// const qtdPessoasInput = document.getElementById('qtdPessoas');
 
-const containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
-const containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
-const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-
-const check50 = document.getElementById('check50');
-const check100 = document.getElementById('check100');
-
-const container1 = document.getElementById('labelFileAjdCusto').parentElement;
-const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
-const mensagemConcluido = document.getElementById('mensagemConcluido');
-
-const seniorCheck = document.getElementById('Seniorcheck');
-const seniorCheck2 = document.getElementById('Seniorcheck2');
-const plenoCheck = document.getElementById('Plenocheck');
-const juniorCheck = document.getElementById('Juniorcheck');
-const baseCheck = document.getElementById('Basecheck');
-const fechadoCheck =  document.getElementById('Fechadocheck');
+// const idEquipeInput = document.getElementById('idEquipe');
+// const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+let eventsTableBody = document.querySelector('#eventsDataTable tbody');
+let noResultsMessage = document.getElementById('noResultsMessage');
+let idFuncionarioHiddenInput = document.getElementById('idFuncionario');
+let apelidoFuncionarioInput = document.getElementById("apelidoFuncionario");
+let perfilFuncionarioInput = document.getElementById("perfilFuncionario");
+let previewFotoImg = document.getElementById('previewFoto');
+let fileNameSpan = document.getElementById('fileName');
+let uploadHeaderDiv = document.getElementById('uploadHeader');
+let fileInput = document.getElementById('file');
+let avaliacaoSelect = document.getElementById('avaliacao');
+let tarjaDiv = document.getElementById('tarjaAvaliacao');
+ 
+let idStaffInput = document.getElementById('idStaff');
+let idStaffEventoInput = document.getElementById('idStaffEvento');
+let idFuncaoInput = document.getElementById('idFuncao');
+let descFuncaoSelect = document.getElementById('descFuncao');
+let vlrCustoInput = document.getElementById('vlrCusto');
+let ajusteCustoInput = document.getElementById('ajusteCusto');
+let transporteInput = document.getElementById('transporte');
+let alimentacaoInput = document.getElementById('alimentacao');
+let statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+let caixinhaInput = document.getElementById('caixinha');
+let descBeneficioTextarea = document.getElementById('descBeneficio');
+let nmLocalMontagemSelect = document.getElementById('nmLocalMontagem');
+let nmPavilhaoSelect = document.getElementById('nmPavilhao');
+let idClienteInput = document.getElementById('idCliente');
+let nmClienteSelect = document.getElementById('nmCliente');
+let idEventoInput = document.getElementById('idEvento');
+let nmEventoSelect = document.getElementById('nmEvento');
+let datasEventoInput = document.getElementById('datasEvento');
+ 
+let ajusteCustocheck = document.getElementById('ajusteCustocheck');
+let campoAjusteCusto = document.getElementById('campoAjusteCusto');
+let ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+let campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
+let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+ 
+let vlrTotalInput = document.getElementById('vlrTotal');
+ 
+let caixinhacheck = document.getElementById('Caixinhacheck');
+let campoCaixinha = document.getElementById('campoCaixinha');
+let campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+let descCaixinhaTextarea = document.getElementById('descCaixinha');
+let campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+let statusCaixinhaInput = document.getElementById('statusCaixinha');
+let selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
+let statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+ 
+let setorInput = document.getElementById('setor');
+let statusPagtoInput = document.getElementById('statusPgto');
+ 
+ 
+let diariaDobradaInput = document.getElementById('diariaDobrada');
+let diariaDobradacheck = document.getElementById('diariaDobradacheck');
+let campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+let descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+let campoStatusDiariaDobrada = document.getElementById('campoStatusDiariaDobrada');
+let statusDiariaDobradaInput = document.getElementById('statusDiariaDobrada');
+ 
+let meiaDiariaInput = document.getElementById('meiaDiaria');
+let meiaDiariacheck = document.getElementById('meiaDiariacheck');
+let campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+let descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
+let descCustoFechadoTextarea = document.getElementById('descCustoFechado');
+let campoStatusMeiaDiaria = document.getElementById('campoStatusMeiaDiaria');
+let statusMeiaDiariaInput = document.getElementById('statusMeiaDiaria');
+ 
+let containerDiariaDobradaCheck = document.querySelector('#diariaDobradacheck').closest('.input-container-checkbox');
+let containerMeiaDiariacheck = document.querySelector('#meiaDiariacheck').closest('.input-container-checkbox');
+let containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+let containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+ 
+let check50 = document.getElementById('check50');
+let check100 = document.getElementById('check100');
+ 
+let container1 = document.getElementById('labelFileAjdCusto').parentElement;
+let container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+let mensagemConcluido = document.getElementById('mensagemConcluido');
+ 
+let seniorCheck = document.getElementById('Seniorcheck');
+let seniorCheck2 = document.getElementById('Seniorcheck2');
+let plenoCheck = document.getElementById('Plenocheck');
+let juniorCheck = document.getElementById('Juniorcheck');
+let baseCheck = document.getElementById('Basecheck');
+let fechadoCheck = document.getElementById('Fechadocheck');
 const liberadoCheck =  document.getElementById('Liberadocheck');
-
-const qtdPessoasInput = document.getElementById('qtdPessoas');
-
-const idEquipeInput = document.getElementById('idEquipe');
-const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+ 
+let qtdPessoasInput = document.getElementById('qtdPessoas');
+ 
+let idEquipeInput = document.getElementById('idEquipe');
+let nmEquipeSelect = document.getElementById('nmEquipe');
 
 const DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
 const DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
@@ -1782,6 +1885,7 @@ function getDadosFormulario() {
 
 
 const carregarTabelaStaff = async (funcionarioId) => {
+    const eventsTableBody = document.querySelector('#eventsDataTable tbody');
     // Reset inicial da tela
     eventsTableBody.innerHTML = '';
     noResultsMessage.style.display = 'none';
@@ -1797,6 +1901,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
     const url = `/staff/${funcionarioId}`;
 
+
     try {
         const response = await fetch(url, {
             method: 'GET',
@@ -1805,6 +1910,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
             }
         });
+
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -2383,12 +2489,365 @@ function aplicarCorStatusInput(elementoInput) {
     }
 }
 
+// async function limparCamposStaffParcial() {
+
+//     currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+//     isFormLoadedFromDoubleClick = false;
+
+//     const previewFoto = document.getElementById('previewFoto');
+//     const fileName = document.getElementById('fileName');
+//     const fileInput = document.getElementById('file');
+//     const uploadHeader = document.getElementById('uploadHeader');
+//     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+//     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+//     const labelFuncionario = document.getElementById('labelFuncionario');
+
+//     if (labelFuncionario) {
+//         labelFuncionario.style.display = "none"; // esconde
+//         labelFuncionario.textContent = "";       // limpa o texto
+//         labelFuncionario.style.color = "";       // reseta cor
+//         console.log("Label Funcionário limpo.");
+//     }
+
+//     if (previewFoto) {
+//         previewFoto.src = "#";
+//         previewFoto.style.display = "none";
+//         console.log("Preview da foto limpo.");
+//     }
+//     if (fileName) {
+//         fileName.textContent = "Nenhum arquivo selecionado";
+//     }
+//     if (fileInput) {
+//         fileInput.value = "";
+//     }
+//     if (uploadHeader) {
+//         uploadHeader.style.display = "block";
+//     }
+//     if (linkFotoFuncionarios) {
+//         linkFotoFuncionarios.value = "";
+//     }
+//     if (nomeFuncionarioExibido) {
+//         nomeFuncionarioExibido.textContent = "";
+//     }
+
+//     // 1. Limpeza de IDs e Nome do Staff/Funcionário
+//     document.querySelector("#idStaff").value = '';
+//     document.querySelector("#idFuncionario").value = '';
+//     const nmFuncionario = document.getElementById("nmFuncionario");
+//     if (nmFuncionario) nmFuncionario.value = ''; 
+
+//     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
+//     const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
+//     const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+//     const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
+
+//     document.querySelector("#apelidoFuncionario").value = '';
+//     const apelido = document.getElementById("apelidoFuncionario");
+//     if (apelido) apelido.value = '';
+
+//     document.querySelector("#perfilFuncionario").value = '';
+//     const perfil = document.getElementById("perfilFuncionario");
+//     if (perfil) perfil.value = '';
+
+//     // 2. Limpeza de valores financeiros
+//     document.querySelector("#vlrCusto").value = ''; // Cachê
+//     document.querySelector("#transporte").value = '';
+//     document.querySelector("#alimentacao").value = '';
+//     document.querySelector("#caixinha").value = '';
+//     document.getElementById('vlrTotal').value = '';
+
+//     const ajusteCustoInput = document.querySelector("#ajusteCusto");
+//     if (ajusteCustoInput) ajusteCustoInput.style.display = 'none'; // 🎯 Novo
+
+//     const caixinhaInput = document.querySelector("#caixinha");
+//     if (caixinhaInput) caixinhaInput.style.display = 'none'; // 🎯 Novo
+
+//     // 3. Limpeza de Níveis de Experiência (Checkboxes)
+    
+//     if (isAjudanteDeMarcacao) {
+//         console.log("Função 'Ajudante de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
+//     if (isFiscalDeMarcacao) {
+//         console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+//     } else {
+//         document.getElementById('Seniorcheck2').checked = false;
+//         document.getElementById('Seniorcheck').checked = false;
+//         document.getElementById('Plenocheck').checked = false;
+//         document.getElementById('Juniorcheck').checked = false;
+//         document.getElementById('Basecheck').checked = false;
+//         document.getElementById('Fechadocheck').checked = false;
+//         console.log("Níveis de experiência limpos.");
+//     }
+    
+//     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
+//     // Usamos o método clear() em todas as instâncias do flatpickr.
+    
+//     // Período do Evento
+//     // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker && typeof datasEventoPicker.clear === 'function') {
+//     //     datasEventoPicker.clear();
+//     //     console.log("Datas do Evento (Flatpickr) limpas.");
+//     // }
+
+//     // Diária Dobrada
+//     const diariaDobradaCheck = document.getElementById("diariaDobradacheck");
+//     if (typeof window.diariaDobradaPicker !== 'undefined' && window.diariaDobradaPicker && typeof window.diariaDobradaPicker.clear === 'function') {
+//         diariaDobradaPicker.clear();
+//     }
+//     if (diariaDobradaCheck) {
+//         diariaDobradaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const diariaDobradaInput = document.getElementById("datasDobrada"); // ⚠️ Verifique o ID do input de datas dobradas
+//         if (diariaDobradaInput) {
+//             diariaDobradaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
+    
+//     // Meia Diária
+//     const meiaDiariaCheck = document.getElementById("meiaDiariacheck");
+//     if (typeof window.meiaDiariaPicker !== 'undefined' && window.meiaDiariaPicker && typeof window.meiaDiariaPicker.clear === 'function') {
+//         meiaDiariaPicker.clear();
+//     }
+//     if (meiaDiariaCheck) {
+//         meiaDiariaCheck.checked = false; 
+//         // Oculta o campo de data (input do Flatpickr)
+//         const meiaDiariaInput = document.getElementById("datasMeiaDiaria");
+//         if (meiaDiariaInput) {
+//             meiaDiariaInput.style.display = 'none'; // 🎯 Novo: Oculta o input de datas
+//         }
+//     }
+
+//     // 5. ⚠️ Limpeza de outros Checkboxes (Caixinha/AjusteCusto)
+//     const caixinhaCheck = document.getElementById("Caixinhacheck");
+//     if (caixinhaCheck) {
+//         caixinhaCheck.checked = false;
+//     }
+    
+//     const ajusteCustoCheck = document.getElementById("ajusteCustocheck");
+//     if (ajusteCustoCheck) {
+//         ajusteCustoCheck.checked = false;
+//     }
+
+//     // ✅ Limpeza de PDFs por classe
+//     const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+//     const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+//     const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
+//     fileNamesPDF.forEach(p => {
+//         p.textContent = "Nenhum arquivo selecionado";
+//     });
+//     fileInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     hiddenInputsPDF.forEach(input => {
+//         input.value = "";
+//     });
+//     console.log("Campos de arquivos PDF limpos.");
 
 
-console.log("não carregou Verificar");
+//     const beneficioTextarea = document.getElementById('descBeneficio');
+//     if (beneficioTextarea) {
+//         beneficioTextarea.style.display = 'none'; // Oculta o textarea
+//         beneficioTextarea.required = false;      // Remove a obrigatoriedade
+//         beneficioTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+//     if (ajusteCustoTextarea) {
+//         ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+//         ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
+//         ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const descCaixinhaTextarea = document.getElementById('descCaixinha');
+//     if (descCaixinhaTextarea) {
+//         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+//         descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
+//         descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+//     }
+
+//     const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+//     if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização de Meia Diária';
+
+//     const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+//     if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização de Diária Dobrada';
+
+//     const statusPgto = document.getElementById('statuspgto');
+//     if (statusPgto) statusPgto.value = '';
+
+//     const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+//     if (statusAjusteCusto) {
+//         statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+//         statusAjusteCusto.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const statusCaixinha = document.getElementById('statuscaixinha');
+//     if (statusCaixinha) {
+//         statusCaixinha.value = 'Autorização da Caixinha';
+//         statusCaixinha.style.display = 'none'; // 🎯 Novo: Oculta o select
+//     }
+
+//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+//     if (containerStatusDiariaDobrada) {
+//         containerStatusDiariaDobrada.innerHTML = '';
+//         containerStatusDiariaDobrada.style.display = 'none';
+//     }
+
+//     if (containerStatusMeiaDiaria) {
+//         containerStatusMeiaDiaria.innerHTML = '';
+//         containerStatusMeiaDiaria.style.display = 'none';
+//     }
+
+//     const avaliacaoSelect = document.getElementById('avaliacao');
+//     if (avaliacaoSelect) {
+//         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+//         // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+//         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+//         if (tarjaAvaliacao) {
+//             tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+//             tarjaAvaliacao.textContent = ''; // Limpa o texto
+//             console.log("Campos de avaliação (select e tarja) limpos.");
+//         }
+//     }
+
+//     const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+//     if (tabelaCorpo) {
+//         // Remove todas as linhas filhas do tbody
+//         while (tabelaCorpo.firstChild) {
+//             tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+//         }
+//         console.log("Corpo da tabela (tabela) limpo.");
+
+//         // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+//         let emptyRow = tabelaCorpo.insertRow();
+//         let emptyCell = emptyRow.insertCell(0);
+//         emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+//         emptyCell.textContent = "Nenhum item adicionado.";
+//         emptyCell.style.textAlign = "center";
+//         emptyCell.style.padding = "20px";
+//         console.log("Linha vazia adicionada à tabela 'tabela'.");
+//     } else {
+//         console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+//     }
+
+
+//     limparCamposComprovantes();
+//     limparFoto();
+
+
+//     // 6. Notifica o usuário
+//     Swal.fire({
+//         title: "Pronto para o próximo!",
+//         text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
+//         icon: "info",
+//         timer: 2000,
+//         showConfirmButton: false
+//     });
+
+
+// }
+
+
 async function verificaStaff() {
 
-    console.log("Carregando Staff...");
+    console.log("%cCarregando Staff...", "background: blue;");
+     eventsTableBody           = document.querySelector('#eventsDataTable tbody');
+    noResultsMessage          = document.getElementById('noResultsMessage');
+    idFuncionarioHiddenInput  = document.getElementById('idFuncionario');
+    apelidoFuncionarioInput   = document.getElementById('apelidoFuncionario');
+    perfilFuncionarioInput    = document.getElementById('perfilFuncionario');
+    previewFotoImg            = document.getElementById('previewFoto');
+    fileNameSpan              = document.getElementById('fileName');
+    uploadHeaderDiv           = document.getElementById('uploadHeader');
+    fileInput                 = document.getElementById('file');
+    avaliacaoSelect           = document.getElementById('avaliacao');
+    tarjaDiv                  = document.getElementById('tarjaAvaliacao');
+ 
+    idStaffInput              = document.getElementById('idStaff');
+    idStaffEventoInput        = document.getElementById('idStaffEvento');
+    idFuncaoInput             = document.getElementById('idFuncao');
+    descFuncaoSelect          = document.getElementById('descFuncao');
+    vlrCustoInput             = document.getElementById('vlrCusto');
+    ajusteCustoInput          = document.getElementById('ajusteCusto');
+    transporteInput           = document.getElementById('transporte');
+    alimentacaoInput          = document.getElementById('alimentacao');
+    statusPgtoAjudaCustoInput = document.getElementById('statusPgtoAjudaCusto');
+    caixinhaInput             = document.getElementById('caixinha');
+    descBeneficioTextarea     = document.getElementById('descBeneficio');
+    nmLocalMontagemSelect     = document.getElementById('nmLocalMontagem');
+    nmPavilhaoSelect          = document.getElementById('nmPavilhao');
+    idClienteInput            = document.getElementById('idCliente');
+    nmClienteSelect           = document.getElementById('nmCliente');
+    idEventoInput             = document.getElementById('idEvento');
+    nmEventoSelect            = document.getElementById('nmEvento');
+    datasEventoInput          = document.getElementById('datasEvento');
+ 
+    ajusteCustocheck          = document.getElementById('ajusteCustocheck');
+    campoAjusteCusto          = document.getElementById('campoAjusteCusto');
+    ajusteCustoTextarea       = document.getElementById('descAjusteCusto');
+    campoStatusajusteCusto    = document.getElementById('campoStatusAjusteCusto');
+    statusAjusteCustoInput    = document.getElementById('statusAjusteCusto');
+    selectStatusAjusteCusto   = document.getElementById('selectStatusAjusteCusto');
+ 
+    vlrTotalInput             = document.getElementById('vlrTotal');
+ 
+    caixinhacheck             = document.getElementById('Caixinhacheck');
+    campoCaixinha             = document.getElementById('campoCaixinha');
+    campoPgtoCaixinha         = document.getElementById('campoPgtoCaixinha');
+    descCaixinhaTextarea      = document.getElementById('descCaixinha');
+    campoStatusCaixinha       = document.getElementById('campoStatusCaixinha');
+    statusCaixinhaInput       = document.getElementById('statusCaixinha');
+    selectStatusCaixinha      = document.getElementById('selectStatusCaixinha');
+    statusPgtoCaixinhaInput   = document.getElementById('statusPgtoCaixinha');
+ 
+    setorInput                = document.getElementById('setor');
+    statusPagtoInput          = document.getElementById('statusPgto');
+ 
+    diariaDobradaInput        = document.getElementById('diariaDobrada');
+    diariaDobradacheck        = document.getElementById('diariaDobradacheck');
+    campoDiariaDobrada        = document.getElementById('campoDiariaDobrada');
+    descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
+    campoStatusDiariaDobrada  = document.getElementById('campoStatusDiariaDobrada');
+    statusDiariaDobradaInput  = document.getElementById('statusDiariaDobrada');
+ 
+    meiaDiariaInput           = document.getElementById('meiaDiaria');
+    meiaDiariacheck           = document.getElementById('meiaDiariacheck');
+    campoMeiaDiaria           = document.getElementById('campoMeiaDiaria');
+    descMeiaDiariaTextarea    = document.getElementById('descMeiaDiaria');
+    descCustoFechadoTextarea  = document.getElementById('descCustoFechado');
+    campoStatusMeiaDiaria     = document.getElementById('campoStatusMeiaDiaria');
+    statusMeiaDiariaInput     = document.getElementById('statusMeiaDiaria');
+ 
+    containerDiariaDobradaCheck  = document.querySelector('#diariaDobradacheck')?.closest('.input-container-checkbox');
+    containerMeiaDiariacheck     = document.querySelector('#meiaDiariacheck')?.closest('.input-container-checkbox');
+    containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+    containerStatusMeiaDiaria    = document.getElementById('containerStatusMeiaDiaria');
+ 
+    check50                   = document.getElementById('check50');
+    check100                  = document.getElementById('check100');
+ 
+    container1                = document.getElementById('labelFileAjdCusto')?.parentElement;
+    container2                = document.getElementById('labelFileAjdCusto2')?.parentElement;
+    mensagemConcluido         = document.getElementById('mensagemConcluido');
+ 
+    seniorCheck               = document.getElementById('Seniorcheck');
+    seniorCheck2              = document.getElementById('Seniorcheck2');
+    plenoCheck                = document.getElementById('Plenocheck');
+    juniorCheck               = document.getElementById('Juniorcheck');
+    baseCheck                 = document.getElementById('Basecheck');
+    fechadoCheck              = document.getElementById('Fechadocheck');
+ 
+    qtdPessoasInput           = document.getElementById('qtdPessoas');
+    idEquipeInput             = document.getElementById('idEquipe');
+    nmEquipeSelect            = document.getElementById('nmEquipe');
 
     configurarPreviewPDF();
     configurarPreviewImagem();
@@ -2411,6 +2870,8 @@ async function verificaStaff() {
             console.warn("⚠️ [verificaStaff] Picker principal não está pronto para forçar a atualização.");
         }
     }, 0);
+
+    
 
 
     const botaoEnviar = document.querySelector("#Enviar");
@@ -2613,6 +3074,7 @@ async function verificaStaff() {
     seniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
     seniorCheck2.addEventListener('change', debouncedOnCriteriosChanged);
 
+    
     ajusteCustoInput.addEventListener('change', () => {
         let valor = ajusteCustoInput.value.replace(',', '.');
         if (!isNaN(parseFloat(valor))) {
@@ -2620,6 +3082,7 @@ async function verificaStaff() {
         } else {
             ajusteCustoInput.value = '0,00';
         }
+        console.log("formatação do valor :","background:yellow;", ajusteCustoInput.value)
     });
 
     const selectAjusteCusto = document.getElementById('selectStatusAjusteCusto');
@@ -2628,7 +3091,7 @@ async function verificaStaff() {
         selectAjusteCusto.addEventListener('change', () => {
             aplicarCorNoSelect(selectAjusteCusto);
             statusAjusteCustoInput.value = selectStatusAjusteCusto.value;
-            console.log("Status de Ajuste de Custo sincronizado para:", statusAjusteCustoInput.value);
+            console.log("Status de Ajuste de Custo sincronizado para:","background:darkyellow;", statusAjusteCustoInput.value);
         });
     }
 
@@ -3067,7 +3530,7 @@ async function verificaStaff() {
         });
     }   
 
-    const datasEventoInput = document.getElementById('datasEvento');
+    // const datasEventoInput = document.getElementById('datasEvento');
     if (datasEventoInput) {
          console.log("ENTROU NO PERIODO EVENTO DO VERIFICASTAFF");
     }
@@ -3332,7 +3795,6 @@ async function verificaStaff() {
             )) {
                 conflicts.push(apiResult.conflictingEvent);
             }
-
             const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
 
             // =========================================================
@@ -3889,19 +4351,67 @@ async function verificaStaff() {
                 } else if (result.isDenied) {
                     limparCamposStaff();
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    console.log("Usuário escolheu: Finalizar e Sair");
+                    
                     if (typeof fecharModal === "function") {
                         fecharModal();
-                        window.location.reload();
                     } else {
                         document.getElementById("modal-overlay").style.display = "none";
                         document.body.classList.remove("modal-open");
-                        window.location.reload();
+                        if (typeof window.onStaffModalClosed === 'function') {
+                            window.onStaffModalClosed(true);
+                        }
                     }
                 }
 
             } catch (error) {
                 console.error("❌ Erro ao enviar dados do funcionário:", error);
-                Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+                
+                const botaoEnviar = document.getElementById("botaoEnviar");
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = false;
+                    botaoEnviar.textContent = 'Salvar'; 
+                }
+
+                // Tenta parsear o JSON que vem dentro do error.message
+                let titulo = "Erro ao salvar funcionário";
+                let htmlErro = `<p>${error.message || "Erro desconhecido."}</p>`;
+
+                try {
+                    const jsonMatch = error.message?.match(/\{.*\}/s);
+                    if (jsonMatch) {
+                        const dados = JSON.parse(jsonMatch[0]);
+
+                        if (dados.tipoErro === "LIMITE_EXCEDIDO") {
+                            titulo = dados.title;
+                            htmlErro = `
+                                <p>O limite de <strong>${dados.tipo}</strong> para essa função foi atingido.</p>
+                                <br>
+                                <table style="margin: 0 auto; text-align: center; border-collapse: collapse; width: 80%">
+                                    <tr style="background: #f0f0f0;">
+                                        <th style="padding: 8px 20px;">Limite</th>
+                                        <th style="padding: 8px 20px;">Tentou</th>
+                                        <th style="padding: 8px 20px;">Usado</th>
+                                        <th style="padding: 8px 20px;">Saldo</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 20px;">${dados.limite}</td>
+                                        <td style="padding: 8px 20px;">${dados.tentativa}</td>
+                                        <td style="padding: 8px 20px;">${dados.usado}</td>
+                                        <td style="padding: 8px 20px; color: ${dados.saldo <= 0 ? '#d63030' : '#28a745'}; font-weight: bold;">${dados.saldo}</td>
+                                    </tr>
+                                </table>
+                            `;
+                        }
+                    }
+                } catch (_) { /* mantém o htmlErro padrão */ }
+
+                Swal.fire({
+                    title: titulo,
+                    html: htmlErro,
+                    icon: "error",
+                    confirmButtonText: "Entendi"
+                });
             }
         });
     }

@@ -36,266 +36,6 @@ const getRecordIdFromUrl = (url) => {
 };
 
 
-// async function abrirModalLocal(url, modulo) {
-//   if (!modulo) modulo = window.moduloAtual || "Staff";
-//   console.log("[abrirModalLocal] iniciar:", { modulo, url });
-
-//   let html;
-//   try {
-//   console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
-//   html = await fetchHtmlComToken(url);
-//   console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
-//   } catch (err) {
-//   console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
-//   return;
-//   }
-
-//   const container = document.getElementById("modal-container");
-//   if (!container) {
-//   console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
-//   return;
-//   }
-
-//   // injeta HTML do modal
-//   container.innerHTML = html;
-//   console.log("[abrirModalLocal] HTML injetado no #modal-container");
-
-//   // remove script anterior se existir
-//   const scriptId = 'scriptModuloDinamico';
-//   const scriptAntigo = document.getElementById(scriptId);
-//   if (scriptAntigo) {
-//   scriptAntigo.remove();
-//   console.log("[abrirModalLocal] script anterior removido");
-//   }
-
-//   // carrega script do módulo (Staff.js por exemplo)
-//   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
-//   const scriptSrc = `js/${scriptName}`;
-
-//   // cria promise para aguardar load / execução do módulo
-//   await new Promise((resolve, reject) => {
-//   console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
-//   const script = document.createElement("script");
-//   script.id = scriptId;
-//   script.src = scriptSrc;
-//   script.defer = true;
-//   script.type = "module";
-
-//   script.onload = () => {
-//   // aguarda um tick para garantir execução de exports/global assignments
-//   setTimeout(() => {
-//   console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
-//   resolve();
-//   }, 50);
-//   };
-//   script.onerror = (e) => {
-//   console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
-//   reject(new Error(`Erro ao carregar script ${scriptSrc}`));
-//   };
-//   document.body.appendChild(script);
-//   }).catch(err => {
-//   console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
-//   return;
-//   });
-
-//   // =========================================================================
-//   // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
-//   // =========================================================================
-//   const recordId = getRecordIdFromUrl(url);
-
-//   console.log("RECORD ID", recordId);
-
-//   if (recordId) {
-//   try {
-//   // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
-//   const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
-//   const staffData = await fetchComToken(dataUrl);
-//   console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
-
-
-//   if (staffData) {
-//   // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
-//   window.__modalFetchedData = staffData;
-
-//   const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
-//   console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
-
-//   const datasDoStaff = staffData.datasevento;
-
-//   // 2. Preenchimento do Flatpickr
-//   // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
-// //  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
-// //   // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
-// //   window.datasEventoPicker.setDate(datasDoStaff, true);
-// //   console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
-// //   } else {
-// //   console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
-// //   }
-
-//   // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
-//   if (typeof window.debouncedOnCriteriosChanged === 'function') {
-//   window.debouncedOnCriteriosChanged();
-//   console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
-//   }
-
-//   // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
-//   document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
-
-//   }
-//   } catch (error) {
-//   console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
-//   }
-//   }
-//   // =========================================================================
-
-//   // mostra modal (espera elemento modal injetado)
-//   const modal = document.querySelector("#modal-container .modal");
-//   const overlay = document.getElementById("modal-overlay");
-//   if (modal && overlay) {
-//   modal.style.display = "block";
-//   overlay.style.display = "block";
-//   document.body.classList.add("modal-open");
-//   console.log("[abrirModalLocal] modal exibido");
-
-//   // fechar por overlay
-//   overlay.addEventListener("mousedown", (event) => {
-//   if (event.target === overlay) {
-//   console.log("[abrirModalLocal] overlay clicado -> fechar");
-//   if (typeof fecharModal === "function") {
-//   fecharModal();
-//   window.location.reload();
-//   } else {
-//   overlay.style.display = "none";
-//   container.innerHTML = "";
-//   document.body.classList.remove("modal-open");
-//   // Chama o callback AQUI
-//   if (typeof window.onStaffModalClosed === 'function') {
-//   window.onStaffModalClosed(false);
-//   }
-//   }
-//   }
-//   });
-
-//   // modal.querySelector(".close")?.addEventListener("click", () => {
-//   //   console.log("[abrirModalLocal] fechar (botão X)");
-//   //   if (typeof fecharModal === "function") fecharModal();
-//   //   else {
-//   //   overlay.style.display = "none";
-//   //   container.innerHTML = "";
-//   //   document.body.classList.remove("modal-open");
-//   //   }
-//   // });
-
-//   modal.querySelector(".close")?.addEventListener("click", () => {
-//     console.log("[abrirModalLocal] fechar (botão X)");
-
-//     // Se a função global existir, use-a para garantir o comportamento de callback.
-//     if (typeof fecharModal === "function") {
-//       fecharModal(); 
-//       window.location.reload();
-//     } else {
-//     // Fallback de fechamento, e aqui você DEVE incluir o callback.
-//       overlay.style.display = "none";
-//       container.innerHTML = "";
-//       document.body.classList.remove("modal-open");
-//       // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
-//       if (typeof window.onStaffModalClosed === 'function') {
-//         window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
-//       }
-//       window.location.reload();
-//     }
-//     // A linha de window.location.reload() FOI REMOVIDA.
-//     });
-//     } else {
-//     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
-//     }
-
-//   // --- Inicializa o módulo carregado ---
-//   try {
-//   console.log("[abrirModalLocal] inicializando módulo:", modulo);
-
-//   // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
-//   if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-//   console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
-//   window.moduloHandlers[modulo].configurar();
-//   } else if (typeof window.configurarEventosEspecificos === "function") {
-//   console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
-//   window.configurarEventosEspecificos(modulo);
-//   } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
-//   console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
-//   window.configurarEventosStaff();
-//   } else {
-//   console.log("[abrirModalLocal] nenhuma função de configuração detectada");
-//   }
-
-//   // setTimeout(() => {
-//   //   console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
-//   //   window.inicializarFlatpickrStaffComLimites();
-//   // }, 100); 
-
-//   setTimeout(() => {
-//   if (typeof window.configurarEventosStaff === "function") {
-//   console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
-//   window.configurarEventosStaff();
-//   }
-//   }, 100); 
-
-//   // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
-//   setTimeout(() => {
-//   try {
-//   console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
-//   if (typeof window.applyModalPrefill === "function") {
-//   const ok = window.applyModalPrefill(window.__modalInitialParams || "");
-//   console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
-//   } else {
-//   const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
-//   document.dispatchEvent(evt);
-//   console.log("[abrirModalLocal] evento modal:prefill disparado");
-//   }
-//   } catch (e) {
-//   console.warn("[abrirModalLocal] prefill falhou", e);
-//   }
-//   }, 800); //80
-
-//   // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
-//   setTimeout(() => {
-//     try {
-//     if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-//       console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
-//       window.moduloHandlers[modulo].configurar();
-//       }
-//     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
-//   }, 400);
-
-//     setTimeout(() => {
-//       const staffData = window.__modalFetchedData;
-//       const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
-
-//       // Verifica se o picker e os dados existem
-//       if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
-
-//         // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
-//           window.datasEventoPicker.setDate(datasDoStaff, true); 
-
-//         // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
-//         // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
-//           if (window.datasEventoPicker.altInput) {
-//             window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
-//             window.datasEventoPicker.selectedDates, 
-//             window.datasEventoPicker.config.altFormat
-//             );
-//           }
-
-//           console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
-
-//           } else {
-//             console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
-//           }
-//     }, 500);
-//   } catch (err) {
-//     console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
-//   }
-// }
 
 async function abrirModalLocal(url, modulo) {
     if (!modulo) modulo = window.moduloAtual || "Staff";
@@ -353,7 +93,7 @@ async function abrirModalLocal(url, modulo) {
                         'nmevento': staffData.idevento,
                         'nmcliente': staffData.idcliente,
                         'nmlocalmontagem': staffData.idmontagem,
-                        'descFuncao': staffData.idfuncao
+                        'descFuncao': staffData.idfuncao,
                     };
 
                     // Preenche selects normais
@@ -424,18 +164,19 @@ async function abrirModalLocal(url, modulo) {
         document.body.classList.add("modal-open");
 
         const encerrarModal = () => {
-            if (typeof fecharModal === "function") {
-                fecharModal();
-            } else {
-                overlay.style.display = "none";
-                container.innerHTML = "";
-                document.body.classList.remove("modal-open");
-                if (typeof window.onStaffModalClosed === 'function') {
-                    window.onStaffModalClosed(false);
-                }
-            }
-            window.location.reload(); // Recarrega para limpar estados e atualizar grid
-        };
+    if (typeof fecharModal === "function") {
+        fecharModal();
+    } else {
+        overlay.style.display = "none";
+        container.innerHTML = "";
+        document.body.classList.remove("modal-open");
+    }
+
+    // ✅ Sempre chamado, independente do caminho acima
+    if (typeof window.onStaffModalClosed === 'function') {
+        window.onStaffModalClosed(false);
+    }
+};
 
         overlay.onclick = (e) => { if (e.target === overlay) encerrarModal(); };
         modal.querySelector(".close")?.addEventListener("click", encerrarModal);
@@ -478,7 +219,10 @@ window.applyModalPrefill = function(rawParams) {
             nmfuncao: params.get("nmfuncao"),
             nmevento: params.get("nmevento"),
             nmcliente: params.get("nmcliente"),
-            nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
+            nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome"),
+            cache_fechado: params.get("cache_fechado")?.toLowerCase() === "true",
+            dtini_vaga: params.get("dtini_vaga"),
+            dtfim_vaga: params.get("dtfim_vaga")
         };
 
         window.__modalDesiredPrefill = prefill;
@@ -611,6 +355,22 @@ window.applyModalPrefill = function(rawParams) {
                 if (tentativas >= 25) clearInterval(monitorSetor);
             }, 250);
         }
+        if(prefill.cache_fechado){
+            setTimeout(() => {
+                if(window.datasEventoPicker){
+                    window.datasEventoPicker.clear();
+                    console.log("[applyModalPrefill] cache_fechado=true: datas limpas.");
+                    window.datasEventoPicker.set("enable",[{
+                        from: prefill.dtini_vaga,
+                        to: prefill.dtfim_vaga
+                        }
+                    ])
+                }
+            }, 300);
+                
+        }
+
+
 
         document.dispatchEvent(new CustomEvent("prefill:registered", { detail: { prefill } }));
         try { delete window.__modalInitialParams; } catch(e) { window.__modalInitialParams = null; }
@@ -2219,6 +1979,7 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
 }
 
 async function abrirTelaEquipesEvento(evento) {
+
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
   painel.innerHTML = "";
@@ -2226,7 +1987,6 @@ async function abrirTelaEquipesEvento(evento) {
   const container = document.createElement("div");
   container.className = "painel-equipes-evento";
 
-  // ... (código do HEADER, CORPO e RODAPÉ permanece o mesmo) ...
 
   // ===== HEADER =====
   const header = document.createElement("div");
@@ -2346,9 +2106,8 @@ async function abrirTelaEquipesEvento(evento) {
   concluido: total > 0 && preenchidas >= total,
   dtini_vaga: f.dtini_vaga ?? null,
   dtfim_vaga: f.dtfim_vaga ?? null,
-
-  // ✅ ADICIONADO: Datas preenchidas (do staffeventos)
-  datas_staff: f.datas_staff ?? []
+  datas_staff: f.datas_staff ?? [],
+  cache_fechado: f.cache_fechado ?? false
 
   };
   }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
@@ -2757,17 +2516,28 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   params.set("dtini_vaga", func.dtini_vaga || null);
   params.set("dtfim_vaga", func.dtfim_vaga || null);
+  params.set("cache_fechado", func.cache_fechado ?? false);
 
   // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
   // O código de fechar o modal deve chamar window.onStaffModalClosed()
-  window.onStaffModalClosed = function(modalClosedSuccessfully) {
-  // Limpa a função global logo após ser chamada.
-  delete window.onStaffModalClosed;
-  console.log("Callback do modal Staff acionado. Atualizando a tela...");
-
-  // Chama a função para voltar à tela anterior e recarregar os dados.
-  voltarParaEquipes(); 
-  };
+window.onStaffModalClosed = async function(modalClosedSuccessfully) {
+    console.log("🔥 onStaffModalClosed chamado!");
+    
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
+    console.log("dados:", resp);
+    
+    const dados = Array.isArray(resp.equipes) ? resp.equipes : [];
+    console.log("equipes encontradas:", dados);
+    console.log("procurando idequipe:", equipe.idequipe);
+    
+    const equipeAtualizada = dados
+        .flatMap(d => d.equipes || [d])
+        .find(e => String(e.idequipe) === String(equipe.idequipe));
+    
+    console.log("equipeAtualizada:", equipeAtualizada);
+    console.log("chamando abrirDetalhesEquipe com:", equipeAtualizada);
+    abrirDetalhesEquipe(equipeAtualizada, evento);
+};
 
   console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
 
