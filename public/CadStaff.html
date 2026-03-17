@@ -208,7 +208,7 @@
                   <div class="field">
                     <label for="setor">Setor:</label>
                     <!-- <div class="form2">                       -->
-                      <input type="text" name="setor" id="setor" style="text-transform: uppercase;" required>                      
+                      <input type="text" name="setor" id="setor" style="text-transform: uppercase; cursor: not-allowed;" required readonly >                      
                     <!-- </div> -->
                   </div>
 
@@ -226,13 +226,13 @@
                 <div class="Selects-temporario">
                   <div class="field">
                     <label for="nmPavilhao">Selecione o(s) Pavilhão(ões):</label>
-                    <input type="hidden" id="idPavilhao" name="idPavilhao" legend="Segure a tecla Ctrl para selecionar múltiplos pavilhões">
+                    <input type="hidden" id="idPavilhao" name="idPavilhao" readonly style="cursor: not-allowed;" legend="Pavilhoes carregados Automaticamente"><!--  Segure a tecla Ctrl para selecionar múltiplos pavilhões -->
                     <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" multiple required >
                       
                     </select>
-                  </div>
-                  <p><i class="fa-solid fa-circle-info"></i>Segure a tecla Ctrl para selecionar múltiplos pavilhões</p>
-                </div>
+                   </div>
+                  <!--<p><i class="fa-solid fa-circle-info"></i>Segure a tecla Ctrl para selecionar múltiplos pavilhões</p>-->
+                </div> 
 
                   <div class="Selects">
                     <div class="field">

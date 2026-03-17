@@ -916,7 +916,7 @@ input#statusCustoFechado.status-Rejeitado {
     align-items: center;
     justify-content: center;
     text-align: center;
-    margin: 10px 0 10px 30%;
+    /* margin: 10px 0 10px 30%; */
 }
 
 .Selects-temporario p{
@@ -925,7 +925,8 @@ input#statusCustoFechado.status-Rejeitado {
 
 select#nmPavilhao {
     height: 100px;
-    cursor: pointer;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .Valores {

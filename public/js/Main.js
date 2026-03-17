@@ -4659,7 +4659,8 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
         mostrarLoader(cardElement);
 
         const url = `/main/aditivoextra/${idAditivoExtra}/status`;
-        const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
+        // const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
+        const novoStatusCapitalizado = novoStatus.charAt(0) + novoStatus.slice(1);
         
         // O fetchComToken já resolve o JSON
         const response = await fetchComToken(url, {

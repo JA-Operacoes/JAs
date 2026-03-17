@@ -170,7 +170,7 @@ if (window.__modalInitialParams) {
 
 
 function configurarFlatpickrs() {
-    console.log("Configurando Flatpickrs..."); 
+    console.log("%cConfigurando Flatpickrs...","background:green;"); 
     
     console.log("🔍 diariaDobrada el:", document.querySelector("#diariaDobrada"));
     console.log("🔍 meiaDiaria el:", document.querySelector("#meiaDiaria"));
@@ -203,6 +203,7 @@ function configurarFlatpickrs() {
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
+                            console.log("✅ diariaDobradaPicker inicializado:", window.diariaDobradaPicker);
                         }, true);
                     }
                 }
@@ -292,7 +293,7 @@ function configurarFlatpickrs() {
                         formatInputTextWithStatus(window.meiaDiariaPicker, datasMeiaDiaria);
                     }
                 }, 0); 
-                diariaDobradacheck.checked = instance.selectedDates.length > 0;
+                document.getElementById('diariaDobradacheck').checked = instance.selectedDates.length > 0;
                 updateDisabledDates();
                 console.log("Fechando Diária Dobrada, datas selecionadas:", selectedDates);
                 calcularValorTotal();
@@ -330,6 +331,7 @@ function configurarFlatpickrs() {
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
+                            console.log("✅ meiaDiariaPicker inicializado:", window.meiaDiariaPicker);
                         }, true);
                     }
                 }
@@ -416,7 +418,7 @@ function configurarFlatpickrs() {
                     }
                 }, 0);
 
-                meiaDiariacheck.checked = instance.selectedDates.length > 0;
+                document.getElementById('meiaDiariacheck').checked = instance.selectedDates.length > 0;
                 updateDisabledDates();
                 console.log("Fechando Meia Diária, datas selecionadas:", selectedDates);
                 calcularValorTotal();
@@ -890,8 +892,8 @@ if (typeof window.StaffOriginal === "undefined") {
 
 
 // const vlrTotalInput = document.getElementById('vlrTotal');
-const vlrTotalCacheInput = document.getElementById('vlrTotalCache');
-const vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
+// const vlrTotalCacheInput = document.getElementById('vlrTotalCache');
+// const vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
 
 // //const campoAjusteCustoTextarea = document.getElementById('descajusteCusto');
 // const caixinhacheck = document.getElementById('Caixinhacheck');
@@ -950,6 +952,7 @@ const vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
 
 // const idEquipeInput = document.getElementById('idEquipe');
 // const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+
 let eventsTableBody = document.querySelector('#eventsDataTable tbody');
 let noResultsMessage = document.getElementById('noResultsMessage');
 let idFuncionarioHiddenInput = document.getElementById('idFuncionario');
@@ -989,6 +992,8 @@ let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
 let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
  
 let vlrTotalInput = document.getElementById('vlrTotal');
+let vlrTotalCacheInput = document.getElementById('vlrTotalCache');
+let vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
  
 let caixinhacheck = document.getElementById('Caixinhacheck');
 let campoCaixinha = document.getElementById('campoCaixinha');
@@ -1036,7 +1041,7 @@ let plenoCheck = document.getElementById('Plenocheck');
 let juniorCheck = document.getElementById('Juniorcheck');
 let baseCheck = document.getElementById('Basecheck');
 let fechadoCheck = document.getElementById('Fechadocheck');
-const liberadoCheck =  document.getElementById('Liberadocheck');
+let liberadoCheck =  document.getElementById('Liberadocheck');
  
 let qtdPessoasInput = document.getElementById('qtdPessoas');
  
@@ -1330,6 +1335,8 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
 
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
+    vlrTotalCacheInput = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
+    vlrTotalAjdCustoInput = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
     console.log("VALOR TOTAL", vlrTotalInput.value);
 
     // Outros Campos de Status
@@ -1402,11 +1409,12 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
             document.getElementById('campoStatusCustoFechado').style.display = 'flex';
             document.getElementById('wrapperJustificativaCustoFechado').style.display = 'block';
 
-            const txtDesc = document.getElementById('descCustoFechado');
-            if (txtDesc) {
-                txtDesc.value = eventData.desccustofechado || eventData.descCustoFechado || '';
-                txtDesc.style.display = 'block';
+            if (descCustoFechadoTextarea) {
+                descCustoFechadoTextarea.value = eventData.desccustofechado || '';
+                descCustoFechadoTextarea.style.display = 'block';
             }
+
+
 
             const statusFechadoBanco = eventData.statuscustofechado || 'Pendente';
             const temAcesso = temPermissaoMaster;
@@ -1569,8 +1577,6 @@ function inicializarEPreencherCampos(eventData) {
     if (window.meiaDiariaPicker) window.meiaDiariaPicker.destroy();
     if (window.datasEventoPicker) window.datasEventoPicker.destroy();
 
-    configurarFlatpickrs();    
-
 
     // Garante que ao clicar no input, mostra o campo mesmo após recriar os pickers
     configurarFlatpickrs();    
@@ -1707,11 +1713,13 @@ function inicializarEPreencherCampos(eventData) {
     diariaDobradacheck.checked = datesDiariaDobrada.length > 0;
     campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
     campoStatusDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
+    descDiariaDobradaTextarea.style.display = diariaDobradacheck.checked ? 'block' : 'none';
     //containerStatusDiariaDobrada.style.display = diariaDobradacheck.checked ? 'flex' : 'none';
 
     meiaDiariacheck.checked = datesMeiaDiaria.length > 0;
     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
+    descMeiaDiariaTextarea.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     //containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'flex' : 'none';    
 
     console.log("TEM PERMISSÃO MASTER:", temPermissaoMaster);
@@ -2759,7 +2767,7 @@ function aplicarCorStatusInput(elementoInput) {
 async function verificaStaff() {
 
     console.log("%cCarregando Staff...", "background: blue;");
-     eventsTableBody           = document.querySelector('#eventsDataTable tbody');
+    eventsTableBody           = document.querySelector('#eventsDataTable tbody');
     noResultsMessage          = document.getElementById('noResultsMessage');
     idFuncionarioHiddenInput  = document.getElementById('idFuncionario');
     apelidoFuncionarioInput   = document.getElementById('apelidoFuncionario');
@@ -2770,7 +2778,7 @@ async function verificaStaff() {
     fileInput                 = document.getElementById('file');
     avaliacaoSelect           = document.getElementById('avaliacao');
     tarjaDiv                  = document.getElementById('tarjaAvaliacao');
- 
+
     idStaffInput              = document.getElementById('idStaff');
     idStaffEventoInput        = document.getElementById('idStaffEvento');
     idFuncaoInput             = document.getElementById('idFuncao');
@@ -2789,16 +2797,19 @@ async function verificaStaff() {
     idEventoInput             = document.getElementById('idEvento');
     nmEventoSelect            = document.getElementById('nmEvento');
     datasEventoInput          = document.getElementById('datasEvento');
- 
+
     ajusteCustocheck          = document.getElementById('ajusteCustocheck');
     campoAjusteCusto          = document.getElementById('campoAjusteCusto');
     ajusteCustoTextarea       = document.getElementById('descAjusteCusto');
     campoStatusajusteCusto    = document.getElementById('campoStatusAjusteCusto');
     statusAjusteCustoInput    = document.getElementById('statusAjusteCusto');
     selectStatusAjusteCusto   = document.getElementById('selectStatusAjusteCusto');
- 
+
     vlrTotalInput             = document.getElementById('vlrTotal');
- 
+    vlrTotalCacheInput = document.getElementById('vlrTotalCache');
+    vlrTotalAjdCustoInput = document.getElementById('vlrTotalAjdCusto');
+    
+
     caixinhacheck             = document.getElementById('Caixinhacheck');
     campoCaixinha             = document.getElementById('campoCaixinha');
     campoPgtoCaixinha         = document.getElementById('campoPgtoCaixinha');
@@ -2806,18 +2817,18 @@ async function verificaStaff() {
     campoStatusCaixinha       = document.getElementById('campoStatusCaixinha');
     statusCaixinhaInput       = document.getElementById('statusCaixinha');
     selectStatusCaixinha      = document.getElementById('selectStatusCaixinha');
-    statusPgtoCaixinhaInput   = document.getElementById('statusPgtoCaixinha');
- 
+    statusPgtoCaixinhaInput   = document.getElementById('statusPgtoCaixinha')
+
     setorInput                = document.getElementById('setor');
     statusPagtoInput          = document.getElementById('statusPgto');
- 
+
     diariaDobradaInput        = document.getElementById('diariaDobrada');
     diariaDobradacheck        = document.getElementById('diariaDobradacheck');
     campoDiariaDobrada        = document.getElementById('campoDiariaDobrada');
     descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
     campoStatusDiariaDobrada  = document.getElementById('campoStatusDiariaDobrada');
     statusDiariaDobradaInput  = document.getElementById('statusDiariaDobrada');
- 
+
     meiaDiariaInput           = document.getElementById('meiaDiaria');
     meiaDiariacheck           = document.getElementById('meiaDiariacheck');
     campoMeiaDiaria           = document.getElementById('campoMeiaDiaria');
@@ -2825,26 +2836,27 @@ async function verificaStaff() {
     descCustoFechadoTextarea  = document.getElementById('descCustoFechado');
     campoStatusMeiaDiaria     = document.getElementById('campoStatusMeiaDiaria');
     statusMeiaDiariaInput     = document.getElementById('statusMeiaDiaria');
- 
+
     containerDiariaDobradaCheck  = document.querySelector('#diariaDobradacheck')?.closest('.input-container-checkbox');
     containerMeiaDiariacheck     = document.querySelector('#meiaDiariacheck')?.closest('.input-container-checkbox');
     containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
     containerStatusMeiaDiaria    = document.getElementById('containerStatusMeiaDiaria');
- 
+
     check50                   = document.getElementById('check50');
     check100                  = document.getElementById('check100');
- 
+
     container1                = document.getElementById('labelFileAjdCusto')?.parentElement;
     container2                = document.getElementById('labelFileAjdCusto2')?.parentElement;
     mensagemConcluido         = document.getElementById('mensagemConcluido');
- 
+
     seniorCheck               = document.getElementById('Seniorcheck');
     seniorCheck2              = document.getElementById('Seniorcheck2');
     plenoCheck                = document.getElementById('Plenocheck');
     juniorCheck               = document.getElementById('Juniorcheck');
     baseCheck                 = document.getElementById('Basecheck');
     fechadoCheck              = document.getElementById('Fechadocheck');
- 
+    liberadoCheck             = document.getElementById('Liberadocheck');
+
     qtdPessoasInput           = document.getElementById('qtdPessoas');
     idEquipeInput             = document.getElementById('idEquipe');
     nmEquipeSelect            = document.getElementById('nmEquipe');
@@ -2852,6 +2864,10 @@ async function verificaStaff() {
     configurarPreviewPDF();
     configurarPreviewImagem();
     inicializarFlatpickrsGlobais();
+
+//  functions que deixaram de usar o dom para multiplas chamadas
+    registrarListenersNivel();
+    camposDiarias();
     
     carregarFuncaoStaff();
     carregarFuncionarioStaff();
@@ -4203,10 +4219,10 @@ async function verificaStaff() {
             // =========================================================
             // 14. DIÁRIA DOBRADA E MEIA DIÁRIA
             // =========================================================
-            if (diariaDobrada && statusDiariaDobrada === "Autorização de Diária Dobrada") statusDiariaDobrada = "Pendente";
+            if (diariaDobrada && (statusDiariaDobrada === "Autorização de Diária Dobrada" || statusDiariaDobrada === '')) statusDiariaDobrada = "Pendente";
             else if (!diariaDobrada) statusDiariaDobrada = '';
 
-            if (meiaDiaria && statusMeiaDiaria === "Autorização de Meia Diária") statusMeiaDiaria = "Pendente";
+            if (meiaDiaria && (statusMeiaDiaria === "Autorização de Meia Diária" || statusMeiaDiaria === '')) statusMeiaDiaria = "Pendente";
             else if (!meiaDiaria) statusMeiaDiaria = '';
 
             let dadosDiariaDobrada = [];
@@ -4229,6 +4245,7 @@ async function verificaStaff() {
             // 15. MONTAGEM DO FORMDATA
             // =========================================================
             const formData = new FormData();
+            const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : '';
 
             if (metodo === "PUT") {
                 formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
@@ -4260,7 +4277,7 @@ async function verificaStaff() {
             formData.append('descbeneficios', descBeneficioTextarea.value.trim());
             formData.append('desccustofechado', descCustoFechadoParaEnvio || '');  // ← null se houve troca de nível
             formData.append('setor', setor);
-            formData.append('statuspgto', statusPgto);
+            formData.append('statuspgto', capitalize(statusPgto));
             const vlrAjusteEnvio = parseFloat(ajusteCustoInput?.value?.replace(',', '.') || 0);
             const statusAjusteEnvio = vlrAjusteEnvio !== 0 
                 ? (document.getElementById('selectStatusAjusteCusto')?.value || statusAjusteCustoInput?.value || 'Pendente')
@@ -4273,18 +4290,21 @@ async function verificaStaff() {
             const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0 
                 ? (statusPgtoAjudaCustoInput?.value || 'Pendente') 
                 : '';
-            formData.append('statuspgtoajdcto', statusPgtoAjdEnvio.toUpperCase());
+            // formData.append('statuspgtoajdcto', statusPgtoAjdEnvio.toUpperCase());
+            formData.append('statuspgtoajdcto', capitalize(statusPgtoAjdEnvio));
 
             const vlrCaixaEnvio = parseFloat(caixinhaInput?.value?.replace(',', '.') || 0);
             const statusCaixaEnvio = vlrCaixaEnvio !== 0
                 ? (document.getElementById('selectStatusCaixinha')?.value || statusCaixinhaInput?.value || 'Pendente')
                 : '';
-            formData.append('statuscaixinha', statusCaixaEnvio.toUpperCase());
+            // formData.append('statuscaixinha', statusCaixaEnvio.toUpperCase());
+             formData.append('statuscaixinha', capitalize(statusCaixaEnvio));
 
             const statusPgtoCxEnvio = vlrCaixaEnvio !== 0
                 ? (statusPgtoCaixinhaInput?.value || 'Pendente')
                 : '';
-            formData.append('statuspgtocaixinha', statusPgtoCxEnvio.toUpperCase());
+            // formData.append('statuspgtocaixinha', statusPgtoCxEnvio.toUpperCase());
+            formData.append('statuspgtocaixinha', capitalize(statusPgtoCxEnvio));
 
             formData.append('statuscustofechado', statusFechadoParaEnvio || '');   // ← null se houve troca de nível
             formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
@@ -7812,290 +7832,297 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
     }
 });
 
-
-document.getElementById('Seniorcheck').addEventListener('change', function () {
-    if (seniorCheck.checked) {
-        if (verificarBloqueioStatusAutorizado(this)) return;   
-        
-        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
-            nivelFoiTrocado = true;
-        }
-
-        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
-        // Lógica para quando o checkbox de Senior estiver marcado
-        if (!validarCamposEssenciais()) {
-            seniorCheck.checked = false; // Desmarca se a validação falhar
-            return;
-        }
-
-        seniorCheck2.checked = false;
-        plenoCheck.checked = false;
-        juniorCheck.checked = false;
-        baseCheck.checked = false;
-        fechadoCheck.checked = false;
-        liberadoCheck.checked = false;
-        fechadoCheck.dispatchEvent(new Event('change'));
-
-        //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
-
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput) {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+function registrarListenersNivel() {
+    document.getElementById('Seniorcheck').addEventListener('change', function () {
+        if (this.checked) {
+            if (verificarBloqueioStatusAutorizado(this)) return;   
             
-            if (periodoDatas.length > 0) {
-                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
-                calcularValorTotal();
-                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+            if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+                nivelFoiTrocado = true;
             }
-            console.log("Período de datas obtido para Senior:", periodoDatas);
-        }
-    }
 
-});
+            document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
+            // Lógica para quando o checkbox de Senior estiver marcado
+            if (!validarCamposEssenciais()) {
+                this.checked = false; // Desmarca se a validação falhar
+                return;
+            }
 
-document.getElementById('Seniorcheck2').addEventListener('change', function () {
-    const seniorCheck2 = this;    
-          
+            [seniorCheck2, plenoCheck, juniorCheck, baseCheck, fechadoCheck, liberadoCheck].forEach(c => {
+                    if(c && c !== this) c.checked = false;
+                });
 
-    if (seniorCheck2.checked) {   
-        if (verificarBloqueioStatusAutorizado(this)) return;    
-        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
-            nivelFoiTrocado = true;
-        } 
+            //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
 
-        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
-        // 1. Validação essencial igual ao seu Basecheck
-        if (typeof validarCamposEssenciais === 'function' && !validarCamposEssenciais()) {
-            seniorCheck2.checked = false; 
-            return;
-        }
+                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
+            if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
 
-        // 2. Exclusividade: Desmarca todos os outros
-        if (document.getElementById("Seniorcheck")) document.getElementById("Seniorcheck").checked = false;
-        if (document.getElementById("Plenocheck")) document.getElementById("Plenocheck").checked = false;
-        if (document.getElementById("Juniorcheck")) document.getElementById("Juniorcheck").checked = false;
-        if (document.getElementById("Basecheck")) document.getElementById("Basecheck").checked = false;
-        if (document.getElementById("Fechadocheck")) document.getElementById("Fechadocheck").checked = false;
-        if (document.getElementById("Liberadocheck")) document.getElementById("Liberadocheck").checked = false;
-        fechadoCheck.dispatchEvent(new Event('change'));
-
-        // 3. Preenche custos (Usando o valor sênior conforme sua regra)
-        // Certifique-se que vlrCustoSeniorFuncao esteja acessível aqui
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao2) || 0).toFixed(2);
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-        // 4. Cálculo de Total
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput && typeof getPeriodoDatas === 'function') {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-            if (periodoDatas.length > 0 && typeof calcularValorTotal === 'function') {
-                calcularValorTotal();
+            const datasEventoInput = document.getElementById('datasEvento');
+            if (datasEventoInput) {
+                const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                
+                if (periodoDatas.length > 0) {
+                    console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
+                    calcularValorTotal();
+                    console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+                }
+                console.log("Período de datas obtido para Senior:", periodoDatas);
             }
         }
-    }
-});
 
-document.getElementById('Plenocheck').addEventListener('change', function () {
-    if (plenoCheck.checked) {
-        if (verificarBloqueioStatusAutorizado(this)) return;
-        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
-            nivelFoiTrocado = true;
-        }
-    
-        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
-        // Lógica para quando o checkbox de Pleno estiver marcado
-        if (!validarCamposEssenciais()) {
-            plenoCheck.checked = false; // Desmarca se a validação falhar
-            return;
-        }
-        seniorCheck2.checked = false;
-        seniorCheck.checked = false;
-        juniorCheck.checked = false;
-        baseCheck.checked = false;
-        fechadoCheck.checked = false;
-        liberadoCheck.checked = false;
-        fechadoCheck.dispatchEvent(new Event('change'));
-        
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-    
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput) {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-            
-            if (periodoDatas.length > 0) {
-                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
-                calcularValorTotal();
-                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+    });
+
+    document.getElementById('Seniorcheck2').addEventListener('change', function () {
+        if (this.checked) {   
+            if (verificarBloqueioStatusAutorizado(this)) return;    
+            if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+                nivelFoiTrocado = true;
+            } 
+
+            document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
+            // 1. Validação essencial igual ao seu Basecheck
+            if (typeof validarCamposEssenciais === 'function' && !validarCamposEssenciais()) {
+                this.checked = false; 
+                return;
             }
-            console.log("Período de datas obtido para Pleno:", periodoDatas);
-        }
-    }
-});
 
-document.getElementById('Juniorcheck').addEventListener('change', function () {
-    if (juniorCheck.checked) {
-        if (verificarBloqueioStatusAutorizado(this)) return;
-        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
-            nivelFoiTrocado = true;
-        }
-        
-        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
-        // Lógica para quando o checkbox de Junior estiver marcado
-        if (!validarCamposEssenciais()) {
-            juniorCheck.checked = false; // Desmarca se a validação falhar
-            return;
-        }
-        seniorCheck2.checked = false;
-        seniorCheck.checked = false;
-        plenoCheck.checked = false;
-        baseCheck.checked = false;
-        fechadoCheck.checked = false;
-        liberadoCheck.checked = false;
-        fechadoCheck.dispatchEvent(new Event('change'));
+            [seniorCheck, plenoCheck, juniorCheck, baseCheck, fechadoCheck, liberadoCheck].forEach(c => {
+                    if(c && c !== this) c.checked = false;
+                });
 
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-    
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput) {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-            
-            if (periodoDatas.length > 0) {
-                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
-                calcularValorTotal();
-                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
-            }
-            console.log("Período de datas obtido para Junior:", periodoDatas);
-        }
+            // 3. Preenche custos (Usando o valor sênior conforme sua regra)
+            // Certifique-se que vlrCustoSeniorFuncao esteja acessível aqui
+            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao2) || 0).toFixed(2);
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
 
-    }
-});
+                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
+            if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
 
-document.getElementById('Basecheck').addEventListener('change', function () {
-    if (baseCheck.checked) {
-        if (verificarBloqueioStatusAutorizado(this)) return;
-
-        if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
-            nivelFoiTrocado = true;
-        }
-       
-        document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
-        // Lógica para quando o checkbox de Base estiver marcado
-
-        if (!validarCamposEssenciais()) {
-            baseCheck.checked = false; // Desmarca se a validação falhar
-            return;
-        }
-        seniorCheck2.checked = false;
-        seniorCheck.checked = false;
-        plenoCheck.checked = false;
-        juniorCheck.checked = false;
-        fechadoCheck.checked = false;
-        liberadoCheck.checked = false;
-        fechadoCheck.dispatchEvent(new Event('change'));
-        
-
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-        const datasEventoInput = document.getElementById('datasEvento');
-        if (datasEventoInput) {
-            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-            
-            if (periodoDatas.length > 0) {
-                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
-                calcularValorTotal();
-                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
-            }
-            console.log("Período de datas obtido para Base:", periodoDatas);
-        }
-    }
-});
-
-
-document.getElementById('Fechadocheck').addEventListener('change', function () {
-    if (verificarBloqueioStatusAutorizado(this)) return;
-
-    if (this.checked) {        
-        console.log("ENTROU NO FECHADOCHECK");
-        
-        if (!validarCamposEssenciais()) {
-            this.checked = false;
-            return;
-        }
-
-        [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, liberadoCheck].forEach(c => {
-            if(c && c !== this) c.checked = false;
-        });
-
-        if (!isFormLoadedFromDoubleClick) {
-            // Se está editando um registro existente → restaura valor do banco
-            if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'FECHADO') {
-                document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
-                document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
-                document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
-                restaurarStatusCustoFechado();
-                console.log("↩️ Restaurando valores do banco para Fechado.");
-            } else {
-                // Novo registro → zera
-                document.getElementById("vlrCusto").value = (0).toFixed(2);
-                document.getElementById("alimentacao").value = (0).toFixed(2);
-                document.getElementById("transporte").value = (0).toFixed(2);
-            }
-        }
-    }
-});
-
-document.getElementById('Liberadocheck').addEventListener('change', function () {
-    console.log("ENTROU NO LIBERADO", isFormLoadedFromDoubleClick);
-    if (verificarBloqueioStatusAutorizado(this)) return;
-
-    if (this.checked) {
-        if (!validarCamposEssenciais()) {
-            this.checked = false;
-            return;
-        }
-
-        [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, fechadoCheck].forEach(c => {
-            if(c && c !== this) c.checked = false;
-        });
-
-        if (!isFormLoadedFromDoubleClick) {
-            // Se está editando um registro existente → restaura valor do banco
-            if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'LIBERADO') {
-                document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
-                document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
-                document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
-                restaurarStatusCustoFechado();
-                console.log("↩️ Restaurando valores do banco para Liberado.");
-            } else {
-                // Novo registro → zera cache, mantém alimentação e transporte da função
-                document.getElementById("vlrCusto").value = (0).toFixed(2);
-                document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
-                document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-                const datasEventoInput = document.getElementById('datasEvento');
-                if (datasEventoInput) {
-                    const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
-                    if (periodoDatas.length > 0) calcularValorTotal();
+            // 4. Cálculo de Total
+            const datasEventoInput = document.getElementById('datasEvento');
+            if (datasEventoInput && typeof getPeriodoDatas === 'function') {
+                const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                if (periodoDatas.length > 0 && typeof calcularValorTotal === 'function') {
+                    calcularValorTotal();
                 }
             }
         }
-    }
-});
+    });
+
+    document.getElementById('Plenocheck').addEventListener('change', function () {
+        if (this.checked) {
+            if (verificarBloqueioStatusAutorizado(this)) return;
+            if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+                nivelFoiTrocado = true;
+            }
+        
+            document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
+            // Lógica para quando o checkbox de Pleno estiver marcado
+            if (!validarCamposEssenciais()) {
+                this.checked = false; // Desmarca se a validação falhar
+                return;
+            }
+            [seniorCheck2, seniorCheck, juniorCheck, baseCheck, fechadoCheck, liberadoCheck].forEach(c => {
+                    if(c && c !== this) c.checked = false;
+                });
+            
+            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
+            if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
+        
+            const datasEventoInput = document.getElementById('datasEvento');
+            if (datasEventoInput) {
+                const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                
+                if (periodoDatas.length > 0) {
+                    console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
+                    calcularValorTotal();
+                    console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+                }
+                console.log("Período de datas obtido para Pleno:", periodoDatas);
+            }
+        }
+    });
+
+    document.getElementById('Juniorcheck').addEventListener('change', function () {
+        if (this.checked) {
+            if (verificarBloqueioStatusAutorizado(this)) return;
+            if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+                nivelFoiTrocado = true;
+            }
+            
+            document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
+            // Lógica para quando o checkbox de Junior estiver marcado
+            if (!validarCamposEssenciais()) {
+                this.checked = false; // Desmarca se a validação falhar
+                return;
+            }
+
+            [seniorCheck2, seniorCheck, plenoCheck, baseCheck, fechadoCheck, liberadoCheck].forEach(c => {
+                    if(c && c !== this) c.checked = false;
+            });
+
+            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
+            if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
+        
+            const datasEventoInput = document.getElementById('datasEvento');
+            if (datasEventoInput) {
+                const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                
+                if (periodoDatas.length > 0) {
+                    console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
+                    calcularValorTotal();
+                    console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+                }
+                console.log("Período de datas obtido para Junior:", periodoDatas);
+            }
+
+        }
+    });
+
+    document.getElementById('Basecheck').addEventListener('change', function () {
+        if (this.checked) {
+            if (verificarBloqueioStatusAutorizado(this)) return;
+
+            if (nivelOriginalCarregado === 'FECHADO' || nivelOriginalCarregado === 'LIBERADO') {
+                nivelFoiTrocado = true;
+            }
+        
+            document.getElementById("vlrCusto").readOnly = true; // Torna o campo de custo não editável
+            // Lógica para quando o checkbox de Base estiver marcado
+
+            if (!validarCamposEssenciais()) {
+                this.checked = false; // Desmarca se a validação falhar
+                return;
+            }
+            [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, fechadoCheck, liberadoCheck].forEach(c => {
+                    if(c && c !== this) c.checked = false;
+                });
+            
+
+            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
+            if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
+
+            const datasEventoInput = document.getElementById('datasEvento');
+            if (datasEventoInput) {
+                const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                
+                if (periodoDatas.length > 0) {
+                    console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
+                    calcularValorTotal();
+                    console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+                }
+                console.log("Período de datas obtido para Base:", periodoDatas);
+            }
+        }
+    });
+
+
+    document.getElementById('Fechadocheck').addEventListener('change', function () {
+        if (verificarBloqueioStatusAutorizado(this)) return;
+
+        if (this.checked) {        
+            console.log("ENTROU NO FECHADOCHECK");
+            
+            if (!validarCamposEssenciais()) {
+                this.checked = false;
+                return;
+            }
+
+            [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, liberadoCheck].forEach(c => {
+                if(c && c !== this) c.checked = false;
+            });
+
+            if (!isFormLoadedFromDoubleClick) {
+                // Se está editando um registro existente → restaura valor do banco
+                if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'FECHADO') {
+                    document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
+                    document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
+                    document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
+                    restaurarStatusCustoFechado();
+                    console.log("↩️ Restaurando valores do banco para Fechado.");
+                } else {
+                    // Novo registro → zera
+                    document.getElementById("vlrCusto").value = (0).toFixed(2);
+                    document.getElementById("alimentacao").value = (0).toFixed(2);
+                    document.getElementById("transporte").value = (0).toFixed(2);
+
+                    document.getElementById('campoStatusCustoFechado').style.display = 'flex';
+                    document.getElementById('wrapperJustificativaCustoFechado').style.display = 'block';
+                    if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'block';
+                }
+            }
+        }
+    });
+
+    document.getElementById('Liberadocheck').addEventListener('change', function () {
+        console.log("ENTROU NO LIBERADO", isFormLoadedFromDoubleClick);
+        if (verificarBloqueioStatusAutorizado(this)) return;
+
+        if (this.checked) {
+            if (!validarCamposEssenciais()) {
+                this.checked = false;
+                return;
+            }
+
+            [seniorCheck2, seniorCheck, plenoCheck, juniorCheck, baseCheck, fechadoCheck].forEach(c => {
+                if(c && c !== this) c.checked = false;
+            });
+
+            if (!isFormLoadedFromDoubleClick) {
+                // Se está editando um registro existente → restaura valor do banco
+                if (currentEditingStaffEvent?.nivelexperiencia?.toUpperCase() === 'LIBERADO') {
+                    document.getElementById("vlrCusto").value = parseFloat(currentEditingStaffEvent.vlrcache || 0).toFixed(2);
+                    document.getElementById("alimentacao").value = parseFloat(currentEditingStaffEvent.vlralimentacao || 0).toFixed(2);
+                    document.getElementById("transporte").value = parseFloat(currentEditingStaffEvent.vlrtransporte || 0).toFixed(2);
+                    restaurarStatusCustoFechado();
+                    console.log("↩️ Restaurando valores do banco para Liberado.");
+                } else {
+                    // Novo registro → zera cache, mantém alimentação e transporte da função
+                    document.getElementById("vlrCusto").value = (0).toFixed(2);
+                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+                    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                    document.getElementById('campoStatusCustoFechado').style.display = 'flex';
+                    document.getElementById('wrapperJustificativaCustoFechado').style.display = 'block';
+                    if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'block';
+
+                    const datasEventoInput = document.getElementById('datasEvento');
+                    if (datasEventoInput) {
+                        const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+                        if (periodoDatas.length > 0) calcularValorTotal();
+                    }
+                }
+            }
+        } 
+    });
+}
 
 function restaurarStatusCustoFechado() {
     const statusFechadoBanco = currentEditingStaffEvent.statuscustofechado || 'Pendente';
     const txtDesc = document.getElementById('descCustoFechado');
     if (txtDesc) txtDesc.value = currentEditingStaffEvent.desccustofechado || '';
+        txtDesc.style.display = 'block';
 
     const temAcesso = temPermissaoMaster || temPermissaoFinanceiro;
     const selectStatusFechado = document.getElementById('selectStatusCustoFechado');
@@ -8403,19 +8430,21 @@ if (document.getElementById('viagem3Check')) {
     });
 }
 
-document.getElementById('diariaDobradacheck')?.addEventListener('change', function() {
-    campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-    document.getElementById('campoStatusDiariaDobrada').style.display = this.checked ? 'block' : 'none';
-    const textarea = document.getElementById('descDiariaDobrada');
-    if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
-});
+function camposDiarias(){
+    document.getElementById('diariaDobradacheck')?.addEventListener('change', function() {
+        document.getElementById('campoDiariaDobrada').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('campoStatusDiariaDobrada').style.display = this.checked ? 'block' : 'none';
+        const textarea = document.getElementById('descDiariaDobrada');
+        if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
+    });
 
-document.getElementById('meiaDiariacheck')?.addEventListener('change', function() {
-    campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-    document.getElementById('campoStatusMeiaDiaria').style.display = this.checked ? 'block' : 'none';
-    const textarea = document.getElementById('descMeiaDiaria');
-    if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
-});
+    document.getElementById('meiaDiariacheck')?.addEventListener('change', function() {
+        document.getElementById('campoMeiaDiaria').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('campoStatusMeiaDiaria').style.display = this.checked ? 'block' : 'none';
+        const textarea = document.getElementById('descMeiaDiaria');
+        if (textarea) textarea.style.display = this.checked ? 'block' : 'none';
+    });
+}
 
 function limparDescricoesViagem(textoAtual) {
     let textoLimpo = textoAtual;
@@ -10997,19 +11026,19 @@ function gerarArrayDatasEntre(dataInicioStr, dataFimStr) {
 function destruirFlatpickrsComSeguranca() {
     console.log("🚨 DESTROY SEGURO: Verificando instâncias de Flatpickr.");
 
-    // 1. Destruição do Diária Dobrada
-    if (window.diariaDobradaPicker && typeof window.diariaDobradaPicker.destroy === 'function') {
-        window.diariaDobradaPicker.destroy();
-        window.diariaDobradaPicker = null; // Limpa a referência
-        console.log("Diária Dobrada destruído com sucesso.");
-    }
+    // // 1. Destruição do Diária Dobrada
+    // if (window.diariaDobradaPicker && typeof window.diariaDobradaPicker.destroy === 'function') {
+    //     window.diariaDobradaPicker.destroy();
+    //     window.diariaDobradaPicker = null; // Limpa a referência
+    //     console.log("Diária Dobrada destruído com sucesso.");
+    // }
 
-    // 2. Destruição do Meia Diária
-    if (window.meiaDiariaPicker && typeof window.meiaDiariaPicker.destroy === 'function') {
-        window.meiaDiariaPicker.destroy();
-        window.meiaDiariaPicker = null; // Limpa a referência
-        console.log("Meia Diária destruído com sucesso.");
-    }
+    // // 2. Destruição do Meia Diária
+    // if (window.meiaDiariaPicker && typeof window.meiaDiariaPicker.destroy === 'function') {
+    //     window.meiaDiariaPicker.destroy();
+    //     window.meiaDiariaPicker = null; // Limpa a referência
+    //     console.log("Meia Diária destruído com sucesso.");
+    // }
     
     // 3. Destruição do Datas Evento
     if (window.datasEventoPicker && typeof window.datasEventoPicker.destroy === 'function') {
