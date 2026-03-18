@@ -1048,9 +1048,13 @@ let qtdPessoasInput = document.getElementById('qtdPessoas');
 let idEquipeInput = document.getElementById('idEquipe');
 let nmEquipeSelect = document.getElementById('nmEquipe');
 
-const DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
-const DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
-const DescViagem3 = "[Viagem Fora SP] Valor Alimentação e Transporte para Funcionário Local";
+let viagem1Check = document.getElementById('viagem1Check');
+let viagem2Check = document.getElementById('viagem2Check');
+let viagem3Check = document.getElementById('viagem3Check');
+
+let DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
+let DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
+let DescViagem3 = "[Viagem Fora SP] Valor Alimentação e Transporte para Funcionário Local";
 
 
 window.flatpickrInstances = {
@@ -1335,8 +1339,8 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
 
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
-    vlrTotalCacheInput = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
-    vlrTotalAjdCustoInput = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
+    if (vlrTotalCacheInput) vlrTotalCacheInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
+    if (vlrTotalAjdCustoInput) vlrTotalAjdCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',')
     console.log("VALOR TOTAL", vlrTotalInput.value);
 
     // Outros Campos de Status
@@ -2860,6 +2864,14 @@ async function verificaStaff() {
     qtdPessoasInput           = document.getElementById('qtdPessoas');
     idEquipeInput             = document.getElementById('idEquipe');
     nmEquipeSelect            = document.getElementById('nmEquipe');
+
+    DescViagem1
+    DescViagem2
+    DescViagem3
+
+    viagem1Check               = document.getElementById('viagem1Check')
+    viagem2Check               = document.getElementById('viagem2Check')
+    viagem3Check               = document.getElementById('viagem3Check')
 
     configurarPreviewPDF();
     configurarPreviewImagem();
@@ -7832,6 +7844,74 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
     }
 });
 
+// document.getElementById('viagem1Check').addEventListener('change', function () { 
+//     // let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
+//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+
+//     // document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+//     // document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+//     if (this.checked) {
+//         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
+//     //     // Lógica para quando o checkbox de Viagem 1 estiver marcado
+//     //     viagem2Check.checked = false;
+//     //     if (typeof viagem3Check !== 'undefined') viagem3Check.checked = false;
+//     //     vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
+//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (0).toFixed(2);
+
+//         // Texto
+//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
+//         descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
+//     } else {
+//         // Reset para o padrão da função
+//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+//         descBeneficioTextarea.value = descBeneficioAtual;
+//     }
+// });
+
+// document.getElementById('viagem2Check').addEventListener('change', function () { 
+//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+
+//     if (this.checked) {
+
+//         [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
+
+//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (0).toFixed(2);
+
+//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
+//         descBeneficioAtual.value = descBeneficioAtual + separador + DescViagem2
+//     }else {
+//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+//         descBeneficioTextarea.value = descBeneficioAtual;
+//     }
+// });
+
+// if (document.getElementById('viagem3Check')) {
+//     document.getElementById('viagem3Check').addEventListener('change', function () { 
+//         let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+
+//         if (this.checked) {
+//             [viagem1Check,viagem2Check].forEach(c =>{if(c) c.checked = false;});
+
+//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (0).toFixed(2);
+
+//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n":""
+//             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
+
+//         } else {
+//             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+//             descBeneficioTextarea.value = descBeneficioAtual;
+//         }
+//     });
+// }
+
 function registrarListenersNivel() {
     document.getElementById('Seniorcheck').addEventListener('change', function () {
         if (this.checked) {
@@ -8037,7 +8117,6 @@ function registrarListenersNivel() {
         }
     });
 
-
     document.getElementById('Fechadocheck').addEventListener('change', function () {
         if (verificarBloqueioStatusAutorizado(this)) return;
 
@@ -8115,6 +8194,72 @@ function registrarListenersNivel() {
                 }
             }
         } 
+    });
+
+
+    document.getElementById('viagem1Check').addEventListener('change', function () { 
+    const textoParaLimpar = descBeneficioTextarea.value;
+    let descBeneficioAtual = limparDescricoesViagem(textoParaLimpar);
+
+    if (this.checked) {
+        [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
+
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+
+        // Texto
+        let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
+        descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
+    } else {
+        // Reset para o padrão da função
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
+    });
+
+    document.getElementById('viagem2Check').addEventListener('change', function () { 
+        const textoParaLimpar = descBeneficioTextarea.value;
+        let descBeneficioAtual = limparDescricoesViagem(textoParaLimpar);
+
+        if (this.checked) {
+
+            [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
+
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+
+            let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
+            descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;
+
+        }else {
+
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+            descBeneficioTextarea.value = descBeneficioAtual;
+        }
+    });
+
+    document.getElementById('viagem3Check').addEventListener('change', function () { 
+        const textoParaLimpar = descBeneficioTextarea.value;
+        let descBeneficioAtual = limparDescricoesViagem(textoParaLimpar);
+
+        if (this.checked) {
+            [viagem1Check,viagem2Check].forEach(c =>{if(c) c.checked = false;});
+
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+
+            let separador = descBeneficioAtual.trim().length > 0 ? "\n\n":""
+                descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
+
+    } else {
+
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+            descBeneficioTextarea.value = descBeneficioAtual;
+        }
     });
 }
 
@@ -8275,160 +8420,7 @@ const REGEX_REMOCAO1 = criarRegexRemocao(DescViagem1);
 const REGEX_REMOCAO2 = criarRegexRemocao(DescViagem2);
 const REGEX_REMOCAO3 = criarRegexRemocao(DescViagem3);
 
-document.getElementById('viagem1Check').addEventListener('change', function () { 
-    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
-    let descBeneficioAtual = descBeneficioTextarea.value;  
-    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
 
-    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-    if (viagem1Check.checked) {
-        // Lógica para quando o checkbox de Viagem 1 estiver marcado
-        viagem2Check.checked = false;
-        if (typeof viagem3Check !== 'undefined') viagem3Check.checked = false;
-        vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-        document.getElementById("transporte").value = (0).toFixed(2);
-        
-
-        console.log("Descrição atual antes da modificação:", descBeneficioTextarea.value);        
-
-        if (descBeneficioAtual) {
-            descBeneficioAtual = descBeneficioAtual.trim();
-        }
-        if (descBeneficioAtual.includes(DescViagem1)) {
-            descBeneficioAtual = descBeneficioAtual.replace(DescViagem1, "").trim();
-        }
-        let separador = "";
-        if (descBeneficioAtual.length > 0) {
-            // Se houver texto remanescente, adicione o separador \n\n
-            separador = "\n\n";
-        }
-        // 2. Adiciona a descrição de viagem ao texto
-        descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
-
-    }else {
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-        // let descBeneficioAtual = descBeneficioTextarea.value;
-    
-        // // Escapa o texto para uso seguro no Regex
-        // const DescViagem1Escapada = DescViagem1.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        
-        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
-        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem1Escapada, 'g');
-
-        // if (descBeneficioAtual.includes(DescViagem1)) {
-            
-        //     // Remove o texto e o separador que o precede (se existir)
-        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();
-            
-        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
-        //     descBeneficioTextarea.value = descBeneficioAtual;
-        // }
-        descBeneficioTextarea.value = descBeneficioAtual;
-    }
-    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
- 
-});
-
-document.getElementById('viagem2Check').addEventListener('change', function () { 
-    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao;  
-    let descBeneficioAtual = descBeneficioTextarea.value;
-
-    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-    if (viagem2Check.checked) {
-        // Lógica para quando o checkbox de Viagem 2 estiver marcado
-        viagem1Check.checked = false;
-        if (typeof viagem3Check !== 'undefined') viagem3Check.checked = false;
-        vlrAlimentacaoViagem = (vlrAlimentacaoViagem * 2) + (vlrAlimentacaoViagem / 2) ;
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-        document.getElementById("transporte").value = (0).toFixed(2);
-
-        
-        if (descBeneficioAtual) {
-            descBeneficioAtual = descBeneficioAtual.trim();
-        }
-        if (descBeneficioAtual.includes(DescViagem2)) {
-            descBeneficioAtual = descBeneficioAtual.replace(DescViagem2, "").trim();
-        }
-        let separador = "";
-        if (descBeneficioAtual.length > 0) {
-            // Se houver texto remanescente, adicione o separador \n\n
-            separador = "\n\n";
-        }
-
-        // 2. Adiciona a descrição de viagem ao texto
-        descBeneficioTextarea.value = descBeneficioAtual + separador +DescViagem2;
-
-    }else {
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-        
-        // // Escapa o texto para uso seguro no Regex
-        // const DescViagem2Escapada = DescViagem2.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');        
-        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
-        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem2Escapada, 'g');
-        // if (descBeneficioAtual.includes(DescViagem2)) {
-        //     // Remove o texto e o separador que o precede (se existir)
-        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();            
-        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
-        //     descBeneficioTextarea.value = descBeneficioAtual;
-        // }
-
-        descBeneficioTextarea.value = descBeneficioAtual;
-    }
-    
-    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
-    
-});
-
-if (document.getElementById('viagem3Check')) {
-    document.getElementById('viagem3Check').addEventListener('change', function () { 
-        let descBeneficioAtual = descBeneficioTextarea.value;
-
-        // Limpa todas as descrições de viagem (incluindo Viagem 1 e 2)
-        descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-        
-        // Garante que o Transporte e Alimentação fiquem nos valores base da função (SEM ALTERAÇÃO)
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-        if (viagem3Check.checked) {
-            // Desmarca outras opções
-            viagem1Check.checked = false;
-            viagem2Check.checked = false;
-
-            // Lógica de descrição
-            if (descBeneficioAtual) {
-                descBeneficioAtual = descBeneficioAtual.trim();
-            }
-            // Remove DescViagem3 primeiro, caso tenha sobrado alguma sujeira (redundância para segurança)
-            if (descBeneficioAtual.includes(DescViagem3)) {
-                descBeneficioAtual = descBeneficioAtual.replace(DescViagem3, "").trim();
-            }
-            
-            let separador = "";
-            if (descBeneficioAtual.length > 0) {
-                // Se houver texto remanescente (não-viagem), adicione o separador \n\n
-                separador = "\n\n";
-            }
-            
-            // Adiciona a descrição de viagem local ao texto
-            descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
-
-        } else {
-            // Quando desmarca, apenas garante que o texto restante seja mantido
-            descBeneficioTextarea.value = descBeneficioAtual;
-        }
-    });
-}
 
 function camposDiarias(){
     document.getElementById('diariaDobradacheck')?.addEventListener('change', function() {
