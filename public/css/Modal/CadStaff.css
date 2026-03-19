@@ -428,7 +428,7 @@ border: 1px solid #dc3545;
  justify-content: center;
  align-items: center;
  flex-direction: row;
-  gap: 0.5rem 1rem; /* espaço entre linhas e colunas */
+  gap: 5px; /* espaço entre linhas e colunas */
 
 }
 .checkbox > div {
@@ -916,7 +916,7 @@ input#statusCustoFechado.status-Rejeitado {
     align-items: center;
     justify-content: center;
     text-align: center;
-    margin: 10px 0 10px 30%;
+    /* margin: 10px 0 10px 30%; */
 }
 
 .Selects-temporario p{
@@ -925,7 +925,8 @@ input#statusCustoFechado.status-Rejeitado {
 
 select#nmPavilhao {
     height: 100px;
-    cursor: pointer;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .Valores {

@@ -99,7 +99,8 @@ router.get("/", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res
                 `SELECT func.* FROM funcionarios func
                  INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                  WHERE funce.idempresa = $1 AND func.nome ILIKE $2 ORDER BY func.nome ASC LIMIT 1`,
-                [idempresa, `%${nome}%`] // Use % para pesquisa parcial se for o caso
+                [idempresa, nome] // Use % para pesquisa parcial se for o caso
+                // [idempresa, `%${nome}%`]
             );
             return result.rows.length
                 ? res.json(result.rows[0])

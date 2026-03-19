@@ -10,6 +10,29 @@ const path = require('path');
 const fs = require('fs');
 
 
+function isFeriado(date) {
+    const d = new Date(date);
+    const mmdd = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const feriadosFixos = ["01-01", "01-25", "04-21", "05-01", "07-09", "09-07", "10-12", "11-02", "11-15", "12-25"];
+    if (feriadosFixos.includes(mmdd)) return true;
+
+    // Lógica simplificada de feriados móveis (você pode copiar sua função calcularPascoa para cá)
+    const ano = d.getFullYear();
+    const f = Math.floor, G = ano % 19, C = f(ano / 100),
+          H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30,
+          I = H - f(H / 28) * (1 - f(H / 28) * f(29 / (H + 1)) * f((21 - G) / 11)),
+          J = (ano + f(ano / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J,
+          mes = 3 + f((L + 40) / 44), dia = L + 28 - 31 * f(mes / 4);
+    const pascoa = new Date(ano, mes - 1, dia);
+    const moveis = [
+        new Date(pascoa.getTime() - 47 * 86400000), // Carnaval
+        new Date(pascoa.getTime() - 2 * 86400000),  // Sexta Santa
+        pascoa,                                     // Pascoa
+        new Date(pascoa.getTime() + 60 * 86400000)  // Corpus Christi
+    ];
+    return moveis.some(m => m.getDate() === d.getDate() && m.getMonth() === d.getMonth());
+}
+
 router.get("/extra-bonificado", async (req, res) => {
     
     // ✅ CORREÇÃO DE ROBUSTEZ: Garante que idEmpresa seja uma string e evita null/undefined no pool.query
@@ -288,198 +311,6 @@ router.get("/eventos-staff", async (req, res) => {
 // =======================================
 // EVENTOS EM ABERTOS E FECHADOS
 // =======================================
-// router.get("/eventos-abertos/semfiltros", async (req, res) => {
-//     try {
-//         const idempresa = req.headers.idempresa || req.query.idempresa;
-//         const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
-//         const params = [idempresa, ano];
-
-//         const baseSql = `
-//             WITH vagas_orc AS (
-//                 SELECT 
-//                     o.idevento,
-//                     lm.descmontagem AS nmlocalmontagem,
-//                     o.idmontagem, 
-//                     MAX(o.nrorcamento) AS nrorcamento,
-//                     SUM(i.qtditens) AS total_vagas,
-//                     MIN(o.dtinimarcacao) AS dtinimarcacao,
-//                     MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-//                     MIN(o.dtinimontagem) AS dtinimontagem,
-//                     MAX(o.dtfimmontagem) AS dtfimmontagem,
-//                     MIN(o.dtinirealizacao) AS dtinirealizacao,
-//                     MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-//                     MIN(o.dtinidesmontagem) AS dtinidesmontagem,
-//                     MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-//                     array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-//                     array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-//                     array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-//                     (
-//                         SELECT json_agg(row_to_json(t))
-//                         FROM (
-//                             SELECT 
-//                                 eq2.idequipe,
-//                                 eq2.nmequipe AS equipe,
-//                                 i2.idfuncao, 
-//                                 f2.descfuncao AS nome_funcao, 
-//                                 SUM(i2.qtditens) AS total_vagas
-//                             FROM orcamentoitens i2
-//                             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-//                             JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-//                             JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-//                             WHERE o2.idevento = o.idevento
-//                             AND i2.categoria = 'Produto(s)'
-//                             AND o2.status <> 'R'
-//                             AND (
-//                                 o2.status = 'F' 
-//                                 OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true)
-//                             )
-//                             GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-//                         ) AS t
-//                     ) AS equipes_detalhes_base
-//                 FROM orcamentoitens i
-//                 JOIN orcamentos o ON i.idorcamento = o.idorcamento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-//                 LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-//                 LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-//                 LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-//                 LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-//                 WHERE o.idevento IS NOT NULL
-//                 AND oe.idempresa = $1 
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND i.categoria = 'Produto(s)' 
-//                 AND o.status <> 'R'
-//                 AND (
-//                     o.status = 'F'
-//                     OR (o.status IN ('P', 'E') AND o.contratarstaff = true)
-//                 )
-//                 GROUP BY o.idevento, lm.descmontagem, o.idmontagem
-//             ),
-//             staff_por_funcao AS ( 
-//                 SELECT 
-//                     se.idevento,
-//                     se.idfuncao,
-//                     COUNT(DISTINCT se.idstaff) AS preenchidas 
-//                 FROM staffeventos se
-//                 JOIN orcamentos o ON o.idevento = se.idevento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 WHERE oe.idempresa = $1 
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 AND EXISTS (
-//                     SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//                     WHERE EXTRACT(YEAR FROM d.dt::date) = $2
-//                 )
-//                 GROUP BY se.idevento, se.idfuncao
-//             ),
-//             staff_contagem AS (
-//                 SELECT 
-//                     vo.idevento,
-//                     COALESCE(SUM(spf.preenchidas), 0) AS total_staff_preenchido
-//                 FROM vagas_orc vo
-//                 LEFT JOIN staff_por_funcao spf ON spf.idevento = vo.idevento
-//                 GROUP BY vo.idevento
-//             ),
-//             staff_datas_por_funcao AS (
-//                 SELECT
-//                     se.idevento,
-//                     se.idfuncao,
-//                     array_agg(DISTINCT d.dt) AS datas_staff
-//                 FROM staffeventos se
-//                 LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) ON TRUE
-//                 JOIN orcamentos o ON se.idevento = o.idevento
-//                 JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//                 WHERE oe.idempresa = $1
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND EXTRACT(YEAR FROM d.dt::date) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 GROUP BY se.idevento, se.idfuncao
-//             ),
-//             cliente_info AS (
-//                 SELECT DISTINCT ON (o.idevento)
-//                     o.idevento, c.idcliente, c.nmfantasia
-//                 FROM orcamentos o
-//                 JOIN clientes c ON c.idcliente = o.idcliente
-//                 WHERE o.idevento IS NOT NULL
-//                 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//                 AND o.status <> 'R'
-//                 AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-//                 ORDER BY o.idevento, o.dtinirealizacao DESC 
-//             )
-//             SELECT 
-//                 e.idevento, e.nmevento, vo.nmlocalmontagem, vo.idmontagem, vo.nrorcamento,
-//                 ci.idcliente, ci.nmfantasia,
-//                 COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,
-//                 COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
-//                 COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
-//                 COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
-//                 COALESCE(vo.dtfimdesmontagem, CURRENT_DATE) AS dtfimdesmontagem,
-//                 COALESCE(vo.total_vagas, 0) AS total_vagas,
-//                 COALESCE(sc.total_staff_preenchido, 0) AS total_staff,
-//                 (COALESCE(vo.total_vagas, 0) - COALESCE(sc.total_staff_preenchido, 0)) AS vagas_restantes,
-//                 COALESCE(vo.equipes_ids, ARRAY[]::int[]) AS equipes_ids,
-//                 COALESCE(vo.equipes_nomes, ARRAY[]::text[]) AS equipes_nomes,
-//                 (
-//                     SELECT json_agg(
-//                         json_build_object(
-//                             'idequipe', (b->>'idequipe')::int,
-//                             'equipe', b->>'equipe',
-//                             'idfuncao', (b->>'idfuncao')::int,
-//                             'nome_funcao', b->>'nome_funcao',
-//                             'total_vagas', (b->>'total_vagas')::int,
-//                             'preenchidas', COALESCE(spf.preenchidas, 0), 
-//                             'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-//                         )
-//                     )
-//                     FROM json_array_elements(vo.equipes_detalhes_base) AS b
-//                     LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int 
-//                     LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
-//                 ) AS equipes_detalhes,
-//                 'aberto' AS status_evento
-//             FROM eventos e
-//             INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
-//             LEFT JOIN staff_contagem sc ON sc.idevento = e.idevento
-//             LEFT JOIN cliente_info ci ON ci.idevento = e.idevento
-//             WHERE (vo.dtfimdesmontagem IS NULL OR vo.dtfimdesmontagem >= CURRENT_DATE)
-//             ORDER BY COALESCE(vo.dtinirealizacao, CURRENT_DATE) ASC;
-//         `;
-
-//         const { rows } = await pool.query(baseSql, params);
-        
-//         const mappedRows = rows.map(evt => {
-//             const resumoEquipesMap = (evt.equipes_detalhes || []).reduce((acc, func) => {
-//                 const nomeEquipe = func.equipe;
-//                 const totalVagas = func.total_vagas || 0;
-//                 const preenchidas = func.preenchidas || 0;
-//                 if (!acc[nomeEquipe]) acc[nomeEquipe] = { total: 0, preenchido: 0 };
-//                 acc[nomeEquipe].total += totalVagas;
-//                 acc[nomeEquipe].preenchido += preenchidas;
-//                 return acc;
-//             }, {});
-
-//             const resumoFormatado = Object.entries(resumoEquipesMap).map(([equipe, dados]) => {
-//                 const restante = dados.total - dados.preenchido;
-//                 let cor = "🟢"; 
-//                 if (dados.total === 0) cor = "⚪"; 
-//                 else if (dados.preenchido === 0) cor = "🔴"; 
-//                 else if (restante > 0) cor = "🟡"; 
-
-//                 return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
-//             }).join(" | ");
-
-//             return { ...evt, resumoEquipes: resumoFormatado };
-//         });
-
-//         return res.json(mappedRows);
-//     } catch (err) {
-//         console.error("Erro em /eventos-abertos:", err);
-//         res.status(500).json({ error: "Erro interno ao buscar eventos abertos." });
-//     }
-// });
 
 router.get("/eventos-abertos", async (req, res) => {
     try {
@@ -537,40 +368,56 @@ router.get("/eventos-abertos", async (req, res) => {
 
         const sql = `
             WITH vagas_orc AS (
-                SELECT 
-                    o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, 
-                    MAX(o.nrorcamento) AS nrorcamento,
-                    SUM(i.qtditens) AS total_vagas,
-                    MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-                    MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
-                    MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-                    MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-                    array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-                    array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-                    array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-                    (SELECT json_agg(row_to_json(t)) FROM (
-                        SELECT eq2.idequipe, eq2.nmequipe AS equipe, i2.idfuncao, f2.descfuncao AS nome_funcao, SUM(i2.qtditens) AS total_vagas
-                        FROM orcamentoitens i2
-                        JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-                        JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-                        JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-                        WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' AND o2.status <> 'R'
-                        AND (o2.status = 'F' OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true))
-                        GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-                    ) AS t) AS equipes_detalhes_base
-                FROM orcamentoitens i
-                JOIN orcamentos o ON i.idorcamento = o.idorcamento
-                JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-                LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-                LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-                LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-                LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-                LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-                WHERE oe.idempresa = $1 
-                AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
-                AND i.categoria = 'Produto(s)' AND o.status <> 'R'
-                AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-                GROUP BY o.idevento, lm.descmontagem, o.idmontagem
+            SELECT 
+                o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, 
+                MAX(o.nrorcamento) AS nrorcamento,
+                -- LÓGICA MISTA: 
+                -- Se o cache está fechado, contamos 1 vaga por item (independente da qtd).
+                -- Se o cache NÃO está fechado, mantemos a soma da qtditens original.
+                SUM(CASE 
+                    WHEN i.cachefechado = true THEN 1
+                    ELSE i.qtditens 
+                END) AS total_vagas,
+                MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
+                MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
+                MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+                MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
+                array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
+                array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
+                array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
+                (SELECT json_agg(row_to_json(t)) FROM (
+                    SELECT 
+                        eq2.idequipe, 
+                        eq2.nmequipe AS equipe, 
+                        i2.idfuncao, 
+                        f2.descfuncao AS nome_funcao, 
+                        -- REPETE A LÓGICA NO DETALHE DO JSON
+                        SUM(CASE 
+                            WHEN i2.cachefechado = true THEN 1
+                            ELSE i2.qtditens 
+                        END) AS total_vagas,
+                        bool_and(i2.cachefechado) as cache_fechado
+                    FROM orcamentoitens i2
+                    JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
+                    JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
+                    JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
+                    WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' AND o2.status <> 'R'
+                    AND (o2.status = 'F' OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true))
+                    GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
+                ) AS t) AS equipes_detalhes_base
+            FROM orcamentoitens i
+            JOIN orcamentos o ON i.idorcamento = o.idorcamento
+            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
+            LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
+            LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
+            LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
+            LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
+            WHERE oe.idempresa = $1 
+            AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
+            AND i.categoria = 'Produto(s)' AND o.status <> 'R'
+            AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
+            GROUP BY o.idevento, lm.descmontagem, o.idmontagem
             ),
             staff_por_funcao AS (
                 SELECT 
@@ -675,191 +522,6 @@ router.get("/eventos-abertos", async (req, res) => {
         res.status(500).json({ error: "Erro interno.", message: err.message });
     }
 });
-
-// router.get("/eventos-fechados/semfiltros", async (req, res) => {
-//     try {
-//         const idempresa = req.headers.idempresa || req.query.idempresa;
-//         const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido." });
-//         const params = [idempresa, ano];
-
-//         const baseSql = `
-//         WITH vagas_orc AS (
-//             SELECT 
-//                 o.idevento, o.idmontagem,
-//                 lm.descmontagem AS nmlocalmontagem,
-//                 MAX(o.nrorcamento) AS nrorcamento,
-//                 SUM(i.qtditens) AS total_vagas,
-//                 MIN(o.dtinimarcacao) AS dtinimarcacao,
-//                 MAX(o.dtfimmarcacao) AS dtfimmarcacao,
-//                 MIN(o.dtinimontagem) AS dtinimontagem,
-//                 MAX(o.dtfimmontagem) AS dtfimmontagem,
-//                 MIN(o.dtinirealizacao) AS dtinirealizacao,
-//                 MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-//                 MIN(o.dtinidesmontagem) AS dtinidesmontagem,
-//                 MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-//                 array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
-//                 array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
-//                 array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
-//                 (
-//                     SELECT json_agg(row_to_json(t))
-//                     FROM (
-//             SELECT 
-//                 eq2.idequipe,
-//                 eq2.nmequipe AS equipe,
-//                 i2.idfuncao, 
-//                 f2.descfuncao AS nome_funcao, 
-//                 SUM(i2.qtditens) AS total_vagas,
-//                 MIN(i2.periododiariasinicio) AS dtini_vaga,
-//                 MAX(i2.periododiariasfim) AS dtfim_vaga
-//             FROM orcamentoitens i2
-//             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
-//             JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
-//             JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
-//             WHERE o2.idevento = o.idevento
-//             AND i2.categoria = 'Produto(s)' 
-//             GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
-//                     ) AS t
-//                 ) AS equipes_detalhes_base
-//             FROM orcamentoitens i
-//             JOIN orcamentos o ON i.idorcamento = o.idorcamento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
-//             LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
-//             LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
-//             LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
-//             LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
-//             WHERE o.idevento IS NOT NULL
-//             AND oe.idempresa = $1
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND i.categoria = 'Produto(s)'
-//             GROUP BY o.idevento, o.idmontagem, lm.descmontagem
-//         ),
-//         staff_por_funcao AS ( 
-//             SELECT 
-//                 se.idevento, se.idfuncao,
-//                 COUNT(DISTINCT se.idstaff) AS preenchidas 
-//             FROM staffeventos se
-//             JOIN orcamentos o ON o.idevento = se.idevento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             WHERE oe.idempresa = $1 
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND EXISTS (
-//                 SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//                 WHERE EXTRACT(YEAR FROM d.dt::date) = $2
-//             )
-//             GROUP BY se.idevento, se.idfuncao
-//         ),
-//         staff_contagem AS (
-//             SELECT 
-//                 vo.idevento,
-//                 COALESCE(SUM(spf.preenchidas), 0) AS total_staff_preenchido
-//             FROM vagas_orc vo
-//             LEFT JOIN staff_por_funcao spf ON spf.idevento = vo.idevento
-//             GROUP BY vo.idevento
-//         ),
-//         staff_datas_por_funcao AS (
-//             SELECT
-//                 se.idevento, se.idfuncao,
-//                 array_agg(DISTINCT d.dt) AS datas_staff
-//             FROM staffeventos se
-//             LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) ON TRUE
-//             JOIN orcamentos o ON se.idevento = o.idevento
-//             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//             WHERE oe.idempresa = $1
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             AND EXTRACT(YEAR FROM d.dt::date) = $2
-//             GROUP BY se.idevento, se.idfuncao
-//         ), 
-//         cliente_info AS ( 
-//             SELECT DISTINCT ON (o.idevento)
-//                 o.idevento, c.idcliente, c.nmfantasia
-//             FROM orcamentos o
-//             JOIN clientes c ON c.idcliente = o.idcliente
-//             WHERE o.idevento IS NOT NULL
-//             AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
-//             ORDER BY o.idevento, o.dtinirealizacao DESC 
-//         )
-//         SELECT 
-//             e.idevento, e.nmevento, vo.idmontagem, vo.nmlocalmontagem, vo.nrorcamento,
-//             ci.idcliente, ci.nmfantasia,
-//             COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,
-//             COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
-//             COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
-//             COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
-//             COALESCE(vo.dtfimdesmontagem, CURRENT_DATE) AS dtfimdesmontagem,
-//             COALESCE(vo.total_vagas, 0) AS total_vagas,
-//             COALESCE(sc.total_staff_preenchido, 0) AS total_staff,
-//             (COALESCE(vo.total_vagas, 0) - COALESCE(sc.total_staff_preenchido, 0)) AS vagas_restantes,
-//             COALESCE(vo.equipes_ids, ARRAY[]::int[]) AS equipes_ids,
-//             COALESCE(vo.equipes_nomes, ARRAY[]::text[]) AS equipes_nomes,
-//             (
-//                 SELECT json_agg(
-//                     json_build_object(
-//             'idequipe', (b->>'idequipe')::int,
-//             'equipe', b->>'equipe',
-//             'idfuncao', (b->>'idfuncao')::int,
-//             'nome_funcao', b->>'nome_funcao',
-//             'total_vagas', (b->>'total_vagas')::int,
-//             'preenchidas', COALESCE(spf.preenchidas, 0), 
-//             'dtini_vaga', b->>'dtini_vaga',
-//             'dtfim_vaga', b->>'dtfim_vaga',
-//             'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-//                     )
-//                 )
-//                 FROM json_array_elements(vo.equipes_detalhes_base) AS b
-//                 LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int 
-//                 LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
-//             ) AS equipes_detalhes,
-//             'fechado' AS status_evento
-//         FROM eventos e
-//         INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
-//         LEFT JOIN staff_contagem sc ON sc.idevento = e.idevento
-//         LEFT JOIN cliente_info ci ON ci.idevento = e.idevento
-//         WHERE (vo.dtfimdesmontagem IS NOT NULL AND vo.dtfimdesmontagem < CURRENT_DATE)
-//         ORDER BY COALESCE(vo.dtinirealizacao, CURRENT_DATE) DESC;
-//         `;
-
-//         const { rows } = await pool.query(baseSql, params);
-        
-//         const mappedRows = rows.map(evt => {
-//             const resumoEquipesMap = (evt.equipes_detalhes || []).reduce((acc, func) => {
-//                 const nomeEquipe = func.equipe;
-//                 const totalVagas = func.total_vagas || 0;
-//                 const preenchidas = func.preenchidas || 0;
-
-//                 // Agrega Vagas e Staff Preenchido por NOME DA EQUIPE
-//                 if (!acc[nomeEquipe]) {
-//                     acc[nomeEquipe] = { total: 0, preenchido: 0 };
-//                 }
-
-//                 acc[nomeEquipe].total += totalVagas;
-//                 acc[nomeEquipe].preenchido += preenchidas;
-
-//                 return acc;
-//             }, {});
-
-//             const resumoFormatado = Object.entries(resumoEquipesMap).map(([equipe, dados]) => {
-//                 const restante = dados.total - dados.preenchido;
-//                 let cor = "🟢"; // Verde: Completo ou Superou
-
-//                 if (dados.total === 0) cor = "⚪"; // Sem vagas
-//                 else if (dados.preenchido === 0) cor = "🔴"; // Vermelho: 0 preenchido
-//                 else if (restante > 0) cor = "🟡"; // Amarelo: Parcialmente preenchido
-
-//                 return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
-//             }).join(" | ");
-
-//             return { ...evt, resumoEquipes: resumoFormatado };
-//         });
-
-//         return res.json(mappedRows);
-//     } catch (err) {
-//         console.error("Erro em /eventos-fechados:", err);
-//         res.status(500).json({ error: "Erro interno ao buscar eventos fechados." });
-//     }
-// });
 
 router.get("/eventos-fechados", async (req, res) => {
     try {
@@ -1050,134 +712,6 @@ router.get("/eventos-fechados", async (req, res) => {
     }
 });
 
-// router.get("/detalhes-eventos-abertos", async (req, res) => {
-//   try {
-//     const idevento = req.query.idevento || req.headers.idevento;
-//     const idempresa = req.query.idempresa || req.headers.idempresa;
-//     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
-
-//     if (!idevento || !idempresa) {
-//       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
-//     }
-
-//     // 1️⃣ Busca orçamento principal
-//     const { rows: orcamentos } = await pool.query(
-//       `SELECT o.idorcamento, o.idcliente, o.idmontagem
-//        FROM orcamentos o
-//        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-//        WHERE o.idevento = $1 AND oe.idempresa = $2 
-//        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
-//       [idevento, idempresa, ano]
-//     );
-
-//     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
-//     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
-
-//     // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
-//     const { rows: itensOrcamento } = await pool.query(
-//       `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
-//               COALESCE(i.setor, '') AS setor_orcamento,
-//               SUM(i.qtditens) AS qtd_orcamento,
-//               MIN(i.periododiariasinicio) AS dtini_vaga,
-//               MAX(i.periododiariasfim) AS dtfim_vaga
-//        FROM orcamentoitens i
-//        JOIN funcao f ON f.idfuncao = i.idfuncao
-//        JOIN equipe eq ON eq.idequipe = f.idequipe
-//        WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
-//        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-//       [idorcamento]
-//     );
-
-//     // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
-//     const { rows: staffCount } = await pool.query(
-//       `SELECT se.idfuncao, 
-//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-//               COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
-//        FROM staffeventos se
-//        WHERE se.idevento = $1 
-//          AND se.idcliente = $2
-//          AND EXISTS (
-//              SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
-//          )
-//        GROUP BY se.idfuncao, localizacao`,
-//       [idevento, idcliente, ano]
-//     );
-
-//     // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
-//     const { rows: datasStaffRaw } = await pool.query(
-//       `SELECT se.idfuncao, 
-//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-//               array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
-//        FROM staffeventos se
-//        CROSS JOIN LATERAL (
-//            SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
-//            WHERE EXTRACT(YEAR FROM dt::date) = $2
-//        ) AS d
-//        WHERE se.idevento = $1 AND se.idcliente = $3
-//        GROUP BY se.idfuncao, localizacao`,
-//       [idevento, ano, idcliente]
-//     );
-
-//     // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
-//     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-//       const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
-//       acc[key] = row.datas_staff;
-//       return acc;
-//     }, {});
-
-//     // 5️⃣ Agrupamento por equipe e montagem do objeto final
-//     const equipesMap = {};
-//     for (const item of itensOrcamento) {
-//       const idequipeKey = item.idequipe || "SEM_EQUIPE";
-
-//       if (!equipesMap[idequipeKey]) {
-//         equipesMap[idequipeKey] = {
-//           equipe: item.equipe || "Sem equipe",
-//           idequipe: item.idequipe,
-//           funcoes: [],
-//         };
-//       }
-
-//       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
-
-//       // Busca a quantidade
-//       const cadastrado = staffCount.find(s => 
-//         String(s.idfuncao) === String(item.idfuncao) && 
-//         String(s.localizacao).trim().toUpperCase() === setorNormalizado
-//       ); 
-
-//       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      
-//       // Busca as datas no mapa usando a mesma chave normalizada
-//       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
-//       const datas_staff = datasStaffMap[chaveDatas] || [];
-
-//       equipesMap[idequipeKey].funcoes.push({
-//         idfuncao: item.idfuncao,
-//         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
-//         setor_orcamento: item.setor_orcamento,
-//         qtd_orcamento: Number(item.qtd_orcamento) || 0,
-//         qtd_cadastrada,
-//         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
-//         dtini_vaga: item.dtini_vaga,
-//         dtfim_vaga: item.dtfim_vaga,
-//         datas_staff: datas_staff // Agora as datas voltarão a aparecer
-//       });
-//     }
-
-//     res.status(200).json({ 
-//       equipes: Object.values(equipesMap), 
-//       idmontagem,
-//       idorcamento
-//     });
-
-//   } catch (err) {
-//     console.error("Erro ao processar detalhes dos eventos:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
@@ -1188,46 +722,50 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca TODOS os orçamentos da empresa no evento
+    // 1️⃣ Busca Orçamentos (Inalterado)
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.status, o.idcliente, o.idmontagem
         FROM orcamentos o
         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-        WHERE o.idevento = $1
-        AND oe.idempresa = $2
-        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
-        AND o.status <> 'R'
+        WHERE o.idevento = $1 AND oe.idempresa = $2 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3 AND o.status <> 'R'
         ORDER BY o.dtinirealizacao DESC;`,
       [idevento, idempresa, ano]
     );
 
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
 
-    // Extrai a lista de IDs de orçamento e dados comuns
     const idsOrcamentos = orcamentos.map(o => o.idorcamento);
-    const idcliente = orcamentos[0].idcliente; // Assume-se que o cliente é o mesmo
+    const idcliente = orcamentos[0].idcliente;
     const idmontagem = orcamentos[0].idmontagem;
 
-    // 2️⃣ Busca Vagas (Usando ANY para pegar itens de TODOS os orçamentos da lista)
+    // 2️⃣ Busca Vagas (Ajuste na sintaxe do CASE)
     const { rows: itensOrcamento } = await pool.query(
-      `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
-              COALESCE(i.setor, '') AS setor_orcamento,
-              SUM(i.qtditens) AS qtd_orcamento,
-              MIN(i.periododiariasinicio) AS dtini_vaga,
-              MAX(i.periododiariasfim) AS dtfim_vaga
-       FROM orcamentoitens i
-       JOIN funcao f ON f.idfuncao = i.idfuncao
-       JOIN equipe eq ON eq.idequipe = f.idequipe
-       WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
-       GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-      [idsOrcamentos] // Passa o array de IDs
+        `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
+          COALESCE(i.setor, '') AS setor_orcamento,
+          -- Aqui está a mágica:
+          SUM(CASE 
+              WHEN i.cachefechado = true THEN i.qtddias 
+              ELSE i.qtditens                                     
+          END) AS qtd_orcamento,
+          MIN(i.periododiariasinicio) AS dtini_vaga,
+          MAX(i.periododiariasfim) AS dtfim_vaga,
+          -- Retornamos se QUALQUER item desse grupo é cache fechado
+          bool_or(i.cachefechado = true) as tem_cache_fechado,
+          i.idorcamento -- 🎯 IMPORTANTE: Adicione o idorcamento para o frontend usar
+   FROM orcamentoitens i
+   JOIN funcao f ON f.idfuncao = i.idfuncao
+   JOIN equipe eq ON eq.idequipe = f.idequipe
+   WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
+   GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento`,
+        [idsOrcamentos]
     );
 
-    // 3️⃣ Busca quantidades cadastradas (Inalterado, já usa idevento e idcliente)
+    // 3️⃣ Busca Realizado (Adicionada vírgula e diarias_consumidas)
     const { rows: staffCount } = await pool.query(
       `SELECT se.idfuncao, 
               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada_pessoas,
+              SUM(jsonb_array_length(se.datasevento)) AS diarias_consumidas
        FROM staffeventos se
        WHERE se.idevento = $1 
          AND se.idcliente = $2
@@ -1260,7 +798,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return acc;
     }, {});
 
-    // 5️⃣ Agrupamento final (Agora processará itens do orçamento 166 e 230 juntos)
+    // 5️⃣ Agrupamento final (Com a lógica condicional interna)
     const equipesMap = {};
     for (const item of itensOrcamento) {
       const idequipeKey = item.idequipe || "SEM_EQUIPE";
@@ -1279,27 +817,39 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         String(s.localizacao).trim().toUpperCase() === setorNormalizado
       ); 
 
-      const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+      // --- LÓGICA DE TRANSIÇÃO ---
+      // Se for cache fechado, pegamos a soma de diárias, senão a contagem de pessoas
+      let qtd_cadastrada = 0;
+      if (cadastrado) {
+        qtd_cadastrada = item.tem_cache_fechado 
+          ? Number(cadastrado.diarias_consumidas) 
+          : Number(cadastrado.qtd_cadastrada_pessoas);
+      }
+      // ---------------------------
+
       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
       const datas_staff = datasStaffMap[chaveDatas] || [];
+
+    //   console.log("[DEBUG] item cache:", item.idfuncao, item.tem_cache_fechado);
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
         setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
-        qtd_cadastrada,
+        qtd_cadastrada, // Agora reflete ou pessoas ou diárias
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff
+        datas_staff: datas_staff,
+        cache_fechado: item.tem_cache_fechado 
       });
     }
 
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
       idmontagem,
-      idorcamento: idsOrcamentos[0] // Retorna o principal para referência
+      idorcamento: idsOrcamentos[0] 
     });
 
   } catch (err) {
@@ -1562,6 +1112,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    se.vlralimentacao, se.vlrtransporte,
                     'statuscaixinha' AS categoria, 
                     l.dadosnovos->>'statuscaixinha' AS status_atual,
                     se.vlrcaixinha, se.desccaixinha, se.statuscaixinha,
@@ -1586,6 +1137,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    se.vlralimentacao, se.vlrtransporte,
                     'statusajustecusto' AS categoria, 
                     l.dadosnovos->>'statusajustecusto' AS status_atual,
                     NULL, NULL, NULL, -- Caixinha
@@ -1609,8 +1161,12 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 -- 3. Bloco Cachê Fechado
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
-                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
-                    'statuscustofechado' AS categoria, 
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento,  l.criado_em, 
+                    se.vlralimentacao, se.vlrtransporte,
+                    CASE 
+                        WHEN se.nivelexperiencia ILIKE '%Liberado%' THEN 'statuscacheliberado'
+                        ELSE 'statuscustofechado' 
+                    END AS categoria, 
                     l.dadosnovos->>'statuscustofechado' AS status_atual,
                     NULL, NULL, NULL, -- Caixinha
                     NULL, NULL, NULL, -- Ajuste Custo
@@ -1634,6 +1190,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    se.vlralimentacao, se.vlrtransporte,
                     'statusdiariadobrada' AS categoria, 
                     l.dadosnovos->>'statusdiariadobrada' AS status_atual,
                     NULL, NULL, NULL, -- Caixinha
@@ -1659,6 +1216,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    se.vlralimentacao, se.vlrtransporte,
                     'statusmeiadiaria' AS categoria, 
                     l.dadosnovos->>'statusmeiadiaria' AS status_atual,
                     NULL, NULL, NULL, -- Caixinha
@@ -1678,7 +1236,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 AND jsonb_array_length(se.dtmeiadiaria) > 0
                 ${filtroSolicitante}
             )
-            SELECT DISTINCT ON (pd.idstaffevento, pd.categoria, pd.id_log)
+            SELECT DISTINCT ON (pd.idstaffevento, pd.categoria)
                 pd.*,
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
                 u2.nome || ' ' || u2.sobrenome AS nome_aprovador,
@@ -1687,7 +1245,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
             LEFT JOIN orcamentos o ON o.idevento = (SELECT se2.idevento FROM staffeventos se2 WHERE se2.idstaffevento = pd.idstaffevento LIMIT 1)
             LEFT JOIN logs l2 ON l2.idlog_origem = pd.id_log
             LEFT JOIN usuarios u2 ON u2.idusuario = l2.idexecutor
-            WHERE pd.status_atual = 'Pendente' 
+            WHERE pd.status_atual ILIKE 'Pendente'
             ORDER BY pd.idstaffevento, pd.categoria, pd.id_log, pd.criado_em ASC;
         `;
         const { rows } = await pool.query(query, params); 
@@ -1716,15 +1274,19 @@ router.get('/notificacoes-financeiras', async (req, res) => {
 
         const pedidosConsolidados = rows.map(r => {
             // Helper para gerar a string JSON de Caixinha/Ajuste (Array de 1 Item)
-            const stringifyUnico = (statusField, valorRaw, descricaoRaw) => {
+            const stringifyUnico = (statusField, valorRaw, descricaoRaw, alimentacaoRaw, transporteRaw) => {
                 const valor = parseValor(valorRaw);
+                const vlrAlim = parseValor(alimentacaoRaw);
+                const vlrTrans = parseValor(transporteRaw);
                 const status = statusField || '';
                 const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
                 if (status.trim() !== '' || valor !== 0) {
                     return JSON.stringify([{ 
                         status: status, 
                         valor: valor, 
-                        descricao: descricao                      
+                        descricao: descricao,
+                        vlralimentacao: vlrAlim,
+                        vlrtransporte: vlrTrans                     
                     }]);
                 }
                 return null;
@@ -1746,6 +1308,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 nomeAprovador: r.nome_aprovador || '-',
                 dataDecisao: r.data_decisao || null,
                 dataSolicitacao: r.criado_em || null,
+                categoria: r.categoria,
 
                 // CAMPOS DE STATUS ANINHADOS: 
                 // Diárias (Agora só incluídas se não forem '[]')
@@ -1753,7 +1316,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 statusdiariadobrada: diariaDobrada,
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
-                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache, r.desccustofechado),
+                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache, r.desccustofechado, r.vlralimentacao, r.vlrtransporte),
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
                 datasevento: r.datasevento || '-',
@@ -1774,307 +1337,587 @@ router.get('/notificacoes-financeiras', async (req, res) => {
 });
 
 
-router.patch('/notificacoes-financeiras/atualizar-status',
-    autenticarToken(),
-    contextoEmpresa,
-    verificarPermissao('staff', 'cadastrar'),     
-    // Log Middleware (Mantido, já está funcionando)
-    logMiddleware('staffeventos', {
-        buscarDadosAnteriores: async (req) => {
-            console.log("⚠️ACESSOU A ROTA PATCH PEDIDOS (LOG BUSCA)");
-            const id = req.body.idpedido;
-            if (!id || isNaN(parseInt(id))) return null;
-            const query = `
-                SELECT 
-                    idstaffevento, 
-                    statuscaixinha, 
-                    statusajustecusto, 
-                    dtdiariadobrada, 
-                    dtmeiadiaria,
-                    statuscustofechado
-                FROM staffeventos 
-                WHERE idstaffevento = $1`;
-            const result = await pool.query(query, [id]);
-            console.log('✅ SALVOU O LOG PEDIDOS', result );
-            return result.rows[0] 
-                ? { dadosanteriores: result.rows[0], idregistroalterado: id } 
-                : null;
-        }
-    }),
-    async (req, res) => {
-        const { idpedido, categoria, acao, data, idlog_origem} = req.body;
-        const idempresa = req.idempresa; 
-        const idUsuarioAprovador = req.usuario?.idusuario;
+// router.patch('/notificacoes-financeiras/atualizar-status',
+//     autenticarToken(),
+//     contextoEmpresa,
+//     verificarPermissao('staff', 'cadastrar'),     
+//     // Log Middleware (Mantido, já está funcionando)
+//     logMiddleware('staffeventos', {
+//         buscarDadosAnteriores: async (req) => {
+//             console.log("⚠️ACESSOU A ROTA PATCH PEDIDOS (LOG BUSCA)");
+//             const id = req.body.idpedido;
+//             if (!id || isNaN(parseInt(id))) return null;
+//             const query = `
+//                 SELECT 
+//                     idstaffevento, 
+//                     statuscaixinha, 
+//                     statusajustecusto, 
+//                     dtdiariadobrada, 
+//                     dtmeiadiaria,
+//                     statuscustofechado
+//                 FROM staffeventos 
+//                 WHERE idstaffevento = $1`;
+//             const result = await pool.query(query, [id]);
+//             console.log('✅ SALVOU O LOG PEDIDOS', result );
+//             return result.rows[0] 
+//                 ? { dadosanteriores: result.rows[0], idregistroalterado: id } 
+//                 : null;
+//         }
+//     }),
+//     async (req, res) => {
+//         const { idpedido, categoria, acao, data, idlog_origem} = req.body;
+//         const idempresa = req.idempresa; 
+//         const idUsuarioAprovador = req.usuario?.idusuario;
 
-        console.log(`DEBUG REQ.BODY RECEBIDO: ID: ${idpedido}, Categoria: ${categoria}, Acao: ${acao}, Data: ${data}`);
+//         console.log(`DEBUG REQ.BODY RECEBIDO: ID: ${idpedido}, Categoria: ${categoria}, Acao: ${acao}, Data: ${data}`);
 
-        // 1. Validação
-        if (!idpedido || !categoria || !acao || !idempresa) {
-            return res.status(400).json({ sucesso: false, erro: "Dados de requisição incompletos." });
-        }
+//         // 1. Validação
+//         if (!idpedido || !categoria || !acao || !idempresa) {
+//             return res.status(400).json({ sucesso: false, erro: "Dados de requisição incompletos." });
+//         }
         
-        const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
-        const statusPermitidos = ['Autorizado', 'Rejeitado'];
-        if (!statusPermitidos.includes(acaoCapitalizada)) {
-            return res.status(400).json({ sucesso: false, erro: "Ação inválida. Use 'Autorizado' ou 'Rejeitado'." });
-        }
+//         const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
+//         const statusPermitidos = ['Autorizado', 'Rejeitado'];
+//         if (!statusPermitidos.includes(acaoCapitalizada)) {
+//             return res.status(400).json({ sucesso: false, erro: "Ação inválida. Use 'Autorizado' ou 'Rejeitado'." });
+//         }
 
-        // 2. Mapeamento
-        const mapCategoriaToColuna = {
-            'statuscaixinha': 'statuscaixinha',
-            'statusajustecusto': 'statusajustecusto',
-            'statusdiariadobrada': 'dtdiariadobrada', 
-            'statusmeiadiaria': 'dtmeiadiaria',
-            'statuscustofechado': 'statuscustofechado'     
-        };
-        const colunaDB = mapCategoriaToColuna[categoria];
+//         // 2. Mapeamento
+//         const mapCategoriaToColuna = {
+//             'statuscaixinha': 'statuscaixinha',
+//             'statusajustecusto': 'statusajustecusto',
+//             'statusdiariadobrada': 'dtdiariadobrada', 
+//             'statusmeiadiaria': 'dtmeiadiaria',
+//             'statuscustofechado': 'statuscustofechado', 
+//             'statuscacheliberado': 'statuscustofechado'   
+//         };
+//         const colunaDB = mapCategoriaToColuna[categoria];
 
-        if (!colunaDB) {
-            return res.status(400).json({ sucesso: false, erro: "Categoria de atualização inválida." });
-        }
+//         if (!colunaDB) {
+//             return res.status(400).json({ sucesso: false, erro: "Categoria de atualização inválida." });
+//         }
 
-        try {
-            const idStaffEvento = idpedido;
-            const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
-            const dataDecisao = new Date().toISOString();
-            req.body.data = dataDecisao; 
-            // Se quiser garantir o idlog_origem também:
-            req.body.idlog_origem = idlog_origem;
-            // 🛑 CRITÉRIO DE FILTRO DE EMPRESA CORRIGIDO: 
-            // Usa se.idstaff para join com sem.idstaff, garantindo o filtro por empresa.
-            const empresaConstraint = ` AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $3) `.trim();
+//         try {
+//             const idStaffEvento = idpedido;
+//             const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
+//             const dataDecisao = new Date().toISOString();
+//             req.body.data = dataDecisao; 
+//             // Se quiser garantir o idlog_origem também:
+//             req.body.idlog_origem = idlog_origem;
+//             // 🛑 CRITÉRIO DE FILTRO DE EMPRESA CORRIGIDO: 
+//             // Usa se.idstaff para join com sem.idstaff, garantindo o filtro por empresa.
+//             const empresaConstraint = ` AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $3) `.trim();
 
-            // =========================================================
-            // LÓGICA 1: Caixinha / Ajuste de Custo (Status Simples - STRING)
-            // =========================================================
-            if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto' || categoria === 'statuscustofechado') {
+//             // =========================================================
+//             // LÓGICA 1: Caixinha / Ajuste de Custo (Status Simples - STRING)
+//             // =========================================================
+//             if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto' || categoria === 'statuscustofechado' || categoria === 'statuscacheliberado') {
 
-                const query = `
-                    UPDATE staffeventos se
-                    SET ${colunaDB} = $1 
-                    WHERE se.idstaffevento = $2        
-                    ${empresaConstraint} 
-                    AND se.${colunaDB} = 'Pendente'    
-                    RETURNING se.*;
-                `;
-                // $1 = status, $2 = idstaffevento, $3 = idempresa
-                const values = [acaoCapitalizada, idStaffEvento, idempresa]; 
+//                 const query = `
+//                     UPDATE staffeventos se
+//                     SET ${colunaDB} = $1 
+//                     WHERE se.idstaffevento = $2        
+//                     ${empresaConstraint} 
+//                     AND se.${colunaDB} = 'Pendente'    
+//                     RETURNING se.*;
+//                 `;
 
-                const resultado = await pool.query(query, values);
+//                 // let query;
 
-                // if (resultado.rows.length === 0) {
-                //     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. Status atual não é Pendente, ID não encontrado ou não pertence à empresa." });
-                // }
+//                 // if (acaoCapitalizada === 'Autorizado') {
+//                 //     query = `
+//                 //         UPDATE staffeventos se
+//                 //         SET 
+//                 //             ${colunaDB} = $1,
+//                 //             -- Recalcula o Total do Cachê: Base + Ajuste (se o ajuste estiver autorizado ou sendo autorizado agora)
+//                 //             vlrtotcache = COALESCE(vlrcache, 0) + (
+//                 //                 CASE 
+//                 //                     WHEN '${categoria}' = 'statusajustecusto' THEN COALESCE(vlrajustecusto, 0)
+//                 //                     WHEN statusajustecusto = 'Autorizado' THEN COALESCE(vlrajustecusto, 0)
+//                 //                     ELSE 0 
+//                 //                 END
+//                 //             ),
+//                 //             -- Recalcula o Valor Total: TotCache + Caixinha (se autorizada ou sendo autorizada agora)
+//                 //             vlrtotal = (
+//                 //                 COALESCE(vlrcache, 0) + (
+//                 //                     CASE 
+//                 //                         WHEN '${categoria}' = 'statusajustecusto' THEN COALESCE(vlrajustecusto, 0)
+//                 //                         WHEN statusajustecusto = 'Autorizado' THEN COALESCE(vlrajustecusto, 0)
+//                 //                         ELSE 0 
+//                 //                     END
+//                 //                 )
+//                 //             ) + (
+//                 //                 CASE 
+//                 //                     WHEN '${categoria}' = 'statuscaixinha' THEN COALESCE(vlrcaixinha, 0)
+//                 //                     WHEN statuscaixinha = 'Autorizado' THEN COALESCE(vlrcaixinha, 0)
+//                 //                     ELSE 0 
+//                 //                 END
+//                 //             )
+//                 //         WHERE se.idstaffevento = $2 
+//                 //         ${empresaConstraint} 
+//                 //         AND se.${colunaDB} = 'Pendente'
+//                 //         RETURNING se.*;
+//                 //     `;
+//                 // } else {
+//                 //     // Se for "Rejeitado", apenas atualiza o status sem mexer nos valores
+//                 //     query = `
+//                 //         UPDATE staffeventos se
+//                 //         SET ${colunaDB} = $1 
+//                 //         WHERE se.idstaffevento = $2        
+//                 //         ${empresaConstraint} 
+//                 //         AND se.${colunaDB} = 'Pendente'    
+//                 //         RETURNING se.*;
+//                 //     `;
+//                 // }
 
-                if (resultado.rows.length === 0) {
-                    return res.status(400).json({ sucesso: false, erro: "Não pendente ou erro de permissão." });
-                }
+//                 // $1 = status, $2 = idstaffevento, $3 = idempresa
+//                 const values = [acaoCapitalizada, idStaffEvento, idempresa]; 
 
-                res.locals.acao = "alterou";
-                res.locals.idregistroalterado = idStaffEvento;
-                res.locals.idlog_origem = idlog_origem;
+//                 const resultado = await pool.query(query, values);
 
-                console.log(`Status atualizado para ${acaoCapitalizada} na categoria ${categoria} para o pedido ${idpedido} data ${dataDecisao}.`);
+//                 // if (resultado.rows.length === 0) {
+//                 //     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. Status atual não é Pendente, ID não encontrado ou não pertence à empresa." });
+//                 // }
+
+//                 if (resultado.rows.length === 0) {
+//                     return res.status(400).json({ sucesso: false, erro: "Não pendente ou erro de permissão." });
+//                 }
+
+//                 res.locals.acao = "alterou";
+//                 res.locals.idregistroalterado = idStaffEvento;
+//                 res.locals.idlog_origem = idlog_origem;
+
+//                 console.log(`Status atualizado para ${acaoCapitalizada} na categoria ${categoria} para o pedido ${idpedido} data ${dataDecisao}.`);
                 
 
 
 
-                return res.json({
-                    sucesso: true,
-                    mensagem: `Status da ${categoria} atualizado para ${acaoCapitalizada} com sucesso.`,
-                    idlog_origem: idlog_origem, 
-                    data_decisao: dataDecisao, 
-                    acao: acao.toLowerCase(),
-                    categoria: categoria,
-                    idpedido: idpedido,
-                    atualizado: resultado.rows[0] 
-                });                
+//                 return res.json({
+//                     sucesso: true,
+//                     mensagem: `Status da ${categoria} atualizado para ${acaoCapitalizada} com sucesso.`,
+//                     idlog_origem: idlog_origem, 
+//                     data_decisao: dataDecisao, 
+//                     acao: acao.toLowerCase(),
+//                     categoria: categoria,
+//                     idpedido: idpedido,
+//                     atualizado: resultado.rows[0] 
+//                 });                
 
-            } 
+//             } 
 
-            // =========================================================
-            // LÓGICA 2: Diárias (Meia/Dobra) (Status Interno - JSONB/TEXT)
-            // =========================================================
-            else if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-                console.log("É DIARIADOBRADA OU MEIADIARIA", categoria);
-                if (!data) {
-                    return res.status(400).json({ sucesso: false, erro: "A data da diária é obrigatória para esta atualização." });
-                }
+//             // =========================================================
+//             // LÓGICA 2: Diárias (Meia/Dobra) (Status Interno - JSONB/TEXT)
+//             // =========================================================
+//             else if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
+//                 console.log("É DIARIADOBRADA OU MEIADIARIA", categoria);
+//                 if (!data) {
+//                     return res.status(400).json({ sucesso: false, erro: "A data da diária é obrigatória para esta atualização." });
+//                 }
            
 
-                // A. Busca o valor atual e faz o parse
-                const checkQuery = `
-                    SELECT se.${colunaDB} 
-                    FROM staffeventos se 
-                    JOIN staffempresas sem ON se.idstaff = sem.idstaff 
-                    WHERE se.idstaffevento = $1 AND sem.idempresa = $2;
-                `;
-                const checkResult = await pool.query(checkQuery, [idStaffEvento, idempresa]);
+//                 // A. Busca o valor atual e faz o parse
+//                 const checkQuery = `
+//                     SELECT se.${colunaDB} 
+//                     FROM staffeventos se 
+//                     JOIN staffempresas sem ON se.idstaff = sem.idstaff 
+//                     WHERE se.idstaffevento = $1 AND sem.idempresa = $2;
+//                 `;
+//                 const checkResult = await pool.query(checkQuery, [idStaffEvento, idempresa]);
 
 
 
-                if (checkResult.rows.length === 0) {
-                    return res.status(404).json({ sucesso: false, erro: "Pedido não encontrado ou não pertence à empresa." });
-                }
+//                 if (checkResult.rows.length === 0) {
+//                     return res.status(404).json({ sucesso: false, erro: "Pedido não encontrado ou não pertence à empresa." });
+//                 }
 
-                let arrayDiarias = checkResult.rows[0][colunaDB] || [];
+//                 let arrayDiarias = checkResult.rows[0][colunaDB] || [];
 
-                // 💡 DEIXE O NOVO DEBUG AQUI:
-                console.log('ARRAYDIARIAS (APÓS CORREÇÃO DE PARSE):', arrayDiarias);
-                if (!Array.isArray(arrayDiarias)) {
-                    console.error('ERRO: dtdiariadobrada não é um array após consulta ao DB:', arrayDiarias);
-                    arrayDiarias = [];
-                }
+//                 // 💡 DEIXE O NOVO DEBUG AQUI:
+//                 console.log('ARRAYDIARIAS (APÓS CORREÇÃO DE PARSE):', arrayDiarias);
+//                 if (!Array.isArray(arrayDiarias)) {
+//                     console.error('ERRO: dtdiariadobrada não é um array após consulta ao DB:', arrayDiarias);
+//                     arrayDiarias = [];
+//                 }
 
-                console.log("ARRAYDIARIAS", arrayDiarias);
+//                 console.log("ARRAYDIARIAS", arrayDiarias);
 
-                let itemAtualizado = false;
+//                 let itemAtualizado = false;
 
-                // B. Atualiza o status do item específico no array
-                const novoArrayDiarias = arrayDiarias.map(item => {
-                    console.log(`>>> Item BD: Data='${(item.data || '').trim()}', Status='${(item.status || '').toLowerCase()}' | Comparando com: Data='${(data || '').trim()}', Status='pendente'`);
-                    // 🚨 CORREÇÃO DE ROBUSTEZ: Compara strings de data e status em minúsculas, ignorando whitespace.
-                    if (
-                        (item.data || '').trim() === (data || '').trim() && 
-                        (item.status || '').toLowerCase() === 'pendente'
-                    ) { 
-                        itemAtualizado = true;
-                        return { ...item, status: acaoCapitalizada }; 
-                    }
-                    return item;
-                });
+//                 // B. Atualiza o status do item específico no array
+//                 const novoArrayDiarias = arrayDiarias.map(item => {
+//                     console.log(`>>> Item BD: Data='${(item.data || '').trim()}', Status='${(item.status || '').toLowerCase()}' | Comparando com: Data='${(data || '').trim()}', Status='pendente'`);
+//                     // 🚨 CORREÇÃO DE ROBUSTEZ: Compara strings de data e status em minúsculas, ignorando whitespace.
+//                     if (
+//                         (item.data || '').trim() === (data || '').trim() && 
+//                         (item.status || '').toLowerCase() === 'pendente'
+//                     ) { 
+//                         itemAtualizado = true;
+//                         return { ...item, status: acaoCapitalizada }; 
+//                     }
+//                     return item;
+//                 });
 
-                if (!itemAtualizado) {
-                    return res.status(400).json({ sucesso: false, erro: `Diária na data ${data} não encontrada ou não está Pendente.` });
-                }
+//                 if (!itemAtualizado) {
+//                     return res.status(400).json({ sucesso: false, erro: `Diária na data ${data} não encontrada ou não está Pendente.` });
+//                 }
 
-                // C. Reescreve o JSON completo no banco
-                const updateQuery = `UPDATE staffeventos se SET ${colunaDB} = $1 WHERE se.idstaffevento = $2 ${empresaConstraint} RETURNING se.*`;
-                console.log('QUERY SQL FINAL EXECUTADA:', updateQuery);
+//                 // C. Reescreve o JSON completo no banco
+//                 const updateQuery = `UPDATE staffeventos se SET ${colunaDB} = $1 WHERE se.idstaffevento = $2 ${empresaConstraint} RETURNING se.*`;
+//                 console.log('QUERY SQL FINAL EXECUTADA:', updateQuery);
                
 
 
-                // $1 = novo JSON (string), $2 = idstaffevento, $3 = idempresa
-                const updateValues = [JSON.stringify(novoArrayDiarias), idStaffEvento, idempresa];
+//                 // $1 = novo JSON (string), $2 = idstaffevento, $3 = idempresa
+//                 const updateValues = [JSON.stringify(novoArrayDiarias), idStaffEvento, idempresa];
 
-                const resultado = await pool.query(updateQuery, updateValues);
+//                 const resultado = await pool.query(updateQuery, updateValues);
 
-                if (resultado.rows.length === 0) {
-                    return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. ID não encontrado ou não pertence à empresa." });
+//                 if (resultado.rows.length === 0) {
+//                     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. ID não encontrado ou não pertence à empresa." });
+//                 }
+
+//                 res.locals.acao = "alterou";
+//                 res.locals.idregistroalterado = idStaffEvento;
+//                 res.locals.idlog_origem = idlog_origem;
+
+
+//                 // D. Resposta de Sucesso
+//                 return res.json({
+//                     sucesso: true,
+//                     mensagem: `Status da diária em ${data} atualizado para ${acaoCapitalizada} com sucesso.`,
+//                     idlog_origem: idlog_origem, 
+//                     data_decisao: dataDecisao, 
+//                     atualizado: resultado.rows[0] 
+//                 });
+//             }
+
+//             return res.status(400).json({ sucesso: false, erro: "Categoria de atualização não suportada." });
+
+//         } catch (error) {
+//             console.error("Erro ao atualizar status do Pedido Financeiro (DENTRO DO CATCH):", error.message || error);
+//             res.status(500).json({
+//                 sucesso: false,
+//                 erro: "Erro interno do servidor ao processar a atualização do Pedido Financeiro."
+//             });
+//         }
+//     }
+// );
+
+// router.post('/notificacoes-financeiras/atualizar-status', 
+//   logMiddleware('main', {
+//     buscarDadosAnteriores: async (req) => {
+//         const { idpedido } = req.body;
+//         if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
+
+//         const { rows } = await pool.query(`
+//             SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
+//             FROM staffeventos
+//             WHERE idstaffevento = $1
+//             `, [idpedido]
+//         );
+
+//         if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
+
+//         return {
+//             dadosanteriores: rows[0],
+//             idregistroalterado: idpedido
+//         };
+//     }
+//   }),
+//   async (req, res) => {
+//     try {
+//         const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+//         const { idpedido, categoria, acao } = req.body; // acao = 'Aprovado' ou 'Rejeitado'
+
+//         if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
+//         if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+
+//         // 🔹 Verifica se o usuário é Master
+//         const { rows: permissoes } = await pool.query(`
+//             SELECT * FROM permissoes 
+//             WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+//             `, [idusuario]
+//         );
+
+//         if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
+
+//         // 🔹 Mapeia categorias para colunas da tabela staffeventos
+//         const mapCategorias = {
+//             statuscaixinha: "statuscaixinha",
+//             statusajustecusto: "statusajustecusto",
+//             statusdiariadobrada: "statusdiariadobrada",
+//             statusmeiadiaria: "statusmeiadiaria",
+//             statuscustofechado: "statuscustofechado"
+//         };
+
+//         const coluna = mapCategorias[categoria];
+//         if (!coluna) return res.status(400).json({ error: "Categoria inválida" });
+
+//         // 🔹 Atualiza apenas como string (mantendo compatibilidade com o que já existe)
+//         const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
+//         // exemplo: 'Aprovado' ou 'Rejeitado'
+
+//         // 🔹 Atualiza na tabela staffeventos
+//         let { rows: updatedRows } = await pool.query(`
+//             UPDATE staffeventos
+//             SET ${coluna} = $2
+//             WHERE idstaffevento = $1
+//             RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
+//             `, [idpedido, statusParaAtualizar]
+//         );
+
+//         // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
+//         if (updatedRows.length === 0) {
+//             const { rows: updatedStaff } = await pool.query(`
+//             UPDATE staff
+//             SET ${coluna} = $2
+//             WHERE idstaffevento = $1
+//             RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
+//             `, [idpedido, statusParaAtualizar]);
+
+//             updatedRows = updatedStaff;
+//         }
+
+//   res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = idpedido; 
+
+//   if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
+
+//         res.json({ sucesso: true, atualizado: updatedRows[0] });
+
+//         } catch (err) {
+//             console.error('Erro ao atualizar status do pedido:', err.stack || err);
+//             res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
+//         }
+//     }
+// );
+
+// ... (mantenha a função isFeriado no topo como antes)
+
+router.post('/notificacoes-financeiras/atualizar-status',
+    autenticarToken(),
+    contextoEmpresa,
+    logMiddleware('staffeventos', {
+        buscarDadosAnteriores: async (req) => {
+            const { idpedido } = req.body;
+            if (!idpedido) return null;
+            const { rows } = await pool.query(`SELECT * FROM staffeventos WHERE idstaffevento = $1`, [idpedido]);
+            return rows[0] ? { dadosanteriores: rows[0], idregistroalterado: idpedido } : null;
+        }
+    }),
+    async (req, res) => {
+        try {
+            const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
+            const idempresa = req.idempresa;
+            const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
+
+            if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+
+            const mapCategorias = {
+                'statuscaixinha': 'statuscaixinha',
+                'statusajustecusto': 'statusajustecusto',
+                'statusdiariadobrada': 'dtdiariadobrada', 
+                'statusmeiadiaria': 'dtmeiadiaria',
+                'statuscustofechado': 'statuscustofechado', 
+                'statuscacheliberado': 'statuscustofechado'   
+            };
+            const colunaDB = mapCategorias[categoria];
+            if (!colunaDB) return res.status(400).json({ error: "Categoria inválida" });
+
+            // 1. BUSCA COM JOIN EM FUNCIONARIOS PARA PEGAR O PERFIL
+            const queryBusca = `
+                SELECT 
+                    se.*, 
+                    f.perfil 
+                FROM staffeventos se
+                INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
+                WHERE se.idstaffevento = $1 
+                AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
+            `;
+            const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
+            if (!rows.length) return res.status(404).json({ error: 'Pedido não encontrado ou sem permissão.' });
+            
+            let registro = rows[0];
+
+            // 2. ATUALIZAÇÃO DO STATUS NO OBJETO EM MEMÓRIA
+            // É aqui que garantimos que o cálculo lerá o valor novo que veio do POST
+            if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
+                const arrayDiarias = Array.isArray(registro[colunaDB]) ? registro[colunaDB] : [];
+                registro[colunaDB] = arrayDiarias.map(item => {
+                    if (item.data === dataEspecifica) {
+                        return { ...item, status: statusParaAtualizar };
+                    }
+                    return item;
+                });
+            } else {
+                // Para statusajustecusto, statuscaixinha, statuscustofechado:
+                // Atualizamos o objeto 'registro' com o novo status (Ex: 'Autorizado')
+                registro[colunaDB] = statusParaAtualizar;
+            }       
+
+            // 3. Variáveis de cálculo - SEMPRE iniciamos em 0 para recalcular o estado atual completo
+            let total = 0;
+            let totalCache = 0;
+            let totalAjdCusto = 0;
+
+            const vlrCusto = parseFloat(registro.vlrcache) || 0;
+            const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
+            const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
+            const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || parseFloat(registro.vlralimentacao) || 0;
+            const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
+            const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
+            const qtdp = parseInt(registro.qtdpessoaslote) || 1;
+            const modoExperiencia = registro.nivelexperiencia;
+            const perfil = (registro.perfil || '').toLowerCase();
+
+            // --- 4. CÁLCULO DA BASE (Fechado / Liberado) ---
+            // Usamos o 'registro' que já contém o status atualizado no passo 3
+            if (registro.statuscustofechado === 'Autorizado') {
+                if (modoExperiencia === 'Fechado') {
+                    total = vlrCusto + vlrTransp + vlrAlim;
+                    totalCache = vlrCusto;
+                    totalAjdCusto = vlrTransp + vlrAlim;
+                } 
+                else if (modoExperiencia === 'Liberado') {
+                    const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
+                    datas.forEach(dStr => {
+                        const d = new Date(dStr + 'T12:00:00');
+                        const isFDSouFeriado = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
+
+                        if (perfil === 'lote') {
+                            total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
+                            totalCache += vlrCusto * qtdp;
+                            totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
+                        } 
+                        else if (perfil === 'interno' || perfil === 'externo') {
+                            total += vlrTransp + vlrAlim;
+                            totalAjdCusto += vlrTransp + vlrAlim;
+                            if (isFDSouFeriado) {
+                                total += vlrCusto;
+                                totalCache += vlrCusto;
+                            }
+                        } 
+                        else {
+                            total += vlrCusto + vlrTransp + vlrAlim;
+                            totalCache += vlrCusto;
+                            totalAjdCusto += vlrTransp + vlrAlim;
+                        }
+                    });
                 }
+            } else {
+                // BASE NORMAL (Base, Junior, Pleno, Senior, Freelancer)
+                const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
+                
+                datas.forEach(dStr => {
+                    const d = new Date(dStr + 'T12:00:00');
+                    const isFDSouFeriado = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
 
-                res.locals.acao = "alterou";
-                res.locals.idregistroalterado = idStaffEvento;
-                res.locals.idlog_origem = idlog_origem;
-
-
-                // D. Resposta de Sucesso
-                return res.json({
-                    sucesso: true,
-                    mensagem: `Status da diária em ${data} atualizado para ${acaoCapitalizada} com sucesso.`,
-                    idlog_origem: idlog_origem, 
-                    data_decisao: dataDecisao, 
-                    atualizado: resultado.rows[0] 
+                    if (perfil === 'lote') {
+                        total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
+                        totalCache += vlrCusto * qtdp;
+                        totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
+                    } else if (perfil === 'freelancer') {
+                        total += vlrCusto + vlrTransp + vlrAlim;
+                        totalCache += vlrCusto;
+                        totalAjdCusto += vlrTransp + vlrAlim;
+                    } else {
+                        // CLT (interno/externo/padrão): cachê só em FDS/Feriado
+                        total += vlrTransp + vlrAlim;
+                        totalAjdCusto += vlrTransp + vlrAlim;
+                        if (isFDSouFeriado) {
+                            total += vlrCusto;
+                            totalCache += vlrCusto;
+                        }
+                    }
                 });
             }
 
-            return res.status(400).json({ sucesso: false, erro: "Categoria de atualização não suportada." });
+            // --- 5. SOMA DOS ADICIONAIS (Independentes da Base) ---
 
-        } catch (error) {
-            console.error("Erro ao atualizar status do Pedido Financeiro (DENTRO DO CATCH):", error.message || error);
-            res.status(500).json({
-                sucesso: false,
-                erro: "Erro interno do servidor ao processar a atualização do Pedido Financeiro."
+            // AJUSTE DE CUSTO (Aditivo)
+            if (registro.statusajustecusto === 'Autorizado') {                
+                total += vlrAjuste; 
+                totalCache += vlrAjuste;
+                // Note: Não mexe no totalAjdCusto (Ajuda de custo), mantendo o que veio da Base.
+            }
+
+            // CAIXINHA
+            if (registro.statuscaixinha === 'Autorizado') {                
+                total += vlrCaixinha;
+            }
+
+            // DIÁRIAS DOBRADAS
+            (registro.dtdiariadobrada || []).forEach(i => {
+                if ((i.status || '').toLowerCase() === 'autorizado') {
+                    const d = new Date(i.data + 'T12:00:00');
+                    const isFDSouFeriado = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
+
+                    if (perfil === 'interno' || perfil === 'externo') {
+                        if (isFDSouFeriado) {
+                            total += vlrCusto + vlrAlimDobra;
+                            totalCache += vlrCusto + vlrAlimDobra;
+                        } else {
+                            total += vlrAlimDobra;
+                            totalCache += vlrAlimDobra;
+                        }
+                    } else {
+                        total += vlrCusto + vlrAlimDobra;
+                        totalCache += vlrCusto + vlrAlimDobra;
+                    }
+                }
             });
-        }
-    }
-);
 
-router.post('/notificacoes-financeiras/atualizar-status', 
-  logMiddleware('main', {
-    buscarDadosAnteriores: async (req) => {
-        const { idpedido } = req.body;
-        if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
+            // MEIAS DIÁRIAS
+            (registro.dtmeiadiaria || []).forEach(i => {
+                if ((i.status || '').toLowerCase() === 'autorizado') {
+                    const d = new Date(i.data + 'T12:00:00');
+                    const isFDSouFeriado = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
 
-        const { rows } = await pool.query(`
-            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
-            FROM staffeventos
-            WHERE idstaffevento = $1
-            `, [idpedido]
-        );
+                    if (perfil === 'interno' || perfil === 'externo') {
+                        if (isFDSouFeriado) {
+                            total += (vlrCusto / 2) + vlrAlimDobra;
+                            totalCache += (vlrCusto / 2) + vlrAlimDobra;
+                        } else {
+                            total += vlrAlimDobra;
+                            totalCache += vlrAlimDobra;
+                        }
+                    } else {
+                        total += (vlrCusto / 2) + vlrAlimDobra;
+                        totalCache += (vlrCusto / 2) + vlrAlimDobra;
+                    }
+                }
+            });
 
-        if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
+           
+            // 6. UPDATE FINAL
+            const valorFinalColuna = (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') 
+                ? JSON.stringify(registro[colunaDB]) 
+                : statusParaAtualizar;
 
-        return {
-            dadosanteriores: rows[0],
-            idregistroalterado: idpedido
-        };
-    }
-  }),
-  async (req, res) => {
-    try {
-        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-        const { idpedido, categoria, acao } = req.body; // acao = 'Aprovado' ou 'Rejeitado'
+            const queryUpdate = `
+                UPDATE staffeventos 
+                SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
+                WHERE idstaffevento = $5
+                RETURNING *;
+            `;
 
-        if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
-        if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+            const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, idpedido]);
 
-        // 🔹 Verifica se o usuário é Master
-        const { rows: permissoes } = await pool.query(`
-            SELECT * FROM permissoes 
-            WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-            `, [idusuario]
-        );
+            res.locals.idlog_origem = idlog_origem;
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idpedido;
+            res.locals.dadosnovos = finalResult.rows[0];
 
-        if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
-
-        // 🔹 Mapeia categorias para colunas da tabela staffeventos
-        const mapCategorias = {
-            statuscaixinha: "statuscaixinha",
-            statusajustecusto: "statusajustecusto",
-            statusdiariadobrada: "statusdiariadobrada",
-            statusmeiadiaria: "statusmeiadiaria",
-            statuscustofechado: "statuscustofechado"
-        };
-
-        const coluna = mapCategorias[categoria];
-        if (!coluna) return res.status(400).json({ error: "Categoria inválida" });
-
-        // 🔹 Atualiza apenas como string (mantendo compatibilidade com o que já existe)
-        const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-        // exemplo: 'Aprovado' ou 'Rejeitado'
-
-        // 🔹 Atualiza na tabela staffeventos
-        let { rows: updatedRows } = await pool.query(`
-            UPDATE staffeventos
-            SET ${coluna} = $2
-            WHERE idstaffevento = $1
-            RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
-            `, [idpedido, statusParaAtualizar]
-        );
-
-        // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
-        if (updatedRows.length === 0) {
-            const { rows: updatedStaff } = await pool.query(`
-            UPDATE staff
-            SET ${coluna} = $2
-            WHERE idstaffevento = $1
-            RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
-            `, [idpedido, statusParaAtualizar]);
-
-            updatedRows = updatedStaff;
-        }
-
-  res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = idpedido; 
-
-  if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
-
-        res.json({ sucesso: true, atualizado: updatedRows[0] });
+            res.json({ 
+                sucesso: true, 
+                atualizado: finalResult.rows[0],
+                idlog_origem,
+                categoria
+            });
 
         } catch (err) {
-            console.error('Erro ao atualizar status do pedido:', err.stack || err);
-            res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
+            console.error('Erro:', err);
+            res.status(500).json({ error: 'Erro interno ao processar' });
         }
     }
 );
@@ -2997,56 +2840,60 @@ router.get("/vencimentos", async (req, res) => {
   }
 });
 
-router.post("/vencimentos/update-status", logMiddleware("Vencimentos", {
-    buscarDadosAnteriores: async (req) => {
-        const { idStaff } = req.body;
-        const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuscaixinha FROM staffeventos WHERE idstaffevento = $1`;
-        const result = await pool.query(query, [idStaff]);
-        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
-    }
-}), async (req, res) => {
-    let { idStaff, tipo, novoStatus } = req.body;
-
-    // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
-    let coluna = "";
-    if (tipo === 'Cache') {
-        coluna = 'statuspgto';
-    } else if (tipo === 'Ajuda') {
-        coluna = 'statuspgtoajdcto';
-    } else if (tipo === 'Caixinha') {
-        coluna = 'statuscaixinha'; // Nome da coluna conforme sua query de SELECT
-    }
-
-    if (!coluna) {
-        return res.status(400).json({ success: false, error: "Tipo de pagamento inválido." });
-    }
-
-    // 2. Lógica de Padronização do Banco (Ex: "Pago 50%" -> "Pago50")
-    let statusFinal = novoStatus;
-    if (statusFinal === "Pago 100%") {
-        statusFinal = "Pago"; 
-    } else if (statusFinal.includes("%")) {
-        statusFinal = statusFinal.replace("%", "").replace(/\s/g, "");
-    }
-
-    try {
-        const result = await pool.query(
-            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
-            [statusFinal, idStaff]
-        );
-
-        res.locals.acao = 'Atualizou';
-        res.locals.idregistroalterado = idStaff; 
-
-        if (result.rowCount > 0) {
-            res.json({ success: true, statusSalvo: statusFinal });
-        } else {
-            res.status(404).json({ success: false, error: "Registro não encontrado." });
+router.post("/vencimentos/update-status",
+    logMiddleware("Vencimentos", {
+        buscarDadosAnteriores: async (req) => {
+            const { idStaff } = req.body;
+            const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuscaixinha FROM staffeventos WHERE idstaffevento = $1`;
+            const result = await pool.query(query, [idStaff]);
+            return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
         }
-    } catch (error) {
-        console.error("Erro ao atualizar status:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    }), 
+    async (req, res) => {
+        let { idStaff, tipo, novoStatus, idlog_origem  } = req.body;
+
+        // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
+        let coluna = "";
+        if (tipo === 'Cache') {
+            coluna = 'statuspgto';
+        } else if (tipo === 'Ajuda') {
+            coluna = 'statuspgtoajdcto';
+        } else if (tipo === 'Caixinha') {
+            coluna = 'statuscaixinha'; // Nome da coluna conforme sua query de SELECT
+        }
+
+        if (!coluna) {
+            return res.status(400).json({ success: false, error: "Tipo de pagamento inválido." });
+        }
+
+        // 2. Lógica de Padronização do Banco (Ex: "Pago 50%" -> "Pago50")
+        let statusFinal = novoStatus;
+        if (statusFinal === "Pago 100%") {
+            statusFinal = "Pago"; 
+        } else if (statusFinal.includes("%")) {
+            statusFinal = statusFinal.replace("%", "").replace(/\s/g, "");
+        }
+
+        try {
+            const result = await pool.query(
+                `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
+                [statusFinal, idStaff]
+            );
+        
+            res.locals.idlog_origem = idlog_origem;
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idStaff; 
+            res.locals.dadosnovos = result.rows[0];
+
+            if (result.rowCount > 0) {
+                res.json({ success: true, statusSalvo: statusFinal });
+            } else {
+                res.status(404).json({ success: false, error: "Registro não encontrado." });
+            }
+        } catch (error) {
+            console.error("Erro ao atualizar status:", error);
+            res.status(500).json({ success: false, error: error.message });
+        }
 });
 
 router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMiddleware("Vencimentos", {
@@ -3181,7 +3028,7 @@ router.get('/contas-pagar', async (req, res) => {
         `;
 
         const { rows } = await pool.query(query, [idEmpresa, anoFiltro]);
-        console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
+        // console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
         res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });
@@ -3611,24 +3458,25 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     const { novoStatus } = req.body; 
     const idUsuarioAprovador = req.usuario?.idusuario;
 
+
     console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
 
     // 1. Validação
     if (!novoStatus || !idUsuarioAprovador) {
-    return res.status(400).json({
-    sucesso: false,
-    erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
-    });
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
+        });
     }
 
     console.log(`Validando novoStatus: ${novoStatus}`);
 
     const statusPermitidos = ['Autorizado', 'Rejeitado'];
     if (!statusPermitidos.includes(novoStatus)) {
-    return res.status(400).json({
-    sucesso: false,
-    erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
-    });
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
+        });
     }
 
     console.log(`Status permitido: ${novoStatus}`);
@@ -3640,17 +3488,17 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
 
     if (checkResult.rows.length === 0) {
-    return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
+      return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
     }
     console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
 
     const currentStatus = checkResult.rows[0].status;
 
     if (currentStatus !== 'Pendente') {
-    return res.status(400).json({
-    sucesso: false,
-    erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
-    });
+        return res.status(400).json({
+            sucesso: false,
+            erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
+        });
     }
 
     // 3. Comando SQL de Atualização
@@ -3661,26 +3509,26 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
 
     // A query de Autorizado já estava correta, sem a justificativa
     if (novoStatus === 'Autorizado') {
-    query = `
-    UPDATE AditivoExtra
-    SET status = $1, 
-    dtresposta = NOW(), 
-    idusuarioresponsavel = $2
-    WHERE idaditivoextra = $3 AND idempresa = $4
-    RETURNING *;
-    `;
-    values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
+            `;
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
     } else if (novoStatus === 'Rejeitado') {
-    query = `
-    UPDATE AditivoExtra
-    SET status = $1, 
-    dtresposta = NOW(), 
-    idusuarioresponsavel = $2  
-    WHERE idaditivoextra = $3 AND idempresa = $4
-    RETURNING *;
-    `;
-    // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
-    values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2  
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
+            `;
+        // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
     } else {
     throw new Error("Erro de lógica: Status de atualização inválido.");
     }
@@ -3691,22 +3539,24 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     throw new Error("A atualização falhou. Nenhuma linha afetada.");
     }
 
+    res.locals.idlog_origem = idlog_origem;
     res.locals.acao = 'atualizou';
-    res.locals.idregistroalterado = idAditivoExtra; 
+    res.locals.idregistroalterado = idAditivoExtra;
+    res.locals.dadosnovos = finalResult.rows[0];
 
     // 4. Resposta de Sucesso
     res.json({
-    sucesso: true,
-    mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
-    dados: resultado.rows[0]
+        sucesso: true,
+        mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
+        dados: resultado.rows[0]
     });
 
     } catch (error) {
-    console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
-    res.status(500).json({
-    sucesso: false,
-    erro: "Erro interno do servidor ao processar a atualização do status."
-    });
+        console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
+        res.status(500).json({
+            sucesso: false,
+            erro: "Erro interno do servidor ao processar a atualização do status."
+        });
     }
 });
 
@@ -3751,10 +3601,11 @@ router.get('/aditivoextra', async (req, res) => {
         // 5. Consulta SQL 
         const query = `
         SELECT 
-        ae.idAditivoExtra, ae.tipoSolicitacao, ae.justificativa, ae.status, ae.qtdSolicitada,
+        ae.idAditivoExtra, ae.tipoSolicitacao, ae.justificativa, ae.status, ae.qtdSolicitada, ae.dtsolicitada,
         ae.dtSolicitacao AS criado_em, ae.idFuncionario, 
         func.nome AS nomeFuncionario, f.descfuncao AS funcao,
         e.nmevento AS evento, s.nome || ' ' || s.sobrenome AS nomesolicitante,
+        resp.nome || ' ' || resp.sobrenome AS nomeAprovador, dtresposta AS dataDecisao,
         f.descfuncao AS nmfuncao 
         FROM 
         AditivoExtra ae
@@ -3763,6 +3614,7 @@ router.get('/aditivoextra', async (req, res) => {
         JOIN Orcamentos o ON ae.idOrcamento = o.idOrcamento
         JOIN Eventos e ON o.idEvento = e.idEvento
         JOIN Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+        LEFT JOIN Usuarios resp ON ae.idUsuarioResponsavel = resp.idUsuario
         WHERE 
         ae.idEmpresa = $1 
         ${filtroSolicitante} 
