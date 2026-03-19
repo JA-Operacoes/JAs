@@ -7510,7 +7510,7 @@ document.getElementById('vlrTotal').value = 'R$ ' + total.toFixed(2).replace('.'
 });
 
 // // Adiciona listeners para os checkboxes de diária também!
-['diariaDobradacheck', 'meiaDiariacheck'].forEach(function(id) {
+['diariaDobradacheck', 'meiaDiariacheck', 'viagem1Check', 'viagem2Check', 'viagem3Check'].forEach(function(id) {
     const el = document.getElementById(id);
     if(el) el.addEventListener('change', calcularValorTotal);
 });
