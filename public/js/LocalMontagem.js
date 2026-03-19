@@ -1,12 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -117,38 +110,6 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                 body: JSON.stringify({ pavilhoesParaVerificar: pavilhoesExistentesParaRemover })
             });
             
-            // const pavilhoesRemoviveis = statusData.pavilhoesRemoviveis;
-            // const pavilhoesEmUso = statusData.pavilhoesEmUso;
-
-            // let swalTitle = "Reduzir Pavilhões?";
-            // let swalText = "";
-            // let confirmButtonText = "";
-
-            // if (pavilhoesEmUso.length > 0) {
-            //     const nomesPavilhoesEmUso = pavilhoesEmUso.map(p => `"${p.nmpavilhao}"`).join(', ');
-            //     swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesEmUso} não pode(m) ser removido(s) por estar(em) associado(s) a um orçamento. `;
-            // }
-            
-            // if (pavilhoesRemoviveis.length > 0) {
-            //     const nomesPavilhoesRemoviveis = pavilhoesRemoviveis.map(p => `"${p.nmpavilhao}"`).join(', ');
-            //     swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesRemoviveis} será(ão) removido(s). Deseja continuar?`;
-            //     confirmButtonText = "Sim, remover";
-            // } else {
-            //     swalTitle = "Operação Cancelada";
-            //     swalText = `Nenhum dos pavilhões selecionados pode ser removido.`;
-            //     confirmButtonText = "Ok";
-            // }
-
-            // const { isConfirmed } = await Swal.fire({
-            //     title: swalTitle,
-            //     text: swalText,
-            //     icon: "warning",
-            //     showCancelButton: (pavilhoesRemoviveis.length > 0),
-            //     confirmButtonText: confirmButtonText,
-            //     cancelButtonText: "Cancelar"
-            // });
-            // isSwalOpen = false;
-
             const { pavilhoesRemoviveis, pavilhoesEmUso } = statusData;
 
             let swalTitle = "Remover Pavilhões?";
@@ -335,14 +296,7 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
 
        console.log(isNaN(qtdPavilhao), qtdPavilhao);
 
-       console.log("--- Valores para Validação ---");
-    console.log("descMontagem:", descMontagem, " (Vazio/Falso:", !descMontagem, ")");
-    console.log("cidadeMontagem:", cidadeMontagem, " (Vazio/Falso:", !cidadeMontagem, ")");
-    console.log("ufMontagem:", ufMontagem, " (Vazio/Falso:", !ufMontagem, ")");
-    console.log("qtdPavilhao:", qtdPavilhao, " (NaN:", isNaN(qtdPavilhao), ")", " (< 0:", qtdPavilhao < 0, ")");
-    console.log("hasEmptyPavilhao:", hasEmptyPavilhao);
-    console.log("--- Fim da Checagem de Valores ---");
-
+      
         if (!descMontagem || !cidadeMontagem || !ufMontagem || isNaN(qtdPavilhao) || qtdPavilhao < 0 || hasEmptyPavilhao) {
            
             Swal.fire({
@@ -397,14 +351,15 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                     reverseButtons: true,
                     focusCancel: true
                 });
-                if (!isConfirmed) {
-                    console.log("Usuário cancelou o cadastro do Local de Montagem.");
-                    elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                    setTimeout(() => {
-                        elementoAtual.focus();
-                    }, 0);
-                    return;
-                }
+                if (!isConfirmed) return;
+                // if (!isConfirmed) {
+                //     console.log("Usuário cancelou o cadastro do Local de Montagem.");
+                //     elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                //     setTimeout(() => {
+                //         elementoAtual.focus();
+                //     }, 0);
+                //     return;
+                // }
             }
             
             console.log("Enviando dados para o servidor:", dados, url, metodo);
@@ -465,26 +420,50 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
             }
             // Reativar o evento blur para o novo select
             select.addEventListener("change", async function () {
-                const desc = this.value?.trim();
+                const selectedOption = this.options[this.selectedIndex];
+                const desc = selectedOption.value?.trim();
+                if (!desc) return;
 
-                if (!desc) {
-                    console.warn("Valor do select está vazio ou indefinido.");
-                    return;
-                }
+                const d = selectedOption.dataset;
+                const pavilhoes = JSON.parse(d.pavilhoes || '[]');
 
-                await carregarLocalMontagem(desc, this);
-                   
+                // ✅ Preenche diretamente sem fetch
+                document.querySelector("#idMontagem").value = d.idmontagem;
+                document.querySelector("#descMontagem").value = d.descmontagem;
+                document.querySelector("#cidadeMontagem").value = d.cidademontagem;
+                document.querySelector("#ufMontagem").value = d.ufmontagem;
+                document.querySelector("#qtdPavilhao").value = d.qtdpavilhao;
+
+                criarInputsPavilhoes(d.qtdpavilhao, pavilhoes);
+
+                MontagemOriginal = {
+                    idMontagem: d.idmontagem,
+                    descMontagem: d.descmontagem,
+                    cidadeMontagem: d.cidademontagem,
+                    ufMontagem: d.ufmontagem,
+                    qtdPavilhao: d.qtdpavilhao,
+                    pavilhoes: pavilhoes
+                };
+
+                // Substitui select por input
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
                 novoInput.id = "descMontagem";
                 novoInput.name = "descMontagem";
                 novoInput.required = true;
                 novoInput.className = "form";
-                novoInput.value = desc;
                 novoInput.classList.add('uppercase');
-      
+                novoInput.value = d.descmontagem;
+
                 novoInput.addEventListener("input", function() {
-                    this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
+                    this.value = this.value.toUpperCase();
+                });
+
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+                    const idAtual = document.querySelector("#idMontagem")?.value;
+                    if (idAtual) return; // ✅ proteção edição
+                    await carregarLocalMontagem(this.value, this);
                 });
 
                 this.parentNode.replaceChild(novoInput, this);
@@ -492,16 +471,9 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
 
                 const label = document.querySelector('label[for="descMontagem"]');
                 if (label) {
-                label.style.display = "block";
-                label.textContent = "Local de Montagem"; // ou algum texto que você tenha guardado
+                    label.style.display = "block";
+                    label.textContent = "Local de Montagem";
                 }
-
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarLocalMontagem(this.value, this);
-                });
-
-        
             });
    
         } catch (error) {
@@ -558,13 +530,8 @@ function adicionarListenersAoInputDescMontagem(inputElement) {
     inputElement.addEventListener("input", descMontagemInputListener);
 
     descMontagemBlurListener = async function () {
-        if (!this.value.trim()) return;
-        console.log("Campo descMontagem procurado (blur dinâmico):", this.value);
-        // await carregarLocalMontagem(this.value, this); // Esta linha precisa ser reconsiderada aqui,
-        // pois o blur após a pesquisa não deve acionar o carregamento novamente,
-        // ele já foi carregado pelo 'change' do select.
-        // O blur é mais útil para um "novo" input que não veio de uma seleção.
-        // Mantenha apenas se a lógica de negócio exigir.
+        if (!this.value.trim()) return;      
+        
     };
     inputElement.addEventListener("blur", descMontagemBlurListener);
 }
@@ -715,6 +682,13 @@ function criarSelectMontagem(montagem) {
         const option = document.createElement("option");
         option.value = localmontagem.descmontagem;
         option.text = localmontagem.descmontagem;
+        // ✅ Adicionar dataset
+        option.dataset.idmontagem = localmontagem.idmontagem;
+        option.dataset.descmontagem = localmontagem.descmontagem;
+        option.dataset.cidademontagem = localmontagem.cidademontagem;
+        option.dataset.ufmontagem = localmontagem.ufmontagem;
+        option.dataset.qtdpavilhao = localmontagem.qtdpavilhao;
+        option.dataset.pavilhoes = JSON.stringify(localmontagem.pavilhoes || []);
         select.appendChild(option);
     });
  
@@ -751,6 +725,9 @@ function adicionarEventoBlurMontagem() {
         console.log("Campo descMontagem procurado:", desc);
 
         if (!desc) return;
+
+        const idAtual = document.querySelector("#idMontagem")?.value; // ajuste o ID correto
+        if (idAtual) return;
 
         try {
             await carregarLocalMontagem(desc, this);
@@ -791,10 +768,11 @@ async function carregarLocalMontagem(desc, elementoAtual) {
         
         console.warn("Local de Montagem não encontrado.");
 
-        const inputIdMontagem = document.querySelector("#idMontagem");
+        const inputId = document.querySelector("#idMontagem");
         const podeCadastrarMontagem = temPermissao("Localmontagem", "cadastrar");
-        console.log("podeCadastrarMontagem", podeCadastrarMontagem, inputIdMontagem.value);
-       if (!inputIdMontagem.value && podeCadastrarMontagem) {
+        if (inputId?.value) return;
+
+        if (!inputId.value && podeCadastrarMontagem) {
              const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
@@ -805,7 +783,7 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 reverseButtons: true,
                 focusCancel: true
             });
-            console.log("resultado", resultado);
+
             if (resultado.isConfirmed) {                
                 console.log(`Usuário optou por cadastrar: ${desc}`);
                
@@ -826,15 +804,15 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 };
             }
             if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do Local de Montagem.");
+               
                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
                 
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
-               // limparCamposMontagem();
                 return;
             }
+            elementoAtual.value = desc.toUpperCase();
             
         } else if (!podeCadastrarMontagem) {
             Swal.fire({
@@ -915,65 +893,6 @@ function limparCamposMontagem() {
     
 }
 
-
-
-//antigo
-// function criarInputsPavilhoes(quantidade, pavilhoesExistentes = []) {
-//     const container = document.getElementById('inputsPavilhoes');
-//     container.innerHTML = ''; // Limpa inputs anteriores
-
-//     const numQuantidade = parseInt(quantidade);
-//     if (isNaN(numQuantidade) || numQuantidade <= 0) {
-//         return; // Não cria inputs se a quantidade for inválida ou zero
-//     }
-
-//     for (let i = 0; i < numQuantidade; i++) { // ✅ Loop de 0 a quantidade-1
-//         const div = document.createElement('div');
-//         div.classList.add('form2');
-
-//         const input = document.createElement('input');
-//         input.type = 'text';
-//         input.name = 'nmPavilhao[]';
-//         input.id = `nmPavilhao${i + 1}`; // ID começa em 1
-//         input.required = true;
-//         input.classList.add('uppercase');
-
-//         if (numQuantidade > 0) {
-//             input.required = true; 
-//         } else {
-//             input.required = false; // Garante que não é obrigatório se for 0
-//         }
-
-//         // Preenche com dados existentes se houver
-//         if (pavilhoesExistentes[i]) {
-//             input.value = pavilhoesExistentes[i].nmpavilhao;
-//             input.dataset.idpavilhao = pavilhoesExistentes[i].idpavilhao; // ✅ Guarda o ID do pavilhão no dataset
-//         }
-
-//         input.addEventListener("input", function() {
-//             this.value = this.value.toUpperCase();
-//         });
-
-
-//         const label = document.createElement('label');
-//         label.setAttribute('for', `nmPavilhao${i + 1}`);
-//         label.textContent = `Nome do Pavilhão ${i + 1}`; // Rótulo para cada pavilhão
-
-//         div.appendChild(input);
-//         div.appendChild(label);
-//         container.appendChild(div);
-//     }
-//   }
-
-//   document.querySelector("#qtdPavilhao").addEventListener("input", function() {
-//     // O evento 'input' é melhor para type="number" pois dispara a cada tecla
-//     const quantidade = parseInt(this.value);
-//     if (!isNaN(quantidade) && quantidade >= 0) { // Validação básica antes de chamar
-//         criarInputsPavilhoes(quantidade);
-//     } else if (this.value.trim() === '') { // Se o campo for esvaziado, também limpa os pavilhões
-//         criarInputsPavilhoes(0);
-//     }
-// });
 
 function criarInputsPavilhoes(quantidade, pavilhoesExistentes = []) {
     const container = document.getElementById('inputsPavilhoes');
