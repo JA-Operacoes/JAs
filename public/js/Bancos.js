@@ -25,6 +25,7 @@ let enviarButtonListener = null;
 let pesquisarButtonListener = null;
 let selectBancoChangeListener = null;
 let inputNmBancoBlurListener = null;
+let buscandoBanco = false;
 
 if (typeof window.BancoOriginal === "undefined") {
     window.BancoOriginal = {
@@ -69,6 +70,15 @@ async function verificaBanco() {
         const idBanco = document.querySelector("#idBanco").value.trim();
         const nmBanco = document.querySelector("#nmBanco").value.toUpperCase().trim();
         const codBanco = document.querySelector("#codBanco").value.toUpperCase().trim();
+
+        // 🔍 DEBUG
+    console.log("=== DEBUG ENVIAR ===");
+    console.log("idBanco:", idBanco);
+    console.log("nmBanco:", nmBanco);
+    console.log("codBanco:", codBanco);
+    console.log("metodo:", idBanco ? "PUT" : "POST");
+    console.log("BancoOriginal:", window.BancoOriginal);
+    console.log("====================");
 
         const temPermissaoCadastrar = temPermissao("Bancos", "cadastrar");
         const temPermissaoAlterar = temPermissao("Bancos", "alterar");
@@ -164,35 +174,54 @@ async function verificaBanco() {
             if (label) label.style.display = "none";
 
             select.addEventListener("change", async function () {
-                const desc = this.value?.trim();
+                const selectedOption = this.options[this.selectedIndex];
+                const desc = selectedOption.value?.trim();
                 if (!desc) return;
 
-                await carregarBancoDescricao(desc, this);
+                // ✅ Preenche diretamente do dataset — sem fetch!
+                const idbanco = selectedOption.dataset.idbanco;
+                const codbanco = selectedOption.dataset.codbanco;
+                const nmbanco = selectedOption.dataset.nmbanco;
 
+                document.querySelector("#idBanco").value = idbanco;
+                document.querySelector("#codBanco").value = codbanco;
+
+                window.BancoOriginal = {
+                    idBanco: idbanco,
+                    codBanco: codbanco,
+                    nmBanco: nmbanco,
+                };
+
+                console.log("✅ Banco selecionado:", window.BancoOriginal);
+
+                // Substitui o select por input
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
                 novoInput.id = "nmBanco";
                 novoInput.name = "nmBanco";
                 novoInput.required = true;
                 novoInput.className = "form";
-                novoInput.value = desc;
+                novoInput.value = nmbanco;
 
                 novoInput.addEventListener("input", function () {
                     this.value = this.value.toUpperCase();
                 });
 
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+                    const idAtual = document.querySelector("#idBanco")?.value;
+                    if (idAtual) return; // ✅ proteção edição
+                    await carregarBancoDescricao(this.value, this);
+                });
+
                 this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurBanco();
 
+                const label = document.querySelector('label[for="nmBanco"]');
                 if (label) {
                     label.style.display = "block";
                     label.textContent = "Nome do Banco";
                 }
-
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarBancoDescricao(this.value, this);
-                });
             });
 
 
@@ -274,6 +303,10 @@ function criarSelectBanco(bancosEncontrados) {
         const option = document.createElement("option");
         option.value = bancosachado.nmbanco;
         option.text = bancosachado.nmbanco;
+
+        option.dataset.idbanco = bancosachado.idbanco;
+        option.dataset.codbanco = bancosachado.codbanco;
+        option.dataset.nmbanco = bancosachado.nmbanco;
         select.appendChild(option);
     });
  
@@ -301,6 +334,9 @@ function adicionarEventoBlurBanco() {
         const desc = this.value.trim();
         if (!desc) return;
 
+        const idAtual = document.querySelector("#idBanco")?.value;
+        if (idAtual) return;
+
         try {
             await carregarBancoDescricao(desc, this);
         } catch (error) {
@@ -310,11 +346,23 @@ function adicionarEventoBlurBanco() {
 }
 
 async function preencherBanco(codBanco) {
+    if (buscandoBanco) return; // ← evita loop
+    if (!codBanco) return;
+    
+    buscandoBanco = true;
+
     try {
-        const bancos = await fetchComToken(`/bancos?codBanco=${encodeURIComponent(codBanco)}`);    
+        const bancos = await fetchComToken(`/bancos?codBanco=${encodeURIComponent(codBanco)}`); 
+        
+        console.log("🔍 Resposta bruta da API:", bancos); // ← adiciona isso
+
+        if (!bancos || Array.isArray(bancos) || !bancos.idbanco) {
+            throw new Error("Banco não encontrado"); // ← força o catch
+        }
         
         document.querySelector("#idBanco").value = bancos.idbanco;
         document.querySelector("#nmBanco").value = bancos.nmbanco;
+        document.querySelector("#codBanco").value = bancos.codbanco;
 
         window.BancoOriginal = {
             idBanco: bancos.idbanco,
@@ -322,7 +370,7 @@ async function preencherBanco(codBanco) {
             nmBanco: bancos.nmbanco,
         };
 
-        console.log("Banco encontrado:", BancoOriginal);
+        console.log("Banco encontrado preencherBanco:", BancoOriginal);
 
     } catch (error) {
         console.warn("Banco não encontrado.");
@@ -344,7 +392,8 @@ async function preencherBanco(codBanco) {
             
             if (!resultado.isConfirmed) {
                 console.log("Usuário cancelou o cadastro do Banco.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                //elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                document.querySelector("#codBanco").value = "";
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
@@ -359,14 +408,38 @@ async function preencherBanco(codBanco) {
             });
         }
         
+    }finally {
+        buscandoBanco = false; // ← libera a flag sempre
     }   
 }
 
 
 async function carregarBancoDescricao(desc, elementoAtual) {
+
+    if (buscandoBanco) return; // ← mesma proteção
+    const idAtual = document.querySelector("#idBanco")?.value;
+    if (idAtual) return;
+
+    buscandoBanco = true;
+
+    console.log("🔍 carregarBancoDescricao chamado:", desc, "idAtual:", idAtual);
+    console.trace("📍 Chamado de:"); // ← mostra exatamente de onde veio a chamada
+    
+    // ✅ Proteção
+    if (idAtual) {
+        console.log("✅ Banco já carregado, ignorando busca.");
+        return;
+    }
     try {
             const bancos = await fetchComToken(`/bancos?nmBanco=${encodeURIComponent(desc)}`);
            // console.log("Resposta do servidor:", response);
+
+           console.log("🔍 Resposta bruta da API:", bancos); // ← adiciona isso
+console.log("🔍 Chaves disponíveis:", Object.keys(bancos));
+
+            if (!bancos || Array.isArray(bancos) || !bancos.idbanco) {
+                throw new Error("Banco não encontrado");
+            }
            
             document.querySelector("#idBanco").value = bancos.idbanco;
             document.querySelector("#codBanco").value = bancos.codbanco;
@@ -377,15 +450,22 @@ async function carregarBancoDescricao(desc, elementoAtual) {
                 nmBanco: bancos.nmbanco,
             };
     
-            console.log("Banco encontrado:", BancoOriginal);
+            console.log("Banco encontrado carregarBancoDescricao:", BancoOriginal);
     
         } catch (error) {
             console.warn("Banco não encontrado.");
     
             const inputIdBanco = document.querySelector("#idBanco");
+
+            inputIdBanco.value = "";
+            document.querySelector("#codBanco").value = "";
+            
+            window.BancoOriginal = { idBanco: "", codBanco: "", nmBanco: "" };
+
             const podeCadastrarBanco = temPermissao("bancos", "cadastrar");
     
-           if (!inputIdBanco.value && podeCadastrarBanco) {
+           //if (!inputIdBanco.value && podeCadastrarBanco) {
+           if (podeCadastrarBanco) {
                  const resultado = await Swal.fire({
                     icon: 'question',
                     title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Banco?`,
@@ -441,6 +521,7 @@ function limparCamposBanco() {
 
         novoInput.addEventListener("blur", async function () {
             if (!this.value.trim()) return;
+
             await carregarBancoDescricao(this.value, this);
         });
 
