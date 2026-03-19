@@ -4384,14 +4384,17 @@ async function verificaStaff() {
                     limparCamposStaff();
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
                     console.log("Usuário escolheu: Finalizar e Sair");
-                    
+
                     if (typeof fecharModal === "function") {
                         fecharModal();
-                    } else {
+                     } else {
+                        document.getElementById("modal-container").innerHTML = "";
                         document.getElementById("modal-overlay").style.display = "none";
                         document.body.classList.remove("modal-open");
                         if (typeof window.onStaffModalClosed === 'function') {
-                            window.onStaffModalClosed(true);
+                            const callback = window.onStaffModalClosed;
+                            window.onStaffModalClosed = null;
+                            callback(true); 
                         }
                     }
                 }
@@ -7564,16 +7567,17 @@ async function limparCamposStaffParcial() {
         } else { el.value = ""; }
     });
 
+
     // 2. Identificação da Função (Regra de Negócio para Níveis)
-    const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
-    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim().toUpperCase();
-    const pularLimpezaNiveis = (descfuncaoAtual === 'AJUDANTE DE MARCAÇÃO' || descfuncaoAtual === 'FISCAL DE MARCAÇÃO');
+    const descfuncaoElement = document.getElementById('descFuncao'); 
+    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.selectedOptions[0].text : '').trim().toUpperCase();
+    const pularLimpezaNiveis = (descfuncaoAtual === 'AJUDANTE DE MARCAÇÃO');
 
     // 3. Limpeza de Inputs de Texto e Valores
     const camposTexto = [
         "idStaff", "idFuncionario", "nmFuncionario", "apelidoFuncionario", "perfilFuncionario",
-        "vlrCusto", "transporte", "alimentacao", "caixinha", "vlrTotal", "vlrCacheTotal", 
-        "vlrAjdCustoTotal", "ajusteCusto", "avaliacao"
+        "vlrCusto", "transporte", "alimentacao", "caixinha", "vlrTotal", "vlrTotalCache", 
+        "vlrTotalAjdCusto", "ajusteCusto", "avaliacao"
     ];
     camposTexto.forEach(id => {
         const campo = document.getElementById(id);
@@ -7581,11 +7585,12 @@ async function limparCamposStaffParcial() {
     });
 
     // 4. Reset de Checkboxes (Unificado)
-    const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100'];
+    const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100', 'viagem1Check', 'viagem2Check', 'viagem3Check'];
+        console.log ("pulando niveis especificos:", pularLimpezaNiveis);
     
     // Só adiciona os níveis à lista de limpeza se não for função de marcação
     if (!pularLimpezaNiveis) {
-        checksParaLimpar.push('Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 'viagem2Check', 'viagem3Check');
+        checksParaLimpar.push('Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck');
     }
 
     checksParaLimpar.forEach(id => {
@@ -7661,6 +7666,8 @@ async function limparCamposStaffParcial() {
     limparCamposComprovantes();
     limparFoto();
     limparStaffOriginal();
+
+
 
     Swal.fire({
         title: "Pronto para o próximo!",
@@ -7843,74 +7850,6 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
         inputPgto.value = '';
     }
 });
-
-// document.getElementById('viagem1Check').addEventListener('change', function () { 
-//     // let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
-//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//     // document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//     // document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-//     if (this.checked) {
-//         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-//     //     // Lógica para quando o checkbox de Viagem 1 estiver marcado
-//     //     viagem2Check.checked = false;
-//     //     if (typeof viagem3Check !== 'undefined') viagem3Check.checked = false;
-//     //     vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         // Texto
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
-//         descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
-//     } else {
-//         // Reset para o padrão da função
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-//         descBeneficioTextarea.value = descBeneficioAtual;
-//     }
-// });
-
-// document.getElementById('viagem2Check').addEventListener('change', function () { 
-//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//     if (this.checked) {
-
-//         [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
-//         descBeneficioAtual.value = descBeneficioAtual + separador + DescViagem2
-//     }else {
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-//         descBeneficioTextarea.value = descBeneficioAtual;
-//     }
-// });
-
-// if (document.getElementById('viagem3Check')) {
-//     document.getElementById('viagem3Check').addEventListener('change', function () { 
-//         let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//         if (this.checked) {
-//             [viagem1Check,viagem2Check].forEach(c =>{if(c) c.checked = false;});
-
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n":""
-//             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
-
-//         } else {
-//             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-//             descBeneficioTextarea.value = descBeneficioAtual;
-//         }
-//     });
-// }
 
 function registrarListenersNivel() {
     document.getElementById('Seniorcheck').addEventListener('change', function () {
@@ -8195,7 +8134,6 @@ function registrarListenersNivel() {
             }
         } 
     });
-
 
     document.getElementById('viagem1Check').addEventListener('change', function () { 
     const textoParaLimpar = descBeneficioTextarea.value;
@@ -10527,108 +10465,6 @@ function configurarEventosStaff() {
             console.warn("[configurarEventosStaff] Parâmetro dataeventos não encontrado.");
         }
     }
-
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    // const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    // const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-    // const inputAjusteCusto = document.getElementById('ajusteCusto');
-    // const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
-    // const inputStatusAjusteCusto = document.getElementById('statusAjusteCusto');
-
-    // if (ajusteCustocheck) {
-    //     ajusteCustocheck.addEventListener('change', function() {
-    //         if (this.checked) {
-    //             // Tenta abrir: verifica trava
-    //             if (!verificarStatusCacheBase()) {
-    //                 this.checked = false;
-    //                 return;
-    //             }
-    //             // Abre campos
-    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'block';
-    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'block';
-    //             if (ajusteCustoTextarea) {
-    //                 ajusteCustoTextarea.style.display = 'block';
-    //                 ajusteCustoTextarea.required = true;
-    //             }
-    //             if (inputAjusteCusto) inputAjusteCusto.required = true;
-    //         } else {
-    //             // Fecha e LIMPA TUDO (Remove o erro de validação ao desmarcar)
-    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
-    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
-                
-    //             if (inputAjusteCusto) {
-    //                 inputAjusteCusto.value = '';
-    //                 inputAjusteCusto.required = false;
-    //             }
-    //             if (ajusteCustoTextarea) {
-    //                 ajusteCustoTextarea.value = '';
-    //                 ajusteCustoTextarea.style.display = 'none';
-    //                 ajusteCustoTextarea.required = false;
-    //             }
-    //             if (inputStatusAjusteCusto) {
-    //                 inputStatusAjusteCusto.value = '';
-    //                 inputStatusAjusteCusto.required = false;
-    //             }
-    //         }
-    //     });
-    // }
-
-
-    // const caixinhacheck = document.getElementById('Caixinhacheck');
-    // const campoCaixinha = document.getElementById('campoCaixinha');
-    // const inputCaixinha = document.getElementById('caixinha');
-    // const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-    // const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-
-    // if (caixinhacheck) {
-    //     caixinhacheck.addEventListener('change', function() {
-    //         if (this.checked) {
-    //             if (!verificarStatusCacheBase()) {
-    //                 this.checked = false;
-    //                 return;
-    //             }
-    //             if (campoCaixinha) campoCaixinha.style.display = 'block';
-    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'block';
-    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'block';
-    //             if (inputCaixinha) inputCaixinha.required = true;
-    //         } else {
-    //             if (campoCaixinha) campoCaixinha.style.display = 'none';
-    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
-                
-    //             if (inputCaixinha) {
-    //                 inputCaixinha.value = '';
-    //                 inputCaixinha.required = false;
-    //             }
-    //             // Limpa status e pagamentos
-    //             const stCaixinha = document.getElementById('statusCaixinha');
-    //             const pgCaixinha = document.getElementById('statusPgtoCaixinha');
-    //             if (stCaixinha) stCaixinha.value = '';
-    //             if (pgCaixinha) pgCaixinha.value = '';
-    //         }
-    //     });
-    // }
-
-    // const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    // const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    // if (diariaDobradacheck && campoDiariaDobrada) {
-    //     diariaDobradacheck.addEventListener('change', function() {
-    //         campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-    //     });
-    //     campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-    // }
-
-    // const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    // const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    // if (meiaDiariacheck && campoMeiaDiaria) {
-    //     meiaDiariacheck.addEventListener('change', function() {
-    //         campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-    //      });
-    //     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    // }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
     if (typeof mostrarTarja === 'function') {
         mostrarTarja();
     }
@@ -10649,9 +10485,7 @@ function configurarEventosStaff() {
             statusCaixinhaInput.disabled = false;
         }
     }
-    // --- DENTRO DE configurarEventosStaff() ---
 
-    // 1. Pegamos os elementos de layout (Wrappers e Status)
     const divStatusContainer = document.getElementById('campoStatusCustoFechado');
     const wrapperInput = document.getElementById('wrapperInputCustoFechado');
     const wrapperSelect = document.getElementById('wrapperSelectCustoFechado');
@@ -10659,9 +10493,7 @@ function configurarEventosStaff() {
     const selectStatus = document.getElementById('selectStatusCustoFechado');
     const textareaJustificativa = document.getElementById('descCustoFechado');
 
-    // 2. Usamos as permissões que já foram declaradas no topo do Staff.js
-    // IMPORTANTE: Não use "const" ou "let" aqui para as variáveis abaixo, 
-    // pois elas já existem no escopo global do seu arquivo.
+
     const temAcessoMasterOuFinanceiro = temPermissaoMaster || temPermissaoFinanceiro;
 
     // if (fechadoCheck || liberadoCheck) { // 'fechadoCheck' é a variável global do seu topo de arquivo
