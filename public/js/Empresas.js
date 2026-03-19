@@ -38,6 +38,7 @@ if (typeof window.empresaOriginal === "undefined") {
         inscEstadual: "",
         cep: "",
         rua: "",
+        endereco: "",
         numero: "",
         complemento: "",
         bairro: "",
@@ -178,7 +179,7 @@ const preencherFormulario = (empresa) => {
         site: empresa.site || "",
         inscEstadual: empresa.inscricaoestadual || "", // CORREÇÃO APLICADA AQUI
         cep: empresa.cep || "",
-        rua: empresa.rua || "",
+        rua: empresa.endereco || "",
         numero: empresa.numero || "",
         complemento: empresa.complemento || "",
         bairro: empresa.bairro || "",
@@ -236,7 +237,7 @@ const obterDadosFormulario = () => {
         site: valor("site"),
         telefone: valor("telefone").replace(/\D/g, ''),
         cep: valor("cep").replace(/\D/g, ''),
-        rua: valor("rua").toUpperCase(),
+        endereco: valor("rua").toUpperCase(),
         numero: valor("numero"),
         complemento: valor("complemento").toUpperCase(),
         bairro: valor("bairro").toUpperCase(),
@@ -639,7 +640,7 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#site").value = empresa.site || "";
         maskTelefone.value = empresa.telefone || '';
         maskCEP.value = empresa.cep || '';
-        document.querySelector("#rua").value = empresa.rua || "";
+        document.querySelector("#rua").value = empresa.endereco || "";
         document.querySelector("#numero").value = empresa.numero || "";
         document.querySelector("#complemento").value = empresa.complemento || "";
         document.querySelector("#bairro").value = empresa.bairro || "";
@@ -704,6 +705,7 @@ function limparEmpresaOriginal() {
         inscEstadual: "",
         cep: "",
         rua: "",
+        endereco: "",
         numero: "",
         complemento: "",
         bairro: "",
@@ -715,7 +717,7 @@ function limparEmpresaOriginal() {
 }
 
 function limparCamposEmpresa(){
-    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "numero", "complemento", "bairro", "cidade", "estado", "pais"];  
+    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais"];  
    
     campos.forEach(id => {
         const campo = document.getElementById(id);
