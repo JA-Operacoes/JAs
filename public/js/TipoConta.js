@@ -349,6 +349,12 @@ async function carregarTipoContaDescricao(desc, elementoAtual) {
 
     } catch (error) {
         console.warn("TipoConta não encontrada, abrindo opção de cadastro.");
+
+        const idAtual = document.querySelector("#idTipoConta").value.trim();
+        if (idAtual) {
+            validarFormulario();
+            return; // Deixa o usuário continuar editando normalmente
+        }
         
         // Limpa o ID para garantir que o sistema entenda que é um novo cadastro
         document.querySelector("#idTipoConta").value = "";
