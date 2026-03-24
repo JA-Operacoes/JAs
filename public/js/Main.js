@@ -4319,7 +4319,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         // 2. Mapeia cada data formatando para pt-BR
                         const datasFormatadas = datasArray.map(dataStr => {
                             if (dataStr == null) return '';
-                            const dataObj = new Date(dataStr.trim());
+                            //const dataObj = new Date(dataStr.trim());
+                            const dataObj = new Date(dataStr);
                             
                             // Se a data for válida, formata. Se não, retorna o texto original.
                             if (!isNaN(dataObj.getTime())) {
@@ -4342,6 +4343,24 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
                     }
 
+                    let dataEventoFormatada = '';
+
+                    if (pedido.datasevento) {
+                        // 1. Garantimos que temos um array (se vier string com vírgula, transformamos em array)
+                        const listaDatas = Array.isArray(pedido.datasevento) 
+                            ? pedido.datasevento 
+                            : pedido.datasevento.split(',');
+
+                        // 2. Formatamos cada data individualmente
+                        const datasMapeadas = listaDatas.map(dStr => {
+                            const d = new Date(dStr.trim() + 'T12:00:00'); // T12:00 evita problemas de fuso horário
+                            return !isNaN(d) ? d.toLocaleDateString('pt-BR') : dStr;
+                        });
+
+                        // 3. Juntamos novamente com vírgula e espaço para exibir no card
+                        dataEventoFormatada = datasMapeadas.join(', ');
+                    }
+
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
 
                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
@@ -4358,6 +4377,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     if (pedido.evento) {
                         if (categoria === 'funcionario' && pedido.funcionario) {
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+                            htmlBody += `<strong>Datas:</strong> ${dataEventoFormatada}<br>`
                         } else {
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
                         }
@@ -4640,7 +4660,7 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 }
 
 
-async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement) {
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem) {
     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
 
     // ... (seu código de confirmação com Swal.fire continua igual) ...
@@ -4660,13 +4680,13 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
 
         const url = `/main/aditivoextra/${idAditivoExtra}/status`;
         // const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
-        const novoStatusCapitalizado = novoStatus.charAt(0) + novoStatus.slice(1);
+        const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
         
         // O fetchComToken já resolve o JSON
         const response = await fetchComToken(url, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ novoStatus: novoStatusCapitalizado })
+            body: JSON.stringify({ novoStatus: novoStatusCapitalizado, idlog_origem: idlog_origem })
         });
 
         ocultarLoader(cardElement);
@@ -4701,17 +4721,23 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
 
             // 2. REMOÇÃO VISUAL
             if (cardElement) {
-                cardElement.style.transition = 'all 0.3s ease';
+                cardElement.style.transition = 'all 0.4s ease';
                 cardElement.style.opacity = '0';
-                cardElement.style.transform = 'scale(0.8)';
+                //cardElement.style.transform = 'scale(0.8)';
+                cardElement.style.transform = 'translateX(100px)';
                 setTimeout(() => {
+                    const containerPai = cardElement.parentElement;
+                    const secaoFuncionario = cardElement.closest('.funcionario-card') || cardElement.closest('.funcionario');
                     cardElement.remove();
-                    // Limpa o cabeçalho do grupo se não houver mais cards
-                    const corpo = document.querySelector('.funcionario-body:has(.pedido-card)'); // Exemplo de seletor
-                    if (corpo && corpo.querySelectorAll('.pedido-card').length === 0) {
-                         corpo.closest('.funcionario')?.remove();
+                        if (containerPai && containerPai.children.length === 0) {
+                        secaoFuncionario?.remove();
                     }
-                }, 300);
+                    // Limpa o cabeçalho do grupo se não houver mais cards
+                    // const corpo = document.querySelector('.funcionario-body:has(.pedido-card)'); // Exemplo de seletor
+                    // if (corpo && corpo.querySelectorAll('.pedido-card').length === 0) {
+                    //      corpo.closest('.funcionario')?.remove();
+                    // }
+                }, 400);
             }
 
             // 3. ATUALIZA OS CONTADORES (BADGES)
