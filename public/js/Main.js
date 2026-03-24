@@ -4319,7 +4319,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         // 2. Mapeia cada data formatando para pt-BR
                         const datasFormatadas = datasArray.map(dataStr => {
                             if (dataStr == null) return '';
-                            //const dataObj = new Date(dataStr.trim());
                             const dataObj = new Date(dataStr);
                             
                             // Se a data for válida, formata. Se não, retorna o texto original.

@@ -770,30 +770,235 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
 //     return html;
 // }
 
+// function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, nomeCliente, dadosUtilizacao, dadosContingencia, totaisFechamentoCache, filtroFaseDisplay, podeVerFinanceiro, tipo) { 
+    
+//     const formatarMoeda = (valor) => {
+//         // Garante que o valor seja tratado como número e formatado como R$
+//         const num = parseFloat(valor) || 0;
+//         return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//     };
+
+//     const formatarData = (data) => {
+//         if (!data) return '';
+        
+//         // Se a data vier no formato 'YYYY-MM-DD', dividimos os componentes
+//         // para evitar que o JS aplique fuso horário UTC.
+//         if (typeof data === 'string' && data.includes('-')) {
+//             const [ano, mes, dia] = data.split('T')[0].split('-');
+//             return `${dia}/${mes}/${ano}`;
+//         }
+
+//         // Caso a data já seja um objeto Date ou outro formato
+//         const d = new Date(data);
+//         // Adicionamos um ajuste manual se detectar que o fuso "comeu" horas
+//         // ou usamos o método que ignora o fuso:
+//         return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+//     };
+//     const obterClasseStatus = (status) => {
+//         if (!podeVerFinanceiro) return ''; 
+//         switch (status) {
+//             case 'Pago':
+//             case 'Pago 100%': return 'status-pago-100';
+//             case 'Pago 50%': return 'status-pago-50';
+//             default: return 'status-pendente';
+//         }
+//     };
+
+//     const obterClasseCompStatus = (status) => {
+//         if (!status) return '';
+//         if (status.includes('Anexado') && !status.includes('Falta')) return 'status-doc-ok';
+//         if (status.includes('50%')) return 'status-doc-alerta';
+//         if (status === 'Isento') return 'status-doc-isento';
+//         return 'status-doc-erro';
+//     };
+
+//     const equipeSelectElement = document.getElementById('equipeSelect');   
+//     const selectedIndex = equipeSelectElement.selectedIndex;
+//     let nomeEquipe = selectedIndex >= 0 ? ` - Equipe: ${equipeSelectElement.options[selectedIndex].text}` : '';
+
+//     let html = `
+//         <div class="relatorio-evento">
+//             <div class="print-header-top">
+//                 <img src="${empresaLogoPath}" alt="Logo Empresa" class="logo-ja">
+//                 <div class="header-title-container">
+//                     <h1 class="header-title">${nomeEvento}</h1>
+//                 </div>  
+//             </div>
+//             <h2>RELATÓRIO ${nomeRelatorio.toUpperCase()} - Cliente: ${nomeCliente} ${nomeEquipe} ${filtroFaseDisplay}</h2>
+//     `;
+
+//     if (dadosFechamento && dadosFechamento.length > 0) {
+//         const dataInicioSelecionada = document.getElementById('reportStartDate').value;
+//         const dataFimSelecionada = document.getElementById('reportEndDate').value;
+        
+
+//         html +=`
+//             <p>
+//                 <span class="data-relatorio">Data de Início: <strong>${formatarData(dataInicioSelecionada)}</strong></span>
+//                 <span class="data-relatorio">Data de Final: <strong>${formatarData(dataFimSelecionada)}</strong></span>
+//             </p>
+//         `;
+        
+//         let colunas;
+//         if (podeVerFinanceiro) {
+//             if (tipo === 'cache_ajuda') {
+//                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ',`VLR ADICIONAL`, 'TOT DIÁRIAS',  'QTD AJUDA', 'VLR AJUDA',  'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
+//             } else {
+//                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
+//             }
+//         } else {
+//             colunas = ['FUNÇÃO', 'NOME', 'CPF', 'INÍCIO', 'TÉRMINO', 'QTD', 'TOT GERAL', 'STATUS PGTO'];
+//         }
+
+//         const alinhamentos = {
+//             'FUNÇÃO': 'text-left', 'NOME': 'text-left', 'PIX': 'text-left', 'CPF': 'text-left',
+//             'INÍCIO': 'text-left', 'TÉRMINO': 'text-left', 'VLR DIÁRIA': 'text-right',
+//             'VLR CACHÊ': 'text-right', 'VLR AJUDA': 'text-right', 'VLR ADICIONAL': 'text-right',
+//             'STATUS CX': 'text-center', 'QTD': 'text-center','QTD CACHÊ': 'text-center','QTD AJUDA': 'text-center', 'TOT DIÁRIAS': 'text-right', 
+//             'TOT DIÁRIAS': 'text-right','TOT AJUDA': 'text-right','TOT GERAL': 'text-right', 
+//             'STATUS CACHÊ':'text-center', 'STATUS AJUDA':'text-center', 'STATUS PGTO': 'text-center', 
+//             'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHE': 'text-center', 'COMP AJUDA': 'text-center'
+//         };
+
+//         html += `
+//     <table class="report-table">
+//         <thead>
+//             <tr>
+//                 ${colunas.map(col => `<th class="${alinhamentos[col] || ''}">${col}</th>`).join('')}
+//             </tr>
+//         </thead>  
+//         <tbody>
+//             ${dadosFechamento.map(item => {
+                
+//                 // Lógica para destacar linha se houver valor adicional (positivo ou negativo)
+//                 const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
+//                 const styleDestaque = vlrAdic !== 0 ? 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"' : '';
+//                 const ehFuncionario = item.PERFIL_STAFF && (item.PERFIL_STAFF.includes('Interno'));
+
+//                 return `
+//                 <tr ${styleDestaque}>
+//                     <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
+//                     <td class="${alinhamentos['NOME']}">${item.NOME || ''}${ehFuncionario ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>' : ''}</td>
+                    
+//                     ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
+//                     <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
+//                     <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
+                    
+//                     ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
+//                         <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+//                         <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
+//                         <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
+//                         <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+//                         <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
+//                         <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
+//                         <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
+//                         <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+//                         <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+//                         <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
+//                         <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
+//                         <td class="${alinhamentos['COMP CACHÊ']} ${obterClasseCompStatus(item["COMP CACHÊ"])}">${item["COMP CACHÊ"] || 'Pendente'}</td>
+//                         <td class="${alinhamentos['COMP AJUDA']} ${obterClasseCompStatus(item["COMP AJUDA"])}">${item["COMP AJUDA"] || 'Pendente'}</td>
+//                     ` : `
+//                         <td class="${alinhamentos['VLR DIÁRIA']}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
+//                         ${(tipo !== 'ajuda_custo') ? `<td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>` : ''}
+//                         ${(tipo === 'cache') ? `<td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || '-'}</td>` : ''}
+//                         <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+//                         <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+//                         <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+//                         <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
+//                         <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+//                         <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
+//                     `) : `
+//                         <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+//                         <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+//                         <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
+//                     `}
+//                 </tr>
+//             `}).join('')}
+
+//             ${podeVerFinanceiro && totaisFechamentoCache ? `
+//         <tr class="row-total">
+//             <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
+            
+//             ${tipo === 'cache_ajuda' ? `
+//                 <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
+//                 <td class="text-right" style="font-weight: bold;">-</td> 
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAdicional)}</td>
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+//                 <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td> 
+//                 <td class="text-right" style="font-weight: bold;">-</td>
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+//                 <td colspan="4"></td> ` : 
+                
+//                 `
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
+//                 ${(tipo !== 'ajuda_custo') ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
+//                 ${tipo === 'cache' ? '<td></td>' : ''}
+//                 <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+//                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
+//                 <td></td> <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+//                 <td></td> `}
+//         </tr>` : ''}
+//         </tbody>
+//     </table>
+// `;
+//     }
+
+//     html += `<div class="relatorio-resumo-container">`;
+//     // ... restante das seções de Utilização e Contingência ...
+//     if (dadosUtilizacao && dadosUtilizacao.length > 0) {
+//         const alinhamentosUtilizacao = { 'INFORMAÇÕES EM PROPOSTA': 'text-left', 'QTD PROFISSIONAIS': 'text-center', 'DIÁRIAS CONTRATADAS': 'text-center', 'DIÁRIAS UTILIZADAS': 'text-center', 'SALDO': 'text-right' };
+//         const utilizacaoAgrupada = dadosUtilizacao.reduce((acc, item) => { const nro = item.nrorcamento || 'N/A'; if (!acc[nro]) acc[nro] = []; acc[nro].push(item); return acc; }, {});
+//         Object.keys(utilizacaoAgrupada).filter(nro => nro !== 'N/A').forEach((nroOrcamento, index) => {
+//             const dadosUtilizacaoDoOrcamento = utilizacaoAgrupada[nroOrcamento] || [];
+//             const deveIncluirContingencia = (index === 0 && (nomeRelatorio.toUpperCase().includes('CACHÊ') || nomeRelatorio.toUpperCase().includes('AJUDA DE CUSTO')));
+//             html += `<div class="resumo-par-orcamento">
+//                 <div class="tabela-resumo diarias">
+//                     <table class="report-table">
+//                         <thead>
+//                             <tr><th colspan="5" class="table-title-header">UTILIZAÇÃO DE DIÁRIAS (Orçamento: ${nroOrcamento})</th></tr>
+//                             <tr class="header-group-row"><th colspan="3" class="header-group">DIÁRIAS CONTRATADAS</th><th colspan="2" class="header-group">RESUMO DE USO</th></tr>
+//                             <tr><th>INFORMAÇÕES EM PROPOSTA</th><th>QTD PROFISSIONAIS</th><th>DIÁRIAS CONTRATADAS</th><th>DIÁRIAS UTILIZADAS</th><th>SALDO</th></tr>
+//                         </thead>
+//                         <tbody>${montarTabelaBody(dadosUtilizacaoDoOrcamento, alinhamentosUtilizacao)}</tbody>
+//                     </table>
+//                 </div>`;
+//             if (deveIncluirContingencia) {
+//                 html += `<div class="tabela-resumo contingencia">
+//                     ${dadosContingencia && dadosContingencia.length > 0 ? `
+//                         <table class="report-table">
+//                             <thead><tr><th colspan="3" class="table-title-header">CONTINGÊNCIA</th></tr><tr><th>Profissional</th><th>Informação</th><th>Observação</th></tr></thead>
+//                             <tbody>${montarTabelaBody(dadosContingencia, { 'Profissional': 'text-left', 'Informacao': 'text-left', 'Observacao': 'text-left' })}</tbody>
+//                         </table>` : `<p>Nenhum dado de contingência.</p>`}
+//                 </div>`;
+//             }
+//             html += `</div>`;
+//         });
+//     }
+//     html += `</div></div>`; 
+//     return html;
+// }
+
 function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, nomeCliente, dadosUtilizacao, dadosContingencia, totaisFechamentoCache, filtroFaseDisplay, podeVerFinanceiro, tipo) { 
     
     const formatarMoeda = (valor) => {
-        // Garante que o valor seja tratado como número e formatado como R$
         const num = parseFloat(valor) || 0;
         return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
     const formatarData = (data) => {
         if (!data) return '';
-        
-        // Se a data vier no formato 'YYYY-MM-DD', dividimos os componentes
-        // para evitar que o JS aplique fuso horário UTC.
         if (typeof data === 'string' && data.includes('-')) {
             const [ano, mes, dia] = data.split('T')[0].split('-');
             return `${dia}/${mes}/${ano}`;
         }
-
-        // Caso a data já seja um objeto Date ou outro formato
         const d = new Date(data);
-        // Adicionamos um ajuste manual se detectar que o fuso "comeu" horas
-        // ou usamos o método que ignora o fuso:
         return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
     };
+
     const obterClasseStatus = (status) => {
         if (!podeVerFinanceiro) return ''; 
         switch (status) {
@@ -830,9 +1035,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
     if (dadosFechamento && dadosFechamento.length > 0) {
         const dataInicioSelecionada = document.getElementById('reportStartDate').value;
         const dataFimSelecionada = document.getElementById('reportEndDate').value;
-        
 
-        html +=`
+        html += `
             <p>
                 <span class="data-relatorio">Data de Início: <strong>${formatarData(dataInicioSelecionada)}</strong></span>
                 <span class="data-relatorio">Data de Final: <strong>${formatarData(dataFimSelecionada)}</strong></span>
@@ -842,7 +1046,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ',`VLR ADICIONAL`, 'TOT DIÁRIAS',  'QTD AJUDA', 'VLR AJUDA',  'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ', 'VLR ADICIONAL', 'TOT DIÁRIAS', 'QTD AJUDA', 'VLR AJUDA', 'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
             } else {
                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
@@ -854,11 +1058,15 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'FUNÇÃO': 'text-left', 'NOME': 'text-left', 'PIX': 'text-left', 'CPF': 'text-left',
             'INÍCIO': 'text-left', 'TÉRMINO': 'text-left', 'VLR DIÁRIA': 'text-right',
             'VLR CACHÊ': 'text-right', 'VLR AJUDA': 'text-right', 'VLR ADICIONAL': 'text-right',
-            'STATUS CX': 'text-center', 'QTD': 'text-center','QTD CACHÊ': 'text-center','QTD AJUDA': 'text-center', 'TOT DIÁRIAS': 'text-right', 
-            'TOT DIÁRIAS': 'text-right','TOT AJUDA': 'text-right','TOT GERAL': 'text-right', 
-            'STATUS CACHÊ':'text-center', 'STATUS AJUDA':'text-center', 'STATUS PGTO': 'text-center', 
-            'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHE': 'text-center', 'COMP AJUDA': 'text-center'
+            'STATUS CX': 'text-center', 'QTD': 'text-center', 'QTD CACHÊ': 'text-center', 'QTD AJUDA': 'text-center',
+            'TOT DIÁRIAS': 'text-right', 'TOT AJUDA': 'text-right', 'TOT GERAL': 'text-right',
+            'STATUS CACHÊ': 'text-center', 'STATUS AJUDA': 'text-center', 'STATUS PGTO': 'text-center',
+            'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHÊ': 'text-center', 'COMP AJUDA': 'text-center'
         };
+
+        // Calcula o colspan correto baseado no tipo e permissão
+        // As colunas fixas antes dos valores são: FUNÇÃO, NOME, PIX/CPF, INÍCIO, TÉRMINO = 5
+        const colspanSubtotal = 5;
 
         html += `
     <table class="report-table">
@@ -868,86 +1076,147 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             </tr>
         </thead>  
         <tbody>
-            ${dadosFechamento.map(item => {
-                // Lógica para destacar linha se houver valor adicional (positivo ou negativo)
-                const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
-                const styleDestaque = vlrAdic !== 0 ? 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"' : '';
-                const ehFuncionario = item.PERFIL_STAFF && (item.PERFIL_STAFF.includes('Interno'));
+            ${(() => {
+                let subtotalFuncionario = {
+                    TOT_DIARIAS: 0,
+                    TOT_AJUDA: 0,
+                    TOT_GERAL: 0,
+                    TOT_PAGAR: 0
+                };
+                let linhas = '';
 
-                return `
-                <tr ${styleDestaque}>
-                    <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
-                    <td class="${alinhamentos['NOME']}">${item.NOME || ''}${ehFuncionario ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>' : ''}</td>
-                    
-                    ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
-                    <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
-                    <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
-                    
-                    ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
-                        <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
-                        <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
-                        <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
-                        <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
-                        <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
-                        <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
-                        <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
-                        <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
-                        <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
-                        <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
-                        <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
-                        <td class="${alinhamentos['COMP CACHÊ']} ${obterClasseCompStatus(item["COMP CACHÊ"])}">${item["COMP CACHÊ"] || 'Pendente'}</td>
-                        <td class="${alinhamentos['COMP AJUDA']} ${obterClasseCompStatus(item["COMP AJUDA"])}">${item["COMP AJUDA"] || 'Pendente'}</td>
-                    ` : `
-                        <td class="${alinhamentos['VLR DIÁRIA']}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
-                        ${(tipo !== 'ajuda_custo') ? `<td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>` : ''}
-                        ${(tipo === 'cache') ? `<td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || '-'}</td>` : ''}
-                        <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
-                        <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
-                        <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
-                        <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
-                        <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
-                        <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
-                    `) : `
-                        <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
-                        <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
-                        <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
-                    `}
-                </tr>
-            `}).join('')}
+                dadosFechamento.forEach((item, index) => {
+                    const proximoItem = dadosFechamento[index + 1];
+
+                    // Acumula os valores do funcionário atual
+                    subtotalFuncionario.TOT_DIARIAS += parseFloat(item["TOT DIÁRIAS"] || 0);
+                    subtotalFuncionario.TOT_AJUDA   += parseFloat(item["TOT AJUDA"]   || 0);
+                    subtotalFuncionario.TOT_GERAL   += parseFloat(item["TOT GERAL"]   || 0);
+                    subtotalFuncionario.TOT_PAGAR   += parseFloat(item["TOT PAGAR"]   || 0);
+
+                    // Monta a linha normal
+                    const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
+                    const styleDestaque = vlrAdic !== 0 ? 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"' : '';
+                    const ehFuncionario = item.PERFIL_STAFF && item.PERFIL_STAFF.includes('Interno');
+
+                    linhas += `
+                    <tr ${styleDestaque}>
+                        <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
+                        <td class="${alinhamentos['NOME']}">${item.NOME || ''}${ehFuncionario ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>' : ''}</td>
+                        
+                        ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
+                        <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
+                        <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
+                        
+                        ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
+                            <td class="${alinhamentos['QTD CACHÊ']}">${item["QTD CACHÊ"] || item.QTD || ''}</td>
+                            <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
+                            <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
+                            <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+                            <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
+                            <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
+                            <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
+                            <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+                            <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
+                            <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
+                            <td class="${alinhamentos['COMP CACHÊ']} ${obterClasseCompStatus(item["COMP CACHÊ"])}">${item["COMP CACHÊ"] || 'Pendente'}</td>
+                            <td class="${alinhamentos['COMP AJUDA']} ${obterClasseCompStatus(item["COMP AJUDA"])}">${item["COMP AJUDA"] || 'Pendente'}</td>
+                        ` : `
+                            <td class="${alinhamentos['VLR DIÁRIA']}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
+                            ${tipo !== 'ajuda_custo' ? `<td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>` : ''}
+                            ${tipo === 'cache' ? `<td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || '-'}</td>` : ''}
+                            <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+                            <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+                            <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+                            <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+                            <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
+                        `) : `
+                            <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
+                            <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+                            <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
+                        `}
+                    </tr>`;
+
+                    // Insere linha de subtotal quando o funcionário muda ou é o último
+                    if (!proximoItem || proximoItem.NOME !== item.NOME) {
+
+                        // Só mostra subtotal se o funcionário tiver mais de uma linha
+                        const temMaisDeUmaLinha = dadosFechamento.filter(d => d.NOME === item.NOME).length > 1;
+
+                        if (temMaisDeUmaLinha && podeVerFinanceiro) {
+                            linhas += `
+                            <tr class="row-total" style="background-color: #e8e8e8;">
+                                <td colspan="${colspanSubtotal}" style="text-align: right; font-weight: bold;">
+                                    SUBTOTAL ${item.NOME}:
+                                </td>
+                                ${tipo === 'cache_ajuda' ? `
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_AJUDA)}</td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
+                                    <td colspan="4"></td>
+                                ` : `
+                                    <td></td>
+                                    ${tipo !== 'ajuda_custo' ? '<td></td>' : ''}
+                                    ${tipo === 'cache' ? '<td></td>' : ''}
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
+                                    <td></td>
+                                `}
+                            </tr>`;
+                        }
+
+                        // Zera o acumulador para o próximo funcionário
+                        subtotalFuncionario = { TOT_DIARIAS: 0, TOT_AJUDA: 0, TOT_GERAL: 0, TOT_PAGAR: 0 };
+                    }
+                });
+
+                return linhas;
+            })()}
 
             ${podeVerFinanceiro && totaisFechamentoCache ? `
-        <tr class="row-total">
-            <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
-            
-            ${tipo === 'cache_ajuda' ? `
-                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
-                <td class="text-right" style="font-weight: bold;">-</td> 
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAdicional)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
-                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td> 
-                <td class="text-right" style="font-weight: bold;">-</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
-                <td colspan="4"></td> ` : 
+            <tr class="row-total">
+                <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
                 
-                `
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
-                ${(tipo !== 'ajuda_custo') ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
-                ${tipo === 'cache' ? '<td></td>' : ''}
-                <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
-                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
-                <td></td> <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
-                <td></td> `}
-        </tr>` : ''}
+                ${tipo === 'cache_ajuda' ? `
+                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
+                    <td class="text-right" style="font-weight: bold;">-</td> 
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAdicional)}</td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td> 
+                    <td class="text-right" style="font-weight: bold;">-</td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+                    <td colspan="4"></td>
+                ` : `
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
+                    ${tipo !== 'ajuda_custo' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
+                    ${tipo === 'cache' ? '<td></td>' : ''}
+                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
+                    <td></td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+                    <td></td>
+                `}
+            </tr>` : ''}
         </tbody>
     </table>
 `;
     }
 
     html += `<div class="relatorio-resumo-container">`;
-    // ... restante das seções de Utilização e Contingência ...
     if (dadosUtilizacao && dadosUtilizacao.length > 0) {
         const alinhamentosUtilizacao = { 'INFORMAÇÕES EM PROPOSTA': 'text-left', 'QTD PROFISSIONAIS': 'text-center', 'DIÁRIAS CONTRATADAS': 'text-center', 'DIÁRIAS UTILIZADAS': 'text-center', 'SALDO': 'text-right' };
         const utilizacaoAgrupada = dadosUtilizacao.reduce((acc, item) => { const nro = item.nrorcamento || 'N/A'; if (!acc[nro]) acc[nro] = []; acc[nro].push(item); return acc; }, {});
