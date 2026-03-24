@@ -119,6 +119,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
         res.locals.acao = 'atualizou';
         res.locals.idregistroalterado = result.rows[0].idcategoriafuncao; 
         res.locals.idusuarioAlvo = null; 
+        res.locals.dadosnovos = req.body;
 
         return res.json({ message: "Categoria Função atualizada com sucesso!", categoriafuncao: result.rows[0] });
     } else {
@@ -155,9 +156,10 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
     const { descCatFuncao} = body;
     const valorFuncionario = toNumeric(body.valorFuncionario);
     const custoSenior = toNumeric(body.custoSenior);
+    const custoSenior2 = toNumeric(body.custoSenior2);
     const custoPleno = toNumeric(body.custoPleno);
     const custoJunior = toNumeric(body.custoJunior);
-    const custoBase = toNumeric(body.custoBase);
+    const custoBase = toNumeric(body.custoBase);    
     const venda = toNumeric(body.venda);
     const transporte = toNumeric(body.transporte);
     const transporteSenior = toNumeric(body.transporteSenior);
@@ -186,6 +188,7 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idcategoriafuncao; 
         res.locals.idusuarioAlvo = null; 
+        res.locals.dadosnovos = req.body;
 
         res.status(201).json({ mensagem: "Função salva com sucesso!", categoriafuncao: novaFuncao });
     } catch (error) {

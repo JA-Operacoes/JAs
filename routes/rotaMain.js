@@ -1337,363 +1337,6 @@ router.get('/notificacoes-financeiras', async (req, res) => {
 });
 
 
-// router.patch('/notificacoes-financeiras/atualizar-status',
-//     autenticarToken(),
-//     contextoEmpresa,
-//     verificarPermissao('staff', 'cadastrar'),     
-//     // Log Middleware (Mantido, já está funcionando)
-//     logMiddleware('staffeventos', {
-//         buscarDadosAnteriores: async (req) => {
-//             console.log("⚠️ACESSOU A ROTA PATCH PEDIDOS (LOG BUSCA)");
-//             const id = req.body.idpedido;
-//             if (!id || isNaN(parseInt(id))) return null;
-//             const query = `
-//                 SELECT 
-//                     idstaffevento, 
-//                     statuscaixinha, 
-//                     statusajustecusto, 
-//                     dtdiariadobrada, 
-//                     dtmeiadiaria,
-//                     statuscustofechado
-//                 FROM staffeventos 
-//                 WHERE idstaffevento = $1`;
-//             const result = await pool.query(query, [id]);
-//             console.log('✅ SALVOU O LOG PEDIDOS', result );
-//             return result.rows[0] 
-//                 ? { dadosanteriores: result.rows[0], idregistroalterado: id } 
-//                 : null;
-//         }
-//     }),
-//     async (req, res) => {
-//         const { idpedido, categoria, acao, data, idlog_origem} = req.body;
-//         const idempresa = req.idempresa; 
-//         const idUsuarioAprovador = req.usuario?.idusuario;
-
-//         console.log(`DEBUG REQ.BODY RECEBIDO: ID: ${idpedido}, Categoria: ${categoria}, Acao: ${acao}, Data: ${data}`);
-
-//         // 1. Validação
-//         if (!idpedido || !categoria || !acao || !idempresa) {
-//             return res.status(400).json({ sucesso: false, erro: "Dados de requisição incompletos." });
-//         }
-        
-//         const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
-//         const statusPermitidos = ['Autorizado', 'Rejeitado'];
-//         if (!statusPermitidos.includes(acaoCapitalizada)) {
-//             return res.status(400).json({ sucesso: false, erro: "Ação inválida. Use 'Autorizado' ou 'Rejeitado'." });
-//         }
-
-//         // 2. Mapeamento
-//         const mapCategoriaToColuna = {
-//             'statuscaixinha': 'statuscaixinha',
-//             'statusajustecusto': 'statusajustecusto',
-//             'statusdiariadobrada': 'dtdiariadobrada', 
-//             'statusmeiadiaria': 'dtmeiadiaria',
-//             'statuscustofechado': 'statuscustofechado', 
-//             'statuscacheliberado': 'statuscustofechado'   
-//         };
-//         const colunaDB = mapCategoriaToColuna[categoria];
-
-//         if (!colunaDB) {
-//             return res.status(400).json({ sucesso: false, erro: "Categoria de atualização inválida." });
-//         }
-
-//         try {
-//             const idStaffEvento = idpedido;
-//             const acaoCapitalizada = acao.charAt(0).toUpperCase() + acao.slice(1);
-//             const dataDecisao = new Date().toISOString();
-//             req.body.data = dataDecisao; 
-//             // Se quiser garantir o idlog_origem também:
-//             req.body.idlog_origem = idlog_origem;
-//             // 🛑 CRITÉRIO DE FILTRO DE EMPRESA CORRIGIDO: 
-//             // Usa se.idstaff para join com sem.idstaff, garantindo o filtro por empresa.
-//             const empresaConstraint = ` AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $3) `.trim();
-
-//             // =========================================================
-//             // LÓGICA 1: Caixinha / Ajuste de Custo (Status Simples - STRING)
-//             // =========================================================
-//             if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto' || categoria === 'statuscustofechado' || categoria === 'statuscacheliberado') {
-
-//                 const query = `
-//                     UPDATE staffeventos se
-//                     SET ${colunaDB} = $1 
-//                     WHERE se.idstaffevento = $2        
-//                     ${empresaConstraint} 
-//                     AND se.${colunaDB} = 'Pendente'    
-//                     RETURNING se.*;
-//                 `;
-
-//                 // let query;
-
-//                 // if (acaoCapitalizada === 'Autorizado') {
-//                 //     query = `
-//                 //         UPDATE staffeventos se
-//                 //         SET 
-//                 //             ${colunaDB} = $1,
-//                 //             -- Recalcula o Total do Cachê: Base + Ajuste (se o ajuste estiver autorizado ou sendo autorizado agora)
-//                 //             vlrtotcache = COALESCE(vlrcache, 0) + (
-//                 //                 CASE 
-//                 //                     WHEN '${categoria}' = 'statusajustecusto' THEN COALESCE(vlrajustecusto, 0)
-//                 //                     WHEN statusajustecusto = 'Autorizado' THEN COALESCE(vlrajustecusto, 0)
-//                 //                     ELSE 0 
-//                 //                 END
-//                 //             ),
-//                 //             -- Recalcula o Valor Total: TotCache + Caixinha (se autorizada ou sendo autorizada agora)
-//                 //             vlrtotal = (
-//                 //                 COALESCE(vlrcache, 0) + (
-//                 //                     CASE 
-//                 //                         WHEN '${categoria}' = 'statusajustecusto' THEN COALESCE(vlrajustecusto, 0)
-//                 //                         WHEN statusajustecusto = 'Autorizado' THEN COALESCE(vlrajustecusto, 0)
-//                 //                         ELSE 0 
-//                 //                     END
-//                 //                 )
-//                 //             ) + (
-//                 //                 CASE 
-//                 //                     WHEN '${categoria}' = 'statuscaixinha' THEN COALESCE(vlrcaixinha, 0)
-//                 //                     WHEN statuscaixinha = 'Autorizado' THEN COALESCE(vlrcaixinha, 0)
-//                 //                     ELSE 0 
-//                 //                 END
-//                 //             )
-//                 //         WHERE se.idstaffevento = $2 
-//                 //         ${empresaConstraint} 
-//                 //         AND se.${colunaDB} = 'Pendente'
-//                 //         RETURNING se.*;
-//                 //     `;
-//                 // } else {
-//                 //     // Se for "Rejeitado", apenas atualiza o status sem mexer nos valores
-//                 //     query = `
-//                 //         UPDATE staffeventos se
-//                 //         SET ${colunaDB} = $1 
-//                 //         WHERE se.idstaffevento = $2        
-//                 //         ${empresaConstraint} 
-//                 //         AND se.${colunaDB} = 'Pendente'    
-//                 //         RETURNING se.*;
-//                 //     `;
-//                 // }
-
-//                 // $1 = status, $2 = idstaffevento, $3 = idempresa
-//                 const values = [acaoCapitalizada, idStaffEvento, idempresa]; 
-
-//                 const resultado = await pool.query(query, values);
-
-//                 // if (resultado.rows.length === 0) {
-//                 //     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. Status atual não é Pendente, ID não encontrado ou não pertence à empresa." });
-//                 // }
-
-//                 if (resultado.rows.length === 0) {
-//                     return res.status(400).json({ sucesso: false, erro: "Não pendente ou erro de permissão." });
-//                 }
-
-//                 res.locals.acao = "alterou";
-//                 res.locals.idregistroalterado = idStaffEvento;
-//                 res.locals.idlog_origem = idlog_origem;
-
-//                 console.log(`Status atualizado para ${acaoCapitalizada} na categoria ${categoria} para o pedido ${idpedido} data ${dataDecisao}.`);
-                
-
-
-
-//                 return res.json({
-//                     sucesso: true,
-//                     mensagem: `Status da ${categoria} atualizado para ${acaoCapitalizada} com sucesso.`,
-//                     idlog_origem: idlog_origem, 
-//                     data_decisao: dataDecisao, 
-//                     acao: acao.toLowerCase(),
-//                     categoria: categoria,
-//                     idpedido: idpedido,
-//                     atualizado: resultado.rows[0] 
-//                 });                
-
-//             } 
-
-//             // =========================================================
-//             // LÓGICA 2: Diárias (Meia/Dobra) (Status Interno - JSONB/TEXT)
-//             // =========================================================
-//             else if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-//                 console.log("É DIARIADOBRADA OU MEIADIARIA", categoria);
-//                 if (!data) {
-//                     return res.status(400).json({ sucesso: false, erro: "A data da diária é obrigatória para esta atualização." });
-//                 }
-           
-
-//                 // A. Busca o valor atual e faz o parse
-//                 const checkQuery = `
-//                     SELECT se.${colunaDB} 
-//                     FROM staffeventos se 
-//                     JOIN staffempresas sem ON se.idstaff = sem.idstaff 
-//                     WHERE se.idstaffevento = $1 AND sem.idempresa = $2;
-//                 `;
-//                 const checkResult = await pool.query(checkQuery, [idStaffEvento, idempresa]);
-
-
-
-//                 if (checkResult.rows.length === 0) {
-//                     return res.status(404).json({ sucesso: false, erro: "Pedido não encontrado ou não pertence à empresa." });
-//                 }
-
-//                 let arrayDiarias = checkResult.rows[0][colunaDB] || [];
-
-//                 // 💡 DEIXE O NOVO DEBUG AQUI:
-//                 console.log('ARRAYDIARIAS (APÓS CORREÇÃO DE PARSE):', arrayDiarias);
-//                 if (!Array.isArray(arrayDiarias)) {
-//                     console.error('ERRO: dtdiariadobrada não é um array após consulta ao DB:', arrayDiarias);
-//                     arrayDiarias = [];
-//                 }
-
-//                 console.log("ARRAYDIARIAS", arrayDiarias);
-
-//                 let itemAtualizado = false;
-
-//                 // B. Atualiza o status do item específico no array
-//                 const novoArrayDiarias = arrayDiarias.map(item => {
-//                     console.log(`>>> Item BD: Data='${(item.data || '').trim()}', Status='${(item.status || '').toLowerCase()}' | Comparando com: Data='${(data || '').trim()}', Status='pendente'`);
-//                     // 🚨 CORREÇÃO DE ROBUSTEZ: Compara strings de data e status em minúsculas, ignorando whitespace.
-//                     if (
-//                         (item.data || '').trim() === (data || '').trim() && 
-//                         (item.status || '').toLowerCase() === 'pendente'
-//                     ) { 
-//                         itemAtualizado = true;
-//                         return { ...item, status: acaoCapitalizada }; 
-//                     }
-//                     return item;
-//                 });
-
-//                 if (!itemAtualizado) {
-//                     return res.status(400).json({ sucesso: false, erro: `Diária na data ${data} não encontrada ou não está Pendente.` });
-//                 }
-
-//                 // C. Reescreve o JSON completo no banco
-//                 const updateQuery = `UPDATE staffeventos se SET ${colunaDB} = $1 WHERE se.idstaffevento = $2 ${empresaConstraint} RETURNING se.*`;
-//                 console.log('QUERY SQL FINAL EXECUTADA:', updateQuery);
-               
-
-
-//                 // $1 = novo JSON (string), $2 = idstaffevento, $3 = idempresa
-//                 const updateValues = [JSON.stringify(novoArrayDiarias), idStaffEvento, idempresa];
-
-//                 const resultado = await pool.query(updateQuery, updateValues);
-
-//                 if (resultado.rows.length === 0) {
-//                     return res.status(400).json({ sucesso: false, erro: "A solicitação não pode ser alterada. ID não encontrado ou não pertence à empresa." });
-//                 }
-
-//                 res.locals.acao = "alterou";
-//                 res.locals.idregistroalterado = idStaffEvento;
-//                 res.locals.idlog_origem = idlog_origem;
-
-
-//                 // D. Resposta de Sucesso
-//                 return res.json({
-//                     sucesso: true,
-//                     mensagem: `Status da diária em ${data} atualizado para ${acaoCapitalizada} com sucesso.`,
-//                     idlog_origem: idlog_origem, 
-//                     data_decisao: dataDecisao, 
-//                     atualizado: resultado.rows[0] 
-//                 });
-//             }
-
-//             return res.status(400).json({ sucesso: false, erro: "Categoria de atualização não suportada." });
-
-//         } catch (error) {
-//             console.error("Erro ao atualizar status do Pedido Financeiro (DENTRO DO CATCH):", error.message || error);
-//             res.status(500).json({
-//                 sucesso: false,
-//                 erro: "Erro interno do servidor ao processar a atualização do Pedido Financeiro."
-//             });
-//         }
-//     }
-// );
-
-// router.post('/notificacoes-financeiras/atualizar-status', 
-//   logMiddleware('main', {
-//     buscarDadosAnteriores: async (req) => {
-//         const { idpedido } = req.body;
-//         if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
-
-//         const { rows } = await pool.query(`
-//             SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
-//             FROM staffeventos
-//             WHERE idstaffevento = $1
-//             `, [idpedido]
-//         );
-
-//         if (!rows.length) return { dadosanteriores: null, idregistroalterado: null };
-
-//         return {
-//             dadosanteriores: rows[0],
-//             idregistroalterado: idpedido
-//         };
-//     }
-//   }),
-//   async (req, res) => {
-//     try {
-//         const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-//         const { idpedido, categoria, acao } = req.body; // acao = 'Aprovado' ou 'Rejeitado'
-
-//         if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
-//         if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
-
-//         // 🔹 Verifica se o usuário é Master
-//         const { rows: permissoes } = await pool.query(`
-//             SELECT * FROM permissoes 
-//             WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-//             `, [idusuario]
-//         );
-
-//         if (permissoes.length === 0) return res.status(403).json({ error: 'Permissão negada' });
-
-//         // 🔹 Mapeia categorias para colunas da tabela staffeventos
-//         const mapCategorias = {
-//             statuscaixinha: "statuscaixinha",
-//             statusajustecusto: "statusajustecusto",
-//             statusdiariadobrada: "statusdiariadobrada",
-//             statusmeiadiaria: "statusmeiadiaria",
-//             statuscustofechado: "statuscustofechado"
-//         };
-
-//         const coluna = mapCategorias[categoria];
-//         if (!coluna) return res.status(400).json({ error: "Categoria inválida" });
-
-//         // 🔹 Atualiza apenas como string (mantendo compatibilidade com o que já existe)
-//         const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-//         // exemplo: 'Aprovado' ou 'Rejeitado'
-
-//         // 🔹 Atualiza na tabela staffeventos
-//         let { rows: updatedRows } = await pool.query(`
-//             UPDATE staffeventos
-//             SET ${coluna} = $2
-//             WHERE idstaffevento = $1
-//             RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
-//             `, [idpedido, statusParaAtualizar]
-//         );
-
-//         // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
-//         if (updatedRows.length === 0) {
-//             const { rows: updatedStaff } = await pool.query(`
-//             UPDATE staff
-//             SET ${coluna} = $2
-//             WHERE idstaffevento = $1
-//             RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
-//             `, [idpedido, statusParaAtualizar]);
-
-//             updatedRows = updatedStaff;
-//         }
-
-//   res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = idpedido; 
-
-//   if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
-
-//         res.json({ sucesso: true, atualizado: updatedRows[0] });
-
-//         } catch (err) {
-//             console.error('Erro ao atualizar status do pedido:', err.stack || err);
-//             res.status(500).json({ error: 'Erro ao atualizar status do pedido', detalhe: err.message });
-//         }
-//     }
-// );
-
-// ... (mantenha a função isFeriado no topo como antes)
-
 router.post('/notificacoes-financeiras/atualizar-status',
     autenticarToken(),
     contextoEmpresa,
@@ -1709,9 +1352,11 @@ router.post('/notificacoes-financeiras/atualizar-status',
         try {
             const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
             const idempresa = req.idempresa;
-            const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
+            
 
             if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+
+            const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
 
             const mapCategorias = {
                 'statuscaixinha': 'statuscaixinha',
@@ -1895,13 +1540,14 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 : statusParaAtualizar;
 
             const queryUpdate = `
-                UPDATE staffeventos 
+                UPDATE staffeventos se
                 SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
-                WHERE idstaffevento = $5
+                FROM staffempresas sem
+                WHERE idstaffevento = $5 AND sem.idstaff = se.idstaff AND sem.idempresa = $6                
                 RETURNING *;
             `;
 
-            const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, idpedido]);
+            const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, idpedido, idempresa]);
 
             res.locals.idlog_origem = idlog_origem;
             res.locals.acao = 'atualizou';
@@ -1921,118 +1567,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
         }
     }
 );
-
-// router.patch('/aditivoextra/:idAditivoExtra/status',
-//     autenticarToken(),
-//     contextoEmpresa,
-//     verificarPermissao('staff', 'cadastrar'),
-//     logMiddleware('aditivoextra', {
-//         buscarDadosAnteriores: async (req) => {
-//           const id = req.params.idAditivoExtra;
-//           if (!id || isNaN(parseInt(id))) return null;
-
-//           const query = `SELECT idaditivoextra, status, tiposolicitacao FROM AditivoExtra WHERE idAditivoExtra = $1`;
-//           const result = await pool.query(query, [id]);
-//           return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
-//         }
-//     }),
-//     async (req, res) => {
-//         const idAditivoExtra = req.params.idAditivoExtra;
-        
-//         // 🛑 NOVO: Extrai a justificativa
-//         const { novoStatus } = req.body; 
-//         const idUsuarioAprovador = req.usuario?.idusuario;
-
-        
-
-//         console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
-
-//         // 1. Validação
-//         if (!novoStatus || !idUsuarioAprovador) {
-//           return res.status(400).json({
-//             sucesso: false,
-//             erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
-//           });
-//         }
-
-//         const statusPermitidos = ['Autorizado', 'Rejeitado'];
-//         if (!statusPermitidos.includes(novoStatus)) {
-//           return res.status(400).json({
-//             sucesso: false,
-//             erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
-//           });
-//         }
-        
-//         // 🛑 NOVO: Validação de Justificativa para Rejeição
-//         if (novoStatus === 'Rejeitado' && (!justificativa || justificativa.trim() === '')) {
-//            return res.status(400).json({
-//             sucesso: false,
-//             erro: "A justificativa é obrigatória ao rejeitar a solicitação."
-//           });
-//         }
-
-
-//         try {
-//           // 2. Verifica o status atual da solicitação (Mantido)
-//           const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
-//           const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
-
-//           if (checkResult.rows.length === 0) {
-//             return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
-//           }
-//           const currentStatus = checkResult.rows[0].status;
-
-//           if (currentStatus !== 'Pendente') {
-//             return res.status(400).json({
-//               sucesso: false,
-//               erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
-//             });
-//           }
-
-//           // 3. Comando SQL de Atualização
-//           let query = `
-//             UPDATE AditivoExtra
-//             SET status = $1, 
-//             dtresposta = NOW(), 
-//             idusuarioresponsavel = $2,
-//             justificativa = $3  /* 🛑 NOVO: Campo de justificativa incluído */
-//             WHERE idaditivoextra = $4 AND idempresa = $5
-//             RETURNING *;
-//           `;
-//           let values;
-
-//           if (novoStatus === 'Autorizado') {
-//             // Para Autorizado, a justificativa é nula (ou vazia)
-//             values = [novoStatus, idUsuarioAprovador, null, idAditivoExtra, req.idempresa];
-//           } else if (novoStatus === 'Rejeitado') {
-//             // Para Rejeitado, usamos a justificativa fornecida
-//             values = [novoStatus, idUsuarioAprovador, justificativa, idAditivoExtra, req.idempresa]; 
-//           } else {
-//             throw new Error("Erro de lógica: Status de atualização inválido.");
-//           }
-
-//           const resultado = await pool.query(query, values);
-
-//           if (resultado.rows.length === 0) {
-//             throw new Error("A atualização falhou. Nenhuma linha afetada.");
-//           }
-
-//           // 4. Resposta de Sucesso
-//           res.json({
-//             sucesso: true,
-//             mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
-//             dados: resultado.rows[0]
-//           });
-
-//         } catch (error) {
-//           console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
-//           res.status(500).json({
-//             sucesso: false,
-//             erro: "Erro interno do servidor ao processar a atualização do status."
-//           });
-//         }
-//     }
-// );
 
 const formatarData = (data) => {
     if (!data) return 'N/A';
@@ -2226,406 +1760,6 @@ const upload = multer({
     }
 });
 
-// router.get("/vencimentos", async (req, res) => {
-//   try {
-//     const idempresa = req.idempresa;
-//     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
-
-//     const periodo = (req.query.periodo || 'anual').toLowerCase();
-//     const anoFiltro = parseInt(req.query.ano, 10) || 2026;
-
-//     const fmt = d => {
-//       const yyyy = d.getFullYear();
-//       const mm = String(d.getMonth() + 1).padStart(2, '0');
-//       const dd = String(d.getDate()).padStart(2, '0');
-//       return `${yyyy}-${mm}-${dd}`;
-//     };
-
-//     let startDate, endDate;
-//     if (periodo === 'diario') {
-//       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
-//       startDate = fmt(d); endDate = fmt(d);
-//     } else if (periodo === 'mensal') {
-//       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
-//       const y = parseInt(req.query.ano, 10) || 2026;
-//       startDate = fmt(new Date(y, m - 1, 1));
-//       endDate = fmt(new Date(y, m, 0));
-//     } else {
-//       startDate = `${anoFiltro}-01-01`;
-//       endDate = `${anoFiltro}-12-31`;
-//     }
-
-//     //1. QUERY DE AGREGAÇÃO (Ajustada para usar vlrtotcache e vlrtotajdcusto)
-//     // const queryAgregacao = `
-//     //   SELECT o.idevento, e.nmevento,
-//     //     COALESCE(SUM(COALESCE(tse.vlrtotajdcusto,0)), 0) AS ajuda_total,
-//     //     COALESCE(SUM(COALESCE(tse.vlrtotcache,0)), 0) AS cache_total,
-//     //     COALESCE(SUM(COALESCE(tse.vlrcaixinha,0) * calc.qtd), 0) AS caixinha_total
-//     //   FROM orcamentos o
-//     //   JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//     //   JOIN eventos e ON o.idevento = e.idevento
-//     //   JOIN staffeventos tse ON e.idevento = tse.idevento
-//     //   CROSS JOIN LATERAL (
-//     //     SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//     //     WHERE (d.dt)::date BETWEEN $2 AND $3
-//     //   ) AS calc
-//     //   WHERE oe.idempresa = $1 AND calc.qtd > 0
-//     //   GROUP BY o.idevento, e.nmevento;
-//     // `;
-
-//     const queryAgregacao = `
-//       SELECT 
-//         o.idevento, 
-//         e.nmevento,
-//         MIN(o.dtinimarcacao) AS dtinimarcacao,
-//         MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
-//       FROM orcamentos o
-//       JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//       JOIN eventos e ON o.idevento = e.idevento
-//       JOIN staffeventos tse ON e.idevento = tse.idevento
-//       CROSS JOIN LATERAL (
-//         SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//         WHERE (d.dt)::date BETWEEN $2 AND $3
-//       ) AS calc
-//       WHERE oe.idempresa = $1 AND calc.qtd > 0
-//       GROUP BY o.idevento, e.nmevento;
-//     `;
- 
-
-//     const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
-//     if (eventosRaw.length === 0) return res.json({ eventos: [] });
-
-//     //2. QUERY DE DETALHES (Conforme o padrão que definimos)
-//     // const queryDetalhes = `
-//     //   SELECT 
-//     //     tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao, 
-//     //     calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
-//     //     calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
-//     //     COALESCE(tse.vlrtotcache, 0) AS totalcache_filtrado,
-//     //     COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_filtrado,
-//     //     (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
-//     //     tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha,
-//     //     tse.comppgtocache, tse.comppgtocaixinha, tse.comppgtoajdcusto50, tse.comppgtoajdcusto
-//     //   FROM staffeventos tse
-//     //   CROSS JOIN LATERAL (
-//     //     SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-//     //     FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//     //     WHERE (d.dt)::date BETWEEN $2 AND $3
-//     //   ) AS calc
-//     //   CROSS JOIN LATERAL (
-//     //     SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
-//     //     FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
-//     //   ) AS calc_full
-//     //   WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-//     //   ORDER BY tse.nmfuncionario ASC;
-//     // `;
-
-//     const queryDetalhes = `
-//       SELECT * FROM (
-//         SELECT DISTINCT ON (tse.idstaffevento)
-//           tse.idstaffevento, 
-//           tse.idevento, 
-//           tse.nmfuncionario AS nome, 
-//           tse.nmfuncao AS funcao,
-//           calc.qtd AS qtddiarias_filtradas, 
-//           calc.min_dt AS periodo_eventoini, 
-//           calc.max_dt AS periodo_eventofim,
-//           calc_full.full_min_dt AS periodo_eventoini_all, 
-//           calc_full.full_max_dt AS periodo_eventofim_all,
-//           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
-//           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
-//           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
-//           tse.statuspgto, 
-//           tse.statuspgtoajdcto, 
-//           tse.statuscaixinha
-//         FROM staffeventos tse
-//         CROSS JOIN LATERAL (
-//           SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-//           FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//           WHERE (d.dt)::date BETWEEN $2 AND $3
-//         ) AS calc
-//         CROSS JOIN LATERAL (
-//           SELECT COUNT(*)::int as full_qtd, MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
-//           FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
-//         ) AS calc_full
-//         WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-//         ORDER BY tse.idstaffevento
-//       ) AS sub
-//       ORDER BY nome ASC;
-//     `;
-
-//     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
-
-
-//     // Funções de formatação (mantidas conforme seu código original)
-//     const normalizarParaDate = (val) => {
-//         if (!val) return null;
-//         if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-//         const s = String(val).split('T')[0];
-//         const d = new Date(s + 'T00:00:00');
-//         return isNaN(d.getTime()) ? null : d;
-//     };
-
-//     const formatarDDMMYYYY = (dStr) => {
-//         const d = normalizarParaDate(dStr);
-//         return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '---';
-//     };
-
-    
-
-//     const resultado = eventosRaw.map(ev => {
-//       const staffs = staffRows.filter(s => s.idevento === ev.idevento);
-//       let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
-//       let minEventDate = null, maxEventDate = null;
-
-//       const dtInicioReal = normalizarParaDate(ev.dtinimarcacao);
-//       const dtFimReal = normalizarParaDate(ev.dtfimdesmontagem);
-
-//       console.log("PERIODO EVENTO", dtInicioReal, dtFimReal, dtinimarcacao, dtfimdesmontagem);
-
-//       const staffsProcessados = staffs.map(s => {
-//         const vC = parseFloat(s.totalcache_filtrado) || 0;
-//         const vA = parseFloat(s.totalajudacusto_filtrado) || 0;
-//         const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
-        
-//         chT += vC; ajT += vA; cxT += vX;
-
-//         const calcPago = (status, amount) => {
-//             if (!status) return 0;
-//             const sStr = String(status);
-//             if (!sStr.startsWith('Pago')) return 0;
-//             const match = sStr.match(/(\d+)/);
-//             if (match) return amount * (Number(match[1]) / 100);
-//             return amount; 
-//         };
-
-//         chP += calcPago(s.statuspgto, vC);
-//         ajP += calcPago(s.statuspgtoajdcto, vA);
-//         cxP += calcPago(s.statuscaixinha, vX);
-
-//         // Datas para o período do funcionário
-//         const startRaw = s.periodo_eventoini || s.periodo_eventoini_all;
-//         const endRaw = s.periodo_eventofim || s.periodo_eventofim_all;
-//         const startD = normalizarParaDate(startRaw);
-//         const endD = normalizarParaDate(endRaw);
-
-//         if (startD && (!minEventDate || startD < minEventDate)) minEventDate = startD;
-//         if (endD && (!maxEventDate || endD > maxEventDate)) maxEventDate = endD;
-
-//         return {
-//           ...s,
-//           periodo_eventoini_fmt: formatarDDMMYYYY(startRaw),
-//           periodo_eventofim_fmt: formatarDDMMYYYY(endRaw),
-//           totalpagar: vC + vA + vX
-//         };
-//       });
-
-//       return {
-//         idevento: ev.idevento,
-//         nomeEvento: ev.nmevento,
-//         totalGeral: ajT + chT + cxT,
-//         // periodo_evento: minEventDate ? formatarDDMMYYYY(minEventDate) : '---',
-//         // dataFimEvento: maxEventDate ? formatarDDMMYYYY(maxEventDate) : '---',
-//         periodo_evento: formatarDDMMYYYY(dtInicioReal), 
-//         dataFimEvento: formatarDDMMYYYY(dtFimReal),
-
-//         dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
-//         dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
-//         ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
-//         cache: { total: chT, pendente: chT - chP, pago: chP },
-//         caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
-//         funcionarios: staffsProcessados
-//       };
-//     });
-
-//     res.json({ eventos: resultado });
-    
-
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-//Está correta e funcional
-// router.get("/vencimentos", async (req, res) => {
-//   try {
-//     const idempresa = req.idempresa;
-//     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
-
-//     const periodo = (req.query.periodo || 'anual').toLowerCase();
-//     const anoFiltro = parseInt(req.query.ano, 10) || 2026;
-
-//     const fmt = d => {
-//       const yyyy = d.getFullYear();
-//       const mm = String(d.getMonth() + 1).padStart(2, '0');
-//       const dd = String(d.getDate()).padStart(2, '0');
-//       return `${yyyy}-${mm}-${dd}`;
-//     };
-
-//     let startDate, endDate;
-//     if (periodo === 'diario') {
-//       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
-//       startDate = fmt(d); endDate = fmt(d);
-//     } else if (periodo === 'mensal') {
-//       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
-//       const y = parseInt(req.query.ano, 10) || 2026;
-//       startDate = fmt(new Date(y, m - 1, 1));
-//       endDate = fmt(new Date(y, m, 0));
-//     } else {
-//       startDate = `${anoFiltro}-01-01`;
-//       endDate = `${anoFiltro}-12-31`;
-//     }
-
-//     // 1. QUERY DE AGREGAÇÃO - Aqui as datas do orçamento funcionam bem com GROUP BY
-//     // 1. QUERY DE AGREGAÇÃO - Ajustada para filtrar o ano do orçamento também
-//     const queryAgregacao = `
-//         SELECT 
-//             o.idevento, 
-//             e.nmevento,
-//             MIN(o.dtinimarcacao) AS dtinimarcacao,
-//             MIN(o.dtinimontagem) AS dtinimontagem,
-//             MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
-//         FROM orcamentos o
-//         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//         JOIN eventos e ON o.idevento = e.idevento
-//         JOIN staffeventos tse ON e.idevento = tse.idevento
-//         CROSS JOIN LATERAL (
-//             SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//             WHERE (d.dt)::date BETWEEN $2 AND $3
-//         ) AS calc
-//         WHERE oe.idempresa = $1 
-//             AND calc.qtd > 0
-//             AND o.dtinimarcacao BETWEEN $2 AND $3 -- ESTA LINHA GARANTE O ANO CORRETO
-//         GROUP BY o.idevento, e.nmevento;
-//     `;
-
-//     const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
-//     if (eventosRaw.length === 0) return res.json({ eventos: [] });
-
-//     // 2. QUERY DE DETALHES - Limpa, sem MIN/MAX para não dar erro de GROUP BY
-//     const queryDetalhes = `
-//       SELECT * FROM (
-//         SELECT DISTINCT ON (tse.idstaffevento)
-//           tse.idstaffevento, 
-//           tse.idevento, 
-//           tse.nmfuncionario AS nome, 
-//           tse.nmfuncao AS funcao,
-//           calc.qtd AS qtddiarias_filtradas, 
-//           calc.min_dt AS periodo_eventoini, 
-//           calc.max_dt AS periodo_eventofim,
-//           calc_full.full_min_dt AS periodo_eventoini_all, 
-//           calc_full.full_max_dt AS periodo_eventofim_all,
-//           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
-//           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
-//           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
-//           tse.statuspgto, 
-//           tse.statuspgtoajdcto, 
-//           tse.statuscaixinha
-//         FROM staffeventos tse
-//         CROSS JOIN LATERAL (
-//           SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-//           FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-//           WHERE (d.dt)::date BETWEEN $2 AND $3
-//         ) AS calc
-//         CROSS JOIN LATERAL (
-//           SELECT COUNT(*)::int as full_qtd, MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
-//           FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
-//         ) AS calc_full
-//         WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-//         ORDER BY tse.idstaffevento
-//       ) AS sub
-//       ORDER BY nome ASC;
-//     `;
-
-//     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
-
-//     const normalizarParaDate = (val) => {
-//         if (!val) return null;
-//         if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-//         const s = String(val).split('T')[0];
-//         const d = new Date(s + 'T00:00:00');
-//         return isNaN(d.getTime()) ? null : d;
-//     };
-
-//     const formatarDDMMYYYY = (dStr) => {
-//         const d = normalizarParaDate(dStr);
-//         return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '---';
-//     };
-
-//     const resultado = eventosRaw.map(ev => {
-//         const staffs = staffRows.filter(s => s.idevento === ev.idevento);
-//         let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
-        
-//         // Variáveis para capturar a escala real do staff
-//         let minEscalaStaff = null;
-//         let maxEscalaStaff = null;
-
-//         // Datas oficiais do orçamento para o "Período do Evento"
-//         const dtInicioMarcacao = normalizarParaDate(ev.dtinimarcacao);
-//         const dtInicioMontagem = normalizarParaDate(ev.dtinimontagem);
-//         const dtFimDesmontagem = normalizarParaDate(ev.dtfimdesmontagem);
-
-//         const staffsProcessados = staffs.map(s => {
-//             const vC = parseFloat(s.totalcache_full) || 0;
-//             const vA = parseFloat(s.totalajudacusto_full) || 0;
-//             const vX = parseFloat(s.totalcaixinha_full) || 0;
-            
-//             chT += vC; ajT += vA; cxT += vX;
-
-//             const calcPago = (status, amount) => {
-//                 if (!status || !String(status).startsWith('Pago')) return 0;
-//                 const match = String(status).match(/(\d+)/);
-//                 return match ? amount * (Number(match[1]) / 100) : amount;
-//             };
-
-//             chP += calcPago(s.statuspgto, vC);
-//             ajP += calcPago(s.statuspgtoajdcto, vA);
-//             cxP += calcPago(s.statuscaixinha, vX);
-
-//             // --- LÓGICA DE ESCALA REAL (VENCIMENTOS) ---
-//             const startD = normalizarParaDate(s.periodo_eventoini_all);
-//             const endD = normalizarParaDate(s.periodo_eventofim_all);
-            
-//             if (startD && (!minEscalaStaff || startD < minEscalaStaff)) minEscalaStaff = startD;
-//             if (endD && (!maxEscalaStaff || endD > maxEscalaStaff)) maxEscalaStaff = endD;
-
-//             return {
-//                 ...s,
-//                 periodo_eventoini_fmt: formatarDDMMYYYY(s.periodo_eventoini_all),
-//                 periodo_eventofim_fmt: formatarDDMMYYYY(s.periodo_eventofim_all),
-//                 totalpagar: vC + vA + vX
-//             };
-//         });
-
-//         // Cálculos de Vencimento baseados no Staff (Escala Real)
-//         // Ajuda: 2 dias após o início do primeiro staff | Cachê: 10 dias após o fim do último
-//         //const dataVencAjuda = minEscalaStaff ? new Date(minEscalaStaff.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---';
-//         //const dataVencCache = maxEscalaStaff ? new Date(maxEscalaStaff.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---';
-
-//         return {
-//             idevento: ev.idevento,
-//             nomeEvento: ev.nmevento,
-//             totalGeral: ajT + chT + cxT,
-//             // Exibição visual: Baseada no Orçamento
-//             periodo_evento: formatarDDMMYYYY(dtInicioMarcacao), 
-//             dataFimEvento: formatarDDMMYYYY(dtFimDesmontagem),
-//             dataInicioMontagem: formatarDDMMYYYY(dtInicioMontagem),
-//             // Regra de Negócio: Baseada na Escala do Staff
-//             dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
-//             dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
-//             ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
-//             cache: { total: chT, pendente: chT - chP, pago: chP },
-//             caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
-//             funcionarios: staffsProcessados
-//         };
-//     });
-//     res.json({ eventos: resultado });
-
-//   } catch (error) {
-//     console.error("ERRO ROTA VENCIMENTOS:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 
 router.get("/vencimentos", async (req, res) => {
   try {
@@ -2655,29 +1789,6 @@ router.get("/vencimentos", async (req, res) => {
       startDate = `${anoFiltro}-01-01`;
       endDate = `${anoFiltro}-12-31`;
     }
-
-    // 1. QUERY DE AGREGAÇÃO - Aqui as datas do orçamento funcionam bem com GROUP BY
-    // 1. QUERY DE AGREGAÇÃO - Ajustada para filtrar o ano do orçamento também
-    // const queryAgregacao = `
-    //     SELECT 
-    //         o.idevento, 
-    //         e.nmevento,
-    //         MIN(o.dtinimarcacao) AS dtinimarcacao,
-    //         MIN(o.dtinimontagem) AS dtinimontagem,
-    //         MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
-    //     FROM orcamentos o
-    //     JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-    //     JOIN eventos e ON o.idevento = e.idevento
-    //     JOIN staffeventos tse ON e.idevento = tse.idevento
-    //     CROSS JOIN LATERAL (
-    //         SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-    //         WHERE (d.dt)::date BETWEEN $2 AND $3
-    //     ) AS calc
-    //     WHERE oe.idempresa = $1 
-    //         AND calc.qtd > 0
-    //         AND o.dtinimarcacao BETWEEN $2 AND $3 -- ESTA LINHA GARANTE O ANO CORRETO
-    //     GROUP BY o.idevento, e.nmevento;
-    // `;
 
     const queryAgregacao = `
         SELECT 
@@ -2876,16 +1987,18 @@ router.post("/vencimentos/update-status",
 
         try {
             const result = await pool.query(
-                `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
-                [statusFinal, idStaff]
+                `UPDATE staffeventos SET ${coluna} = $1 
+                 FROM staffempresas sem
+                 WHERE idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3`, 
+                [statusFinal, idStaff, idempresa]
             );
         
-            res.locals.idlog_origem = idlog_origem;
-            res.locals.acao = 'atualizou';
-            res.locals.idregistroalterado = idStaff; 
-            res.locals.dadosnovos = result.rows[0];
-
+            
             if (result.rowCount > 0) {
+                res.locals.idlog_origem = idlog_origem;
+                res.locals.acao = 'atualizou';
+                res.locals.idregistroalterado = idStaff; 
+                res.locals.dadosnovos = result.rows[0];
                 res.json({ success: true, statusSalvo: statusFinal });
             } else {
                 res.status(404).json({ success: false, error: "Registro não encontrado." });
@@ -2911,6 +2024,8 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
     }
 
     const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+
+    const idempresa = req.idempresa;
 
     try {
         let coluna = "";
@@ -2945,12 +2060,15 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
         }
 
         const result = await pool.query(
-            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`,
-            [pathArquivo, idStaff]
+            `UPDATE staffeventos SET ${coluna} = $1 
+             FROM staffempresas sem
+             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3`,
+            [pathArquivo, idStaff, idempresa]
         );
 
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idStaff; 
+        res.locals.dadosnovos = result.rows[0];
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: "Funcionário não encontrado no evento." });
@@ -3036,60 +2154,6 @@ router.get('/contas-pagar', async (req, res) => {
 });
 
 
-// Rota específica para upload rápido via Main (Lista de Vencimentos)
-// router.post("/vencimentoconta/uploads_comprovantesconta", 
-//     //verificarPermissao('Pagamentos', 'alterar'),
-//     // upload.single('comprovantePagamento'), 
-//     // logMiddleware('Pagamentos', { 
-//     //     buscarDadosAnteriores: async (req) => {
-//     //         const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.body.id]);
-//     //         return { dadosanteriores: result.rows[0], idregistroalterado: req.body.id };
-//     //     } 
-//     // }),
-//     async (req, res) => {
-//         const { id } = req.body;
-//         const idempresa = req.idempresa;
-
-//         if (!req.file) {
-//             return res.status(400).json({ success: false, message: "Arquivo não recebido." });
-//         }
-
-//         // Caminho salvo pelo multer
-//         const nomeArquivo = req.file.filename;
-
-//         try {
-//             // Atualiza a tabela de pagamentos (Contas)
-//             const sql = `
-//                 UPDATE pagamentos 
-//                 SET comprovantepgto = $1, 
-//                     dtpgto = CURRENT_DATE, 
-//                     status = 'pago'
-//                 WHERE idpagamento = $2 AND idempresa = $3
-//                 RETURNING *`;
-
-//             const result = await pool.query(sql, [nomeArquivo, id, idempresa]);
-
-//             if (result.rowCount === 0) {
-//                 return res.status(404).json({ success: false, message: "Registro não encontrado." });
-//             }
-
-//             res.json({ 
-//                 success: true, 
-//                 message: "Comprovante salvo!", 
-//                 path: nomeArquivo 
-//             });
-
-//         } catch (error) {
-//             console.error("Erro no upload de conta:", error);
-//             res.status(500).json({ success: false, message: "Erro interno no servidor." });
-//         }
-//     }
-// );
-
-
-
-
-
 router.post('/confirmar-pagamento-conta',
     logMiddleware('pagamentos', {
         buscarDadosAnteriores: async (req) => {
@@ -3119,11 +2183,7 @@ router.post('/confirmar-pagamento-conta',
 
     try {
         await client.query('BEGIN');
-
-        // 🔍 VERIFICAÇÃO REAL: 
-        // Não confiamos no ID que vem do front. Verificamos se existe registro PARA ESTA DATA.
-        await client.query('BEGIN');
-
+        
         const checkPgto = await client.query(
             `SELECT idpagamento FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`,
             [idlancamento, dtvcto]
@@ -3157,15 +2217,25 @@ router.post('/confirmar-pagamento-conta',
             const updateQuery = `
                 UPDATE pagamentos 
                 SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4, vlratraso = $5, vlrdesconto = $6 
-                WHERE idpagamento = $7;`;
+                WHERE idpagamento = $7 AND idempresa = $8;`;
             
-            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, idFinal]);
+            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, idFinal, idempresa]);
         }
 
         await client.query('COMMIT');
 
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idFinal; 
+        res.locals.dadosnovos = { // ❌ Estava faltando
+            idpagamento: idFinal,
+            idlancamento,
+            vlrpago,
+            vlratraso,
+            vlrdesconto,
+            dtvcto,
+            dtpagamento,
+            status: statusFinal
+        };
 
         console.log("\x1b[32m✅ SUCESSO: Transação finalizada.\x1b[0m\n");
         res.json({ sucesso: true, idpagamento: idFinal, mensagem: "Processado com sucesso" });
@@ -3179,83 +2249,6 @@ router.post('/confirmar-pagamento-conta',
         client.release();
     }
 });
-
-
-// router.post("/vencimentoconta/uploads_comprovantesconta", 
-//     upload.single('comprovante'),
-//     logMiddleware('pagamentos comp.', {
-//         buscarDadosAnteriores: async (req) => {
-//             const { idPagamento } = req.body;
-//             if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
-
-//             const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
-//             const result = await pool.query(query, [idPagamento]);
-
-//             return result.rows[0] ? { 
-//                 dadosanteriores: result.rows[0], 
-//                 idregistroalterado: idPagamento 
-//             } : null;
-//         }
-//     }), async (req, res) => {
-//     const { idPagamento, tipo } = req.body;
-//     const contexto = req.body.contexto
-
-//     console.log("ENTROU NA ROTA DE UPLOAD DE COMPROVANTE/IMAGEM DE CONTA", req.body);
-    
-//     if (!req.file) {
-//         return res.status(400).json({ error: "Nenhum arquivo enviado." });
-//     }
-
-//     //const pathArquivo = req.file.path.replace(/\\/g, "/"); 
-//     const pathArquivo = req.file.filename;
-
-//     try {
-//         let coluna = "";
-
-//         // Mapeamento direto dos tipos vindo do frontend
-//         if (tipo === 'comprovante') {
-//             coluna = 'comprovantepgto';
-//         } 
-//         else if (tipo === 'imagem') {
-//             coluna = 'imagemconta';
-//         } 
-        
-//         // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
-//         if (!coluna) {
-//             console.error("Tipo de upload inválido recebido:", tipo);
-//             return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
-//         }
-
-//         const result = await pool.query(
-//             `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
-//             [pathArquivo, idPagamento]
-//         );
-
-//         res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = idPagamento; 
-
-//         if (result.rowCount === 0) {
-//             return res.status(404).json({ error: "Pagamento não encontrado em contas." });
-//         }
-
-//         res.json({ 
-//             success: true, 
-//             path: pathArquivo, 
-//             colunaDestino: coluna 
-//         });
-
-//     } catch (error) {
-//         console.error("Erro no processamento do upload:", error);
-//         res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
-//     }
-// });
-
-// =======================================
-
-
-// =======================================
-// AGENDA
-// =======================================
 
 
 router.post("/vencimentoconta/uploads_comprovantesconta", 
@@ -3307,8 +2300,8 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
 
         // 4. Executa o UPDATE no banco de dados
         const result = await pool.query(
-            `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
-            [nomeArquivoNoBanco, idPagamento]
+            `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2 AND idempresa = $3`,
+            [nomeArquivoNoBanco, idPagamento, idempresa]
         );
 
         // 5. Verificação se o ID realmente existia
@@ -3317,8 +2310,9 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         }
 
         // Configurações para o logMiddleware concluir
-        res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = idPagamento; 
+        res.locals.acao = 'atualizou';
+        res.locals.idregistroalterado = idPagamento;
+        res.locals.dadosnovos = result.rows[0]; 
 
         // 6. Retorno de sucesso para o frontend
         res.json({ 
@@ -3357,42 +2351,43 @@ router.get("/agenda", async (req, res) => {
 });
 
 router.post("/agenda",logMiddleware('agenda', {
-        buscarDadosAnteriores: async (req) => {
-            const { titulo, data_evento } = req.body;
-            if (!titulo || !data_evento) return null;
+    buscarDadosAnteriores: async (req) => {
+        const { titulo, data_evento } = req.body;
+        if (!titulo || !data_evento) return null;
 
-            const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE titulo = $1 AND data_evento = $2::date`;
-            const result = await pool.query(query, [titulo, data_evento]);
+        const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE titulo = $1 AND data_evento = $2::date`;
+        const result = await pool.query(query, [titulo, data_evento]);
 
-            return result.rows[0] ? { 
-                dadosanteriores: result.rows[0], 
-                idregistroalterado: result.rows[0].idagenda 
-            } : null;
-        }
+        return result.rows[0] ? { 
+            dadosanteriores: result.rows[0], 
+            idregistroalterado: result.rows[0].idagenda 
+        } : null;
+    }
     }), async (req, res) => {
-  try {
-  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-  const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
+    try {
+        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+        const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
 
-  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
-  if (!titulo || !data_evento)
-  return res.status(400).json({ erro: "Título e data são obrigatórios" });
+        if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
+        if (!titulo || !data_evento)
+        return res.status(400).json({ erro: "Título e data são obrigatórios" });
 
-  const resultado = await pool.query(
-  `INSERT INTO agendas (idusuario, titulo, descricao, data_evento, hora_evento, tipo)
-   VALUES ($1, $2, $3, $4, $5, $6)
-   RETURNING *`,
-  [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
-);
+        const resultado = await pool.query(
+        `INSERT INTO agendas (idusuario, titulo, descricao, data_evento, hora_evento, tipo)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`,
+        [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
+    );
 
     res.locals.acao = 'cadastrou';
-    res.locals.idregistroalterado = resultado.rows[0].idagenda; 
+    res.locals.idregistroalterado = resultado.rows[0].idagenda;
+    res.locals.dadosnovos = resultado.rows[0]; 
 
-  res.status(201).json(resultado.rows[0]);
-  } catch (err) {
-  console.error("Erro ao salvar agenda:", err);
-  res.status(500).json({ erro: "Erro ao salvar agenda" });
-  }
+    res.status(201).json(resultado.rows[0]);
+    } catch (err) {
+        console.error("Erro ao salvar agenda:", err);
+        res.status(500).json({ erro: "Erro ao salvar agenda" });
+    }
 });
 
 router.delete("/agenda/:idagenda", logMiddleware('agenda', {
@@ -3433,29 +2428,28 @@ router.delete("/agenda/:idagenda", logMiddleware('agenda', {
 });
 
 
-
 router.patch('/aditivoextra/:idAditivoExtra/status',
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao('staff', 'cadastrar'),
   logMiddleware('aditivoextra', {
-  buscarDadosAnteriores: async (req) => {
-    console.log("⚠️ACESSOU A ROTA PATCH ADITIVOEXTRA");
-    const id = req.params.idAditivoExtra;
+    buscarDadosAnteriores: async (req) => {
+        console.log("⚠️ACESSOU A ROTA PATCH ADITIVOEXTRA");
+        const id = req.params.idAditivoExtra;
 
-    // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
-    if (!id || isNaN(parseInt(id))) return null;
+        // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
+        if (!id || isNaN(parseInt(id))) return null;
 
-    // Usa a coluna justificativa que já existe no banco
-    const query = `SELECT idaditivoextra, status, tiposolicitacao FROM AditivoExtra WHERE idAditivoExtra = $1`;
-    const result = await pool.query(query, [id]);
-    return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
-    }
+        // Usa a coluna justificativa que já existe no banco
+        const query = `SELECT idaditivoextra, status, tiposolicitacao FROM AditivoExtra WHERE idAditivoExtra = $1`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
+        }
     }),
     async (req, res) => {
     const idAditivoExtra = req.params.idAditivoExtra;
     // ⚠️ Vamos ignorar a justificativaStatus na lógica
-    const { novoStatus } = req.body; 
+    const { novoStatus, idlog_origem } = req.body; 
     const idUsuarioAprovador = req.usuario?.idusuario;
 
 
@@ -3539,10 +2533,11 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     throw new Error("A atualização falhou. Nenhuma linha afetada.");
     }
 
-    res.locals.idlog_origem = idlog_origem;
+    res.locals.idlog_origem = idlog_origem || null;
+
     res.locals.acao = 'atualizou';
     res.locals.idregistroalterado = idAditivoExtra;
-    res.locals.dadosnovos = finalResult.rows[0];
+    res.locals.dadosnovos = resultado.rows[0];
 
     // 4. Resposta de Sucesso
     res.json({
@@ -3559,6 +2554,7 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
         });
     }
 });
+
 
 router.get('/aditivoextra', async (req, res) => {
     try {
@@ -3643,6 +2639,9 @@ router.get('/aditivoextra', async (req, res) => {
         res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
     }
 });
+
+
+
 // =======================================
 // Rota para retornar a versão do sistema
 router.get("/versao", (req, res) => {

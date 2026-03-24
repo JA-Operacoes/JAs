@@ -66,6 +66,7 @@ router.get('/:idempresa', verificarPermissao('Empresas', 'pesquisar'), async (re
     res.status(500).json({ message: "Erro ao buscar empresa" });
   }
 });
+
 // Criar nova empresa
 router.post('/', verificarPermissao('Empresas', 'cadastrar'), 
   logMiddleware('Empresas', { // Módulo 'Empresas'
@@ -88,6 +89,7 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
     res.locals.acao = 'cadastrou';
     res.locals.idregistroalterado = novaEmpresa.idempresa; 
     res.locals.idusuarioAlvo = null;
+    res.locals.dadosnovos = novaEmpresa;
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -128,6 +130,7 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
   const id = req.params.id; // idempresa da empresa a ser atualizado
   const idempresa = req.idempresa; // ID da empresa do usuário logado
   const ativo = req.body.ativo;
+  
 
   console.log(`Atualizando empresa com ID: ${id} para a empresa do usuário logado: ${idempresa}`);
 
@@ -147,6 +150,7 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
         res.locals.acao = 'atualizou';
         res.locals.idregistroalterado = empresaAtualizada.idempresa; // O ID da empresa atualizada
         res.locals.idusuarioAlvo = null; // Não se aplica
+        res.locals.dadosnovos = req.body;
 
         res.json(empresaAtualizada);
     } else {
@@ -159,16 +163,6 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
   }
 });
 
-// Deletar empresa
-// router.delete('/:id', async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     await pool.query('DELETE FROM empresas WHERE id = $1', [id]);
-//     res.sendStatus(204);
-//   } catch (err) {
-//     console.error('Erro ao deletar empresa:', err);
-//     res.status(500).send('Erro ao deletar empresa');
-//   }
-// });
+
 
 module.exports = router;

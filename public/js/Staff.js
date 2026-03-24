@@ -1335,16 +1335,14 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
 
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
-    vlrTotalCacheInput = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
-    vlrTotalAjdCustoInput = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
+    if (vlrTotalCacheInput) vlrTotalCacheInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
+    if (vlrTotalAjdCustoInput) vlrTotalAjdCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
     console.log("VALOR TOTAL", vlrTotalInput.value);
 
     // Outros Campos de Status
     setorInput.value = (eventData.setor || '').toUpperCase();
     statusPagtoInput.value = (eventData.statuspgto || 'Pendente').toUpperCase();
-    statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase();
-       
-
+    statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase(); 
   
 
     // Lógica para Comprovantes 50% e 100%
@@ -1452,17 +1450,11 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         const vlrAjuste = parseFloat(eventData.vlrajustecusto || 0);        
         ajusteCustocheck.checked = vlrAjuste != 0;
         
-        const mostrar = ajusteCustocheck.checked ? 'block' : 'none';
-    console.log("🔍 vlrAjuste:", vlrAjuste, "| mostrar:", mostrar);
-    console.log("🔍 campoStatusajusteCusto element:", campoStatusajusteCusto);
-    console.log("🔍 selectStatusAjusteCusto display:", document.getElementById('selectStatusAjusteCusto')?.style.display);
-    console.log("🔍 selectStatusAjusteCusto value:", document.getElementById('selectStatusAjusteCusto')?.value);
-    console.log("🔍 selectStatusAjusteCusto options:", Array.from(document.getElementById('selectStatusAjusteCusto')?.options || []).map(o => o.value));
+        const mostrar = ajusteCustocheck.checked ? 'block' : 'none';   
 
-    if (campoAjusteCusto) campoAjusteCusto.style.display = mostrar;
-    if (campoStatusajusteCusto) campoStatusajusteCusto.style.display = mostrar;
-    
-    console.log("🔍 campoStatusajusteCusto display APÓS setar:", campoStatusajusteCusto?.style.display);
+        if (campoAjusteCusto) campoAjusteCusto.style.display = mostrar;
+        if (campoStatusajusteCusto) campoStatusajusteCusto.style.display = mostrar;    
+   
         if (ajusteCustoTextarea) {
             ajusteCustoTextarea.style.display = mostrar;
             ajusteCustoTextarea.required = ajusteCustocheck.checked;
@@ -3099,6 +3091,9 @@ async function verificaStaff() {
             ajusteCustoInput.value = '0,00';
         }
         console.log("formatação do valor :","background:yellow;", ajusteCustoInput.value)
+        // if (typeof calcularValorTotal === 'function') {
+        //     calcularValorTotal();
+        // }
     });
 
     const selectAjusteCusto = document.getElementById('selectStatusAjusteCusto');
@@ -3106,275 +3101,16 @@ async function verificaStaff() {
     if (selectAjusteCusto) {
         selectAjusteCusto.addEventListener('change', () => {
             aplicarCorNoSelect(selectAjusteCusto);
-            statusAjusteCustoInput.value = selectStatusAjusteCusto.value;
-            console.log("Status de Ajuste de Custo sincronizado para:","background:darkyellow;", statusAjusteCustoInput.value);
-        });
-    }
+            //statusAjusteCustoInput.value = selectStatusAjusteCusto.value;
+           
+            const inputHidden = document.getElementById('statusajustecusto');
+            if (inputHidden) inputHidden.value = selectAjusteCusto.value;
 
+            // Apenas chama o cálculo. A função calcularValorTotal decide se soma ou não.
+//calcularValorTotal();
+            });
+    }       
 
-    // ajusteCustocheck.addEventListener('change', (e) => {
-    //     const isCheckedBeforeSwal = ajusteCustocheck.checked;
-    //     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-    //     const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
-
-    //        // Se qualquer um dos elementos não for encontrado, interrompe a execução
-    //     if (!ajusteCustoInput || !ajusteCustoTextarea || !campoStatusAjusteCusto) {
-    //         console.error("Um ou mais elementos do bônus não foram encontrados. Verifique os IDs.");
-    //         // Opcional: Adicionar um alerta para o usuário
-    //         Swal.fire('Erro!', 'Ocorreu um problema ao carregar os campos do bônus. Tente recarregar a página.', 'error');
-    //         return; // Sai da função para evitar o erro
-    //     }
-
-    //     console.log("AJUSTE DE CUSTO CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusAjusteCusto.value);
-
-    //     // Inicia com valores padrão para o caso de novo cadastro
-    //     let valorAjusteCustoOriginal = 0;
-    //     let descAjusteCustoOriginal = '';
-    //     let statusAjusteCustoOriginal = '';
-
-    //     // Se estiver em modo de edição, sobrescreve com os valores originais
-    //     if (currentEditingStaffEvent) {
-    //         valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00);
-    //         descAjusteCustoOriginal = currentEditingStaffEvent.descajustecusto || '';
-    //         statusAjusteCustoOriginal = currentEditingStaffEvent.statusajustecusto || '';
-    //     }
-
-    //     if (!isCheckedBeforeSwal) {
-    //         // Lógica para quando o usuário desmarca a caixa
-    //         if (statusAjusteCustoOriginal !== 'Pendente') {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: `Não é possível remover o Ajuste de Custo pois seu status é "${statusAjusteCustoOriginal}".`,
-    //                 icon: 'error',
-    //                 confirmButtonColor: '#3085d6',
-    //                 confirmButtonText: 'Ok'
-    //             }).then(() => {
-    //                 ajusteCustocheck.checked = true;
-    //                 ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //                 ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //                 campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
-
-    //                 // Exibe os campos novamente
-    //                 campoAjusteCusto.style.display = 'block';
-    //                 ajusteCustoTextarea.style.display = 'block';
-    //                 campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //                 calcularValorTotal();
-    //             });
-    //         } else if (valorAjusteCustoOriginal > 0) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: 'Você tem um valor preenchido para o Ajuste de Custo. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-    //                 icon: 'warning',
-    //                 showCancelButton: true,
-    //                 confirmButtonColor: '#3085d6',
-    //                 cancelButtonColor: '#d33',
-    //                 confirmButtonText: 'Sim, continuar!',
-    //                 cancelButtonText: 'Não, cancelar'
-    //             }).then((result) => {
-    //                 if (result.isConfirmed) {
-    //                     ajusteCustocheck.checked = false;
-    //                     campoAjusteCusto.style.display = 'none';
-    //                     ajusteCustoTextarea.style.display = 'none';
-    //                     campoStatusAjusteCusto.style.display = 'none';
-    //                     ajusteCustoInput.value = '0,00';
-    //                     ajusteCustoTextarea.value = '';
-    //                     campoStatusAjusteCusto.value = '';
-    //                     calcularValorTotal();
-    //                 } else {
-    //                     ajusteCustocheck.checked = true;
-    //                     ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //                     ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //                     campoStatusajusteCusto.value = statusAjusteCustoOriginal;
-
-    //                     // Exibe os campos novamente
-    //                     campoAjusteCusto.style.display = 'block';
-    //                     ajusteCustoTextarea.style.display = 'block';
-    //                     campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //                     calcularValorTotal();
-    //                 }
-    //             });
-    //         } else {
-    //             // Se não há valor e o status é pendente, simplesmente desmarque
-    //             campoAjusteCusto.style.display = 'none';
-    //             ajusteCustoTextarea.style.display = 'none';
-    //             campoStatusAjusteCusto.style.display = 'none';
-    //             ajusteCustoInput.value = '0,00';
-    //             ajusteCustoTextarea.value = '';
-    //             campoStatusAjusteCusto.value = '';
-    //             calcularValorTotal();
-    //         }
-    //     } else {
-    //         // Lógica padrão quando o usuário marca a caixa
-    //         campoAjusteCusto.style.display = 'block';
-    //         ajusteCustoTextarea.style.display = 'block';
-    //         campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //         // Os valores já foram definidos no início do listener
-    //         ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //         ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //         campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
-
-    //         calcularValorTotal();
-    //     }
-    // });
-
-    // const selectCaixinha = document.getElementById('selectStatusCaixinha');
-
-    // if (selectCaixinha) {
-    //     selectCaixinha.addEventListener('change', () => {
-    //         aplicarCorNoSelect(selectCaixinha);
-    //         statusCaixinhaInput.value = selectStatusCaixinha.value;
-    //         console.log("Status de Caixinha sincronizado para:", statusCaixinhaInput.value);
-    //     });
-    // }
-
-    // caixinhaInput.addEventListener('change', () => {
-    //     let valor = caixinhaInput.value.replace(',', '.');
-    //     if (!isNaN(parseFloat(valor))) {
-    //         caixinhaInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
-    //     } else {
-    //         caixinhaInput.value = '0,00';
-    //     }
-    // });
-
-    // caixinhacheck.addEventListener('change', (e) => {       
-
-    //     // Assegura que o campo de valor e a descrição sejam acessados corretamente
-    //     const caixinhaInput = document.getElementById('caixinha');
-    //     const descCaixinhaTextarea = document.getElementById('descCaixinha');
-    //     const campoStatusCaixinha = document.getElementById('statusCaixinha');
-
-    //     // Inicia com valores padrão para o caso de novo cadastro
-    //     let valorCaixinhaOriginal = 0;
-    //     let descCaixinhaOriginal = '';
-    //     let statusCaixinhaOriginal = '';
-
-    //     // Se estiver em modo de edição, sobrescreve com os valores originais
-    //     if (currentEditingStaffEvent) {
-    //         valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
-    //         descCaixinhaOriginal = currentEditingStaffEvent.desccaixinha || '';
-    //         statusCaixinhaOriginal = currentEditingStaffEvent.statuscaixinha || '';
-    //     }
-
-    //     const isCheckedBeforeSwal = caixinhacheck.checked;
-    //     console.log("CAIXINHA CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusCaixinha.value, statusCaixinhaOriginal);
-
-    //     if (!isCheckedBeforeSwal) {
-    //         // Lógica para quando o usuário desmarca a caixa
-    //         if ((statusCaixinhaOriginal !== 'Pendente') && (statusCaixinhaOriginal !== '') && (statusCaixinhaOriginal !== null)) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: `Não é possível remover a Caixinha pois seu status é "${statusCaixinhaOriginal}".`,
-    //                 icon: 'error',
-    //                 confirmButtonColor: '#3085d6',
-    //                 confirmButtonText: 'Ok'
-    //             }).then(() => {
-    //                 caixinhacheck.checked = true;
-    //                 caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //                 descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //                 campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //                 // Exibe os campos novamente
-    //                 campoCaixinha.style.display = 'block';
-    //                 descCaixinhaTextarea.style.display = 'block';
-    //                 campoPgtoCaixinha.style.display = 'block';
-    //                 campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-
-    //                 calcularValorTotal();
-    //             });
-    //         } else if (valorCaixinhaOriginal > 0) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: 'Você tem um valor preenchido para o Caixinha. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-    //                 icon: 'warning',
-    //                 showCancelButton: true,
-    //                 confirmButtonColor: '#3085d6',
-    //                 cancelButtonColor: '#d33',
-    //                 confirmButtonText: 'Sim, continuar!',
-    //                 cancelButtonText: 'Não, cancelar'
-    //             }).then((result) => {
-    //                 if (result.isConfirmed) {
-    //                     caixinhacheck.checked = false;
-    //                     campoCaixinha.style.display = 'none';
-    //                     descCaixinhaTextarea.style.display = 'none';
-    //                     campoStatusCaixinha.style.display = 'none';
-    //                     campoPgtoCaixinha.style.display = 'none';
-    //                     caixinhaInput.value = '0,00';
-    //                     descCaixinhaTextarea.value = '';
-    //                     campoStatusCaixinha.value = '';
-    //                     calcularValorTotal();
-    //                 } else {
-    //                     caixinhacheck.checked = true;
-    //                     caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //                     descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //                     campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //                     // Exibe os campos novamente
-    //                     campoCaixinha.style.display = 'block';
-    //                     descCaixinhaTextarea.style.display = 'block';
-    //                     campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-    //                     campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-    //                     calcularValorTotal();
-    //                 }
-    //             });
-    //         } else {
-    //             // Se não há valor e o status é pendente, simplesmente desmarque
-    //             campoCaixinha.style.display = 'none';
-    //             descCaixinhaTextarea.style.display = 'none';
-    //             campoStatusCaixinha.style.display = 'none';
-    //             campoPgtoCaixinha.style.display = 'none';
-    //             caixinhaInput.value = '0,00';
-    //             descCaixinhaTextarea.value = '';
-    //             campoStatusCaixinha.value = '';
-    //             calcularValorTotal();
-    //         }
-    //     } else {
-    //         // Lógica padrão quando o usuário marca a caixa
-    //         campoCaixinha.style.display = 'block';
-    //         descCaixinhaTextarea.style.display = 'block';
-    //         campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-    //         campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-    //         // Os valores já foram definidos no início do listener
-    //         caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //         descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //         campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //         calcularValorTotal();
-    //     }
-    // });
-
-        const cacheBaseLiberado = () => {
-            const selectStatus = document.getElementById("selectStatusCustoFechado")?.value;
-            const inputStatus = document.getElementById("statusCustoFechadoTexto")?.value;
-            
-            const status = ((selectStatus && selectStatus !== "none") ? selectStatus : (inputStatus || "")).trim();
-            
-            console.log("🔍 [Trava Segurança] Status atual:", status);
-
-            // Se o status for VAZIO ou "none", significa que é um NOVO registro 
-            // ou o usuário ainda está preenchendo. Vamos LIBERAR.
-            if (status === "" || status === "none") {
-                return true; 
-            }
-
-            // Se o status já existe e é impeditivo, aí sim BLOQUEIA.
-            if (status === "Pendente" || status === "Rejeitado") {
-                return false; 
-            }
-
-            // Para qualquer outro status (Autorizado, Pago, etc), LIBERA.
-            return true;
-        };
-
-        // 1. Lógica para Ajuste de Custo
     // 1. Lógica para Ajuste de Custo (Corrigida para níveis de acesso)
     ajusteCustocheck.addEventListener('change', async (e) => {
         const isChecked = ajusteCustocheck.checked;
@@ -3450,6 +3186,81 @@ async function verificaStaff() {
         }
         calcularValorTotal();
     });
+
+    // 2. LISTENER DO CHECKBOX (Mais limpo)
+// ajusteCustocheck.addEventListener('change', async (e) => {
+//     const isChecked = ajusteCustocheck.checked;
+//     const textarea = document.getElementById('descAjusteCusto');
+//     const wrapperStatus = document.getElementById('campoStatusAjusteCusto');
+//     const inputHidden = document.getElementById('statusajustecusto');
+
+//     // TRAVA DE SEGURANÇA
+//     if (isChecked && !cacheBaseLiberado()) {
+//         e.preventDefault();
+//         ajusteCustocheck.checked = false;
+//         return Swal.fire({
+//             icon: 'warning',
+//             title: 'Solicitação Bloqueada',
+//             text: 'Você não pode adicionar Ajuste de Custo enquanto o Cachê Base estiver Pendente.'
+//         });
+//     }
+
+//     let vOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) : 0;
+//     let dOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.descajustecusto || '' : '';
+//     let sOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.statusajustecusto || 'Pendente' : 'Pendente';
+
+//     if (!isChecked) {
+//         // Bloqueio de remoção se já estiver aprovado/pago
+//         if (sOriginal !== 'Pendente' && sOriginal !== '') {
+//             e.preventDefault();
+//             ajusteCustocheck.checked = true;
+//             return Swal.fire('Erro!', `Status "${sOriginal}" não permite remoção.`, 'error');
+//         }
+        
+//         // Esconde e zerar
+//         [campoAjusteCusto, textarea, wrapperStatus].forEach(el => { if(el) el.style.display = 'none'; });
+//         ajusteCustoInput.value = '0,00';
+//         textarea.value = '';
+//         if (inputHidden) inputHidden.value = ''; 
+//     } else {
+//         // Mostra e restaura
+//         [campoAjusteCusto, textarea, wrapperStatus].forEach(el => { if(el) el.style.display = 'block'; });
+        
+//         if (inputHidden) inputHidden.value = sOriginal;
+
+//         // Gerencia permissão master para editar status
+//         alternarStatusPorPermissao('StatusAjusteCusto', temPermissaoMaster);
+
+//         ajusteCustoInput.value = vOriginal.toFixed(2).replace('.', ',');
+//         textarea.value = dOriginal;
+//     }
+
+//     // O cálculo é soberano: ele olha o checkbox e o status e define o total.
+//     calcularValorTotal();
+// });
+
+    const cacheBaseLiberado = () => {
+            const selectStatus = document.getElementById("selectStatusCustoFechado")?.value;
+            const inputStatus = document.getElementById("statusCustoFechadoTexto")?.value;
+            
+            const status = ((selectStatus && selectStatus !== "none") ? selectStatus : (inputStatus || "")).trim();
+            
+            console.log("🔍 [Trava Segurança] Status atual:", status);
+
+            // Se o status for VAZIO ou "none", significa que é um NOVO registro 
+            // ou o usuário ainda está preenchendo. Vamos LIBERAR.
+            if (status === "" || status === "none") {
+                return true; 
+            }
+
+            // Se o status já existe e é impeditivo, aí sim BLOQUEIA.
+            if (status === "Pendente" || status === "Rejeitado") {
+                return false; 
+            }
+
+            // Para qualquer outro status (Autorizado, Pago, etc), LIBERA.
+            return true;
+        };
 
     // 2. Lógica para Caixinha
     // 2. Lógica para Caixinha (Sincronizada com Nível de Acesso e Trava)
@@ -4264,11 +4075,11 @@ async function verificaStaff() {
             formData.append('idmontagem', idMontagem);
             formData.append('nmlocalmontagem', nmLocalMontagem);
             formData.append('pavilhao', pavilhao);
-            formData.append('vlrcache', vlrCusto);
-            formData.append('vlrajustecusto', ajusteCusto);
-            formData.append('vlrtransporte', transporte);
-            formData.append('vlralimentacao', alimentacao);
-            formData.append('vlrcaixinha', caixinha);
+            formData.append('vlrcache', parseFloat(String(vlrCusto || 0).replace(/\./g, '').replace(',', '.')) || 0);
+            formData.append('vlrajustecusto', parseFloat(String(ajusteCusto || 0).replace(/\./g, '').replace(',', '.')) || 0);
+            formData.append('vlrtransporte', parseFloat(String(transporte || 0).replace(/\./g, '').replace(',', '.')) || 0);
+            formData.append('vlralimentacao', parseFloat(String(alimentacao || 0).replace(/\./g, '').replace(',', '.')) || 0);
+            formData.append('vlrcaixinha', parseFloat(String(caixinha || 0).replace(/\./g, '').replace(',', '.')) || 0);
             formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
             formData.append('datasevento', JSON.stringify(periodoDoEvento));
             formData.append('vlrtotal', total.toString());
@@ -7743,7 +7554,14 @@ function verificarStatusCache() {
     if (!isFechado && !isLiberado) return true;
 
     // Se é Fechado/Liberado, verifica o status
-    const statusCache = document.getElementById('statusCustoFechado')?.value || '';
+    const inputStatus = document.getElementById('statusCustoFechadoTexto')?.value || '';
+    const selectStatus = document.getElementById('selectStatusCustoFechado')?.value || '';
+
+    // ✅ Pega o que estiver visível/preenchido, ignorando 'none'
+    const statusCache = (selectStatus && selectStatus !== 'none') 
+        ? selectStatus 
+        : inputStatus;
+
     const statusUpper = statusCache.trim().toUpperCase();
 
     if (statusUpper === 'PENDENTE' || statusUpper === '') {
@@ -8704,13 +8522,13 @@ function calcularValorTotal() {
     document.getElementById('vlrTotalHidden').value = valorLimpo;
 
     const valorFormatTotCache = 'R$ ' + totalCache.toFixed(2).replace('.', ',');
-    const valorLimpoCache = total.toFixed(2);
+    const valorLimpoCache = totalCache.toFixed(2);
 
     document.getElementById('vlrTotalCache').value = valorFormatTotCache;
     document.getElementById('vlrTotalCacheHidden').value = valorLimpoCache;
 
     const valorFormatTotAjdCusto = 'R$ ' + totalAjdCusto.toFixed(2).replace('.', ',');
-    const valorLimpoAjdCusto = total.toFixed(2);
+    const valorLimpoAjdCusto = totalAjdCusto.toFixed(2);
 
     document.getElementById('vlrTotalAjdCusto').value = valorFormatTotAjdCusto;
     document.getElementById('vlrTotalAjdCustoHidden').value = valorLimpoAjdCusto;

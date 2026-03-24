@@ -385,335 +385,6 @@ router.get("/obsfuncao", async (req, res) => {
   }
 });
 
-// router.post(
-//   "/",
-//   autenticarToken(),
-//   contextoEmpresa,
-//   verificarPermissao("Orcamentos", "cadastrar"),
-//   logMiddleware("Orcamentos", {
-//     buscarDadosAnteriores: async (req) => ({ dadosanteriores: null, idregistroalterado: null }),
-//   }),
-//   async (req, res) => {
-//     const client = await pool.connect();
-//     console.log("🔥 Rota /orcamentos acessada", req.body); // Removido 'req' para evitar logar objeto grande
-
-//     const {
-//       status,
-//       idCliente,
-//       idEvento,
-//       idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
-//       infraMontagem,
-//       dtIniInfraMontagem,
-//       dtFimInfraMontagem,
-//       dtIniMontagem,
-//       dtFimMontagem,
-//       dtIniMarcacao,
-//       dtFimMarcacao,
-//       dtIniRealizacao,
-//       dtFimRealizacao,
-//       dtIniDesmontagem,
-//       dtFimDesmontagem,
-//       dtIniDesmontagemInfra,
-//       dtFimDesmontagemInfra,
-//       obsItens,
-//       obsProposta,
-//       totGeralVda,
-//       totGeralCto,
-//       totAjdCusto,
-//       lucroBruto,
-//       percentLucro,
-//       desconto,
-//       percentDesconto,
-//       acrescimo,
-//       percentAcrescimo,
-//       lucroReal,
-//       percentLucroReal,
-//       vlrImposto,
-//       percentImposto,
-//       vlrCliente,
-//       idsPavilhoes,
-//       nomenclatura,
-//       formaPagamento,
-//       edicao,
-//       geradoAnoPosterior,
-//       dtIniPreEvento,
-//       dtFimPreEvento,
-//       dtIniPosEvento,
-//       dtFimPosEvento,
-//       avisoReajusteTexto,
-//       nrOrcamentoOriginal,
-//       vlrCtoFixo,
-//       percentCtoFixo,
-//       itens,
-//       contratarstaff
-//     } = req.body;
-
-//     const idempresa = req.idempresa;
-
-//     if (!idCliente) {
-//       return res.status(400).json({
-//         error: "Erro de validação.",
-//         detail: "O campo 'Cliente' é obrigatório e não pode ser nulo.",
-//       });
-//     }
-//     if (!idEvento) {
-//       return res.status(400).json({
-//         error: "Erro de validação.",
-//         detail: "O campo 'Evento' é obrigatório e não pode ser nulo.",
-//       });
-//     }
-//     if (!idMontagem) {
-//       return res.status(400).json({
-//         error: "Erro de validação.",
-//         detail: "O campo 'Montagem' é obrigatório e não pode ser nulo.",
-//       });
-//     }
-
-//     try {
-//       await client.query("BEGIN");
-
-//       const insertOrcamentoQuery = `
-//                 INSERT INTO orcamentos (
-//                     Status, idcliente, idevento, idmontagem,
-//                     inframontagem, dtiniinframontagem, dtfiminframontagem,
-//                     dtinimontagem, dtfimmontagem, dtinimarcacao, dtfimmarcacao,
-//                     dtinirealizacao, dtfimrealizacao, dtinidesmontagem, dtfimdesmontagem,
-//                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
-//                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
-//                     desconto, percentdesconto, acrescimo, percentacrescimo,
-//                     lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
-//                     formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento,
-//                     dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff
-//                 ) VALUES (
-//                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-//                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-//                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 
-//                     $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-//                     $41, $42, $43, $44, $45, $46
-//                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
-//             `;
-
-//       // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
-//       const orcamentoValues = [
-//         status,
-//         idCliente,
-//         idEvento,
-//         idMontagem,
-//         infraMontagem,
-//         dtIniInfraMontagem,
-//         dtFimInfraMontagem,
-//         dtIniMontagem,
-//         dtFimMontagem,
-//         dtIniMarcacao,
-//         dtFimMarcacao,
-//         dtIniRealizacao,
-//         dtFimRealizacao,
-//         dtIniDesmontagem,
-//         dtFimDesmontagem,
-//         dtIniDesmontagemInfra,
-//         dtFimDesmontagemInfra,
-//         obsItens,
-//         obsProposta,
-//         totGeralVda,
-//         totGeralCto,
-//         totAjdCusto,
-//         lucroBruto,
-//         percentLucro,
-//         desconto,
-//         percentDesconto,
-//         acrescimo,
-//         percentAcrescimo,
-//         lucroReal,
-//         percentLucroReal,
-//         vlrImposto,
-//         percentImposto,
-//         vlrCliente,
-//         nomenclatura,
-//         formaPagamento,
-//         edicao,
-//         geradoAnoPosterior,
-//         dtIniPreEvento,
-//         dtFimPreEvento,
-//         dtIniPosEvento,
-//         dtFimPosEvento,
-//         avisoReajusteTexto,
-//         nrOrcamentoOriginal || null,
-//         vlrCtoFixo,
-//         percentCtoFixo,
-//         contratarstaff
-//       ];
-
-//       const resultOrcamento = await client.query(
-//         insertOrcamentoQuery,
-//         orcamentoValues
-//       );
-//       const { idorcamento, nrorcamento } = resultOrcamento.rows[0]; // Agora desestrutura ambos
-
-//       if (nrOrcamentoOriginal) {
-//         try {
-//           const updateOriginalQuery = `
-//                   UPDATE orcamentos
-//                   SET geradoanoposterior = TRUE
-//                   WHERE idorcamento = $1
-//                   RETURNING idorcamento;
-//               `;
-//           const originalResult = await client.query(updateOriginalQuery, [
-//             nrOrcamentoOriginal,
-//           ]);
-//           if (originalResult.rowCount === 0) {
-//             console.warn(
-//               `[WARNING] Orçamento Original ID ${nrOrcamentoOriginal} não encontrado para ser marcado como gerado.`
-//             );
-//             // A falha em marcar o original não deve impedir o novo orçamento de ser salvo.
-//           } else {
-//             console.log(
-//               `[GERAR_ESPELHO] Marcado Original ID ${nrOrcamentoOriginal} como gerado.`
-//             );
-//           }
-//         } catch (updateError) {
-//           console.error(
-//             "Falha Crítica ao marcar o orçamento original:",
-//             updateError.message
-//           );
-//           // A falha aqui não faz um ROLLBACK completo, pois está dentro de um try/catch.
-//           // Para ser 100% seguro, você poderia forçar um throw aqui se esta marcação for CRÍTICA.
-//         }
-//       }
-      
-
-//       if (
-//         idsPavilhoes &&
-//         Array.isArray(idsPavilhoes) &&
-//         idsPavilhoes.length > 0
-//       ) {
-//         for (const idPavilhao of idsPavilhoes) {
-//           const insertOrcamentoPavilhaoQuery = `
-//             INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao)
-//             VALUES ($1, $2);
-//           `;
-//           await client.query(insertOrcamentoPavilhaoQuery, [
-//             idorcamento,
-//             idPavilhao,
-//           ]);
-//         }
-//       }
-
-//       // 2. Processar os Itens do Orçamento
-//      if (itens && itens.length > 0) {
-//         for (const item of itens) {
-//           // Se este for um orçamento gerado para o ano seguinte (espelho),
-//           // re-hidratar valores canônicos (VDA / CTO) a partir das tabelas mestres
-//           // para garantir que o espelho use os valores atuais do sistema.
-//           if (geradoAnoPosterior === true || nrOrcamentoOriginal) {
-//             try {
-//               // Valores iniciais vindos do payload (fallback)
-//               let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
-//               let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
-
-//               // 1) Função
-//               if (item.idfuncao) {
-//                 const funcRes = await client.query(
-//                   `SELECT f.vdafuncao AS vda, cf.ctofuncaobase AS cto
-//                    FROM funcao f
-//                    LEFT JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
-//                    WHERE f.idfuncao = $1 LIMIT 1`,
-//                   [item.idfuncao]
-//                 );
-//                 if (funcRes.rows && funcRes.rows[0]) {
-//                   vlrdiaria = parseFloat(funcRes.rows[0].vda) || vlrdiaria;
-//                   ctodiaria = parseFloat(funcRes.rows[0].cto) || ctodiaria;
-//                 }
-//               }
-
-//               // 2) Equipamento
-//               else if (item.idequipamento) {
-//                 const eqRes = await client.query(
-//                   `SELECT e.vdaequip AS vda, e.ctoequip AS cto
-//                    FROM equipamentos e
-//                    INNER JOIN equipamentoempresas ee ON ee.idequip = e.idequip
-//                    WHERE e.idequip = $1 AND ee.idempresa = $2 LIMIT 1`,
-//                   [item.idequipamento, idempresa]
-//                 );
-//                 if (eqRes.rows && eqRes.rows[0]) {
-//                   vlrdiaria = parseFloat(eqRes.rows[0].vda) || vlrdiaria;
-//                   ctodiaria = parseFloat(eqRes.rows[0].cto) || ctodiaria;
-//                 }
-//               }
-
-//               // 3) Suprimento
-//               else if (item.idsuprimento) {
-//                 const supRes = await client.query(
-//                   `SELECT s.vdasup AS vda, s.ctosup AS cto
-//                    FROM suprimentos s
-//                    INNER JOIN suprimentoempresas se ON se.idsup = s.idsup
-//                    WHERE s.idsup = $1 AND se.idempresa = $2 LIMIT 1`,
-//                   [item.idsuprimento, idempresa]
-//                 );
-//                 if (supRes.rows && supRes.rows[0]) {
-//                   vlrdiaria = parseFloat(supRes.rows[0].vda) || vlrdiaria;
-//                   ctodiaria = parseFloat(supRes.rows[0].cto) || ctodiaria;
-//                 }
-//               }
-
-//               // Recalcular totais com base nas quantidades (mantendo desconto/acréscimo do item)
-//               const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
-//               const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
-//               const descontoItem = parseFloat(item.descontoitem || 0) || 0;
-//               const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
-
-//               const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
-//               const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
-//               const vlrajd = parseFloat(item.vlrajdctoalimentacao || 0) + parseFloat(item.vlrajdctotransporte || 0);
-//               const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
-//               const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
-
-//               // Atualiza o objeto item para ser inserido com valores atualizados
-//               item.vlrdiaria = vlrdiaria;
-//               item.ctodiaria = ctodiaria;
-//               item.totvdadiaria = totvdadiaria;
-//               item.totctodiaria = totctodiaria;
-//               item.totajdctoitem = totajdctoitem;
-//               item.totgeralitem = totgeralitem;
-//             } catch (err) {
-//               console.warn('[GERAR_ESPELHO] Falha ao re-hidratar valores canônicos para item:', err.message);
-//               // Em caso de falha, prossegue com os valores já presentes no item
-//             }
-//           }
-
-//           const insertItemQuery = `
-//             INSERT INTO orcamentoitens (
-//               idorcamento, enviarnaproposta, categoria, produto, qtditens, qtddias, 
-//               vlrbase, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
-//               idfuncao, idequipamento, idsuprimento, descontoitem, percentdescontoitem, 
-//               acrescimoitem, percentacrescimoitem, totgeralitem, setor, periododiariasinicio, periododiariasfim
-//             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-//           `;
-
-//           await client.query(insertItemQuery, [
-//             idorcamento, item.enviarnaproposta, item.categoria, item.produto, item.qtditens, item.qtddias,
-//             vlrBaseFinal, item.vlrdiaria, item.totvdadiaria, ctoFinal, item.totctodiaria,
-//             item.idfuncao, item.idequipamento, item.idsuprimento, item.descontoitem, item.percentdescontoitem,
-//             item.acrescimoitem, item.percentacrescimoitem, item.totgeralitem, item.setor, item.periododiariasinicio, item.periododiariasfim
-//           ]);
-//         }
-//       }
-
-//       await client.query("COMMIT");
-
-//       res.locals.acao = "cadastrou";
-//       res.locals.idregistroalterado = idorcamento;
-//       res.locals.idusuarioAlvo = null;
-
-//       res.status(201).json({ message: "Sucesso!", id: idorcamento, nrOrcamento: nrorcamento });
-//     } catch (error) {
-//       await client.query("ROLLBACK");
-//       res.status(500).json({ error: "Erro ao salvar.", detail: error.message });
-//     } finally {
-//       client.release();
-//     }
-//   }
-// );
-
 
 router.post(
   "/",
@@ -1086,6 +757,32 @@ router.post(
       res.locals.acao = "cadastrou";
       res.locals.idregistroalterado = idorcamento;
       res.locals.idusuarioAlvo = null;
+
+      res.locals.dadosNovos = {
+        idorcamento,
+        nrorcamento,
+        status,
+        idCliente,
+        idEvento,
+        idMontagem,
+        edicao,
+        totGeralVda,
+        totGeralCto,
+        vlrCliente,
+        desconto,
+        acrescimo,
+        lucroBruto,
+        percentLucro,
+        lucroReal,
+        percentLucroReal,
+        vlrImposto,
+        percentImposto,
+        nomenclatura,
+        formaPagamento,
+        contratarstaff,
+        qtdItens: itens?.length ?? 0,
+      };
+
 
       // Retorne o nrOrcamento gerado para o frontend
       res
@@ -1519,19 +1216,42 @@ const uploadContratosMiddleware = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 }).fields([{ name: "contrato", maxCount: 1 }]);
 
-router.post("/uploadContratoManual", (req, res) => {
-  uploadContratosMiddleware(req, res, async (err) => {
-    try {
-      if (err) {
-        if (err instanceof multer.MulterError)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: `Erro do Multer: ${err.message}`,
-            });
+const handleMulterError = (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({ success: false, message: `Erro do Multer: ${err.message}` });
+    }
+    if (err) {
         return res.status(400).json({ success: false, message: err.message });
+    }
+    next();
+};
+
+router.post("/uploadContratoManual", 
+  verificarPermissao('Orcamentos', 'alterar'),
+    uploadContratosMiddleware, // middleware direto, não callback
+    handleMulterError, 
+    logMiddleware('Orcamentos', {
+      buscarDadosAnteriores: async (req) => {
+          const idOrcamento = req.query.orcamento;
+          const idempresa = req.idempresa;
+          if (!idOrcamento) return null;
+          
+          const result = await pool.query(
+              `SELECT o.nrorcamento, o.contratourl 
+              FROM orcamentos o
+              INNER JOIN orcamentoempresas oe ON oe.nrorcamento = o.nrorcamento
+              WHERE o.nrorcamento = $1 AND oe.idempresa = $2`,
+              [idOrcamento, idempresa]
+          );
+          return result.rows[0] ? { 
+              dadosanteriores: result.rows[0], 
+              idregistroalterado: idOrcamento 
+          } : null;
       }
+  }),
+   async (req, res) => {
+    try {
+      
 
       if (!req.files || !req.files.contrato)
         return res
@@ -1540,6 +1260,7 @@ router.post("/uploadContratoManual", (req, res) => {
 
       const arquivo = req.files.contrato[0];
       const idOrcamento = req.query.orcamento;
+      const idempresa = req.idempresa;
 
       if (!idOrcamento)
         return res
@@ -1559,14 +1280,20 @@ router.post("/uploadContratoManual", (req, res) => {
 
       // 🔹 Atualiza no banco de dados
       await pool.query(
-        `UPDATE orcamentos 
-                 SET contratourl = $1, dataatualizacao = NOW()
-                 WHERE nrorcamento = $2`,
-        [contratourl, idOrcamento]
+          `UPDATE orcamentos o
+          SET contratourl = $1, dataatualizacao = NOW()
+          FROM orcamentoempresas oe
+          WHERE o.nrorcamento = $2 AND oe.nrorcamento = o.nrorcamento AND oe.idempresa = $3`,
+          [contratourl, idOrcamento, idempresa]
       );
 
       // 🔹 Retorno JSON
       res.setHeader("Content-Type", "application/json");
+
+      res.locals.acao = 'atualizou';
+      res.locals.idregistroalterado = idOrcamento;
+      res.locals.dadosnovos = { contratourl, fileName: arquivo.filename };
+
       return res.status(200).json({
         success: true,
         message: "Contrato enviado e salvo com sucesso!",
@@ -1582,12 +1309,29 @@ router.post("/uploadContratoManual", (req, res) => {
           message: "Erro ao processar upload ou salvar no banco.",
         });
     }
-  });
+  //});
 });
 
-router.post("/salvarContratoUrl", async (req, res) => {
+router.post("/salvarContratoUrl", 
+  verificarPermissao('Orcamentos', 'alterar'), // ❌ Estava faltando
+  logMiddleware('Orcamentos', { // ❌ Estava faltando
+    buscarDadosAnteriores: async (req) => {
+      const idorcamento = req.body.idorcamento;
+      const idempresa = req.idempresa;
+      if (!idorcamento) return null;
+      const result = await pool.query(
+        `SELECT o.nrorcamento, o.contratourl 
+         FROM orcamentos o
+         INNER JOIN orcamentoempresas oe ON oe.nrorcamento = o.nrorcamento
+         WHERE o.nrorcamento = $1 AND oe.idempresa = $2`,
+        [idorcamento, idempresa]
+      );
+      return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idorcamento } : null;
+    }
+  }),async (req, res) => {
   try {
     const { idorcamento, contratourl } = req.body;
+    const idempresa = req.idempresa;
 
     if (!idorcamento || !contratourl) {
       return res
@@ -1596,10 +1340,17 @@ router.post("/salvarContratoUrl", async (req, res) => {
     }
 
     await pool.query(
-      "UPDATE orcamentos SET contratourl = $1, dataatualizacao = NOW() WHERE nrorcamento = $2",
-      [contratourl, idorcamento]
+        `UPDATE orcamentos o
+        SET contratourl = $1, dataatualizacao = NOW()
+        FROM orcamentoempresas oe
+        WHERE o.nrorcamento = $2 AND oe.nrorcamento = o.nrorcamento AND oe.idempresa = $3`,
+        [contratourl, idorcamento, idempresa]
     );
 
+    res.locals.acao = 'atualizou'; // ❌ Estava faltando
+    res.locals.idregistroalterado = idorcamento;
+    res.locals.dadosnovos = { contratourl };
+    
     return res.json({
       success: true,
       message: "Contrato vinculado com sucesso!",
@@ -2247,6 +1998,31 @@ router.put("/:id",
 
       res.locals.acao = 'atualizou';
       res.locals.idregistroalterado = idOrcamento;
+      res.locals.dadosNovos = {
+        idorcamento: idOrcamento,
+        status,
+        idCliente,
+        idEvento,
+        idMontagem,
+        edicao,
+        totGeralVda,
+        totGeralCto,
+        vlrCliente,
+        desconto,
+        acrescimo,
+        lucroBruto,
+        percentLucro,
+        lucroReal,
+        percentLucroReal,
+        vlrImposto,
+        percentImposto,
+        nomenclatura,
+        formaPagamento,
+        contratarstaff,
+        qtdItens: itens?.length ?? 0,
+      };
+
+
 
       res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
     } catch (error) {
@@ -2313,6 +2089,9 @@ router.put(
 
       res.locals.acao = "fechou"; // Nova ação para o log
       res.locals.idregistroalterado = idOrcamento;
+      res.locals.dadosNovos = {
+        status: 'F'
+      };
 
       res.status(200).json({ message: "Orçamento fechado com sucesso!" });
     } catch (error) {
@@ -2338,12 +2117,19 @@ router.delete(
       const { idorcamento, idorcamentoitem } = req.params;
       const client = await pool.connect();
       try {
+        //esse salva apenas o item que está sendo excluido
+        // const result = await client.query(
+        //   `SELECT * FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = $2;`,
+        //   [idorcamento, idorcamentoitem]
+        // );
+
+        //essa salva todos os itens antes de deletar
         const result = await client.query(
-          `SELECT * FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = $2;`,
-          [idorcamento, idorcamentoitem]
+          `SELECT * FROM orcamentoitens WHERE idorcamento = $1`,
+          [idorcamento] // ✅ Todos os itens, não só o deletado
         );
         return {
-          dadosanteriores: result.rows[0] || null,
+          dadosanteriores: { itens: result.rows },
           idregistroalterado: idorcamentoitem,
         };
       } catch (error) {
@@ -2413,9 +2199,23 @@ router.delete(
 
       await client.query("COMMIT");
 
+      const client2 = await pool.connect();
+      let itensRestantes = { rows: [] };
+      try {
+        itensRestantes = await client2.query(
+          `SELECT * FROM orcamentoitens WHERE idorcamento = $1`,
+          [idorcamento]
+        );
+      } finally {
+        client2.release();
+      }
+
       res.locals.acao = "deletou";
       res.locals.idregistroalterado = idorcamentoitem;
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosNovos = {
+        itens: itensRestantes.rows
+      };
 
       res
         .status(200)
@@ -2442,19 +2242,26 @@ router.patch(
   verificarPermissao("Orcamentos", "alterar"),
   logMiddleware("Orcamentos", {
     buscarDadosAnteriores: async (req) => {
-      const idOrcamento = req.params.id;
+      const idOrcamento = req.params.idOrcamento;
       const client = await pool.connect();
       try {
         const result = await client.query(
           "SELECT status FROM orcamentos WHERE idorcamento = $1",
           [idOrcamento]
         );
+        // return {
+        //   dadosanteriores: result.rows[0]
+        //     ? { status: result.rows[0].status }
+        //     : null,
+        //   idregistroalterado: idOrcamento,
+        // };
         return {
           dadosanteriores: result.rows[0]
-            ? { status: result.rows[0].status }
+            ? { geradoanoposterior: result.rows[0].geradoanoposterior }
             : null,
           idregistroalterado: idOrcamento,
         };
+
       } finally {
         client.release();
       }
@@ -2548,8 +2355,11 @@ router.patch(
       console.log("[BACKEND PATCH] 4. COMMIT OK. Enviando resposta 200.");
 
       // Configuração para o log (se o logMiddleware estiver ativo)
-      res.locals.acao = "alterou";
-      // ... restante da configuração de res.locals ...
+      res.locals.acao = "espelhou";
+      res.locals.idregistroalterado = idorcamento;
+      res.locals.dadosNovos = {
+        geradoanoposterior: geradoAnoPosterior // ✅ Só o campo que mudou
+      };
 
       res
         .status(200)
@@ -2651,8 +2461,11 @@ router.patch(
       await client.query("COMMIT");
 
       // Configuração para o log (logMiddleware)
-      res.locals.acao = "alterou o status";
-      res.locals.idregistroalterado = idorcamento;
+      res.locals.acao = "atualizou status";
+      res.locals.idregistroalterado = idorcamento;   
+      res.locals.dadosNovos = {
+        status // ✅ Só o campo que mudou
+      };
 
       res
         .status(200)

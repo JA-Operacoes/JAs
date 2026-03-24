@@ -66,6 +66,8 @@ router.put("/:id", verificarPermissao('Bancos', 'alterar'),
       buscarDadosAnteriores: async (req) => {
           const idBanco = req.params.id; 
           const idempresa = req.idempresa; 
+          
+         console.log("🔍 DEBUG buscarDadosAnteriores:", { idBanco, idempresa, headers: req.headers.idempresa });
 
           if (!idBanco) {
               return { dadosanteriores: null, idregistroalterado: null };
@@ -112,6 +114,7 @@ router.put("/:id", verificarPermissao('Bancos', 'alterar'),
       res.locals.acao = 'atualizou';
       res.locals.idregistroalterado = bancoAtualizadoId;
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = req.body;
 
       return res.json({ message: "Banco atualizado com sucesso!", bancos: result.rows[0] });
     } else {
@@ -159,6 +162,7 @@ router.post("/", verificarPermissao('Bancos', 'cadastrar'),
     res.locals.acao = 'cadastrou';
     res.locals.idregistroalterado = novoBancoId;
     res.locals.idusuarioAlvo = null;
+    res.locals.dadosnovos = req.body;
 
     res.status(201).json({ mensagem: "Banco salvo com sucesso!", bancos: novoBanco }); // Status 201 para criação
   } catch (error) {

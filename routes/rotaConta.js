@@ -263,6 +263,17 @@ router.put("/:id",
         if (result.rowCount === 0) {
             return res.status(404).json({ message: "Conta não encontrada." });
         }
+
+        res.locals.acao = 'atualizou';
+        res.locals.idregistroalterado = result.rows[0].idconta;
+        res.locals.dadosNovos = { // ✅ camelCase
+            idconta: result.rows[0].idconta,
+            nmconta: nmConta,
+            ativo,
+            codconta: codConta,
+            idplanocontas: idPlanoContas
+        };
+
         res.json({ message: "Conta atualizada com sucesso!" });
 
     } catch (error) {
@@ -301,6 +312,13 @@ router.post("/", verificarPermissao('Contas', 'cadastrar'),
         const novaConta = result.rows[0];
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = novaConta.idconta; 
+        res.locals.dadosNovos = { // ✅ camelCase
+            idconta: novaConta.idconta,
+            nmconta: nmConta,
+            ativo,
+            codconta: codConta,
+            idplanocontas: idPlanoContas
+        };
 
         res.status(201).json({ message: "Conta salva com sucesso!", conta: novaConta });
     } catch (error) {
