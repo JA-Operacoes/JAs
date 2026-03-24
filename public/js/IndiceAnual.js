@@ -284,7 +284,7 @@ async function verificaIndiceAnual() {
 
         // 2. Monta o HTML da Confirmação com os dados
         const htmlConfirmacao = `
-            <p>Você está prestes a recalcular e atualizar todos os valores da CategoriaFuncao com os seguintes índices:</p>
+            <p>Você está prestes a recalcular e atualizar todos os valores da CategoriaFunção, Função, Equipamentos e Suprimentos com os seguintes índices:</p>
             <ul style="text-align: left; list-style-type: none; padding-left: 20px;">
                 <li><strong>Ano de Referência:</strong> <b>${ano}</b></li>
                 <li><strong>Percentual Cto Vda:</strong> <b>${ctoVda}%</b></li>
@@ -653,6 +653,12 @@ function gerarTabelaRelatorio(dados) {
                     <th class="text-right">CTO Pleno Atual</th>
                     <th class="text-right">CTO Senior Original</th>
                     <th class="text-right">CTO Senior Atual</th>
+                    <th class="text-right">CTO Senior2 Original</th>
+                    <th class="text-right">CTO Senior2 Atual</th>
+                    <th class="text-right">Transp. Original</th>                    
+                    <th class="text-right">Transp. Atual</th>
+                    <th class="text-right">Alim. Original</th>
+                    <th class="text-right">Alim. Atual</th>
                     <th class="text-right">VDA Original</th>
                     <th class="text-right">VDA Atual</th>
                 </tr>
@@ -667,16 +673,22 @@ function gerarTabelaRelatorio(dados) {
                 <td>${item.descfuncao}</td>
                 <td>${item.nmcategoriafuncao}</td>
                 
-                <td class="text-right">${item.cto_base_original ? item.cto_base_original.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_base_atual ? item.cto_base_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_junior_original ? item.cto_junior_original.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_junior_atual ? item.cto_junior_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_pleno_original ? item.cto_pleno_original.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_pleno_atual ? item.cto_pleno_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_senior_original ? item.cto_senior_original.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.cto_senior_atual ? item.cto_senior_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.vda_original ? item.vda_original.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
-                <td class="text-right">${item.vda_atual ? item.vda_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
+                <td class="text-right">${formatarMoeda(item.cto_base_original)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_base_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_junior_original)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_junior_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_pleno_original)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_pleno_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_senior_original)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_senior_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_senior2_original)}</td>
+                <td class="text-right">${formatarMoeda(item.cto_senior2_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.transporte_original)}</td>
+                <td class="text-right">${formatarMoeda(item.transporte_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.alimentacao_original)}</td>
+                <td class="text-right">${formatarMoeda(item.alimentacao_atual)}</td>
+                <td class="text-right">${formatarMoeda(item.vda_original)}</td>
+                <td class="text-right">${formatarMoeda(item.vda_atual)}</td>
             </tr>
         `;
     });
