@@ -3816,6 +3816,10 @@ async function verificaStaff() {
             // =========================================================
             const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
 
+            let statusPgto = document.querySelector("#statusPgto")?.value || '';
+            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
+            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';
+
             // Status Caixinha
             if (!statusCaixinha || statusCaixinha.trim() === '') {
                 const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
@@ -3842,9 +3846,7 @@ async function verificaStaff() {
             const statusFechadoParaEnvio = nivelFoiTrocado ? null : statusFechado;
             const descCustoFechadoParaEnvio = nivelFoiTrocado ? null : descCustoFechado;
 
-            let statusPgto = document.querySelector("#statusPgto")?.value || '';
-            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
-            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';
+
 
             // =========================================================
             // 11. COMPROVANTES
