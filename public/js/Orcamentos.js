@@ -45,6 +45,7 @@ let percentualImpostoInputListener = null;
 let btnEnviarListener = null;
 let btnLimparListener = null;
 let percentualCtoFixoInputListener = null;
+let isCleaning = false; 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 
 const fp = window.flatpickr;
@@ -1921,11 +1922,16 @@ function adicionarLinhaOrc() {
   aplicarMascaraMoeda();
   limparSelects();
 }
-let isCleaning = false;
+
+
 async function adicionarLinhaAdicional(isBonificado = false) {
   // if (isCleaning) return;
     // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
-    if (isBonificado === false) { 
+    //if (isBonificado === false) { 
+    if (isCleaning) {
+      isBonificado = false; // Define como Aditivo por padrão na limpeza
+      // Pula direto para a lógica de inserção (o bloco do Swal abaixo não executa)
+    } else if (isBonificado === false) {
         const result = await Swal.fire({
             title: 'Tipo de Item Adicional',
             text: "Selecione o tipo de item que deseja adicionar:",
@@ -2204,6 +2210,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     if (typeof aplicarMascaraMoeda === "function") aplicarMascaraMoeda();
     if (typeof limparSelects === "function") limparSelects();
 }
+
 function removerLinhaOrc(botao) {
   let linha = botao.closest("tr"); // Encontra a linha mais próxima
   removerLinha(linha); // Remove a linha
@@ -3641,8 +3648,7 @@ async function verificaOrcamento() {
     }
   });
 
-  // 1. Defina a trava no topo do arquivo (fora de qualquer função)
-  let isCleaning = false; 
+  
 
   // 2. Localize e substitua a configuração do botão Limpar
   const btnLimpar = document.getElementById("Limpar");
