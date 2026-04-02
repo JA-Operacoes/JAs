@@ -4320,7 +4320,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         const datasFormatadas = datasArray.map(dataStr => {
                             if (dataStr == null) return '';
                             const dataObj = new Date(dataStr);
-                            const dataObj = new Date(dataStr);
                             
                             // Se a data for válida, formata. Se não, retorna o texto original.
                             if (!isNaN(dataObj.getTime())) {

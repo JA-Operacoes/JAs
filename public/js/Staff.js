@@ -7415,8 +7415,8 @@ async function limparCamposStaffParcial() {
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
         'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado',
-        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha',
-        'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
+        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha'//,
+        //'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
     ];
     containersParaLimpar.forEach(id => {
         const container = document.getElementById(id);
