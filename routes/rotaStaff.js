@@ -331,6 +331,146 @@ router.get('/pavilhao', async (req, res) => {
 });
 
 
+// router.post("/orcamento/consultar",
+//   async (req, res) => {
+//   console.log("Dados recebidos no backend:", req.body);
+//   const client = await pool.connect();
+//   try {
+//         const {
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             idFuncao,
+//             setor,
+//             datasEvento = [],
+//         } = req.body;
+
+//         const idempresa = req.idempresa;
+
+//         console.log("ORCAMENTO/CONSULTAR", req.body);
+
+//           if (!idEvento || !idLocalMontagem || !idFuncao) {
+//         return res.status(400).json({ 
+//             error: "Evento, Local e Função são obrigatórios." 
+//         });
+//     }
+
+//         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
+//             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
+//         }
+
+//         const query = `
+//             WITH datas_orcamento AS (
+//                 -- CTE: Gera o array de datas específico para CADA item individualmente
+//                 SELECT
+//                     oi.idorcamentoitem,
+//                     ARRAY(
+//                         SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+//                     ) AS periodos_disponiveis
+//                 FROM orcamentoitens oi
+//                 WHERE oi.idorcamentoitem IS NOT NULL
+//             )
+//             SELECT
+//                 o.status, o.idorcamento, o.contratarstaff,
+//                 -- CORREÇÃO AQUI:
+//                 -- Em vez de recalcular todas as datas do evento inteiro,
+//                 -- pegamos apenas as datas deste item específico que já calculamos na CTE.
+//                 dto.periodos_disponiveis AS datas_totais_orcadas,
+                
+//                 oi.qtditens AS quantidade_orcada, 
+//                 oi.idfuncao,         
+//                 f.descfuncao,
+//                 e.nmevento,
+//                 c.nmfantasia AS nmcliente,
+//                 lm.descmontagem AS nmlocalmontagem,
+//                 oi.setor AS setor,
+//                 (
+//                     SELECT COUNT(DISTINCT se.idfuncionario)
+//                     FROM staffeventos se
+//                     WHERE
+//                         se.idevento = o.idevento
+//                         AND se.idcliente = o.idcliente
+//                         AND se.idmontagem = o.idmontagem
+//                         AND se.idfuncao = oi.idfuncao
+//                         -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
+//                         AND se.datasevento @> to_jsonb($5::text[])
+//                 ) AS quantidade_escalada
+//             FROM
+//                 orcamentoitens oi
+//             JOIN
+//                 orcamentos o ON oi.idorcamento = o.idorcamento
+//             JOIN
+//                 orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//             LEFT JOIN
+//                 funcao f ON oi.idfuncao = f.idfuncao
+//             LEFT JOIN
+//                 eventos e ON o.idevento = e.idevento
+//             LEFT JOIN
+//                 clientes c ON o.idcliente = c.idcliente
+//             LEFT JOIN
+//                 localmontagem lm ON o.idmontagem = lm.idmontagem
+//             JOIN
+//                 datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+//             WHERE
+//                 oe.idempresa = $1
+//                 AND o.idevento = $2
+//                 AND o.idcliente = $3
+//                 AND o.idmontagem = $4
+//                 --AND oi.idfuncao IS NOT NULL
+//                 AND oi.idfuncao = $6
+//                 AND (oi.setor = $7 OR $7 IS NULL)
+//                 -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
+//                 AND dto.periodos_disponiveis && $5::date[]
+//             GROUP BY
+//                 oi.idorcamentoitem, 
+//                 f.descfuncao, 
+//                 e.nmevento, 
+//                 c.nmfantasia, 
+//                 lm.descmontagem, 
+//                 oi.setor, 
+//                 o.idevento, 
+//                 o.idcliente, 
+//                 o.idmontagem, 
+//                 oi.idfuncao, 
+//                 o.status, 
+//                 o.idorcamento,
+//                 oi.qtditens,
+//                 o.contratarstaff,
+//                 dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
+//             ORDER BY
+//                 oi.idorcamentoitem;
+//         `;
+
+//         console.log("QUERY", query);
+//         const values = [
+//             idempresa,
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             datasEvento,
+//             idFuncao,
+//             setor || null
+//         ];
+
+//         const result = await client.query(query, values);
+//         const orcamentoItems = result.rows;
+
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null; 
+
+//         res.status(200).json(orcamentoItems);
+//        } catch (error) {
+//         console.error("Erro ao buscar itens de orçamento por critérios:", error);
+//         res.status(500).json({
+//             error: "Erro ao buscar orçamento por critérios.",
+//             detail: error.message,
+//         });
+//        } finally {
+//         client.release();
+//       }
+//     }
+// );
+
 router.post("/orcamento/consultar",
   async (req, res) => {
   console.log("Dados recebidos no backend:", req.body);
@@ -338,30 +478,32 @@ router.post("/orcamento/consultar",
   try {
         const {
             idEvento,
-            idCliente,
+            idCliente, // Recebido do frontend mas não usado no WHERE (evita bug de race condition)
             idLocalMontagem,
             idFuncao,
             setor,
             datasEvento = [],
         } = req.body;
-
+ 
         const idempresa = req.idempresa;
-
+ 
         console.log("ORCAMENTO/CONSULTAR", req.body);
-
-          if (!idEvento || !idLocalMontagem || !idFuncao) {
-        return res.status(400).json({ 
-            error: "Evento, Local e Função são obrigatórios." 
-        });
-    }
-
+ 
+        if (!idEvento || !idLocalMontagem || !idFuncao) {
+            return res.status(400).json({ 
+                error: "Evento, Local e Função são obrigatórios." 
+            });
+        }
+ 
         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
         }
-
+ 
+        // CORREÇÃO: idCliente removido do WHERE pois o frontend pode enviar o valor
+        // de um modal anterior (race condition entre prefill e carregamento do select).
+        // idEvento + idLocalMontagem + idEmpresa + idFuncao já identificam o orçamento unicamente.
         const query = `
             WITH datas_orcamento AS (
-                -- CTE: Gera o array de datas específico para CADA item individualmente
                 SELECT
                     oi.idorcamentoitem,
                     ARRAY(
@@ -372,13 +514,11 @@ router.post("/orcamento/consultar",
             )
             SELECT
                 o.status, o.idorcamento, o.contratarstaff,
-                -- CORREÇÃO AQUI:
-                -- Em vez de recalcular todas as datas do evento inteiro,
-                -- pegamos apenas as datas deste item específico que já calculamos na CTE.
+                o.idcliente,
                 dto.periodos_disponiveis AS datas_totais_orcadas,
-                
-                oi.qtditens AS quantidade_orcada, 
-                oi.idfuncao,         
+ 
+                oi.qtditens AS quantidade_orcada,
+                oi.idfuncao,
                 f.descfuncao,
                 e.nmevento,
                 c.nmfantasia AS nmcliente,
@@ -392,8 +532,8 @@ router.post("/orcamento/consultar",
                         AND se.idcliente = o.idcliente
                         AND se.idmontagem = o.idmontagem
                         AND se.idfuncao = oi.idfuncao
-                        -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
-                        AND se.datasevento @> to_jsonb($5::text[])
+                        -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($4)
+                        AND se.datasevento @> to_jsonb($4::text[])
                 ) AS quantidade_escalada
             FROM
                 orcamentoitens oi
@@ -414,50 +554,49 @@ router.post("/orcamento/consultar",
             WHERE
                 oe.idempresa = $1
                 AND o.idevento = $2
-                AND o.idcliente = $3
-                AND o.idmontagem = $4
-                --AND oi.idfuncao IS NOT NULL
-                AND oi.idfuncao = $6
-                AND (oi.setor = $7 OR $7 IS NULL)
-                -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
-                AND dto.periodos_disponiveis && $5::date[]
+                AND o.idmontagem = $3
+                -- idCliente removido do WHERE: era fonte de bug quando o frontend
+                -- enviava o ID de um cliente de sessão anterior (race condition).
+                AND oi.idfuncao = $5
+                AND (oi.setor = $6 OR $6 IS NULL OR $6 = '' OR oi.setor IS NULL OR oi.setor = '')
+                AND dto.periodos_disponiveis && $4::date[]
             GROUP BY
-                oi.idorcamentoitem, 
-                f.descfuncao, 
-                e.nmevento, 
-                c.nmfantasia, 
-                lm.descmontagem, 
-                oi.setor, 
-                o.idevento, 
-                o.idcliente, 
-                o.idmontagem, 
-                oi.idfuncao, 
-                o.status, 
+                oi.idorcamentoitem,
+                f.descfuncao,
+                e.nmevento,
+                c.nmfantasia,
+                lm.descmontagem,
+                oi.setor,
+                o.idevento,
+                o.idcliente,
+                o.idmontagem,
+                oi.idfuncao,
+                o.status,
                 o.idorcamento,
                 oi.qtditens,
                 o.contratarstaff,
-                dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
+                dto.periodos_disponiveis
             ORDER BY
                 oi.idorcamentoitem;
         `;
-
+ 
         console.log("QUERY", query);
         const values = [
-            idempresa,
-            idEvento,
-            idCliente,
-            idLocalMontagem,
-            datasEvento,
-            idFuncao,
-            setor || null
+            idempresa,       // $1
+            idEvento,        // $2
+            idLocalMontagem, // $3 (era $4, idCliente removido)
+            datasEvento,     // $4 (era $5)
+            idFuncao,        // $5 (era $6)
+            setor || null    // $6 (era $7)
         ];
-
+ 
         const result = await client.query(query, values);
         const orcamentoItems = result.rows;
-
+        // console.log("📊 LINHAS ENCONTRADAS PELO BANCO:", orcamentoItems);
+ 
         res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null; 
-
+        res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null;
+ 
         res.status(200).json(orcamentoItems);
        } catch (error) {
         console.error("Erro ao buscar itens de orçamento por critérios:", error);
@@ -468,9 +607,7 @@ router.post("/orcamento/consultar",
        } finally {
         client.release();
       }
-    }
-);
-
+    });
 
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-duplicate acessada");
