@@ -4192,8 +4192,6 @@ async function verificaStaff() {
                 }
 
             } catch (error) {
-                console.error("❌ Erro ao enviar dados do funcionário:", error);
-                
                 const botaoEnviar = document.getElementById("botaoEnviar");
                 if (botaoEnviar) {
                     botaoEnviar.disabled = false;
@@ -4203,6 +4201,7 @@ async function verificaStaff() {
                 // Tenta parsear o JSON que vem dentro do error.message
                 let titulo = "Erro ao salvar funcionário";
                 let htmlErro = `<p>${error.message || "Erro desconhecido."}</p>`;
+                let dadosErroBackend = null;
 
                 try {
                     const jsonMatch = error.message?.match(/\{.*\}/s);
@@ -4210,6 +4209,7 @@ async function verificaStaff() {
                         const dados = JSON.parse(jsonMatch[0]);
 
                         if (dados.tipoErro === "LIMITE_EXCEDIDO") {
+                            dadosErroBackend = dados;
                             titulo = dados.title;
                             htmlErro = `
                                 <p>O limite de <strong>${dados.tipo}</strong> para essa função foi atingido.</p>
@@ -4233,16 +4233,38 @@ async function verificaStaff() {
                     }
                 } catch (_) { /* mantém o htmlErro padrão */ }
 
-                Swal.fire({
+                const swalErro = await Swal.fire({
                     title: titulo,
                     html: htmlErro,
                     icon: "error",
-                    confirmButtonText: "Entendi"
+                    confirmButtonText: "Entendido",
+                    showCancelButton: !!dadosErroBackend,
+                    cancelButtonText: dadosErroBackend ? "Pedir Extra" : undefined,
+                    reverseButtons: true
                 });
+
+                // Ao clicar em "Pedir Extra" → delega tudo para verificarLimiteDeFuncao
+                if (dadosErroBackend && swalErro.dismiss === Swal.DismissReason.cancel) {
+                    const criteriosDeVerificacao = {
+                        nmEvento:        nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                        nmCliente:       nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                        nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                        nmFuncao:        descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                        pavilhao:        nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                        datasEvento:     periodoDoEvento,   // já existe no escopo do listener
+                        idFuncao:        descFuncaoSelect.value,
+                        idOrcamento:     idOrcamentoAtual,  // já existe no escopo do listener
+                        idFuncionario,
+                        nmFuncionario
+                    };
+
+                    // passa dadosErroBackend como segundo argumento → entra no atalho
+                    await verificarLimiteDeFuncao(criteriosDeVerificacao, dadosErroBackend);
+                }
             }
         });
     }
-    }
+}
 
 
 
@@ -7405,8 +7427,7 @@ async function limparCamposStaffParcial() {
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
         'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado',
-        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha',
-        'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
+        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha' // Inputs que você marcou como 🎯 Novo
     ];
     containersParaLimpar.forEach(id => {
         const container = document.getElementById(id);
@@ -7936,9 +7957,9 @@ function registrarListenersNivel() {
 
     if (this.checked) {
         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+        const vlrAlimentacaoViagem1 = (parseFloat(vlrAlimentacaoFuncao) || 0) * 2;
+        document.getElementById("alimentacao").value = vlrAlimentacaoViagem1.toFixed(2);
+        document.getElementById("transporte").value = (0).toFixed(2)
 
         // Texto
         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
@@ -7949,6 +7970,7 @@ function registrarListenersNivel() {
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
         descBeneficioTextarea.value = descBeneficioAtual;
     }
+    calcularValorTotal();
     });
 
     document.getElementById('viagem2Check').addEventListener('change', function () { 
@@ -7958,9 +7980,9 @@ function registrarListenersNivel() {
         if (this.checked) {
 
             [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-
-            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+            const vlrAlimentacaoViagem2 = ((parseFloat(vlrAlimentacaoFuncao) || 0) * 2) + ((parseFloat(vlrAlimentacaoFuncao) || 0) / 2);
+            document.getElementById("alimentacao").value = vlrAlimentacaoViagem2.toFixed(2);
+            document.getElementById("transporte").value = (0).toFixed(2)
 
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;
@@ -7972,6 +7994,7 @@ function registrarListenersNivel() {
 
             descBeneficioTextarea.value = descBeneficioAtual;
         }
+        calcularValorTotal();
     });
 
     document.getElementById('viagem3Check').addEventListener('change', function () { 
@@ -7993,6 +8016,7 @@ function registrarListenersNivel() {
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
             descBeneficioTextarea.value = descBeneficioAtual;
         }
+        calcularValorTotal();
     });
 }
 
@@ -8803,7 +8827,7 @@ document.addEventListener('click', function(e) {
 // }
 
 
-async function verificarLimiteDeFuncao(criterios) {
+async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
    
     const nmEvento = (criterios.nmEvento || '').trim().toUpperCase();
     const nmCliente = (criterios.nmCliente || '').trim().toUpperCase();
@@ -8842,6 +8866,40 @@ async function verificarLimiteDeFuncao(criterios) {
     const dataUnicaParaBanco = datasSelecionadas[0] || null;
    
     //const setorAlocacao = (criterios.pavilhao || criterios.setor || '').trim().toUpperCase();
+    if (dadosErroBackend && dadosErroBackend.tipoErro === 'LIMITE_EXCEDIDO') {
+        const limite  = dadosErroBackend.limite;
+        const usado   = dadosErroBackend.usado;
+        const tipo    = dadosErroBackend.tipo; // 'vagas' ou 'diárias'
+
+        const { value: decisao } = await Swal.fire({
+            icon: 'warning',
+            title: 'Limite de Vagas Excedido',
+            html: `A função <b>${nmFuncao}</b> atingiu o limite de <b>${limite}</b> ${tipo}.<br>` +
+                  `Já foram utilizadas <b>${usado}</b>. Como deseja prosseguir?`,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Solicitar Aditivo',
+            denyButtonText: 'Extra Bonificado',
+            cancelButtonText: 'Cancelar Cadastro',
+        });
+
+        if (decisao === true || decisao === false) {
+            const tipoEscolhido = decisao === true
+                ? 'Aditivo - Vaga Excedida'
+                : 'Extra Bonificado - Vaga Excedida';
+
+            await solicitarDadosExcecao(
+                tipoEscolhido,
+                criterios.idOrcamento,
+                nmFuncao,
+                criterios.idFuncao,
+                idFuncionario,
+                dataUnicaParaBanco
+            );
+        }
+
+        return { allowed: false };
+    }
 
     // 1. Tenta achar a chave exata ou a simples
     const chaveCompleta = [nmEvento, nmFuncao, setor, pavilhao].filter(p => p).join('-');
