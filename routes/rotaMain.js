@@ -2067,9 +2067,10 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
         }
 
         const result = await pool.query(
-            `UPDATE staffeventos SET ${coluna} = $1 
+            `UPDATE staffeventos se SET ${coluna} = $1 
              FROM staffempresas sem
-             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3`,
+             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3,
+             RETURNING se.*`,
             [pathArquivo, idStaff, idempresa]
         );
 
