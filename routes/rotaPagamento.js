@@ -390,6 +390,10 @@ router.put("/:id",
                 return res.status(404).json({ message: "Registro não encontrado." });
             }
 
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = resultado.rows[0].idpagamento;
+            res.locals.dadosNovos = resultado.rows[0];
+
             res.json({ message: "Atualizado com sucesso!", data: resultado.rows[0] });
         } catch (error) {
             console.error("Erro ao atualizar pagamento:", error);
@@ -420,6 +424,13 @@ router.post("/",
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
                 [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento, vlrreal || 0, vlratraso || 0, vlrdesconto || 0]
             );
+
+            const novoPagamento = result.rows[0];
+
+            res.locals.acao = 'cadastrou';
+            res.locals.idregistroalterado = novoPagamento.idpagamento;
+            res.locals.dadosNovos = novoPagamento;
+            
             res.status(201).json({ message: "Salvo!", data: result.rows[0] });
         } catch (error) {
             console.error(error);

@@ -196,7 +196,7 @@ function gerarTabelaRelatorio(dadosDetalhes) {
             <thead>
                 <tr class="header-group-row">
                     <th colspan="2">Dados da Função</th>
-                    <th colspan="8">Custo do Produto (CTO)</th>
+                    <th colspan="10">Custo do Produto (CTO)</th>
                     <th colspan="2">Valor de Venda Produto (VDA)</th>
                     <th colspan="2">Transporte</th>
                     <th colspan="2">Alimentação</th>
@@ -217,6 +217,9 @@ function gerarTabelaRelatorio(dadosDetalhes) {
 
                     <th class="text-right">CTO Senior Original</th>
                     <th class="text-right">CTO Senior Ajustado</th>
+
+                    <th class="text-right">CTO Senior2 Original</th>
+                    <th class="text-right">CTO Senior2 Ajustado</th>
 
                     <th class="text-right">VDA Original</th>
                     <th class="text-right">VDA Ajustado</th>
@@ -248,6 +251,9 @@ function gerarTabelaRelatorio(dadosDetalhes) {
 
                 <td class="text-right">${formatCurrency(item.cto_senior_original)}</td>
                 <td class="text-right">${formatCurrency(item.cto_senior_atual)}</td>
+
+                <td class="text-right">${formatCurrency(item.cto_senior2_original)}</td>
+                <td class="text-right">${formatCurrency(item.cto_senior2_atual)}</td>
 
                 <td class="text-right">${formatCurrency(item.vda_original)}</td>
                 <td class="text-right">${formatCurrency(item.vda_atual)}</td>

@@ -38,18 +38,33 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Rota para upload
-router.post("/", upload.single("arquivo"), (req, res) => {
-  if (!req.file) {
-    console.warn("⚠️ Nenhum arquivo recebido.");
-    return res.status(400).json({ erro: "Arquivo não recebido" });
-  }
+router.post("/", upload.single("arquivo"),
+  upload.single("arquivo"),
+  logMiddleware('Uploads', {
+    buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
+  }),
+  (req, res) => {
+    if (!req.file) {
+      console.warn("⚠️ Nenhum arquivo recebido.");
+      return res.status(400).json({ erro: "Arquivo não recebido" });
+    }
 
-  console.log("✅ Arquivo recebido e salvo com sucesso:");
-  console.log("🗂 Caminho:", req.file.path);
-  console.log("📏 Tamanho:", req.file.size, "bytes");
-  console.log("📎 Tipo:", req.file.mimetype);
+    console.log("✅ Arquivo recebido e salvo com sucesso:");
+    console.log("🗂 Caminho:", req.file.path);
+    console.log("📏 Tamanho:", req.file.size, "bytes");
+    console.log("📎 Tipo:", req.file.mimetype);
 
-  res.json({ mensagem: "PDF recebido e salvo com sucesso!", arquivo: req.file.filename });
+    res.locals.acao = 'cadastrou';
+    res.locals.idregistroalterado = null; // Não tem ID de registro específico
+    res.locals.dadosNovos = {
+      arquivo: req.file.filename,
+      tamanho: req.file.size,
+      tipo: req.file.mimetype,
+      cliente: req.body.cliente || null,
+      evento: req.body.evento || null
+    };
+
+    res.json({ mensagem: "PDF recebido e salvo com sucesso!", arquivo: req.file.filename });
 });
 
 module.exports = router;

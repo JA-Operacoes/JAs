@@ -279,6 +279,7 @@ router.post("/", verificarPermissao('Eventos', 'cadastrar'),
       res.locals.acao = 'cadastrou';
       res.locals.idregistroalterado = novoEventoId;
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = { ...novoEvento, clientes: clientesDoEvento };
 
       res.status(201).json({ mensagem: "Evento e clientes associados com sucesso!", eventos: novoEvento });
     } catch (error) {
@@ -345,11 +346,12 @@ router.put("/:id", verificarPermissao('Eventos', 'alterar'),
       
       // 1. Atualizar o nome do evento na tabela 'eventos'
       const result = await client.query(
-        `UPDATE eventos
-         SET nmevento = $1
-         WHERE idevento = $2
-         RETURNING idevento`,
-        [nmEvento, id]
+        `UPDATE eventos e
+          SET nmevento = $1
+          FROM eventoempresas ee
+          WHERE e.idevento = $2 AND ee.idevento = e.idevento AND ee.idempresa = $3
+          RETURNING e.idevento`,
+        [nmEvento, id, idempresa]
       );
       
       if (result.rowCount) {
@@ -370,6 +372,7 @@ router.put("/:id", verificarPermissao('Eventos', 'alterar'),
         res.locals.acao = 'atualizou';
         res.locals.idregistroalterado = eventoAtualizadoId;
         res.locals.idusuarioAlvo = null;
+        res.locals.dadosnovos = { idevento: eventoAtualizadoId, nmevento: nmEvento, clientes: clientesDoEvento };
 
         return res.json({ message: "Evento e associações de clientes atualizados com sucesso!", eventos: { idevento: eventoAtualizadoId, nmevento: nmEvento } });
       } else {

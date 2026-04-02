@@ -50,7 +50,6 @@ router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) =>
 });
 
 
-// PUT atualizar
 // PUT atualizar cliente
 router.put(
   "/:id",
@@ -172,6 +171,7 @@ router.put(
       res.locals.acao = 'atualizou';
       res.locals.idregistroalterado = result.rows[0].idcliente;
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = req.body;
 
       return res.json({
         message: "Cliente atualizado com sucesso!",
@@ -253,6 +253,7 @@ router.post(
 
         res.locals.acao = 'vinculou';
         res.locals.idregistroalterado = idcliente;
+        res.locals.dadosnovos = clienteExistente.rows[0];
 
         return res.status(201).json({
           mensagem: "Cliente já existente vinculado à empresa com sucesso!",
@@ -294,6 +295,7 @@ router.post(
 
       res.locals.acao = 'cadastrou';
       res.locals.idregistroalterado = idcliente;
+      res.locals.dadosnovos = resultCliente.rows[0];
 
       res.status(201).json({
         mensagem: "Cliente cadastrado e vinculado à empresa com sucesso!",

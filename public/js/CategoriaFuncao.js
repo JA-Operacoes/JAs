@@ -460,12 +460,14 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
 
 
     } catch (error) {
-        
+    
         const inputIdCatFuncao = document.querySelector("#idCatFuncao");
         const podeCadastrarCatFuncao = temPermissao("Categoriafuncao", "cadastrar");
 
-       if (!inputIdCatFuncao.value && podeCadastrarCatFuncao) {
-    
+        // ✅ Se já tem ID, é edição — não mexe
+        if (inputIdCatFuncao?.value) return;
+
+        if (!inputIdCatFuncao.value && podeCadastrarCatFuncao) {
             const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como nova Categoria de Função?`,
@@ -477,26 +479,27 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
                 focusCancel: true
             });
 
-            console.log("Resultado do Swal:", resultado);
             if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro da Categoria de Função.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                setTimeout(() => {
-                    elementoAtual.focus();
-                }, 0);
+                elementoAtual.value = "";
+                setTimeout(() => elementoAtual.focus(), 0);
                 return;
             }
-        
-        }else if (!podeCadastrarFuncao) {
+
+            // ✅ Confirmou cadastro — mantém o valor digitado no campo
+            elementoAtual.value = desc.toUpperCase();
+            // Não limpa o idCatFuncao pois é novo cadastro (vazio mesmo)
+
+        } else if (!podeCadastrarCatFuncao) {
             Swal.fire({
                 icon: "info",
                 title: "Categoria de Função não cadastrada",
                 text: "Você não tem permissão para cadastrar categoria de função.",
                 confirmButtonText: "OK"
             });
+            elementoAtual.value = ""; // ✅ Limpa pois não pode cadastrar
         }
-        
     }
+
 }
 
 function limparCatFuncaoOriginal() {

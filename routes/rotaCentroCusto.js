@@ -88,6 +88,15 @@ router.put("/:id",
             return res.status(404).json({ message: "Registro não encontrado para esta empresa." });
         }
 
+        res.locals.acao = 'atualizou';
+        res.locals.idregistroalterado = idCentroCusto;
+        res.locals.dadosNovos = { // ✅ camelCase
+            idcentrocusto: idCentroCusto,
+            nmcentrocusto: nmCentroCusto,
+            sigla: sgCentroCusto,
+            ativo
+        };
+
         res.json({ message: "Centro de Custo atualizado com sucesso!" });
 
     } catch (error) {
@@ -115,9 +124,18 @@ router.post("/",
         const result = await pool.query(
             `INSERT INTO centrocusto (nmcentrocusto, sigla, ativo, idempresa) 
              VALUES ($1, $2, $3, $4) 
-             RETURNING idcentrocusto`, 
+             RETURNING idcentrocusto, nmcentrocusto, sigla, ativo`, 
             [nmCentroCusto, sgCentroCusto, ativo, idempresaContexto]
         );
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = result.rows[0].idcentrocusto;
+        res.locals.dadosNovos = { // ✅ camelCase
+            idcentrocusto: result.rows[0].idcentrocusto,
+            nmcentrocusto: nmCentroCusto,
+            sigla: sgCentroCusto,
+            ativo
+        };
 
         res.status(201).json({ message: "Centro de Custo cadastrado com sucesso!", id: result.rows[0].idcentrocusto });
     } catch (error) {

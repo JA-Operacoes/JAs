@@ -10,21 +10,9 @@ const logMiddleware = require('../middlewares/logMiddleware');
 router.get("/categoriafuncao",  async (req, res) => {
   console.log("Rota de categoria função acessada em ROTA FUNCAO - GET", req.query);
   const idempresa = req.idempresa;
- // const { descCatFuncao } = req.query;
- // console.log("descCatFuncao na ROTACATEGORIAFUNCAO", descCatFuncao);
+
   try {
-    // if (descCatFuncao) {
-    //   const result = await pool.query(
-    //     `SELECT cf.* 
-    //     FROM categoriafuncao cf
-    //     INNER JOIN categoriafuncaoempresas cfe ON cf.idcategoriafuncao = cfe.idcategoriafuncao
-    //     WHERE cfe.idempresa = $1 AND nmcategoriafuncao ILIKE $2 LIMIT 1`, 
-    //     [idempresa, descCatFuncao]
-    //   );
-    //   return result.rows.length
-    //     ? res.json(result.rows[0])
-    //     : res.status(404).json({ message: "Categoria Funcao não encontrada" });
-    // } else {
+    
       const result = await pool.query(`
         SELECT cf.* 
         FROM categoriafuncao cf
@@ -36,7 +24,7 @@ router.get("/categoriafuncao",  async (req, res) => {
       return result.rows.length
         ? res.json(result.rows)
         : res.status(404).json({ message: "Nenhuma categoria função encontrada" });
-    //}
+
   } catch (error) {
     console.error("Erro ao buscar categoria função:", error);
     res.status(500).json({ message: "Erro ao buscar categoria função" });
@@ -120,7 +108,26 @@ router.get("/", verificarPermissao('Funcao', 'pesquisar'), async (req, res) => {
 const toNumeric = (val) => isNaN(Number(val)) ? 0 : Number(val);
 
 // ROTA PUT
-router.put("/:id", autenticarToken({ verificarEmpresa: false }), async (req, res) => {
+router.put("/:id", autenticarToken({ verificarEmpresa: false }), 
+  verificarPermissao('Funcao', 'alterar'), // ❌ Estava faltando
+  logMiddleware('Funcao', { // ❌ Estava faltando
+    buscarDadosAnteriores: async (req) => {
+      const id = req.params.id;
+      const idempresa = req.idempresa;
+      try {
+        const result = await pool.query(
+          `SELECT f.* FROM funcao f
+           INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
+           WHERE f.idfuncao = $1 AND fe.idempresa = $2`,
+          [id, idempresa]
+        );
+        const linha = result.rows[0] || null;
+        return { dadosanteriores: linha, idregistroalterado: linha?.idfuncao || null };
+      } catch (e) {
+        return { dadosanteriores: null, idregistroalterado: null };
+      }
+    }
+  }), async (req, res) => {
     const id = req.params.id;
     const idempresa = req.idempresa;
     const b = req.body;
@@ -143,26 +150,42 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), async (req, res
                 id, idempresa
             ]
         );
-        res.json({ message: "Atualizado!" });
+       if (result.rowCount) {
+          res.locals.acao = 'atualizou';
+          res.locals.idregistroalterado = result.rows[0].idfuncao;
+          res.locals.dadosnovos = req.body;
+          return res.json({ message: "Atualizado!" });
+        } else {
+          return res.status(404).json({ message: "Função não encontrada." });
+        }
     } catch (error) {
         res.status(500).send("Erro no servidor");
     }
 });
 
 // ROTA POST
-router.post("/", autenticarToken({ verificarEmpresa: false }), async (req, res) => {
+router.post("/", autenticarToken({ verificarEmpresa: false }),
+  verificarPermissao('Funcao', 'cadastrar'), // ❌ Estava faltando
+  logMiddleware('Funcao', { // ❌ Estava faltando
+    buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
+  }), async (req, res) => {
     const b = req.body;
     const idempresa = req.idempresa;
 
+            // ✅ DEPOIS
+    let client;
     try {
-        await pool.query('BEGIN');
-        const resFuncao = await pool.query(
+        client = await pool.connect();
+        await client.query('BEGIN');
+        
+        const resFuncao = await client.query(
             `INSERT INTO funcao (
                 descFuncao, vdafuncao, obsFuncao, obsProposta, ativo, 
                 idcategoriafuncao, idequipe, ctofuncaobase, transporte, 
                 almoco, alimentacao, transpsenior, ctofuncaosenior, 
                 ctofuncaopleno, ctofuncaojunior
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING idFuncao`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+            RETURNING idFuncao`,
             [
                 b.descFuncao, toNumeric(b.venda), b.obsFuncao, b.obsProposta, b.ativo,
                 b.idCatFuncao, b.idEquipe, toNumeric(b.custoBase), toNumeric(b.transporte),
@@ -170,13 +193,26 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), async (req, res) 
                 toNumeric(b.custoSenior), toNumeric(b.custoPleno), toNumeric(b.custoJunior)
             ]
         );
+        
         const idfuncao = resFuncao.rows[0].idfuncao;
-        await pool.query("INSERT INTO funcaoempresas (idfuncao, idempresa) VALUES ($1, $2)", [idfuncao, idempresa]);
-        await pool.query('COMMIT');
+        await client.query(
+            "INSERT INTO funcaoempresas (idfuncao, idempresa) VALUES ($1, $2)", 
+            [idfuncao, idempresa]
+        );
+        
+        await client.query('COMMIT');
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idfuncao;
+        res.locals.dadosnovos = { idfuncao, ...b };
+
         res.status(201).json({ mensagem: "Criado!" });
+
     } catch (error) {
-        await pool.query('ROLLBACK');
+        if (client) await client.query('ROLLBACK');
         res.status(500).send("Erro ao criar");
+    } finally {
+        if (client) client.release();
     }
 });
 

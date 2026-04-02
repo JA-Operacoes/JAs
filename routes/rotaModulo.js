@@ -32,41 +32,6 @@ router.get('/empresas',  verificarPermissao('Empresas', 'pesquisar'), async (req
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
-// router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
-//    console.log("✅ ROTA MODULOS /modulos ACESSADA");
-//    const { nmModulo } = req.query;
-//    const idempresa = req.idempresa;
-//   try {
-    
-//       if (nmModulo) {
-//         const result = await pool.query(
-//           `SELECT m.modulo 
-//           FROM modulos m
-//           INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
-//           WHERE me.idempresa = $1 AND m.modulo ILIKE $2 LIMIT 1`,
-//           [idempresa, `%${nmModulo}%`]
-//       );
-//       return result.rows.length
-//         ? res.json(result.rows[0])
-//         : res.status(404).json({ message: "Equipamento não encontrada" });
-//     } else {
-//       const result = await pool.query(`SELECT m.modulo 
-//         FROM modulos m
-//         INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
-//         WHERE me.idempresa = $1
-//         ORDER BY modulo`, [idempresa]);
-
-//       return result.rows.length
-//         ? res.json(result.rows)
-//         : res.status(404).json({ message: "Nenhuma Módulo encontrado" });
-//     }
-   
-//   } catch (err) {
-//     console.error('Erro ao buscar módulos:', err);
-//     res.status(500).json({ erro: 'Erro ao buscar módulos' });
-//   }
-// });
-
 router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
     console.log("✅ ROTA MODULOS /modulos ACESSADA");
     const { nmModulo, idModuloPesquisa } = req.query; // Adicionamos idModuloPesquisa (caso precise buscar um único módulo por ID)
@@ -88,7 +53,10 @@ router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => 
 
         // 1. FILTRO DE EMPRESA (Garantir que apenas módulos associados à empresa do usuário sejam vistos)
         // Isso é crucial se você quiser que a listagem geral filtre pelo ID da empresa principal
-        whereClauses.push(`me.idempresa = $${paramIndex++}`);
+        //whereClauses.push(`me.idempresa = $${paramIndex++}`);
+        whereClauses.push(`m.idmodulo IN (
+            SELECT idmodulo FROM moduloempresas WHERE idempresa = $${paramIndex++}
+        )`);
         queryParams.push(idempresa);
 
         // 2. FILTRO POR NOME DO MÓDULO (Pesquisa ILIKE)
@@ -197,6 +165,7 @@ router.put("/:id",
         res.locals.acao = 'atualizou';
         res.locals.idregistroalterado = moduloAtualizadoId; 
         res.locals.idusuarioAlvo = null; 
+        res.locals.dadosnovos = req.body;
 
         return res.json({ message: "Módulo atualizado com sucesso!", modulos: result.rows[0] });
       } else {
@@ -265,6 +234,7 @@ router.post("/", verificarPermissao('Modulos', 'cadastrar'),
       res.locals.acao = 'cadastrou';
       res.locals.idregistroalterado = novoModuloId; 
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = { ...novoModulo, empresas };
 
       res.status(201).json({ mensagem: "Módulos salvo com sucesso!", modulos: novoModuloId }); // Status 201 para criação
   } catch (error) {

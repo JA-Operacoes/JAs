@@ -100,7 +100,13 @@ router.put("/:id",
 
         if (result.rowCount) {
           res.locals.acao = 'atualizou';
-          res.locals.idregistroalterado = result.rows[0].idplanocontas; 
+          res.locals.idregistroalterado = result.rows[0].idplanocontas;
+          res.locals.dadosNovos = {
+            idplanocontas: result.rows[0].idplanocontas,
+            codigo: result.rows[0].codigo,
+            nmplanocontas: result.rows[0].nmplanocontas,
+            ativo: result.rows[0].ativo
+          }; 
           return res.json({ message: "Plano de Contas atualizado com sucesso!", conta: result.rows[0] });
         } else {
           return res.status(404).json({ message: "Plano de Contas não encontrado para atualizar." });
@@ -139,7 +145,13 @@ router.post("/", verificarPermissao('Planocontas', 'cadastrar'),
 
         const novaConta = result.rows[0];
         res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = novaConta.idplanocontas; 
+        res.locals.idregistroalterado = novaConta.idplanocontas;
+        res.locals.dadosNovos = {
+          idplanocontas: novaConta.idplanocontas,
+          codigo: novaConta.codigo,
+          nmplanocontas: novaConta.nmplanocontas,
+          ativo: novaConta.ativo
+        }; 
 
         res.status(201).json({ message: "Plano de Contas salvo com sucesso!", conta: novaConta });
     } catch (error) {

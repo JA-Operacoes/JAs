@@ -302,14 +302,46 @@ const getNum = (selector) => {
     
             // Reativar o evento blur para o novo select
             select.addEventListener("change", async function () {
-                const desc = this.value?.trim();
-               
-                if (!desc) {
-                    console.warn("Valor do select está vazio ou indefinido.");
-                    return;
-                }
+                const selectedOption = this.options[this.selectedIndex];
+                const desc = selectedOption.value?.trim();
+                if (!desc) return;
 
-                await carregarFuncaoDescricao(desc, this);
+                const d = selectedOption.dataset;
+
+                document.querySelector("#idFuncao").value = d.idfuncao;
+                document.querySelector("#idEquipeFuncao").value = d.idequipe;
+                document.querySelector("#idCatFuncao").value = d.idcategoriafuncao;
+                document.querySelector("#CustoSenior").value = d.ctofuncaosenior;
+                document.querySelector("#CustoPleno").value = d.ctofuncaopleno;
+                document.querySelector("#CustoJunior").value = d.ctofuncaojunior;
+                document.querySelector("#CustoBase").value = d.ctofuncaobase;
+                document.querySelector("#Venda").value = d.vdafuncao;
+                document.querySelector("#transporte").value = d.transporte;
+                document.querySelector("#TranspSenior").value = d.transpsenior;
+                document.querySelector("#alimentacao").value = d.alimentacao;
+                document.querySelector("#obsProposta").value = d.obsproposta;
+                document.querySelector("#obsFuncao").value = d.obsfuncao;
+                document.querySelector("#funcaoAtiva").checked = d.ativo === "true";
+
+                window.FuncaoOriginal = {
+                    idFuncao: d.idfuncao,
+                    descFuncao: d.descfuncao,
+                    idCatFuncao: d.idcategoriafuncao,
+                    idEquipe: d.idequipe,
+                    vlrVenda: d.vdafuncao,
+                    vlrCustoSenior: d.ctofuncaosenior,
+                    vlrCustoPleno: d.ctofuncaopleno,
+                    vlrCustoJunior: d.ctofuncaojunior,
+                    vlrCustoBase: d.ctofuncaobase,
+                    vlrTransporte: d.transporte,
+                    vlrTransporteSenior: d.transpsenior,
+                    vlrAlimentacao: d.alimentacao,
+                    obsProposta: d.obsproposta,
+                    obsFuncao: d.obsfuncao,
+                    ativo: d.ativo === "true"
+                };
+
+                console.log("✅ Função selecionada:", window.FuncaoOriginal);
 
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
@@ -318,27 +350,28 @@ const getNum = (selector) => {
                 novoInput.required = true;
                 novoInput.className = "form";
                 novoInput.classList.add('uppercase');
-                novoInput.value = desc;
-            
+                novoInput.value = d.descfuncao;
+
                 novoInput.addEventListener("input", function() {
-                    this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
+                    this.value = this.value.toUpperCase();
+                });
+
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+                    const idAtual = document.querySelector("#idFuncao")?.value;
+                    if (idAtual) return; // ✅ proteção edição
+                    await carregarFuncaoDescricao(this.value, this);
                 });
 
                 this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurFuncao();
-               
+
                 const label = document.querySelector('label[for="descFuncao"]');
                 if (label) {
-                label.style.display = "block";
-                label.textContent = "Descrição da Função"; // ou algum texto que você tenha guardado
+                    label.style.display = "block";
+                    label.textContent = "Descrição da Função";
                 }
-              
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarFuncaoDescricao(this.value, this);
-                });
- 
-         });
+            });
     
         } catch (error) {
             console.error("Erro ao carregar funções:", error);
@@ -535,6 +568,21 @@ function criarSelectFuncao(funcoes) {
         const option = document.createElement("option");
         option.value = funcaoachada.descfuncao;
         option.text = funcaoachada.descfuncao;
+        option.dataset.idfuncao = funcaoachada.idfuncao;
+        option.dataset.descfuncao = funcaoachada.descfuncao;
+        option.dataset.idequipe = funcaoachada.idequipe;
+        option.dataset.idcategoriafuncao = funcaoachada.idcategoriafuncao;
+        option.dataset.ctofuncaosenior = funcaoachada.ctofuncaosenior || 0;
+        option.dataset.ctofuncaopleno = funcaoachada.ctofuncaopleno || 0;
+        option.dataset.ctofuncaojunior = funcaoachada.ctofuncaojunior || 0;
+        option.dataset.ctofuncaobase = funcaoachada.ctofuncaobase || 0;
+        option.dataset.vdafuncao = funcaoachada.vdafuncao || 0;
+        option.dataset.transporte = funcaoachada.transporte || 0;
+        option.dataset.transpsenior = funcaoachada.transpsenior || 0;
+        option.dataset.alimentacao = funcaoachada.alimentacao || 0;
+        option.dataset.obsproposta = funcaoachada.obsproposta || "";
+        option.dataset.obsfuncao = funcaoachada.obsfuncao || "";
+        option.dataset.ativo = funcaoachada.ativo || false;
         select.appendChild(option);
     });
  
@@ -565,19 +613,21 @@ function adicionarEventoBlurFuncao() {
             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
-            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+          
             return;
         }
 
-        const desc = this.value.trim();
-        console.log("Campo descFuncao procurado:", desc);
-
+        const desc = this.value.trim(); 
         if (!desc) return;
 
+        const idAtual = document.querySelector("#idFuncao")?.value;
+        if (idAtual) return;
+
+
         try {
-            console.log("Buscando Função com descrição:", desc);
+           
             await carregarFuncaoDescricao(desc, this);
-            console.log("Função selecionada depois de carregarFuncaoDescricao:", this.value);
+            
         } catch (error) {
             console.error("Erro ao buscar Função:", error);
         }
@@ -595,10 +645,6 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
 
        if (!funcao || !funcao.idfuncao) throw new Error("Função não encontrada");
 
-    //    if (!funcao || funcao.length === 0 || !funcao.idfuncao) {
-    //         // Lançamos o erro para forçar a entrada no bloco 'catch'
-    //         throw new Error("Função não encontrada ou resposta inválida.");
-    //     }
 
         document.querySelector("#idEquipeFuncao").value = funcao.idequipe;
         document.querySelector("#idCatFuncao").value = funcao.idcategoriafuncao;
@@ -642,6 +688,8 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         const inputIdFuncao = document.querySelector("#idFuncao");
         const podeCadastrarFuncao = temPermissao("Funcao", "cadastrar");
 
+        if (inputIdFuncao?.value) return;
+
         if (!inputIdFuncao.value && podeCadastrarFuncao) {
     
             const resultado = await Swal.fire({
@@ -664,6 +712,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
                 }, 0);
                 return;
             }
+            elementoAtual.value = desc.toUpperCase();
         
         }else if (!podeCadastrarFuncao) {
             Swal.fire({

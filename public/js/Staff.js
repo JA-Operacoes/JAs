@@ -990,6 +990,7 @@ let ajusteCustoTextarea = document.getElementById('descAjusteCusto');
 let campoStatusajusteCusto = document.getElementById('campoStatusAjusteCusto');
 let statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
 let selectStatusAjusteCusto = document.getElementById('selectStatusAjusteCusto');
+let statusAnteriorAjusteCusto = '';
  
 let vlrTotalInput = document.getElementById('vlrTotal');
 let vlrTotalCacheInput = document.getElementById('vlrTotalCache');
@@ -1003,6 +1004,8 @@ let campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
 let statusCaixinhaInput = document.getElementById('statusCaixinha');
 let selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
 let statusPgtoCaixinhaInput = document.getElementById('statusPgtoCaixinha');
+let statusAnteriorCaixinha = '';
+
  
 let setorInput = document.getElementById('setor');
 let statusPagtoInput = document.getElementById('statusPgto');
@@ -1346,9 +1349,7 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     // Outros Campos de Status
     setorInput.value = (eventData.setor || '').toUpperCase();
     statusPagtoInput.value = (eventData.statuspgto || 'Pendente').toUpperCase();
-    statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase();
-       
-
+    statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase(); 
   
 
     // Lógica para Comprovantes 50% e 100%
@@ -1456,17 +1457,11 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         const vlrAjuste = parseFloat(eventData.vlrajustecusto || 0);        
         ajusteCustocheck.checked = vlrAjuste != 0;
         
-        const mostrar = ajusteCustocheck.checked ? 'block' : 'none';
-    console.log("🔍 vlrAjuste:", vlrAjuste, "| mostrar:", mostrar);
-    console.log("🔍 campoStatusajusteCusto element:", campoStatusajusteCusto);
-    console.log("🔍 selectStatusAjusteCusto display:", document.getElementById('selectStatusAjusteCusto')?.style.display);
-    console.log("🔍 selectStatusAjusteCusto value:", document.getElementById('selectStatusAjusteCusto')?.value);
-    console.log("🔍 selectStatusAjusteCusto options:", Array.from(document.getElementById('selectStatusAjusteCusto')?.options || []).map(o => o.value));
+        const mostrar = ajusteCustocheck.checked ? 'block' : 'none';   
 
-    if (campoAjusteCusto) campoAjusteCusto.style.display = mostrar;
-    if (campoStatusajusteCusto) campoStatusajusteCusto.style.display = mostrar;
-    
-    console.log("🔍 campoStatusajusteCusto display APÓS setar:", campoStatusajusteCusto?.style.display);
+        if (campoAjusteCusto) campoAjusteCusto.style.display = mostrar;
+        if (campoStatusajusteCusto) campoStatusajusteCusto.style.display = mostrar;    
+   
         if (ajusteCustoTextarea) {
             ajusteCustoTextarea.style.display = mostrar;
             ajusteCustoTextarea.required = ajusteCustocheck.checked;
@@ -3111,6 +3106,9 @@ async function verificaStaff() {
             ajusteCustoInput.value = '0,00';
         }
         console.log("formatação do valor :","background:yellow;", ajusteCustoInput.value)
+        // if (typeof calcularValorTotal === 'function') {
+        //     calcularValorTotal();
+        // }
     });
 
     const selectAjusteCusto = document.getElementById('selectStatusAjusteCusto');
@@ -3119,249 +3117,9 @@ async function verificaStaff() {
         selectAjusteCusto.addEventListener('change', () => {
             aplicarCorNoSelect(selectAjusteCusto);
             statusAjusteCustoInput.value = selectStatusAjusteCusto.value;
-            console.log("Status de Ajuste de Custo sincronizado para:","background:darkyellow;", statusAjusteCustoInput.value);
+            console.log("Status de Ajuste de Custo sincronizado para:", statusAjusteCustoInput.value);
         });
     }
-
-
-    // ajusteCustocheck.addEventListener('change', (e) => {
-    //     const isCheckedBeforeSwal = ajusteCustocheck.checked;
-    //     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-    //     const campoStatusAjusteCusto = document.getElementById('statusAjusteCusto');
-
-    //        // Se qualquer um dos elementos não for encontrado, interrompe a execução
-    //     if (!ajusteCustoInput || !ajusteCustoTextarea || !campoStatusAjusteCusto) {
-    //         console.error("Um ou mais elementos do bônus não foram encontrados. Verifique os IDs.");
-    //         // Opcional: Adicionar um alerta para o usuário
-    //         Swal.fire('Erro!', 'Ocorreu um problema ao carregar os campos do bônus. Tente recarregar a página.', 'error');
-    //         return; // Sai da função para evitar o erro
-    //     }
-
-    //     console.log("AJUSTE DE CUSTO CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusAjusteCusto.value);
-
-    //     // Inicia com valores padrão para o caso de novo cadastro
-    //     let valorAjusteCustoOriginal = 0;
-    //     let descAjusteCustoOriginal = '';
-    //     let statusAjusteCustoOriginal = '';
-
-    //     // Se estiver em modo de edição, sobrescreve com os valores originais
-    //     if (currentEditingStaffEvent) {
-    //         valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00);
-    //         descAjusteCustoOriginal = currentEditingStaffEvent.descajustecusto || '';
-    //         statusAjusteCustoOriginal = currentEditingStaffEvent.statusajustecusto || '';
-    //     }
-
-    //     if (!isCheckedBeforeSwal) {
-    //         // Lógica para quando o usuário desmarca a caixa
-    //         if (statusAjusteCustoOriginal !== 'Pendente') {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: `Não é possível remover o Ajuste de Custo pois seu status é "${statusAjusteCustoOriginal}".`,
-    //                 icon: 'error',
-    //                 confirmButtonColor: '#3085d6',
-    //                 confirmButtonText: 'Ok'
-    //             }).then(() => {
-    //                 ajusteCustocheck.checked = true;
-    //                 ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //                 ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //                 campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
-
-    //                 // Exibe os campos novamente
-    //                 campoAjusteCusto.style.display = 'block';
-    //                 ajusteCustoTextarea.style.display = 'block';
-    //                 campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //                 calcularValorTotal();
-    //             });
-    //         } else if (valorAjusteCustoOriginal > 0) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: 'Você tem um valor preenchido para o Ajuste de Custo. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-    //                 icon: 'warning',
-    //                 showCancelButton: true,
-    //                 confirmButtonColor: '#3085d6',
-    //                 cancelButtonColor: '#d33',
-    //                 confirmButtonText: 'Sim, continuar!',
-    //                 cancelButtonText: 'Não, cancelar'
-    //             }).then((result) => {
-    //                 if (result.isConfirmed) {
-    //                     ajusteCustocheck.checked = false;
-    //                     campoAjusteCusto.style.display = 'none';
-    //                     ajusteCustoTextarea.style.display = 'none';
-    //                     campoStatusAjusteCusto.style.display = 'none';
-    //                     ajusteCustoInput.value = '0,00';
-    //                     ajusteCustoTextarea.value = '';
-    //                     campoStatusAjusteCusto.value = '';
-    //                     calcularValorTotal();
-    //                 } else {
-    //                     ajusteCustocheck.checked = true;
-    //                     ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //                     ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //                     campoStatusajusteCusto.value = statusAjusteCustoOriginal;
-
-    //                     // Exibe os campos novamente
-    //                     campoAjusteCusto.style.display = 'block';
-    //                     ajusteCustoTextarea.style.display = 'block';
-    //                     campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //                     calcularValorTotal();
-    //                 }
-    //             });
-    //         } else {
-    //             // Se não há valor e o status é pendente, simplesmente desmarque
-    //             campoAjusteCusto.style.display = 'none';
-    //             ajusteCustoTextarea.style.display = 'none';
-    //             campoStatusAjusteCusto.style.display = 'none';
-    //             ajusteCustoInput.value = '0,00';
-    //             ajusteCustoTextarea.value = '';
-    //             campoStatusAjusteCusto.value = '';
-    //             calcularValorTotal();
-    //         }
-    //     } else {
-    //         // Lógica padrão quando o usuário marca a caixa
-    //         campoAjusteCusto.style.display = 'block';
-    //         ajusteCustoTextarea.style.display = 'block';
-    //         campoStatusAjusteCusto.style.setProperty('display', 'block', 'important');
-
-    //         // Os valores já foram definidos no início do listener
-    //         ajusteCustoInput.value = valorAjusteCustoOriginal.toFixed(2).replace('.', ',');
-    //         ajusteCustoTextarea.value = descAjusteCustoOriginal;
-    //         campoStatusAjusteCusto.value = statusAjusteCustoOriginal;
-
-    //         calcularValorTotal();
-    //     }
-    // });
-
-    // const selectCaixinha = document.getElementById('selectStatusCaixinha');
-
-    // if (selectCaixinha) {
-    //     selectCaixinha.addEventListener('change', () => {
-    //         aplicarCorNoSelect(selectCaixinha);
-    //         statusCaixinhaInput.value = selectStatusCaixinha.value;
-    //         console.log("Status de Caixinha sincronizado para:", statusCaixinhaInput.value);
-    //     });
-    // }
-
-    // caixinhaInput.addEventListener('change', () => {
-    //     let valor = caixinhaInput.value.replace(',', '.');
-    //     if (!isNaN(parseFloat(valor))) {
-    //         caixinhaInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
-    //     } else {
-    //         caixinhaInput.value = '0,00';
-    //     }
-    // });
-
-    // caixinhacheck.addEventListener('change', (e) => {       
-
-    //     // Assegura que o campo de valor e a descrição sejam acessados corretamente
-    //     const caixinhaInput = document.getElementById('caixinha');
-    //     const descCaixinhaTextarea = document.getElementById('descCaixinha');
-    //     const campoStatusCaixinha = document.getElementById('statusCaixinha');
-
-    //     // Inicia com valores padrão para o caso de novo cadastro
-    //     let valorCaixinhaOriginal = 0;
-    //     let descCaixinhaOriginal = '';
-    //     let statusCaixinhaOriginal = '';
-
-    //     // Se estiver em modo de edição, sobrescreve com os valores originais
-    //     if (currentEditingStaffEvent) {
-    //         valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
-    //         descCaixinhaOriginal = currentEditingStaffEvent.desccaixinha || '';
-    //         statusCaixinhaOriginal = currentEditingStaffEvent.statuscaixinha || '';
-    //     }
-
-    //     const isCheckedBeforeSwal = caixinhacheck.checked;
-    //     console.log("CAIXINHA CHECKBOX ALTERADO", isCheckedBeforeSwal, currentEditingStaffEvent, campoStatusCaixinha.value, statusCaixinhaOriginal);
-
-    //     if (!isCheckedBeforeSwal) {
-    //         // Lógica para quando o usuário desmarca a caixa
-    //         if ((statusCaixinhaOriginal !== 'Pendente') && (statusCaixinhaOriginal !== '') && (statusCaixinhaOriginal !== null)) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: `Não é possível remover a Caixinha pois seu status é "${statusCaixinhaOriginal}".`,
-    //                 icon: 'error',
-    //                 confirmButtonColor: '#3085d6',
-    //                 confirmButtonText: 'Ok'
-    //             }).then(() => {
-    //                 caixinhacheck.checked = true;
-    //                 caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //                 descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //                 campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //                 // Exibe os campos novamente
-    //                 campoCaixinha.style.display = 'block';
-    //                 descCaixinhaTextarea.style.display = 'block';
-    //                 campoPgtoCaixinha.style.display = 'block';
-    //                 campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-
-    //                 calcularValorTotal();
-    //             });
-    //         } else if (valorCaixinhaOriginal > 0) {
-    //             e.preventDefault();
-    //             Swal.fire({
-    //                 title: 'Atenção!',
-    //                 text: 'Você tem um valor preenchido para o Caixinha. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-    //                 icon: 'warning',
-    //                 showCancelButton: true,
-    //                 confirmButtonColor: '#3085d6',
-    //                 cancelButtonColor: '#d33',
-    //                 confirmButtonText: 'Sim, continuar!',
-    //                 cancelButtonText: 'Não, cancelar'
-    //             }).then((result) => {
-    //                 if (result.isConfirmed) {
-    //                     caixinhacheck.checked = false;
-    //                     campoCaixinha.style.display = 'none';
-    //                     descCaixinhaTextarea.style.display = 'none';
-    //                     campoStatusCaixinha.style.display = 'none';
-    //                     campoPgtoCaixinha.style.display = 'none';
-    //                     caixinhaInput.value = '0,00';
-    //                     descCaixinhaTextarea.value = '';
-    //                     campoStatusCaixinha.value = '';
-    //                     calcularValorTotal();
-    //                 } else {
-    //                     caixinhacheck.checked = true;
-    //                     caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //                     descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //                     campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //                     // Exibe os campos novamente
-    //                     campoCaixinha.style.display = 'block';
-    //                     descCaixinhaTextarea.style.display = 'block';
-    //                     campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-    //                     campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-    //                     calcularValorTotal();
-    //                 }
-    //             });
-    //         } else {
-    //             // Se não há valor e o status é pendente, simplesmente desmarque
-    //             campoCaixinha.style.display = 'none';
-    //             descCaixinhaTextarea.style.display = 'none';
-    //             campoStatusCaixinha.style.display = 'none';
-    //             campoPgtoCaixinha.style.display = 'none';
-    //             caixinhaInput.value = '0,00';
-    //             descCaixinhaTextarea.value = '';
-    //             campoStatusCaixinha.value = '';
-    //             calcularValorTotal();
-    //         }
-    //     } else {
-    //         // Lógica padrão quando o usuário marca a caixa
-    //         campoCaixinha.style.display = 'block';
-    //         descCaixinhaTextarea.style.display = 'block';
-    //         campoStatusCaixinha.style.setProperty('display', 'block', 'important');
-    //         campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-    //         // Os valores já foram definidos no início do listener
-    //         caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
-    //         descCaixinhaTextarea.value = descCaixinhaOriginal;
-    //         campoStatusCaixinha.value = statusCaixinhaOriginal;
-
-    //         calcularValorTotal();
-    //     }
-    // });
 
         const cacheBaseLiberado = () => {
             const selectStatus = document.getElementById("selectStatusCustoFechado")?.value;
@@ -3395,6 +3153,7 @@ async function verificaStaff() {
         // Elementos do Status (Ajuste esses IDs conforme o seu HTML real)
         const inputStatus = document.getElementById('statusAjusteCusto'); 
         const selectStatus = document.getElementById('selectStatusAjusteCusto');
+
         
         // Tenta encontrar o container/div que envolve o status (geralmente tem um ID parecido)
         const wrapperStatus = document.getElementById('campoStatusAjusteCusto') || 
@@ -3451,20 +3210,29 @@ async function verificaStaff() {
                 campoInputMinúsculo.value = sOriginal || 'Pendente';
             }
 
-            // 4. Agora sim chamamos a sua função de permissão
-
-            
-            // IMPORTANTE: O nome passado aqui deve resultar no ID do seu container quando concatenado com 'campo'
             alternarStatusPorPermissao('StatusAjusteCusto', temPermissaoMaster);
 
             ajusteCustoInput.value = vOriginal.toFixed(2).replace('.', ',');
             textarea.value = dOriginal;
         }
+    })
+
+    document.getElementById('selectStatusAjusteCusto')?.addEventListener('change', (e) => {
+        console.log("statusAnteriorAjusteCusto no momento da troca:", statusAnteriorAjusteCusto);
+        statusAnteriorAjusteCusto = document.getElementById('statusAjusteCusto').value;
+        document.getElementById('statusAjusteCusto').value = e.target.value;
         calcularValorTotal();
     });
 
-    // 2. Lógica para Caixinha
-    // 2. Lógica para Caixinha (Sincronizada com Nível de Acesso e Trava)
+    const selectCaixinha = document.getElementById('selectStatusCaixinha');
+
+    if (selectCaixinha) {
+        selectCaixinha.addEventListener('change', () => {
+            aplicarCorNoSelect(selectCaixinha);
+            statusCaixinhaInput.value = selectStatusCaixinha.value;
+            console.log("Status de Caixinha sincronizado para:", statusCaixinhaInput.value);
+        });
+    }
     caixinhacheck.addEventListener('change', async (e) => {
         const isChecked = caixinhacheck.checked;
         const textarea = document.getElementById('descCaixinha');
@@ -3537,9 +3305,14 @@ async function verificaStaff() {
             const campoInput = document.getElementById('statuscaixinha');
             if (campoInput) campoInput.value = sOriginal || 'Pendente';
         }
+    })
+    document.getElementById('selectStatusCaixinha')?.addEventListener('change', (e) => {
+        console.log("statusAnteriorCaixinha no momento da troca:", statusAnteriorCaixinha);
+        statusAnteriorCaixinha = document.getElementById('statusCaixinha').value;
+        document.getElementById('statusCaixinha').value = e.target.value;
         calcularValorTotal();
-    });
-
+    })
+    
     const selectDiariaDobrada = document.getElementById('selectStatusDiariaDobrada');
     const selectMeiaDiaria = document.getElementById('selectStatusMeiaDiaria');
 
@@ -4038,6 +3811,10 @@ async function verificaStaff() {
             // =========================================================
             const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
 
+            let statusPgto = document.querySelector("#statusPgto")?.value || '';
+            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
+            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';
+
             // Status Caixinha
             if (!statusCaixinha || statusCaixinha.trim() === '') {
                 const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
@@ -4064,9 +3841,7 @@ async function verificaStaff() {
             const statusFechadoParaEnvio = nivelFoiTrocado ? null : statusFechado;
             const descCustoFechadoParaEnvio = nivelFoiTrocado ? null : descCustoFechado;
 
-            let statusPgto = document.querySelector("#statusPgto")?.value || '';
-            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
-            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';
+
 
             // =========================================================
             // 11. COMPROVANTES
@@ -4253,6 +4028,38 @@ async function verificaStaff() {
                 });
             }
 
+            const vlrAjusteEnvio = parseFloat(ajusteCustoInput?.value?.replace(',', '.') || 0);
+            const statusAjusteEnvio = vlrAjusteEnvio !== 0
+                ? (document.getElementById('selectStatusAjusteCusto')?.value || statusAjusteCustoInput?.value || 'Pendente')
+                : '';
+            
+
+            // statuspgtoajdcto = pagamento da AJUDA DE CUSTO (transporte/alimentação), não do ajuste
+            const vlrAjdCustoEnvio = parseFloat(transporteInput?.value?.replace(',', '.') || 0) 
+                + parseFloat(alimentacaoInput?.value?.replace(',', '.') || 0);
+            const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0 
+                ? (statusPgtoAjudaCustoInput?.value || 'Pendente') 
+                : '';
+            
+
+            const vlrCaixaEnvio = parseFloat(caixinhaInput?.value?.replace(',', '.') || 0);
+            const statusCaixaEnvio = vlrCaixaEnvio !== 0
+                ? (document.getElementById('selectStatusCaixinha')?.value || statusCaixinhaInput?.value || 'Pendente')
+                : '';
+
+
+            const statusPgtoCxEnvio = vlrCaixaEnvio !== 0
+                ? (statusPgtoCaixinhaInput?.value || 'Pendente')
+                : '';
+
+            
+
+            let tipoAjudaCustoViagem = 0;
+            if (document.getElementById('viagem1Check').checked) tipoAjudaCustoViagem = 1;
+            else if (document.getElementById('viagem2Check').checked) tipoAjudaCustoViagem = 2;
+            else if (document.getElementById('viagem3Check').checked) tipoAjudaCustoViagem = 3;
+            
+
             // =========================================================
             // 15. MONTAGEM DO FORMDATA
             // =========================================================
@@ -4267,76 +4074,61 @@ async function verificaStaff() {
             formData.append('avaliacao', avaliacao);
             formData.append('idfuncionario', idFuncionario);
             formData.append('nmfuncionario', nmFuncionario);
+
+            formData.append('qtdpessoas', qtdPessoas.toString());
+            formData.append('idorcamento', idOrcamentoAtual);
+
             formData.append('idfuncao', idFuncao);
             formData.append('nmfuncao', descFuncao);
+            formData.append('idequipe', idEquipe);
+            formData.append('nmequipe', nmEquipe);
+            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+
+            formData.append('setor', setor);
+            formData.append('idmontagem', idMontagem);
+            formData.append('nmlocalmontagem', nmLocalMontagem);
+
+            formData.append('pavilhao', pavilhao);
+
             formData.append('idcliente', idCliente);
             formData.append('nmcliente', nmCliente);
             formData.append('idevento', idEvento);
             formData.append('nmevento', nmEvento);
-            formData.append('idmontagem', idMontagem);
-            formData.append('nmlocalmontagem', nmLocalMontagem);
-            formData.append('pavilhao', pavilhao);
+
             formData.append('vlrcache', vlrCusto);
-            formData.append('vlrajustecusto', ajusteCusto);
+            formData.append('desccustofechado', descCustoFechadoParaEnvio || '');
+            formData.append('statuscustofechado', statusFechadoParaEnvio || '');
             formData.append('vlrtransporte', transporte);
             formData.append('vlralimentacao', alimentacao);
-            formData.append('vlrcaixinha', caixinha);
-            formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
-            formData.append('datasevento', JSON.stringify(periodoDoEvento));
-            formData.append('vlrtotal', total.toString());
-            formData.append('vlrtotcache', vlrtotcache.toString());
-            formData.append('vlrtotajdcusto', vlrtotajdcusto.toString());
+            
             formData.append('descbeneficios', descBeneficioTextarea.value.trim());
-            formData.append('desccustofechado', descCustoFechadoParaEnvio || '');  // ← null se houve troca de nível
-            formData.append('setor', setor);
+            
+            formData.append('datasevento', JSON.stringify(periodoDoEvento));
+            
+            formData.append('tipoajudacustoviagem', tipoAjudaCustoViagem.toString());
+
+            formData.append('vlrtotajdcusto', vlrtotajdcusto.toString());
+            formData.append('statuspgtoajdcto', capitalize(statusPgtoAjdEnvio));
+            formData.append('vlrtotcache', vlrtotcache.toString());
             formData.append('statuspgto', capitalize(statusPgto));
-            const vlrAjusteEnvio = parseFloat(ajusteCustoInput?.value?.replace(',', '.') || 0);
-            const statusAjusteEnvio = vlrAjusteEnvio !== 0 
-                ? (document.getElementById('selectStatusAjusteCusto')?.value || statusAjusteCustoInput?.value || 'Pendente')
-                : '';
+            formData.append('vlrtotal', total.toString());
+            
+            formData.append('vlrajustecusto', ajusteCusto);
+            formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
             formData.append('statusajustecusto', capitalize(statusAjusteEnvio));
 
-            // statuspgtoajdcto = pagamento da AJUDA DE CUSTO (transporte/alimentação), não do ajuste
-            const vlrAjdCustoEnvio = parseFloat(transporteInput?.value?.replace(',', '.') || 0) 
-                + parseFloat(alimentacaoInput?.value?.replace(',', '.') || 0);
-            const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0 
-                ? (statusPgtoAjudaCustoInput?.value || 'Pendente') 
-                : '';
-            // formData.append('statuspgtoajdcto', statusPgtoAjdEnvio.toUpperCase());
-            formData.append('statuspgtoajdcto', capitalize(statusPgtoAjdEnvio));
-
-            const vlrCaixaEnvio = parseFloat(caixinhaInput?.value?.replace(',', '.') || 0);
-            const statusCaixaEnvio = vlrCaixaEnvio !== 0
-                ? (document.getElementById('selectStatusCaixinha')?.value || statusCaixinhaInput?.value || 'Pendente')
-                : '';
-            // formData.append('statuscaixinha', statusCaixaEnvio.toUpperCase());
-             formData.append('statuscaixinha', capitalize(statusCaixaEnvio));
-
-            const statusPgtoCxEnvio = vlrCaixaEnvio !== 0
-                ? (statusPgtoCaixinhaInput?.value || 'Pendente')
-                : '';
-            // formData.append('statuspgtocaixinha', statusPgtoCxEnvio.toUpperCase());
-            formData.append('statuspgtocaixinha', capitalize(statusPgtoCxEnvio));
-
-            formData.append('statuscustofechado', statusFechadoParaEnvio || '');   // ← null se houve troca de nível
-            formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
-            formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
+            formData.append('vlrcaixinha', caixinha);
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
-            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
-            formData.append('qtdpessoas', qtdPessoas.toString());
-            formData.append('idequipe', idEquipe);
-            formData.append('nmequipe', nmEquipe);
-            formData.append('statusdiariadobrada', statusDiariaDobrada);
-            formData.append('statusmeiadiaria', statusMeiaDiaria);
+            formData.append('statuscaixinha', capitalize(statusCaixaEnvio));
+            formData.append('statuspgtocaixinha', capitalize(statusPgtoCxEnvio));
+            
             formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-            formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
-            formData.append('idorcamento', idOrcamentoAtual);
+            formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
+            formData.append('statusdiariadobrada', statusDiariaDobrada);
 
-            let tipoAjudaCustoViagem = 0;
-            if (document.getElementById('viagem1Check').checked) tipoAjudaCustoViagem = 1;
-            else if (document.getElementById('viagem2Check').checked) tipoAjudaCustoViagem = 2;
-            else if (document.getElementById('viagem3Check').checked) tipoAjudaCustoViagem = 3;
-            formData.append('tipoajudacustoviagem', tipoAjudaCustoViagem.toString());
+            formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
+            formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
+            formData.append('statusmeiadiaria', statusMeiaDiaria);
 
             // Comprovantes
             if (fileCacheInput.files?.[0]) formData.append('comppgtocache', fileCacheInput.files[0]);
@@ -4384,14 +4176,17 @@ async function verificaStaff() {
                     limparCamposStaff();
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
                     console.log("Usuário escolheu: Finalizar e Sair");
-                    
+
                     if (typeof fecharModal === "function") {
                         fecharModal();
-                    } else {
+                     } else {
+                        document.getElementById("modal-container").innerHTML = "";
                         document.getElementById("modal-overlay").style.display = "none";
                         document.body.classList.remove("modal-open");
                         if (typeof window.onStaffModalClosed === 'function') {
-                            window.onStaffModalClosed(true);
+                            const callback = window.onStaffModalClosed;
+                            window.onStaffModalClosed = null;
+                            callback(true); 
                         }
                     }
                 }
@@ -4447,14 +4242,10 @@ async function verificaStaff() {
             }
         });
     }
+    }
 
-    
-        // document.getElementById("selectStatusCustoFechado").addEventListener("change", function() {
-        //     document.getElementById("statusCustoFechado").value = this.value;
 
-        // }
-}
-  
+
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -7574,16 +7365,17 @@ async function limparCamposStaffParcial() {
         } else { el.value = ""; }
     });
 
+
     // 2. Identificação da Função (Regra de Negócio para Níveis)
-    const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
-    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim().toUpperCase();
-    const pularLimpezaNiveis = (descfuncaoAtual === 'AJUDANTE DE MARCAÇÃO' || descfuncaoAtual === 'FISCAL DE MARCAÇÃO');
+    const descfuncaoElement = document.getElementById('descFuncao'); 
+    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.selectedOptions[0].text : '').trim().toUpperCase();
+    const pularLimpezaNiveis = (descfuncaoAtual === 'AJUDANTE DE MARCAÇÃO');
 
     // 3. Limpeza de Inputs de Texto e Valores
     const camposTexto = [
         "idStaff", "idFuncionario", "nmFuncionario", "apelidoFuncionario", "perfilFuncionario",
-        "vlrCusto", "transporte", "alimentacao", "caixinha", "vlrTotal", "vlrCacheTotal", 
-        "vlrAjdCustoTotal", "ajusteCusto", "avaliacao"
+        "vlrCusto", "transporte", "alimentacao", "caixinha", "vlrTotal", "vlrTotalCache", 
+        "vlrTotalAjdCusto", "ajusteCusto", "avaliacao"
     ];
     camposTexto.forEach(id => {
         const campo = document.getElementById(id);
@@ -7591,11 +7383,12 @@ async function limparCamposStaffParcial() {
     });
 
     // 4. Reset de Checkboxes (Unificado)
-    const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100'];
+    const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100', 'viagem1Check', 'viagem2Check', 'viagem3Check'];
+        console.log ("pulando niveis especificos:", pularLimpezaNiveis);
     
     // Só adiciona os níveis à lista de limpeza se não for função de marcação
     if (!pularLimpezaNiveis) {
-        checksParaLimpar.push('Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck', 'viagem1Check', 'viagem2Check', 'viagem3Check');
+        checksParaLimpar.push('Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck');
     }
 
     checksParaLimpar.forEach(id => {
@@ -7671,6 +7464,8 @@ async function limparCamposStaffParcial() {
     limparCamposComprovantes();
     limparFoto();
     limparStaffOriginal();
+
+
 
     Swal.fire({
         title: "Pronto para o próximo!",
@@ -7765,7 +7560,14 @@ function verificarStatusCache() {
     if (!isFechado && !isLiberado) return true;
 
     // Se é Fechado/Liberado, verifica o status
-    const statusCache = document.getElementById('statusCustoFechado')?.value || '';
+    const inputStatus = document.getElementById('statusCustoFechadoTexto')?.value || '';
+    const selectStatus = document.getElementById('selectStatusCustoFechado')?.value || '';
+
+    // ✅ Pega o que estiver visível/preenchido, ignorando 'none'
+    const statusCache = (selectStatus && selectStatus !== 'none') 
+        ? selectStatus 
+        : inputStatus;
+
     const statusUpper = statusCache.trim().toUpperCase();
 
     if (statusUpper === 'PENDENTE' || statusUpper === '') {
@@ -7853,74 +7655,6 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
         inputPgto.value = '';
     }
 });
-
-// document.getElementById('viagem1Check').addEventListener('change', function () { 
-//     // let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
-//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//     // document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//     // document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-//     if (this.checked) {
-//         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-//     //     // Lógica para quando o checkbox de Viagem 1 estiver marcado
-//     //     viagem2Check.checked = false;
-//     //     if (typeof viagem3Check !== 'undefined') viagem3Check.checked = false;
-//     //     vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         // Texto
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
-//         descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
-//     } else {
-//         // Reset para o padrão da função
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-//         descBeneficioTextarea.value = descBeneficioAtual;
-//     }
-// });
-
-// document.getElementById('viagem2Check').addEventListener('change', function () { 
-//     let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//     if (this.checked) {
-
-//         [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
-//         descBeneficioAtual.value = descBeneficioAtual + separador + DescViagem2
-//     }else {
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-
-//         descBeneficioTextarea.value = descBeneficioAtual;
-//     }
-// });
-
-// if (document.getElementById('viagem3Check')) {
-//     document.getElementById('viagem3Check').addEventListener('change', function () { 
-//         let descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
-
-//         if (this.checked) {
-//             [viagem1Check,viagem2Check].forEach(c =>{if(c) c.checked = false;});
-
-//         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (0).toFixed(2);
-
-//         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n":""
-//             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
-
-//         } else {
-//             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-//         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-//             descBeneficioTextarea.value = descBeneficioAtual;
-//         }
-//     });
-// }
 
 function registrarListenersNivel() {
     document.getElementById('Seniorcheck').addEventListener('change', function () {
@@ -8205,7 +7939,6 @@ function registrarListenersNivel() {
             }
         } 
     });
-
 
     document.getElementById('viagem1Check').addEventListener('change', function () { 
     const textoParaLimpar = descBeneficioTextarea.value;
@@ -8547,6 +8280,7 @@ function calcularValorTotal() {
     let total = 0;
     let totalCache = 0; 
     let totalAjdCusto = 0;
+    let statusAnteriorAjusteCusto = '';
 
 
     if (isFormLoadedFromDoubleClick)
@@ -8623,10 +8357,17 @@ function calcularValorTotal() {
     const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;
     if (statusAjusteCusto === 'Autorizado') {
         total += ajusteCusto;
-        totalCache += ajusteCusto;    
-        console.log("Ajuste de Custo Autorizado. Adicionando:", ajusteCusto.toFixed(2));
+        totalCache += ajusteCusto;
+        console.log("Ajuste Autorizado. Adicionando:", ajusteCusto.toFixed(2));
+    } else if (
+        statusAnteriorAjusteCusto === 'Autorizado' && 
+        (statusAjusteCusto === 'Pendente' || statusAjusteCusto === 'Rejeitado')
+    ) {
+        total -= ajusteCusto;
+        totalCache -= ajusteCusto;
+        console.log("Ajuste removido (era Autorizado). Subtraindo:", ajusteCusto.toFixed(2));
     } else {
-        console.log("Ajuste de Custo Não Autorizado. Não adicionado.");
+        console.log("Ajuste Não Autorizado. Nada alterado.");
     }
 
     // 2. Verificação da Caixinha
@@ -8709,13 +8450,13 @@ function calcularValorTotal() {
     document.getElementById('vlrTotalHidden').value = valorLimpo;
 
     const valorFormatTotCache = 'R$ ' + totalCache.toFixed(2).replace('.', ',');
-    const valorLimpoCache = total.toFixed(2);
+    const valorLimpoCache = totalCache.toFixed(2);
 
     document.getElementById('vlrTotalCache').value = valorFormatTotCache;
     document.getElementById('vlrTotalCacheHidden').value = valorLimpoCache;
 
     const valorFormatTotAjdCusto = 'R$ ' + totalAjdCusto.toFixed(2).replace('.', ',');
-    const valorLimpoAjdCusto = total.toFixed(2);
+    const valorLimpoAjdCusto = totalAjdCusto.toFixed(2);
 
     document.getElementById('vlrTotalAjdCusto').value = valorFormatTotAjdCusto;
     document.getElementById('vlrTotalAjdCustoHidden').value = valorLimpoAjdCusto;
@@ -10540,108 +10281,6 @@ function configurarEventosStaff() {
             console.warn("[configurarEventosStaff] Parâmetro dataeventos não encontrado.");
         }
     }
-
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    // const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    // const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-    // const inputAjusteCusto = document.getElementById('ajusteCusto');
-    // const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
-    // const inputStatusAjusteCusto = document.getElementById('statusAjusteCusto');
-
-    // if (ajusteCustocheck) {
-    //     ajusteCustocheck.addEventListener('change', function() {
-    //         if (this.checked) {
-    //             // Tenta abrir: verifica trava
-    //             if (!verificarStatusCacheBase()) {
-    //                 this.checked = false;
-    //                 return;
-    //             }
-    //             // Abre campos
-    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'block';
-    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'block';
-    //             if (ajusteCustoTextarea) {
-    //                 ajusteCustoTextarea.style.display = 'block';
-    //                 ajusteCustoTextarea.required = true;
-    //             }
-    //             if (inputAjusteCusto) inputAjusteCusto.required = true;
-    //         } else {
-    //             // Fecha e LIMPA TUDO (Remove o erro de validação ao desmarcar)
-    //             if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
-    //             if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
-                
-    //             if (inputAjusteCusto) {
-    //                 inputAjusteCusto.value = '';
-    //                 inputAjusteCusto.required = false;
-    //             }
-    //             if (ajusteCustoTextarea) {
-    //                 ajusteCustoTextarea.value = '';
-    //                 ajusteCustoTextarea.style.display = 'none';
-    //                 ajusteCustoTextarea.required = false;
-    //             }
-    //             if (inputStatusAjusteCusto) {
-    //                 inputStatusAjusteCusto.value = '';
-    //                 inputStatusAjusteCusto.required = false;
-    //             }
-    //         }
-    //     });
-    // }
-
-
-    // const caixinhacheck = document.getElementById('Caixinhacheck');
-    // const campoCaixinha = document.getElementById('campoCaixinha');
-    // const inputCaixinha = document.getElementById('caixinha');
-    // const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-    // const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
-
-    // if (caixinhacheck) {
-    //     caixinhacheck.addEventListener('change', function() {
-    //         if (this.checked) {
-    //             if (!verificarStatusCacheBase()) {
-    //                 this.checked = false;
-    //                 return;
-    //             }
-    //             if (campoCaixinha) campoCaixinha.style.display = 'block';
-    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'block';
-    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'block';
-    //             if (inputCaixinha) inputCaixinha.required = true;
-    //         } else {
-    //             if (campoCaixinha) campoCaixinha.style.display = 'none';
-    //             if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-    //             if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
-                
-    //             if (inputCaixinha) {
-    //                 inputCaixinha.value = '';
-    //                 inputCaixinha.required = false;
-    //             }
-    //             // Limpa status e pagamentos
-    //             const stCaixinha = document.getElementById('statusCaixinha');
-    //             const pgCaixinha = document.getElementById('statusPgtoCaixinha');
-    //             if (stCaixinha) stCaixinha.value = '';
-    //             if (pgCaixinha) pgCaixinha.value = '';
-    //         }
-    //     });
-    // }
-
-    // const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    // const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    // if (diariaDobradacheck && campoDiariaDobrada) {
-    //     diariaDobradacheck.addEventListener('change', function() {
-    //         campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-    //     });
-    //     campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-    // }
-
-    // const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    // const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    // if (meiaDiariacheck && campoMeiaDiaria) {
-    //     meiaDiariacheck.addEventListener('change', function() {
-    //         campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-    //      });
-    //     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    // }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
     if (typeof mostrarTarja === 'function') {
         mostrarTarja();
     }
@@ -10662,9 +10301,7 @@ function configurarEventosStaff() {
             statusCaixinhaInput.disabled = false;
         }
     }
-    // --- DENTRO DE configurarEventosStaff() ---
 
-    // 1. Pegamos os elementos de layout (Wrappers e Status)
     const divStatusContainer = document.getElementById('campoStatusCustoFechado');
     const wrapperInput = document.getElementById('wrapperInputCustoFechado');
     const wrapperSelect = document.getElementById('wrapperSelectCustoFechado');
@@ -10672,9 +10309,7 @@ function configurarEventosStaff() {
     const selectStatus = document.getElementById('selectStatusCustoFechado');
     const textareaJustificativa = document.getElementById('descCustoFechado');
 
-    // 2. Usamos as permissões que já foram declaradas no topo do Staff.js
-    // IMPORTANTE: Não use "const" ou "let" aqui para as variáveis abaixo, 
-    // pois elas já existem no escopo global do seu arquivo.
+
     const temAcessoMasterOuFinanceiro = temPermissaoMaster || temPermissaoFinanceiro;
 
     // if (fechadoCheck || liberadoCheck) { // 'fechadoCheck' é a variável global do seu topo de arquivo

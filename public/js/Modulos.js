@@ -182,41 +182,54 @@ function verificaModulos() {
 
             // Evento ao escolher um modulo
             select.addEventListener("change", async function () {
-                const desc = this.value?.trim();
+                const selectedOption = this.options[this.selectedIndex];
+                const desc = selectedOption.value?.trim();
+                if (!desc) return;
 
-                if (!desc) {
-                    console.warn("Valor do select está vazio ou indefinido.");
-                    return;
-                }
+                const d = selectedOption.dataset;
+                const empresas = JSON.parse(d.empresas || '[]');
 
-                await carregarModulosDescricao(desc, this);
+                document.querySelector("#idModulo").value = d.idmodulo;
 
+                window.ModulosOriginal = {
+                    idModulo: d.idmodulo,
+                    nmModulo: d.nmmodulo,
+                    empresas: empresas
+                };
+
+                // ✅ 1. Substitui select por input PRIMEIRO
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
                 novoInput.id = "nmModulo";
                 novoInput.name = "nmModulo";
                 novoInput.required = true;
                 novoInput.className = "form";
-                novoInput.value = desc;
+                novoInput.value = d.nmmodulo;
 
                 novoInput.addEventListener("input", function () {
                     this.value = this.value.toUpperCase();
                 });
 
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+                    const idAtual = document.querySelector("#idModulo")?.value;
+                    if (idAtual) return;
+                    await carregarModulosDescricao(this.value, this);
+                });
+
                 this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurModulos();
 
+                const label = document.querySelector('label[for="nmModulo"]');
                 if (label) {
                     label.style.display = "block";
-                    label.textContent = "Descrição do Modulos";
+                    label.textContent = "Descrição do Modulo";
                 }
 
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarModulosDescricao(this.value, this);
-                });
+                // ✅ 2. Aplica checkboxes DEPOIS da substituição
+                aplicarSelecaoEmpresas(empresas.map(e => String(e.idempresa || e)));
+                console.log("✅ Módulo selecionado:", window.ModulosOriginal);
             });
-
         } catch (error) {
             console.error("Erro ao carregar Modulos:", error);
             Swal.fire({
@@ -259,17 +272,68 @@ function coletarEmpresasSelecionadas() {
     return idsEmpresas; // Retorna o array de IDs ['1', '2', '3']
 }
 
-function aplicarSelecaoEmpresas(idsEmpresas) {
-    const select = document.getElementById('empresas-select-multiplo');
-    if (!select) return;
 
-    // Converte todos os IDs para string para comparação
-    const idsParaMarcar = new Set(idsEmpresas.map(String));
+function aplicarSelecaoEmpresas(idsEmpresasDoModulo) {
+    const selectOriginal = document.getElementById('empresas-select-multiplo');
+    
+    // ✅ Usa um container fixo no DOM, não depende do select
+    let checkContainer = document.getElementById('empresas-checkboxes');
+    if (!checkContainer) {
+        checkContainer = document.createElement('div');
+        checkContainer.id = 'empresas-checkboxes';
+        checkContainer.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px; padding:10px;';
+        // ✅ Insere SEMPRE após o select original que permanece no DOM
+        selectOriginal.parentNode.insertBefore(checkContainer, selectOriginal.nextSibling);
+    }
+    
+    selectOriginal.style.display = 'none';
+    checkContainer.innerHTML = '';
+    
+    const idsSet = new Set(idsEmpresasDoModulo.map(String));
 
-    // Itera sobre as opções e marca as que correspondem
-    Array.from(select.options).forEach(option => {
-        // Verifica se o valor da opção está no conjunto de IDs para marcar
-        option.selected = idsParaMarcar.has(option.value);
+    Array.from(selectOriginal.options).forEach(option => {
+        if (!option.value) return;
+
+        const isChecked = idsSet.has(String(option.value));
+        
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:bold;';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = option.value;
+        checkbox.checked = isChecked;
+        checkbox.style.cssText = 'width:18px; height:18px; cursor:pointer;';
+
+        checkbox.addEventListener('change', async function(e) {
+            e.preventDefault();
+            const nomeEmpresa = option.text;
+            const acao = this.checked ? 'incluir' : 'excluir';
+
+            const { isConfirmed } = await Swal.fire({
+                icon: 'question',
+                title: `${acao === 'incluir' ? 'Incluir' : 'Excluir'} empresa?`,
+                text: `Deseja ${acao} a empresa "${nomeEmpresa}" ${acao === 'incluir' ? 'neste' : 'deste'} módulo?`,
+                showCancelButton: true,
+                confirmButtonText: `Sim, ${acao}`,
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: acao === 'incluir' ? '#16a34a' : '#dc2626',
+            });
+
+            if (!isConfirmed) {
+                this.checked = !this.checked;
+                return;
+            }
+
+            // ✅ Sincroniza o select original
+            const optionSelect = Array.from(selectOriginal.options)
+                .find(o => String(o.value) === String(this.value));
+            if (optionSelect) optionSelect.selected = this.checked;
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(option.text));
+        checkContainer.appendChild(label);
     });
 }
 
@@ -345,6 +409,9 @@ async function carregarEExibirEmpresasSelect() {
             option.text = empresa.nmfantasia || empresa.nome; // Exibe o nome fantasia ou nome
             select.appendChild(option);
         });
+
+        aplicarSelecaoEmpresas([]);
+
 
     } catch (error) {
         console.error("Erro ao carregar lista de empresas:", error);
@@ -472,28 +539,30 @@ function desinicializarModulosModal() {
 }
 
 function criarSelectModulos(modulos) {
-   
+    // ✅ Adiciona log para ver o que vem da API
+    console.log("🔍 Primeiro módulo:", modulos[0]);
+    console.log("🔍 Chaves disponíveis:", Object.keys(modulos[0]));
+    
     const select = document.createElement("select");
     select.id = "nmModulo";
     select.name = "nmModulo";
     select.required = true;
     select.className = "form";
 
-   
-    // Adicionar opções
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
-    defaultOption.text = "Selecione um Modulos...";
+    defaultOption.text = "Selecione um Modulo...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
     select.appendChild(defaultOption);
-   
-    console.log("PESQUISANDO EQUIPAMENTO:", modulos);
 
     modulos.forEach(modulosachado => {
         const option = document.createElement("option");
-        option.value = modulosachado.modulo;
-        option.text = modulosachado.modulo;
+        option.value = modulosachado.nmModulo; // ✅ era 'modulo', é 'nmModulo'
+        option.text = modulosachado.nmModulo;  // ✅
+        option.dataset.idmodulo = modulosachado.idmodulo;
+        option.dataset.nmmodulo = modulosachado.nmModulo; // ✅
+        option.dataset.empresas = JSON.stringify(modulosachado.empresas || []);
         select.appendChild(option);
     });
  
@@ -520,22 +589,21 @@ function adicionarEventoBlurModulos() {
             (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
-        if (ehBotaoIgnorado) {
-            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+        if (ehBotaoIgnorado) { 
             return;
         }
 
         const desc = this.value.trim();
-        console.log("Campo nmModulo procurado:", desc);
-
-        if (!desc) { // <- Aqui ele deve retornar, mas o código segue
-            console.warn("Valor do select está vazio ou indefinido."); // <- Log confuso
-            return; // <- Este return provavelmente não está sendo executado no momento certo.
+        if (!desc){          
+            return; 
         }
+
+        const idAtual = document.querySelector("#idModulo")?.value;
+        if (idAtual) return;
 
         try {
             await carregarModulosDescricao(desc, this);
-            console.log("Modulos selecionados depois de carregarModulosDescricao:", desc, this.value);
+
         } catch (error) {
             console.error("Erro ao buscar Modulos:", error);
         }
@@ -546,15 +614,17 @@ async function carregarModulosDescricao(desc, elementoAtual) {
     try {
         const modulos = await fetchComToken(`/modulos?nmModulo=${encodeURIComponent(desc)}`);
 
-        console.log("DESC", desc, "MODULOS", modulos);
-       
+        console.log("🔍 Retorno da API:", modulos);
+
+              
         if (!modulos || !modulos.idmodulo) throw new Error("Modulos não encontrada");        
 
         document.querySelector("#idModulo").value = modulos.idmodulo;
+        document.querySelector("#nmModulo").value = modulos.nmModulo;
      
         window.ModulosOriginal = {
             idModulo: modulos.idmodulo,
-            nmModulo: modulos.modulo,
+            nmModulo: modulos.nmModulo,
             empresas: modulos.empresas || []
         };
 
@@ -632,7 +702,41 @@ function limparCamposModulos() {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
-    
+
+    // ✅ Limpa checkboxes mas mantém select escondido
+    const checkContainer = document.getElementById('empresas-checkboxes');
+    if (checkContainer) checkContainer.innerHTML = '';
+
+    const selectEmpresas = document.getElementById('empresas-select-multiplo');
+    if (selectEmpresas) {
+        selectEmpresas.style.display = 'none'; // ✅ sempre escondido
+        Array.from(selectEmpresas.options).forEach(o => o.selected = false);
+    }
+
+    // ✅ Recria checkboxes vazios
+    aplicarSelecaoEmpresas([]);
+
+    // ✅ Reseta SELECT para INPUT se necessário
+    const nmModuloEl = document.getElementById("nmModulo");
+    if (nmModuloEl && nmModuloEl.tagName === "SELECT") {
+        const novoInput = document.createElement("input");
+        novoInput.type = "text";
+        novoInput.id = "nmModulo";
+        novoInput.name = "nmModulo";
+        novoInput.required = true;
+        novoInput.className = "form";
+        novoInput.value = "";
+        nmModuloEl.parentNode.replaceChild(novoInput, nmModuloEl);
+        adicionarEventoBlurModulos();
+
+        const label = document.querySelector('label[for="nmModulo"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Descrição do Modulo";
+        }
+    }
+
+    limparModulosOriginal();
 }
 
 function configurarEventosModulos() {

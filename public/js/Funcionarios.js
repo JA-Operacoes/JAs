@@ -378,76 +378,43 @@ botaoEnviar.addEventListener("click", async (event) => {
 
               // Adiciona listener para carregar o funcionário selecionado
               select.addEventListener("change", async function () {
-                  const nomeSelecionado = this.value?.trim();
-                  if (!nomeSelecionado) return;
+                const selectedOption = this.options[this.selectedIndex];
+                const nomeSelecionado = selectedOption.value?.trim();
+                if (!nomeSelecionado) return;
 
-                   const campoApelido = document.querySelector("#apelido");
-                        if (campoApelido.tagName === "SELECT") {
-                            const input = document.createElement("input");
-                            input.type = "text";
-                            input.id = "apelido";
-                            input.name = "apelido";
-                            input.className = "form-2colunas";
-                            input.value = "Apelido"; 
-                            input.classList.add("uppercase");
-                            input.required = true;
-                            campoApelido.parentNode.replaceChild(input, campoApelido);
-                        }
-                         const labelApelido = document.querySelector('label[for="apelido"]');
-                    if (labelApelido) {
-                        labelApelido.style.display = "block";
-                        labelApelido.textContent = "Apelido"; // ou algum texto que você tenha guardado
-                    }
+                // ✅ Preenche o ID diretamente do dataset
+                document.querySelector("#idFuncionario").value = selectedOption.dataset.idfuncionario;
 
-                  await carregarFuncionarioDescricao(nomeSelecionado, this);
+                // ✅ Substitui select por input antes de carregar
+                const novoInput = document.createElement("input");
+                novoInput.type = "text";
+                novoInput.id = "nome";
+                novoInput.name = "nome";
+                novoInput.required = true;
+                novoInput.className = "form-2colunas";
+                novoInput.classList.add('uppercase');
+                novoInput.value = nomeSelecionado;
 
-                  // Após carregar, substitui o select de volta para um input de texto
-                  const novoInput = document.createElement("input");
-                  novoInput.type = "text";
-                  novoInput.id = "nome"; // Mantém o ID
-                  novoInput.name = "nome";
-                  novoInput.required = true;
-                  novoInput.className = "form-2colunas";
-                  novoInput.classList.add('uppercase');
-                  novoInput.value = nomeSelecionado; // Preenche com o nome selecionado
-                 // novoInput.readOnly = true; // Torna o campo somente leitura após a seleção
-                  
-                  novoInput.addEventListener("blur", async function() {
-                    this.value = this.value.toUpperCase();                      
-                  });
-
-                  this.parentNode.replaceChild(novoInput, this);
-                  adicionarEventoBlurFuncionario();
-
-                  const label = document.querySelector('label[for="nome"]');
-                if (label) {
-                    label.style.display = "block";
-                    label.textContent = "Nome do Funcionário"; // ou algum texto que você tenha guardado
-                }
                 novoInput.addEventListener("blur", async function () {
                     if (!this.value.trim()) return;
-
-                    const campoApelido = document.querySelector("#apelido");
-                        if (campoApelido.tagName === "SELECT") {
-                            const input = document.createElement("input");
-                            input.type = "text";
-                            input.id = "apelido";
-                            input.name = "apelido";
-                            input.className = "form-2colunas";
-                            input.value = "Apelido"; 
-                            input.classList.add("uppercase");
-                            input.required = true;
-                            campoApelido.parentNode.replaceChild(input, campoApelido);
-                        }
-                         const labelApelido = document.querySelector('label[for="apelido"]');
-                    if (labelApelido) {
-                        labelApelido.style.display = "block";
-                        labelApelido.textContent = "Apelido"; // ou algum texto que você tenha guardado
-                    }
-
+                    const idAtual = document.querySelector("#idFuncionario")?.value;
+                    if (idAtual) return; // ✅ proteção
                     await carregarFuncionarioDescricao(this.value, this);
                 });
-              });
+
+                this.parentNode.replaceChild(novoInput, this);
+                adicionarEventoBlurFuncionario();
+
+                const label = document.querySelector('label[for="nome"]');
+                if (label) {
+                    label.style.display = "block";
+                    label.textContent = "Nome do Funcionário";
+                }
+
+                // ✅ Agora carrega o resto dos dados
+                await carregarFuncionarioDescricao(nomeSelecionado, novoInput);
+            });
+             
           } else {
               Swal.fire("Nenhum funcionário", "Nenhum funcionário encontrado para pesquisa.", "info");
           }
@@ -742,18 +709,18 @@ function adicionarEventoBlurFuncionario() {
              (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
-            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
             return;
         }
 
         const desc = this.value.trim();
-        console.log("Campo nome procurado:", desc);
-
         if (!desc) return;
+
+        const idAtual = document.querySelector("#idFuncionario")?.value;
+        if (idAtual) return;
+
 
         try {
             await carregarFuncionarioDescricao(desc, this);
-            console.log("Funcionário selecionado depois de carregarFuncionariosDescricao:", this.value);
         } catch (error) {
             console.error("Erro ao buscar Funcionario:", error);
         }
@@ -994,8 +961,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("codBanco").value = funcionario.codigobanco || '';
             const inputCodBanco = document.getElementById("codBanco");
             if (inputCodBanco) {
-                console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
-                preencherDadosBancoPeloCodigo();
+                
+                preencherDadosBancoPeloCodigo(funcionario.codigobanco);
             } else {
                 console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM.");
             }
@@ -1040,14 +1007,12 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             formInputs.forEach(input => input.removeAttribute('disabled'));            
         //} 
     } catch (error) {
-       console.log("CATCH, FUNCIONARIO NÃO ENCONTRADO");
-       console.warn("Funcionário não encontrado.");
-       console.log("CATCH FUNCIONARIO NÃO ENCONTRADO");
-
+     
         const inputIdFuncionario = document.querySelector("#idFuncionario");
         const podeCadastrarFuncionario = temPermissao("Funcionarios", "cadastrar");
 
-        console.log("Verificando se pode cadastrar funcionário:", podeCadastrarFuncionario, inputIdFuncionario.value);
+        if (inputIdFuncionario?.value) return;
+      
         if (!inputIdFuncionario.value && podeCadastrarFuncionario) {
              const resultado = await Swal.fire({
                 icon: 'question',
@@ -1069,6 +1034,7 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 }, 0);
                 return;
             }
+            elementoInputOuSelect.value = nome.toUpperCase();
         } else if (!podeCadastrarFuncionario) {
             Swal.fire({
                 icon: "info",
@@ -1146,9 +1112,11 @@ function criarSelectFuncionario(funcionarios) {
 
     funcionarios.forEach(funcionario => {
         const option = document.createElement("option");
-        option.value = funcionario.nome; // O valor da opção será o nome para a busca
+        option.value = funcionario.nome;
         option.textContent = funcionario.nome;
-        option.setAttribute('data-id', funcionario.idFuncionario); // Armazenar o ID no data-attribute
+        option.dataset.idfuncionario = funcionario.idfuncionario;
+        option.dataset.nome = funcionario.nome;
+        option.dataset.apelido = funcionario.apelido || '';
         select.appendChild(option);
     });
     
@@ -1384,7 +1352,7 @@ function limparCamposFuncionarios(){
         input.id = "nome";
         input.name = "nome";
         input.className = "form";
-        input.value = "Nome do Funcionário"; 
+        input.value = ""; 
         input.classList.add("uppercase");
         input.required = true;
         campoNome.parentNode.replaceChild(input, campoNome);
@@ -1397,7 +1365,7 @@ function limparCamposFuncionarios(){
         input.id = "apelido";
         input.name = "apelido";
         input.className = "form";
-        input.value = "Apelido"; 
+        input.value = ""; 
         input.classList.add("uppercase");
         input.required = true;
         campoApelido.parentNode.replaceChild(input, campoApelido);

@@ -81,6 +81,11 @@ router.put("/:id",
         if (result.rowCount) {
           res.locals.acao = 'atualizou';
           res.locals.idregistroalterado = result.rows[0].idtipoconta; 
+          res.locals.dadosNovos = {
+            idtipoconta: result.rows[0].idtipoconta,
+            nmtipoconta: result.rows[0].nmtipoconta,
+            ativo: result.rows[0].ativo
+          };
           return res.json({ message: "Tipo de Conta atualizada com sucesso!", conta: result.rows[0] });
         } else {
           return res.status(404).json({ message: "Tipo de Conta não encontrada para atualizar." });
@@ -105,13 +110,18 @@ router.post("/", verificarPermissao('tipoconta', 'cadastrar'),
     try {
         // CORREÇÃO: Garantindo que o INSERT use as colunas corretas e tenha 3 parâmetros ($1, $2, $3)
         const result = await pool.query(
-            "INSERT INTO tipoconta (nmtipoconta, ativo, idempresa) VALUES ($1, $2, $3) RETURNING idtipoconta, nmtipoconta", 
+            "INSERT INTO tipoconta (nmtipoconta, ativo, idempresa) VALUES ($1, $2, $3) RETURNING idtipoconta, nmtipoconta, ativo", 
             [nmTipoConta, ativo, idempresa]
         );
 
         const novaConta = result.rows[0];
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = novaConta.idtipoconta; 
+        res.locals.dadosNovos = {
+          idtipoconta: novaConta.idtipoconta,
+          nmtipoconta: novaConta.nmtipoconta,
+          ativo // ✅ ativo não vem no RETURNING, mas está no req.body
+        };
 
         // PADRONIZAÇÃO: Use 'message' em vez de 'mensagem' para bater com o seu TipoConta.js
         res.status(201).json({ message: "Tipo de Conta salva com sucesso!", conta: novaConta });

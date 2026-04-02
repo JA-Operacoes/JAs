@@ -28,6 +28,7 @@ let pesquisarEventoButtonListener = null;
 let selectEventoChangeListener = null;
 let novoInputNmEventoInputListener = null; 
 let novoInputNmEventoBlurListener = null; 
+let clientesSelecionados = new Set();
 
 let EventoOriginal = {
     idEvento: "",
@@ -45,10 +46,13 @@ async function verificaEvento() {
     const form = document.querySelector("#form");    
 
 
-    const clientesSelecionados = new Set(); // Use um Set para evitar clientes duplicados
+    //const clientesSelecionados = new Set(); // Use um Set para evitar clientes duplicados
     const selectCliente = document.getElementById("selectCliente");
+    selectCliente.disabled = true;
+    selectCliente.title = "Preencha o nome do evento primeiro";
+
     const clientesContainer = document.getElementById("clientesSelecionadosContainer");
-    const clientesInput = document.getElementById("clientesDoEvento");
+    const clientesInput = document.getElementById("clientesDoEvento");  
 
     carregarClientes();
 
@@ -173,18 +177,7 @@ async function verificaEvento() {
             
             
             limparCamposEvento();
-            // if (metodo === "POST") {
-            //     limparCamposEvento();
-            // } else {
-          
-            //     // Atualiza o estado original com os novos dados salvos
-            //     // window.EventoOriginal = {
-            //     //     idEvento: idEvento,
-            //     //     nmEvento: nmEvento,
-            //     //     clientes: clientesDoEvento 
-            //     // };
-            // }
-
+            
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -289,31 +282,35 @@ async function carregarClientes() {
 }
 
 function adicionarListenersAoInputNmEvento(inputElement) {
-    // Remove listeners anteriores para evitar duplicidade
-    // Esta parte é para inputs que já existem ou foram recriados
-    // Os listeners principais estão nas variáveis globais (nmEventoInputListener, nmEventoBlurListener)
     
-    // Configura o listener de INPUT (toUpperCase)
     if (nmEventoInputListener) { 
         inputElement.removeEventListener("input", nmEventoInputListener);
     }
     nmEventoInputListener = function () { 
         this.value = this.value.toUpperCase();
+        const selectCliente = document.getElementById("selectCliente");
+        if (this.value.trim()) {
+            selectCliente.disabled = false;
+            selectCliente.title = "";
+        } else {
+            selectCliente.disabled = true;
+            selectCliente.title = "Preencha o nome do evento primeiro";
+        }
     };
     inputElement.addEventListener("input", nmEventoInputListener);
 
     // Configura o listener de BLUR (carregarEventoDescricao)
-    if (nmEventoBlurListener) { 
-        inputElement.removeEventListener("blur", nmEventoBlurListener);
-    }
-    nmEventoBlurListener = async function () { 
-        if (!this.value.trim()) return;
-        console.log("Campo nmEvento procurado (blur dinâmico):", this.value);
+    // if (nmEventoBlurListener) { 
+    //     inputElement.removeEventListener("blur", nmEventoBlurListener);
+    // }
+    // nmEventoBlurListener = async function () { 
+    //     if (!this.value.trim()) return;
+    //     console.log("Campo nmEvento procurado (blur dinâmico):", this.value);
         
-        // 💡 ATENÇÃO: Chama carregarEventoDescricao, mas a lógica de ignorar clique está no final do arquivo
-        await carregarEventoDescricao(this.value, this); 
-    };
-    inputElement.addEventListener("blur", nmEventoBlurListener);
+    //     // 💡 ATENÇÃO: Chama carregarEventoDescricao, mas a lógica de ignorar clique está no final do arquivo
+    //     await carregarEventoDescricao(this.value, this); 
+    // };
+    // inputElement.addEventListener("blur", nmEventoBlurListener);
 }
 
 function resetarCampoNmEventoParaInput() {
@@ -505,6 +502,10 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 
         document.querySelector("#idEvento").value = eventos.idevento;
         document.querySelector("#nmEvento").value = eventos.nmevento; 
+
+        const selectCliente = document.getElementById("selectCliente");
+        selectCliente.disabled = false;
+        selectCliente.title = "";
         
         window.EventoOriginal = {
             idEvento: eventos.idevento,
@@ -548,10 +549,13 @@ async function carregarEventoDescricao(desc, elementoAtual) {
             focusCancel: true
         });
 
-        if (!resultado.isConfirmed) {
-            console.log("Usuário cancelou o cadastro do Evento.");
-            // ❌ CORREÇÃO: Removida a linha que limpava o campo
-            // elementoAtual.value = ""; 
+        if (resultado.isConfirmed) {
+            // ✅ Confirmou cadastro — habilita o select de clientes
+            const selectCliente = document.getElementById("selectCliente");
+            selectCliente.disabled = false;
+            selectCliente.title = "";
+        } else {
+            console.log("Usuário cancelou o cadastro do Evento.");           
             setTimeout(() => {
                 elementoAtual.focus();
             }, 0);
@@ -564,21 +568,26 @@ async function carregarClientesSelecionados(clientesIds) {
         // Limpar o container se não houver clientes
         document.getElementById("clientesSelecionadosContainer").innerHTML = '';
         document.getElementById("clientesDoEvento").value = "[]";
+        clientesSelecionados.clear(); 
         return;
     }
 
     const clientesContainer = document.getElementById("clientesSelecionadosContainer");
     const clientesInput = document.getElementById("clientesDoEvento");
     const botaoEnviar = document.getElementById("Enviar");
+
+    clientesSelecionados.clear();
+    clientesIds.forEach(id => clientesSelecionados.add(String(id)));
+    clientesInput.value = JSON.stringify(Array.from(clientesSelecionados));
     
     clientesContainer.innerHTML = '';
-    clientesInput.value = JSON.stringify(clientesIds);
+    //clientesInput.value = JSON.stringify(clientesIds);
 
     try {
         const clientesDisponiveis = await fetchComToken('/eventos/clientes');
         
         clientesIds.forEach(id => {
-            const cliente = clientesDisponiveis.find(c => c.idcliente === id);
+            const cliente = clientesDisponiveis.find(c => String(c.idcliente) === String(id));
             if (cliente) {
                 const tag = document.createElement('span');
                 tag.className = 'cliente-tag';
@@ -599,10 +608,14 @@ async function carregarClientesSelecionados(clientesIds) {
                         cancelButtonText: "Cancelar"
                     });
                     if (isConfirmed) {
-                        const clientesSelecionadosSet = new Set(JSON.parse(clientesInput.value));
-                        clientesSelecionadosSet.delete(idCliente);
+                        // const clientesSelecionadosSet = new Set(JSON.parse(clientesInput.value));
+                        // clientesSelecionadosSet.delete(idCliente);
+                        // tag.remove();
+                        // clientesInput.value = JSON.stringify(Array.from(clientesSelecionadosSet));
+                        // botaoEnviar.click();
+                        clientesSelecionados.delete(String(idCliente));
                         tag.remove();
-                        clientesInput.value = JSON.stringify(Array.from(clientesSelecionadosSet));
+                        clientesInput.value = JSON.stringify(Array.from(clientesSelecionados));
                         botaoEnviar.click();
                     }
                 });
@@ -625,6 +638,14 @@ function limparEventoOriginal() {
 
 function limparCamposEvento() {
     
+    clientesSelecionados.clear();
+
+    const selectCliente = document.getElementById("selectCliente");
+    if (selectCliente) {
+        selectCliente.disabled = true;
+        selectCliente.title = "Preencha o nome do evento primeiro";
+    }
+
     const idEvent = document.getElementById("idEvento");
     const descEventEl = document.getElementById("nmEvento");
     

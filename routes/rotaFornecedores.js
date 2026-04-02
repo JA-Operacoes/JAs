@@ -50,7 +50,7 @@ router.get("/", verificarPermissao('Fornecedores', 'pesquisar'), async (req, res
 });
 
 
-// PUT atualizar
+
 // PUT atualizar fornecedor
 router.put(
   "/:id",
@@ -182,6 +182,7 @@ router.put(
       res.locals.acao = 'atualizou';
       res.locals.idregistroalterado = result.rows[0].idfornecedor;
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = req.body;
 
       return res.json({
         message: "Fornecedore atualizado com sucesso!",
@@ -270,6 +271,7 @@ router.post(
 
         res.locals.acao = 'vinculou';
         res.locals.idregistroalterado = idfornecedor;
+        res.locals.dadosnovos = fornecedorExistente.rows[0];
 
         return res.status(201).json({
           mensagem: "Fornecedore já existente vinculado à empresa com sucesso!",
@@ -311,6 +313,7 @@ router.post(
 
       res.locals.acao = 'cadastrou';
       res.locals.idregistroalterado = idfornecedor;
+      res.locals.dadosnovos = resultFornecedore.rows[0];
 
       res.status(201).json({
         mensagem: "Fornecedore cadastrado e vinculado à empresa com sucesso!",

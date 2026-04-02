@@ -92,6 +92,7 @@ router.put("/:id",
         res.locals.acao = 'atualizou';
         res.locals.idregistroalterado = equipamentoAtualizadoId; 
         res.locals.idusuarioAlvo = null; 
+        res.locals.dadosnovos = req.body;
 
         return res.json({ message: "Equipamento atualizado com sucesso!", equipamentos: result.rows[0] });
       } else {
@@ -142,6 +143,7 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
       res.locals.acao = 'cadastrou';
       res.locals.idregistroalterado = novoEquipamentoId; 
       res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = novoEquipamento;
 
       res.status(201).json({ mensagem: "Equipamento salvo com sucesso!", equipamentos: novoEquipamento }); // Status 201 para criação
   } catch (error) {

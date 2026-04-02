@@ -233,7 +233,8 @@ router.put("/:id",
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
                     complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32
-                WHERE func.idfuncionario = $33
+                FROM funcionarioempresas fe
+                WHERE func.idfuncionario = $33 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $34
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -245,7 +246,7 @@ router.put("/:id",
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
                 dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo,
-                id // ID do funcionário para a cláusula WHERE
+                id, idempresa // ID do funcionário para a cláusula WHERE
             ];
 
             const result = await client.query(query, values); // Usa 'client' para a query
@@ -258,6 +259,7 @@ router.put("/:id",
                 res.locals.acao = 'atualizou';
                 res.locals.idregistroalterado = funcionarioAtualizadoId;
                 res.locals.idusuarioAlvo = null;
+                res.locals.dadosnovos = req.body;
 
                 return res.json({
                     message: "Funcionário atualizado com sucesso!",
@@ -384,7 +386,16 @@ router.post("/",
             res.locals.acao = 'cadastrou';
             res.locals.idregistroalterado = idNovoFuncionario;
             res.locals.idusuarioAlvo = null;
-
+            res.locals.dadosnovos = { // ✅ Combina ID + foto + todos os dados enviados
+                idfuncionario: idNovoFuncionario,
+                foto: novoFuncionario.foto,
+                perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+                celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
+                numeroConta, digitoConta, agencia, digitoAgencia, tipoConta,
+                cep, rua, numero, complemento, bairro, cidade, estado, pais,
+                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo
+            };
+            
             res.status(201).json({
                 message: "Funcionário salvo e associado à empresa com sucesso!",
                 id: idNovoFuncionario,
@@ -402,27 +413,7 @@ router.post("/",
                     if (err) console.error("Erro ao apagar arquivo de upload falho:", err);
                 });
             }
-            // Mensagem de erro mais específica para não-nulo
-            // if (error.code === '23502') {
-            //      return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
-            // }
-            // if (error.code === '23505' && error.constraint === 'funcionarios_cpf_key') {
-            //     if (error.constraint === 'funcionarios_cpf_key') {
-            //     // Erro de CPF duplicado
-            //     return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este CPF.' });
-            //     } else if (error.constraint === 'funcionarios_email_key') {
-            //     // Erro de e-mail duplicado
-            //     return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este e-mail.' });
-            //     }
-            // }
-            // if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
-            //     return res.status(400).json({
-            //         message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
-            //         field: "dataNascimento", // Adiciona um campo para identificar qual input
-            //         details: error.message
-            //     });
-            // }
-
+            
             if (error.code === '23505') { // '23505' é o código para restrição de unicidade
                 if (error.constraint === 'funcionarios_email_key') {
                     return res.status(409).json({

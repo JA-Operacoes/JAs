@@ -19,7 +19,7 @@ router.get("/", verificarPermissao('localmontagem', 'pesquisar'), async (req, re
     if (descmontagem) {
       const result = await pool.query(
         `SELECT lm.*,
-            COALESCE(json_agg(lp.*) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
+            COALESCE(json_agg(lp.* ORDER BY lp.idpavilhao ASC) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
         FROM localmontagem lm
         INNER JOIN localmontempresas lme ON lme.idmontagem = lm.idmontagem
         LEFT JOIN localmontpavilhao lp ON lp.idmontagem = lm.idmontagem -- Adicione este JOIN
@@ -33,7 +33,7 @@ router.get("/", verificarPermissao('localmontagem', 'pesquisar'), async (req, re
         : res.status(404).json({ message: "Local Montagem não encontrada" });
     } else {
       const result = await pool.query(`SELECT lm.*,
-            COALESCE(json_agg(lp.*) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
+            COALESCE(json_agg(lp.* ORDER BY lp.idpavilhao ASC) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
             FROM localmontagem lm
             INNER JOIN localmontempresas lme ON lme.idmontagem = lm.idmontagem
             LEFT JOIN localmontpavilhao lp ON lp.idmontagem = lm.idmontagem -- Adicione este JOIN
@@ -98,6 +98,7 @@ router.post("/pavilhoes-status", verificarPermissao('localmontagem', 'alterar'),
         if (client) client.release();
     }
 });
+
 // PUT atualizar
 router.put("/:id",
     verificarPermissao('localmontagem', 'alterar'),
@@ -114,7 +115,7 @@ router.put("/:id",
                 // ✅ Seleciona os dados do local de montagem E seus pavilhões associados
                 const result = await pool.query(
                     `SELECT lm.*,
-                            COALESCE(json_agg(lp.*) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
+                            COALESCE(json_agg(lp.* ORDER BY lp.idpavilhao ASC) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
                      FROM localmontagem lm
                      INNER JOIN localmontempresas lme ON lme.idmontagem = lm.idmontagem
                      LEFT JOIN localmontpavilhao lp ON lp.idmontagem = lm.idmontagem
@@ -260,9 +261,9 @@ router.put("/:id",
             await client.query('COMMIT'); // Confirma a transação
 
             // Busca o local de montagem completo com os pavilhões atualizados para retornar na resposta
-            const localMontagemCompleto = await pool.query(
+            const localMontagemCompleto = await client.query(
                 `SELECT lm.*,
-                        COALESCE(json_agg(lp.*) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
+                        COALESCE(json_agg(lp.* ORDER BY lp.idpavilhao ASC) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
                  FROM localmontagem lm
                  LEFT JOIN localmontpavilhao lp ON lp.idmontagem = lm.idmontagem
                  WHERE lm.idmontagem = $1
@@ -274,6 +275,7 @@ router.put("/:id",
             res.locals.acao = 'atualizou';
             res.locals.idregistroalterado = idmontagemAtualizada;
             res.locals.idusuarioAlvo = null;
+            res.locals.dadosnovos = localMontagemCompleto.rows[0];
 
             return res.json({ message: "Local de Montagem atualizado com sucesso!", localmontagem: localMontagemCompleto.rows[0] });
 
@@ -334,14 +336,12 @@ router.post("/", verificarPermissao('localmontagem', 'cadastrar'),
       await client.query('COMMIT'); 
 
       const novoLocalMontagemId = idmontagem; 
-      res.locals.acao = 'cadastrou';
-      res.locals.idregistroalterado = novoLocalMontagemId;
-      res.locals.idusuarioAlvo = null;
+      
 
       // Opcional: Buscar o local de montagem completo com pavilhões para a resposta
       const localMontagemCompleto = await pool.query(
           `SELECT lm.*,
-                  COALESCE(json_agg(lp.*) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
+                  COALESCE(json_agg(lp.* ORDER BY lp.idpavilhao ASC) FILTER (WHERE lp.idpavilhao IS NOT NULL), '[]') AS pavilhoes
            FROM localmontagem lm
            LEFT JOIN localmontpavilhao lp ON lp.idmontagem = lm.idmontagem
            WHERE lm.idmontagem = $1
@@ -349,7 +349,12 @@ router.post("/", verificarPermissao('localmontagem', 'cadastrar'),
           [idmontagem]
       );
 
-      res.status(201).json({ mensagem: "Local de Montagem salvo com sucesso!", localmontagem: novoLocalMontagem }); // Status 201 para criação
+      res.locals.acao = 'cadastrou';
+      res.locals.idregistroalterado = novoLocalMontagemId;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = localMontagemCompleto.rows[0];
+
+      res.status(201).json({ mensagem: "Local de Montagem salvo com sucesso!", localmontagem: localMontagemCompleto.rows[0] }); // Status 201 para criação
   } catch (error) {
       if (client) { 
           await client.query('ROLLBACK');
