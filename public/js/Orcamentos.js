@@ -45,6 +45,7 @@ let percentualImpostoInputListener = null;
 let btnEnviarListener = null;
 let btnLimparListener = null;
 let percentualCtoFixoInputListener = null;
+let isCleaning = false; 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 
 const fp = window.flatpickr;
@@ -1921,11 +1922,16 @@ function adicionarLinhaOrc() {
   aplicarMascaraMoeda();
   limparSelects();
 }
-let isCleaning = false;
+
+
 async function adicionarLinhaAdicional(isBonificado = false) {
   // if (isCleaning) return;
     // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
-    if (isBonificado === false) { 
+    //if (isBonificado === false) { 
+    if (isCleaning) {
+      isBonificado = false; // Define como Aditivo por padrão na limpeza
+      // Pula direto para a lógica de inserção (o bloco do Swal abaixo não executa)
+    } else if (isBonificado === false) {
         const result = await Swal.fire({
             title: 'Tipo de Item Adicional',
             text: "Selecione o tipo de item que deseja adicionar:",
@@ -2204,6 +2210,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     if (typeof aplicarMascaraMoeda === "function") aplicarMascaraMoeda();
     if (typeof limparSelects === "function") limparSelects();
 }
+
 function removerLinhaOrc(botao) {
   let linha = botao.closest("tr"); // Encontra a linha mais próxima
   removerLinha(linha); // Remove a linha
@@ -2534,7 +2541,7 @@ function ceilToTenCents(value, factor) {
 }
 
 
-async function atualizaProdutoOrc(event, linhaFornecida) {
+function atualizaProdutoOrc(event) {
     let select = event.target;
     
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
@@ -2578,74 +2585,77 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
-
-    // 2. PROTEÇÃO CONTRA REAJUSTE DUPLO
-    if (linha.dataset.reajustadoTotal === 'true') return;
-
-    if (typeof bProximoAno !== 'undefined' && bProximoAno && linha.dataset.reajustadoProximoAno === 'true') {
-        atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
-        recalcularLinha(linha);
-        return;
-    }
-
-    // 3. APLICA REAJUSTE (Próximo Ano)
     if (typeof bProximoAno !== 'undefined' && bProximoAno) {
-        const fG = (typeof GLOBAL_PERCENTUAL_GERAL !== 'undefined') ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-        const fA = (typeof GLOBAL_PERCENTUAL_AJUDA !== 'undefined') ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-        
-        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fG);
-        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fG);
-        vlrAlimentacao = ceilToTenCents(vlrAlimentacao, fA);
-        vlrTransporte = ceilToTenCents(vlrTransporte, fA);
+      // Mantém o reajuste sempre que alterar/adicionar item
+      console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+      const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+      const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+      vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+      vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+      if (typeof vlrAlimentacao !== 'undefined') {
+        vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+      }
+      if (typeof vlrTransporte !== 'undefined') {
+        vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+      }
     }
-
-    // 4. ATUALIZAÇÃO DA LINHA
-    linha.dataset.vlrbase = vlrVendaNumerico.toString();
-    linha.dataset.valorTabela = vlrVendaNumerico;
-
-    // Atualiza Descrição e Categoria
-    const celulaProd = linha.querySelector(".produto");
-    const celulaCat = linha.querySelector(".Categoria");
-    if (celulaProd) celulaProd.textContent = produtoSelecionado;
-    if (celulaCat && Categoria !== "Pavilhao") celulaCat.textContent = Categoria;
-
-    // Seta os IDs nos inputs hidden
-    const inputFuncao = linha.querySelector("input.idFuncao");
-    const inputEquip = linha.querySelector("input.idEquipamento");
-    const inputSupri = linha.querySelector("input.idSuprimento");
-
-    if (select.classList.contains("idFuncao") && inputFuncao) inputFuncao.value = valorSelecionado;
-    if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
-    if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
-
-    // Atualiza Ajudas de Custo (Visual e Dataset)
-    const spanAlim = linha.querySelector(".vlralimentacao-input");
-    const spanTrans = linha.querySelector(".vlrtransporte-input");
-    const tdAlim = linha.querySelector(".ajdCusto.alimentacao");
-    const tdTrans = linha.querySelector(".ajdCusto.transporte");
-
-    if (spanAlim) spanAlim.textContent = formatarMoeda(vlrAlimentacao);
-    if (tdAlim) tdAlim.dataset.originalAjdcusto = vlrAlimentacao.toString();
-    
-    if (spanTrans) spanTrans.textContent = formatarMoeda(vlrTransporte);
-    if (tdTrans) tdTrans.dataset.originalAjdcusto = vlrTransporte.toString();
-
-    // Atualiza Valores Financeiros
-    const celulaVlrCusto = linha.querySelector(".vlrCusto");
-    const celulaVlrVenda = linha.querySelector(".vlrVenda");
-
-    if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
-    if (celulaVlrVenda) {
-        celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
-        celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+    let tabela = document.getElementById("tabela");
+    if (!tabela) return;
+    let ultimaLinha = tabela.querySelector("tbody tr:first-child");
+    if (ultimaLinha) {
+      ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
+      // Mantém o valor reajustado no campo base para futuras edições
+      ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
+        let celulaProduto = ultimaLinha.querySelector(".produto");
+        let celulaCategoria = ultimaLinha.querySelector(".Categoria");
+        let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
+        let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
+        let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
+        if (inputIdFuncao) inputIdFuncao.value = "";
+        if (inputIdEquipamento) inputIdEquipamento.value = "";
+        if (inputIdSuprimento) inputIdSuprimento.value = "";
+        if (celulaProduto) {
+            celulaProduto.textContent = produtoSelecionado;
+        }
+        if (celulaCategoria && Categoria !== "Pavilhao") {
+            celulaCategoria.textContent = Categoria;
+        }
+        console.log(" A categoria é :", Categoria);
+        if (select.classList.contains("idFuncao")) {
+            inputIdFuncao.value = valorSelecionado;
+        } else if (select.classList.contains("idEquipamento")) {
+            inputIdEquipamento.value = valorSelecionado;
+        } else if (select.classList.contains("idSuprimento")) {
+            inputIdSuprimento.value = valorSelecionado;
+        }
+        const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
+        const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
+        if (spanAlimentacao) {
+            spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
+            ultimaLinha.querySelector(
+                ".ajdCusto.alimentacao"
+            ).dataset.originalAjdcusto = vlrAlimentacao.toString();
+        }
+        if (spanTransporte) {
+            spanTransporte.textContent = formatarMoeda(vlrTransporte);
+            ultimaLinha.querySelector(
+                ".ajdCusto.transporte"
+            ).dataset.originalAjdcusto = vlrTransporte.toString();
+        }
+        let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
+        if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
+        console.log(" valor de Custo é:", vlrCustoNumerico);
+        let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
+        if (celulaVlrVenda) {
+            celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+            celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+        }
+        ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
+        console.log(" valor de Venda é:", vlrVendaNumerico);
     }
-
-    // 5. FINALIZAÇÃO
-    atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
-    gerarObservacoesProposta([linha]);
-    recalcularLinha(linha);
+    gerarObservacoesProposta([ultimaLinha]);
+    recalcularLinha(ultimaLinha);
 }
-
 
 // Sua função de atualização de valores (mantém-se a mesma)
 function atualizarValoresAjdCustoNaLinha(linha) {
@@ -3670,8 +3680,7 @@ async function verificaOrcamento() {
     }
   });
 
-  // 1. Defina a trava no topo do arquivo (fora de qualquer função)
-  let isCleaning = false; 
+  
 
   // 2. Localize e substitua a configuração do botão Limpar
   const btnLimpar = document.getElementById("Limpar");
@@ -4492,6 +4501,267 @@ function atualizarEstadoLiberaStaff(status) {
   // ========================================================
 }
 
+// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
+//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
+
+//   const tabelaBody = document.querySelector("#tabela tbody");
+
+//   if (!tabelaBody) {
+//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
+//     return;
+//   }
+
+//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
+
+//   if (!itens || itens.length === 0) {
+//     const emptyRow = tabelaBody.insertRow();
+//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
+//     return;
+//   }
+
+//   // --- LÓGICA DE REAJUSTE ---
+//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
+  
+//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
+//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+
+//   // =======================================================
+//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
+//   // =======================================================
+//   const PRIORIDADE_CATEGORIAS = {
+//     "PRODUTOS": 1,
+//     "EQUIPAMENTOS": 2,
+//     "SUPRIMENTOS": 3
+//   };
+
+//   itens.sort((a, b) => {
+//     const catA = (a.categoria || "OUTROS").toUpperCase();
+//     const catB = (b.categoria || "OUTROS").toUpperCase();
+
+//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
+//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
+
+//     // 1º Passo: Comparar o peso da Categoria
+//     if (pesoA !== pesoB) {
+//       return pesoA - pesoB;
+//     }
+
+//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
+//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
+//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
+//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
+//     return nomeA.localeCompare(nomeB);
+//   });
+//   // =======================================================
+
+//   itens.forEach((item) => {
+//     let vlrDiaria = parseFloat(item.vlrdiaria || 0);
+//     let ctoDiaria = parseFloat(item.ctodiaria || 0);
+//     let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
+//     let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
+//     let vlrHospedagem = parseFloat(item.hospedagem || 0);
+//     let vlrTransporte = parseFloat(item.transporte || 0);
+
+//     let itemOrcamentoID = item.idorcamentoitem;
+//     const qtdItens = item.qtditens || 0;
+//     const qtdDias = item.qtddias || 0;
+
+//     let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
+//     let totCtoDiaria = parseFloat(item.totctodiaria || 0);
+//     let totAjuda = parseFloat(item.totajdctoitem || 0);
+//     let totGeralItem = parseFloat(item.totgeralitem || 0);
+//     let descontoItem = parseFloat(item.descontoitem || 0);
+//     let acrescimoItem = parseFloat(item.acrescimoitem || 0);
+
+//     if (aplicarReajuste) {
+//       vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
+//       ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
+//       vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
+//       vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
+//       vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
+//       vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
+
+//       itemOrcamentoID = ""; // Novo ID para reajuste
+
+//       totVdaDiaria = vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
+//       totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
+//       totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
+//       totGeralItem = totAjuda + totCtoDiaria;
+//     }
+
+//     // Fallback Ajuda de Custo
+//     if (!aplicarReajuste && (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) && parseFloat(item.totajdctoitem || 0) > 0) {
+//       const multiplicador = (qtdItens * qtdDias) || 1;
+//       vlrAjdAlimentacao = parseFloat(item.totajdctoitem) / multiplicador;
+//       totAjuda = parseFloat(item.totajdctoitem);
+//       totGeralItem = totAjuda + totCtoDiaria;
+//     }
+
+//     const vlrBaseItemRaw = parseFloat(item.vlrbase);
+//     const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0 ? vlrBaseItemRaw : (vlrDiaria + descontoItem - acrescimoItem);
+
+//     // Nome unificado do produto
+//     const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
+
+//     const newRow = tabelaBody.insertRow();
+//     newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
+//     newRow.dataset.idfuncao = item.idfuncao || "";
+//     newRow.dataset.idequipamento = item.idequipamento || "";
+//     newRow.dataset.idsuprimento = item.idsuprimento || "";
+//     newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
+//     newRow.dataset.adicional = item.adicional ? "true" : "false";
+//     newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
+
+//     if (item.extrabonificado) {
+//         newRow.style.backgroundColor = "#f0fff4";
+//         newRow.style.borderLeft = "4px solid #48bb78";
+//     }
+
+//     newRow.innerHTML = `
+//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
+//             <td class="Proposta">
+//                 <div class="checkbox-wrapper-33">
+//                     <label class="checkbox">
+//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
+//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
+//                     </label>
+//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
+//                 </div>
+//             </td>
+//             <td class="cacheFechado">
+//             <div class="checkbox-wrapper-33">
+//                 <label class="checkbox">
+//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
+//                     <span class="checkbox__symbol">
+//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+//                             <path d="M4 14l8 7L24 7"></path>
+//                         </svg>
+//                     </span>
+//                     <p class="checkbox__textwrapper"></p>
+//                 </label>
+//             </div>
+//         </td>
+//             <td class="Categoria">${item.categoria || ""}</td>
+//             <td class="qtdProduto">
+//                 <div class="add-less">
+//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
+//                     <div class="Bt">
+//                         <button type="button" class="increment">+</button>
+//                         <button type="button" class="decrement">-</button>
+//                     </div>
+//                 </div>
+//             </td>
+//             <td class="produto">${nomeProduto}</td>
+//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
+//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
+//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
+//             <td class="descontoItem Moeda">
+//                 <div class="Acres-Desc">
+//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
+//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
+//                 </div>
+//             </td>
+//             <td class="acrescimoItem Moeda">
+//                 <div class="Acres-Desc">
+//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
+//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
+//                 </div>
+//             </td>            
+//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
+//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
+//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
+//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
+//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
+//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
+//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
+//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
+//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
+//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
+//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+//         `;
+
+//     // --- EVENTOS ---
+//     const setupAcresDesc = (sel, type) => {
+//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
+//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
+//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
+//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
+//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
+//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
+//     };
+
+//     setupAcresDesc(".descontoItem", "desconto");
+//     setupAcresDesc(".acrescimoItem", "acrescimo");
+
+//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
+//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
+//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
+
+//     const itemDateInput = newRow.querySelector(".datas-item");
+//     if (itemDateInput) {
+//       const dates = [];
+//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
+//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
+//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
+//         // Garante que o campo de datas seja sempre preenchido visualmente
+//         if (item.datas && item.datas.length > 0) {
+//           let fpInstance = itemDateInput._flatpickr;
+//           if (!fpInstance) {
+//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
+//           }
+//           fpInstance.setDate(item.datas, true);
+//         }
+//     }
+
+//     const delBtn = newRow.querySelector(".btnApagar");
+//     if (delBtn) {
+//       delBtn.addEventListener("click", async (e) => {
+//         e.preventDefault();
+//         const id = newRow.dataset.idorcamentoitem;
+//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
+//         else {
+//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
+//           if (isConfirmed) {
+//             try {
+//               const principalId = document.getElementById("idOrcamento").value;
+//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
+//               newRow.remove();
+//               recalcularTotaisGerais();
+//               Swal.fire("Deletado!", "", "success");
+//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
+//           }
+//         }
+//       });
+//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
+//     }
+//       if (item.cachefechado === true || item.cachefechado === "true") {
+//         const chkCache = newRow.querySelector(".chk-cache-fechado");
+//         if (chkCache) {
+//             // Chamamos a função passando o elemento para que ela trave os botões
+//             window.toggleEditavel(chkCache); 
+//         }
+//     }
+//   });
+
+
+//   if (aplicarReajuste) {
+//     const aviso = document.getElementById("avisoReajusteMensagem");
+//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
+//     recalcularTotaisGerais();
+//     aplicarDescontoEAcrescimo("Desconto"); 
+//   }
+
+//   aplicarMascaraMoeda();
+// }
+// =============================
+// VERIFICA LINHAS PELO PERÍODO
+// =============================
+
+
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
@@ -4735,10 +5005,6 @@ itens.forEach((item) => {
 
   aplicarMascaraMoeda();
 }
-
-
-
-
 // =============================
 // VERIFICA LINHAS PELO PERÍODO
 // =============================

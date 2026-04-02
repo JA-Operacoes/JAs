@@ -1837,7 +1837,8 @@ router.get("/vencimentos", async (req, res) => {
           --(COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
           COALESCE(tse.vlrtotcache, 0) AS cache_com_ajuste,
           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
-          (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
+          COALESCE(tse.vlrcaixinha, 0) AS vlrcaixinha,       
+          COALESCE(tse.vlrcaixinha, 0) AS totalcaixinha_full,
           tse.statuspgto, 
           tse.statuspgtoajdcto, 
           tse.statuscaixinha,
@@ -1937,6 +1938,7 @@ router.get("/vencimentos", async (req, res) => {
             // Regra de Negócio: Baseada na Escala do Staff
             dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+            dataVencimentoCaixinha: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
             cache: { total: chT, pendente: chT - chP, pago: chP },
             caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
@@ -1963,6 +1965,11 @@ router.post("/vencimentos/update-status",
     async (req, res) => {
         let { idStaff, tipo, novoStatus, idlog_origem  } = req.body;
 
+        const idempresa = req.idempresa; 
+        if (!idempresa) {
+            return res.status(400).json({ success: false, error: "idempresa obrigatório na requisição." });
+        }
+
         // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
         let coluna = "";
         if (tipo === 'Cache') {
@@ -1987,12 +1994,12 @@ router.post("/vencimentos/update-status",
 
         try {
             const result = await pool.query(
-                `UPDATE staffeventos SET ${coluna} = $1 
+                `UPDATE staffeventos se SET ${coluna} = $1 
                  FROM staffempresas sem
-                 WHERE idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3`, 
+                 WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
+                 RETURNING se.*`, // Adicionado o RETURNING para preencher os dados novos no log
                 [statusFinal, idStaff, idempresa]
-            );
-        
+            );        
             
             if (result.rowCount > 0) {
                 res.locals.idlog_origem = idlog_origem;
@@ -2061,9 +2068,9 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
 
         const result = await pool.query(
             `UPDATE staffeventos se SET ${coluna} = $1 
-            FROM staffempresas sem
-            WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
-            RETURNING se.*`, // <--- Adicionado para preencher o res.locals.dadosnovos
+             FROM staffempresas sem
+             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3,
+             RETURNING se.*`,
             [pathArquivo, idStaff, idempresa]
         );
 
@@ -2603,13 +2610,13 @@ router.get('/aditivoextra', async (req, res) => {
         func.nome AS nomeFuncionario, f.descfuncao AS funcao,
         e.nmevento AS evento, s.nome || ' ' || s.sobrenome AS nomesolicitante,
         resp.nome || ' ' || resp.sobrenome AS nomeAprovador, dtresposta AS dataDecisao,
-        f.descfuncao AS nmfuncao 
+        f.descfuncao AS nmfuncao
         FROM 
         AditivoExtra ae
         LEFT JOIN Funcao f ON ae.idFuncao = f.idFuncao
         LEFT JOIN Funcionarios func ON ae.idFuncionario = func.idFuncionario
         JOIN Orcamentos o ON ae.idOrcamento = o.idOrcamento
-        JOIN Eventos e ON o.idEvento = e.idEvento
+        JOIN Eventos e ON o.idEvento = e.idEvento      
         JOIN Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
         LEFT JOIN Usuarios resp ON ae.idUsuarioResponsavel = resp.idUsuario
         WHERE 

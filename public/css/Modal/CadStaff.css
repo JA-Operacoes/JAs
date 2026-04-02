@@ -2085,3 +2085,119 @@ select:disabled {
     opacity: 0.6;
     background-color: #f0f0f0;
 }
+
+/* Estilo do Container de Observação */
+.container-obs-pos {
+    width: 100%;
+    margin-top: 15px;
+    /* Começa oculto por padrão */
+    display: none; 
+}
+
+.obs-textarea-auto {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    font-family: inherit;
+    resize: vertical;
+    border-left: 5px solid #ffc107;
+    background-color: #f8f9fa;
+    color: #555;
+    font-size: 0.9em;
+    outline: none;
+}
+
+/* Classe utilitária para mostrar quando houver conteúdo */
+.show-obs {
+    display: block !important;
+}
+
+/* 1. Ajuste do Container Principal (O "corpo" do campo) */
+.select2-container--default .select2-selection--single {
+    border: 1px solid #000000 !important;
+    border-radius: 6px !important;
+    height: 30px !important; 
+    background: transparent !important;
+    outline: none !important;
+    display: flex !important;
+    align-items: center !important; 
+    width: 100% !important;
+    position: relative !important;
+}
+
+/* 2. Ajuste do Texto dentro do campo */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    font-family: var(--Font-primary) !important;
+    font-size: 13px !important;
+    color: #000000 !important;
+    
+    /* 1. Remove os paddings automáticos malucos do plugin */
+    padding-left: 8px !important; 
+    padding-right: 35px !important; /* Espaço de sobra para o X e a Seta não cobrirem o nome */
+    
+    /* 2. Reseta comportamentos de bloco e heranças */
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    width: 100% !important;
+    text-align: left !important;
+    float: none !important;
+    margin: 0 !important;
+}
+
+/* 🚨 NOVIDADE: Força o botão "X" de limpar a ficar colado no texto */
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute !important;
+    right: 25px !important; /* Joga ele lá para a direita, antes da setinha */
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 14px !important;
+    color: #999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    cursor: pointer !important;
+}
+
+/* 3. Fonte dos itens dentro da lista (Dropdown) */
+.select2-container--default .select2-results__option {
+    font-size: 12px !important; 
+    font-family: var(--Font-primary) !important;
+    padding: 4px 8px !important;
+}
+
+/* 4. Fonte do campo de busca interno */
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    font-size: 13px !important;
+    font-family: var(--Font-primary) !important;
+    height: 25px !important;
+}
+
+/* 5. Ajuste do Placeholder */
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    font-size: 12px !important;
+    color: #999 !important;
+}
+
+/* 6. Ajuste da Setinha Lateral (MUDANÇA AQUI 🚨) */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important; /* Ocupa toda a altura do container de 30px */
+    right: 5px !important;
+    display: flex !important;
+    align-items: center !important; /* Centraliza o ícone da seta verticalmente */
+    justify-content: center !important;
+}
+
+/* 7. Remove a borda azul de foco padrão do Select2 */
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border: 1px solid #000000 !important;
+    outline: none !important;
+}
+
+/* 8. Garante que o container principal também ocupe 100% */
+.select2-container {
+    width: 310px !important;
+    vertical-align: middle;
+}
+

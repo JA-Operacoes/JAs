@@ -873,6 +873,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           s.idstaff,
           s.avaliacao,
           se.statuscustofechado,
+          se.obspospgto,
           se.desccustofechado,
           (
             SELECT jsonb_agg(elem ORDER BY elem::date)
@@ -992,23 +993,49 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             try {
                 // Ajustar a query para buscar o registro de staffeventos
                 // Incluímos o JOIN com staffempresas para verificar a posse da empresa
+                // const result = await pool.query(
+                //     `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
+                //             se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
+                //     FROM staffeventos se
+                //     INNER JOIN staff s ON se.idfuncionario = s.idfuncionario
+                //     INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
+                //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                //     [idstaffEvento, idempresa]
+                // );
+
+                // const result = await pool.query(
+                //     `SELECT se.* FROM staffeventos se
+                //     INNER JOIN staffempresas sme ON se.idstaff = sme.idstaff
+                //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
+                //     [idstaffEvento, idempresa]
+                // );
+
                 const result = await pool.query(
-                    `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
-                            se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
-                    FROM staffeventos se
-                    INNER JOIN staff s ON se.idfuncionario = s.idstaff
-                    INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
-                    WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                    `SELECT se.* FROM staffeventos se
+                    WHERE se.idstaffevento = $1 
+                    AND EXISTS (
+                        SELECT 1 FROM staffempresas sme 
+                        WHERE sme.idstaff = se.idstaff 
+                        AND sme.idempresa = $2
+                    )`, 
                     [idstaffEvento, idempresa]
                 );
                 const linha = result.rows[0] || null;
+
+                if (!linha) {
+                    console.warn(`⚠️ LogMiddleware: Nenhum dado anterior encontrado para ID ${idstaffEvento}`);
+                }
+
+                const dadosLimpos = linha ? JSON.parse(JSON.stringify(linha)) : null;
+                console.log("DADOS ANTERIORES:", linha);
                 return {
-                    dadosanteriores: linha,
-                    idregistroalterado: linha?.idstaffevento || null
+                    dadosanteriores: dadosLimpos,
+                    //idregistroalterado: linha?.idstaffevento || null
+                    idregistroalterado: idstaffEvento
                 };
             } catch (error) {
                 console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
-                return { dadosanteriores: null, idregistroalterado: null };
+                return { dadosanteriores: null, idregistroalterado: idstaffEvento };
             }
         }
     }),
@@ -1016,6 +1043,8 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
         const { idStaffEvento } = req.params;
         const idempresa = req.idempresa;
         const body = req.body;
+
+        console.log("BODY DO PUT STAFF", req.body);
 
         let client;
         try {
@@ -1054,11 +1083,18 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
                 comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
                 nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, statuscustofechado = $46, desccustofechado = $47
+                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, 
+                statuscustofechado = $46, desccustofechado = $47, obspospgto = $48
                 FROM staffempresas sme
-                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $48 AND sme.idempresa = $49
+                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $49 AND sme.idempresa = $50
                 RETURNING se.idstaffevento;
             `;
+
+            const diariaDobradaFinal = typeof body.datadiariadobrada === 'string' 
+                ? body.datadiariadobrada 
+                : JSON.stringify(body.datadiariadobrada);
+
+            console.log("DEBUG DIARIA DOBRADA FINAL:", diariaDobradaFinal);
 
             const values = [
                 body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
@@ -1074,6 +1110,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                 body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
                 parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado, body.desccustofechado,
+                body.obspospgto,
                 idStaffEvento, idempresa
             ];
 
@@ -1088,9 +1125,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 comppgtocaixinha: paths.cx
             };
 
-            res.locals.acao = 'alterou';
+            res.locals.acao = 'atualizou';
             res.locals.idregistroalterado = idStaffEvento;
             res.locals.dadosnovos = dadosParaLog;
+            res.locals.dadosanteriores = JSON.parse(JSON.stringify(old));
 
             res.json({ message: "Atualizado", id: idStaffEvento});
         } catch (e) {
@@ -1100,14 +1138,6 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
     }
 );
 
-function ordenarDatas(datas) {
-    if (!datas || datas.length === 0) {
-    return [];
-    }
-    // Supondo que as datas estejam no formato 'YYYY-MM-DD'
-    return datas.sort((a, b) => new Date(a) - new Date(b));
-}
-
 
 router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
     uploadComprovantesMiddleware, 
@@ -1116,15 +1146,15 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
     }), async (req, res) => {
     
     const {
-       idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-    idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-    vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
-    vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
-    statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
-    datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
-    nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
-    statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-    vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+        idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+        idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+        vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
+        vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
+        statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
+        datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
+        nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
+        statuspgtoajdcto, statuspgtocaixinha, idorcamento,
+        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -1219,9 +1249,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto
             ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49
             ) RETURNING idstaffevento;
         `;
 
@@ -1239,7 +1269,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado
+            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -1249,10 +1279,14 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
         res.locals.dadosnovos = {...req.body,
             idstaffevento: resIns.rows[0].idstaffevento,
-            comppagtocache: res.files?.comppgtocache?.[0]?.filename || null,
-            comppgtoajudcusto: res.files?.comppgtoajdcusto?.[0]?.filename || null,
-            comppgtocaixinha: res.files?.comppgtocaixinha?.[0]?.filename || null,
-            comppgtoajdcusto50: res.files?.comppgtoajdcusto50?.[0]?.filename || null,
+            ...req.body, // 👈 Isso espalha TODAS as informações enviadas no corpo da requisição
+            datasevento: datasArray, // Garante o array tratado e não a string crua do FormData
+            comprovantes: { // Salva os caminhos exatos dos arquivos gerados, se existirem
+                comppgtocache: req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
+                comppgtoajdcusto: req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
+                comppgtocaixinha: req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
+                comppgtoajdcusto50: req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null
+            }
         };
 
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
@@ -1297,9 +1331,13 @@ router.post('/aditivoextra/solicitacao',
     const idUsuarioSolicitante = req.usuario?.idusuario; 
     const statusInicial = 'Pendente';
 
-   const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
-    ? dataSolicitada.split(',').map(d => d.trim()) 
-    : null;
+//    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+//     ? dataSolicitada.split(',').map(d => d.trim()) 
+//     : null;
+
+    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+        ? `{${dataSolicitada.split(',').map(d => d.trim()).join(',')}}` 
+        : null;
 
     
 
@@ -1352,7 +1390,8 @@ router.post('/aditivoextra/solicitacao',
               AND idFuncao = $3 
               AND tipoSolicitacao = $4 
               --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
-              AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
+              --AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND (dtsolicitada && $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
               AND idEmpresa = $6
               AND status = 'Pendente'
         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
@@ -1639,4 +1678,5 @@ router.get('/aditivoextra/verificar-status',
         }
     }
 );
+
 module.exports = router;

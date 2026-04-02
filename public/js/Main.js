@@ -4308,6 +4308,33 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
                     }
 
+                    // let dataSolicitadaFormatada = '';
+
+                    // if (pedido.dataSolicitada) {
+                    //     // 1. Garante que temos um array (se vier string com vírgula, vira array)
+                    //     const datasArray = Array.isArray(pedido.dataSolicitada) 
+                    //         ? pedido.dataSolicitada 
+                    //         : pedido.dataSolicitada.toString().split(',');
+
+                    //     // 2. Mapeia cada data formatando para pt-BR
+                    //     const datasFormatadas = datasArray.map(dataStr => {
+                    //         if (dataStr == null) return '';
+                    //         const dataObj = new Date(dataStr);
+                            
+                    //         // Se a data for válida, formata. Se não, retorna o texto original.
+                    //         if (!isNaN(dataObj.getTime())) {
+                    //             // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
+                    //             return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
+                    //                 (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
+                    //                 dataObj.getUTCFullYear();
+                    //         }
+                    //         return dataStr;
+                    //     });
+
+                    //     // 3. Junta tudo com vírgula e espaço para exibir na tela
+                    //     dataSolicitadaFormatada = datasFormatadas.join(', ');
+                    // }
+                   
                     let dataSolicitadaFormatada = '';
 
                     if (pedido.dataSolicitada) {
@@ -4317,8 +4344,24 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             : pedido.dataSolicitada.toString().split(',');
 
                         // 2. Mapeia cada data formatando para pt-BR
-                        const datasFormatadas = datasArray.map(dataStr => {
-                            if (dataStr == null) return '';
+                        const datasFormatadas = datasArray.map(item => {
+                            if (item == null) return '';
+                            
+                            let dataStr = '';
+                            
+                            // Se o item for um objeto e tiver a chave 'status' (como no seu log)
+                            if (typeof item === 'object' && item.status) {
+                                dataStr = item.status;
+                            } 
+                            // Se for um objeto mas por acaso vier com outra estrutura
+                            else if (typeof item === 'object') {
+                                dataStr = JSON.stringify(item); 
+                            }
+                            // Se já for uma string direta
+                            else {
+                                dataStr = item;
+                            }
+
                             const dataObj = new Date(dataStr);
                             
                             // Se a data for válida, formata. Se não, retorna o texto original.
@@ -4334,7 +4377,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         // 3. Junta tudo com vírgula e espaço para exibir na tela
                         dataSolicitadaFormatada = datasFormatadas.join(', ');
                     }
-                   
+                    
                     let dataFormatada = '';
                     if (pedido.dataDecisao) {
                         const dataObj = new Date(pedido.dataDecisao);
@@ -4376,7 +4419,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     if (pedido.evento) {
                         if (categoria === 'funcionario' && pedido.funcionario) {
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-                            htmlBody += `<strong>Datas:</strong> ${dataEventoFormatada}<br>`
+                            htmlBody += `<strong>Datas Contratadas:</strong> ${dataEventoFormatada}<br>`
                         } else {
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
                         }
@@ -4385,7 +4428,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
-                        if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br><strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                        // if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br><strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                        // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
+                        const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+                        if (tipoUpper === 'FUNCEXCEDIDO' || tipoUpper === 'VAGA EXCEDIDA') {
+                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                        } else {
+                            htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataSolicitadaFormatada} - `;
+                        }
+
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
@@ -4422,7 +4473,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const dataObj = parseDateLocal(dataBruta);
                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
                         }
-                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        htmlBody += `<strong>Data(s) Solicitada(s)</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     } else if (infoItem.datas) {
                         const datasFmt = infoItem.datas
                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
@@ -5328,9 +5379,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     }
 
     // 3. Agora sim, injeta o ano selecionado no card4
-    const paramsComAno = `${params}&ano=${anoSelecionado}`;
-
-    
+    const paramsComAno = `${params}&ano=${anoSelecionado}`;   
 
    // console.log("AGORA VAI:", paramsComAno);
 
@@ -5347,67 +5396,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         
         dados = resEventos?.eventos || [];
 
-        console.log("DADOS EVENTOS", dados);       
+        console.log("DADOS EVENTOS", dados);      
 
-        // dados = dados.filter(ev => {
-        //     const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
-        //     const chPendente = parseFloat(ev.cache?.pendente) || 0;
-            
-        //     // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
-        //     if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
-        //         console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
-        //             vencAjuda: ev.dataVencimentoAjuda,
-        //             vencCache: ev.dataVencimentoCache,
-        //             tipoFiltro: filtroTipo,
-        //             anoSelecionado: anoSelecionado
-        //         });
-        //     }
-
-        //     let estaVencido = false;
-        //     [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
-        //         if (item.d && item.d !== '---' && item.v > 0) {
-        //             const [d, m, a] = item.d.split('/').map(Number);
-        //             if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
-        //         }
-        //     });
-
-        //     if (estaVencido) return true; 
-
-        //     // Extração de datas para o filtro mensal/trimestral
-        //     const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
-        //     const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
-        //     const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
-        //     const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
-
-        //     //--- LÓGICA DE PERÍODOS EXPANDIDOS ---
-        //     if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
-        //         const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
-        //         let mesesNoPeriodo = [mesInicial];
-
-        //         if (filtroTipo === "trimestral") {
-        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
-        //         } else if (filtroTipo === "semestral") {
-        //             mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
-        //         }
-
-        //         const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
-        //                             (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
-                
-        //         if (ev.dataVencimentoAjuda?.includes("/03")) {
-        //             console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
-        //         }
-
-        //         return passouNoFiltro;
-        //     }
-
-        //     // Se for diário ou semanal, mantém sua lógica original...
-        //     if (filtroTipo === "diario") {
-        //         return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
-        //     }
-
-        //     return true;
-        // });
-
+        
         dados = dados.filter(ev => {
             const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
             const chPendente = parseFloat(ev.cache?.pendente) || 0;
@@ -5472,77 +5463,679 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
-        const obterHeaderTabela = (filtro) => {
-            const podeVerAcoes = usuarioTemPermissaoSupremo();
-            return `<tr><th>NOME / FUNÇÃO</th><th style="text-align:center">DIÁRIAS</th><th style="text-align:center">PERÍODO</th>${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th></tr>`;
-        };
+        // const obterHeaderTabela = (filtro) => {
+        //     const podeVerAcoes = usuarioTemPermissaoSupremo();
+        //     return `<tr><th>NOME / FUNÇÃO</th><th style="text-align:center">DIÁRIAS</th><th style="text-align:center">PERÍODO</th>${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th></tr>`;
+        // };
 
-        const obterLinhasTabela = (evento, filtro) => {
-            let lista = evento.funcionarios || [];
-            if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
-            if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
-            const podeVerAcoes = usuarioTemPermissaoSupremo();
-            return lista.map(f => {
-                console.log(`DEBUG VALORES [${f.nome}]:`, {
-            cache_original: f.totalcache_full,
-            ajuste_custo: f.totalajustecusto_full,
-            soma_calculada_no_banco: f.cache_com_ajuste
-        });
-        const info = {
-            // 'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
-            'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
+        
+        // const obterLinhasTabela = (evento, filtro) => {
+        //     let lista = evento.funcionarios || [];
+        //     if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+        //     if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
             
-            'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
-            'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
-            'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
-        }[filtro];
-        
-        const estaPago = info.status.toLowerCase().startsWith('pago');
-        const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+        //     const podeVerAcoes = usuarioTemPermissaoSupremo();
 
-        const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
-        //return `<tr><td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td><td style="text-align:center">${f.qtddiarias_filtradas || 0}</td><td style="text-align:center"><small>${f.periodo_eventoini_fmt || '---'}</small></td>${podeVerAcoes ? `<td style="text-align:center">${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}</td>` : ''}<td class="comprovantes-cell">${estaPago ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}</td><td class="status-celula status-${classeStatus}">${info.status}</td><td>${formatarMoeda(info.valor || 0)}</td></tr>`;
+        //     // 1. ORDENAÇÃO: Garante que os registros do mesmo profissional fiquem sempre juntos
+        //     lista.sort((a, b) => {
+        //         const nomeA = a.nome || '';
+        //         const nomeB = b.nome || '';
+        //         return nomeA.localeCompare(nomeB);
+        //     });
+
+        //     let linhasHtml = '';
+            
+        //     // Acumuladores para o subtotal do funcionário
+        //     let acumuladorDiarias = 0;
+        //     let acumuladorValorFinanceiro = 0;
+
+        //     // Mudamos de .map para .forEach para conseguir controlar a quebra de linha de cada funcionário
+        //     lista.forEach((f, index) => {
+        //         const proximoItem = lista[index + 1];
+
+        //         console.log(`DEBUG VALORES [${f.nome}]:`, {
+        //             cache_original: f.totalcache_full,
+        //             ajuste_custo: f.totalajustecusto_full,
+        //             soma_calculada_no_banco: f.cache_com_ajuste,
+        //             caixinha_original: f.totalcaixinha_full,
+        //         });
+
+        //         const info = {
+        //             'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
+        //             'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
+        //             'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
+        //             'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
+        //         }[filtro];
+                
+        //         // Alimentando os somadores do subtotal
+        //         acumuladorDiarias += parseFloat(f.qtddiarias_filtradas || 0);
+        //         acumuladorValorFinanceiro += parseFloat(info.valor || 0);
+
+        //         const estaPago = info.status.toLowerCase().startsWith('pago');
+        //         const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+        //         const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+                
+        //         const nomeAtual = (f.nome || '').trim();
+        //         const nomeProximo = proximoItem && proximoItem.nome ? proximoItem.nome.trim() : '';
+                
+        //         // Verifica se o profissional vai mudar na próxima linha ou se a lista acabou
+        //         const ehUltimoRegistroDoProfissional = !proximoItem || nomeAtual !== nomeProximo;
+
+        //         // Estilização para dar uma leve separação visual entre os blocos de pessoas
+        //         let estiloBordaSeparadora = '';
+        //         if (ehUltimoRegistroDoProfissional) {
+        //             estiloBordaSeparadora = 'border-bottom: 2px dashed #bbbbbb !important;';
+        //         }
+
+        //         // 2. Renderização da Linha Normal
+        //         linhasHtml += `
+        //             <tr style="${estiloBordaSeparadora}">
+        //                 <td>
+        //                     <strong>${f.nome}</strong><br>
+        //                     <small>${f.funcao}</small>
+        //                 </td>
+
+        //                 <td style="text-align:center">
+        //                     ${f.qtddiarias_filtradas || 0}
+        //                 </td>
+
+        //                 <td style="text-align:center">
+        //                     <small>${periodoFormatado || '---'}</small>
+        //                 </td>
+
+        //                 ${podeVerAcoes ? `
+        //                     <td style="text-align:center">
+        //                         ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
+        //                     </td>
+        //                 ` : ''}
+
+        //                 <td class="comprovantes-cell">
+        //                     ${estaPago 
+        //                         ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+        //                         : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+        //                     }
+        //                 </td>
+
+        //                 <td class="status-celula status-${classeStatus}">
+        //                     ${info.status}
+        //                 </td>
+
+        //                 <td>
+        //                     ${formatarMoeda(info.valor || 0)}
+        //                 </td>
+        //             </tr>
+        //         `;
+
+        //         // 3. Inserção da linha de Subtotal
+        //         if (ehUltimoRegistroDoProfissional) {
+        //             // Só exibe a linha de subtotal se a pessoa tiver mais de 1 registro na lista
+        //             const temMaisDeUmaLinha = lista.filter(item => 
+        //                 (item.nome || '').trim() === nomeAtual
+        //             ).length > 1;
+
+        //             if (temMaisDeUmaLinha) {
+        //                 linhasHtml += `
+        //                 <tr class="row-total" style="background-color: #f4f4f4; border-bottom: 2px dashed #888888 !important;">
+        //                     <td style="text-align: right; font-weight: bold; color: #333;">
+        //                         SUBTOTAL ${nomeAtual}:
+        //                     </td>
+        //                     <td style="text-align: center; font-weight: bold;">
+        //                         ${acumuladorDiarias}
+        //                     </td>
+        //                     <td></td>
+        //                     ${podeVerAcoes ? `<td></td>` : ''}
+        //                     <td></td>
+        //                     <td></td>
+        //                     <td style="font-weight: bold; color: #111;">
+        //                         ${formatarMoeda(acumuladorValorFinanceiro)}
+        //                     </td>
+        //                 </tr>`;
+        //             }
+
+        //             // Reseta as variáveis acumuladoras para começar a contar o próximo funcionário
+        //             acumuladorDiarias = 0;
+        //             acumuladorValorFinanceiro = 0;
+        //         }
+        //     });
+
+        //     return linhasHtml;
+        // };
+
+        const obterHeaderTabela = () => {
+            const podeVerAcoes = usuarioTemPermissaoSupremo();
             return `
-                    <tr>
-                        <td>
-                            <strong>${f.nome}</strong><br>
-                            <small>${f.funcao}</small>
-                        </td>
-
-                        <td style="text-align:center">
-                            ${f.qtddiarias_filtradas || 0}
-                        </td>
-
-                        <td style="text-align:center">
-                            <small>${periodoFormatado || '---'}</small>
-                        </td>
-
-                        ${podeVerAcoes ? `
-                            <td style="text-align:center">
-                                ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
-                            </td>
-                        ` : ''}
-
-                        <td class="comprovantes-cell">
-                            ${estaPago 
-                                ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
-                            }
-                        </td>
-
-                        <td class="status-celula status-${classeStatus}">
-                            ${info.status}
-                        </td>
-
-                        <td>
-                            ${formatarMoeda(info.valor || 0)}
-                        </td>
-                    </tr>
-                `;
-            }).join("");
+                <tr>
+                    <th>NOME / FUNÇÃO</th>
+                    <th style="text-align:center">CATEGORIA</th>
+                    <th style="text-align:center">DIÁRIAS</th>
+                    <th style="text-align:center">PERÍODO</th>
+                    ${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}
+                    <th>COMPROVANTE(S)</th>
+                    <th>STATUS</th>
+                    <th style="text-align:right">VALOR</th>
+                </tr>`;
         };
 
-        
+        const obterLinhasTabela = (evento) => {
+            let lista = evento.funcionarios || [];
+            if (lista.length === 0) {
+                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
+            }
+
+            const podeVerAcoes = usuarioTemPermissaoSupremo();
+
+            // Ordena por nome para agrupar registros do mesmo profissional
+            lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+            // Agrupa por nome para calcular subtotais
+            const grupos = {};
+            lista.forEach(f => {
+                const nome = (f.nome || '').trim();
+                if (!grupos[nome]) grupos[nome] = [];
+                grupos[nome].push(f);
+            });
+
+            let linhasHtml = '';
+
+            const CATEGORIAS = [
+                {
+                    key: 'ajuda_custo',
+                    label: 'Ajuda de Custo',
+                    badgeClass: 'badge-ajuda',
+                    getStatus: f => formatarStatusFront(f.statuspgtoajdcto || 'Pendente'),
+                    getValor:  f => parseFloat(f.totalajudacusto_full || 0),
+                    getDiarias: f => f.qtddiarias_filtradas || 0,
+                    tipoAcao: 'Ajuda',
+                },
+                {
+                    key: 'cache',
+                    label: 'Cachê',
+                    badgeClass: 'badge-cache',
+                    getStatus: f => formatarStatusFront(f.statuspgto || 'Pendente'),
+                    getValor:  f => parseFloat(f.cache_com_ajuste || 0),
+                    getDiarias: f => f.qtddiarias_filtradas || 0,
+                    tipoAcao: 'Cache',
+                },
+                {
+                    key: 'caixinha',
+                    label: 'Caixinha',
+                    badgeClass: 'badge-caixinha',
+                    getStatus: f => formatarStatusFront(f.statuscaixinha || 'Pendente'),
+                    getValor:  f => parseFloat(f.totalcaixinha_full || 0),
+                    getDiarias: f => f.qtddiarias_filtradas || 0,
+                    tipoAcao: 'Caixinha',
+                },
+            ];
+
+            const nomesOrdenados = Object.keys(grupos).sort((a, b) => a.localeCompare(b));
+
+            nomesOrdenados.forEach(nome => {
+                const registros = grupos[nome];
+
+                // registros.forEach((f, idxF) => {
+                //     const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+                //     const ehUltimoRegistro = (idxF === registros.length - 1);
+                //     //const rowspan = CATEGORIAS.length; // sempre 3
+
+                //     // Antes de entrar no forEach de CATEGORIAS, calcula quantas linhas vão existir
+                //     const rowspanTotal = CATEGORIAS.filter(cat => {
+                //         if (cat.key === 'caixinha') {
+                //             return registros.some(r => parseFloat(r.totalcaixinha_full || 0) > 0);
+                //         }
+                //         return true;
+                //     }).length;
+
+                //     // Acumuladores de subtotal para este funcionário neste registro
+                //     // (se houver múltiplos registros por nome, somamos ao final)
+                //     let linhasCats = '';
+
+                //     CATEGORIAS.forEach((cat, idxCat) => {
+                //         const valor  = cat.getValor(f);
+                //         if (cat.key === 'caixinha' && valor <= 0) return;
+                //         const status = cat.getStatus(f);
+                        
+                //         const diarias = cat.getDiarias(f);
+                //         const estaPago = status.toLowerCase().startsWith('pago');
+                //         const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+                //         // Só exibe caixinha se tiver valor
+                //         const semCaixinha = (cat.key === 'caixinha' && valor <= 0);
+
+                //         // Borda separadora: última categoria do último registro do funcionário
+                //         const ehUltimaLinha = (ehUltimoRegistro && idxCat === CATEGORIAS.length - 1);
+                //         const estiloBorda = ehUltimaLinha
+                //             ? 'border-bottom: 2px dashed #bbbbbb !important;'
+                //             : '';
+
+                //         // Célula do nome: apenas na primeira categoria do primeiro registro
+                //         const celulaNome = (idxCat === 0)
+                //             ? `<td rowspan="${rowspanTotal * registros.length}"
+                //                 style="vertical-align:middle; border-right:1px solid #e0e0e0;
+                //                         border-bottom:2px dashed #bbbbbb;">
+                //                 <strong>${f.nome}</strong><br>
+                //                 <small style="color:#666;">${f.funcao}</small>
+                //             </td>`
+                //             : '';
+
+                //         linhasCats += `
+                //             <tr style="${estiloBorda}">
+                //                 ${idxF === 0 ? celulaNome : (idxCat === 0 ? '' : '')}
+
+                //                 <td style="text-align:center">
+                //                     <span class="badge-categoria badge-${cat.key}">
+                //                         ${cat.label}
+                //                     </span>
+                //                 </td>
+
+                //                 <td style="text-align:center">
+                //                     ${semCaixinha ? '<span style="color:#bbb;">—</span>' : diarias}
+                //                 </td>
+
+                //                 <td style="text-align:center">
+                //                     <small>${semCaixinha ? '—' : periodoFormatado}</small>
+                //                 </td>
+
+                //                 ${podeVerAcoes ? `
+                //                     <td style="text-align:center">
+                //                         ${semCaixinha
+                //                             ? '<span style="color:#bbb; font-size:11px;">—</span>'
+                //                             : renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+                //                         }
+                //                     </td>
+                //                 ` : ''}
+
+                //                 <td class="comprovantes-cell">
+                //                     ${semCaixinha
+                //                         ? '<span style="font-size:9px; color:#bbb;">—</span>'
+                //                         : estaPago
+                //                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+                //                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+                //                     }
+                //                 </td>
+
+                //                 <td class="status-celula status-${classeStatus}">
+                //                     ${semCaixinha ? '' : status}
+                //                 </td>
+
+                //                 <td style="text-align:right">
+                //                     ${semCaixinha
+                //                         ? '<span style="color:#bbb;">R$ 0,00</span>'
+                //                         : formatarMoeda(valor)
+                //                     }
+                //                 </td>
+                //             </tr>`;
+                //     });
+
+                //     linhasHtml += linhasCats;
+                // });
+
+
+                registros.forEach((f, idxF) => {
+                    const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+                    const ehUltimoRegistro = (idxF === registros.length - 1);
+
+                    const temCaixinha = parseFloat(f.totalcaixinha_full || 0) > 0;
+
+                    const rowspanTotal = CATEGORIAS.filter(cat => {
+                        if (cat.key === 'caixinha') return temCaixinha;
+                        return true;
+                    }).length;
+
+                    // Qual é a última categoria visível para ESTE funcionário?
+                    const ultimaCatKey = temCaixinha ? 'caixinha' : 'cache';
+
+                    let linhasCats = '';
+
+                //     CATEGORIAS.forEach((cat, idxCat) => {
+                //         const valor = cat.getValor(f);
+                //         if (cat.key === 'caixinha' && !temCaixinha) return;
+
+                //         const status       = cat.getStatus(f);
+                //         const diarias      = cat.getDiarias(f);
+                //         const estaPago     = status.toLowerCase().startsWith('pago');
+                //         const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+                //         // A borda tracejada deve aparecer SEMPRE na última categoria de QUALQUER período
+                //         const ehUltimaLinha = (cat.key === ultimaCatKey);
+
+                //         // Se for a última linha, bota o tracejado. Se não for, bota uma borda invisível 
+                //         // para empurrar o layout e impedir que o tracejado suba.
+                //         const estiloBorda = ehUltimaLinha 
+                //             ? 'border-bottom: 2px dashed #bbbbbb !important;' 
+                //             : 'border-bottom: 1px solid transparent !important;';
+
+                //         // Célula do nome só na primeira categoria do primeiro registro
+                //         const celulaNome = (idxCat === 0 && idxF === 0)
+                //             ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+                //                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
+                //                 + '<strong>' + f.nome + '</strong><br>'
+                //                 + '<small style="color:#666;">' + f.funcao + '</small>'
+                //                 + '</td>'
+                //             : '';
+
+                //         // Pré-computa células com lógica condicional — evita template aninhado
+                //         const celulaAcoes = podeVerAcoes
+                //             ? '<td style="text-align:center; ' + estiloBorda + '">'
+                //                 + renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+                //                 + '</td>'
+                //             : '';
+
+                //         const conteudoComprovante = estaPago
+                //             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+                //             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+
+                //         linhasCats += '<tr>'
+                //             + celulaNome
+                //             + '<td style="text-align:center; ' + estiloBorda + '">'
+                //                 + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+                //             + '</td>'
+                //             + '<td style="text-align:center; ' + estiloBorda + '">' + diarias + '</td>'
+                //             + '<td style="text-align:center; ' + estiloBorda + '"><small>' + periodoFormatado + '</small></td>'
+                //             + celulaAcoes
+                //             + '<td class="comprovantes-cell" style="' + estiloBorda + '">' + conteudoComprovante + '</td>'
+                //             + '<td class="status-celula status-' + classeStatus + '" style="' + estiloBorda + '">' + status + '</td>'
+                //             + '<td style="text-align:right; ' + estiloBorda + '">' + formatarMoeda(valor) + '</td>'
+                //             + '</tr>';
+                //     });
+
+                //     linhasHtml += linhasCats;
+                // });
+
+
+                CATEGORIAS.forEach((cat, idxCat) => {
+                        const valor = cat.getValor(f);
+                        if (cat.key === 'caixinha' && !temCaixinha) return;
+
+                        const status       = cat.getStatus(f);
+                        const diarias      = cat.getDiarias(f);
+                        const estaPago     = status.toLowerCase().startsWith('pago');
+                        const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+                        // ESTRATÉGIA DE BORDAS:
+                        // 1. Todas as linhas ganham uma borda pontilhada sutil para não bugar o CSS da tabela.
+                        // 2. A última categoria do período ganha o tracejado de separação.
+                        const ehUltimaLinha = (cat.key === ultimaCatKey);
+                        
+                        let estiloBorda = 'border-bottom: 1px dotted #e0e0e0 !important;'; 
+                        
+                        if (ehUltimaLinha) {
+                            estiloBorda = 'border-bottom: 2px dashed #bbbbbb !important;';
+                        }
+
+                        // Célula do nome só na primeira categoria do primeiro registro
+                        // const celulaNome = (idxCat === 0 && idxF === 0)
+                        //     ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+                        //         + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
+                        //         + '<strong>' + f.nome + '</strong><br>'
+                        //         + '<small style="color:#666;">' + f.funcao + '</small>'
+                        //         + '</td>'
+                        //     : '';
+                        let celulaNome = '';
+                        if (idxCat === 0 && idxF === 0) {
+                            
+                            // Mapeia as funções na ordem exata dos períodos
+                            // e gera uma tag <small> para cada uma delas ficar em uma nova linha
+                            const htmlFuncoes = registros.map(r => {
+                                return `<small style="display:block; color:#2563eb; font-weight:500; margin-top:3px;">• ${r.funcao}</small>`;
+                            }).join('');
+
+                            celulaNome = '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+                                + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb; padding: 10px;">'
+                                + '<strong>' + f.nome + '</strong><br>'
+                                + '<div style="margin-top:5px; line-height:1.2;">'
+                                + htmlFuncoes
+                                + '</div>'
+                                + '</td>';
+                        }
+
+                        // Pré-computa células com lógica condicional — evita template aninhado
+                        const celulaAcoes = podeVerAcoes
+                            ? '<td style="text-align:center; ' + estiloBorda + '">'
+                                + renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+                                + '</td>'
+                            : '';
+
+                        const conteudoComprovante = estaPago
+                            ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+                            : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+
+                        // linhasCats += '<tr>'
+                        //     + celulaNome
+                        //     + '<td style="text-align:center; ' + estiloBorda + '">'
+                        //         + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+                        //     + '</td>'
+                        //     + '<td style="text-align:center; ' + estiloBorda + '">' + diarias + '</td>'
+                        //     + '<td style="text-align:center; ' + estiloBorda + '"><small>' + periodoFormatado + '</small></td>'
+                        //     + celulaAcoes
+                        //     + '<td class="comprovantes-cell" style="' + estiloBorda + '">' + conteudoComprovante + '</td>'
+                        //     + '<td class="status-celula status-' + classeStatus + '" style="' + estiloBorda + '">' + status + '</td>'
+                        //     + '<td style="text-align:right; ' + estiloBorda + '">' + formatarMoeda(valor) + '</td>'
+                        //     + '</tr>';
+
+                        // Agora aplicamos o estilo direto na LINHA (tr), e não nas células (td)
+                        const estiloLinha = ehUltimaLinha 
+                            ? 'style="border-bottom: 2px dashed #bbbbbb !important;"' 
+                            : 'style="border-bottom: 1px dotted #e0e0e0 !important;"';
+
+                        linhasCats += `<tr ${estiloLinha}>`
+                            + celulaNome
+                            + '<td style="text-align:center;">'
+                                + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+                            + '</td>'
+                            + '<td style="text-align:center;">' + diarias + '</td>'
+                            + '<td style="text-align:center;"><small>' + periodoFormatado + '</small></td>'
+                            + celulaAcoes
+                            + '<td class="comprovantes-cell">' + conteudoComprovante + '</td>'
+                            + '<td class="status-celula status-' + classeStatus + '">' + status + '</td>'
+                            + '<td style="text-align:right;">' + formatarMoeda(valor) + '</td>'
+                            + '</tr>';
+                    });
+
+                    linhasHtml += linhasCats;
+                });
+
+                
+                // FORA do forEach de categorias — calcula uma vez por funcionário
+
+
+                
+                // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+                // if (registros.length > 1) {
+                //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+                //     const totalValor   = registros.reduce((s, f) => {
+                //         return s
+                //             + parseFloat(f.totalajudacusto_full || 0)
+                //             + parseFloat(f.cache_com_ajuste || 0)
+                //             + parseFloat(f.totalcaixinha_full || 0);
+                //     }, 0);
+
+                //     linhasHtml += `
+                //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
+                //             <td colspan="2" style="text-align:right; font-weight:bold; color:#333;">
+                //                 SUBTOTAL ${nome}:
+                //             </td>
+                //             <td style="text-align:center; font-weight:bold;">${totalDiarias}</td>
+                //             <td></td>
+                //             ${podeVerAcoes ? '<td></td>' : ''}
+                //             <td></td>
+                //             <td></td>
+                //             <td style="text-align:right; font-weight:bold;">${formatarMoeda(totalValor)}</td>
+                //         </tr>`;
+                // }
+
+                // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+                // if (registros.length > 1) {
+                //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+
+                //     const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+                //     const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+                //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+                //     const totalGeral   = totalAjuda + totalCache + totalCaixinha;
+
+                //     linhasHtml += `
+                //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
+                //             <td style="text-align:right; font-weight:bold; color:#333; font-size:12px;">
+                //                 SUBTOTAL<br><small style="color:#888; font-weight:400;">${nome}</small>
+                //             </td>
+                //             <td colspan="${podeVerAcoes ? 5 : 4}" style="padding: 6px 10px;">
+                //                 <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:12px;">
+
+                //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+                //                                 background:#e8f0fe; border:1px solid #b4ccf8;
+                //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+                //                         <span style="font-size:10px; color:#1a56db; font-weight:500;">Ajuda de Custo</span>
+                //                         <strong style="color:#1a56db;">${formatarMoeda(totalAjuda)}</strong>
+                //                     </span>
+
+                //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+                //                                 background:#fff8e6; border:1px solid #fcd34d;
+                //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+                //                         <span style="font-size:10px; color:#b45309; font-weight:500;">Cachê</span>
+                //                         <strong style="color:#b45309;">${formatarMoeda(totalCache)}</strong>
+                //                     </span>
+
+                //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+                //                                 background:#ecfdf5; border:1px solid #6ee7b7;
+                //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+                //                         <span style="font-size:10px; color:#065f46; font-weight:500;">Caixinha</span>
+                //                         <strong style="color:#065f46;">${formatarMoeda(totalCaixinha)}</strong>
+                //                     </span>
+
+                //                     ${totalCaixinha > 0 ? `
+                //                         <span style="display:inline-flex; flex-direction:column; align-items:center; 
+                //                                     background:#ecfdf5; border:1px solid #6ee7b7; 
+                //                                     border-radius:8px; padding:4px 10px; min-width:90px;">
+                                                    
+                //                             <span style="font-size:10px; color:#065f46; font-weight:500;">
+                //                                 Caixinha
+                //                             </span>
+                                            
+                //                             <strong style="color:#065f46;">
+                //                                 ${formatarMoeda(totalCaixinha)}
+                //                             </strong>
+                                            
+                //                         </span>
+                //                     ` : ''}
+
+                                   
+
+                //                 </div>
+                //             </td>
+                //             <td style="text-align:center; font-weight:bold; color:#555; font-size:12px;">
+                //                 ${totalDiarias} diárias
+                //             </td>
+                //         </tr>`;
+                // }
+
+                // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+                // if (registros.length > 1) {
+                //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+
+                //     const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+                //     const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+                //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+
+                //     linhasHtml += `
+                //         <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+                //             <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
+                //                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
+                                    
+                //                     <span>
+                //                         <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
+                //                         <span style="color:#555; font-weight: 500;">${nome}</span>
+                //                         <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+                //                             ${totalDiarias} diárias
+                //                         </span>
+                //                     </span>
+
+                //                     <div style="display: flex; gap: 20px; font-weight: bold;">
+                                        
+                //                         <span style="color: #1a56db;">
+                //                             <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+                //                             ${formatarMoeda(totalAjuda)}
+                //                         </span>
+
+                //                         <span style="color: #b45309;">
+                //                             <small style="font-weight: normal; color: #666;">Cachê: </small>
+                //                             ${formatarMoeda(totalCache)}
+                //                         </span>
+
+                //                         ${totalCaixinha > 0 ? `
+                //                             <span style="color: #065f46;">
+                //                                 <small style="font-weight: normal; color: #666;">Caixinha: </small>
+                //                                 ${formatarMoeda(totalCaixinha)}
+                //                             </span>
+                //                         ` : ''}
+                                        
+                //                     </div>
+                //                 </div>
+                //             </td>
+                            
+                //             <td></td> 
+                //         </tr>`;
+                // }
+
+                // --- FORA DO FOR EACH DE REGISTROS ---
+                
+                // Cálculo dos totais do funcionário (aparece para TODOS)
+                const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+                const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+                const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+                const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+
+                // O total geral do funcionário somando tudo
+                const totalGeralFuncionario = totalAjuda + totalCache + totalCaixinha;
+
+                // Monta a linha de total (Agora sem a trava de registros.length > 1)
+                linhasHtml += `
+                    <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+                        <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
+                                
+                                <span>
+                                    <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
+                                    <span style="color:#555; font-weight: 500;">${nome}</span>
+                                    <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+                                        ${totalDiarias} diárias
+                                    </span>
+                                </span>
+
+                                <div style="display: flex; gap: 20px; font-weight: bold; align-items: center;">
+                                    
+                                    <span style="color: #1a56db;">
+                                        <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+                                        ${formatarMoeda(totalAjuda)}
+                                    </span>
+
+                                    <span style="color: #b45309;">
+                                        <small style="font-weight: normal; color: #666;">Cachê: </small>
+                                        ${formatarMoeda(totalCache)}
+                                    </span>
+
+                                    ${totalCaixinha > 0 ? `
+                                        <span style="color: #065f46;">
+                                            <small style="font-weight: normal; color: #666;">Caixinha: </small>
+                                            ${formatarMoeda(totalCaixinha)}
+                                        </span>
+                                    ` : ''}
+
+                                    <span style="color: #111; margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
+                                        <small style="font-weight: normal; color: #666;">Total: </small>
+                                        ${formatarMoeda(totalGeralFuncionario)}
+                                    </span>
+                                    
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <td></td> 
+                    </tr>`;
+            });
+
+            return linhasHtml;
+        };
+
         if (dados.length > 0) {
 
             const resumoStaffMestre = dados.reduce((acc, ev) => {
@@ -5856,27 +6449,28 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     <div class="container-filtro-local" style="margin: 10px 0;"></div>
                     <div class="funcionarios-scroll-container"> 
                         <table class="tabela-funcionarios-venc">
-                            <thead>${obterHeaderTabela(categoriaInicial)}</thead>
-                            <tbody>${obterLinhasTabela(evento, categoriaInicial)}</tbody>
+                        
+                        <thead>${obterHeaderTabela()}</thead>
+                        <tbody>${obterLinhasTabela(evento)}</tbody>
                         </table>
                     </div>`;
 
-                const fHtml = criarFiltroCategorias(null, null); 
-                body.querySelector(".container-filtro-local").appendChild(fHtml);
+              //  const fHtml = criarFiltroCategorias(null, null); 
+              //  body.querySelector(".container-filtro-local").appendChild(fHtml);
 
-const primeiroBtn = fHtml.querySelector('.categoria-wrapper .input:checked + .btn');
-if (primeiroBtn) primeiroBtn.style.cssText = 'background-color: var(--primary-color); border-radius: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer;';
-const primeiroSpan = fHtml.querySelector('.categoria-wrapper .input:checked + .btn .span');
-if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
+                // const primeiroBtn = fHtml.querySelector('.categoria-wrapper .input:checked + .btn');
+                // if (primeiroBtn) primeiroBtn.style.cssText = 'background-color: var(--primary-color); border-radius: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer;';
+                // const primeiroSpan = fHtml.querySelector('.categoria-wrapper .input:checked + .btn .span');
+                // if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
 
-                fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
-                    r.addEventListener('change', (e) => {
-                        const v = e.target.value;
-                        const tab = body.querySelector(".tabela-funcionarios-venc");
-                        tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
-                        tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
-                    });
-                });
+                // fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
+                //     r.addEventListener('change', (e) => {
+                //         const v = e.target.value;
+                //         const tab = body.querySelector(".tabela-funcionarios-venc");
+                //         tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
+                //         tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
+                //     });
+                // });
 
                 item.appendChild(header);
                 item.appendChild(body);
@@ -5938,28 +6532,6 @@ if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
                     let statusFiltro = "";
                     let valorTotal = 0;
                     let valorPago = 0;
-
-                    // if (dadoReal) {
-                    //     // Se existe no banco, usamos os valores EXATOS (R$ 2129,13 ou R$ 1832,18)
-                    //     const sBanco = (dadoReal.status || "").toLowerCase();
-                    //     const foiPago = (sBanco === 'pago' || sBanco === 'liquidado' || dadoReal.dtpagamento);
-                        
-                    //     statusFinal = foiPago ? "Pago" : (dProj < hoje ? "Atrasado" : "Pendente");
-                    //     statusFiltro = foiPago ? "liquidado" : (dProj < hoje ? "vencidos" : "a_vencer");
-                        
-                    //     valorTotal = parseFloat(dadoReal.vlrreal || dadoReal.valor || dadoReal.vlrestimado || 0);
-                    //     valorPago = statusFinal === "Pago" ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
-                    // } else {
-                    //     // Se NÃO existe no banco, é uma projeção matemática pura
-                    //     statusFinal = dProj < hoje ? "Atrasado" : "Projeção";
-                    //     statusFiltro = dProj < hoje ? "vencidos" : "a_vencer";
-
-                    //     // --- CORREÇÃO AQUI ---
-                    //     // Priorizamos o vlrreal ou valor do cadastro original, 
-                    //     // deixando o vlrestimado como última opção.
-                    //     valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
-                    //     valorPago = 0;
-                    // }
 
                     if (dadoReal) {
                         // 1. Normalizamos o status que vem do banco
@@ -6054,19 +6626,7 @@ if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
             }
 
             // --- 2. FILTRAGEM DAS CONTAS PROJETADAS ---
-            // contasParaExibir = contasProjetadas.filter(c => {
-            //     const dataVcto = new Date(c.dtvcto + 'T12:00:00');
-            //     const statusC = (c.status || '').toLowerCase();
-
-            //     const estaNoPeriodo = (dataVcto >= dInicioComp && dataVcto <= dFimComp);
-            //     const ehAtrasado = (statusC === "atrasado" && dataVcto < dFimComp);
-                
-            //     // NOVO: Incluir pagos de meses anteriores para que apareçam no histórico da lista
-            //     const ehPagoAnterior = (statusC === "pago" && dataVcto < dFimComp && dataVcto.getFullYear() === anoFiltro);
-
-            //     return estaNoPeriodo || ehAtrasado || ehPagoAnterior;
-            // });
-
+            
             contasParaExibir = contasProjetadas.filter(c => {
                 const dataVcto = new Date(c.dtvcto + 'T12:00:00');
                 const statusC = (c.status || '').toLowerCase();
@@ -6092,19 +6652,7 @@ if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
             });
 
             // --- 3. CÁLCULO DO RESUMO BASEADO NO FILTRO ---
-            // const resumo = contasParaExibir.reduce((acc, c) => {
-            //     const v = parseFloat(c.valorTotal || 0);
-            //     acc.total += v;
-            //     if (c.status === "Pago") {
-            //         acc.pago += parseFloat(c.valorPago || v);
-            //     } else if (c.status === "Atrasado") {
-            //         acc.vencidos += v;
-            //     } else {
-            //         acc.aVencer += v;
-            //     }
-            //     return acc;
-            // }, { pago: 0, vencidos: 0, aVencer: 0, total: 0 });
-
+            
             const resumo = contasParaExibir.reduce((acc, c) => {
                 const v = parseFloat(c.valorTotal || 0);
                 const statusC = (c.status || "").toLowerCase(); // Normaliza para evitar erro de maiúscula
@@ -6127,7 +6675,7 @@ if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
             }, { pago: 0, vencidos: 0, aVencer: 0, total: 0, suspensos: 0 });
 
 
-            // 3. RENDERIZAÇÃO
+            // 4. RENDERIZAÇÃO
             // Usamos 'contasParaExibir' que já definimos e filtramos lá em cima
             if (contasParaExibir.length > 0) { 
                 // Ordenação por data de vencimento
@@ -7815,6 +8363,93 @@ function exibirToastSucesso(mensagem = 'Status atualizado!') {
     Toast.fire({ icon: 'success', title: mensagem });
 }
 
+// async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
+//     const btnClicado = elementoBotao;
+//     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
+//     let statusParaEnviar = novoStatus;
+
+//     if (tipo === 'Ajuda' && novoStatus === 'Pago') {
+//         const { value: opcao } = await Swal.fire({
+//             title: 'Pagamento Ajuda de Custo',
+//             text: 'Escolha a modalidade do pagamento:',
+//             icon: 'question',
+//             showDenyButton: true,
+//             showCancelButton: true,
+//             confirmButtonText: 'Pago 100%',
+//             denyButtonText: 'Pago 50%',
+//             cancelButtonText: 'Cancelar',
+//             confirmButtonColor: '#28a745',
+//             denyButtonColor: '#17a2b8',
+//         });
+
+//         if (opcao === true) statusParaEnviar = 'Pago 100%';
+//         else if (Swal.getDenyButton() && opcao === false) statusParaEnviar = 'Pago 50%';
+//         else return;
+//     }
+
+//     try {
+//         btnClicado.disabled = true;
+//         const htmlOriginal = btnClicado.innerHTML;
+//         btnClicado.innerHTML = '';
+
+//         const response = await fetch(`/main/vencimentos/update-status`, {
+//             method: 'POST',
+//             headers: { 
+//                 'Content-Type': 'application/json',
+//                 'Authorization': `Bearer ${localStorage.getItem('token')}` 
+//             },
+//             body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar })
+//         });
+
+//         if (response.ok) {
+//             exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
+
+//             if (linhaTr) {
+//                 const celulaStatus = linhaTr.querySelector('.status-celula');
+//                 const celulaAcoes = linhaTr.querySelector('.acoes-supremo');
+//                 const celulaComprovantes = linhaTr.querySelector('.comprovantes-cell');
+
+//                 // 1. Atualiza Cor e Texto do Status
+//                 if (celulaStatus) {                    
+//                     const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+//                     celulaStatus.className = `status-celula status-${classeStatus}`;
+//                     celulaStatus.innerText = statusParaEnviar;
+             
+//                 }
+
+//                 // 2. Atualiza Botões de Ação (Pago/Suspenso/Lock)
+//                 if (celulaAcoes) {
+//                     celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
+//                 }
+
+//                 // 3. ATUALIZAÇÃO CHAVE: Libera os inputs de upload na hora
+//                 if (celulaComprovantes) {
+//                     // 1. Define o filtro correto
+//                     const filtroParaDinamico = (tipo === 'Ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
+                    
+//                     // 2. Pega o HTML atual, tratando se vier nulo do banco/front
+//                     const conteudoAtual = celulaComprovantes.innerHTML;
+
+//                     // 3. Atualiza a célula (Aqui estava o erro do filtroFormatado)
+//                     celulaComprovantes.innerHTML = gerarHTMLComprovanteDinamico(
+//                         idStaff, 
+//                         filtroParaDinamico, 
+//                         statusParaEnviar, 
+//                         conteudoAtual
+//                     );
+//                 }
+//             }
+//             await atualizarCardsResumoSilencioso();
+//         } else {
+//             throw new Error('Erro no servidor');
+//         }
+//     } catch (error) {
+//         btnClicado.disabled = false;
+//         btnClicado.innerHTML = '<i class="fas fa-check"></i> Pago';
+//         Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
+//     }
+// }
+
 async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     const btnClicado = elementoBotao;
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
@@ -7842,7 +8477,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     try {
         btnClicado.disabled = true;
         const htmlOriginal = btnClicado.innerHTML;
-        btnClicado.innerHTML = '';
+        btnClicado.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; // Feedback visual de carregamento
 
         const response = await fetch(`/main/vencimentos/update-status`, {
             method: 'POST',
@@ -7856,9 +8491,27 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
         if (response.ok) {
             exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
 
+            // ==========================================================
+            // ATUALIZAÇÃO CHAVE: Salvar o novo status na memória global
+            // ==========================================================
+            // Substitua 'meuArrayDeEventos' pelo nome da sua variável global que guarda a lista de eventos
+            if (typeof dados !== 'undefined' && Array.isArray(dados)) {
+                dados.forEach(ev => {
+                    const func = ev.funcionarios.find(f => f.idstaffevento === idStaff);
+                    if (func) {
+                        if (tipo === 'Cache') func.statuspgto = statusParaEnviar;
+                        else if (tipo === 'Ajuda') func.statuspgtoajdcto = statusParaEnviar;
+                        else if (tipo === 'Caixinha') func.statuscaixinha = statusParaEnviar;
+                    }
+                });
+            }
+
             if (linhaTr) {
                 const celulaStatus = linhaTr.querySelector('.status-celula');
-                const celulaAcoes = linhaTr.querySelector('.acoes-supremo');
+                
+                // AJUSTE AQUI: Você estava buscando por '.acoes-supremo', mas na tabela ela não tem classe específica.
+                // Buscaremos pelo 'td' que contém o grupo de botões.
+                const celulaAcoes = linhaTr.querySelector('.btn-group-acoes')?.parentElement;
                 const celulaComprovantes = linhaTr.querySelector('.comprovantes-cell');
 
                 // 1. Atualiza Cor e Texto do Status
@@ -7866,23 +8519,18 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                     const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                     celulaStatus.className = `status-celula status-${classeStatus}`;
                     celulaStatus.innerText = statusParaEnviar;
-             
                 }
 
-                // 2. Atualiza Botões de Ação (Pago/Suspenso/Lock)
+                // 2. Atualiza Botões de Ação
                 if (celulaAcoes) {
                     celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
                 }
 
-                // 3. ATUALIZAÇÃO CHAVE: Libera os inputs de upload na hora
+                // 3. Atualiza os Uploads
                 if (celulaComprovantes) {
-                    // 1. Define o filtro correto
                     const filtroParaDinamico = (tipo === 'Ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
-                    
-                    // 2. Pega o HTML atual, tratando se vier nulo do banco/front
                     const conteudoAtual = celulaComprovantes.innerHTML;
 
-                    // 3. Atualiza a célula (Aqui estava o erro do filtroFormatado)
                     celulaComprovantes.innerHTML = gerarHTMLComprovanteDinamico(
                         idStaff, 
                         filtroParaDinamico, 
@@ -7901,6 +8549,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
         Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
     }
 }
+
 window.alterarStatusStaff = alterarStatusStaff;
 
 async function atualizarCardsResumoSilencioso() {
