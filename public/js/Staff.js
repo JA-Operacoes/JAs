@@ -4294,7 +4294,7 @@ async function verificaStaff() {
             const statusAjusteEnvio = vlrAjusteEnvio !== 0 
                 ? (document.getElementById('selectStatusAjusteCusto')?.value || statusAjusteCustoInput?.value || 'Pendente')
                 : '';
-            formData.append('statusajustecusto', statusAjusteEnvio.toUpperCase());
+            formData.append('statusajustecusto', capitalize(statusAjusteEnvio));
 
             // statuspgtoajdcto = pagamento da AJUDA DE CUSTO (transporte/alimentação), não do ajuste
             const vlrAjdCustoEnvio = parseFloat(transporteInput?.value?.replace(',', '.') || 0) 
@@ -4867,12 +4867,22 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         const descFuncaoSelect = document.getElementById('descFuncao');
         const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
 
+        // const datasPermitidas = new Set();
+        // if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+        //     orcamentoBase.datas_totais_orcadas.forEach(d => {
+        //         if (d) datasPermitidas.add(d.split('T')[0]);
+        //     });
+        // }
+
         const datasPermitidas = new Set();
-        if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
-            orcamentoBase.datas_totais_orcadas.forEach(d => {
+        dadosDoOrcamento.forEach(item =>{
+            if (Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+            item.datas_totais_orcadas.forEach(d => {
                 if (d) datasPermitidas.add(d.split('T')[0]);
             });
         }
+    })
+        
 
         const listaDatasEvento = Array.isArray(datasEvento) ? datasEvento : [];
         const datasNaoOrcadas = listaDatasEvento.filter(d => !datasPermitidas.has(d));        
@@ -4896,11 +4906,11 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             const checkData = await verificarStatusAditivoExtra(
                 idOrcamentoAtual, 
                 idFuncao, 
-                tiposParaVerificar, 
+                tiposParaVerificar.join(','), 
                 idFuncionario, 
                 nmFuncionario,
                 funcaoTexto,
-                datasNaoOrcadas 
+                datasNaoOrcadas[0] ?? null
             );
 
             // 1. Se já estiver autorizado, libera o processo
@@ -8203,9 +8213,9 @@ function registrarListenersNivel() {
 
     if (this.checked) {
         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+        const vlrAlimentacaoViagem1 = (parseFloat(vlrAlimentacaoFuncao)|| 0) * 2 ;
+        document.getElementById("alimentacao").value = vlrAlimentacaoViagem1.toFixed(2);
+        document.getElementById("transporte").value = (0).toFixed(2)
 
         // Texto
         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
@@ -8216,6 +8226,7 @@ function registrarListenersNivel() {
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
         descBeneficioTextarea.value = descBeneficioAtual;
     }
+        calcularValorTotal();
     });
 
     document.getElementById('viagem2Check').addEventListener('change', function () { 
@@ -8225,9 +8236,9 @@ function registrarListenersNivel() {
         if (this.checked) {
 
             [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-
-            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+            const vlrAlimentacaoViagem2 = ((parseFloat(vlrAlimentacaoFuncao) || 0 ) *2) + ((parseFloat(vlrAlimentacaoFuncao)|| 0) /2);
+            document.getElementById("alimentacao").value = vlrAlimentacaoViagem2.toFixed(2);
+            document.getElementById("transporte").value = (0).toFixed(2)
 
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;
@@ -8239,6 +8250,7 @@ function registrarListenersNivel() {
 
             descBeneficioTextarea.value = descBeneficioAtual;
         }
+        calcularValorTotal();
     });
 
     document.getElementById('viagem3Check').addEventListener('change', function () { 
@@ -8260,6 +8272,7 @@ function registrarListenersNivel() {
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
             descBeneficioTextarea.value = descBeneficioAtual;
         }
+        calcularValorTotal();
     });
 }
 

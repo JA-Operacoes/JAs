@@ -4319,7 +4319,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         // 2. Mapeia cada data formatando para pt-BR
                         const datasFormatadas = datasArray.map(dataStr => {
                             if (dataStr == null) return '';
-                            const dataObj = new Date(dataStr());
+                            const dataObj = new Date(dataStr);
                             
                             // Se a data for válida, formata. Se não, retorna o texto original.
                             if (!isNaN(dataObj.getTime())) {
@@ -4660,7 +4660,8 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
 
         const url = `/main/aditivoextra/${idAditivoExtra}/status`;
         // const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
-        const novoStatusCapitalizado = novoStatus.charAt(0) + novoStatus.slice(1);
+        // ✅ Restaura o toUpperCase na primeira letra
+        const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
         
         // O fetchComToken já resolve o JSON
         const response = await fetchComToken(url, {

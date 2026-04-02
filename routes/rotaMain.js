@@ -1895,7 +1895,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 : statusParaAtualizar;
 
             const queryUpdate = `
-                UPDATE staffeventos 
+                UPDATE staffeventos se
                 SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
                 WHERE idstaffevento = $5
                 RETURNING *;

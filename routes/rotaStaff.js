@@ -942,10 +942,20 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             const resUp = await client.query(queryUpdate, values);
             await client.query('COMMIT');
 
+            const dadosParaLog = {
+                ...body,
+                comppagtocache: paths.cache,
+                comppgtoajdcusto:paths.ajd,
+                comppgtoajdcusto50: paths.ajd50,
+                comppgtocaixinha: paths.cx
+            };
+
+
             res.locals.acao = 'alterou';
             res.locals.idregistroalterado = idStaffEvento; 
+            res.locals.dadosnovos = dadosParaLog;
 
-            res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
+            res.json({ message: "Atualizado", id: idStaffEvento});
         } catch (e) {
             if (client) await client.query('ROLLBACK');
             res.status(500).json({ error: e.message });
@@ -1169,6 +1179,16 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         const resIns = await client.query(queryInsert, values);
         await client.query('COMMIT');
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
+        res.locals.dadosnovos = {...req.body,
+            idstaffevento: resIns.rows[0].idstaffevento,
+            comppagtocache: res.files?.comppgtocache?.[0]?.filename || null,
+            comppgtoajudcusto: res.files?.comppgtoajdcusto?.[0]?.filename || null,
+            comppgtocaixinha: res.files?.comppgtocaixinha?.[0]?.filename || null,
+            comppgtoajdcusto50: res.files?.comppgtoajdcusto50?.[0]?.filename || null,
+        };
 
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
     } catch (e) {
@@ -1743,7 +1763,6 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 //     }
 // );
 
-
 router.post('/aditivoextra/solicitacao', 
   autenticarToken(), 
   contextoEmpresa, 
@@ -1830,7 +1849,8 @@ router.post('/aditivoextra/solicitacao',
               AND idFuncao = $3 
               AND tipoSolicitacao = $4 
               --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
-              AND (dtsolicitada = $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND (dtsolicitada @> $5::date[] AND dtsolicitada <@ $5::date[] 
+                OR (dtsolicitada IS NULL AND $5 IS NULL))
               AND idEmpresa = $6
               AND status = 'Pendente'
         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
@@ -1871,14 +1891,22 @@ router.post('/aditivoextra/solicitacao',
         const resultado = await pool.query(queryInsert, values);
         const idAditivoExtra = resultado.rows[0].idaditivoextra;
 
-        // Log de Auditoria
-        if (req.logData && logMiddleware.salvarLog) {
-          req.logData.idregistroalterado = idAditivoExtra;
-          await logMiddleware.salvarLog(req.logData); 
-        }
+        
 
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idAditivoExtra; 
+        res.locals.dadosnovos = {idAditivoExtra,
+         idOrcamento,
+         idFuncao,
+         tipoSolicitacao,
+         qtdSolicitada,
+         justificativa,
+         idFuncionario: idFuncionarioTratado,
+         dataSolicitada: dataParaBanco,
+         idEventoSolicitado: idEventoSolicitadoTratado,
+         idEventoConflitante: idEventoConflitanteTratado,
+         status: statusInicial
+        };
 
         res.status(201).json({ 
           sucesso: true, 
