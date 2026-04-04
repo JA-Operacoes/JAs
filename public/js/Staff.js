@@ -6029,12 +6029,22 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         const descFuncaoSelect = document.getElementById('descFuncao');
         const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
 
+        // const datasPermitidas = new Set();
+        // if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+        //     orcamentoBase.datas_totais_orcadas.forEach(d => {
+        //         if (d) datasPermitidas.add(d.split('T')[0]);
+        //     });
+        // }
+
         const datasPermitidas = new Set();
-        if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
-            orcamentoBase.datas_totais_orcadas.forEach(d => {
+        dadosDoOrcamento.forEach(item =>{
+            if (Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+            item.datas_totais_orcadas.forEach(d => {
                 if (d) datasPermitidas.add(d.split('T')[0]);
             });
         }
+    })
+        
 
         const listaDatasEvento = Array.isArray(datasEvento) ? datasEvento : [];
         const datasNaoOrcadas = listaDatasEvento.filter(d => !datasPermitidas.has(d));        
@@ -6058,11 +6068,11 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             const checkData = await verificarStatusAditivoExtra(
                 idOrcamentoAtual, 
                 idFuncao, 
-                tiposParaVerificar, 
+                tiposParaVerificar.join(','), 
                 idFuncionario, 
                 nmFuncionario,
                 funcaoTexto,
-                datasNaoOrcadas 
+                datasNaoOrcadas[0] ?? null
             );
 
             // 1. Se já estiver autorizado, libera o processo
@@ -8352,12 +8362,8 @@ async function limparCamposStaffParcial() {
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
         'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado',
-        'datasDobrada', 'datasMeiaDiaria',
-        // 'statusAjusteCusto', 'statuscaixinha',
-        //'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
-
-        'campoAjusteCusto', 'campoStatusAjusteCusto',
-        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha'
+        'datasDobrada', 'datasMeiaDiaria', 'statusAjusteCusto', 'statuscaixinha',
+        'ajusteCusto', 'caixinha' // Inputs que você marcou como 🎯 Novo
     ];
     containersParaLimpar.forEach(id => {
         const container = document.getElementById(id);
@@ -8888,23 +8894,21 @@ function registrarListenersNivel() {
     const textoParaLimpar = descBeneficioTextarea.value;
     let descBeneficioAtual = limparDescricoesViagem(textoParaLimpar);
 
-        if (this.checked) {
-            [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-            const vlrAlimentacaoViagem1 = (parseFloat(vlrAlimentacaoFuncao) || 0) * 2;
+    if (this.checked) {
+        [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
 
-            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem1) || 0).toFixed(2);
-            document.getElementById("transporte").value = (0).toFixed(2)
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
 
-            // Texto
-            let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
-            descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
-        } else {
-            // Reset para o padrão da função
-            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
-            descBeneficioTextarea.value = descBeneficioAtual;
-        }
-        calcularValorTotal();
+        // Texto
+        let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
+        descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
+    } else {
+        // Reset para o padrão da função
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
     });
 
     document.getElementById('viagem2Check').addEventListener('change', function () { 
@@ -8914,10 +8918,9 @@ function registrarListenersNivel() {
         if (this.checked) {
 
             [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-            const vlrAlimentacaoViagem2 = ((parseFloat(vlrAlimentacaoFuncao) || 0 )* 2)+ ((parseFloat(vlrAlimentacaoFuncao) || 0) / 2);
 
-            document.getElementById("alimentacao").value = vlrAlimentacaoViagem2.toFixed(2);
-            document.getElementById("transporte").value = (0).toFixed(2)
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
 
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;

@@ -1129,7 +1129,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             res.locals.dadosnovos = dadosParaLog;
             res.locals.dadosanteriores = JSON.parse(JSON.stringify(old));
 
-            res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
+            res.json({ message: "Atualizado", id: idStaffEvento});
         } catch (e) {
             if (client) await client.query('ROLLBACK');
             res.status(500).json({ error: e.message });
@@ -1274,10 +1274,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         const resIns = await client.query(queryInsert, values);
         await client.query('COMMIT');
 
-        // ✅ CORREÇÃO: Informa o logMiddleware qual registro foi criado
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
-        res.locals.dadosnovos = {
+        res.locals.dadosnovos = {...req.body,
             idstaffevento: resIns.rows[0].idstaffevento,
             ...req.body, // 👈 Isso espalha TODAS as informações enviadas no corpo da requisição
             datasevento: datasArray, // Garante o array tratado e não a string crua do FormData
@@ -1288,7 +1287,6 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 comppgtoajdcusto50: req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null
             }
         };
-        
 
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
     } catch (e) {
@@ -1433,11 +1431,7 @@ router.post('/aditivoextra/solicitacao',
         const resultado = await pool.query(queryInsert, values);
         const idAditivoExtra = resultado.rows[0].idaditivoextra;
 
-        // Log de Auditoria
-        if (req.logData && logMiddleware.salvarLog) {
-          req.logData.idregistroalterado = idAditivoExtra;
-          await logMiddleware.salvarLog(req.logData); 
-        }
+        
 
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idAditivoExtra;
