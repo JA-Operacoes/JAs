@@ -5635,20 +5635,20 @@ const debouncedOnCriteriosChanged = debounce(() => {
     const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
 
     // LOG de depuração para você ver o que falta
-    console.log("🔍 Validando critérios para API:", { idEvento, idCliente, idLocalMontagem, idFuncao, totalDatas: periodoDoEvento.length });
+    console.log("🔍 Validando critérios para API:", { idEvento, idCliente, idLocalMontagem, idFuncao, totalDatas: periodoDoEvento.length, periodoDoEvento });
 
     // A API exige os 4 IDs. Se o idCliente estiver vazio, não disparar para evitar Erro 400.
    // No seu Staff.js, dentro do debouncedOnCriteriosChanged:
 
-if (idEvento && idCliente && idFuncao && periodoDoEvento.length > 0) { 
-    console.log("🟢 Todos os campos preenchidos. Buscando...");
-    buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);
-} else {
-    // Se o cliente é o que falta, damos um aviso mais amigável
-    if (!idCliente && idEvento && idFuncao) {
-        console.warn("⚠️ Aguardando a seleção do Cliente para buscar o orçamento.");
+    if (idEvento && idCliente && idFuncao && periodoDoEvento.length > 0) { 
+        console.log("🟢 Todos os campos preenchidos. Buscando...");
+        buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);
+    } else {
+        // Se o cliente é o que falta, damos um aviso mais amigável
+        if (!idCliente && idEvento && idFuncao) {
+            console.warn("⚠️ Aguardando a seleção do Cliente para buscar o orçamento.");
+        }
     }
-}
 }, 500);
 
 // async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
@@ -5952,7 +5952,7 @@ if (idEvento && idCliente && idFuncao && periodoDoEvento.length > 0) {
 
 async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
     try {
-        console.log("🚀 Iniciando busca de orçamento...", { idEvento, idCliente, idLocalMontagem, idFuncao });
+        console.log("🚀 Buscando orçamento...", { idEvento, idCliente, idLocalMontagem, idFuncao });
 
         decisaoUsuarioDataFora = null; 
         let orcamentoBase = null; // 🎯 DECLARAÇÃO NO TOPO (Escopo amplo)
