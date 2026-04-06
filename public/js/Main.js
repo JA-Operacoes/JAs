@@ -6215,13 +6215,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             containerFiltrosRapidos.className = "filtros-rapidos-eventos";
             containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
 
-            const opcoesFiltro = [
-                { id: 'todos', label: 'Todos', color: '#666' },
+            const opcoesFiltro = [                
                 { id: 'vencidos', label: 'Vencidos', color: '#d9534f' }, // Vermelho
                 { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },       // Amarelo/Laranja
-                { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },
                 { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
-                { id: 'liquidado', label: 'Liquidados', color: '#28a745' }
+                { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },                
+                { id: 'liquidado', label: 'Liquidados', color: '#28a745' },
+                { id: 'todos', label: 'Todos', color: '#666' }
             ];
 
             opcoesFiltro.forEach(opt => {
@@ -6231,7 +6231,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 btn.dataset.filter = opt.id;
                 btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
                 
-                if(opt.id === 'todos') {
+                if(opt.id === 'hoje') {
                     btn.style.background = opt.color;
                     btn.style.color = "white";
                 }
@@ -6246,8 +6246,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     // Ativar botão clicado
                     btn.style.background = opt.color;
                     btn.style.color = "white";
+
+                    window._filtroEventosAtivo = opt.id;
                     
                     filtrarEventosNaTela(opt.id);
+                    //filtrarEventosNaTela('hoje');
                 };
                 containerFiltrosRapidos.appendChild(btn);
             });
@@ -6378,8 +6381,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
                 const item = document.createElement("div");
                 item.className = "accordion-item";
-                item.setAttribute("data-status-filtro", statusParaFiltro);
-                
+                item.setAttribute("data-status-filtro", statusParaFiltro);            
                 
 
         
@@ -6422,10 +6424,271 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             </div>
                         </div>
                     </div>
+                    
+                    <button class="btn-foco-evento" style="
+                        margin-left: 20px; 
+                        padding: 6px 12px; 
+                        background: #007bff; /* Azul vibrante */
+                        color: white; 
+                        border: none; 
+                        border-radius: 4px; 
+                        cursor: pointer; /* Cursor de clique normal */
+                        font-weight: bold;
+                        font-size: 12px;
+                        white-space: nowrap;
+                        display: none; /* COMEÇA TOTALMENTE OCULTO */
+                    ">⛶ Visualizar em Tela Cheia</button>
+                    
                 </div>`;
 
 
-                header.onclick = () => item.classList.toggle("active");
+                //header.onclick = () => item.classList.toggle("active");
+
+                // header.onclick = () => {
+                //     const estaAbrindo = !item.classList.contains("active");
+
+                //     if (estaAbrindo) {
+                //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                //             if (outro !== item) {
+                //                 outro.classList.remove("active");
+                //                 outro.classList.remove("foco-unico");
+                //                 outro.style.display = "none";
+                //             }
+                //         });
+
+                //         // ← OCULTA os cards de resumo de valores
+                //         const resumoValores = document.getElementById("valores-resumo");
+                //         if (resumoValores) resumoValores.style.display = "none";
+
+                //         // ← OCULTA também o bloco mestre de totais (PAGOS, VENCIDOS, A VENCER, TOTAL)
+                //         const btnMestre = document.querySelector(".accordion-mestre-header");
+                //         if (btnMestre) btnMestre.style.display = "none";
+
+                //         // const btnTituloContas = document.querySelectorAll(".accordion-mestre-header");
+                //         //     btnTituloContas.forEach(btn => {
+                //         //     if (btn.textContent.includes("Contas a Pagar")) btn.style.display = "none";
+                //         // });
+
+                //         const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                //         if (conteudoGeral) {
+                //             conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
+                //             conteudoGeral.style.maxHeight = "none";
+                //             conteudoGeral.style.overflow = "visible";
+                //         }
+
+                //         item.classList.add("active");
+                //         item.classList.add("foco-unico");
+
+                //     } else {
+                //         // ← RESTAURA os cards de resumo de valores
+                //         const resumoValores = document.getElementById("valores-resumo");
+                //         if (resumoValores) resumoValores.style.display = "";
+
+                //         // ← RESTAURA o bloco mestre
+                //         const btnMestre = document.querySelector(".accordion-mestre-header");
+                //         if (btnMestre) btnMestre.style.display = "";
+
+                //         // const wrapperContas = document.querySelector(".wrapper-contas-financeiro");
+                //         // if (wrapperContas) wrapperContas.style.display = "block";
+
+                //         // const btnsTituloContas = document.querySelectorAll(".accordion-mestre-header");
+                //         // btnsTituloContas.forEach(btn => {
+                //         //     if (btn.textContent.includes("Contas a Pagar")) btn.style.display = "";
+                //         // });
+
+                //         const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                //             outro.classList.remove("foco-unico");
+                //             const statusDoItem = outro.getAttribute("data-status-filtro");
+                //             const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                //             outro.style.display = deveAparecer ? "block" : "none";
+                //         });
+
+                //         const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                //         if (conteudoGeral) {
+                //             conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
+                //             conteudoGeral.style.overflow = "";
+                //         }
+
+                //         item.classList.remove("active");
+                //         item.classList.remove("foco-unico");
+                //     }
+                // };
+
+                // Removemos as buscas antigas de botaoFoco e botaoFechar daqui!
+
+header.onclick = (e) => {
+    const botaoFoco = header.querySelector(".btn-foco-evento");
+    const clicouNoFoco = e.target.closest(".btn-foco-evento");
+
+    // =========================================================================
+    // CASO 1: USUÁRIO CLICOU NO BOTÃO "FOCAR"
+    // =========================================================================
+    if (clicouNoFoco) {
+        e.stopPropagation(); // Impede de fechar o accordion ao focar
+        
+        // Se por acaso o botão estiver invisível ou desabilitado, não faz nada
+        if (botaoFoco && (botaoFoco.style.display === "none" || botaoFoco.disabled)) return; 
+        
+        item.classList.add("modo-tela-cheia");
+
+        const resumo = document.querySelector(".resumo-detalhado");
+        const valoresResumo = document.getElementById("valores-resumo");
+        const mestreContas = document.getElementById("btn-mestre-contas");
+        const wrapperContas = document.getElementById("wrapper-contas");
+        const mestreHeader = document.querySelector(".accordion-mestre-header");
+
+        if (resumo) resumo.style.display = "none";
+        if (valoresResumo) valoresResumo.style.display = "none";
+        if (mestreContas) mestreContas.style.display = "none";
+        if (wrapperContas) wrapperContas.style.display = "none";
+        if (mestreHeader) mestreHeader.style.display = "none";
+        
+        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+            if (outro !== item) outro.style.display = "none";
+        });
+
+        // ---------------------------------------------------------
+        // CRIAÇÃO DINÂMICA DO BOTÃO VOLTAR (Posição Segura)
+        // ---------------------------------------------------------
+        const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
+        if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
+
+        const botaoVoltar = document.createElement("button");
+        botaoVoltar.id = "botao-voltar-fixo";
+        botaoVoltar.innerHTML = "✕ Voltar para a Lista";
+        
+        Object.assign(botaoVoltar.style, {
+            position: "fixed",
+            top: "100px", 
+            right: "20px",
+            zIndex: "9999", 
+            padding: "10px 20px",
+            background: "#dc3545",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontSize: "14px",
+            boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
+            transition: "background 0.2s"
+        });
+
+        botaoVoltar.onmouseover = () => botaoVoltar.style.background = "#bd2130";
+        botaoVoltar.onmouseout = () => botaoVoltar.style.background = "#dc3545";
+
+        botaoVoltar.onclick = (e) => {
+            e.stopPropagation(); 
+            
+            item.classList.remove("modo-tela-cheia");
+
+            if (resumo) resumo.style.display = "";
+            if (valoresResumo) valoresResumo.style.display = "";
+            if (mestreContas) mestreContas.style.display = "";
+            if (wrapperContas) wrapperContas.style.display = "";
+            if (mestreHeader) mestreHeader.style.display = "";
+            
+            const filtroAtivo = window._filtroEventosAtivo || 'todos';
+            wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                const statusDoItem = outro.getAttribute("data-status-filtro");
+                const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                outro.style.display = deveAparecer ? "block" : "none";
+            });
+
+            // Reexibe o botão "Focar" original (já que voltamos para o modo normal com o card aberto)
+            if (botaoFoco) botaoFoco.style.display = "inline-block";
+            
+            botaoVoltar.remove();
+        };
+
+        document.body.appendChild(botaoVoltar);
+        
+        // Esconde o botão focar enquanto estiver em tela cheia
+        if (botaoFoco) botaoFoco.style.display = "none";
+        
+        return;
+    }
+
+    // =========================================================================
+    // CASO 2: CLIQUE NORMAL NO HEADER (ABRIR / FECHAR ACCORDION)
+    // =========================================================================
+    const estaAbrindo = !item.classList.contains("active");                   
+
+if (estaAbrindo) {
+    // 1. ESCONDE OS OUTROS CARDS
+    wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+        if (outro !== item) {
+            outro.classList.remove("active");
+            outro.classList.remove("foco-unico");
+            outro.style.display = "none"; 
+        }
+    });
+
+    // 2. ESCONDE OS RESUMOS GERAIS DA TELA
+    document.getElementById("valores-resumo")?.style.setProperty("display", "none");
+    document.getElementById("btn-mestre-contas")?.style.setProperty("display", "none");
+    document.getElementById("wrapper-contas")?.style.setProperty("display", "none");
+    document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "none");
+
+    const conteudoGeral = document.getElementById("vencimentos-conteudo");
+    if (conteudoGeral) {
+        conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
+        conteudoGeral.style.maxHeight = "none";
+        conteudoGeral.style.overflow = "visible";
+    }
+
+    // 3. ABRE O CARD ATUAL
+    item.classList.add("active");
+    item.classList.add("foco-unico");
+
+    console.log("O que é o 'item'?", item);
+console.log("Achei o botão?", item.querySelector(".btn-foco-evento"));
+
+    const botaoFocoAtual = item.querySelector(".btn-foco-evento") || item.closest(".accordion-item")?.querySelector(".btn-foco-evento");
+
+if (botaoFocoAtual) {
+    // Força o display inline-block
+    botaoFocoAtual.style.setProperty("display", "inline-block", "important");
+    // Se houver qualquer bloqueio de opacidade ou cursor antigo, limpamos aqui:
+    botaoFocoAtual.style.setProperty("opacity", "1", "important");
+    botaoFocoAtual.style.setProperty("cursor", "pointer", "important");
+    
+    // Se você estava usando o atributo 'disabled' no HTML antigo, remova-o:
+    botaoFocoAtual.removeAttribute("disabled");
+}
+
+} else {
+    // CASO O USUÁRIO CLIQUE PARA FECHAR O CARD
+    document.getElementById("valores-resumo")?.style.setProperty("display", "");
+    document.getElementById("btn-mestre-contas")?.style.setProperty("display", "");
+    document.getElementById("wrapper-contas")?.style.setProperty("display", "");
+    document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "");
+
+    const filtroAtivo = window._filtroEventosAtivo || 'todos';
+    wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+        outro.classList.remove("foco-unico");
+        const statusDoItem = outro.getAttribute("data-status-filtro");
+        const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+        outro.style.display = deveAparecer ? "block" : "none";
+    });
+
+    const conteudoGeral = document.getElementById("vencimentos-conteudo");
+    if (conteudoGeral) {
+        conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
+        conteudoGeral.style.overflow = "";
+    }
+
+    item.classList.remove("active");
+    item.classList.remove("foco-unico");
+
+    // SE FECHOU O CARD, ESCONDE O BOTÃO DELE NOVAMENTE
+    const botaoFocoAtual = item.querySelector(".btn-foco-evento");
+    if (botaoFocoAtual) {
+        botaoFocoAtual.style.setProperty("display", "none", "important");
+    }
+}
+};
 
 
                 const body = document.createElement("div");
@@ -6475,6 +6738,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 item.appendChild(body);
                 wrapperEventos.appendChild(item);
             });
+            
         }
 
         console.log("DADOS CONTAS", resContas);
@@ -6683,6 +6947,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // Título Mestre
                 const btnMestreContas = document.createElement('button');
                 btnMestreContas.className = 'accordion-mestre-header active';
+                btnMestreContas.id = 'btn-mestre-contas';
                 
                 // Usamos o 'resumo' que já foi calculado lá em cima logo após o filtro
                 btnMestreContas.innerHTML = `
@@ -6706,6 +6971,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const wrapperContas = document.createElement('div');
                 wrapperContas.className = "wrapper-contas-financeiro";
                 wrapperContas.style.display = 'block';
+                wrapperContas.id = 'wrapper-contas';
 
                 btnMestreContas.addEventListener('click', () => {
                     // 1. Alterna a classe active (isso fará a setinha girar via CSS)
@@ -6812,6 +7078,27 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
         conteudoGeral.appendChild(accordionContainer);
 
+              // ✅ AQUI é o lugar certo — DOM já está montado
+        const filtroAtivo = window._filtroEventosAtivo || 'hoje';
+
+        // Marca visualmente o botão correto
+        const containerFiltros = conteudoGeral.querySelector(".filtros-rapidos-eventos");
+        if (containerFiltros) {
+            containerFiltros.querySelectorAll(".btn-filtro-rapido").forEach(b => {
+                const cor = b.style.borderColor;
+                if (b.dataset.filter === filtroAtivo) {
+                    b.style.background = cor;
+                    b.style.color = "white";
+                } else {
+                    b.style.background = "white";
+                    b.style.color = cor;
+                }
+            });
+        }
+
+        // Aplica o filtro agora que os itens já estão no DOM
+        filtrarEventosNaTela(filtroAtivo);
+
         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
         atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
         // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
@@ -6863,6 +7150,31 @@ function filtrarEventosNaTela(statusAlvo) {
         }
     });
 }
+
+// function filtrarEventosNaTela(statusAlvo) {
+//     const itens = document.querySelectorAll(".accordion-item");
+
+//     itens.forEach(item => {
+//         const linhasInternas = item.querySelectorAll(".item-financeiro-linha");
+
+//         if (linhasInternas.length > 0) {
+//             let temFilhoVisivel = false;
+
+//             linhasInternas.forEach(linha => {
+//                 const statusLinha = linha.getAttribute("data-status-filtro");
+//                 const mostrar = (statusAlvo === 'todos' || statusLinha === statusAlvo);
+//                 linha.style.display = mostrar ? "" : "none";
+//                 if (mostrar) temFilhoVisivel = true;
+//             });
+
+//             item.style.display = temFilhoVisivel ? "block" : "none";
+
+//         } else {
+//             const statusDoItem = item.getAttribute("data-status-filtro");
+//             item.style.display = (statusAlvo === 'todos' || statusDoItem === statusAlvo) ? "block" : "none";
+//         }
+//     });
+// }
 
 function atualizarContadoresFiltrosContas() {
     const container = document.querySelector(".filtros-rapidos-contas");
