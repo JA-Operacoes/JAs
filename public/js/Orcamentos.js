@@ -1576,7 +1576,8 @@ function adicionarLinhaOrc() {
   tabela.insertBefore(novaLinha, tabela.firstChild);
 
   // Base do item (valor original sem desconto/acréscimo)
-  novaLinha.dataset.vlrbase = "0";
+  let vlrVendaDoBanco = desformatarMoeda(novaLinha.querySelector(".vlrVenda").textContent);
+  novaLinha.dataset.vlrbase = vlrVendaDoBanco || "0";
 
   const descontoValorItem = novaLinha.querySelector(
     ".descontoItem .ValorInteiros"
@@ -2534,91 +2535,224 @@ function ceilToTenCents(value, factor) {
 }
 
 
-function atualizaProdutoOrc(event) {
+// function atualizaProdutoOrc(event) {
+//     let select = event.target;
+//     console.log("Select alterado:", select);
+
+//     let selectedOption = select.options[select.selectedIndex];
+//     let valorSelecionado = selectedOption.value;    console.log("Valor :", valorSelecionado);
+//     let produtoSelecionado = selectedOption.getAttribute("data-descproduto");   console.log("Produto selecionado:", produtoSelecionado);
+//     let vlrCusto = selectedOption.getAttribute("data-cto");
+//     let vlrVenda = selectedOption.getAttribute("data-vda");
+
+//     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
+//     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+    
+//     const linha = event.target.closest('tr');
+
+//     if (linha.dataset.reajustadoTotal === 'true') {
+//       console.log('Totais já reajustados, mantendo...');
+//       // Atualiza SÓ descrição, NÃO valores
+//       return;
+//     }
+
+//     if (typeof bProximoAno !== 'undefined' && bProximoAno && linha.dataset.reajustadoProximoAno === 'true') {
+//         console.log('✅ Já reajustado, pulando aplicação DUPLA');
+//         // ATUALIZA SÓ produto/categoria SEM tocar valores
+//         atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
+//         recalcularLinha(linha);  // Recalcula totais COM valores já reajustados
+//         return;  // ← SAI DA FUNÇÃO!
+//       }
+      
+//       // ✅ APLICA REAJUSTE (só se NÃO reajustado)
+// if (typeof bProximoAno !== 'undefined' && bProximoAno) {
+//       // Mantém o reajuste sempre que alterar/adicionar item
+//       console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+//       const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+//       const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+//       vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+//       vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+//       if (typeof vlrAlimentacao !== 'undefined') {
+//         vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+//       }
+//       if (typeof vlrTransporte !== 'undefined') {
+//         vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+//       }
+//     }
+
+//     let tabela = document.getElementById("tabela");
+//     if (!tabela) return;
+//     let ultimaLinha = tabela.querySelector("tbody tr:first-child");
+//     if (ultimaLinha) {
+//       ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
+//       // Mantém o valor reajustado no campo base para futuras edições
+//       ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
+//         let celulaProduto = ultimaLinha.querySelector(".produto");
+//         let celulaCategoria = ultimaLinha.querySelector(".Categoria");
+//         let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
+//         let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
+//         let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
+//         if (inputIdFuncao) inputIdFuncao.value = "";
+//         if (inputIdEquipamento) inputIdEquipamento.value = "";
+//         if (inputIdSuprimento) inputIdSuprimento.value = "";
+//         if (celulaProduto) {
+//             celulaProduto.textContent = produtoSelecionado;
+//         }
+//         if (celulaCategoria && Categoria !== "Pavilhao") {
+//             celulaCategoria.textContent = Categoria;
+//         }
+//         console.log(" A categoria é :", Categoria);
+//         if (select.classList.contains("idFuncao")) {
+//             inputIdFuncao.value = valorSelecionado;
+//         } else if (select.classList.contains("idEquipamento")) {
+//             inputIdEquipamento.value = valorSelecionado;
+//         } else if (select.classList.contains("idSuprimento")) {
+//             inputIdSuprimento.value = valorSelecionado;
+//         }
+//         const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
+//         const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
+//         if (spanAlimentacao) {
+//             spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
+//             ultimaLinha.querySelector(
+//                 ".ajdCusto.alimentacao"
+//             ).dataset.originalAjdcusto = vlrAlimentacao.toString();
+//         }
+//         if (spanTransporte) {
+//             spanTransporte.textContent = formatarMoeda(vlrTransporte);
+//             ultimaLinha.querySelector(
+//                 ".ajdCusto.transporte"
+//             ).dataset.originalAjdcusto = vlrTransporte.toString();
+//         }
+//         let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
+//         if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
+//         console.log(" valor de Custo é:", vlrCustoNumerico);
+//         let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
+//         if (celulaVlrVenda) {
+//             celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+//             celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+//         }
+//         ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
+//         console.log(" valor de Venda é:", vlrVendaNumerico);
+//     }
+//      linha.dataset.vlrbase = vlrVendaNumerico.toString();
+//   atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
+  
+//   gerarObservacoesProposta([linha]);
+//   recalcularLinha(linha);
+// }
+async function atualizaProdutoOrc(event, linhaFornecida) {
     let select = event.target;
-    console.log("Select alterado:", select);
+    
+    // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
+    let linha = linhaFornecida || select.closest('tr');
+
+    // Plano B: Se o select estiver dentro de um componente customizado que esconde o original
+    if (!linha) {
+        // Tenta encontrar pelo ID ou classe pai se o closest falhar por causa de Shadow DOM ou bibliotecas de Select
+        const container = select.parentElement;
+        if (container) {
+            linha = container.closest('tr');
+        }
+    }
+
+    if (!linha) {
+        // Plano C: Se ainda assim for null, tenta pegar a última linha clicada ou a primeira da tabela (Emergência)
+        console.warn("Aviso: closest('tr') falhou. Tentando localizar via DOM estável.");
+        linha = document.querySelector("#tabela tbody tr:first-child"); 
+    }
+
+    if (!linha) {
+        console.error("Erro Fatal: Não foi possível encontrar a linha (TR) de nenhuma forma.");
+        return;
+    }
+
+    console.log("Select alterado com sucesso na linha:", linha);
+
     let selectedOption = select.options[select.selectedIndex];
+    if (!selectedOption) return;
+
+    // Captura de dados com Fallback para evitar erros de undefined
     let valorSelecionado = selectedOption.value;
-    console.log("Valor :", valorSelecionado);
-    let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
-    console.log("Produto selecionado:", produtoSelecionado);
-    let vlrCusto = selectedOption.getAttribute("data-cto");
-    let vlrVenda = selectedOption.getAttribute("data-vda");
+    let produtoSelecionado = selectedOption.getAttribute("data-descproduto") || "";
+    let vlrCusto = selectedOption.getAttribute("data-cto") || "0";
+    let vlrVenda = selectedOption.getAttribute("data-vda") || "0";
+    
+    // Garantindo que Categoria e Ajudas existam no escopo
+    let Categoria = selectedOption.getAttribute("data-categoria") || "Produto(s)";
+    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-vlr_alimentacao")) || 0;
+    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-vlr_transporte")) || 0;
+
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+
+    // 2. PROTEÇÃO CONTRA REAJUSTE DUPLO
+    if (linha.dataset.reajustadoTotal === 'true') return;
+
+    if (typeof bProximoAno !== 'undefined' && bProximoAno && linha.dataset.reajustadoProximoAno === 'true') {
+        //atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
+        recalcularLinha(linha);
+        return;
+    }
+
+    // 3. APLICA REAJUSTE (Próximo Ano)
     if (typeof bProximoAno !== 'undefined' && bProximoAno) {
-      // Mantém o reajuste sempre que alterar/adicionar item
-      console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
-      const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-      const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-      vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
-      vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
-      if (typeof vlrAlimentacao !== 'undefined') {
-        vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
-      }
-      if (typeof vlrTransporte !== 'undefined') {
-        vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
-      }
+        const fG = (typeof GLOBAL_PERCENTUAL_GERAL !== 'undefined') ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+        const fA = (typeof GLOBAL_PERCENTUAL_AJUDA !== 'undefined') ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+        
+        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fG);
+        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fG);
+        vlrAlimentacao = ceilToTenCents(vlrAlimentacao, fA);
+        vlrTransporte = ceilToTenCents(vlrTransporte, fA);
     }
-    let tabela = document.getElementById("tabela");
-    if (!tabela) return;
-    let ultimaLinha = tabela.querySelector("tbody tr:first-child");
-    if (ultimaLinha) {
-      ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
-      // Mantém o valor reajustado no campo base para futuras edições
-      ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
-        let celulaProduto = ultimaLinha.querySelector(".produto");
-        let celulaCategoria = ultimaLinha.querySelector(".Categoria");
-        let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
-        let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
-        let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
-        if (inputIdFuncao) inputIdFuncao.value = "";
-        if (inputIdEquipamento) inputIdEquipamento.value = "";
-        if (inputIdSuprimento) inputIdSuprimento.value = "";
-        if (celulaProduto) {
-            celulaProduto.textContent = produtoSelecionado;
-        }
-        if (celulaCategoria && Categoria !== "Pavilhao") {
-            celulaCategoria.textContent = Categoria;
-        }
-        console.log(" A categoria é :", Categoria);
-        if (select.classList.contains("idFuncao")) {
-            inputIdFuncao.value = valorSelecionado;
-        } else if (select.classList.contains("idEquipamento")) {
-            inputIdEquipamento.value = valorSelecionado;
-        } else if (select.classList.contains("idSuprimento")) {
-            inputIdSuprimento.value = valorSelecionado;
-        }
-        const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
-        const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
-        if (spanAlimentacao) {
-            spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
-            ultimaLinha.querySelector(
-                ".ajdCusto.alimentacao"
-            ).dataset.originalAjdcusto = vlrAlimentacao.toString();
-        }
-        if (spanTransporte) {
-            spanTransporte.textContent = formatarMoeda(vlrTransporte);
-            ultimaLinha.querySelector(
-                ".ajdCusto.transporte"
-            ).dataset.originalAjdcusto = vlrTransporte.toString();
-        }
-        let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
-        if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
-        console.log(" valor de Custo é:", vlrCustoNumerico);
-        let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
-        if (celulaVlrVenda) {
-            celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
-            celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
-        }
-        ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
-        console.log(" valor de Venda é:", vlrVendaNumerico);
+
+    // 4. ATUALIZAÇÃO DA LINHA
+    linha.dataset.vlrbase = vlrVendaNumerico.toString();
+    linha.dataset.valorTabela = vlrVendaNumerico;
+
+    // Atualiza Descrição e Categoria
+    const celulaProd = linha.querySelector(".produto");
+    const celulaCat = linha.querySelector(".Categoria");
+    if (celulaProd) celulaProd.textContent = produtoSelecionado;
+    if (celulaCat && Categoria !== "Pavilhao") celulaCat.textContent = Categoria;
+
+    // Seta os IDs nos inputs hidden
+    const inputFuncao = linha.querySelector("input.idFuncao");
+    const inputEquip = linha.querySelector("input.idEquipamento");
+    const inputSupri = linha.querySelector("input.idSuprimento");
+
+    if (select.classList.contains("idFuncao") && inputFuncao) inputFuncao.value = valorSelecionado;
+    if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
+    if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
+
+    // Atualiza Ajudas de Custo (Visual e Dataset)
+    const spanAlim = linha.querySelector(".vlralimentacao-input");
+    const spanTrans = linha.querySelector(".vlrtransporte-input");
+    const tdAlim = linha.querySelector(".ajdCusto.alimentacao");
+    const tdTrans = linha.querySelector(".ajdCusto.transporte");
+
+    if (spanAlim) spanAlim.textContent = formatarMoeda(vlrAlimentacao);
+    if (tdAlim) tdAlim.dataset.originalAjdcusto = vlrAlimentacao.toString();
+    
+    if (spanTrans) spanTrans.textContent = formatarMoeda(vlrTransporte);
+    if (tdTrans) tdTrans.dataset.originalAjdcusto = vlrTransporte.toString();
+
+    // Atualiza Valores Financeiros
+    const celulaVlrCusto = linha.querySelector(".vlrCusto");
+    const celulaVlrVenda = linha.querySelector(".vlrVenda");
+
+    if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
+    if (celulaVlrVenda) {
+        celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+        celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
     }
-    gerarObservacoesProposta([ultimaLinha]);
-    recalcularLinha(ultimaLinha);
+
+    // 5. FINALIZAÇÃO
+    //atualizarApenasDescricao(linha, produtoSelecionado, Categoria, valorSelecionado);
+    gerarObservacoesProposta([linha]);
+    recalcularLinha(linha);
 }
 
-// Sua função de atualização de valores (mantém-se a mesma)
+
 function atualizarValoresAjdCustoNaLinha(linha) {
   // ... (sua implementação atual de atualizarValoresAjdCustoNaLinha) ...
   console.log("Chamando atualizarValoresAjdCustoNaLinha para:", linha);
@@ -4517,68 +4651,55 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   });
   // =======================================================
 
-  itens.forEach((item) => {
-    let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-    let ctoDiaria = parseFloat(item.ctodiaria || 0);
-    let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-    let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-    let vlrHospedagem = parseFloat(item.hospedagem || 0);
-    let vlrTransporte = parseFloat(item.transporte || 0);
+itens.forEach((item) => {
+  // VALORES ORIGINAIS (NÃO mexer!)
+  let vlrDiaria = parseFloat(item.vlrdiaria || 0);
+  let ctoDiaria = parseFloat(item.ctodiaria || 0);
+  let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
+  let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
+  let vlrHospedagem = parseFloat(item.hospedagem || 0);
+  let vlrTransporte = parseFloat(item.transporte || 0);
 
-    let itemOrcamentoID = item.idorcamentoitem;
-    const qtdItens = item.qtditens || 0;
-    const qtdDias = item.qtddias || 0;
+  let itemOrcamentoID = item.idorcamentoitem;
+  const qtdItens = item.qtditens || 0;
+  const qtdDias = item.qtddias || 0;
 
-    let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-    let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-    let totAjuda = parseFloat(item.totajdctoitem || 0);
-    let totGeralItem = parseFloat(item.totgeralitem || 0);
-    let descontoItem = parseFloat(item.descontoitem || 0);
-    let acrescimoItem = parseFloat(item.acrescimoitem || 0);
+  // TOTAIS ORIGINAIS do banco
+  let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
+  let totCtoDiaria = parseFloat(item.totctodiaria || 0);
+  let totAjuda = parseFloat(item.totajdctoitem || 0);
+  let totGeralItem = parseFloat(item.totgeralitem || 0);
+  let descontoItem = parseFloat(item.descontoitem || 0);
+  let acrescimoItem = parseFloat(item.acrescimoitem || 0);
 
-    if (aplicarReajuste) {
-      vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
-      ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
-      vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
-      vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
-      vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
-      vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
+  // ✅ REAJUSTA SÓ OS TOTAIS FINAIS (+8% exato)
+  if (aplicarReajuste) {
+    totVdaDiaria = ceilToTenCents(totVdaDiaria, fatorGeral);
+    totCtoDiaria = ceilToTenCents(totCtoDiaria, fatorGeral);
+    totAjuda = ceilToTenCents(totAjuda, fatorAjuda);
+    totGeralItem = totCtoDiaria + totAjuda;
 
-      itemOrcamentoID = ""; // Novo ID para reajuste
+    itemOrcamentoID = ""; // Novo orçamento
+  }
 
-      totVdaDiaria = vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
-      totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
-      totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
-      totGeralItem = totAjuda + totCtoDiaria;
-    }
+  const vlrBaseItem = vlrDiaria; // Unitário ORIGINAL
 
-    // Fallback Ajuda de Custo
-    if (!aplicarReajuste && (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) && parseFloat(item.totajdctoitem || 0) > 0) {
-      const multiplicador = (qtdItens * qtdDias) || 1;
-      vlrAjdAlimentacao = parseFloat(item.totajdctoitem) / multiplicador;
-      totAjuda = parseFloat(item.totajdctoitem);
-      totGeralItem = totAjuda + totCtoDiaria;
-    }
+  const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
 
-    const vlrBaseItemRaw = parseFloat(item.vlrbase);
-    const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0 ? vlrBaseItemRaw : (vlrDiaria + descontoItem - acrescimoItem);
+  const newRow = tabelaBody.insertRow();
+  newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
+  newRow.dataset.idfuncao = item.idfuncao || "";
+  newRow.dataset.idequipamento = item.idequipamento || "";
+  newRow.dataset.idsuprimento = item.idsuprimento || "";
+  newRow.dataset.vlrbase = vlrBaseItem.toString(); // ORIGINAL
+  newRow.dataset.reajustadoTotal = aplicarReajuste ? 'true' : 'false'; // Flag
+  newRow.dataset.adicional = item.adicional ? "true" : "false";
+  newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
 
-    // Nome unificado do produto
-    const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
-
-    const newRow = tabelaBody.insertRow();
-    newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-    newRow.dataset.idfuncao = item.idfuncao || "";
-    newRow.dataset.idequipamento = item.idequipamento || "";
-    newRow.dataset.idsuprimento = item.idsuprimento || "";
-    newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
-    newRow.dataset.adicional = item.adicional ? "true" : "false";
-    newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-
-    if (item.extrabonificado) {
-        newRow.style.backgroundColor = "#f0fff4";
-        newRow.style.borderLeft = "4px solid #48bb78";
-    }
+  if (item.extrabonificado) {
+    newRow.style.backgroundColor = "#f0fff4";
+    newRow.style.borderLeft = "4px solid #48bb78";
+  }
 
     newRow.innerHTML = `
             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
@@ -4623,13 +4744,13 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
             <td class="descontoItem Moeda">
                 <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
+                    <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}">
                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
                 </div>
             </td>
             <td class="acrescimoItem Moeda">
                 <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
+                    <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}">
                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
                 </div>
             </td>            
@@ -5181,10 +5302,15 @@ function recalcularLinha(linha) {
 
         // --- 3. VALOR DE VENDA (Base Imutável e REAJUSTADO) ---
         const celulaVenda = linha.querySelector(".vlrVenda");
+
+        // Tenta pegar do dataset primeiro
         let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase);
+
+        // Se não existir, tenta pegar do dataset original (se você tiver um) ou da célula
         if (isNaN(vlrVendaOriginal) || vlrVendaOriginal <= 0) {
-          vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || desformatarMoeda(celulaVenda?.textContent) || 0;
-          linha.dataset.vlrbase = vlrVendaOriginal;
+            // IMPORTANTE: Se o valor na tela já tiver reajuste, o erro vira "bola de neve"
+            vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0;
+            linha.dataset.vlrbase = vlrVendaOriginal; 
         }
 
         // --- 4. AJUSTES (Desconto e Acréscimo) ---
@@ -5216,8 +5342,15 @@ function recalcularLinha(linha) {
         // Regra de Bonificação (Se for brinde, venda é zero)
         if (linha.dataset?.extrabonificado === "true") vlrVendaFinalUnit = 0;
 
-        // O cálculo agora usa o fatorMultiplicador que respeita a flag de Cachê Fechado
-        const totalVendaLinha = (vlrVendaFinalUnit * totalFator) + (hospedagemTotal * totalFator) + transporteExtra;
+        // 2. CÁLCULO DO TOTAL DA LINHA
+        // O erro estava aqui: você estava multiplicando hospedagem pelo fator de novo.
+        // Se a hospedagem for um valor fixo por orçamento, não multiplique por 'totalFator'.
+        // Se for por dia, mantenha, mas verifique se 'transporteExtra' não deve ser somado apenas uma vez.
+
+        const vendaProdutos = vlrVendaFinalUnit * totalFator; 
+        const totalVendaLinha = vendaProdutos + hospedagemTotal + transporteExtra;
+
+        // 3. CÁLCULO DOS CUSTOS
         const totalAjudaCusto = (vlrAlimUnit + vlrTranspUnit) * totalFator;
         const totalCustoBase = vlrCustoFixoUnit * totalFator;
         const custoTotalReal = totalCustoBase + totalAjudaCusto;
