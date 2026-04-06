@@ -45,6 +45,7 @@ main#conteudo {
 .detalhes-panel p, .detalhes-panel h3 {
   font-size: 16px;
   color: #333;
+  width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -473,13 +474,10 @@ button#btnVoltarorc {
 
 .tabs-container-wrapper {
     width: 100%;
-    overflow-y: auto;
-    scrollbar-width: thin;
     height: 100%;
 }
 
 .painel-tabs.ativo {
-    padding: 15px;
     display: flex;
     border-top: none;
 }
@@ -714,11 +712,16 @@ button.btn-detalhes-orcamento:hover {
   font-weight: var(--font-weight);
   width: 100%;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 10px 10px 0 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-size: 20px;
   top: 0;
 }
+
+/* .InfoPedidos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+} */
 
 
 .funcionario {
@@ -771,6 +774,7 @@ button.btn-detalhes-orcamento:hover {
   background-color: #f9fafb;
   max-height: 400px;  /* aumentei para mais espaço de rolagem */
   overflow-y: auto;
+  scrollbar-width: thin;
   transition: all 0.3s ease;
   border-top: 1px solid #d1d5db;
 }
@@ -846,8 +850,7 @@ button.btn-detalhes-orcamento:hover {
 
 .quadrado-arredondado {
   width: 100px;   
-  height: 100px;    
-  background-color: #4f46e5; 
+  height: 200px;    
   border-top-right-radius: 20px;   
   border-bottom-right-radius: 20px;
 }
@@ -878,14 +881,13 @@ button.btn-detalhes-orcamento:hover {
   width: 100%;
   /* remove o border-bottom daqui pois será aplicado no .sub-tabs-content para o "encaixe" */
   border-bottom: none; 
-  margin-top: 5px; 
   margin-bottom: 10px;
 }
 
 .sub-abas-pedidos .aba {
   flex-grow: 1; /* Fazem as abas dividirem o espaço igualmente */
   text-align: center;
-  border-radius: 0;
+  border-radius: 0 0 10px 10px;
   margin-right: 0;
   border-bottom: 2px solid var(--cor-borda-aba, #ccc);
 }
@@ -897,7 +899,6 @@ button.btn-detalhes-orcamento:hover {
 
 /* Oculta o painel-tabs, já que o conteúdo será injetado no lugar */
 .painel-tabs.ativo {
-  padding: 15px;
   border-top: none; 
   height: 100%;
   overflow-y: auto;
@@ -1495,6 +1496,8 @@ span.nenhum-evento {
   transition: background 0.3s;
   cursor: pointer;
   font-size: 15px;
+  border: transparent;
+  border-radius: 0 0 10px 10px;
 }
 
 .aba:hover{

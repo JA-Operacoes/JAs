@@ -1041,6 +1041,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
     async (req, res) => {
         const { idStaffEvento } = req.params;
         const idempresa = req.idempresa;
+        const idUsuarioLogado = req.usuario.idusuario;
         const body = req.body;
 
         console.log("BODY DO PUT STAFF", req.body);
@@ -1114,6 +1115,38 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             ];
 
             const resUp = await client.query(queryUpdate, values);
+            const itensFinanceiros = [
+                { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
+                { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
+                { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
+                { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: body.datadiariadobrada },
+                { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: body.datameiadiaria }
+            ];
+
+            for (const item of itensFinanceiros) {
+                if (item.status === 'Pendente') {
+                    await registrarSolicitacao(client, {
+                        idempresa,
+                        idorcamento: body.idorcamento,
+                        idfuncionario: body.idfuncionario,
+                        idfuncao: body.idfuncao,
+                        idstaffevento: idStaffEvento,
+                        idusuario: idUsuarioLogado,
+                        tiposolicitacao: item.tipo,
+                        categoria: item.campo,
+                        valor: parseFloatOrNull(item.valor),
+                        justificativa: item.desc,
+                        datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
+                    });
+                } else if (item.status === 'Aprovado' || item.status === 'Recusado') {
+                    // Se o status mudou para algo final nesta rota, encerramos na solicitacoes
+                    await client.query(
+                        `UPDATE public.solicitacoes SET status = $1, dtresposta = CURRENT_TIMESTAMP, idusuarioresponsavel = $2 
+                         WHERE idregistroalterado = $3 AND categoria_log = $4 AND status = 'Pendente'`,
+                        [item.status, idUsuarioLogado, idStaffEvento, item.campo]
+                    );
+                }
+            }
             await client.query('COMMIT');
 
             const dadosParaLog = { 
@@ -1137,13 +1170,78 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
     }
 );
 
+async function registrarSolicitacao(client, dados) {
+    const formatarParaJsonB = (valor) => {
+        if (!valor) return null;
+        if (typeof valor === 'object') return JSON.stringify(valor);
+        return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
+    };
+
+    // Ajustamos a ordem para refletir exatamente os dados.
+    // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
+    const query = `
+        INSERT INTO public.solicitacoes (
+            idempresa,              -- $1
+            idorcamento,            -- $2
+            idfuncionario,          -- $3
+            idfuncao,               -- $4
+            idregistroalterado,     -- $5
+            idusuariosolicitante,   -- $6
+            tiposolicitacao,        -- $7
+            categoria_log,          -- $8
+            vlrsolicitado,          -- $9
+            justificativa,          -- $10
+            dtsolicitada,           -- $11 (O campo JSONB com as datas)
+            status,                 -- $12
+            dtsolicitacao           -- Automático
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, NOW())
+        ON CONFLICT (idregistroalterado, categoria_log) 
+        WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
+        DO UPDATE SET 
+            vlrsolicitado = EXCLUDED.vlrsolicitado,
+            justificativa = EXCLUDED.justificativa,
+            dtsolicitada = EXCLUDED.dtsolicitada,
+            dtsolicitacao = CURRENT_TIMESTAMP;
+    `;
+
+    const values = [
+        dados.idempresa,                // $1
+        dados.idorcamento,              // $2
+        dados.idfuncionario || null,    // $3
+        dados.idfuncao,                 // $4
+        dados.idstaffevento || null,    // $5
+        dados.idusuario,                // $6
+        dados.tiposolicitacao,          // $7
+        dados.categoria,                // $8
+        dados.valor || 0,               // $9
+        dados.justificativa,            // $10 (Texto comum)
+        formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
+        'Pendente'                      // $12
+    ];
+
+    await client.query(query, values);
+}
+
+function ordenarDatas(datas) {
+    if (!datas || datas.length === 0) {
+    return [];
+    }
+    // Supondo que as datas estejam no formato 'YYYY-MM-DD'
+    return datas.sort((a, b) => new Date(a) - new Date(b));
+}
+
 
 router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
     uploadComprovantesMiddleware, 
-    logMiddleware('staffeventos', 
-        { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) 
+    logMiddleware('staffeventos', { 
+        buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) 
     }), async (req, res) => {
     
+    // 1. No cadastro (POST /), não existe idStaffEvento nos params ainda.
+    const idUsuarioLogado = req.usuario.idusuario;
+    const body = req.body;
+    const idempresa = req.idempresa;
+
     const {
         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
@@ -1156,75 +1254,21 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto
     } = req.body;
 
-    const idempresa = req.idempresa;
     let client;
 
     try {
         client = await pool.connect();
         await client.query('BEGIN');
 
+        // 2. Tratamento das datas (converte string do FormData para Array)
         let datasArray = [];
         try {
-            // Garante que datasArray seja um array, mesmo vindo via FormData (string)
             datasArray = Array.isArray(datasevento) ? datasevento : JSON.parse(datasevento || "[]");
-        } catch (e) {
-            console.error("Erro ao processar datasevento:", e);
-            datasArray = [];
-        }
+        } catch (e) { datasArray = []; }
 
-        // --- 1. VALIDAÇÃO DE LIMITE (TRAVA) ---
-        // Buscamos a definição da vaga no orçamento
-        const queryOrca = `
-            SELECT 
-                bool_or(cachefechado) as eh_cache_fechado,
-                SUM(CASE WHEN cachefechado = true THEN qtddias ELSE qtditens END) as limite_total
-            FROM orcamentoitens 
-            WHERE idorcamento = $1 AND idfuncao = $2 AND (setor = $3 OR $3 IS NULL)
-            GROUP BY idfuncao
-        `;
-        const resOrca = await client.query(queryOrca, [idorcamento, idfuncao, setor]);
+        // --- [SUA VALIDAÇÃO DE LIMITE DE ORÇAMENTO AQUI] ---
 
-        if (resOrca.rows.length > 0) {
-            const { eh_cache_fechado, limite_total } = resOrca.rows[0];
-
-            // Buscamos o que já foi consumido no banco
-            const queryConsumido = `
-                SELECT 
-                    COUNT(DISTINCT idfuncionario) as total_pessoas,
-                    SUM(jsonb_array_length(datasevento)) as total_diarias
-                FROM staffeventos 
-                WHERE idorcamento = $1 AND idfuncao = $2 AND (setor = $3 OR $3 IS NULL)
-            `;
-            const resConsumido = await client.query(queryConsumido, [idorcamento, idfuncao, setor]);
-            
-            const jaUtilizado = eh_cache_fechado 
-                ? parseInt(resConsumido.rows[0].total_diarias || 0) 
-                : parseInt(resConsumido.rows[0].total_pessoas || 0);
-
-            // Calculamos o que está sendo tentado agora
-            // Se for cache fechado, somamos as novas diárias. Se não, somamos 1 pessoa.
-            const datasArray = Array.isArray(datasevento) ? datasevento : JSON.parse(datasevento || "[]");
-            const tentativaAtual = eh_cache_fechado ? datasArray.length : 1;
-
-            if (jaUtilizado + tentativaAtual > limite_total) {
-                await client.query('ROLLBACK');
-                const saldoFinal = limite_total - jaUtilizado;
-                
-                // IMPORTANTE: Enviamos campos separados para o Swal usar no HTML
-                return res.status(400).json({ 
-                    tipoErro: "LIMITE_EXCEDIDO", 
-                    title: "Limite de Orçamento Excedido",
-                    tipo: eh_cache_fechado ? 'diárias' : 'vagas',
-                    limite: limite_total,
-                    tentativa: tentativaAtual,
-                    usado: jaUtilizado,
-                    saldo: saldoFinal < 0 ? 0 : saldoFinal
-                });
-            }
-        }
-        // --- FIM DA VALIDAÇÃO ---
-
-        // 2. Verificar/Criar Staff (Sua lógica original continua abaixo...)
+        // 3. Verificar/Criar Staff (Tabela Base)
         const staffResult = await client.query(`
             SELECT s.idstaff FROM staff s 
             JOIN staffempresas se ON s.idstaff = se.idstaff 
@@ -1237,7 +1281,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             await client.query(`INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)`, [idstaffExistente, idempresa]);
         }
 
-        // 3. Inserir Evento (Sua query de insert original...)
+        // 4. Inserir na staffeventos
         const queryInsert = `
             INSERT INTO staffeventos (
                 idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
@@ -1259,7 +1303,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             parseFloatOrNull(vlrcache), parseFloatOrNull(vlralimentacao),
             parseFloatOrNull(vlrtransporte), parseFloatOrNull(vlrajustecusto), parseFloatOrNull(vlrcaixinha),
-            descajustecusto, datasevento, parseFloatOrNull(vlrtotal),
+            descajustecusto, JSON.stringify(datasArray), parseFloatOrNull(vlrtotal),
             req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
             req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
             req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
@@ -1272,6 +1316,35 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         ];
 
         const resIns = await client.query(queryInsert, values);
+        const novoIdStaffEvento = resIns.rows[0].idstaffevento;
+
+        // 5. REGISTRAR SOLICITAÇÕES FINANCEIRAS (Se houver campos pendentes)
+        const itensFinanceiros = [
+            { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
+            { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
+            { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
+            { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: body.datadiariadobrada },
+            { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: body.datameiadiaria }
+        ];
+
+        for (const item of itensFinanceiros) {
+            if (item.status === 'Pendente') {
+                await registrarSolicitacao(client, {
+                    idempresa,
+                    idorcamento: body.idorcamento,
+                    idfuncionario: body.idfuncionario,
+                    idfuncao: body.idfuncao,
+                    idstaffevento: novoIdStaffEvento, // Usa o ID que acabamos de criar
+                    idusuario: idUsuarioLogado,
+                    tiposolicitacao: item.tipo,
+                    categoria: item.campo,
+                    valor: parseFloatOrNull(item.valor),
+                    justificativa: item.desc,
+                    datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
+                });
+            }
+        }
+
         await client.query('COMMIT');
 
         res.locals.acao = 'cadastrou';
@@ -1288,22 +1361,186 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             }
         };
 
-        res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
+        res.status(201).json({ sucesso: true, message: "Sucesso", idstaffevento: novoIdStaffEvento });
+
     } catch (e) {
         if (client) await client.query('ROLLBACK');
         console.error("Erro ao salvar staff:", e);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ sucesso: false, error: e.message });
     } finally { 
         if (client) client.release(); 
     }
 });
 
 
+// router.post('/aditivoextra/solicitacao', 
+//   autenticarToken(), 
+//   contextoEmpresa, 
+//   verificarPermissao('staff', 'cadastrar'), 
+
+//   logMiddleware('aditivoextra', { 
+//     buscarDadosAnteriores: async (req) => {
+//       return { dadosanteriores: null, idregistroalterado: null };
+//     }
+//   }),
+
+//   async (req, res) => {
+//     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
+
+//     const { 
+//       idOrcamento, 
+//       idFuncao, 
+//       qtdSolicitada, 
+//       tipoSolicitacao, 
+//       justificativa, 
+//       idFuncionario,
+//       dataSolicitada,
+//       idEventoSolicitado,    
+//       idEventoConflitante    
+      
+//     } = req.body; 
+
+//     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
+//     const idUsuarioSolicitante = req.usuario?.idusuario; 
+//     const statusInicial = 'Pendente';
+
+//    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+//     ? dataSolicitada.split(',').map(d => d.trim()) 
+//     : null;
+
+    
+
+//     // Se idEvento vier como um objeto vazio {} como mostra o seu log, tratamos também
+//     // const idEventoTratado = (typeof idEvento === 'object' && Object.keys(idEvento).length === 0) || idEvento === '' 
+//     //     ? null 
+//     //     : idEvento;
+
+//     const idFuncionarioTratado = (idFuncionario === '' || idFuncionario === 'undefined') ? null : idFuncionario;
+
+//     const idEventoSolicitadoTratado = (idEventoSolicitado === '' || idEventoSolicitado === 'undefined' || idEventoSolicitado == null) ? null : idEventoSolicitado;
+//     const idEventoConflitanteTratado = (idEventoConflitante === '' || idEventoConflitante === 'undefined' || idEventoConflitante == null) ? null : idEventoConflitante;
+
+//     // 1. Validações de Contexto
+//     if (!idUsuarioSolicitante || !idEmpresaContexto) {
+//         return res.status(401).json({ 
+//             sucesso: false, 
+//             erro: "Usuário ou Empresa não identificados no contexto da requisição." 
+//         });
+//     }
+
+//     // 2. Validação de Campos Obrigatórios
+//     let campoFaltante = null;
+//     if (!idOrcamento) campoFaltante = 'idOrcamento';
+//     else if (!idFuncao) campoFaltante = 'idFuncao';
+//     else if (!qtdSolicitada) campoFaltante = 'qtdSolicitada';
+//     else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
+//     else if (!justificativa) campoFaltante = 'justificativa';
+    
+
+//     if (campoFaltante) { 
+//         return res.status(400).json({ 
+//             sucesso: false,
+//             erro: `O campo obrigatório **${campoFaltante}** está faltando.` 
+//         });
+//     }
+
+//     // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
+//     // const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
+//     // const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
+//     //     ? dataTratada 
+//     //     : null;
+
+//     // 4. Verificação de Duplicidade (CORRIGIDA)
+//     try {
+//         const checkDuplicidade = await pool.query(`
+//             SELECT idAditivoExtra FROM AditivoExtra 
+//             WHERE idOrcamento = $1 
+//               AND idFuncionario = $2 
+//               AND idFuncao = $3 
+//               AND tipoSolicitacao = $4 
+//               --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
+//               AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
+//               AND idEmpresa = $6
+//               AND status = 'Pendente'
+//         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
+
+//         if (checkDuplicidade.rows.length > 0) {
+//             return res.status(409).json({ 
+//                 sucesso: false, 
+//                 erro: "Já existe uma solicitação pendente idêntica para este funcionário." 
+//             });
+//         }
+
+//         // 5. Inserção no Banco
+//         const queryInsert = `
+//             INSERT INTO AditivoExtra (
+//               idOrcamento, idFuncao, idEmpresa, tipoSolicitacao, 
+//               qtdSolicitada, justificativa, idUsuarioSolicitante,
+//               status, idFuncionario, dtSolicitada, ideventosolicitado, ideventoconflitante
+//             )
+//             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+//             RETURNING idAditivoExtra;
+//         `;
+
+//         const values = [
+//           idOrcamento, 
+//           idFuncao, 
+//           idEmpresaContexto, 
+//           tipoSolicitacao, 
+//           qtdSolicitada, 
+//           justificativa, 
+//           idUsuarioSolicitante,
+//           statusInicial,
+//           idFuncionarioTratado || null,
+//           dataParaBanco,
+//           idEventoSolicitadoTratado,
+//           idEventoConflitanteTratado
+//         ];
+
+//         const resultado = await pool.query(queryInsert, values);
+//         const idAditivoExtra = resultado.rows[0].idaditivoextra;
+
+//         // Log de Auditoria
+//         if (req.logData && logMiddleware.salvarLog) {
+//           req.logData.idregistroalterado = idAditivoExtra;
+//           await logMiddleware.salvarLog(req.logData); 
+//         }
+
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = idAditivoExtra;
+//         res.locals.dadosnovos = { // ❌ Estava faltando
+//             idAditivoExtra,
+//             idOrcamento,
+//             idFuncao,
+//             tipoSolicitacao,
+//             qtdSolicitada,
+//             justificativa,
+//             idFuncionario: idFuncionarioTratado,
+//             dataSolicitada: dataParaBanco,
+//             idEventoSolicitado: idEventoSolicitadoTratado,
+//             idEventoConflitante: idEventoConflitanteTratado,
+//             status: statusInicial
+//         };
+
+//         res.status(201).json({ 
+//           sucesso: true, 
+//           mensagem: `Solicitação salva com sucesso.`,
+//           idAditivoExtra: idAditivoExtra
+//         });
+
+//     } catch (error) {
+//         console.error("❌ Erro ao processar AditivoExtra:", error.message);
+//         res.status(500).json({ 
+//             sucesso: false, 
+//             erro: "Erro interno ao processar a solicitação.",
+//             detalhe: error.message 
+//         });
+//     }
+// });
 router.post('/aditivoextra/solicitacao', 
   autenticarToken(), 
   contextoEmpresa, 
   verificarPermissao('staff', 'cadastrar'), 
-
   logMiddleware('aditivoextra', { 
     buscarDadosAnteriores: async (req) => {
       return { dadosanteriores: null, idregistroalterado: null };
@@ -1314,64 +1551,36 @@ router.post('/aditivoextra/solicitacao',
     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
 
     const { 
-      idOrcamento, 
-      idFuncao, 
-      qtdSolicitada, 
-      tipoSolicitacao, 
-      justificativa, 
-      idFuncionario,
-      dataSolicitada,
-      idEventoSolicitado,    
-      idEventoConflitante    
-      
+      idOrcamento, idFuncao, qtdSolicitada, tipoSolicitacao, 
+      justificativa, idFuncionario, dataSolicitada,
+      idEventoSolicitado, idEventoConflitante, vlrSolicitado, categoria_log
     } = req.body; 
 
     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
     const idUsuarioSolicitante = req.usuario?.idusuario; 
     const statusInicial = 'Pendente';
 
-//    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
-//     ? dataSolicitada.split(',').map(d => d.trim()) 
-//     : null;
-
-    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
-        ? `{${dataSolicitada.split(',').map(d => d.trim()).join(',')}}` 
-        : null;
-
-    
-
-    // Se idEvento vier como um objeto vazio {} como mostra o seu log, tratamos também
-    // const idEventoTratado = (typeof idEvento === 'object' && Object.keys(idEvento).length === 0) || idEvento === '' 
-    //     ? null 
-    //     : idEvento;
+   const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+      ? JSON.stringify(dataSolicitada.split(',').map(d => d.trim()))
+      : null;
 
     const idFuncionarioTratado = (idFuncionario === '' || idFuncionario === 'undefined') ? null : idFuncionario;
+    const idEventoSolicitadoTratado = (!idEventoSolicitado || idEventoSolicitado === 'undefined') ? null : idEventoSolicitado;
+    const idEventoConflitanteTratado = (!idEventoConflitante || idEventoConflitante === 'undefined') ? null : idEventoConflitante;
 
-    const idEventoSolicitadoTratado = (idEventoSolicitado === '' || idEventoSolicitado === 'undefined' || idEventoSolicitado == null) ? null : idEventoSolicitado;
-    const idEventoConflitanteTratado = (idEventoConflitante === '' || idEventoConflitante === 'undefined' || idEventoConflitante == null) ? null : idEventoConflitante;
-
-    // 1. Validações de Contexto
     if (!idUsuarioSolicitante || !idEmpresaContexto) {
-        return res.status(401).json({ 
-            sucesso: false, 
-            erro: "Usuário ou Empresa não identificados no contexto da requisição." 
-        });
+      return res.status(401).json({ sucesso: false, erro: "Usuário ou Empresa não identificados." });
     }
 
-    // 2. Validação de Campos Obrigatórios
     let campoFaltante = null;
     if (!idOrcamento) campoFaltante = 'idOrcamento';
     else if (!idFuncao) campoFaltante = 'idFuncao';
-    else if (!qtdSolicitada) campoFaltante = 'qtdSolicitada';
+    else if (!qtdSolicitada && !vlrSolicitado) campoFaltante = 'qtdSolicitada ou vlrSolicitado';
     else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
     else if (!justificativa) campoFaltante = 'justificativa';
-    
 
     if (campoFaltante) { 
-        return res.status(400).json({ 
-            sucesso: false,
-            erro: `O campo obrigatório **${campoFaltante}** está faltando.` 
-        });
+      return res.status(400).json({ sucesso: false, erro: `O campo obrigatório **${campoFaltante}** está faltando.` });
     }
 
     // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
@@ -1395,73 +1604,90 @@ router.post('/aditivoextra/solicitacao',
               AND status = 'Pendente'
         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
 
-        if (checkDuplicidade.rows.length > 0) {
-            return res.status(409).json({ 
-                sucesso: false, 
-                erro: "Já existe uma solicitação pendente idêntica para este funcionário." 
-            });
-        }
+      if (checkDuplicidade.rows.length > 0) {
+        return res.status(409).json({ sucesso: false, erro: "Já existe uma solicitação pendente idêntica." });
+      }
 
-        // 5. Inserção no Banco
+      // ✅ INSERT na tabela solicitacoes
+      // 1. A QUERY (Ajustada com as vírgulas que faltavam e ordem lógica)
         const queryInsert = `
-            INSERT INTO AditivoExtra (
-              idOrcamento, idFuncao, idEmpresa, tipoSolicitacao, 
-              qtdSolicitada, justificativa, idUsuarioSolicitante,
-              status, idFuncionario, dtSolicitada, ideventosolicitado, ideventoconflitante
+            INSERT INTO public.solicitacoes (
+                idorcamento,            -- $1
+                idfuncionario,          -- $2
+                idfuncao,               -- $3
+                idempresa,              -- $4
+                tiposolicitacao,        -- $5
+                qtdsolicitada,          -- $6
+                vlrsolicitado,          -- $7
+                status,                 -- $8
+                justificativa,          -- $9
+                idusuariosolicitante,   -- $10
+                dtsolicitada,           -- $11
+                ideventosolicitado,     -- $12
+                ideventoconflitante,    -- $13
+                categoria_log,          -- $14
+                dtsolicitacao           -- (Automático pelo Banco se omitido, ou use DEFAULT)
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING idAditivoExtra;
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
+            RETURNING idsolicitacao;
         `;
 
+        // 2. OS VALUES (Mapeados exatamente na ordem acima)
         const values = [
-          idOrcamento, 
-          idFuncao, 
-          idEmpresaContexto, 
-          tipoSolicitacao, 
-          qtdSolicitada, 
-          justificativa, 
-          idUsuarioSolicitante,
-          statusInicial,
-          idFuncionarioTratado || null,
-          dataParaBanco,
-          idEventoSolicitadoTratado,
-          idEventoConflitanteTratado
+            idOrcamento,                        // $1
+            idFuncionarioTratado || null,       // $2
+            idFuncao,                           // $3
+            idEmpresaContexto,                  // $4
+            tipoSolicitacao,                    // $5
+            qtdSolicitada || 1,                 // $6
+            vlrSolicitado || 0,                 // $7
+            statusInicial || 'Pendente',        // $8
+            justificativa,                      // $9
+            idUsuarioSolicitante,               // $10
+            dataParaBanco,                      // $11 (O array de datas em formato JSON)
+            idEventoSolicitadoTratado || null,  // $12
+            idEventoConflitanteTratado || null, // $13
+            categoria_log                      // $14
         ];
 
-        const resultado = await pool.query(queryInsert, values);
-        const idAditivoExtra = resultado.rows[0].idaditivoextra;
+      const resultado = await pool.query(queryInsert, values);
+      const idSolicitacao = resultado.rows[0].idsolicitacao;
 
-        
+      if (req.logData && logMiddleware.salvarLog) {
+        req.logData.idregistroalterado = idSolicitacao;
+        await logMiddleware.salvarLog(req.logData); 
+      }
 
-        res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = idAditivoExtra;
-        res.locals.dadosnovos = { // ❌ Estava faltando
-            idAditivoExtra,
-            idOrcamento,
-            idFuncao,
-            tipoSolicitacao,
-            qtdSolicitada,
-            justificativa,
-            idFuncionario: idFuncionarioTratado,
-            dataSolicitada: dataParaBanco,
-            idEventoSolicitado: idEventoSolicitadoTratado,
-            idEventoConflitante: idEventoConflitanteTratado,
-            status: statusInicial
-        };
+      res.locals.acao = 'cadastrou';
+      res.locals.idregistroalterado = idSolicitacao;
+      res.locals.dadosnovos = {
+        idSolicitacao, idOrcamento, idFuncao, tipoSolicitacao,
+        qtdSolicitada, vlrSolicitado, justificativa,
+        idFuncionario: idFuncionarioTratado,
+        dataSolicitada: dataParaBanco,
+        idEventoSolicitado: idEventoSolicitadoTratado,
+        idEventoConflitante: idEventoConflitanteTratado,
+        status: statusInicial
+      };
 
-        res.status(201).json({ 
-          sucesso: true, 
-          mensagem: `Solicitação salva com sucesso.`,
-          idAditivoExtra: idAditivoExtra
-        });
+      res.status(201).json({ 
+        sucesso: true, 
+        mensagem: `Solicitação salva com sucesso.`,
+        idSolicitacao
+      });
 
     } catch (error) {
-        console.error("❌ Erro ao processar AditivoExtra:", error.message);
-        res.status(500).json({ 
-            sucesso: false, 
-            erro: "Erro interno ao processar a solicitação.",
-            detalhe: error.message 
-        });
+      console.error("❌ Erro AditivoExtra | message:", error.message);
+      console.error("❌ Erro AditivoExtra | code:", error.code);
+      console.error("❌ Erro AditivoExtra | detail:", error.detail);
+      
+      res.status(500).json({ 
+        sucesso: false, 
+        erro: "Erro interno ao processar a solicitação.",
+        detalhe: error.message,
+        code: error.code,
+        detail: error.detail
+      });
     }
 });
 

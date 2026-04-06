@@ -3388,73 +3388,93 @@ async function mostrarPedidosUsuario() {
         "statusmeiadiaria": "dtmeiadiaria",
         "statuscustofechado": "vlrcache",
         "statuscacheliberado": "vlrcache",
+        "statusvagaexcedida": "statusvagaexcedida", // Mapeia para o campo do banco
+        "statusaditivoextra": "statusaditivoextra", // Mapeia para o campo do banco
+        "aditivoextra": "statusvagaexcedida"
+
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", "statuscacheliberado", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto",
+        "statuscaixinha",
+        "statusmeiadiaria",
+        "statusdiariadobrada",
+        "statuscustofechado",
+        "statuscacheliberado",
+        "statusvagaexcedida", 
+        "statusaditivoextra",
+        "aditivoextra",
+        CAMPO_ADITIVO_EXTRA
     ];
 
     try {
         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
-        const [pedidosPadrao, aditivosExtras] = await Promise.all([
-            buscarPedidosUsuario(),
-            buscarAditivoExtraCompleto()
-        ]);
+        // const [pedidosPadrao, aditivosExtras] = await Promise.all([
+        //     buscarPedidosUsuario(),
+        //     buscarAditivoExtraCompleto()
+        // ]);
+        const pedidosPadrao = await buscarPedidosUsuario(); // Já vem agrupado do novo Backend
+        // const aditivosExtras = await buscarAditivoExtraCompleto();
 
-        window.pedidosCompletosGlobais = pedidosPadrao;
+        // window.pedidosCompletosGlobais = pedidosPadrao;
        
-        // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
-        let pedidosUnificados = pedidosPadrao;
+        // // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
+        // let pedidosUnificados = pedidosPadrao;
+
+        // let pedidosUnificados = [...pedidosPadrao, ...aditivosExtras];
+        // window.pedidosCompletosGlobais = pedidosUnificados;
+        let pedidosUnificados = [...pedidosPadrao];
+        window.pedidosCompletosGlobais = pedidosUnificados;
         
         const aditivosMapeados = [];
 
         console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
 
-        aditivosExtras.forEach(ae => {
-            const nomeFuncionarioAjustado = ae.nomefuncionario; 
-            const solicitanteAjustado = ae.nomesolicitante;
-            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+        // aditivosExtras.forEach(ae => {
+        //     const nomeFuncionarioAjustado = ae.nomefuncionario; 
+        //     const solicitanteAjustado = ae.nomesolicitante;
+        //     const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
             
-            const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
-            const corStatus = (function(status) {
-                if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
-                if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
-                return '#facc15'; // Amarelo (Pendente)
-            })(statusLower);
+        //     const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
+        //     const corStatus = (function(status) {
+        //         if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
+        //         if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
+        //         return '#facc15'; // Amarelo (Pendente)
+        //     })(statusLower);
 
-            const pedidoAditivo = {
-                funcionario: nomeFuncionarioAjustado, 
-                nomeSolicitante: solicitanteAjustado,
-                evento: ae.evento,
-                nmfuncao: ae.funcao || null,
-                idpedido: ae.idaditivoextra, 
-                idaditivoextra: ae.idaditivoextra, 
-                ehMasterStaff: ae.ehMasterStaff,
-                podeVerTodos: ae.podeVerTodos, 
-                solicitante: ae.idusuariosolicitante, 
-                dtCriacao: ae.criado_em, 
-                status_aprovacao: statusLower,
-                categoria_item: CAMPO_ADITIVO_EXTRA,
-                status: statusLower,
-                cor: corStatus,
-                dataSolicitacao: ae.criado_em,
-                dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
-                dataDecisao: ae.datadecisao || null, 
-                nomeAprovador: ae.nomeaprovador || null,     
-                [CAMPO_ADITIVO_EXTRA]: [{
-                    idfuncionario: ae.idfuncionario,
-                    status: statusLower,
-                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
-                    descricao: ae.justificativa, 
-                    quantidade: ae.qtdsolicitada,
+        //     const pedidoAditivo = {
+        //         funcionario: nomeFuncionarioAjustado, 
+        //         nomeSolicitante: solicitanteAjustado,
+        //         evento: ae.evento,
+        //         nmfuncao: ae.funcao || null,
+        //         idpedido: ae.idaditivoextra, 
+        //         idaditivoextra: ae.idaditivoextra, 
+        //         ehMasterStaff: ae.ehMasterStaff,
+        //         podeVerTodos: ae.podeVerTodos, 
+        //         solicitante: ae.idusuariosolicitante, 
+        //         dtCriacao: ae.criado_em, 
+        //         status_aprovacao: statusLower,
+        //         categoria_item: CAMPO_ADITIVO_EXTRA,
+        //         status: statusLower,
+        //         cor: corStatus,
+        //         dataSolicitacao: ae.criado_em,
+        //         dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
+        //         dataDecisao: ae.datadecisao || null, 
+        //         nomeAprovador: ae.nomeaprovador || null,     
+        //         [CAMPO_ADITIVO_EXTRA]: [{
+        //             idfuncionario: ae.idfuncionario,
+        //             status: statusLower,
+        //             tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+        //             descricao: ae.justificativa, 
+        //             quantidade: ae.qtdsolicitada,
                                         
-                }]
-            };
-            aditivosMapeados.push(pedidoAditivo);
-        });
+        //         }]
+        //     };
+        //     aditivosMapeados.push(pedidoAditivo);
+        // });
 
         pedidosUnificados.push(...aditivosMapeados);
        
@@ -3466,14 +3486,18 @@ async function mostrarPedidosUsuario() {
         pedidosUnificados.forEach(pedidoOriginal => {
            
             const categoriasPresentes = camposTodos.filter(c => {
-                 
-                const valor = pedidoOriginal[c];
-                if (c === CAMPO_ADITIVO_EXTRA) {
-                    return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
-                }
-                if (Array.isArray(valor)) return valor.length > 0;
-                return valor && valor.toString().trim() !== ''; 
-            });
+            const valor = pedidoOriginal[c];
+            
+            // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
+            if (c === 'statusvagaexcedida') {
+                return valor && valor.toString().trim() !== '' && valor !== 'null';
+            }
+            if (c === CAMPO_ADITIVO_EXTRA) {
+                return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+            }
+            if (Array.isArray(valor)) return valor.length > 0;
+            return valor && valor.toString().trim() !== ''; 
+        });
 
             console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
 
@@ -3556,10 +3580,16 @@ async function mostrarPedidosUsuario() {
             // Variáveis de Agrupamento
             const evento = p.evento || 'Sem Evento';
             const funcionario = p.funcionario || null; 
-            const nmfuncao = p.nmfuncao || null;
+            let nmfuncao = p.nmfuncao || null;
+            if (!funcionario && (p.categoria_item === 'statusvagaexcedida' || p.categoria_item === 'statusaditivoextra' || p.categoria === 'aditivoextra')) {
+                const rawJson = p.statusvagaexcedida || p.statusaditivoextra || p.statusajustecusto || '[]';
+                const arr = safeParse(rawJson);
+                nmfuncao = arr[0]?.tipoSolicitacao || p.tiposolicitacao || 'Solicitação de Função';
+            }
            
             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+            
 
             console.log(`DEBUG AGRUPAMENTO - Funcionario: ${funcionarioOuFuncao}, ID_Log: ${p.id_log}, Solicitante: ${p.nomeSolicitante}`);
             const chaveAgrupamento = funcionarioOuFuncao; //em comentario para teste da nova query
@@ -3663,48 +3693,67 @@ async function mostrarPedidosUsuario() {
             
         // Primeiro, filtramos os grupos
        
+        // window.gruposFuncoesGlobais = pedidos.filter(p => {
+        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
 
-       // window.gruposFuncionariosGlobais = pedidos.filter(p => !!p.funcionario);
-       // window.gruposFuncoesGlobais = pedidos.filter(p => !p.funcionario);
+        //     // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
+        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+        //         return true; 
+        //     }
 
-       // --- SUBSTITUIÇÃO DA SEPARAÇÃO DAS ABAS ---
+        //     return !p.funcionario; // Regra padrão para o restante
+        // });
 
-        // Filtro para a aba Funções (Onde devem aparecer os excessos de vaga)
+        // // Filtro para a aba Funcionários
+        // window.gruposFuncionariosGlobais = pedidos.filter(p => {
+        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+        //     // Se for vaga excedida, NÃO entra aqui
+        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+        //         return false;
+        //     }
+
+        //     return !!p.funcionario;
+        // });
+
+        // // Agora, contamos quantos registros individuais existem dentro de cada grupo
+        
+
         window.gruposFuncoesGlobais = pedidos.filter(p => {
-            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+            // Verifica em todos os registros do grupo
+            const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+                // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+                const tipo = (r.tiposolicitacao || '').toUpperCase();
+                return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+            });
 
-            // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
-            if (tipoSolicitacao.includes("Vaga Excedida")) {
-                return true; 
-            }
-
-            return !p.funcionario; // Regra padrão para o restante
+            if (temVagaExcedida) return true;
+            return !p.funcionario; // regra padrão: sem funcionário vai para Funções
         });
 
         // Filtro para a aba Funcionários
         window.gruposFuncionariosGlobais = pedidos.filter(p => {
-            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+            const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+                // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+                const tipo = (r.tiposolicitacao || '').toUpperCase();
+                return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+            });
 
-            // Se for vaga excedida, NÃO entra aqui
-            if (tipoSolicitacao.includes("Vaga Excedida")) {
-                return false;
-            }
-
+            if (temVagaExcedida) return false;
             return !!p.funcionario;
         });
 
-        // Agora, contamos quantos registros individuais existem dentro de cada grupo
         const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
 
         const totalPedidosFuncoes = window.gruposFuncoesGlobais.reduce((acc, grupo) => 
             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
 
-        //console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
+        console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
 
-        // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
+        // // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
         
         const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
         const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
@@ -3736,8 +3785,7 @@ async function mostrarPedidosUsuario() {
                 });
             });
         }
-       
-        // DEBUG DE RASTREAMENTO DEFINITIVO
+
 
 
 
@@ -3886,7 +3934,6 @@ async function mostrarPedidosUsuario() {
         lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Verifique se as funções de busca e utilidade estão implementadas corretamente.'}</p>`;
     }
 }
-
 
 function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
     // statusCounts é o objeto de contagem que contém {pendente: X, autorizado: Y, rejeitado: Z}
@@ -4060,7 +4107,6 @@ function safeParse(input) {
 }
 
 
-
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     window.pedidosCompletosGlobais = pedidosCompletos;
     const container = document.getElementById(containerId);
@@ -4081,6 +4127,9 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statusdiariadobrada",
         "statuscustofechado",
         "statuscacheliberado",
+        "statusvagaexcedida", 
+        "statusaditivoextra",
+        "aditivoextra",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
@@ -4095,9 +4144,26 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     const gruposFiltrados = [];
 
     pedidosCompletos.forEach(grupoConsolidado => {
-        let chaveRenderizacao = categoria === 'funcionario'
-            ? grupoConsolidado.funcionario
-            : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+        let chaveRenderizacao;
+        if (categoria === 'funcionario') {
+            chaveRenderizacao = grupoConsolidado.funcionario;
+        } else {
+            // Tenta pegar nmfuncao, senão busca dentro dos registros
+            chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+            if (!chaveRenderizacao) {
+                // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+                const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+                    .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+                if (primeiroAditivo) {
+                    const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+                    chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+                } else {
+                    chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+                }
+            }
+        }
 
         if (!chaveRenderizacao) return;
 
@@ -4212,14 +4278,16 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const pedidosDoGrupo = grupo.registrosOriginais;
         if (!pedidosDoGrupo?.length) return;
 
+
+
         const chaveNome = categoria === 'funcionario'
             ? grupo.funcionario
-            : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+            : ((pedidosDoGrupo[0]?.descFuncao) || 'SOLICITAÇÃO DE FUNÇÃO');
 
         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
-        console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+        console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
         console .log (`Debug`, pedidosDoGrupo);
 
 
@@ -4237,7 +4305,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
         // Itera sobre os pedidos consolidados
         pedidosDoGrupo.forEach(pedido => {
-            console.log("Pedidos do grupo:", pedido);
+            console.log("📦 PEDIDO COMPLETO:", {
+                id_log: pedido.id_log,
+                categoria_item: pedido.categoria_item,
+                funcionario: pedido.funcionario,
+                nomefuncionario: pedido.nomefuncionario,  // ← ver se existe
+                nomeSolicitante: pedido.nomeSolicitante,
+                dtsolicitada: pedido.dtsolicitada,
+                chaves: Object.keys(pedido)
+            });
             // Itera sobre camposTodos e o placeholder 'pedido_principal'
             camposRenderizaveis.forEach(campo => { 
                 const itensFiltrados = pedido[campo];
@@ -4257,9 +4333,9 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
 
                     let tituloCard;
-                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra'; // ← adicionar
                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
-                    const isPedidoPrincipal = campo === 'pedido_principal'; 
+                    const isPedidoPrincipal = campo === 'pedido_principal';  
 
                     if (isPedidoPrincipal) {
                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
@@ -4378,6 +4454,12 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                     
                     let dataFormatada = '';
+                    let dataFormatadaSolictacao = '';
+
+                    if(pedido.dtsolicitada){
+                        const dataObj = new Date(pedido.dtsolicitada);
+                        dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
+                    }
                     if (pedido.dataDecisao) {
                         const dataObj = new Date(pedido.dataDecisao);
                         // Verifica se a data é válida antes de formatar
@@ -4403,6 +4485,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
 
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+                    const nomeFuncionarioExibir = pedido.funcionario || pedido.nomefuncionario || null;
 
                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
@@ -4410,30 +4493,32 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     htmlBody += `
                         <div class="pedido-card">
-                            <div>
-                                <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+                            <div class="infoPedido">
+                                    <div class="title">
+                                    <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
+                                    </div>
+                                    <br>
                     `;
                     
 
                     if (pedido.evento) {
-                        if (categoria === 'funcionario' && pedido.funcionario) {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-                            htmlBody += `<strong>Datas Contratadas:</strong> ${dataEventoFormatada}<br>`
+                        if (categoria === 'funcionario') {
+                            htmlBody += `<div class="event-info">
+                                        <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>
+                                        <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;
                         } else {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
                         }
                     }
 
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
-                        // if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br><strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
-                        // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
                         if (tipoUpper === 'FUNCEXCEDIDO' || tipoUpper === 'VAGA EXCEDIDA') {
-                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
                         } else {
-                            htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataSolicitadaFormatada} - `;
+                            htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
                         }
 
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
@@ -4494,8 +4579,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             : (isDataUnica ? (infoItem.data || '').trim() : '');
                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
-                        htmlBody += `
-                            <div class="flex gap-2 mt-2"
+                        htmlBody += `<br>
+                            <div class="AcoesPedido"
                                 data-id="${idParaAcao}"
                                 data-campo="${campoParaAcao}"
                                 data-data="${dataParaAcao}"
@@ -4511,6 +4596,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             </div>
                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
                         </div>
+
                     `;
                 });
             });
@@ -4582,6 +4668,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             try {
                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+                const novoStatus = statusTarget;
                 
                 let sucesso = false;
                 if (isAditivoExtra) {
@@ -4593,21 +4680,14 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 
                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
                 if (sucesso) {
-                    console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
-
-                    // O status que queremos gravar na memória (ex: 'autorizado')
-                    // Ajustado para pegar da variável que você está usando no seu escopo
-                    const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
-
-                    // 1. ATUALIZAR STATUS NA MEMÓRIA
-                    const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
+                    // Atualiza status_aprovacao na memória
+                    const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
                     listas.forEach(lista => {
+                        if (!lista) return;
                         lista.forEach(grupo => {
                             grupo.registrosOriginais?.forEach(p => {
-                                if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
-                                    // Atualiza o campo que a sua função de contagem "Original" usa
-                                    p.status_aprovacao = novoStatus.toLowerCase().trim();
-                                    console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
+                                if (String(p.id_log) === String(idLogOriginal)) {
+                                    p.status_aprovacao = novoStatus;
                                 }
                             });
                         });
@@ -4617,44 +4697,27 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     // ... (dentro do if (sucesso), após a remoção do card)
 
                     if (cardElement) {
-                        // 1. Antes de remover, vamos identificar quem é o "container do grupo"
-                        // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
-                        const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
-                        const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
-
-                        // 2. Remove o card com um pequeno efeito
                         cardElement.style.transition = '0.3s';
                         cardElement.style.opacity = '0';
-                        
                         setTimeout(() => {
+                            const corpoGrupo = cardElement.closest('.funcionario-body');
+                            const grupoContainer = cardElement.closest('.funcionario');
                             cardElement.remove();
-                            console.log("🗑️ Card removido.");
 
-                            // 3. VERIFICAÇÃO DE GRUPO VAZIO
-                            if (corpoGrupo) {
-                                const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
-                                
-                                if (cardsRestantes === 0 && grupoContainer) {
-                                    console.log("📦 Último pedido removido. Excluindo container do grupo...");
-                                    
+                            if (corpoGrupo && corpoGrupo.querySelectorAll('.pedido-card').length === 0) {
+                                if (grupoContainer) {
                                     grupoContainer.style.transition = '0.3s';
                                     grupoContainer.style.opacity = '0';
-                                    
-                                    setTimeout(() => {
-                                        grupoContainer.remove();
-                                    }, 300);
+                                    setTimeout(() => grupoContainer.remove(), 300);
                                 }
                             }
-                            
-                            // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
+
                             atualizarContadoresGlobais();
-                            
                         }, 300);
                     }
 
                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
                 }
-    
             } catch (err) {
                 console.error("❌ Erro na execução:", err);
                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
@@ -4673,11 +4736,524 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
+// function renderizarPedidosAntesDoSolicitacoes(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     window.pedidosCompletosGlobais = pedidosCompletos;
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         "statuscustofechado",
+//         "statuscacheliberado",
+//         "statusvagaexcedida",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     let totalItensRenderizados = 0;
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
+//     const gruposFiltrados = [];
+
+//         pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao;
+//         if (categoria === 'funcionario') {
+//             chaveRenderizacao = grupoConsolidado.funcionario;
+//         } else {
+//             // Tenta pegar nmfuncao, senão busca dentro dos registros
+//             chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+//             if (!chaveRenderizacao) {
+//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+//                 if (primeiroAditivo) {
+//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+//                 } else {
+//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+//                 }
+//             }
+//         }
+
+//         if (!chaveRenderizacao) return;
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+//         const pedidosConsolidadosPorId = new Map();
+//         let temAlgumMatchNesteGrupo = false;
+
+//         registros.forEach(pedidoOriginal => {
+//             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
+//              console.log("🔍 Processando registro com ID:", pedidoOriginal );
+
+//             // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
+
+//             // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
+            
+
+//             // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             // if (!pedidoConsolidado) {
+//             //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
+//             //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             // }
+
+//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
+//             const idLog = pedidoOriginal.id_log || 'sem-log';
+
+//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
+            
+//             // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
+//             // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
+//             //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
+
+//             //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
+
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
+
+//             if (!pedidoConsolidado) {
+//                 // Criamos um novo objeto no mapa para cada ID de Log diferente
+//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
+//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
+//             }
+
+//             // Verifica status principal
+//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
+//                 temAlgumMatchNesteGrupo = true;
+//             }
+
+//             // Verifica sub-itens (Meia diária, caixinha, etc)
+//             camposTodos.forEach(campo => {
+//                 const itens = safeParse(pedidoOriginal[campo]);
+//                 const itensFiltrados = itens.filter(it => {
+//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+//                     return String(s).toLowerCase().trim() === statusDesejado;
+//                 });
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
+//                     pedidoConsolidado[campo] = itensFiltrados; 
+//                     temAlgumMatchNesteGrupo = true;
+//                 } 
+//                 // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
+//                 // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
+//             });
+//         });
+
+//         if (temAlgumMatchNesteGrupo) {
+//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
+
+//             if (registrosValidos.length > 0) {
+//                 gruposFiltrados.push({
+//                     ...grupoConsolidado,
+//                     registrosOriginais: registrosValidos
+//                 });
+//             }
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     // gruposFiltrados.sort((a, b) =>
+//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
+//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
+//     // );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+        
+//         // 🛑 V97.0: Atualiza a contagem para 0
+//         if (typeof atualizarBadgeDeStatus === 'function') {
+//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
+//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
+//         }
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
+//         const p = pedidosDoGrupo[0];
+//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+//         console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+//         console .log (`Debug`, pedidosDoGrupo);
+
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosDoGrupo.forEach(pedido => {
+//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
+//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
+
+//                     itensGrupo++;
+//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         tituloCard = formatarNomeSolicitacao(campo);
+//                         if (isDataUnica) { 
+//                             const dataBruta = String(infoItem.data || '').trim();
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                             const valor = parseFloat(infoItem.valor) || 0;
+//                             if (valor !== 0) {
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     let dataSolicFormatada = '';
+//                     if (pedido.dataSolicitacao) {
+//                         const dataObj = new Date(pedido.dataSolicitacao);
+//                         // Verifica se a data é válida antes de formatar
+//                         dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+//                     }
+                   
+//                     let dataFormatada = '';
+//                     if (pedido.dataDecisao) {
+//                         const dataObj = new Date(pedido.dataDecisao);
+//                         // Verifica se a data é válida antes de formatar
+//                         dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+//                     }
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
+//                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
+//                                 : '';
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+//                     `;
+                    
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+//                         // if (valor !== 0) {
+//                         //     const valorFmt = valor.toFixed(2).replace('.', ',');
+//                         //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         // } else {
+//                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         // }
+
+                        
+                        
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         }
+
+//                     } else if (isDataUnica) {
+//                         const dataBruta = String(infoItem.data || '').trim();
+//                         let dataFmt = 'Data indefinida';
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     } else if (infoItem.datas) {
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d)
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
+//                         // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
+//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal 
+//                             ? (pedido.dataEspecifica || '') 
+//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
+//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-logid="${idLogParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         // 🛑 AQUI ESTÁ O PULO DO GATO:
+//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
+//         if (itensGrupo === 0) return;
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
+//     container.onclick = null; 
+
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         // Verifica se clicou nos botões
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('[data-id]');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         // Determina qual função chamar e qual o status alvo
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//         const cardElement = target.closest('.pedido-card');
+
+//         // Modal de Confirmação
+//         const result = await Swal.fire({
+//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
+//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+
+//         if (result.isConfirmed) {
+//             try {
+//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
+//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+                
+//                 let sucesso = false;
+//                 if (isAditivoExtra) {
+//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+//                 } else {
+//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
+//                 }
+
+                
+//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
+//                 if (sucesso) {
+//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
+
+//                     // O status que queremos gravar na memória (ex: 'autorizado')
+//                     // Ajustado para pegar da variável que você está usando no seu escopo
+//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
+
+//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
+//                     listas.forEach(lista => {
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
+//                                     // Atualiza o campo que a sua função de contagem "Original" usa
+//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
+//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
+//                     // ... (dentro do if (sucesso), após a remoção do card)
+
+//                     if (cardElement) {
+//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
+//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
+//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
+//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
+
+//                         // 2. Remove o card com um pequeno efeito
+//                         cardElement.style.transition = '0.3s';
+//                         cardElement.style.opacity = '0';
+                        
+//                         setTimeout(() => {
+//                             cardElement.remove();
+//                             console.log("🗑️ Card removido.");
+
+//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
+//                             if (corpoGrupo) {
+//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
+                                
+//                                 if (cardsRestantes === 0 && grupoContainer) {
+//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
+                                    
+//                                     grupoContainer.style.transition = '0.3s';
+//                                     grupoContainer.style.opacity = '0';
+                                    
+//                                     setTimeout(() => {
+//                                         grupoContainer.remove();
+//                                     }, 300);
+//                                 }
+//                             }
+                            
+//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
+//                             atualizarContadoresGlobais();
+                            
+//                         }, 300);
+//                     }
+
+//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
+//                 }
+    
+//             } catch (err) {
+//                 console.error("❌ Erro na execução:", err);
+//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
+//             }
+//         }
+//     });
+
+//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
+//     if (typeof atualizarBadgeDeStatus === 'function') {
+//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
+//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
+//     }
+
+//     if (typeof atualizarContadoresGlobais === 'function') {
+//         atualizarContadoresGlobais();
+//     }
+// } 
+
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {
         // Garantimos que os nomes das chaves (idpedido, categoria, acao, data) 
         // sejam exatamente o que o seu backend recebia no código antigo.
         const bodyData = {
+            id_log: idLog,
             idpedido: idpedido,
             categoria: categoria, // O backend espera 'categoria', que é o seu 'campo'
             acao: acao,            
