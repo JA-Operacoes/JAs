@@ -376,7 +376,7 @@
                         <input type="text" id="statusAjusteCusto" name ="statusAjusteCusto"  readonly data-permanent-readonly="true" required/>
                         <select id="selectStatusAjusteCusto" style="display:none;">
                           <option value="" disabled selected>Autorização do Ajuste de Custo</option>
-                          <option value="Pendente" >Pendente</option>
+                          <option value="Pendente">Pendente</option>
                           <option value="Autorizado">Autorizado</option>
                           <option value="Rejeitado">Rejeitado</option>
                         </select>
@@ -384,167 +384,193 @@
                        
                     </div>
 
-                    <div class="form-2colunas caixinha">
-                      <div class="form2" id="campoCaixinha" style="display: none;">
-                        <input type="text" name="caixinha" id="caixinha">
-                        <label for="caixinha">Caixinha</label>
-                      </div>
-                      <textarea name="caixinha[]" id="descCaixinha" placeholder="Descritivo da Caixinha" style="display: none;" required></textarea>
-
-                      <div class="form2" id="campoStatusCaixinha" style="display: none;">
-                        <input id="statusCaixinha" type="text" readonly data-permanent-readonly="true" required/>
-                        <select id="selectStatusCaixinha" style="display:none;">
-                          <option value="" disabled selected>Autorização da Caixinha</option>
-                          <option value="Pendente">Pendente</option>
-                          <option value="Autorizado">Autorizado</option>
-                          <option value="Rejeitado">Rejeitado</option>
-                        </select>
-                      </div> 
-                      <div class="form2" id="campoPgtoCaixinha" style="display: none;">                      
-                        <input type="text" class="preenchido" name="statusPgtoCaixinha" id="statusPgtoCaixinha" required data-permanent-readonly="true" readonly >
-                        <label for="statusPgtoCaixinha">Status do Pgto Caixinha</label>
-                      </div>                      
-                    </div>
-
-                    <div class="form-2colunas">
-                        <div id="campoDiariaDobrada" style="display: none;">
-                          <h3>Diaria Dobrada:</h3>
-                          <div class="row">
-                            <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
-                            <textarea id="descDiariaDobrada" name="diariaDobrada"  placeholder="Observação da Diaria Dobrada"></textarea>
-                            <div class="form-2colunas">
-                              <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
-                                <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly data-permanent-readonly="true" required/>
-                                <select id="selectStatusDiariaDobrada" style="display:none;">
-                                  <option value="none" disabled selected>Autorização de Diária Dobrada</option>
-                                  <option value="Pendente">Pendente</option>
-                                  <option value="Autorizado">Autorizado</option>
-                                  <option value="Rejeitado">Rejeitado</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div id="campoMeiaDiaria" style="display: none;">
-                          <h3>Meia Diaria:</h3>
-                          <div class="row">
-                            <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
-                            <textarea  name="descMeiaDiaria" id="descMeiaDiaria"  placeholder="Observação da Meia Diaria"></textarea>
-                            <div class="form-2colunas">    
-                              <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
-                                <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly data-permanent-readonly="true" required/>
-                                <select id="selectStatusMeiaDiaria" style="display:none;">
-                                  <option value="none" disabled selected>Autorização de Meia Diária</option>
-                                  <option value="Pendente">Pendente</option>
-                                  <option value="Autorizado">Autorizado</option>
-                                  <option value="Rejeitado">Rejeitado</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                    </div>
-                    <div class="form-2colunasDatas">
-                      <div id="grupoDiariaDobrada" class="status-group">
-                          <label><strong>Diária Dobrada</strong></label>
-                          <div id="containerStatusDiariaDobrada" class="status-container"></div>
-                      </div>
-
-                      <div id="grupoMeiaDiaria" class="status-group">
-                          <label><strong>Meia Diária</strong></label>
-                          <div id="containerStatusMeiaDiaria" class="status-container"></div>
-                      </div>
-                  </div>                  
-
-                  <div class="pdf">                    
-                    <div class="collumn">
-                        <h5>Comprovante de Cachê + Bônus</h5>
-                        <div class="containerPDF">
-                            <label for="fileCache" class="footerPDF" name="footerPDF[]">
-                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                </svg>
-                                <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                            </label>
-                            <input id="fileCache" class="filePDFInput" type="file" name="comppgtocache" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                        </div>
-                        <div id="comprovanteCacheDisplay" style="display: none; margin-top: 10px;">
-                            <div id="linkContainerCache"></div>
-                        </div>
-                    </div>
-
-                    <br>
-
-                    <div class="collumn">
-                      <h5>Comprovante de Ajuda de Custo</h5>
-                        <div class="containerPDF">
-                            <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto">
-                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                </svg>
-                                <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado 100%</p>
-                            </label>
-                            <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                        </div>
-                        <div id="comprovanteAjdCustoDisplay" style="display: none; margin-top: 10px;">
-                            <div id="linkContainerAjdCusto">
-                                </div>
-                        </div>
-                        <div class="containerPDF">
-                            <label for="fileAjdCusto2" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto2">
-                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                </svg>
-                                <p id="fileNameAjdCusto2" class="fileNamePDF">Nenhum arquivo selecionado 50%</p>
-                            </label>
-                            <input id="fileAjdCusto2" class="filePDFInput" type="file" name="comppgtoajdcusto50" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                        </div>
-                        <div id="comprovanteAjdCusto2Display" style="display: none; margin-top: 10px;">
-                            <div id="linkContainerAjdCusto2">
-                                </div>
-                        </div>
-                    <div class="checkbox">
-                        <div class="Vertical">
-                          <input id="check50" type="checkbox" />
-                          <label for="check50">50%</label>
-                        </div>
-                        <div class="Vertical">
-                          <input id="check100" type="checkbox" />
-                          <label for="check100">100%</label>
-                        </div>
-                    </div>
-                    </div>
-
-                    <br>
-
-                    <div class="collumn">
-                        <h5>Comprovante de Caixinha</h5>
-                        <div class="containerPDF">
-                            <label for="fileCaixinha" class="footerPDF" name="footerPDF[]" id="labelFileCaixinha">
-                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                </svg>
-                                <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                            </label>
-                            <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtocaixinha" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                        </div>
-                        <div id="comprovanteCaixinhaDisplay" style="display: none; margin-top: 10px;">
-                            <div id="linkContainerCaixinha">
-                                </div>
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="limparComprovanteCache" id="limparComprovanteCache" value="false">
-                    <input type="hidden" name="limparComprovanteAjdCusto" id="limparComprovanteAjdCusto" value="false">
-                    <input type="hidden" name="limparComprovanteAjdCusto2" id="limparComprovanteAjdCusto2" value="false">
-                    <input type="hidden" name="limparComprovanteCaixinha" id="limparComprovanteCaixinha" value="false">
-
+                <div class="form-2colunas caixinha">
+                  <div class="form2" id="campoCaixinha" style="display: none;">
+                    <input type="text" name="caixinha" id="caixinha">
+                    <label for="caixinha">Caixinha</label>
                   </div>
+                  <textarea name="caixinha[]" id="descCaixinha" placeholder="Descritivo da Caixinha" style="display: none;" required></textarea>
+
+                  <div class="form2" id="campoStatusCaixinha" style="display: none;">
+                    <input id="statusCaixinha" type="text" readonly data-permanent-readonly="true" required/>
+                    <select id="selectStatusCaixinha" style="display:none;">
+                      <option value="" disabled selected>Autorização da Caixinha</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Autorizado">Autorizado</option>
+                      <option value="Rejeitado">Rejeitado</option>
+                    </select>
+                  </div> 
+                  <div class="form2" id="campoPgtoCaixinha" style="display: none;">                      
+                    <input type="text" class="preenchido" name="statusPgtoCaixinha" id="statusPgtoCaixinha" required data-permanent-readonly="true" readonly >
+                    <label for="statusPgtoCaixinha">Status do Pgto Caixinha</label>
+                  </div>                      
+                </div>
+
+                <div class="form-2colunas">
+                    <div id="campoDiariaDobrada" style="display: none;">
+                      <h3>Diaria Dobrada:</h3>
+                      <div class="row">
+                        <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                        <textarea id="descDiariaDobrada" name="diariaDobrada"  placeholder="Observação da Diaria Dobrada"></textarea>
+                        <div class="form-2colunas">
+                          <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
+                            <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly data-permanent-readonly="true" required/>
+                            <select id="selectStatusDiariaDobrada" style="display:none;">
+                              <option value="none" disabled selected>Autorização de Diária Dobrada</option>
+                              <option value="Pendente">Pendente</option>
+                              <option value="Autorizado">Autorizado</option>
+                              <option value="Rejeitado">Rejeitado</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div id="campoMeiaDiaria" style="display: none;">
+                      <h3>Meia Diaria:</h3>
+                      <div class="row">
+                        <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
+                        <textarea  name="descMeiaDiaria" id="descMeiaDiaria"  placeholder="Observação da Meia Diaria"></textarea>
+                        <div class="form-2colunas">    
+                          <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
+                            <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly data-permanent-readonly="true" required/>
+                            <select id="selectStatusMeiaDiaria" style="display:none;">
+                              <option value="none" disabled selected>Autorização de Meia Diária</option>
+                              <option value="Pendente">Pendente</option>
+                              <option value="Autorizado">Autorizado</option>
+                              <option value="Rejeitado">Rejeitado</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+                    
+                <div class="form-2colunasDatas">
+                  <div id="grupoDiariaDobrada" class="status-group">
+                      <label><strong>Diária Dobrada</strong></label>
+                      <div id="containerStatusDiariaDobrada" class="status-container"></div>
+                  </div>
+
+                  <div id="grupoMeiaDiaria" class="status-group">
+                      <label><strong>Meia Diária</strong></label>
+                      <div id="containerStatusMeiaDiaria" class="status-container"></div>
+                  </div>
+                </div>    
+              
+                <br>              
+
+                <div class="pdf">                    
+                  <div class="collumn">
+                      <h5>Comprovante de Cachê + Bônus</h5>
+                      <div class="containerPDF">
+                          <label for="fileCache" class="footerPDF" name="footerPDF[]">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                              </svg>
+                              <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                          </label>
+                          <input id="fileCache" class="filePDFInput" type="file" name="comppgtocache" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteCacheDisplay" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerCache"></div>
+                      </div>
+                  </div>
+
+                  <br>
+
+                  <div class="collumn">
+                    <h5>Comprovante de Ajuda de Custo</h5>
+                      <div class="containerPDF">
+                          <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                              </svg>
+                              <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado 100%</p>
+                          </label>
+                          <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteAjdCustoDisplay" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerAjdCusto">
+                              </div>
+                      </div>
+                      <div class="containerPDF">
+                          <label for="fileAjdCusto2" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto2">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                              </svg>
+                              <p id="fileNameAjdCusto2" class="fileNamePDF">Nenhum arquivo selecionado 50%</p>
+                          </label>
+                          <input id="fileAjdCusto2" class="filePDFInput" type="file" name="comppgtoajdcusto50" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteAjdCusto2Display" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerAjdCusto2">
+                          </div>
+                      </div>
+                      <div class="checkbox">
+                          <div class="Vertical">
+                            <input id="check50" type="checkbox" />
+                            <label for="check50">50%</label>
+                          </div> 
+                          <div class="Vertical">
+                            <input id="check100" type="checkbox" />
+                            <label for="check100">100%</label>
+                          </div>
+                      </div>
+                  </div>
+
+                  <br>
+
+                  <div class="collumn">
+                      <h5>Comprovante de Caixinha</h5>
+                      <div class="containerPDF">
+                          <label for="fileCaixinha" class="footerPDF" name="footerPDF[]" id="labelFileCaixinha">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                              </svg>
+                              <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                          </label>
+                          <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtocaixinha" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteCaixinhaDisplay" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerCaixinha">
+                              </div>
+                      </div>
+                  </div>
+                  <div class="collumn" style="flex: 1;">
+                    <h5>Controle de Gastos</h5>
+                    <div class="containerPDF">
+                        <label for="fileControleGastos" class="footerPDF" name="footerPDF[]" id="labelFileControleGastos">
+                            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                <path d="M15.331 6H8.5v20h15V14.154h-8.169z" />
+                                <path d="M18.153 6h-.009v5.342H23.5v-.002z" />
+                            </svg>
+                            <p id="fileNameControleGastos" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                        </label>
+                        <input id="fileControleGastos" class="filePDFInput" type="file" name="compcontrolegastos" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                    </div>
+                    <div id="comprovanteControleGastosDisplay" style="display: none; margin-top: 10px;">
+                        <div id="linkContainerControleGastos"></div>
+                    </div>
+                  </div>             
+                  
+                  <br>
+
+                  <input type="hidden" name="limparComprovanteCache" id="limparComprovanteCache" value="false">
+                  <input type="hidden" name="limparComprovanteAjdCusto" id="limparComprovanteAjdCusto" value="false">
+                  <input type="hidden" name="limparComprovanteAjdCusto2" id="limparComprovanteAjdCusto2" value="false">
+                  <input type="hidden" name="limparComprovanteCaixinha" id="limparComprovanteCaixinha" value="false">
+
+                </div>
+                <div id="containerObsPosPgto" class="collumn container-obs-pos">
+                    <h5>Histórico de Alterações Pós-Pagamento (Automático)</h5>
+                    <textarea id="obsPosPgto" name="obspospgto" class="obs-textarea-auto" rows="4" readonly 
+                        placeholder="O sistema registrará aqui as alterações automáticas..."></textarea>
+                </div>
                 <br>
               </fieldset>
             </div>

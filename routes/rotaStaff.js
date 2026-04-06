@@ -471,6 +471,143 @@ router.post("/orcamento/consultar",
     }
 );
 
+// router.post("/orcamento/consultar",
+//   async (req, res) => {
+//   console.log("Dados recebidos no backend:", req.body);
+//   const client = await pool.connect();
+//   try {
+//         const {
+//             idEvento,
+//             idCliente, // Recebido do frontend mas não usado no WHERE (evita bug de race condition)
+//             idLocalMontagem,
+//             idFuncao,
+//             setor,
+//             datasEvento = [],
+//         } = req.body;
+ 
+//         const idempresa = req.idempresa;
+ 
+//         console.log("ORCAMENTO/CONSULTAR", req.body);
+ 
+//         if (!idEvento || !idLocalMontagem || !idFuncao) {
+//             return res.status(400).json({ 
+//                 error: "Evento, Local e Função são obrigatórios." 
+//             });
+//         }
+ 
+//         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
+//             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
+//         }
+ 
+//         // CORREÇÃO: idCliente removido do WHERE pois o frontend pode enviar o valor
+//         // de um modal anterior (race condition entre prefill e carregamento do select).
+//         // idEvento + idLocalMontagem + idEmpresa + idFuncao já identificam o orçamento unicamente.
+//         const query = `
+//             WITH datas_orcamento AS (
+//                 SELECT
+//                     oi.idorcamentoitem,
+//                     ARRAY(
+//                         SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+//                     ) AS periodos_disponiveis
+//                 FROM orcamentoitens oi
+//                 WHERE oi.idorcamentoitem IS NOT NULL
+//             )
+//             SELECT
+//                 o.status, o.idorcamento, o.contratarstaff,
+//                 o.idcliente,
+//                 dto.periodos_disponiveis AS datas_totais_orcadas,
+ 
+//                 oi.qtditens AS quantidade_orcada,
+//                 oi.idfuncao,
+//                 f.descfuncao,
+//                 e.nmevento,
+//                 c.nmfantasia AS nmcliente,
+//                 lm.descmontagem AS nmlocalmontagem,
+//                 oi.setor AS setor,
+//                 (
+//                     SELECT COUNT(DISTINCT se.idfuncionario)
+//                     FROM staffeventos se
+//                     WHERE
+//                         se.idevento = o.idevento
+//                         AND se.idcliente = o.idcliente
+//                         AND se.idmontagem = o.idmontagem
+//                         AND se.idfuncao = oi.idfuncao
+//                         -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($4)
+//                         AND se.datasevento @> to_jsonb($4::text[])
+//                 ) AS quantidade_escalada
+//             FROM
+//                 orcamentoitens oi
+//             JOIN
+//                 orcamentos o ON oi.idorcamento = o.idorcamento
+//             JOIN
+//                 orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//             LEFT JOIN
+//                 funcao f ON oi.idfuncao = f.idfuncao
+//             LEFT JOIN
+//                 eventos e ON o.idevento = e.idevento
+//             LEFT JOIN
+//                 clientes c ON o.idcliente = c.idcliente
+//             LEFT JOIN
+//                 localmontagem lm ON o.idmontagem = lm.idmontagem
+//             JOIN
+//                 datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+//             WHERE
+//                 oe.idempresa = $1
+//                 AND o.idevento = $2
+//                 AND o.idmontagem = $3
+//                 -- idCliente removido do WHERE: era fonte de bug quando o frontend
+//                 -- enviava o ID de um cliente de sessão anterior (race condition).
+//                 AND oi.idfuncao = $5
+//                 AND (oi.setor = $6 OR $6 IS NULL OR $6 = '' OR oi.setor IS NULL OR oi.setor = '')
+//                 AND dto.periodos_disponiveis && $4::date[]
+//             GROUP BY
+//                 oi.idorcamentoitem,
+//                 f.descfuncao,
+//                 e.nmevento,
+//                 c.nmfantasia,
+//                 lm.descmontagem,
+//                 oi.setor,
+//                 o.idevento,
+//                 o.idcliente,
+//                 o.idmontagem,
+//                 oi.idfuncao,
+//                 o.status,
+//                 o.idorcamento,
+//                 oi.qtditens,
+//                 o.contratarstaff,
+//                 dto.periodos_disponiveis
+//             ORDER BY
+//                 oi.idorcamentoitem;
+//         `;
+ 
+//         console.log("QUERY", query);
+//         const values = [
+//             idempresa,       // $1
+//             idEvento,        // $2
+//             idLocalMontagem, // $3 (era $4, idCliente removido)
+//             datasEvento,     // $4 (era $5)
+//             idFuncao,        // $5 (era $6)
+//             setor || null    // $6 (era $7)
+//         ];
+ 
+//         const result = await client.query(query, values);
+//         const orcamentoItems = result.rows;
+//         // console.log("📊 LINHAS ENCONTRADAS PELO BANCO:", orcamentoItems);
+ 
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null;
+ 
+//         res.status(200).json(orcamentoItems);
+//        } catch (error) {
+//         console.error("Erro ao buscar itens de orçamento por critérios:", error);
+//         res.status(500).json({
+//             error: "Erro ao buscar orçamento por critérios.",
+//             detail: error.message,
+//         });
+//        } finally {
+//         client.release();
+//       }
+//     });
 
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-duplicate acessada");
@@ -735,6 +872,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           s.idstaff,
           s.avaliacao,
           se.statuscustofechado,
+          se.obspospgto,
           se.desccustofechado,
           (
             SELECT jsonb_agg(elem ORDER BY elem::date)
@@ -854,23 +992,49 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             try {
                 // Ajustar a query para buscar o registro de staffeventos
                 // Incluímos o JOIN com staffempresas para verificar a posse da empresa
+                // const result = await pool.query(
+                //     `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
+                //             se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
+                //     FROM staffeventos se
+                //     INNER JOIN staff s ON se.idfuncionario = s.idfuncionario
+                //     INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
+                //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                //     [idstaffEvento, idempresa]
+                // );
+
+                // const result = await pool.query(
+                //     `SELECT se.* FROM staffeventos se
+                //     INNER JOIN staffempresas sme ON se.idstaff = sme.idstaff
+                //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
+                //     [idstaffEvento, idempresa]
+                // );
+
                 const result = await pool.query(
-                    `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
-                            se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
-                    FROM staffeventos se
-                    INNER JOIN staff s ON se.idfuncionario = s.idstaff
-                    INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
-                    WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                    `SELECT se.* FROM staffeventos se
+                    WHERE se.idstaffevento = $1 
+                    AND EXISTS (
+                        SELECT 1 FROM staffempresas sme 
+                        WHERE sme.idstaff = se.idstaff 
+                        AND sme.idempresa = $2
+                    )`, 
                     [idstaffEvento, idempresa]
                 );
                 const linha = result.rows[0] || null;
+
+                if (!linha) {
+                    console.warn(`⚠️ LogMiddleware: Nenhum dado anterior encontrado para ID ${idstaffEvento}`);
+                }
+
+                const dadosLimpos = linha ? JSON.parse(JSON.stringify(linha)) : null;
+                console.log("DADOS ANTERIORES:", linha);
                 return {
-                    dadosanteriores: linha,
-                    idregistroalterado: linha?.idstaffevento || null
+                    dadosanteriores: dadosLimpos,
+                    //idregistroalterado: linha?.idstaffevento || null
+                    idregistroalterado: idstaffEvento
                 };
             } catch (error) {
                 console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
-                return { dadosanteriores: null, idregistroalterado: null };
+                return { dadosanteriores: null, idregistroalterado: idstaffEvento };
             }
         }
     }),
@@ -879,6 +1043,8 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
         const idempresa = req.idempresa;
         const idUsuarioLogado = req.usuario.idusuario;
         const body = req.body;
+
+        console.log("BODY DO PUT STAFF", req.body);
 
         let client;
         try {
@@ -917,12 +1083,18 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
                 comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
                 nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, statuscustofechado = $46, desccustofechado = $47
+                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, 
+                statuscustofechado = $46, desccustofechado = $47, obspospgto = $48
                 FROM staffempresas sme
-                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $48 AND sme.idempresa = $49
+                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $49 AND sme.idempresa = $50
                 RETURNING se.idstaffevento;
             `;
 
+            const diariaDobradaFinal = typeof body.datadiariadobrada === 'string' 
+                ? body.datadiariadobrada 
+                : JSON.stringify(body.datadiariadobrada);
+
+            console.log("DEBUG DIARIA DOBRADA FINAL:", diariaDobradaFinal);
 
             const values = [
                 body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
@@ -938,6 +1110,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                 body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
                 parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado, body.desccustofechado,
+                body.obspospgto,
                 idStaffEvento, idempresa
             ];
 
@@ -987,8 +1160,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
             res.locals.acao = 'atualizou';
             res.locals.idregistroalterado = idStaffEvento;
             res.locals.dadosnovos = dadosParaLog;
+            res.locals.dadosanteriores = JSON.parse(JSON.stringify(old));
 
-            res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
+            res.json({ message: "Atualizado", id: idStaffEvento});
         } catch (e) {
             if (client) await client.query('ROLLBACK');
             res.status(500).json({ error: e.message });
@@ -1077,7 +1251,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto
     } = req.body;
 
     let client;
@@ -1118,9 +1292,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado
+                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto
             ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49
             ) RETURNING idstaffevento;
         `;
 
@@ -1138,7 +1312,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado
+            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -1173,10 +1347,19 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         await client.query('COMMIT');
 
-        // ✅ LOG E RESPOSTA
         res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = novoIdStaffEvento;
-        res.locals.dadosnovos = { ...body, idstaffevento: novoIdStaffEvento };
+        res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
+        res.locals.dadosnovos = {...req.body,
+            idstaffevento: resIns.rows[0].idstaffevento,
+            ...req.body, // 👈 Isso espalha TODAS as informações enviadas no corpo da requisição
+            datasevento: datasArray, // Garante o array tratado e não a string crua do FormData
+            comprovantes: { // Salva os caminhos exatos dos arquivos gerados, se existirem
+                comppgtocache: req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
+                comppgtoajdcusto: req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
+                comppgtocaixinha: req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
+                comppgtoajdcusto50: req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null
+            }
+        };
 
         res.status(201).json({ sucesso: true, message: "Sucesso", idstaffevento: novoIdStaffEvento });
 
@@ -1377,7 +1560,7 @@ router.post('/aditivoextra/solicitacao',
     const idUsuarioSolicitante = req.usuario?.idusuario; 
     const statusInicial = 'Pendente';
 
-    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
+   const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
       ? JSON.stringify(dataSolicitada.split(',').map(d => d.trim()))
       : null;
 
@@ -1400,17 +1583,26 @@ router.post('/aditivoextra/solicitacao',
       return res.status(400).json({ sucesso: false, erro: `O campo obrigatório **${campoFaltante}** está faltando.` });
     }
 
+    // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
+    // const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
+    // const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
+    //     ? dataTratada 
+    //     : null;
+
+    // 4. Verificação de Duplicidade (CORRIGIDA)
     try {
-      // Verificação de Duplicidade
-      const checkDuplicidade = await pool.query(`
-        SELECT idsolicitacao FROM solicitacoes 
-        WHERE idorcamento = $1 
-          AND idfuncionario = $2 
-          AND idfuncao = $3 
-          AND tiposolicitacao = $4 
-          AND idempresa = $5
-          AND status = 'Pendente'
-      `, [idOrcamento, idFuncionarioTratado, idFuncao, tipoSolicitacao, idEmpresaContexto]);
+        const checkDuplicidade = await pool.query(`
+            SELECT idAditivoExtra FROM AditivoExtra 
+            WHERE idOrcamento = $1 
+              AND idFuncionario = $2 
+              AND idFuncao = $3 
+              AND tipoSolicitacao = $4 
+              --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
+              --AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND (dtsolicitada && $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND idEmpresa = $6
+              AND status = 'Pendente'
+        `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
 
       if (checkDuplicidade.rows.length > 0) {
         return res.status(409).json({ sucesso: false, erro: "Já existe uma solicitação pendente idêntica." });
@@ -1711,4 +1903,5 @@ router.get('/aditivoextra/verificar-status',
         }
     }
 );
+
 module.exports = router;
