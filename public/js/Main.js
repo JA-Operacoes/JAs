@@ -7093,178 +7093,324 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 // Removemos as buscas antigas de botaoFoco e botaoFechar daqui!
 
-header.onclick = (e) => {
-    const botaoFoco = header.querySelector(".btn-foco-evento");
-    const clicouNoFoco = e.target.closest(".btn-foco-evento");
+                header.onclick = (e) => {
+                    const botaoFoco = header.querySelector(".btn-foco-evento");
+                    const clicouNoFoco = e.target.closest(".btn-foco-evento");
 
-    // =========================================================================
-    // CASO 1: USUÁRIO CLICOU NO BOTÃO "FOCAR"
-    // =========================================================================
-    if (clicouNoFoco) {
-        e.stopPropagation(); // Impede de fechar o accordion ao focar
-        
-        // Se por acaso o botão estiver invisível ou desabilitado, não faz nada
-        if (botaoFoco && (botaoFoco.style.display === "none" || botaoFoco.disabled)) return; 
-        
-        item.classList.add("modo-tela-cheia");
+                    // =========================================================================
+                    // CASO 1: USUÁRIO CLICOU NO BOTÃO "FOCAR"
+                    // =========================================================================
+                    // if (clicouNoFoco) {
+                    //         e.stopPropagation(); 
+                            
+                    //         item.classList.add("modo-tela-cheia");
 
-        const resumo = document.querySelector(".resumo-detalhado");
-        const valoresResumo = document.getElementById("valores-resumo");
-        const mestreContas = document.getElementById("btn-mestre-contas");
-        const wrapperContas = document.getElementById("wrapper-contas");
-        const mestreHeader = document.querySelector(".accordion-mestre-header");
+                    //         // 1. CAPTURA O NOME DO EVENTO (Lógica de limpeza para não pegar badges)
+                    //         const tituloElemento = item.querySelector(".accordion-title") || item.querySelector("h3") || item.querySelector("h4");
+                    //         let nomeEvento = "Detalhes do Evento";
+                            
+                    //         if (tituloElemento) {
+                    //             // Clonamos para limpar spans e botões antes de pegar o texto
+                    //             const clone = tituloElemento.cloneNode(true);
+                    //             clone.querySelectorAll('button, .badge, .status-badge, .btn-foco-evento, span[style*="background"]').forEach(el => el.remove());
+                    //             nomeEvento = clone.innerText.trim();
+                    //         }
 
-        if (resumo) resumo.style.display = "none";
-        if (valoresResumo) valoresResumo.style.display = "none";
-        if (mestreContas) mestreContas.style.display = "none";
-        if (wrapperContas) wrapperContas.style.display = "none";
-        if (mestreHeader) mestreHeader.style.display = "none";
-        
-        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
-            if (outro !== item) outro.style.display = "none";
-        });
+                    //         // 2. BUSCA OU CRIA O ELEMENTO DE TÍTULO NA BARRA FIXA
+                    //         let barraTitulo = header.querySelector(".titulo-tela-cheia");
+                    //         if (!barraTitulo) {
+                    //             barraTitulo = document.createElement("span");
+                    //             barraTitulo.className = "titulo-tela-cheia";
+                    //             header.insertBefore(barraTitulo, header.firstChild);
+                    //         }
+                            
+                    //         // Estilização do Título na barra
+                    //         Object.assign(barraTitulo.style, {
+                    //             display: "inline-block",
+                    //             fontSize: "18px",
+                    //             fontWeight: "bold",
+                    //             marginLeft: "15px",
+                    //             verticalAlign: "middle",
+                    //             color: "#333"
+                    //         });
 
-        // ---------------------------------------------------------
-        // CRIAÇÃO DINÂMICA DO BOTÃO VOLTAR (Posição Segura)
-        // ---------------------------------------------------------
-        const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
-        if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
+                    //         barraTitulo.innerText = nomeEvento;
 
-        const botaoVoltar = document.createElement("button");
-        botaoVoltar.id = "botao-voltar-fixo";
-        botaoVoltar.innerHTML = "✕ Voltar para a Lista";
-        
-        Object.assign(botaoVoltar.style, {
-            position: "fixed",
-            top: "100px", 
-            right: "20px",
-            zIndex: "9999", 
-            padding: "10px 20px",
-            background: "#dc3545",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize: "14px",
-            boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
-            transition: "background 0.2s"
-        });
+                    //         // 3. ESCONDE ELEMENTOS GERAIS
+                    //         const resumo = document.querySelector(".resumo-detalhado");
+                    //         const valoresResumo = document.getElementById("valores-resumo");
+                    //         const mestreContas = document.getElementById("btn-mestre-contas");
+                    //         const wrapperContas = document.getElementById("wrapper-contas");
+                    //         const mestreHeader = document.querySelector(".accordion-mestre-header");
 
-        botaoVoltar.onmouseover = () => botaoVoltar.style.background = "#bd2130";
-        botaoVoltar.onmouseout = () => botaoVoltar.style.background = "#dc3545";
+                    //         if (resumo) resumo.style.display = "none";
+                    //         if (valoresResumo) valoresResumo.style.display = "none";
+                    //         if (mestreContas) mestreContas.style.display = "none";
+                    //         if (wrapperContas) wrapperContas.style.display = "none";
+                    //         if (mestreHeader) mestreHeader.style.display = "none";
+                            
+                    //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                    //             if (outro !== item) outro.style.display = "none";
+                    //         });
 
-        botaoVoltar.onclick = (e) => {
-            e.stopPropagation(); 
-            
-            item.classList.remove("modo-tela-cheia");
+                    //         // 4. CRIAÇÃO DO BOTÃO VOLTAR (Mantendo sua posição e cor original)
+                    //         const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
+                    //         if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
 
-            if (resumo) resumo.style.display = "";
-            if (valoresResumo) valoresResumo.style.display = "";
-            if (mestreContas) mestreContas.style.display = "";
-            if (wrapperContas) wrapperContas.style.display = "";
-            if (mestreHeader) mestreHeader.style.display = "";
-            
-            const filtroAtivo = window._filtroEventosAtivo || 'todos';
-            wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
-                const statusDoItem = outro.getAttribute("data-status-filtro");
-                const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
-                outro.style.display = deveAparecer ? "block" : "none";
-            });
+                    //         const botaoVoltar = document.createElement("button");
+                    //         botaoVoltar.id = "botao-voltar-fixo";
+                    //         botaoVoltar.innerHTML = "✕ Voltar para a Lista";
+                            
+                    //         Object.assign(botaoVoltar.style, {
+                    //             position: "fixed",
+                    //             top: "100px",
+                    //             right: "20px",
+                    //             zIndex: "9999",
+                    //             padding: "10px 20px",
+                    //             background: "#dc3545", // Sua cor original
+                    //             color: "white",
+                    //             border: "none",
+                    //             borderRadius: "5px",
+                    //             cursor: "pointer",
+                    //             fontWeight: "bold",
+                    //             fontSize: "14px",
+                    //             boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
+                    //             transition: "background 0.2s"
+                    //         });
 
-            // Reexibe o botão "Focar" original (já que voltamos para o modo normal com o card aberto)
-            if (botaoFoco) botaoFoco.style.display = "inline-block";
-            
-            botaoVoltar.remove();
-        };
+                    //         botaoVoltar.onmouseover = () => botaoVoltar.style.background = "#bd2130";
+                    //         botaoVoltar.onmouseout = () => botaoVoltar.style.background = "#dc3545";
 
-        document.body.appendChild(botaoVoltar);
-        
-        // Esconde o botão focar enquanto estiver em tela cheia
-        if (botaoFoco) botaoFoco.style.display = "none";
-        
-        return;
-    }
+                    //         botaoVoltar.onclick = (e) => {
+                    //             e.stopPropagation();
+                    //             item.classList.remove("modo-tela-cheia");
+                    //             if (barraTitulo) barraTitulo.style.display = "none";
 
-    // =========================================================================
-    // CASO 2: CLIQUE NORMAL NO HEADER (ABRIR / FECHAR ACCORDION)
-    // =========================================================================
-    const estaAbrindo = !item.classList.contains("active");                   
+                    //             if (resumo) resumo.style.display = "";
+                    //             if (valoresResumo) valoresResumo.style.display = "";
+                    //             if (mestreContas) mestreContas.style.display = "";
+                    //             if (wrapperContas) wrapperContas.style.display = "";
+                    //             if (mestreHeader) mestreHeader.style.display = "";
+                                
+                    //             const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                    //             wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                    //                 const statusDoItem = outro.getAttribute("data-status-filtro");
+                    //                 const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                    //                 outro.style.display = deveAparecer ? "block" : "none";
+                    //             });
 
-if (estaAbrindo) {
-    // 1. ESCONDE OS OUTROS CARDS
-    wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
-        if (outro !== item) {
-            outro.classList.remove("active");
-            outro.classList.remove("foco-unico");
-            outro.style.display = "none"; 
-        }
-    });
+                    //             if (botaoFoco) botaoFoco.style.display = "inline-block";
+                    //             botaoVoltar.remove();
+                    //         };
 
-    // 2. ESCONDE OS RESUMOS GERAIS DA TELA
-    document.getElementById("valores-resumo")?.style.setProperty("display", "none");
-    document.getElementById("btn-mestre-contas")?.style.setProperty("display", "none");
-    document.getElementById("wrapper-contas")?.style.setProperty("display", "none");
-    document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "none");
+                    //         document.body.appendChild(botaoVoltar);
+                    //         if (botaoFoco) botaoFoco.style.display = "none";
+                            
+                    //         return;
+                    //     }
 
-    const conteudoGeral = document.getElementById("vencimentos-conteudo");
-    if (conteudoGeral) {
-        conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
-        conteudoGeral.style.maxHeight = "none";
-        conteudoGeral.style.overflow = "visible";
-    }
+                    if (clicouNoFoco) {
+                        e.stopPropagation();
 
-    // 3. ABRE O CARD ATUAL
-    item.classList.add("active");
-    item.classList.add("foco-unico");
+                        item.classList.add("modo-tela-cheia");
 
-    console.log("O que é o 'item'?", item);
-console.log("Achei o botão?", item.querySelector(".btn-foco-evento"));
+                        // 1. CAPTURA O NOME DO EVENTO
+                        const nomeEvento = header.querySelector(".evento-titulo-col strong")?.innerText?.trim() 
+                                        || "Detalhes do Evento";
 
-    const botaoFocoAtual = item.querySelector(".btn-foco-evento") || item.closest(".accordion-item")?.querySelector(".btn-foco-evento");
+                        console.log("Nome do Evento capturado para título de tela cheia:", nomeEvento);
 
-if (botaoFocoAtual) {
-    // Força o display inline-block
-    botaoFocoAtual.style.setProperty("display", "inline-block", "important");
-    // Se houver qualquer bloqueio de opacidade ou cursor antigo, limpamos aqui:
-    botaoFocoAtual.style.setProperty("opacity", "1", "important");
-    botaoFocoAtual.style.setProperty("cursor", "pointer", "important");
-    
-    // Se você estava usando o atributo 'disabled' no HTML antigo, remova-o:
-    botaoFocoAtual.removeAttribute("disabled");
-}
+                        // 2. CRIAÇÃO DA BARRA DE TÍTULO (COBRINDO O MENU ORIGINAL)
+                        let barraTopoFoco = document.getElementById("barra-topo-foco-evento");
+                        if (!barraTopoFoco) {
+                            barraTopoFoco = document.createElement("div");
+                            barraTopoFoco.id = "barra-topo-foco-evento";
+                            document.body.appendChild(barraTopoFoco);
+                        }
 
-} else {
-    // CASO O USUÁRIO CLIQUE PARA FECHAR O CARD
-    document.getElementById("valores-resumo")?.style.setProperty("display", "");
-    document.getElementById("btn-mestre-contas")?.style.setProperty("display", "");
-    document.getElementById("wrapper-contas")?.style.setProperty("display", "");
-    document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "");
+                        // Estilização para sobrepor o menu (Overlay)
+                        Object.assign(barraTopoFoco.style, {
+                            position: "fixed",
+                            top: "0",
+                            left: "0",
+                            width: "100%",
+                            height: "90px", // Aumentamos um pouco para cobrir os ícones totalmente
+                            backgroundColor: "var(--primary-color, #611414)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: "99999", // Valor extremo para garantir que fique por cima de tudo
+                            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+                            margin: "0",
+                            padding: "0"
+                        });
 
-    const filtroAtivo = window._filtroEventosAtivo || 'todos';
-    wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
-        outro.classList.remove("foco-unico");
-        const statusDoItem = outro.getAttribute("data-status-filtro");
-        const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
-        outro.style.display = deveAparecer ? "block" : "none";
-    });
+                        // Título em branco para contraste no fundo escuro
+                        barraTopoFoco.innerHTML = `<h2 style="margin:0; font-size:18px; color:#ffffff; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">${nomeEvento}</h2>`;
+                        barraTopoFoco.style.display = "flex";
 
-    const conteudoGeral = document.getElementById("vencimentos-conteudo");
-    if (conteudoGeral) {
-        conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
-        conteudoGeral.style.overflow = "";
-    }
+                        // 3. ESCONDE ELEMENTOS GERAIS DA TELA
+                        const resumo = document.querySelector(".resumo-detalhado");
+                        const valoresResumo = document.getElementById("valores-resumo");
+                        const mestreContas = document.getElementById("btn-mestre-contas");
+                        const wrapperContas = document.getElementById("wrapper-contas");
+                        const mestreHeader = document.querySelector(".accordion-mestre-header");
 
-    item.classList.remove("active");
-    item.classList.remove("foco-unico");
+                        if (resumo) resumo.style.display = "none";
+                        if (valoresResumo) valoresResumo.style.display = "none";
+                        if (mestreContas) mestreContas.style.display = "none";
+                        if (wrapperContas) wrapperContas.style.display = "none";
+                        if (mestreHeader) mestreHeader.style.display = "none";
 
-    // SE FECHOU O CARD, ESCONDE O BOTÃO DELE NOVAMENTE
-    const botaoFocoAtual = item.querySelector(".btn-foco-evento");
-    if (botaoFocoAtual) {
-        botaoFocoAtual.style.setProperty("display", "none", "important");
-    }
-}
-};
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            if (outro !== item) outro.style.display = "none";
+                        });
+
+                        // 4. BOTÃO VOLTAR (Posicionado sobre a nova barra)
+                        const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
+                        if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
+
+                        const botaoVoltar = document.createElement("button");
+                        botaoVoltar.id = "botao-voltar-fixo";
+                        botaoVoltar.innerHTML = '<i class="fas fa-times" style="font-size:12px;"></i> VOLTAR';
+
+                        Object.assign(botaoVoltar.style, {
+                            position: "fixed",
+                            top: "18px", // Ajustado para a nova altura de 75px
+                            right: "20px",
+                            zIndex: "100000",
+                            padding: "8px 16px",
+                            background: "transparent",
+                            color: "white",
+                            border: "1px solid rgba(255,255,255,0.5)",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "bold",
+                            fontSize: "12px"
+                        });
+
+                        // Efeito visual ao passar o mouse
+                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "rgba(255,255,255,0.1)"; };
+                        botaoVoltar.onmouseout = () => { botaoVoltar.style.background = "transparent"; };
+
+                        // 5. LÓGICA DE FECHAMENTO (RESTAURAÇÃO)
+                        botaoVoltar.onclick = (e) => {
+                            e.stopPropagation();
+
+                            // Remove o modo tela cheia
+                            item.classList.remove("modo-tela-cheia");
+
+                            // Esconde a barra de cobertura e remove o botão
+                            if (barraTopoFoco) {
+                                barraTopoFoco.style.display = "none";
+                            }
+                            botaoVoltar.remove();
+
+                            // Restaura elementos globais
+                            if (resumo) resumo.style.display = "";
+                            if (valoresResumo) valoresResumo.style.display = "";
+                            if (mestreContas) mestreContas.style.display = "";
+                            if (wrapperContas) wrapperContas.style.display = "";
+                            if (mestreHeader) mestreHeader.style.display = "";
+
+                            // Restaura a lista respeitando o filtro ativo
+                            const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                            wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                                const statusDoItem = outro.getAttribute("data-status-filtro");
+                                const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                                outro.style.display = deveAparecer ? "block" : "none";
+                            });
+
+                            // Mostra o botão de foco original novamente
+                            if (botaoFoco) {
+                                botaoFoco.style.display = "inline-block";
+                            }
+                        };
+
+                        document.body.appendChild(botaoVoltar);
+                        
+                        // Oculta o botão que disparou o foco para limpar o visual
+                        if (botaoFoco) botaoFoco.style.display = "none";
+
+                        return;
+                    }
+
+                    // =========================================================================
+                    // CASO 2: CLIQUE NORMAL NO HEADER (ABRIR / FECHAR ACCORDION)
+                    // =========================================================================
+                    const estaAbrindo = !item.classList.contains("active");                   
+
+                    if (estaAbrindo) {
+                        // 1. ESCONDE OS OUTROS CARDS
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            if (outro !== item) {
+                                outro.classList.remove("active");
+                                outro.classList.remove("foco-unico");
+                                outro.style.display = "none"; 
+                            }
+                        });
+
+                        // 2. ESCONDE OS RESUMOS GERAIS DA TELA
+                        document.getElementById("valores-resumo")?.style.setProperty("display", "none");
+                        document.getElementById("btn-mestre-contas")?.style.setProperty("display", "none");
+                        document.getElementById("wrapper-contas")?.style.setProperty("display", "none");
+                        document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "none");
+
+                        const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                        if (conteudoGeral) {
+                            conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
+                            conteudoGeral.style.maxHeight = "none";
+                            conteudoGeral.style.overflow = "visible";
+                        }
+
+                        // 3. ABRE O CARD ATUAL
+                        item.classList.add("active");
+                        item.classList.add("foco-unico");                       
+
+                        const botaoFocoAtual = item.querySelector(".btn-foco-evento") || item.closest(".accordion-item")?.querySelector(".btn-foco-evento");
+
+                        if (botaoFocoAtual) {
+                            // Força o display inline-block
+                            botaoFocoAtual.style.setProperty("display", "inline-block", "important");
+                            // Se houver qualquer bloqueio de opacidade ou cursor antigo, limpamos aqui:
+                            botaoFocoAtual.style.setProperty("opacity", "1", "important");
+                            botaoFocoAtual.style.setProperty("cursor", "pointer", "important");
+                            
+                            // Se você estava usando o atributo 'disabled' no HTML antigo, remova-o:
+                            botaoFocoAtual.removeAttribute("disabled");
+                        }
+
+                    } else {
+                        // CASO O USUÁRIO CLIQUE PARA FECHAR O CARD
+                        document.getElementById("valores-resumo")?.style.setProperty("display", "");
+                        document.getElementById("btn-mestre-contas")?.style.setProperty("display", "");
+                        document.getElementById("wrapper-contas")?.style.setProperty("display", "");
+                        document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "");
+
+                        const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            outro.classList.remove("foco-unico");
+                            const statusDoItem = outro.getAttribute("data-status-filtro");
+                            const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                            outro.style.display = deveAparecer ? "block" : "none";
+                        });
+
+                        const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                        if (conteudoGeral) {
+                            conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
+                            conteudoGeral.style.overflow = "";
+                        }
+
+                        item.classList.remove("active");
+                        item.classList.remove("foco-unico");
+
+                        // SE FECHOU O CARD, ESCONDE O BOTÃO DELE NOVAMENTE
+                        const botaoFocoAtual = item.querySelector(".btn-foco-evento");
+                        if (botaoFocoAtual) {
+                            botaoFocoAtual.style.setProperty("display", "none", "important");
+                        }
+                    }
+                };
 
 
                 const body = document.createElement("div");
@@ -8233,20 +8379,40 @@ function criarAccordionVinculo(tipo, lista, hoje) {
         return (a.nome_vinculo || "").toLowerCase().localeCompare((b.nome_vinculo || "").toLowerCase());
     });
 
+    
     item.innerHTML = `
-        <button class="accordion-header">
-            <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <div class="evento-titulo-col" style="text-align: left;">
-                    <strong style="font-size: 19px;">${tipo}</strong>
-                    ${subStatusHtml}
-                </div>
-                <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
-                    <div class="fin-resumo-item orcado">
-                        <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
-                        <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
-                    </div>
-                </div>
+    <div class="accordion-header" style="cursor: pointer; display: flex; align-items: center; width: 100%;" tabindex="0">
+        <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; flex-grow: 1; align-items: center;">
+            <div class="evento-titulo-col" style="text-align: left;">
+                <strong style="font-size: 19px;">${tipo}</strong>
+                ${subStatusHtml}
             </div>
+            <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+                <div class="fin-resumo-item orcado">
+                    <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+                    <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
+                </div>                   
+            </div>
+        </div>
+        <button type="button" class="btn-foco-contas" style="
+            margin-left: 10px; 
+            padding: 6px 12px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; /* Estilo arredondado dos seus cards */
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 12px;
+            transition: background 0.3s;
+            display: none; /* Ele aparece apenas quando o accordion abre */
+            ">
+            <i class="fas fa-expand-arrows-alt" style="margin-right: 5px;"></i> Visualizar em Tela Cheia
+        </button>
+    </div>
+   
+
+               
         </button>
         <div class="accordion-body">
             <div class="funcionarios-scroll-container">
@@ -8378,8 +8544,162 @@ function criarAccordionVinculo(tipo, lista, hoje) {
     `;
 
     item.querySelector('.accordion-header').onclick = () => item.classList.toggle("active");
+
+    // 1. Referências (Importante: buscar após o innerHTML ser injetado)
+    const header = item.querySelector('.accordion-header');
+    const corpo = item.querySelector('.accordion-body');
+    const btnFoco = item.querySelector('.btn-foco-contas');
+
+    // 2. Função de visibilidade
+    const atualizarBotaoFoco = () => {
+        if (item.classList.contains("active")) {
+            btnFoco.style.setProperty('display', 'inline-block', 'important');
+        } else {
+            btnFoco.style.display = "none";
+        }
+    };
+
+    // 3. Evento Único
+    header.onclick = (e) => {
+     
+        const clicouNoBotaoTelaCheia = e.target.closest('.btn-foco-contas');
+
+        if (clicouNoBotaoTelaCheia) {
+            e.stopPropagation();
+
+            document.body.style.overflow = "hidden";
+
+            // 1. Identifica o título da conta (ajustado para o seu HTML de fornecedores)
+            const nomeConta = item.querySelector("strong")?.innerText?.trim() || "Detalhes da Conta";
+
+            // 2. Barra de Topo
+            let barraTopoFoco = document.getElementById("barra-topo-foco-evento");
+            if (!barraTopoFoco) {
+                barraTopoFoco = document.createElement("div");
+                barraTopoFoco.id = "barra-topo-foco-evento";
+                document.body.appendChild(barraTopoFoco);
+            }
+
+            Object.assign(barraTopoFoco.style, {
+                position: "fixed", top: "0", left: "0", width: "100%", height: "90px",
+                backgroundColor: "var(--primary-color, #611414)", display: "flex", alignItems: "center",
+                justifyContent: "center", zIndex: "99999", boxShadow: "0 2px 10px rgba(0,0,0,0.5)"
+            });
+            barraTopoFoco.innerHTML = `<h2 style="margin:0; font-size:18px; color:#ffffff; font-weight:bold;">${nomeConta}</h2>`;
+            barraTopoFoco.style.display = "flex";
+
+            // 3. ESCONDE O QUE ESTÁ FORA (Mas NÃO o wrapper-contas)
+            const externos = [".resumo-detalhado", "#valores-resumo", "#btn-mestre-contas", ".accordion-mestre-header", ".sidebar"];
+            externos.forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) el.style.display = "none";
+            });
+
+            // 4. ESCONDE OS OUTROS CARDS (Irmãos)
+            const containerPai = item.parentElement;
+            containerPai.querySelectorAll(".accordion-item").forEach(outro => {
+                if (outro !== item) {
+                    outro.style.display = "none";
+                }
+            });
+
+            // 5. EXIBE OS DETALHES (O "CORPO")
+            item.classList.add("modo-tela-cheia", "active"); // Força o active para o CSS abrir o corpo
+      
+            if (corpo) {
+                // 1. Identifica os pais que podem estar limitando o tamanho
+                const containerGeral = document.getElementById("vencimentos-conteudo");
+                const accordionItem = corpo.closest('.accordion-item');
+
+                // 2. Limpa as "travas" de altura nos níveis superiores
+                [containerGeral, accordionItem].forEach(el => {
+                    if (el) {
+                        el.style.setProperty("max-height", "none", "important");
+                        el.style.setProperty("height", "auto", "important");
+                        el.style.setProperty("overflow", "visible", "important");
+                    }
+                });
+
+                // 3. Aplica a Expansão Real no Corpo
+                Object.assign(corpo.style, {
+                    display: "block",
+                    position: "fixed", 
+                    top: "90px",            // Ajuste conforme sua barra superior
+                    left: "0",
+                    width: "100vw",
+                    height: "calc(100vh - 90px)", 
+                    backgroundColor: "#fff",
+                    zIndex: "99998",        // Garante que fique acima do dashboard
+                    overflowY: "auto",      // O scroll PRECISA acontecer aqui
+                    overflowX: "hidden",
+                    padding: "15px"
+                });
+
+                // 4. Força a visibilidade da tabela e remove o "dirty checking" visual
+                const tabela = corpo.querySelector('table');
+                if (tabela) {
+                    tabela.style.setProperty("width", "100%", "important");
+                    tabela.style.setProperty("height", "auto", "important");
+                    tabela.style.setProperty("display", "table", "important");
+                    tabela.style.marginBottom = "100px"; 
+                }
+            }
+
+            // 6. BOTÃO VOLTAR
+            const botaoVoltar = document.createElement("button");
+            botaoVoltar.innerHTML = '✕ FECHAR';
+            Object.assign(botaoVoltar.style, {
+                position: "fixed", top: "25px", right: "20px", zIndex: "100000",
+                padding: "8px 20px", background: "white", color: "#611414",
+                border: "none", borderRadius: "20px", cursor: "pointer", fontWeight: "bold"
+            });
+
+            botaoVoltar.onclick = (ev) => {
+                ev.stopPropagation();
+                document.body.style.overflow = "";
+                item.classList.remove("modo-tela-cheia");
+                if (corpo) corpo.style = ""; 
+                barraTopoFoco.style.display = "none";
+                botaoVoltar.remove();
+
+                // Restaura tudo
+                externos.forEach(sel => {
+                    const el = document.querySelector(sel);
+                    if (el) el.style.display = "";
+                });
+                containerPai.querySelectorAll(".accordion-item").forEach(outro => {
+                    outro.style.display = "";
+                });
+            };
+            document.body.appendChild(botaoVoltar);
+
+        }  else {
+            // === CASO: CLIQUE NORMAL (ABRIR/FECHAR) ===
+            item.classList.toggle("active");
+            
+            // Captura o botão azul dentro deste item específico
+            const btnFoco = item.querySelector('.btn-foco-evento') || item.querySelector('.btn-foco-contas');
+            
+            if (btnFoco) {
+                // Se o card está aberto (active), o botão PRECISA aparecer
+                if (item.classList.contains("active")) {
+                    btnFoco.style.setProperty("display", "inline-block", "important");
+                    btnFoco.style.setProperty("visibility", "visible", "important");
+                    btnFoco.style.setProperty("opacity", "1", "important");
+                } else {
+                    btnFoco.style.display = "none";
+                }
+            }
+        }
+    }
     return item;
+
+
 }
+
+
+
+
 
 function aplicarFiltrosFinanceiros() {
     const empresaSel = document.querySelector("#select-empresa-pagadora")?.value || "todas";

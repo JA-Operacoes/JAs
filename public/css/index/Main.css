@@ -599,7 +599,7 @@ button#btnVoltarorc {
 }
 
 .accordion-item.foco-unico .funcionarios-scroll-container {
-    max-height: calc(100vh - 420px);
+    max-height: calc(100vh - 20px);
 }
 
 .valor-container {
@@ -2729,6 +2729,7 @@ body.dark .indicador-evento {
   background-color: #fff;
   display: none; /* Esconde por padrão */
 }
+
 .accordion-item.active .accordion-body {
   display: flex !important;
   flex-direction: column;
@@ -3321,4 +3322,10 @@ display: none;
     display: inline-block !important;
     opacity: 1 !important;
     visibility: visible !important;
+}
+
+.modo-tela-cheia .funcionarios-scroll-container {
+    max-height: none !important; /* Remove o limite de 300px */
+    height: auto !important;
+    border: none; /* Opcional: limpa a borda para ficar mais clean */
 }
