@@ -2579,6 +2579,7 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
     }), async (req, res) => {
     // Extraímos os dados enviados pelo frontend
     const { idPagamento, tipo } = req.body;
+    const idempresa = req.idempresa;
 
     console.log(`[UPLOAD] Iniciando processamento. Tipo: ${tipo} | ID: ${idPagamento}`);
     
@@ -2624,9 +2625,16 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         res.locals.dadosnovos = result.rows[0]; 
 
         // 6. Retorno de sucesso para o frontend
+        // res.json({ 
+        //     success: true, 
+        //     path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
+        //     colunaDestino: coluna 
+        // });
+
         res.json({ 
             success: true, 
-            path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
+            // Ajuste o prefixo conforme sua estrutura de pastas (ex: /uploads/contas/)
+            path: `/uploads/contas/${nomeArquivoNoBanco}`, 
             colunaDestino: coluna 
         });
 

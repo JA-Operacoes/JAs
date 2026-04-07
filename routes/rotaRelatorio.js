@@ -1309,8 +1309,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 VALUES 
                                     (-48, 'Segunda Carnaval'),
                                     (-47, 'Terça Carnaval'),
-                                    (-2,  'Sexta Santa'),
-                                    (0,   'Páscoa'),
+                                    --(-2,  'Sexta Santa'),
+                                    --(0,   'Páscoa'),
                                     (60,  'Corpus Christi')
                             ) AS m(deslocamento, nome)
 
@@ -1542,8 +1542,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 VALUES 
                                     (-48, 'Segunda Carnaval'),
                                     (-47, 'Terça Carnaval'),
-                                    (-2,  'Sexta Santa'),
-                                    (0,   'Páscoa'),
+                                    --(-2,  'Sexta Santa'),
+                                    --(0,   'Páscoa'),
                                     (60,  'Corpus Christi')
                             ) AS m(deslocamento, nome)
 
@@ -1669,8 +1669,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     VALUES 
                                         (-48, 'Segunda Carnaval'),
                                         (-47, 'Terça Carnaval'),
-                                        (-2,  'Sexta Santa'),
-                                        (0,   'Páscoa'),
+                                     --(-2,  'Sexta Santa'),
+                                        --(0,   'Páscoa'),
                                         (60,  'Corpus Christi')
                                 ) AS m(deslocamento, nome)
 
