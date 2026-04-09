@@ -85,10 +85,10 @@ router.get('/orcamento', async (req,res)=>{
     if(!eventoId || !clienteId) return res.status(400).json({erro:"eventoId e clienteId obrigatórios"});
     try {
         const result = await db.query(`
-            SELECT idorcamento, nrorcamento, status, nomenclatura
+            SELECT idorcamento, nrorcamento, status, nomenclatura, edicao
             FROM orcamentos
             WHERE idevento = $1 AND idcliente = $2
-            ORDER BY datacriacao DESC
+            ORDER BY edicao DESC, datacriacao DESC
         `,[eventoId, clienteId]);
         res.json(result.rows);
     } catch(err){ res.status(500).json({erro:"Erro ao buscar orçamentos"});}
