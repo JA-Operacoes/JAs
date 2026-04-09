@@ -2677,7 +2677,7 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
-    let linha = linhaFornecida || select.closest('tr');
+    // let linha = linhaFornecida || select.closest('tr');
 
     // Plano B: Se o select estiver dentro de um componente customizado que esconde o original
     if (!linha) {
@@ -2709,14 +2709,14 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     // Captura de dados com Fallback para evitar erros de undefined
     let valorSelecionado = selectedOption.value;
-    let produtoSelecionado = selectedOption.getAttribute("data-descproduto") || "";
-    let vlrCusto = selectedOption.getAttribute("data-cto") || "0";
-    let vlrVenda = selectedOption.getAttribute("data-vda") || "0";
+    // let produtoSelecionado = selectedOption.getAttribute("data-descproduto") || "";
+    // let vlrCusto = selectedOption.getAttribute("data-cto") || "0";
+    // let vlrVenda = selectedOption.getAttribute("data-vda") || "0";
     
-    // Garantindo que Categoria e Ajudas existam no escopo
-    let Categoria = selectedOption.getAttribute("data-categoria") || "Produto(s)";
-    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-vlr_alimentacao")) || 0;
-    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-vlr_transporte")) || 0;
+    // // Garantindo que Categoria e Ajudas existam no escopo
+    // let Categoria = selectedOption.getAttribute("data-categoria") || "Produto(s)";
+    // let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-vlr_alimentacao")) || 0;
+    // let vlrTransporte = parseFloat(selectedOption.getAttribute("data-vlr_transporte")) || 0;
 
     let produtoSelecionado = selectedOption.getAttribute("data-descproduto") || "";
     let vlrCusto = selectedOption.getAttribute("data-cto") || "0";

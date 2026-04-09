@@ -2244,4 +2244,35 @@ router.get('/equipe', autenticarToken(), async (req, res) => {
     }
 });
 
+router.get('/empresas/:id', autenticarToken(), async (req, res) => {
+    const idusuario = req.usuario.idusuario;
+    const idempresa = req.params.id;
+    try {
+        const idusuario = req.usuario.idusuario;
+        const idempresa = req.idempresa;
+
+        const query = `
+            SELECT e.idempresa, e.nmfantasia, e.razaosocial
+            FROM empresas e
+            INNER JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
+            WHERE ue.idusuario = $1 
+              AND e.idempresa = $2
+              AND e.ativo = true
+        `;
+
+        const { rows } = await pool.query(query, [idusuario, idempresa]);
+
+        if (rows.length === 0) {
+            return res.status(403).json({ 
+                error: "Acesso negado: Você não possui vínculo ativo com esta empresa." 
+            });
+        }
+
+        return res.json(rows[0]);
+    } catch (err) {
+        console.error("❌ Erro ao buscar empresa:", err);
+        return res.status(500).json({ error: "Erro interno ao validar acesso à empresa." });
+    }
+});
+
 module.exports = router;

@@ -1,5 +1,4 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
-
 let empresaLogoPath = 'http://localhost:3000/img/JA_Oper.png';
 
 function inicializarDadosEmpresa() {
@@ -8,7 +7,7 @@ function inicializarDadosEmpresa() {
     console.log("ID da empresa obtido do localStorage:", idempresa);
 
     if (idempresa) {
-        const apiUrl = `/empresas/${idempresa}`;
+        const apiUrl = `/relatorios/empresas/${idempresa}`;
 
         fetchComToken(apiUrl)
             .then(empresa => {

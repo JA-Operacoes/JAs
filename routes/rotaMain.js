@@ -1485,7 +1485,7 @@ router.get("/atividades-recentes", async (req, res) => {
 
 //             // CAIXINHA
 //             if (registro.statuscaixinha === 'Autorizado') {                
-    //                 total += vlrCaixinha;
+//                     total += vlrCaixinha;
 //             }
 
 //             // DIÁRIAS DOBRADAS
@@ -1718,146 +1718,176 @@ router.post('/notificacoes-financeiras/atualizar-status',
         }
     }),
     async (req, res) => {
-        const client = await pool.connect();
         try {
-            const { id_log, categoria, acao, data: dataEspecifica } = req.body; 
+            const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
             const idempresa = req.idempresa;
             const idUsuarioResponsavel = req.usuario?.idusuario;
 
+            if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
 
-            if (!id_log || !categoria || !acao) {
-                return res.status(400).json({ 
-                    error: 'Dados incompletos para atualização.',
-                    detalhe: 'Campos id_log, categoria e acao são obrigatórios.' 
-                });
+            const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
+
+            // 1. ATUALIZA A TABELA SOLICITACOES
+            let querySolicitacoes = "UPDATE public.solicitacoes SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() WHERE idregistroalterado = $3 AND categoria_log = $4 AND idempresa = $5";
+            const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, categoria, idempresa];
+
+            if (dataEspecifica) {
+                querySolicitacoes += " AND (dtsolicitada->>'data')::text = $6";
+                paramsSolicitacoes.push(dataEspecifica);
             }
+            await pool.query(querySolicitacoes, paramsSolicitacoes);
 
-            const statusFinal = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase();
-
-            // Auxiliar para garantir que valores numéricos sejam tratados corretamente
-            const parseValor = (v) => {
-                if (!v) return 0;
-                if (typeof v === 'number') return v;
-                return parseFloat(String(v).replace(',', '.')) || 0;
-            };
-
-            await client.query('BEGIN');
-
-            // 1. Atualiza a tabela de solicitações (Log de auditoria)
-            const queryLog = `
-                UPDATE public.solicitacoes 
-                SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-                WHERE idsolicitacao = $3 AND idempresa = $4
-                RETURNING *;
-            `;
-            const resLog = await client.query(queryLog, [statusFinal, idUsuarioResponsavel, id_log, idempresa]);
-            
-            if (resLog.rows.length === 0) {
-                await client.query('ROLLBACK');
-                return res.status(404).json({ error: 'Solicitação não encontrada no banco.' });
-            }
-
-            const solicitacao = resLog.rows[0];
-
-            // Se for Rejeitado ou não tiver vínculo com staffevento (ex: aditivos ainda não criados), encerra aqui.
-            if (statusFinal === 'Rejeitado' || !solicitacao.idregistroalterado) {
-                await client.query('COMMIT');
-                return res.json({ sucesso: true, mensagem: `Solicitação ${statusFinal.toLowerCase()} com sucesso.` });
-            }
-
-            // --- PASSO 2: MAPEAR CATEGORIAS PARA COLUNAS DA STAFFEVENTOS ---
+            // 2. MAPEAMENTO DE CATEGORIAS
             const mapCategorias = {
                 'statuscaixinha': 'statuscaixinha',
                 'statusajustecusto': 'statusajustecusto',
                 'statusdiariadobrada': 'dtdiariadobrada', 
                 'statusmeiadiaria': 'dtmeiadiaria',
-                'statuscustofechado': 'statuscustofechado'
+                'statuscustofechado': 'statuscustofechado', 
+                'statuscacheliberado': 'statuscustofechado'   
             };
             const colunaDB = mapCategorias[categoria];
+            if (!colunaDB) return res.status(400).json({ error: "Categoria inválida" });
 
-            if (!colunaDB) {
-                await client.query('COMMIT');
-                return res.json({ sucesso: true, mensagem: 'Status atualizado (categoria sem reflexo direto em staffeventos).' });
-            }
-
-            const idStaffEvento = solicitacao.idregistroalterado;
-
-            // Busca os dados atuais para o recálculo
-            const { rows } = await client.query(`
-                SELECT se.* FROM staffeventos se
-                WHERE se.idstaffevento = $1
-            `, [idStaffEvento]);
-
-            if (!rows.length) {
-                await client.query('ROLLBACK');
-                return res.status(404).json({ error: 'Registro de Staff não encontrado na staffeventos.' });
-            }
+            // 3. BUSCA REGISTRO COM PERFIL DO FUNCIONÁRIO
+            const queryBusca = `
+                SELECT se.*, f.perfil 
+                FROM staffeventos se
+                INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
+                WHERE se.idstaffevento = $1 
+                AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
+            `;
+            const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
+            if (!rows.length) return res.status(404).json({ error: 'Pedido não encontrado.' });
             
             let registro = rows[0];
 
-            // --- PASSO 3: ATUALIZAR STATUS NO OBJETO ---
-            let valorParaBanco;
-
+            // 4. ATUALIZAÇÃO EM MEMÓRIA PARA O RECALCULO
             if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-                let arrayDatas = Array.isArray(registro[colunaDB]) ? registro[colunaDB] : [];
-                // Se veio como string do banco, tenta parsear
-                if (typeof registro[colunaDB] === 'string') {
-                    try { arrayDatas = JSON.parse(registro[colunaDB]); } catch(e) { arrayDatas = []; }
-                }
-
-                registro[colunaDB] = arrayDatas.map(item => 
-                    item.data === dataEspecifica ? { ...item, status: 'Autorizado' } : item
-                );
-                valorParaBanco = JSON.stringify(registro[colunaDB]);
+                const arrayDiarias = Array.isArray(registro[colunaDB]) ? registro[colunaDB] : [];
+                registro[colunaDB] = arrayDiarias.map(item => {
+                    if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
+                    return item;
+                });
             } else {
-                registro[colunaDB] = 'Autorizado';
-                valorParaBanco = 'Autorizado';
+                registro[colunaDB] = statusParaAtualizar;
+            }       
+
+            // 5. VARIÁVEIS DE CÁLCULO
+            let total = 0;
+            let totalCache = 0;
+            let totalAjdCusto = 0;
+
+            const vlrCusto = parseFloat(registro.vlrcache) || 0;
+            const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
+            const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
+            const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
+            const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
+            const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
+            const qtdp = parseInt(registro.qtdpessoaslote) || 1;
+            const perfil = (registro.perfil || '').toLowerCase();
+
+            // --- CÁLCULO DA BASE ---
+            if (registro.statuscustofechado === 'Autorizado') {
+                if (registro.nivelexperiencia === 'Fechado') {
+                    total = vlrCusto + vlrTransp + vlrAlim;
+                    totalCache = vlrCusto;
+                    totalAjdCusto = vlrTransp + vlrAlim;
+                } else if (registro.nivelexperiencia === 'Liberado') {
+                    const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
+                    datas.forEach(dStr => {
+                        const d = new Date(dStr + 'T12:00:00');
+                        const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
+                        if (perfil === 'lote') {
+                            total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
+                            totalCache += vlrCusto * qtdp;
+                            totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
+                        } else if (perfil === 'interno' || perfil === 'externo') {
+                            total += vlrTransp + vlrAlim; totalAjdCusto += vlrTransp + vlrAlim;
+                            if (isFDS) { total += vlrCusto; totalCache += vlrCusto; }
+                        } else {
+                            total += vlrCusto + vlrTransp + vlrAlim; totalCache += vlrCusto; totalAjdCusto += vlrTransp + vlrAlim;
+                        }
+                    });
+                }
+            } else {
+                const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
+                datas.forEach(dStr => {
+                    const d = new Date(dStr + 'T12:00:00');
+                    const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
+                    if (perfil === 'lote') {
+                        total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
+                        totalCache += vlrCusto * qtdp;
+                        totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
+                    } else if (perfil === 'freelancer') {
+                        total += vlrCusto + vlrTransp + vlrAlim; totalCache += vlrCusto; totalAjdCusto += vlrTransp + vlrAlim;
+                    } else {
+                        total += vlrTransp + vlrAlim; totalAjdCusto += vlrTransp + vlrAlim;
+                        if (isFDS) { total += vlrCusto; totalCache += vlrCusto; }
+                    }
+                });
             }
 
-            // --- PASSO 4: RECALCULAR TOTAIS ---
-            const vlrCusto = parseValor(registro.vlrcache);
-            const vlrAlim = parseValor(registro.vlralimentacao);
-            const vlrTrans = parseValor(registro.vlrtransporte);
+            // --- ADICIONAIS ---
             
-            const vlrCaixinha = registro.statuscaixinha === 'Autorizado' ? parseValor(registro.vlrcaixinha) : 0;
-            const vlrAjdCusto = registro.statusajustecusto === 'Autorizado' ? parseValor(registro.vlrajustecusto) : 0;
-            
-            // Lógica das Diárias (Somente as autorizadas entram no cálculo)
-            const qtdDiarias = Array.isArray(registro.dtdiariadobrada) 
-                ? registro.dtdiariadobrada.filter(d => d.status === 'Autorizado').length 
-                : 0;
-            
-            const totalDiarias = qtdDiarias * vlrCusto;
-            const totalCache = vlrCusto + totalDiarias;
-            const totalGeral = totalCache + vlrAlim + vlrTrans + vlrCaixinha + vlrAjdCusto;
+            // Ajuste de Custo: Soma no Total e no Cache
+            if (registro.statusajustecusto === 'Autorizado') { 
+                total += vlrAjuste; 
+                totalCache += vlrAjuste; 
+            }
 
-            // --- PASSO 5: UPDATE FINAL NA STAFFEVENTOS ---
-            const queryUpdateFinal = `
-                UPDATE staffeventos 
-                SET ${colunaDB} = $1, 
-                    vlrtotal = $2, 
-                    vlrtotcache = $3, 
-                    vlrtotajdcusto = $4
-                WHERE idstaffevento = $5
+            // CAIXINHA: Soma APENAS no total geral
+            if (registro.statuscaixinha === 'Autorizado') { 
+                total += vlrCaixinha; 
+            }
+
+            // Diárias Dobradas e Meias: Soma no Total e no Cache
+            const processarExtras = (array, divisor = 1) => {
+                (array || []).forEach(i => {
+                    if ((i.status || '').toLowerCase() === 'autorizado') {
+                        const d = new Date(i.data + 'T12:00:00');
+                        const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
+                        const vlrBaseExtra = (vlrCusto / divisor);
+                        
+                        if ((perfil === 'interno' || perfil === 'externo') && !isFDS) {
+                            total += vlrAlimDobra; 
+                            totalCache += vlrAlimDobra;
+                        } else {
+                            total += vlrBaseExtra + vlrAlimDobra; 
+                            totalCache += vlrBaseExtra + vlrAlimDobra;
+                        }
+                    }
+                });
+            };
+
+            processarExtras(registro.dtdiariadobrada, 1);
+            processarExtras(registro.dtmeiadiaria, 2);
+
+            // 6. UPDATE FINAL
+            const valorFinalColuna = (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') 
+                ? JSON.stringify(registro[colunaDB]) 
+                : statusParaAtualizar;
+
+            const queryUpdate = `
+                UPDATE staffeventos se
+                SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
+                FROM staffempresas sem
+                WHERE se.idstaffevento = $5 AND sem.idstaff = se.idstaff AND sem.idempresa = $6
+                RETURNING se.*;
             `;
 
-            await client.query(queryUpdateFinal, [
-                valorParaBanco,
-                totalGeral,
-                totalCache, 
-                vlrAjdCusto,
-                idStaffEvento
-            ]);
+            const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, idpedido, idempresa]);
 
-            await client.query('COMMIT');
-            res.json({ sucesso: true, mensagem: 'Status e valores financeiros atualizados com sucesso.' });
+            res.locals.idlog_origem = idlog_origem;
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idpedido;
+            res.locals.dadosnovos = finalResult.rows[0];
+
+            res.json({ sucesso: true, atualizado: finalResult.rows[0], idlog_origem, categoria });
 
         } catch (err) {
-            await client.query('ROLLBACK');
-            console.error('❌ Erro ao processar aprovação financeira:', err);
-            res.status(500).json({ error: 'Erro interno ao processar a atualização.' });
-        } finally {
-            client.release();
+            console.error('Erro:', err);
+            res.status(500).json({ error: 'Erro interno' });
         }
     }
 );
