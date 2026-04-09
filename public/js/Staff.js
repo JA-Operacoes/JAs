@@ -242,6 +242,30 @@ function configurarFlatpickrs() {
             altInput: true,
             altFormat: "d/m/Y",
 
+            // onDayCreate: (dObj, dStr, fp, dayElement) => {
+            //     const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
+            //     const statusData = datasDobrada.find(item => item.data === dataDia);
+
+            //     if (statusData) {
+            //         dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
+
+            //         if (statusData.status.toLowerCase() !== 'pendente') {
+            //             dayElement.addEventListener('click', (e) => {
+            //                 e.preventDefault();
+            //                 e.stopPropagation();
+
+            //                 Swal.fire({
+            //                     title: 'Atenção!',
+            //                     text: `Esta data já foi processada e não pode ser desmarcada.`,
+            //                     icon: 'warning',
+            //                     confirmButtonText: 'OK'
+            //                 });
+            //                 console.log("✅ diariaDobradaPicker inicializado:", window.diariaDobradaPicker);
+            //             }, true);
+            //         }
+            //     }
+            // },
+
             onDayCreate: (dObj, dStr, fp, dayElement) => {
                 const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
                 const statusData = datasDobrada.find(item => item.data === dataDia);
@@ -250,17 +274,20 @@ function configurarFlatpickrs() {
                     dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
 
                     if (statusData.status.toLowerCase() !== 'pendente') {
-                        dayElement.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                        dayElement.classList.add('data-bloqueada');
+                        dayElement.style.opacity = '0.6';
+                        dayElement.style.cursor = 'not-allowed';
 
+                        dayElement.addEventListener('mousedown', (e) => {
+                            console.log('🔴 CLICOU NA DATA BLOQUEADA');
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
                             Swal.fire({
                                 title: 'Atenção!',
-                                text: `Esta data já foi processada e não pode ser desmarcada.`,
+                                text: 'Esta data já foi processada e não pode ser desmarcada.',
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
-                            console.log("✅ diariaDobradaPicker inicializado:", window.diariaDobradaPicker);
                         }, true);
                     }
                 }
@@ -284,6 +311,10 @@ function configurarFlatpickrs() {
             },
             
             onChange: (selectedDates, dateStr, instance) => {
+                if (window.estLimpandoProgramaticamente) {
+                    instance._prevSelectedDates = [];
+                    return;
+                }
                 // Lógica de prevenção de remoção para datas não pendentes
                 if (typeof estaSalvando !== 'undefined' && estaSalvando) {
                     instance._prevSelectedDates = [...selectedDates];
@@ -318,6 +349,7 @@ function configurarFlatpickrs() {
                 });
 
                 if (unauthorizedRemovals.length > 0) {
+              
                     Swal.fire({
                         title: 'Atenção!',
                         text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
@@ -328,6 +360,8 @@ function configurarFlatpickrs() {
                     instance.setDate(previouslySelectedDates, false);
                     return;
                 }
+
+                
                 
                 // Lógica de verificação de duplicatas (conflito com Meia Diária)
                 let duplicateDates = [];
@@ -403,28 +437,56 @@ function configurarFlatpickrs() {
             altInput: true, 
             altFormat: "d/m/Y",
             
+            // onDayCreate: (dObj, dStr, fp, dayElement) => {
+            //     const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
+            //     const statusData = datasMeiaDiaria.find(item => item.data === dataDia);
+                
+            //     if (statusData) {
+            //         dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
+                    
+            //         if (statusData.status.toLowerCase() !== 'pendente') {
+            //             dayElement.addEventListener('click', (e) => {
+            //                 e.preventDefault();
+            //                 e.stopPropagation();
+            //                 Swal.fire({
+            //                     title: 'Atenção!',
+            //                     text: `Esta data já foi processada e não pode ser desmarcada.`,
+            //                     icon: 'warning',
+            //                     confirmButtonText: 'OK'
+            //                 });
+            //                 console.log("✅ meiaDiariaPicker inicializado:", window.meiaDiariaPicker);
+            //             }, true);
+            //         }
+            //     }
+            // },
+
             onDayCreate: (dObj, dStr, fp, dayElement) => {
                 const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-                const statusData = datasMeiaDiaria.find(item => item.data === dataDia);
-                
+                const statusData = datasDobrada.find(item => item.data === dataDia);
+
                 if (statusData) {
                     dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-                    
+
                     if (statusData.status.toLowerCase() !== 'pendente') {
-                        dayElement.addEventListener('click', (e) => {
+                        dayElement.classList.add('data-bloqueada');
+                        dayElement.style.opacity = '0.6';
+                        dayElement.style.cursor = 'not-allowed';
+
+                        dayElement.addEventListener('mousedown', (e) => {
+                            console.log('🔴 CLICOU NA DATA BLOQUEADA');
                             e.preventDefault();
-                            e.stopPropagation();
+                            e.stopImmediatePropagation();
                             Swal.fire({
                                 title: 'Atenção!',
-                                text: `Esta data já foi processada e não pode ser desmarcada.`,
+                                text: 'Esta data já foi processada e não pode ser desmarcada.',
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
-                            console.log("✅ meiaDiariaPicker inicializado:", window.meiaDiariaPicker);
                         }, true);
                     }
                 }
             },
+
             onReady: (selectedDates, dateStr, instance) => {
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasMeiaDiaria);
@@ -440,6 +502,11 @@ function configurarFlatpickrs() {
                 if (check) check.checked = true;
             },
             onChange: (selectedDates, dateStr, instance) => {
+                if (window.estLimpandoProgramaticamente) {
+                    instance._prevSelectedDates = [];
+                    return;
+                }
+
                 // Lógica de verificação de duplicatas (conflito com Diária Dobrada)
                 instance.usuarioAbriu = instance.usuarioAbriu || false;
                 if (typeof estaSalvando !== 'undefined' && estaSalvando) {
@@ -508,6 +575,7 @@ function configurarFlatpickrs() {
                 
 
                 if (unauthorizedRemovals.length > 0) {
+           
                     Swal.fire({
                         title: 'Atenção!',
                         text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
@@ -590,10 +658,49 @@ function configurarFlatpickrs() {
                 instance.usuarioAbriu = true;
             },
 
+            // onDayCreate: (dObj, dStr, fp, dayElement) => {
+            //     const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
+                
+            //     console.log("🟢 DEBUG: ENTROU EM DATAS EVENTO NO CONFIGURAR FLATPICKRS");
+                
+            //     const statusDataDobrada = datasDobrada.find(d => d.data === dataDia);
+            //     const statusDataMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDia);
+
+            //     if (statusDataDobrada) {
+            //         const status = statusDataDobrada.status.toLowerCase();
+            //         dayElement.classList.add(`status-${status}`);
+            //         if (status !== 'pendente') {
+            //             dayElement.addEventListener('click', (e) => {
+            //                 e.preventDefault();
+            //                 e.stopPropagation();
+            //                 Swal.fire({
+            //                     title: 'Atenção!',
+            //                     text: `Esta data já foi processada e não pode ser desmarcada.`,
+            //                     icon: 'warning',
+            //                     confirmButtonText: 'OK'
+            //                 });
+            //             }, true);
+            //         }
+            //     } else if (statusDataMeiaDiaria) {
+            //         const status = statusDataMeiaDiaria.status.toLowerCase();
+            //         dayElement.classList.add(`status-${status}`);
+            //         if (status !== 'pendente') {
+            //             dayElement.addEventListener('click', (e) => {
+            //                 e.preventDefault();
+            //                 e.stopPropagation();
+            //                 Swal.fire({
+            //                     title: 'Atenção!',
+            //                     text: `Esta data já foi processada e não pode ser desmarcada.`,
+            //                     icon: 'warning',
+            //                     confirmButtonText: 'OK'
+            //                 });
+            //             }, true);
+            //         }
+            //     }
+            // },
+
             onDayCreate: (dObj, dStr, fp, dayElement) => {
                 const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-                
-                console.log("🟢 DEBUG: ENTROU EM DATAS EVENTO NO CONFIGURAR FLATPICKRS");
                 
                 const statusDataDobrada = datasDobrada.find(d => d.data === dataDia);
                 const statusDataMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDia);
@@ -602,12 +709,16 @@ function configurarFlatpickrs() {
                     const status = statusDataDobrada.status.toLowerCase();
                     dayElement.classList.add(`status-${status}`);
                     if (status !== 'pendente') {
-                        dayElement.addEventListener('click', (e) => {
+                        dayElement.classList.add('data-bloqueada');
+                        dayElement.style.opacity = '0.6';
+                        dayElement.style.cursor = 'not-allowed';
+                        dayElement.addEventListener('mousedown', (e) => {
+                            console.log('🔴 CLICOU NA DATA BLOQUEADA - Dobrada');
                             e.preventDefault();
-                            e.stopPropagation();
+                            e.stopImmediatePropagation();
                             Swal.fire({
                                 title: 'Atenção!',
-                                text: `Esta data já foi processada e não pode ser desmarcada.`,
+                                text: 'Esta data já foi processada e não pode ser desmarcada.',
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
@@ -617,12 +728,16 @@ function configurarFlatpickrs() {
                     const status = statusDataMeiaDiaria.status.toLowerCase();
                     dayElement.classList.add(`status-${status}`);
                     if (status !== 'pendente') {
-                        dayElement.addEventListener('click', (e) => {
+                        dayElement.classList.add('data-bloqueada');
+                        dayElement.style.opacity = '0.6';
+                        dayElement.style.cursor = 'not-allowed';
+                        dayElement.addEventListener('mousedown', (e) => {
+                            console.log('🔴 CLICOU NA DATA BLOQUEADA - Meia Diária');
                             e.preventDefault();
-                            e.stopPropagation();
+                            e.stopImmediatePropagation();
                             Swal.fire({
                                 title: 'Atenção!',
-                                text: `Esta data já foi processada e não pode ser desmarcada.`,
+                                text: 'Esta data já foi processada e não pode ser desmarcada.',
                                 icon: 'warning',
                                 confirmButtonText: 'OK'
                             });
@@ -632,6 +747,12 @@ function configurarFlatpickrs() {
             },
             onChange: async function(selectedDates, dateStr, instance) {
                 datasEventoSelecionadas = selectedDates; 
+
+                // Limpeza programática: ignora validações e apenas reseta o cache
+                if (window.estLimpandoProgramaticamente) {
+                    window.datasEventoNoCalendarioCache = [];
+                    return;
+                }
 
                 console.log("🟢 DEBUG: CHANGE DATAS EVENTO", datasEventoSelecionadas);
                 
@@ -1503,8 +1624,8 @@ const alternarBloqueioFlatpickr = (instancia, bloquear) => {
 
 
 const carregarDadosParaEditar = (eventData, bloquear) => {
-    console.log("Objeto eventData recebido:", eventData);
-    console.log("Valor de dtdiariadobrada:", eventData.dtdiariadobrada);    
+    console.log('🔴 carregarDadosParaEditar CHAMADO - currentEditingStaffEvent será setado!');
+    console.trace(); // Mostra a pilha completa de quem chamou
 
     const btn = document.getElementById('Enviar');
     const fieldsetEvento = document.getElementById('containerFieldsets');
@@ -1942,6 +2063,7 @@ const configurarUploadsFinanceiro = (ed) => {
 
 
 function inicializarEPreencherCampos(eventData) {
+    
     console.log("Inicializando Flatpickrs com dados de evento...");
 
     // **PASSO 1: DESTRUIR INSTÂNCIAS ANTERIORES**
@@ -7399,31 +7521,134 @@ async function carregarFuncionarioStaff() {
                     return; // Sai da função, não busca eventos para ID vazio
                 }
 
+                if (currentEditingStaffEvent) {
+                        const statusCache = (currentEditingStaffEvent.statuspgto || '').trim().toUpperCase();
+                        const statusAjuda = (currentEditingStaffEvent.statuspgtoajdcto || '').trim().toUpperCase();
 
-                document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
-                document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
-                document.getElementById("perfilFuncionario").value = selectedOption.getAttribute("data-perfil");
+                        // Verifica se há pagamentos realizados
+                        if (statusCache === 'PAGO' || statusAjuda === 'PAGO' || statusAjuda === 'PAGO50') {
+                            const motivosBloqueio = [];
+                            if (statusCache === 'PAGO') motivosBloqueio.push('💰 <strong>Cachê já foi pago</strong>');
+                            if (statusAjuda === 'PAGO') motivosBloqueio.push('💰 <strong>Ajuda de Custo já foi paga</strong>');
+                            if (statusAjuda === 'PAGO50') motivosBloqueio.push('💰 <strong>Ajuda de Custo 50% já foi paga</strong>');
 
-                const perfilSelecionado = selectedOption.getAttribute("data-perfil");
-                const labelFuncionario = document.getElementById("labelFuncionario");
-                const qtdPessoasDiv = document.querySelector('label[for="lote"]').closest('.field');
-                console.log("Perfil selecionado:", perfilSelecionado);
+                            Swal.fire({
+                                title: '🚫 Troca de Funcionário Bloqueada',
+                                html: `Não é possível trocar o funcionário pois:<br><br>
+                                    ${motivosBloqueio.join('<br>')}<br><br>
+                                    Para trocar o funcionário, o pagamento deve ser estornado primeiro.`,
+                                icon: 'error',
+                                confirmButtonColor: '#d33',
+                                confirmButtonText: 'Entendido'
+                            }).then(() => {
+                                // Reverte o select para o funcionário anterior
+                                const idFuncionarioAnterior = currentEditingStaffEvent.idfuncionario;
+                                $(select).val(idFuncionarioAnterior).trigger('change.select2');
+                            });
 
-                // Se não for freelancer, mostra label em verde
+                            return; // Bloqueia qualquer ação adicional
+                        }
+                    const nomeFuncionarioAtual = currentEditingStaffEvent.nmfuncionario || 
+                                                currentEditingStaffEvent.nome || 
+                                                `ID ${currentEditingStaffEvent.idfuncionario}`;
+                    const nomeEvento = currentEditingStaffEvent.nmevento || 
+                                    currentEditingStaffEvent.idevento || '';
+                    const nomeFuncionarioNovo = selectedOption.getAttribute("data-nmfuncionario") || 
+                                                selectedOption.textContent.trim();
+
+                    Swal.fire({
+                        title: 'Funcionário com evento carregado',
+                        html: `Os dados exibidos são do funcionário <strong>${nomeFuncionarioAtual}</strong>
+                            ${nomeEvento ? `<br>Evento: <strong>${nomeEvento}</strong>` : ''}<br><br>
+                            O que deseja fazer com <strong>${nomeFuncionarioNovo}</strong>?`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        showDenyButton: true,
+                        confirmButtonColor: '#3085d6',
+                        denyButtonColor: '#e07b00',
+                        cancelButtonColor: '#aaa',
+                        confirmButtonText: `✅ Trocar Funcionário ${nomeFuncionarioAtual.split(' ')[0]} por ${nomeFuncionarioNovo.split(' ')[0]} no evento`,
+                        denyButtonText: `🧹 Limpar e carregar ${nomeFuncionarioNovo.split(' ')[0]}`,
+                        cancelButtonText: '❌ Cancelar',
+                        // --- ESTILIZAÇÃO PARA EMPILHAR OS BOTÕES ---
+                        customClass: {
+                            actions: 'my-stacked-buttons',
+                            confirmButton: 'full-width-button',
+                            denyButton: 'full-width-button',
+                            cancelButton: 'full-width-button'
+                        },
+                        didOpen: () => {
+                            // Injeta o CSS dinamicamente para garantir o empilhamento
+                            const style = document.createElement('style');
+                            style.innerHTML = `
+                                .my-stacked-buttons {
+                                    flex-direction: column !important;
+                                    align-items: stretch !important;
+                                    padding: 0 10% !important;
+                                }
+                                .full-width-button {
+                                    width: 100% !important;
+                                    margin: 5px 0 !important;
+                                }
+                            `;
+                            document.head.appendChild(style);
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Avisa que precisa salvar antes de trocar
+                            Swal.fire({
+                                title: 'Atenção! TROCANDO FUNCIONÁRIO NO EVENTO',
+                                html: `CLIQUE em <strong>ENVIAR</strong> para salvar os dados do Evento. <br><br>O Evento será retirado do funcionário <strong>${nomeFuncionarioAtual}</strong> e atribuído ao <strong>${nomeFuncionarioNovo}</strong>.<br><br>`,
+                                icon: 'warning',
+                                confirmButtonColor: '#3085d6',
+                                confirmButtonText: 'Ok, entendido'
+                            }).then(() => {
+                                // Só processa após o usuário confirmar o aviso
+                                processarSelecaoFuncionario(select, selectedOption, idFuncionarioSelecionado);
+                            });
+
+                        } else if (result.isDenied) {
+                            // Limpa tudo e carrega o novo funcionário do zero
+                            currentEditingStaffEvent = null;
+                            limparCamposEvento();
+                            processarSelecaoFuncionario(select, selectedOption, idFuncionarioSelecionado);
+
+                        } else {
+                            // Cancelou: reverte o select para o funcionário anterior
+                            const idFuncionarioAnterior = currentEditingStaffEvent.idfuncionario;
+                            $(select).val(idFuncionarioAnterior).trigger('change.select2');
+                        }
+                    });
+
+                    return; // ← ESSENCIAL: impede que o fluxo normal continue enquanto o Swal está aberto
+                }
+
+                // --- Fluxo normal: nenhum evento carregado ---
+                processarSelecaoFuncionario(select, selectedOption, idFuncionarioSelecionado);
+
+
+                // document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
+                // document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
+                // document.getElementById("perfilFuncionario").value = selectedOption.getAttribute("data-perfil");
+
+                // const perfilSelecionado = selectedOption.getAttribute("data-perfil");
+                // const labelFuncionario = document.getElementById("labelFuncionario");
+                // const qtdPessoasDiv = document.querySelector('label[for="lote"]').closest('.field');
+                // console.log("Perfil selecionado:", perfilSelecionado);
+
                 // if (perfilSelecionado) {
-                //     labelFuncionario.style.display = "block"; // sempre visível                    
+                //     labelFuncionario.style.display = "block";
                     
                 //     if (perfilSelecionado.toLowerCase() === "freelancer") {
                 //         isLote = false;
                 //         labelFuncionario.textContent = "FREE-LANCER";
                 //         labelFuncionario.style.color = "red";
-                //     } if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+                //     } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
                 //         isLote = false;
                 //         labelFuncionario.textContent = "FUNCIONÁRIO";
-                //         labelFuncionario.style.color = "green"
+                //         labelFuncionario.style.color = "green";
                 //         descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
 
-                //             // 1. Marca/Trava o "Base"
                 //         if (baseCheck) baseCheck.checked = true;
                 //         if (seniorCheck) seniorCheck.disabled = true;
                 //         if (plenoCheck) plenoCheck.disabled = true;
@@ -7432,188 +7657,127 @@ async function carregarFuncionarioStaff() {
                 //         if (fechadoCheck) fechadoCheck.disabled = false; 
                 //         if (liberadoCheck) liberadoCheck.disabled = false;  
 
-                //         // // 2. Preenche os custos com o vlrFuncionario
-                //         // // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
-                //         // document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
-                //         // document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
-                //         // document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
-
-                //         // CORREÇÃO: Relê vlrFuncionario direto do select de função no momento atual
                 //         const selectFuncao = document.querySelector(".descFuncao");
                 //         const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
                 //         const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+                //         const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
+                //         const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
 
-                //         // ANTES: document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0)...
                 //         document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                //         // AJUDANTE interno/externo: tem alimentação e transporte
+                //         // Qualquer outra função interno/externo: tem alimentação e transporte
+                //         // (só freelancer AJUDANTE não tem)
                 //         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
                 //         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
                         
-                //         if (typeof calcularValorTotal === 'function') {
-                //             calcularValorTotal();
-                //         }
+                //         if (typeof calcularValorTotal === 'function') calcularValorTotal();
 
-
-                //     }else if (perfilSelecionado.toLowerCase() === "lote") {
+                //     } else if (perfilSelecionado.toLowerCase() === "lote") {
                 //         isLote = true;
                 //         labelFuncionario.textContent = "LOTE";
                 //         labelFuncionario.style.color = "blue";                    
                 //     }
+
+                //     // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+                //     // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+                // if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "externo") {
+                //     const selectFuncao = document.querySelector(".descFuncao");
+                //     const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
                     
+                //     if (optionFuncaoAtual && optionFuncaoAtual.value !== "") {
+                //         vlrCustoSeniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior")) || 0;
+                //         vlrCustoSeniorFuncao2 = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior2")) || 0;
+                //         vlrCustoPlenoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctopleno")) || 0;
+                //         vlrCustoJuniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctojunior")) || 0;
+                //         vlrCustoBaseFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctobase")) || 0;
+                //         vlrAlimentacaoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-alimentacao")) || 0;
+                //         vlrTransporteFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-transporte")) || 0;
+
+                //         const descFuncaoAtual = optionFuncaoAtual.textContent.trim().toUpperCase();
+                //         const isFuncaoTravada = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO" || descFuncaoAtual === "FISCAL DE MARCAÇÃO";
+                //         const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
+
+                //         // Só reabilita se NÃO for função travada
+                //         if (!isFuncaoTravada) {
+                //             if (seniorCheck)  seniorCheck.disabled = false;
+                //             if (seniorCheck2) seniorCheck2.disabled = false;
+                //             if (plenoCheck)   plenoCheck.disabled = false;
+                //             if (juniorCheck)  juniorCheck.disabled = false;
+                //             if (baseCheck)    baseCheck.disabled = false;
+                //         }
+
+                //         if (isAjudante) {
+                //             document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                //             document.getElementById("alimentacao").value = (0).toFixed(2).replace('.', ',');
+                //             document.getElementById("transporte").value = (0).toFixed(2).replace('.', ',');
+                //             if (typeof calcularValorTotal === 'function') calcularValorTotal();
+
+                //         } else {
+                //             if (typeof onCriteriosChanged === 'function') onCriteriosChanged();
+                //         }
+                        
+                //     }
+                // }
 
                 // } else {
-                //     labelFuncionario.style.display = "none"; // se não tiver perfil
+                //     labelFuncionario.style.display = "none";
                 // }
 
                 // if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
                 //     qtdPessoasDiv.style.display = 'block';
                 // } else {
                 //     qtdPessoasDiv.style.display = 'none';
-                //     // Limpa o valor do input quando ele é escondido
                 //     document.getElementById('qtdPessoas').value = '';
                 // }
-
-                if (perfilSelecionado) {
-                    labelFuncionario.style.display = "block";
-                    
-                    if (perfilSelecionado.toLowerCase() === "freelancer") {
-                        isLote = false;
-                        labelFuncionario.textContent = "FREE-LANCER";
-                        labelFuncionario.style.color = "red";
-                    } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
-                        isLote = false;
-                        labelFuncionario.textContent = "FUNCIONÁRIO";
-                        labelFuncionario.style.color = "green";
-                        descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
-
-                        if (baseCheck) baseCheck.checked = true;
-                        if (seniorCheck) seniorCheck.disabled = true;
-                        if (plenoCheck) plenoCheck.disabled = true;
-                        if (juniorCheck) juniorCheck.disabled = true;
-                        if (baseCheck) baseCheck.disabled = false;
-                        if (fechadoCheck) fechadoCheck.disabled = false; 
-                        if (liberadoCheck) liberadoCheck.disabled = false;  
-
-                        const selectFuncao = document.querySelector(".descFuncao");
-                        const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
-                        const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
-                        const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
-                        const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
-
-                        document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
-                        // AJUDANTE interno/externo: tem alimentação e transporte
-                        // Qualquer outra função interno/externo: tem alimentação e transporte
-                        // (só freelancer AJUDANTE não tem)
-                        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
-                        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
-                        
-                        if (typeof calcularValorTotal === 'function') calcularValorTotal();
-
-                    } else if (perfilSelecionado.toLowerCase() === "lote") {
-                        isLote = true;
-                        labelFuncionario.textContent = "LOTE";
-                        labelFuncionario.style.color = "blue";                    
-                    }
-
-                    // Para freelancer e lote: relê variáveis globais da função e reaplica nível
-                    // Para freelancer e lote: relê variáveis globais da função e reaplica nível
-                if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "externo") {
-                    const selectFuncao = document.querySelector(".descFuncao");
-                    const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
-                    
-                    if (optionFuncaoAtual && optionFuncaoAtual.value !== "") {
-                        vlrCustoSeniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior")) || 0;
-                        vlrCustoSeniorFuncao2 = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior2")) || 0;
-                        vlrCustoPlenoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctopleno")) || 0;
-                        vlrCustoJuniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctojunior")) || 0;
-                        vlrCustoBaseFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctobase")) || 0;
-                        vlrAlimentacaoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-alimentacao")) || 0;
-                        vlrTransporteFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-transporte")) || 0;
-
-                        const descFuncaoAtual = optionFuncaoAtual.textContent.trim().toUpperCase();
-                        const isFuncaoTravada = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO" || descFuncaoAtual === "FISCAL DE MARCAÇÃO";
-                        const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
-
-                        // Só reabilita se NÃO for função travada
-                        if (!isFuncaoTravada) {
-                            if (seniorCheck)  seniorCheck.disabled = false;
-                            if (seniorCheck2) seniorCheck2.disabled = false;
-                            if (plenoCheck)   plenoCheck.disabled = false;
-                            if (juniorCheck)  juniorCheck.disabled = false;
-                            if (baseCheck)    baseCheck.disabled = false;
-                        }
-
-                        if (isAjudante) {
-                            document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
-                            document.getElementById("alimentacao").value = (0).toFixed(2).replace('.', ',');
-                            document.getElementById("transporte").value = (0).toFixed(2).replace('.', ',');
-                            if (typeof calcularValorTotal === 'function') calcularValorTotal();
-
-                        } else {
-                            if (typeof onCriteriosChanged === 'function') onCriteriosChanged();
-                        }
-                        
-                    }
-                }
-
-                } else {
-                    labelFuncionario.style.display = "none";
-                }
-
-                if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
-                    qtdPessoasDiv.style.display = 'block';
-                } else {
-                    qtdPessoasDiv.style.display = 'none';
-                    document.getElementById('qtdPessoas').value = '';
-                }
                 
 
-                const fotoPathFromData = selectedOption.getAttribute("data-foto"); // Este é o caminho real da foto
+                // const fotoPathFromData = selectedOption.getAttribute("data-foto"); // Este é o caminho real da foto
 
-                // Referências aos elementos DOM que serão manipulados
-                const nomeFuncionarioInput = document.getElementById("nmFuncionario");
-                const previewFotoImg = document.getElementById('previewFoto');
-                const fileNameSpan = document.getElementById('fileName');
-                const uploadHeaderDiv = document.getElementById('uploadHeader');
-                const fileInput = document.getElementById('file'); // Referência ao input type="file"
+                // // Referências aos elementos DOM que serão manipulados
+                // const nomeFuncionarioInput = document.getElementById("nmFuncionario");
+                // const previewFotoImg = document.getElementById('previewFoto');
+                // const fileNameSpan = document.getElementById('fileName');
+                // const uploadHeaderDiv = document.getElementById('uploadHeader');
+                // const fileInput = document.getElementById('file'); // Referência ao input type="file"
 
-                // --- Lógica para exibir a foto ---
-                if (previewFotoImg) {
-                    console.log("Preview",nomeFuncionarioInput );
-                    if (fotoPathFromData) {
+                // // --- Lógica para exibir a foto ---
+                // if (previewFotoImg) {
+                //     console.log("Preview",nomeFuncionarioInput );
+                //     if (fotoPathFromData) {
 
-                        previewFotoImg.src = `/${fotoPathFromData}`;
-                        previewFotoImg.alt = `Foto de ${nomeFuncionarioInput || 'funcionário'}`; // Alt text para acessibilidade
-                        previewFotoImg.style.display = 'block'; // Mostra a imagem
+                //         previewFotoImg.src = `/${fotoPathFromData}`;
+                //         previewFotoImg.alt = `Foto de ${nomeFuncionarioInput || 'funcionário'}`; // Alt text para acessibilidade
+                //         previewFotoImg.style.display = 'block'; // Mostra a imagem
 
-                        if (fileInput) {
-                            fileInput.value = '';
-                        }
+                //         if (fileInput) {
+                //             fileInput.value = '';
+                //         }
 
-                        if (uploadHeaderDiv) {
-                            uploadHeaderDiv.style.display = 'none'; // Esconde o cabeçalho de upload
-                        }
-                        if (fileNameSpan) {
-                            // Pega o nome do arquivo da URL (última parte após a última barra)
-                            const fileName = fotoPathFromData.split('/').pop();
-                            fileNameSpan.textContent = fileName || 'Foto carregada';
-                        }
-                    } else {
-                        // Se não há foto (fotoPathFromData é nulo ou vazio), reseta e esconde os elementos
-                        previewFotoImg.src = '#'; // Reseta o src
-                        previewFotoImg.alt = 'Sem foto';
-                        previewFotoImg.style.display = 'none'; // Esconde a imagem
+                //         if (uploadHeaderDiv) {
+                //             uploadHeaderDiv.style.display = 'none'; // Esconde o cabeçalho de upload
+                //         }
+                //         if (fileNameSpan) {
+                //             // Pega o nome do arquivo da URL (última parte após a última barra)
+                //             const fileName = fotoPathFromData.split('/').pop();
+                //             fileNameSpan.textContent = fileName || 'Foto carregada';
+                //         }
+                //     } else {
+                //         // Se não há foto (fotoPathFromData é nulo ou vazio), reseta e esconde os elementos
+                //         previewFotoImg.src = '#'; // Reseta o src
+                //         previewFotoImg.alt = 'Sem foto';
+                //         previewFotoImg.style.display = 'none'; // Esconde a imagem
 
-                        if (uploadHeaderDiv) {
-                            uploadHeaderDiv.style.display = 'block'; // Mostra o cabeçalho de upload
-                        }
-                        if (fileNameSpan) {
-                            fileNameSpan.textContent = 'Nenhum arquivo selecionado';
-                        }
-                    }
-                }
-                carregarTabelaStaff(idFuncionarioSelecionado);
+                //         if (uploadHeaderDiv) {
+                //             uploadHeaderDiv.style.display = 'block'; // Mostra o cabeçalho de upload
+                //         }
+                //         if (fileNameSpan) {
+                //             fileNameSpan.textContent = 'Nenhum arquivo selecionado';
+                //         }
+                //     }
+                // }
+                // carregarTabelaStaff(idFuncionarioSelecionado);
                 
-                calcularValorTotal();
+                // calcularValorTotal();
 
             });
 
@@ -7622,6 +7786,161 @@ async function carregarFuncionarioStaff() {
     console.error("Erro ao carregar funcao:", error);
     }
 }
+
+function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSelecionado) {
+    document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
+    document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
+    document.getElementById("perfilFuncionario").value = selectedOption.getAttribute("data-perfil");
+
+    const perfilSelecionado = selectedOption.getAttribute("data-perfil");
+    const labelFuncionario = document.getElementById("labelFuncionario");
+    const qtdPessoasDiv = document.querySelector('label[for="lote"]').closest('.field');
+    console.log("Perfil selecionado:", perfilSelecionado);
+
+    if (perfilSelecionado) {
+        labelFuncionario.style.display = "block";
+        
+        if (perfilSelecionado.toLowerCase() === "freelancer") {
+            isLote = false;
+            labelFuncionario.textContent = "FREE-LANCER";
+            labelFuncionario.style.color = "red";
+        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+            isLote = false;
+            labelFuncionario.textContent = "FUNCIONÁRIO";
+            labelFuncionario.style.color = "green";
+            descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+
+            if (baseCheck) baseCheck.checked = true;
+            if (seniorCheck) seniorCheck.disabled = true;
+            if (plenoCheck) plenoCheck.disabled = true;
+            if (juniorCheck) juniorCheck.disabled = true;
+            if (baseCheck) baseCheck.disabled = false;
+            if (fechadoCheck) fechadoCheck.disabled = false; 
+            if (liberadoCheck) liberadoCheck.disabled = false;  
+
+            const selectFuncao = document.querySelector(".descFuncao");
+            const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+            const vlrFuncionarioAtual = parseFloat(optionFuncaoAtual?.getAttribute("data-vlrfuncionario") || 0);
+            const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
+            const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
+
+            document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+            // AJUDANTE interno/externo: tem alimentação e transporte
+            // Qualquer outra função interno/externo: tem alimentação e transporte
+            // (só freelancer AJUDANTE não tem)
+            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+            
+            if (typeof calcularValorTotal === 'function') calcularValorTotal();
+
+        } else if (perfilSelecionado.toLowerCase() === "lote") {
+            isLote = true;
+            labelFuncionario.textContent = "LOTE";
+            labelFuncionario.style.color = "blue";                    
+        }
+
+        // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+        // Para freelancer e lote: relê variáveis globais da função e reaplica nível
+    if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "externo") {
+        const selectFuncao = document.querySelector(".descFuncao");
+        const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
+        
+        if (optionFuncaoAtual && optionFuncaoAtual.value !== "") {
+            vlrCustoSeniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior")) || 0;
+            vlrCustoSeniorFuncao2 = parseFloat(optionFuncaoAtual.getAttribute("data-ctosenior2")) || 0;
+            vlrCustoPlenoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctopleno")) || 0;
+            vlrCustoJuniorFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctojunior")) || 0;
+            vlrCustoBaseFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-ctobase")) || 0;
+            vlrAlimentacaoFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-alimentacao")) || 0;
+            vlrTransporteFuncao = parseFloat(optionFuncaoAtual.getAttribute("data-transporte")) || 0;
+
+            const descFuncaoAtual = optionFuncaoAtual.textContent.trim().toUpperCase();
+            const isFuncaoTravada = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO" || descFuncaoAtual === "FISCAL DE MARCAÇÃO";
+            const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
+
+            // Só reabilita se NÃO for função travada
+            if (!isFuncaoTravada) {
+                if (seniorCheck)  seniorCheck.disabled = false;
+                if (seniorCheck2) seniorCheck2.disabled = false;
+                if (plenoCheck)   plenoCheck.disabled = false;
+                if (juniorCheck)  juniorCheck.disabled = false;
+                if (baseCheck)    baseCheck.disabled = false;
+            }
+
+            if (isAjudante) {
+                document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                document.getElementById("alimentacao").value = (0).toFixed(2).replace('.', ',');
+                document.getElementById("transporte").value = (0).toFixed(2).replace('.', ',');
+                if (typeof calcularValorTotal === 'function') calcularValorTotal();
+
+            } else {
+                if (typeof onCriteriosChanged === 'function') onCriteriosChanged();
+            }
+            
+        }
+    }
+
+    } else {
+        labelFuncionario.style.display = "none";
+    }
+
+    if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
+        qtdPessoasDiv.style.display = 'block';
+    } else {
+        qtdPessoasDiv.style.display = 'none';
+        document.getElementById('qtdPessoas').value = '';
+    }
+    
+
+    const fotoPathFromData = selectedOption.getAttribute("data-foto"); // Este é o caminho real da foto
+
+    // Referências aos elementos DOM que serão manipulados
+    const nomeFuncionarioInput = document.getElementById("nmFuncionario");
+    const previewFotoImg = document.getElementById('previewFoto');
+    const fileNameSpan = document.getElementById('fileName');
+    const uploadHeaderDiv = document.getElementById('uploadHeader');
+    const fileInput = document.getElementById('file'); // Referência ao input type="file"
+
+    // --- Lógica para exibir a foto ---
+    if (previewFotoImg) {
+        console.log("Preview",nomeFuncionarioInput );
+        if (fotoPathFromData) {
+
+            previewFotoImg.src = `/${fotoPathFromData}`;
+            previewFotoImg.alt = `Foto de ${nomeFuncionarioInput || 'funcionário'}`; // Alt text para acessibilidade
+            previewFotoImg.style.display = 'block'; // Mostra a imagem
+
+            if (fileInput) {
+                fileInput.value = '';
+            }
+
+            if (uploadHeaderDiv) {
+                uploadHeaderDiv.style.display = 'none'; // Esconde o cabeçalho de upload
+            }
+            if (fileNameSpan) {
+                // Pega o nome do arquivo da URL (última parte após a última barra)
+                const fileName = fotoPathFromData.split('/').pop();
+                fileNameSpan.textContent = fileName || 'Foto carregada';
+            }
+        } else {
+            // Se não há foto (fotoPathFromData é nulo ou vazio), reseta e esconde os elementos
+            previewFotoImg.src = '#'; // Reseta o src
+            previewFotoImg.alt = 'Sem foto';
+            previewFotoImg.style.display = 'none'; // Esconde a imagem
+
+            if (uploadHeaderDiv) {
+                uploadHeaderDiv.style.display = 'block'; // Mostra o cabeçalho de upload
+            }
+            if (fileNameSpan) {
+                fileNameSpan.textContent = 'Nenhum arquivo selecionado';
+            }
+        }
+    }
+    carregarTabelaStaff(idFuncionarioSelecionado);
+    
+    calcularValorTotal();
+}
+
 
 async function  carregarClientesStaff() {
     //console.log("Função CARREGAR Cliente chamada");
@@ -8033,13 +8352,40 @@ function limparCamposEvento() {
         "nmLocalMontagem", "nmPavilhao", "nmCliente", "nmEvento", "vlrTotal",
         "vlrTotalHidden", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto",
         "statusAjusteCusto", "statusCaixinha", "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria",
-        "descMeiaDiaria", "qtdPessoas", "idequipe", "nmEquipe"
+        "descMeiaDiaria", "qtdPessoas", "idequipe", "nmEquipe",
+        "selectStatusAjusteCusto", "selectStatusDiariaDobrada", "selectStatusMeiaDiaria",
+        "diariaDobrada", "meiaDiaria", "vlrTotalCache", "vlrTotalAjdCusto",
+        "statusPgtoAjudaCusto", "setor"
     ];
 
     camposEvento.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
+
+    // Selects de status que não estão na lista principal
+    const selectsParaLimpar = [
+        'selectStatusAjusteCusto',
+        'selectStatusDiariaDobrada', 
+        'selectStatusMeiaDiaria',
+        'selectStatusCustoFechado'
+    ];
+    selectsParaLimpar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // Inputs com classe preenchido (Flatpickr altInput gerado dinamicamente)
+    document.querySelectorAll('.preenchido').forEach(el => {
+        el.value = '';
+    });
+
+    // Limpa também os altInputs gerados pelo Flatpickr
+    if (window.diariaDobradaPicker?.altInput) window.diariaDobradaPicker.altInput.value = '';
+    if (window.meiaDiariaPicker?.altInput) window.meiaDiariaPicker.altInput.value = '';
+    if (window.datasEventoPicker?.altInput) window.datasEventoPicker.altInput.value = '';
+
+    document.querySelectorAll('.preenchido').forEach(el => el.value = '');
 
     // 2. Reset de Checkboxes (Unificado em uma única lista para evitar repetição)
     const checksParaLimpar = [
@@ -8068,12 +8414,16 @@ function limparCamposEvento() {
         }
     });
 
-    // 4. Containers de Status e Wrappers
+   
+    // 4. Containers de Status e Wrappers (Ajustado para esconder as áreas de inputs)
     const containersParaLimpar = [
+        'campoAjusteCusto', 'campoStatusAjusteCusto', // Crucial para esconder o Ajuste
+        'campoCaixinha', 'campoStatusCaixinha', 
+        'campoPgtoCaixinha', 'campoStatusPgtoCaixinha',
+        'campoMeiaDiaria', 'campoStatusMeiaDiaria', 
+        'campoDiariaDobrada', 'campoStatusDiariaDobrada',
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
-        'campoStatusDiariaDobrada', 'campoStatusMeiaDiaria', 'campoAjusteCusto',
-        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha',
         'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado'
     ];
 
@@ -8081,9 +8431,12 @@ function limparCamposEvento() {
         const container = document.getElementById(id);
         if (container) {
             if (id.startsWith('container')) container.innerHTML = '';
-            container.style.display = 'none';
+            container.style.display = 'none'; // Garante que a "caixa" do campo suma
         }
     });
+
+    
+    
 
     // 5. Reset de valores padrões de Status
     const statusPadrao = {
@@ -8099,9 +8452,46 @@ function limparCamposEvento() {
     }
 
     // 6. Limpeza de Pickers e Complementos
+    // if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
+    // if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+    // if (window.datasEventoPicker) window.datasEventoPicker.clear();
+
+    window.estLimpandoProgramaticamente = true;
+
+    if (window.datasEventoPicker) {
+        window.datasEventoPicker.clear();
+        window.datasEventoNoCalendarioCache = []; // Limpa o cache junto!
+    }
     if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
     if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
-    if (window.datasEventoPicker) window.datasEventoPicker.clear();
+
+    window.estLimpandoProgramaticamente = false;
+
+    currentEditingStaffEvent = null;
+
+    // DEBUG VISUAL - remover depois
+console.log('=== DEBUG CAMPOS VISÍVEIS APÓS LIMPEZA ===');
+console.log('campoAjusteCusto display:', document.getElementById('campoAjusteCusto')?.style.display);
+console.log('campoStatusAjusteCusto display:', document.getElementById('campoStatusAjusteCusto')?.style.display);
+console.log('selectStatusAjusteCusto value:', document.getElementById('selectStatusAjusteCusto')?.value);
+console.log('statusAjusteCusto value:', document.getElementById('statusAjusteCusto')?.value);
+console.log('campoDiariaDobrada display:', document.getElementById('campoDiariaDobrada')?.style.display);
+console.log('campoStatusDiariaDobrada display:', document.getElementById('campoStatusDiariaDobrada')?.style.display);
+console.log('campoMeiaDiaria display:', document.getElementById('campoMeiaDiaria')?.style.display);
+console.log('meiaDiariacheck checked:', document.getElementById('meiaDiariacheck')?.checked);
+console.log('diariaDobradacheck checked:', document.getElementById('diariaDobradacheck')?.checked);
+console.log('ajusteCustocheck checked:', document.getElementById('ajusteCustocheck')?.checked);
+console.log('==========================================');
+
+// Aguarda 500ms e verifica novamente — detecta se algo está repreenchendo depois
+setTimeout(() => {
+    console.log('=== DEBUG 500ms DEPOIS ===');
+    console.log('campoAjusteCusto display:', document.getElementById('campoAjusteCusto')?.style.display);
+    console.log('campoDiariaDobrada display:', document.getElementById('campoDiariaDobrada')?.style.display);
+    console.log('campoMeiaDiaria display:', document.getElementById('campoMeiaDiaria')?.style.display);
+    console.log('meiaDiariacheck checked:', document.getElementById('meiaDiariacheck')?.checked);
+    console.log('==========================');
+}, 500);
 
     limparCamposComprovantes();
     limparStaffOriginal();
@@ -8113,7 +8503,7 @@ function limparCamposEvento() {
 function limparCamposStaff() {
     console.log("Iniciando limpeza completa do formulário Staff.");
 
-     currentEditingStaffEvent = {};
+    currentEditingStaffEvent = null;
 
     window.statusPgtoCacheOriginalDoBanco = "";
     window.statusPgtoAjudaOriginalDoBanco = "";
@@ -8123,9 +8513,7 @@ function limparCamposStaff() {
     // 1. Reset de variáveis de controle
    // currentEditingStaffEvent = null;
   
-    isFormLoadedFromDoubleClick = false;
-
-    
+    isFormLoadedFromDoubleClick = false;    
 
     // 2. Habilitar botão Enviar
     const btn = document.getElementById('Enviar');
@@ -8195,6 +8583,22 @@ function limparCamposStaff() {
         containerObs.style.display = 'none'; // Oculta o histórico no reset
     }
 
+    const containersParaLimpar = [
+        'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
+        'containerStatusAditivo', 'containerStatusExtraBonificado',
+        'campoStatusDiariaDobrada', 'campoStatusMeiaDiaria', 'campoAjusteCusto',
+        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha',
+        'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado'
+    ];
+
+    containersParaLimpar.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            if (id.startsWith('container')) container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    });
+
     // 6. Containers, Wrappers e Status Visuais
     const containersParaOcultar = [
         'campoAjusteCusto', 'campoStatusAjusteCusto', 'campoCaixinha', 'campoStatusCaixinha', 
@@ -8240,9 +8644,21 @@ function limparCamposStaff() {
     if (document.getElementById('nomeFuncionarioExibido')) document.getElementById('nomeFuncionarioExibido').textContent = "";
 
     // 9. Pickers (Flatpickr) e Contadores
-    if (window.datasEventoPicker) window.datasEventoPicker.clear();
+    // if (window.datasEventoPicker) window.datasEventoPicker.clear();
+    // if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
+    // if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+
+
+    window.estLimpandoProgramaticamente = true;
+
+    if (window.datasEventoPicker) {
+        window.datasEventoPicker.clear();
+        window.datasEventoNoCalendarioCache = []; // Limpa o cache junto!
+    }
     if (window.diariaDobradaPicker) window.diariaDobradaPicker.clear();
     if (window.meiaDiariaPicker) window.meiaDiariaPicker.clear();
+
+    window.estLimpandoProgramaticamente = false;
     
     const contador = document.getElementById('contadorDatas');
     if (contador) contador.textContent = "Nenhuma data selecionada.";
@@ -8253,8 +8669,7 @@ function limparCamposStaff() {
         selectPavilhao.innerHTML = ""; // Isso remove todas as opções (nomes dos pavilhões)
         console.log("Opções de pavilhões removidas.");
     }
-
-   
+ 
 
     // 11. Limpeza de PDFs (Classes)
     document.querySelectorAll('.fileNamePDF').forEach(p => p.textContent = "Nenhum arquivo selecionado");
