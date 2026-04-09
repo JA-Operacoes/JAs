@@ -363,8 +363,13 @@ function fecharModal() {
     // ⭐️ PASSO CRUCIAL: Se a função de callback específica existir (definida em abrirDetalhesEquipe), chame-a.
     if (typeof window.onStaffModalClosed === 'function') {
         console.log("Fechamento de modal detectado. Chamando callback específico (voltarParaEquipes).");
-        // Chama a função de callback, que é a sua 'voltarParaEquipes'
-        window.onStaffModalClosed(true); 
+        window.onStaffModalClosed(true);
+    }else if(origemAbertura === "aside"){
+        console.log("Retorno ao Aside: Sem refresh.");
+        if (typeof window.recarregarListaOrcamentosAside === 'function') {
+            window.recarregarListaOrcamentosAside();
+        }
+        sessionStorage.removeItem("origemAbertura");
     } else {
         // Se NÃO houver um callback específico (ou seja, foi aberto pelo caminho normal ou outro),
         // faça a recarga geral, se for o comportamento desejado para os outros modais.
