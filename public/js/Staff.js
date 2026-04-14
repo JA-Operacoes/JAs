@@ -1679,7 +1679,9 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
 
     retornoDados = true;
     limparCamposEvento();
-    currentEditingStaffEvent = eventData;    
+    //currentEditingStaffEvent = eventData; 
+    
+    currentEditingStaffEvent = JSON.parse(JSON.stringify(eventData));
 
     console.log("Dados do evento a serem carregados no formulário:", eventData);
 
@@ -5108,6 +5110,8 @@ async function verificaStaff() {
                         } else if (resultDecisao.isDenied) {
                             limparCamposStaff();
                         } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
+                            currentEditingStaffEvent = null;
+                            limparCamposStaff();
                             window.location.reload();
                         }
                         return;
@@ -5397,8 +5401,20 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
                     logAndCheck('Comprovante Caixinha', normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha), normalizeEmptyValue(comppgtocaixinhaDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)) ||
                     logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginalLimpa), JSON.stringify(periodoDobrado), JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(periodoDobrado)) ||
                     logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginalLimpa), JSON.stringify(periodoMeiaDiaria), JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(periodoMeiaDiaria)) ||
-                    logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase(), (statusDiariaDobrada || '').trim().toUpperCase(), (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase() != (statusDiariaDobrada || '').trim().toUpperCase()) ||
-                    logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim().toUpperCase(), (statusMeiaDiaria || '').trim().toUpperCase(), (currentEditingStaffEvent.statusmeiadiaria || '').trim().toUpperCase() != (statusMeiaDiaria || '').trim().toUpperCase()) ||
+                    //logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase(), (statusDiariaDobrada || '').trim().toUpperCase(), (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase() != (statusDiariaDobrada || '').trim().toUpperCase()) ||
+                    //logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim().toUpperCase(), (statusMeiaDiaria || '').trim().toUpperCase(), (currentEditingStaffEvent.statusmeiadiaria || '').trim().toUpperCase() != (statusMeiaDiaria || '').trim().toUpperCase()) ||
+                    logAndCheck(
+                        'Status Meia Diária (array)', 
+                        JSON.stringify((currentEditingStaffEvent.dtmeiadiaria || []).map(i => ({ data: i.data, status: i.status }))), 
+                        JSON.stringify(datasMeiaDiaria.map(i => ({ data: i.data, status: i.status }))), 
+                        JSON.stringify((currentEditingStaffEvent.dtmeiadiaria || []).map(i => ({ data: i.data, status: i.status }))) !== JSON.stringify(datasMeiaDiaria.map(i => ({ data: i.data, status: i.status })))
+                    ) ||
+                    logAndCheck(
+                        'Status Diária Dobrada (array)', 
+                        JSON.stringify((currentEditingStaffEvent.dtdiariadobrada || []).map(i => ({ data: i.data, status: i.status }))), 
+                        JSON.stringify(datasDobrada.map(i => ({ data: i.data, status: i.status }))), 
+                        JSON.stringify((currentEditingStaffEvent.dtdiariadobrada || []).map(i => ({ data: i.data, status: i.status }))) !== JSON.stringify(datasDobrada.map(i => ({ data: i.data, status: i.status })))
+                    ) ||
                     logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
                     logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0)) ||
                     nivelFoiTrocado; // ← Se houve troca de nível, força alteração
@@ -5641,9 +5657,12 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
                 if (result.isConfirmed) {
                     (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
                 } else if (result.isDenied) {
-                    limparCamposStaff();
+                    currentEditingStaffEvent = null; // <--- ADICIONE ISSO
+                    limparCamposStaff();                   
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
                     console.log("Usuário escolheu: Finalizar e Sair");
+
+                    currentEditingStaffEvent = null;
 
                     if (typeof fecharModal === "function") {
                         fecharModal();
@@ -8050,6 +8069,7 @@ async function carregarLocalMontStaff() {
                 option.textContent = local.descmontagem;
                 option.setAttribute("data-idMontagem", local.idmontagem);
                 option.setAttribute("data-descmontagem", local.descmontagem);
+                option.setAttribute("data-cidademontagem", local.cidademontagem);
                 option.setAttribute("data-ufmontagem", local.ufmontagem);
                 select.appendChild(option);
 
@@ -8067,7 +8087,7 @@ async function carregarLocalMontStaff() {
                    
                } else {   
                     console.log("Local de montagem selecionado:", selectedOption.textContent);                
-                   if (selectedOption.getAttribute("data-ufmontagem") !== "SP") {
+                   if ((selectedOption.getAttribute("data-ufmontagem") !== "SP") || (selectedOption.getAttribute("data-cidademontagem") !== "SÃO PAULO")) {
                         //Swal.fire("Atenção", "O local de montagem selecionado está fora do estado de SP. Verifique os custos adicionais de deslocamento.", "warning");
                         bForaSP = true;
                         if (containerViagens) {
@@ -8702,8 +8722,8 @@ async function limparCamposStaffParcial() {
     console.log("Iniciando limpeza parcial do Staff (Funcionário e Valores).");
 
     // 1. Reset de variáveis de controle e Foto
-    //currentEditingStaffEvent = null;
-    currentEditingStaffEvent = {};
+    currentEditingStaffEvent = null;
+    //currentEditingStaffEvent = {};
     isFormLoadedFromDoubleClick = false;
 
     window.statusPgtoCacheOriginalDoBanco = ""; // Limpa o status de pagamento anterior
@@ -11863,7 +11883,7 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 const result = await Swal.fire({
                     title: `Confirmação da Solicitação de ${tipoSolicitacao}!`,
                     // Garante que o tipoSolicitacao seja usado na mensagem
-                    html: `As <strong>${limiteMaximo} vagas</strong> (Orçado + Aprovados) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Confirma solicitação um <strong>novo ${tipoSolicitacao}</strong>?`,
+                    html: `A(s) <strong>${limiteMaximo} vaga(s)</strong> (Orçado + Aprovados) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Confirma solicitação um <strong>novo ${tipoSolicitacao}</strong>?`,
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonText: 'Sim, Solicitar Mais',
@@ -11897,10 +11917,13 @@ window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acess
 
 
 async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante) {
-    console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idStaffEvento });
+   
     const tipoPadronizado = tipo ? tipo.toUpperCase().trim() : "";
     const quantidadeGarantida = (qtd && qtd > 0) ? qtd : 1;
     const datasFormatadas = Array.isArray(dataSolicitada) ? dataSolicitada.join(',') : dataSolicitada;
+    const idStaffEventoAtual = document.querySelector("#idStaffEvento")?.value;
+
+     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idStaffEventoAtual });
 
     // Objeto de dados a ser enviado
     const dadosParaEnvio = { 
@@ -11908,6 +11931,8 @@ async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormula
         idFuncao: idFuncaoDoFormulario,
         qtdSolicitada: quantidadeGarantida, 
         tipoSolicitacao: tipoPadronizado, 
+        categoria_log: "aditivoextra", 
+        idregistroalterado: idStaffEventoAtual,
         justificativa,
         idFuncionario: idFuncionario || null,
         dataSolicitada: datasFormatadas,
