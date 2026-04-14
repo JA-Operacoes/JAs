@@ -12,7 +12,6 @@ main#conteudo {
   flex: 1;
   padding: 20px;
   background-color: #d1d1d1;
-  overflow-y: auto;
 }
 
 /* Container geral do dashboard */
@@ -1928,7 +1927,7 @@ div#calendarioVertical {
   flex-direction: row;
   gap: 15px;
   width: 100%;
-  min-height: 450px;
+  min-height: 150px;
   height: 100%;
   align-items: flex-start;
   justify-content: flex-start;
@@ -2685,6 +2684,9 @@ body.dark .indicador-evento {
   flex-direction: column;
   gap: 15px; /* Espaçamento entre os eventos */
   width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 /* Acordeão Item */
@@ -2820,6 +2822,7 @@ body.dark .indicador-evento {
   max-height: 300px;
   overflow-y: auto;  /* ⬅️ CRÍTICO: Habilita o scroll */
   overflow-x: hidden;
+  scrollbar-width: thin;
   border: 1px solid #ccc; 
   border-radius: 4px;
   padding: 0; 
