@@ -3338,13 +3338,23 @@ function mostrarLoader(element) {
 }
 
 
+// function ocultarLoader(element) {
+//     if (element) {
+//         // Encontra o botão de aprovação e reabilita
+//         const btn = element.querySelector('.btn-aprovar');
+//         if (btn) btn.disabled = false;
+//     }
+// }
+
+// Exemplo de correção para o seu Main.js
 function ocultarLoader(element) {
-    if (element) {
-        // Encontra o botão de aprovação e reabilita
+    if (element && typeof element.querySelector === 'function') {
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = false;
     }
 }
+
+
 
 
 async function buscarAditivoExtraCompleto() {
@@ -4333,7 +4343,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
 
                     let tituloCard;
-                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra'; // ← adicionar
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra' || campo === 'statusaditivoextra'; // ← adicionar
                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
                     const isPedidoPrincipal = campo === 'pedido_principal';  
 
@@ -4351,6 +4361,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
                             ? "Limite Diário Excedido por Função/Evento"
                             : tipo;
+
+                            console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
                     } else {
                         //tituloCard = formatarNomeSolicitacao(campo);
                         const categoriaParaFormatar = infoItem.categoria || campo;
@@ -4454,16 +4466,57 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                     
                     let dataFormatada = '';
+                    // let dataFormatadaSolictacao = '';
+
+                    // if(pedido.dtsolicitada){
+                    //     const dataObj = new Date(pedido.dtsolicitada);
+                        
+                    //     dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
+                    //     console.log(`Formatando data de solicitação: ${pedido.dtsolicitada} -> Data Obj: ${dataObj}, Data Formatada: ${dataFormatadaSolictacao}`);
+                        
+                    // }
+                    // if (pedido.dataDecisao) {
+                    //     const dataObj = new Date(pedido.dataDecisao);
+                    //     // Verifica se a data é válida antes de formatar
+                    //     dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    // }
+
                     let dataFormatadaSolictacao = '';
 
-                    if(pedido.dtsolicitada){
-                        const dataObj = new Date(pedido.dtsolicitada);
-                        dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
-                    }
-                    if (pedido.dataDecisao) {
-                        const dataObj = new Date(pedido.dataDecisao);
-                        // Verifica se a data é válida antes de formatar
-                        dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    if (pedido.dtsolicitada) {
+                        let datasParaExibir = [];
+
+                        // 1. Identifica se é a estrutura aninhada do banco: [ { data: [2026-04-01...], status: "Pendente" } ]
+                        if (Array.isArray(pedido.dtsolicitada) && pedido.dtsolicitada.length > 0 && typeof pedido.dtsolicitada[0] === 'object' && pedido.dtsolicitada[0].data) {
+                            datasParaExibir = Array.isArray(pedido.dtsolicitada[0].data) ? pedido.dtsolicitada[0].data : [pedido.dtsolicitada[0].data];
+                        } 
+                        // 2. Se for um array simples de strings ["2026-04-01", "2026-04-02"]
+                        else if (Array.isArray(pedido.dtsolicitada)) {
+                            datasParaExibir = pedido.dtsolicitada;
+                        } 
+                        // 3. Se for uma string única ou separada por vírgula
+                        else {
+                            datasParaExibir = pedido.dtsolicitada.toString().split(',');
+                        }
+
+                        // Agora formatamos cada data encontrada
+                        const datasMapeadas = datasParaExibir.map(item => {
+                            if (!item) return '';
+                            
+                            // Limpa a string e força meio-dia para evitar erro de fuso horário
+                            const dataLimpa = String(item).trim();
+                            const dataObj = new Date(dataLimpa + 'T12:00:00');
+                            
+                            if (!isNaN(dataObj.getTime())) {
+                                return dataObj.toLocaleDateString('pt-BR');
+                            }
+                            return item; // Se falhar, mostra o original
+                        });
+
+                        // Junta tudo com vírgula para o card
+                        dataFormatadaSolictacao = datasMapeadas.join(', ');
+                        
+                        console.log(`Formatado com sucesso:`, dataFormatadaSolictacao);
                     }
 
                     let dataEventoFormatada = '';
@@ -4572,13 +4625,44 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
 
+                    // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                    //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+                    //     const dataParaAcao = isPedidoPrincipal 
+                    //         ? (pedido.dataEspecifica || '') 
+                    //         : (isDataUnica ? (infoItem.data || '').trim() : '');
+                    //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                    //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+                    //     htmlBody += `<br>
+                    //         <div class="AcoesPedido"
+                    //             data-id="${idParaAcao}"
+                    //             data-campo="${campoParaAcao}"
+                    //             data-data="${dataParaAcao}"
+                    //             data-logid="${idLogParaAcao}"
+                    //             data-aditivo="${isAditivoExtra}">
+                    //             <button class="aprovar">Autorizar</button>
+                    //             <button class="negar">Rejeitar</button>
+                    //         </div>
+                    //     `;
+                    // }
+
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+                        // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+                        const tratarData = (valor) => {
+                            if (Array.isArray(valor)) {
+                                return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+                            }
+                            return String(valor || '').trim();
+                        };
+
                         const dataParaAcao = isPedidoPrincipal 
-                            ? (pedido.dataEspecifica || '') 
-                            : (isDataUnica ? (infoItem.data || '').trim() : '');
+                            ? tratarData(pedido.dataEspecifica) 
+                            : (isDataUnica ? tratarData(infoItem.data) : '');
+
                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
                         htmlBody += `<br>
                             <div class="AcoesPedido"
                                 data-id="${idParaAcao}"
@@ -4673,6 +4757,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 let sucesso = false;
                 if (isAditivoExtra) {
                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+                    //sucesso = await statusUpdateFn(idReferencia, 'aditivoextra', statusTarget, cardElement, null, idLogOriginal);
                 } else {
                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
                 }
@@ -5301,20 +5386,42 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
     if (!confirmacao.isConfirmed) return false;
 
     try {
-        mostrarLoader(cardElement);
 
-        const url = `/main/aditivoextra/${idAditivoExtra}/status`;
+        if (cardElement && typeof cardElement.querySelector === 'function') {
+            mostrarLoader(cardElement);
+        }
+        //mostrarLoader(cardElement);
+
+        //const url = `/main/aditivoextra/${idAditivoExtra}/status`;
+
+        const url = '/main/notificacoes-financeiras/atualizar-status';
+
         // const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
         
         // O fetchComToken já resolve o JSON
+        // const response = await fetchComToken(url, {
+        //     method: 'PATCH',            
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({ novoStatus: novoStatusCapitalizado, idlog_origem: idlog_origem })
+        // });
+
         const response = await fetchComToken(url, {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ novoStatus: novoStatusCapitalizado, idlog_origem: idlog_origem })
+            body: JSON.stringify({ 
+                idpedido: idAditivoExtra,        // ID da solicitação ou registro
+                categoria: 'aditivoextra',       // Define a categoria explicitamente
+                acao: novoStatusCapitalizado,    // 'Autorizado' ou 'Rejeitado'
+                idlog_origem: idlog_origem       // ID do log para controle
+            })
         });
 
-        ocultarLoader(cardElement);
+        //ocultarLoader(cardElement);
+
+        if (cardElement && typeof cardElement.querySelector === 'function') {
+            ocultarLoader(cardElement);
+        }
 
         if (response && response.sucesso) {
             console.log("✅ Aditivo atualizado no banco. Sincronizando memória...");
