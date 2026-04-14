@@ -2545,7 +2545,7 @@ function atualizaProdutoOrc(event) {
     let select = event.target;
     
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
-    let linha = linhaFornecida || select.closest('tr');
+    let linha = select.closest('tr');
 
     // Plano B: Se o select estiver dentro de um componente customizado que esconde o original
     if (!linha) {

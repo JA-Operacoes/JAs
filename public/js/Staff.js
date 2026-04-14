@@ -7731,6 +7731,7 @@ async function carregarLocalMontStaff() {
                 option.textContent = local.descmontagem;
                 option.setAttribute("data-idMontagem", local.idmontagem);
                 option.setAttribute("data-descmontagem", local.descmontagem);
+                option.setAttribute("data-cidademontagem", local.cidademontagem);
                 option.setAttribute("data-ufmontagem", local.ufmontagem);
                 select.appendChild(option);
 
@@ -7748,7 +7749,7 @@ async function carregarLocalMontStaff() {
                    
                } else {   
                     console.log("Local de montagem selecionado:", selectedOption.textContent);                
-                   if (selectedOption.getAttribute("data-ufmontagem") !== "SP") {
+                   if ((selectedOption.getAttribute("data-ufmontagem") !== "SP")  || (selectedOption.getAttribute("data-cidademontagem") !== "SÃO PAULO")) {
                         //Swal.fire("Atenção", "O local de montagem selecionado está fora do estado de SP. Verifique os custos adicionais de deslocamento.", "warning");
                         bForaSP = true;
                         if (containerViagens) {
@@ -8890,15 +8891,15 @@ function registrarListenersNivel() {
         } 
     });
 
-    document.getElementById('viagem1Check').addEventListener('change', function () { 
+    document.getElementById('viagem1Check').addEventListener('change', function () {
     const textoParaLimpar = descBeneficioTextarea.value;
     let descBeneficioAtual = limparDescricoesViagem(textoParaLimpar);
 
     if (this.checked) {
         [viagem2Check, viagem3Check].forEach(c =>{if(c) c.checked = false;});
-
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+        const vlrAlimentacaoViagem1 = (parseFloat(vlrAlimentacaoFuncao) || 0) * 2;
+        document.getElementById("alimentacao").value = vlrAlimentacaoViagem1.toFixed(2);
+        document.getElementById("transporte").value = (0).toFixed(2)
 
         // Texto
         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
@@ -8918,9 +8919,9 @@ function registrarListenersNivel() {
         if (this.checked) {
 
             [viagem1Check, viagem3Check].forEach(c =>{ if(c) c.checked = false;});
-
-            document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-            document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
+            const vlrAlimentacaoViagem2 = ((parseFloat(vlrAlimentacaoFuncao) || 0) * 2) + ((parseFloat(vlrAlimentacaoFuncao) || 0) / 2); // Exemplo: 2 diárias + 50% extra
+            document.getElementById("alimentacao").value = vlrAlimentacaoViagem2.toFixed(2);
+            document.getElementById("transporte").value = (0).toFixed(2)
 
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;

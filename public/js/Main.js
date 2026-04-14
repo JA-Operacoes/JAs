@@ -5335,6 +5335,1495 @@ function obterIntervaloDatasFiltro() {
     return { inicio, fim };
 }
 
+// async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+//     let contasProjetadas = [];
+//     let dados = [];
+//     let contasParaExibir = [];
+
+//     if (!conteudoGeral) return;
+//     conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
+   
+//     if (valoresResumoElement) valoresResumoElement.innerHTML = '';    
+
+    
+//     const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
+//     const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
+//     const anoSelecionado = parseInt(document.getElementById('selectAno')?.value) || new Date().getFullYear();
+
+//     let dataAlvoBR = "";
+//     let hojeRelativo = new Date(); // Referência para saber o que é "Vencido"
+
+//     if (inputDataStr) {
+//         const [ano, mes, dia] = inputDataStr.split("-");
+//         dataAlvoBR = `${dia}/${mes}/${ano}`;
+//     }
+
+//     // Se o usuário está vendo um ano anterior (ex: 2025), o "hoje" para cálculos de 
+//     // vencimento deve ser o último dia daquele ano, ou os dados nunca aparecerão como "a vencer"
+//     if (anoSelecionado < new Date().getFullYear()) {
+//         hojeRelativo = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+//     } else if (anoSelecionado > new Date().getFullYear()) {
+//         hojeRelativo = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+//     }
+//     hojeRelativo.setHours(0,0,0,0);
+
+//     let params = construirParametrosFiltro();
+
+//     // 1. Removemos o ano que venha do filtro padrão para não dar conflito
+//     params = params.split('&').filter(p => !p.startsWith('ano=') && !p.startsWith('?ano=')).join('&');
+//     if (!params.startsWith('?')) params = '?' + params;
+
+//     // 2. Garante a troca de período se necessário
+//     if (filtroTipo === "diario" || filtroTipo === "semanal") {
+//         params = params.replace("periodo=diario", "periodo=mensal").replace("periodo=semanal", "periodo=mensal");
+//     }
+
+//     // 3. Agora sim, injeta o ano selecionado no card4
+//     const paramsComAno = `${params}&ano=${anoSelecionado}`;   
+
+//    // console.log("AGORA VAI:", paramsComAno);
+
+//     try {
+//        // const paramsComAno = params.includes("ano=") ? params : `${params}&ano=${anoSelecionado}`;
+
+//        // console.log("PARAMSCOMANO", paramsComAno);
+
+//         const [resEventos, resContas] = await Promise.all([
+//             fetchComToken(`/main/vencimentos${paramsComAno}`), 
+//             fetchComToken(`/main/contas-pagar${paramsComAno}`) // Adicione o parâmetro aqui também
+//         ]);
+
+        
+//         dados = resEventos?.eventos || [];
+
+//         console.log("DADOS EVENTOS", dados);      
+
+        
+//         dados = dados.filter(ev => {
+//             const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
+//             const chPendente = parseFloat(ev.cache?.pendente) || 0;
+            
+//             // 1. Identificar competência do evento (Mês/Ano)
+//             const extrairComp = (ds) => {
+//                 if (!ds || ds === '---') return null;
+//                 const [d, m, a] = ds.split('/').map(Number);
+//                 return (a * 12) + m;
+//             };
+
+//             const compAjuda = extrairComp(ev.dataVencimentoAjuda);
+//             const compCache = extrairComp(ev.dataVencimentoCache);
+//             const compAnoAlvo = (anoSelecionado * 12);
+
+//             // 2. Definir o Range do Filtro
+//             const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value) || 1;
+//             const inicioFiltro = compAnoAlvo + mesInicial;
+            
+//             let alcance = 1;
+//             if (filtroTipo === "trimestral") alcance = 3;
+//             else if (filtroTipo === "semestral") alcance = 6;
+            
+//             const fimFiltro = inicioFiltro + alcance - 1;
+
+//             // 3. LÓGICA DE FILTRAGEM (Prioridade ao Período)
+//             if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
+                
+//                 // Verifica se a competência da Ajuda ou do Cachê entra no range
+//                 const ajudaNoPeriodo = (compAjuda >= inicioFiltro && compAjuda <= fimFiltro);
+//                 const cacheNoPeriodo = (compCache >= inicioFiltro && compCache <= fimFiltro);
+
+//                 // IMPORTANTE: Se for "Aguardando Cadastro", ele pode não ter data de vencimento ainda.
+//                 // Verificamos se há algum indício de data no evento ou se ele pertence ao ano/mês inicial
+//                 const semDataMasNoMes = (!compAjuda && !compCache && mesInicial === (new Date().getMonth() + 1));
+
+//                 if (ajudaNoPeriodo || cacheNoPeriodo || semDataMasNoMes) {
+//                     return true; // Deixa passar, independente de estar liquidado ou pendente
+//                 }
+//                 return false; // Fora do período
+//             }
+
+//             // 4. Caso seja filtro Diário
+//             if (filtroTipo === "diario") {
+//                 return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR);
+//             }
+
+//             return true;
+//         });
+
+//         // Configuração visual do filtro caixinha
+//         const totalCaixinhaGeral = dados.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
+//         const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
+//         if (radioCaixinhaTopo) {
+//             radioCaixinhaTopo.disabled = totalCaixinhaGeral === 0;
+//             radioCaixinhaTopo.closest('.option').classList.toggle('disabled-option', totalCaixinhaGeral === 0);
+//         }
+
+//         const categoriaInicial = document.querySelector('input[name="categoria"]:checked')?.value || 'ajuda_custo';
+
+//         conteudoGeral.innerHTML = "";
+//         const accordionContainer = document.createElement("div");
+//         accordionContainer.className = "accordion-vencimentos";
+
+//         // const obterHeaderTabela = (filtro) => {
+//         //     const podeVerAcoes = usuarioTemPermissaoSupremo();
+//         //     return `<tr><th>NOME / FUNÇÃO</th><th style="text-align:center">DIÁRIAS</th><th style="text-align:center">PERÍODO</th>${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th></tr>`;
+//         // };
+
+        
+//         // const obterLinhasTabela = (evento, filtro) => {
+//         //     let lista = evento.funcionarios || [];
+//         //     if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+//         //     if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
+            
+//         //     const podeVerAcoes = usuarioTemPermissaoSupremo();
+
+//         //     // 1. ORDENAÇÃO: Garante que os registros do mesmo profissional fiquem sempre juntos
+//         //     lista.sort((a, b) => {
+//         //         const nomeA = a.nome || '';
+//         //         const nomeB = b.nome || '';
+//         //         return nomeA.localeCompare(nomeB);
+//         //     });
+
+//         //     let linhasHtml = '';
+            
+//         //     // Acumuladores para o subtotal do funcionário
+//         //     let acumuladorDiarias = 0;
+//         //     let acumuladorValorFinanceiro = 0;
+
+//         //     // Mudamos de .map para .forEach para conseguir controlar a quebra de linha de cada funcionário
+//         //     lista.forEach((f, index) => {
+//         //         const proximoItem = lista[index + 1];
+
+//         //         console.log(`DEBUG VALORES [${f.nome}]:`, {
+//         //             cache_original: f.totalcache_full,
+//         //             ajuste_custo: f.totalajustecusto_full,
+//         //             soma_calculada_no_banco: f.cache_com_ajuste,
+//         //             caixinha_original: f.totalcaixinha_full,
+//         //         });
+
+//         //         const info = {
+//         //             'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
+//         //             'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
+//         //             'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' },
+//         //             'ajuste_custo': { status: formatarStatusFront(f.statuspgtoajstcusto || "Pendente"), valor: f.totalajustecusto_full, tipoAcao: 'Ajuste de Custo' }
+//         //         }[filtro];
+                
+//         //         // Alimentando os somadores do subtotal
+//         //         acumuladorDiarias += parseFloat(f.qtddiarias_filtradas || 0);
+//         //         acumuladorValorFinanceiro += parseFloat(info.valor || 0);
+
+//         //         const estaPago = info.status.toLowerCase().startsWith('pago');
+//         //         const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+//         //         const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+                
+//         //         const nomeAtual = (f.nome || '').trim();
+//         //         const nomeProximo = proximoItem && proximoItem.nome ? proximoItem.nome.trim() : '';
+                
+//         //         // Verifica se o profissional vai mudar na próxima linha ou se a lista acabou
+//         //         const ehUltimoRegistroDoProfissional = !proximoItem || nomeAtual !== nomeProximo;
+
+//         //         // Estilização para dar uma leve separação visual entre os blocos de pessoas
+//         //         let estiloBordaSeparadora = '';
+//         //         if (ehUltimoRegistroDoProfissional) {
+//         //             estiloBordaSeparadora = 'border-bottom: 2px dashed #bbbbbb !important;';
+//         //         }
+
+//         //         // 2. Renderização da Linha Normal
+//         //         linhasHtml += `
+//         //             <tr style="${estiloBordaSeparadora}">
+//         //                 <td>
+//         //                     <strong>${f.nome}</strong><br>
+//         //                     <small>${f.funcao}</small>
+//         //                 </td>
+
+//         //                 <td style="text-align:center">
+//         //                     ${f.qtddiarias_filtradas || 0}
+//         //                 </td>
+
+//         //                 <td style="text-align:center">
+//         //                     <small>${periodoFormatado || '---'}</small>
+//         //                 </td>
+
+//         //                 ${podeVerAcoes ? `
+//         //                     <td style="text-align:center">
+//         //                         ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
+//         //                     </td>
+//         //                 ` : ''}
+
+//         //                 <td class="comprovantes-cell">
+//         //                     ${estaPago 
+//         //                         ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+//         //                         : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+//         //                     }
+//         //                 </td>
+
+//         //                 <td class="status-celula status-${classeStatus}">
+//         //                     ${info.status}
+//         //                 </td>
+
+//         //                 <td>
+//         //                     ${formatarMoeda(info.valor || 0)}
+//         //                 </td>
+//         //             </tr>
+//         //         `;
+
+//         //         // 3. Inserção da linha de Subtotal
+//         //         if (ehUltimoRegistroDoProfissional) {
+//         //             // Só exibe a linha de subtotal se a pessoa tiver mais de 1 registro na lista
+//         //             const temMaisDeUmaLinha = lista.filter(item => 
+//         //                 (item.nome || '').trim() === nomeAtual
+//         //             ).length > 1;
+
+//         //             if (temMaisDeUmaLinha) {
+//         //                 linhasHtml += `
+//         //                 <tr class="row-total" style="background-color: #f4f4f4; border-bottom: 2px dashed #888888 !important;">
+//         //                     <td style="text-align: right; font-weight: bold; color: #333;">
+//         //                         SUBTOTAL ${nomeAtual}:
+//         //                     </td>
+//         //                     <td style="text-align: center; font-weight: bold;">
+//         //                         ${acumuladorDiarias}
+//         //                     </td>
+//         //                     <td></td>
+//         //                     ${podeVerAcoes ? `<td></td>` : ''}
+//         //                     <td></td>
+//         //                     <td></td>
+//         //                     <td style="font-weight: bold; color: #111;">
+//         //                         ${formatarMoeda(acumuladorValorFinanceiro)}
+//         //                     </td>
+//         //                 </tr>`;
+//         //             }
+
+//         //             // Reseta as variáveis acumuladoras para começar a contar o próximo funcionário
+//         //             acumuladorDiarias = 0;
+//         //             acumuladorValorFinanceiro = 0;
+//         //         }
+//         //     });
+
+//         //     return linhasHtml;
+//         // };
+
+//         const obterHeaderTabela = () => {
+//             const podeVerAcoes = usuarioTemPermissaoSupremo();
+//             return `
+//                 <tr>
+//                     <th>NOME / FUNÇÃO</th>
+//                     <th style="text-align:center">CATEGORIA</th>
+//                     <th style="text-align:center">DIÁRIAS</th>
+//                     <th style="text-align:center">PERÍODO</th>
+//                     ${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}
+//                     <th>COMPROVANTE(S)</th>
+//                     <th>STATUS</th>
+//                     <th style="text-align:right">VALOR</th>
+//                 </tr>`;
+//         };
+
+//         const obterLinhasTabela = (evento) => {
+//             let lista = evento.funcionarios || [];
+//             if (lista.length === 0) {
+//                 return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
+//             }
+
+//             const podeVerAcoes = usuarioTemPermissaoSupremo();
+
+//             // Ordena por nome para agrupar registros do mesmo profissional
+//             lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+//             // Agrupa por nome para calcular subtotais
+//             const grupos = {};
+//             lista.forEach(f => {
+//                 const nome = (f.nome || '').trim();
+//                 if (!grupos[nome]) grupos[nome] = [];
+//                 grupos[nome].push(f);
+//             });
+
+//             let linhasHtml = '';
+
+//             const CATEGORIAS = [
+//                 {
+//                     key: 'ajuda_custo',
+//                     label: 'Ajuda de Custo',
+//                     badgeClass: 'badge-ajuda',
+//                     getStatus: f => formatarStatusFront(f.statuspgtoajdcto || 'Pendente'),
+//                     getValor:  f => parseFloat(f.totalajudacusto_full || 0),
+//                     getDiarias: f => f.qtddiarias_filtradas || 0,
+//                     tipoAcao: 'Ajuda',
+//                 },
+//                 {
+//                     key: 'cache',
+//                     label: 'Cachê',
+//                     badgeClass: 'badge-cache',
+//                     getStatus: f => formatarStatusFront(f.statuspgto || 'Pendente'),
+//                     getValor:  f => parseFloat(f.cache_com_ajuste || 0),
+//                     getDiarias: f => f.qtddiarias_filtradas || 0,
+//                     tipoAcao: 'Cache',
+//                 },
+//                 {
+//                     key: 'caixinha',
+//                     label: 'Caixinha',
+//                     badgeClass: 'badge-caixinha',
+//                     getStatus: f => formatarStatusFront(f.statuscaixinha || 'Pendente'),
+//                     getValor:  f => parseFloat(f.totalcaixinha_full || 0),
+//                     getDiarias: f => f.qtddiarias_filtradas || 0,
+//                     tipoAcao: 'Caixinha',
+//                 },
+//             ];
+
+//             const nomesOrdenados = Object.keys(grupos).sort((a, b) => a.localeCompare(b));
+
+//             nomesOrdenados.forEach(nome => {
+//                 const registros = grupos[nome];
+
+//                 // registros.forEach((f, idxF) => {
+//                 //     const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+//                 //     const ehUltimoRegistro = (idxF === registros.length - 1);
+//                 //     //const rowspan = CATEGORIAS.length; // sempre 3
+
+//                 //     // Antes de entrar no forEach de CATEGORIAS, calcula quantas linhas vão existir
+//                 //     const rowspanTotal = CATEGORIAS.filter(cat => {
+//                 //         if (cat.key === 'caixinha') {
+//                 //             return registros.some(r => parseFloat(r.totalcaixinha_full || 0) > 0);
+//                 //         }
+//                 //         return true;
+//                 //     }).length;
+
+//                 //     // Acumuladores de subtotal para este funcionário neste registro
+//                 //     // (se houver múltiplos registros por nome, somamos ao final)
+//                 //     let linhasCats = '';
+
+//                 //     CATEGORIAS.forEach((cat, idxCat) => {
+//                 //         const valor  = cat.getValor(f);
+//                 //         if (cat.key === 'caixinha' && valor <= 0) return;
+//                 //         const status = cat.getStatus(f);
+                        
+//                 //         const diarias = cat.getDiarias(f);
+//                 //         const estaPago = status.toLowerCase().startsWith('pago');
+//                 //         const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+//                 //         // Só exibe caixinha se tiver valor
+//                 //         const semCaixinha = (cat.key === 'caixinha' && valor <= 0);
+
+//                 //         // Borda separadora: última categoria do último registro do funcionário
+//                 //         const ehUltimaLinha = (ehUltimoRegistro && idxCat === CATEGORIAS.length - 1);
+//                 //         const estiloBorda = ehUltimaLinha
+//                 //             ? 'border-bottom: 2px dashed #bbbbbb !important;'
+//                 //             : '';
+
+//                 //         // Célula do nome: apenas na primeira categoria do primeiro registro
+//                 //         const celulaNome = (idxCat === 0)
+//                 //             ? `<td rowspan="${rowspanTotal * registros.length}"
+//                 //                 style="vertical-align:middle; border-right:1px solid #e0e0e0;
+//                 //                         border-bottom:2px dashed #bbbbbb;">
+//                 //                 <strong>${f.nome}</strong><br>
+//                 //                 <small style="color:#666;">${f.funcao}</small>
+//                 //             </td>`
+//                 //             : '';
+
+//                 //         linhasCats += `
+//                 //             <tr style="${estiloBorda}">
+//                 //                 ${idxF === 0 ? celulaNome : (idxCat === 0 ? '' : '')}
+
+//                 //                 <td style="text-align:center">
+//                 //                     <span class="badge-categoria badge-${cat.key}">
+//                 //                         ${cat.label}
+//                 //                     </span>
+//                 //                 </td>
+
+//                 //                 <td style="text-align:center">
+//                 //                     ${semCaixinha ? '<span style="color:#bbb;">—</span>' : diarias}
+//                 //                 </td>
+
+//                 //                 <td style="text-align:center">
+//                 //                     <small>${semCaixinha ? '—' : periodoFormatado}</small>
+//                 //                 </td>
+
+//                 //                 ${podeVerAcoes ? `
+//                 //                     <td style="text-align:center">
+//                 //                         ${semCaixinha
+//                 //                             ? '<span style="color:#bbb; font-size:11px;">—</span>'
+//                 //                             : renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+//                 //                         }
+//                 //                     </td>
+//                 //                 ` : ''}
+
+//                 //                 <td class="comprovantes-cell">
+//                 //                     ${semCaixinha
+//                 //                         ? '<span style="font-size:9px; color:#bbb;">—</span>'
+//                 //                         : estaPago
+//                 //                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+//                 //                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+//                 //                     }
+//                 //                 </td>
+
+//                 //                 <td class="status-celula status-${classeStatus}">
+//                 //                     ${semCaixinha ? '' : status}
+//                 //                 </td>
+
+//                 //                 <td style="text-align:right">
+//                 //                     ${semCaixinha
+//                 //                         ? '<span style="color:#bbb;">R$ 0,00</span>'
+//                 //                         : formatarMoeda(valor)
+//                 //                     }
+//                 //                 </td>
+//                 //             </tr>`;
+//                 //     });
+
+//                 //     linhasHtml += linhasCats;
+//                 // });
+
+
+//                 registros.forEach((f, idxF) => {
+//                     const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
+//                     const ehUltimoRegistro = (idxF === registros.length - 1);
+
+//                     const temCaixinha = parseFloat(f.totalcaixinha_full || 0) > 0;
+
+//                     const rowspanTotal = CATEGORIAS.filter(cat => {
+//                         if (cat.key === 'caixinha') return temCaixinha;
+//                         return true;
+//                     }).length;
+
+//                     // Qual é a última categoria visível para ESTE funcionário?
+//                     const ultimaCatKey = temCaixinha ? 'caixinha' : 'cache';
+
+//                     let linhasCats = '';
+
+//                 //     CATEGORIAS.forEach((cat, idxCat) => {
+//                 //         const valor = cat.getValor(f);
+//                 //         if (cat.key === 'caixinha' && !temCaixinha) return;
+
+//                 //         const status       = cat.getStatus(f);
+//                 //         const diarias      = cat.getDiarias(f);
+//                 //         const estaPago     = status.toLowerCase().startsWith('pago');
+//                 //         const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+//                 //         // A borda tracejada deve aparecer SEMPRE na última categoria de QUALQUER período
+//                 //         const ehUltimaLinha = (cat.key === ultimaCatKey);
+
+//                 //         // Se for a última linha, bota o tracejado. Se não for, bota uma borda invisível 
+//                 //         // para empurrar o layout e impedir que o tracejado suba.
+//                 //         const estiloBorda = ehUltimaLinha 
+//                 //             ? 'border-bottom: 2px dashed #bbbbbb !important;' 
+//                 //             : 'border-bottom: 1px solid transparent !important;';
+
+//                 //         // Célula do nome só na primeira categoria do primeiro registro
+//                 //         const celulaNome = (idxCat === 0 && idxF === 0)
+//                 //             ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+//                 //                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
+//                 //                 + '<strong>' + f.nome + '</strong><br>'
+//                 //                 + '<small style="color:#666;">' + f.funcao + '</small>'
+//                 //                 + '</td>'
+//                 //             : '';
+
+//                 //         // Pré-computa células com lógica condicional — evita template aninhado
+//                 //         const celulaAcoes = podeVerAcoes
+//                 //             ? '<td style="text-align:center; ' + estiloBorda + '">'
+//                 //                 + renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+//                 //                 + '</td>'
+//                 //             : '';
+
+//                 //         const conteudoComprovante = estaPago
+//                 //             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+//                 //             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+
+//                 //         linhasCats += '<tr>'
+//                 //             + celulaNome
+//                 //             + '<td style="text-align:center; ' + estiloBorda + '">'
+//                 //                 + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+//                 //             + '</td>'
+//                 //             + '<td style="text-align:center; ' + estiloBorda + '">' + diarias + '</td>'
+//                 //             + '<td style="text-align:center; ' + estiloBorda + '"><small>' + periodoFormatado + '</small></td>'
+//                 //             + celulaAcoes
+//                 //             + '<td class="comprovantes-cell" style="' + estiloBorda + '">' + conteudoComprovante + '</td>'
+//                 //             + '<td class="status-celula status-' + classeStatus + '" style="' + estiloBorda + '">' + status + '</td>'
+//                 //             + '<td style="text-align:right; ' + estiloBorda + '">' + formatarMoeda(valor) + '</td>'
+//                 //             + '</tr>';
+//                 //     });
+
+//                 //     linhasHtml += linhasCats;
+//                 // });
+
+
+//                 CATEGORIAS.forEach((cat, idxCat) => {
+//                         const valor = cat.getValor(f);
+//                         if (cat.key === 'caixinha' && !temCaixinha) return;
+
+//                         const status       = cat.getStatus(f);
+//                         const diarias      = cat.getDiarias(f);
+//                         const estaPago     = status.toLowerCase().startsWith('pago');
+//                         const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+//                         // ESTRATÉGIA DE BORDAS:
+//                         // 1. Todas as linhas ganham uma borda pontilhada sutil para não bugar o CSS da tabela.
+//                         // 2. A última categoria do período ganha o tracejado de separação.
+//                         const ehUltimaLinha = (cat.key === ultimaCatKey);
+                        
+//                         let estiloBorda = 'border-bottom: 1px dotted #e0e0e0 !important;'; 
+                        
+//                         if (ehUltimaLinha) {
+//                             estiloBorda = 'border-bottom: 2px dashed #bbbbbb !important;';
+//                         }
+
+//                         // Célula do nome só na primeira categoria do primeiro registro
+//                         // const celulaNome = (idxCat === 0 && idxF === 0)
+//                         //     ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+//                         //         + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
+//                         //         + '<strong>' + f.nome + '</strong><br>'
+//                         //         + '<small style="color:#666;">' + f.funcao + '</small>'
+//                         //         + '</td>'
+//                         //     : '';
+//                         let celulaNome = '';
+//                         if (idxCat === 0 && idxF === 0) {
+                            
+//                             // Mapeia as funções na ordem exata dos períodos
+//                             // e gera uma tag <small> para cada uma delas ficar em uma nova linha
+//                             const htmlFuncoes = registros.map(r => {
+//                                 return `<small style="display:block; color:#2563eb; font-weight:500; margin-top:3px;">• ${r.funcao}</small>`;
+//                             }).join('');
+
+//                             celulaNome = '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+//                                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb; padding: 10px;">'
+//                                 + '<strong>' + f.nome + '</strong><br>'
+//                                 + '<div style="margin-top:5px; line-height:1.2;">'
+//                                 + htmlFuncoes
+//                                 + '</div>'
+//                                 + '</td>';
+//                         }
+
+//                         // Pré-computa células com lógica condicional — evita template aninhado
+//                         const celulaAcoes = podeVerAcoes
+//                             ? '<td style="text-align:center; ' + estiloBorda + '">'
+//                                 + renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+//                                 + '</td>'
+//                             : '';
+
+//                         const conteudoComprovante = estaPago
+//                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+//                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+
+//                         // linhasCats += '<tr>'
+//                         //     + celulaNome
+//                         //     + '<td style="text-align:center; ' + estiloBorda + '">'
+//                         //         + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+//                         //     + '</td>'
+//                         //     + '<td style="text-align:center; ' + estiloBorda + '">' + diarias + '</td>'
+//                         //     + '<td style="text-align:center; ' + estiloBorda + '"><small>' + periodoFormatado + '</small></td>'
+//                         //     + celulaAcoes
+//                         //     + '<td class="comprovantes-cell" style="' + estiloBorda + '">' + conteudoComprovante + '</td>'
+//                         //     + '<td class="status-celula status-' + classeStatus + '" style="' + estiloBorda + '">' + status + '</td>'
+//                         //     + '<td style="text-align:right; ' + estiloBorda + '">' + formatarMoeda(valor) + '</td>'
+//                         //     + '</tr>';
+
+//                         // Agora aplicamos o estilo direto na LINHA (tr), e não nas células (td)
+//                         const estiloLinha = ehUltimaLinha 
+//                             ? 'style="border-bottom: 2px dashed #bbbbbb !important;"' 
+//                             : 'style="border-bottom: 1px dotted #e0e0e0 !important;"';
+
+//                         linhasCats += `<tr ${estiloLinha}>`
+//                             + celulaNome
+//                             + '<td style="text-align:center;">'
+//                                 + '<span class="badge-categoria badge-' + cat.key + '">' + cat.label + '</span>'
+//                             + '</td>'
+//                             + '<td style="text-align:center;">' + diarias + '</td>'
+//                             + '<td style="text-align:center;"><small>' + periodoFormatado + '</small></td>'
+//                             + celulaAcoes
+//                             + '<td class="comprovantes-cell">' + conteudoComprovante + '</td>'
+//                             + '<td class="status-celula status-' + classeStatus + '">' + status + '</td>'
+//                             + '<td style="text-align:right;">' + formatarMoeda(valor) + '</td>'
+//                             + '</tr>';
+//                     });
+
+//                     linhasHtml += linhasCats;
+//                 });
+
+                
+//                 // FORA do forEach de categorias — calcula uma vez por funcionário
+
+
+                
+//                 // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+//                 // if (registros.length > 1) {
+//                 //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+//                 //     const totalValor   = registros.reduce((s, f) => {
+//                 //         return s
+//                 //             + parseFloat(f.totalajudacusto_full || 0)
+//                 //             + parseFloat(f.cache_com_ajuste || 0)
+//                 //             + parseFloat(f.totalcaixinha_full || 0);
+//                 //     }, 0);
+
+//                 //     linhasHtml += `
+//                 //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
+//                 //             <td colspan="2" style="text-align:right; font-weight:bold; color:#333;">
+//                 //                 SUBTOTAL ${nome}:
+//                 //             </td>
+//                 //             <td style="text-align:center; font-weight:bold;">${totalDiarias}</td>
+//                 //             <td></td>
+//                 //             ${podeVerAcoes ? '<td></td>' : ''}
+//                 //             <td></td>
+//                 //             <td></td>
+//                 //             <td style="text-align:right; font-weight:bold;">${formatarMoeda(totalValor)}</td>
+//                 //         </tr>`;
+//                 // }
+
+//                 // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+//                 // if (registros.length > 1) {
+//                 //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+
+//                 //     const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+//                 //     const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+//                 //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+//                 //     const totalGeral   = totalAjuda + totalCache + totalCaixinha;
+
+//                 //     linhasHtml += `
+//                 //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
+//                 //             <td style="text-align:right; font-weight:bold; color:#333; font-size:12px;">
+//                 //                 SUBTOTAL<br><small style="color:#888; font-weight:400;">${nome}</small>
+//                 //             </td>
+//                 //             <td colspan="${podeVerAcoes ? 5 : 4}" style="padding: 6px 10px;">
+//                 //                 <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:12px;">
+
+//                 //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+//                 //                                 background:#e8f0fe; border:1px solid #b4ccf8;
+//                 //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+//                 //                         <span style="font-size:10px; color:#1a56db; font-weight:500;">Ajuda de Custo</span>
+//                 //                         <strong style="color:#1a56db;">${formatarMoeda(totalAjuda)}</strong>
+//                 //                     </span>
+
+//                 //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+//                 //                                 background:#fff8e6; border:1px solid #fcd34d;
+//                 //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+//                 //                         <span style="font-size:10px; color:#b45309; font-weight:500;">Cachê</span>
+//                 //                         <strong style="color:#b45309;">${formatarMoeda(totalCache)}</strong>
+//                 //                     </span>
+
+//                 //                     <span style="display:inline-flex; flex-direction:column; align-items:center;
+//                 //                                 background:#ecfdf5; border:1px solid #6ee7b7;
+//                 //                                 border-radius:8px; padding:4px 10px; min-width:90px;">
+//                 //                         <span style="font-size:10px; color:#065f46; font-weight:500;">Caixinha</span>
+//                 //                         <strong style="color:#065f46;">${formatarMoeda(totalCaixinha)}</strong>
+//                 //                     </span>
+
+//                 //                     ${totalCaixinha > 0 ? `
+//                 //                         <span style="display:inline-flex; flex-direction:column; align-items:center; 
+//                 //                                     background:#ecfdf5; border:1px solid #6ee7b7; 
+//                 //                                     border-radius:8px; padding:4px 10px; min-width:90px;">
+                                                    
+//                 //                             <span style="font-size:10px; color:#065f46; font-weight:500;">
+//                 //                                 Caixinha
+//                 //                             </span>
+                                            
+//                 //                             <strong style="color:#065f46;">
+//                 //                                 ${formatarMoeda(totalCaixinha)}
+//                 //                             </strong>
+                                            
+//                 //                         </span>
+//                 //                     ` : ''}
+
+                                   
+
+//                 //                 </div>
+//                 //             </td>
+//                 //             <td style="text-align:center; font-weight:bold; color:#555; font-size:12px;">
+//                 //                 ${totalDiarias} diárias
+//                 //             </td>
+//                 //         </tr>`;
+//                 // }
+
+//                 // Subtotal por funcionário (se tiver mais de 1 registro/evento)
+//                 // if (registros.length > 1) {
+//                 //     const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+
+//                 //     const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+//                 //     const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+//                 //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+
+//                 //     linhasHtml += `
+//                 //         <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+//                 //             <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
+//                 //                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
+                                    
+//                 //                     <span>
+//                 //                         <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
+//                 //                         <span style="color:#555; font-weight: 500;">${nome}</span>
+//                 //                         <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+//                 //                             ${totalDiarias} diárias
+//                 //                         </span>
+//                 //                     </span>
+
+//                 //                     <div style="display: flex; gap: 20px; font-weight: bold;">
+                                        
+//                 //                         <span style="color: #1a56db;">
+//                 //                             <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+//                 //                             ${formatarMoeda(totalAjuda)}
+//                 //                         </span>
+
+//                 //                         <span style="color: #b45309;">
+//                 //                             <small style="font-weight: normal; color: #666;">Cachê: </small>
+//                 //                             ${formatarMoeda(totalCache)}
+//                 //                         </span>
+
+//                 //                         ${totalCaixinha > 0 ? `
+//                 //                             <span style="color: #065f46;">
+//                 //                                 <small style="font-weight: normal; color: #666;">Caixinha: </small>
+//                 //                                 ${formatarMoeda(totalCaixinha)}
+//                 //                             </span>
+//                 //                         ` : ''}
+                                        
+//                 //                     </div>
+//                 //                 </div>
+//                 //             </td>
+                            
+//                 //             <td></td> 
+//                 //         </tr>`;
+//                 // }
+
+//                 // --- FORA DO FOR EACH DE REGISTROS ---
+                
+//                 // Cálculo dos totais do funcionário (aparece para TODOS)
+//                 const totalDiarias = registros.reduce((s, f) => s + parseFloat(f.qtddiarias_filtradas || 0), 0);
+//                 const totalAjuda   = registros.reduce((s, f) => s + parseFloat(f.totalajudacusto_full || 0), 0);
+//                 const totalCache   = registros.reduce((s, f) => s + parseFloat(f.cache_com_ajuste || 0), 0);
+//                 const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
+
+//                 // O total geral do funcionário somando tudo
+//                 const totalGeralFuncionario = totalAjuda + totalCache + totalCaixinha;
+
+//                 // Monta a linha de total (Agora sem a trava de registros.length > 1)
+//                 linhasHtml += `
+//                     <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+//                         <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
+//                             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
+                                
+//                                 <span>
+//                                     <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
+//                                     <span style="color:#555; font-weight: 500;">${nome}</span>
+//                                     <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+//                                         ${totalDiarias} diárias
+//                                     </span>
+//                                 </span>
+
+//                                 <div style="display: flex; gap: 20px; font-weight: bold; align-items: center;">
+                                    
+//                                     <span style="color: #1a56db;">
+//                                         <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+//                                         ${formatarMoeda(totalAjuda)}
+//                                     </span>
+
+//                                     <span style="color: #b45309;">
+//                                         <small style="font-weight: normal; color: #666;">Cachê: </small>
+//                                         ${formatarMoeda(totalCache)}
+//                                     </span>
+
+//                                     ${totalCaixinha > 0 ? `
+//                                         <span style="color: #065f46;">
+//                                             <small style="font-weight: normal; color: #666;">Caixinha: </small>
+//                                             ${formatarMoeda(totalCaixinha)}
+//                                         </span>
+//                                     ` : ''}
+
+//                                     <span style="color: #111; margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
+//                                         <small style="font-weight: normal; color: #666;">Total: </small>
+//                                         ${formatarMoeda(totalGeralFuncionario)}
+//                                     </span>
+                                    
+//                                 </div>
+//                             </div>
+//                         </td>
+                        
+//                         <td></td> 
+//                     </tr>`;
+//             });
+
+//             return linhasHtml;
+//         };
+
+//         if (dados.length > 0) {
+
+//             const resumoStaffMestre = dados.reduce((acc, ev) => {
+//                 const hojeBR = hojeRelativo.toLocaleDateString('pt-BR');
+
+//                 // Função auxiliar para classificar cada componente
+//                 const classificar = (dataStr, valorPendente) => {
+//                     if (!dataStr || dataStr === '---' || valorPendente <= 0) return;
+//                     const [d, m, a] = dataStr.split('/').map(Number);
+//                     const dtVcto = new Date(a, m - 1, d);
+//                     dtVcto.setHours(0,0,0,0);
+
+//                     if (dtVcto < hojeRelativo) {
+//                         acc.vencido += valorPendente;
+//                     } else {
+//                         acc.aVencer += valorPendente;
+//                     }
+//                 };
+
+//                 // Pagos (Soma tudo)
+//                 acc.pago += (parseFloat(ev.cache?.pago) || 0) + (parseFloat(ev.ajuda?.pago) || 0) + (parseFloat(ev.caixinha?.pago) || 0);
+
+//                 // Pendentes (Classifica individualmente Ajuda e Cachê)
+//                 classificar(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
+//                 classificar(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
+//                 // Caixinha geralmente não tem data de vencimento separada, somamos no A Vencer por padrão se houver
+//                 acc.aVencer += (parseFloat(ev.caixinha?.pendente) || 0);
+
+//                 acc.total = acc.pago + acc.vencido + acc.aVencer;
+//                 return acc;
+//             }, { pago: 0, vencido: 0, aVencer: 0, total: 0 });
+
+//             const btnMestreEventos = document.createElement('button');
+//             btnMestreEventos.className = 'accordion-mestre-header active';            
+           
+
+//             btnMestreEventos.innerHTML = `
+//                 <div class="evento-info-container-inline">
+//                     <div class="evento-titulo-col">
+//                         <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
+//                         <small>(${dados.length} eventos)</small>
+//                     </div>
+//                     <div class="evento-valores-col">
+//                         <div class="fin-resumo-item">
+//                             <span class="label-categoria">PAGOS:</span>
+//                             <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
+//                         </div>
+//                         <div class="fin-resumo-item">
+//                             <span class="label-categoria" style="color: #d9534f;">VENCIDOS:</span>
+//                             <span class="ap" style="color: #d9534f; font-weight: bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
+//                         </div>
+//                         <div class="fin-resumo-item">
+//                             <span class="label-categoria" style="color: #007bff;">A VENCER:</span>
+//                             <span class="ap" style="color: #007bff; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
+//                         </div>
+//                         <div class="fin-resumo-item orcado">
+//                             <span class="label-categoria">TOTAL:</span>
+//                             <strong>${formatarMoeda(resumoStaffMestre.total)}</strong>
+//                         </div>
+//                     </div>
+//                 </div>`;
+            
+//             const wrapperEventos = document.createElement('div');
+//             wrapperEventos.id = 'container-mestre-eventos';
+//             wrapperEventos.style.display = 'block'; // Deixa aberto por padrão se houver dados
+
+//             btnMestreEventos.onclick = () => {
+//                 wrapperEventos.style.display = wrapperEventos.style.display === 'block' ? 'none' : 'block';
+//                 btnMestreEventos.classList.toggle('active');
+//             };
+           
+
+//             accordionContainer.appendChild(btnMestreEventos);
+//             accordionContainer.appendChild(wrapperEventos);
+
+//             // Criar container de filtros rápidos
+//             const containerFiltrosRapidos = document.createElement("div");
+//             containerFiltrosRapidos.className = "filtros-rapidos-eventos";
+//             containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
+
+//             const opcoesFiltro = [
+//                 { id: 'todos', label: 'Todos', color: '#666' },
+//                 { id: 'vencidos', label: 'Vencidos', color: '#d9534f' }, // Vermelho
+//                 { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },       // Amarelo/Laranja
+//                 { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },
+//                 { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
+//                 { id: 'liquidado', label: 'Liquidados', color: '#28a745' }
+//             ];
+
+//             opcoesFiltro.forEach(opt => {
+//                 const btn = document.createElement("button");
+//                 btn.innerText = opt.label;
+//                 btn.className = "btn-filtro-rapido";
+//                 btn.dataset.filter = opt.id;
+//                 btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
+                
+//                 if(opt.id === 'todos') {
+//                     btn.style.background = opt.color;
+//                     btn.style.color = "white";
+//                 }
+
+//                 btn.onclick = () => {
+//                     // Resetar estilos de todos os botões
+//                     containerFiltrosRapidos.querySelectorAll(".btn-filtro-rapido").forEach(b => {
+//                         const bColor = b.style.borderColor;
+//                         b.style.background = "white";
+//                         b.style.color = bColor;
+//                     });
+//                     // Ativar botão clicado
+//                     btn.style.background = opt.color;
+//                     btn.style.color = "white";
+                    
+//                     filtrarEventosNaTela(opt.id);
+//                 };
+//                 containerFiltrosRapidos.appendChild(btn);
+//             });
+
+//             wrapperEventos.appendChild(containerFiltrosRapidos);
+
+            
+//             dados.forEach(evento => {
+//                 const ajPendente = parseFloat(evento.ajuda?.pendente) || 0;
+//                 const chPendente = parseFloat(evento.cache?.pendente) || 0;
+//                 const hojeBR = hojeRelativo.toLocaleDateString('pt-BR');
+
+//                 let detalheVencidos = { cache: 0, ajuda: 0 };
+//                 let detalheHoje = { cache: 0, ajuda: 0 };
+//                 let detalheAVencer = { cache: 0, ajuda: 0 };
+                
+//                 let temVencido = false;
+//                 let temHoje = false;
+//                 let temAVencer = false;
+
+//                 // --- 1. CLASSIFICAÇÃO DOS VALORES ---
+                
+//                 // Processar Ajuda
+//                 if (evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== '---' && ajPendente > 0) {
+//                     const [d, m, a] = evento.dataVencimentoAjuda.split('/').map(Number);
+//                     const dtVcto = new Date(a, m - 1, d);
+//                     if (dtVcto < hojeRelativo) {
+//                         detalheVencidos.ajuda += ajPendente;
+//                         temVencido = true;
+//                     } else if (evento.dataVencimentoAjuda === hojeBR) {
+//                         detalheHoje.ajuda += ajPendente;
+//                         temHoje = true;
+//                     } else {
+//                         detalheAVencer.ajuda += ajPendente;
+//                         temAVencer = true;
+//                     }
+//                 }
+
+//                 // Processar Cachê
+//                 if (evento.dataVencimentoCache && evento.dataVencimentoCache !== '---' && chPendente > 0) {
+//                     const [d, m, a] = evento.dataVencimentoCache.split('/').map(Number);
+//                     const dtVcto = new Date(a, m - 1, d);
+//                     if (dtVcto < hojeRelativo) {
+//                         detalheVencidos.cache += chPendente;
+//                         temVencido = true;
+//                     } else if (evento.dataVencimentoCache === hojeBR) {
+//                         detalheHoje.cache += chPendente;
+//                         temHoje = true;
+//                     } else {
+//                         detalheAVencer.cache += chPendente;
+//                         temAVencer = true;
+//                     }
+//                 }
+
+//                 // --- 2. MONTAGEM DOS TEXTOS DE ALERTA (ACUMULATIVOS) ---
+//                 let alertasTexto = [];
+
+//                 if (temVencido) {
+//                     let partesV = [];
+//                     if (detalheVencidos.ajuda > 0) partesV.push(`Ajuda: ${formatarMoeda(detalheVencidos.ajuda)}`);
+//                     if (detalheVencidos.cache > 0) partesV.push(`Cachê: ${formatarMoeda(detalheVencidos.cache)}`);
+//                     alertasTexto.push(`
+//                         <span style="display: inline-flex; align-items: center; gap: 4px;">
+//                             <span class="dot-alerta" style="background-color: #d9534f;"></span>
+//                             <strong style="color:#d9534f; font-size: 16px;">VENCIDOS: ${partesV.join(' | ')}</strong>
+//                         </span>`);
+//                 }
+
+//                 if (temHoje) {
+//                     let partesH = [];
+//                     if (detalheHoje.ajuda > 0) partesH.push(`Ajuda: ${formatarMoeda(detalheHoje.ajuda)}`);
+//                     if (detalheHoje.cache > 0) partesH.push(`Cachê: ${formatarMoeda(detalheHoje.cache)}`);
+//                     alertasTexto.push(`
+//                         <span style="display: inline-flex; align-items: center; gap: 4px;">
+//                             <span class="dot-alerta" style="background-color: #ffcc00; animation: pulsar-amarelo 1.5s infinite;"></span>
+//                             <strong style="color:#f0ad4e; font-size: 16px;">HOJE: ${partesH.join(' | ')}</strong>
+//                         </span>`);
+//                 }
+
+//                 if (temAVencer) {
+//                     let partesA = [];
+//                     if (detalheAVencer.ajuda > 0) partesA.push(`Ajuda: ${formatarMoeda(detalheAVencer.ajuda)}`);
+//                     if (detalheAVencer.cache > 0) partesA.push(`Cachê: ${formatarMoeda(detalheAVencer.cache)}`);
+//                     alertasTexto.push(`
+//                         <span style="display: inline-flex; align-items: center; gap: 4px;">
+//                             <span class="dot-alerta" style="background-color: #007bff; box-shadow: none;"></span>
+//                             <strong style="color:#007bff; font-size: 16px;">A VENCER: ${partesA.join(' | ')}</strong>
+//                         </span>`);
+//                 }
+
+//                 // --- 3. LOGICA DO FILTRO (ATRIBUIÇÃO DE CATEGORIA) ---
+//                 // Regra: Se tiver algo vencido, ele cai na categoria 'vencidos' para o botão vermelho.
+//                 // Se não tiver vencido mas tiver algo hoje, cai na categoria 'hoje' para o botão amarelo.
+               
+//                 const temPendente = (ajPendente > 0 || chPendente > 0);
+//                 const temFuncionarios = evento.funcionarios && evento.funcionarios.length > 0;
+
+//                 let statusParaFiltro = "liquidado";
+//                 let subStatusHtml = "";
+
+//                 if (!temFuncionarios) {
+//                     statusParaFiltro = "aguardando";
+//                     subStatusHtml = `
+//                         <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; margin-top: 4px;">
+//                             <i class="fas fa-user-plus" style="color: #6c757d; font-size: 12px;"></i>
+//                             <strong style="color:#6c757d; font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
+//                         </span>`;
+//                 } else if (!temPendente) {
+//                     statusParaFiltro = "liquidado";
+//                     // Colocando o Liquidado no mesmo formato de "tag" dos outros alertas
+//                     subStatusHtml = `
+//                         <div style="margin-top: 4px;">
+//                             <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: #f2f9ed;">
+//                                 <i class="fas fa-check-circle" style="color: #28a745;"></i>
+//                                 <strong style="color:#28a745; font-size: 13px;">LIQUIDADO</strong>
+//                             </span>
+//                         </div>`;
+//                 } else {
+//                     // Prioridade de exibição no filtro: Vencido > Hoje > A Vencer
+//                     if (temVencido) statusParaFiltro = "vencidos";
+//                     else if (temHoje) statusParaFiltro = "hoje";
+//                     else statusParaFiltro = "a_vencer";
+
+//                     // Mostra as tags acumuladas (Vencidos, Hoje, A Vencer)
+//                     subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}</div>`;
+//                 }
+
+//                 // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
+//                 const item = document.createElement("div");
+//                 item.className = "accordion-item";
+//                 item.setAttribute("data-status-filtro", statusParaFiltro);
+                
+                
+
+        
+//                 // --- FUNÇÃO AUXILIAR PARA MONTAR O VALOR COLORIDO NA DIREITA ---
+
+//                 const montarValorColorido = (vencido, hoje, aVencer) => {
+//                     let html = [];
+//                     if (vencido > 0) html.push(`<span style="color:#d9534f; font-weight:bold;">${formatarMoeda(vencido)}</span>`);
+//                     if (hoje > 0) html.push(`<span style="color:#f0ad4e; font-weight:bold;">${formatarMoeda(hoje)}</span>`);
+//                     if (aVencer > 0) html.push(`<span style="color:#007bff; font-weight:bold;">${formatarMoeda(aVencer)}</span>`);
+                    
+//                     return html.length > 0 ? html.join('<br>') : `<span style="color:#666;">${formatarMoeda(0)}</span>`;
+//                 };
+
+//                 const header = document.createElement("button");
+//                 header.className = "accordion-header";
+//                 header.innerHTML = `
+//                     <div class="evento-info-container-inline ${temVencido ? 'vencido-critico' : ''}" style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+                    
+//                     <div class="evento-titulo-col" style="flex: 1; text-align: left;">
+//                         <strong style="font-size: 18px;">${evento.nomeEvento}</strong>
+//                         <div style="display:block; margin-top: 5px;">${subStatusHtml}</div>
+//                     </div>
+
+//                     <div class="evento-valores-col" style="display: flex; flex-direction: column; gap: 8px; min-width: 280px;">
+                        
+//                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
+//                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CACHÊ:</span>
+//                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.cache?.pago || 0)}</span>
+//                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
+//                                 ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache)}
+//                             </div>
+//                         </div>
+                        
+//                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
+//                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">AJUDA:</span>
+//                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.ajuda?.pago || 0)}</span>
+//                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
+//                                 ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda)}
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>`;
+
+
+//                 header.onclick = () => item.classList.toggle("active");
+
+
+//                 const body = document.createElement("div");
+//                 body.className = "accordion-body";
+//                 body.innerHTML = `
+//                     <div class="resumo-categorias">
+//                         <div class="categoria-bloco">
+//                             <h3>Ajuda de Custo</h3>
+//                             <p class="datas-evento">Período Evento Início Marcação a Fim Desmontagem: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong> (2 dias após Início Montagem <strong>${evento.dataInicioMontagem}</strong>)</p>                            
+//                             <p class="pendentes-pagos"><strong>Pendente:</strong> ${formatarMoeda(ajPendente)}</p>
+//                         </div>
+//                         <div class="categoria-bloco">
+//                             <h3>Cachê</h3>
+//                             <p class="datas-evento">Período Evento Início Marcação a Fim Desmontagem: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong>(2 dias após Fim Desmontagem <strong>${evento.dataFimEvento}</strong>)</p>
+//                             <p class="pendentes-pagos"><strong>Pendente:</strong> ${formatarMoeda(chPendente)}</p>
+//                         </div>
+//                     </div>
+//                     <div class="container-filtro-local" style="margin: 10px 0;"></div>
+//                     <div class="funcionarios-scroll-container"> 
+//                         <table class="tabela-funcionarios-venc">
+                        
+//                         <thead>${obterHeaderTabela()}</thead>
+//                         <tbody>${obterLinhasTabela(evento)}</tbody>
+//                         </table>
+//                     </div>`;
+
+//               //  const fHtml = criarFiltroCategorias(null, null); 
+//               //  body.querySelector(".container-filtro-local").appendChild(fHtml);
+
+//                 // const primeiroBtn = fHtml.querySelector('.categoria-wrapper .input:checked + .btn');
+//                 // if (primeiroBtn) primeiroBtn.style.cssText = 'background-color: var(--primary-color); border-radius: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer;';
+//                 // const primeiroSpan = fHtml.querySelector('.categoria-wrapper .input:checked + .btn .span');
+//                 // if (primeiroSpan) primeiroSpan.style.color = 'var(--font-color)';
+
+//                 // fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
+//                 //     r.addEventListener('change', (e) => {
+//                 //         const v = e.target.value;
+//                 //         const tab = body.querySelector(".tabela-funcionarios-venc");
+//                 //         tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
+//                 //         tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
+//                 //     });
+//                 // });
+
+//                 item.appendChild(header);
+//                 item.appendChild(body);
+//                 wrapperEventos.appendChild(item);
+//             });
+//         }
+
+//         console.log("DADOS CONTAS", resContas);
+//         if (resContas.sucesso && resContas.contas) {
+//             // const hoje = new Date();
+//             // hoje.setHours(0, 0, 0, 0);
+//             // const anoFiltro = parseInt(anoSelecionado);
+
+//             // Pega a data de hoje para referência
+
+//             // --- DEFINIÇÃO DOS LIMITES DE DATA PARA O FILTRO DE TELA ---
+//             const hoje = hojeRelativo || new Date(); 
+//             const anoFiltro = parseInt(anoSelecionado);
+            
+//             // 1. MAPEAMENTO DE DADOS REAIS (Evita os 143,33 de diferença)
+//             // Guardamos o objeto INTEIRO do banco indexado por ID-ANO-MES
+//             const mapaDadosReais = new Map();
+//             resContas.contas.forEach(reg => {
+//                 const dStr = (reg.dtvcto || reg.vctobase || "").split('T')[0];
+//                 if (dStr) {
+//                     const d = new Date(dStr + 'T12:00:00');
+//                     const chave = `${reg.idlancamento}-${d.getFullYear()}-${d.getMonth()}`;
+//                     // Se houver duplicata no banco, o Map garante que ficamos com o registro mais completo
+//                     mapaDadosReais.set(chave, reg);
+//                 }
+//             });
+
+//             const mesesProcessadosNoLoop = new Set();
+
+//             resContas.contas.forEach(c => {
+//                 const dataOriginalStr = c.vctobase || c.dtvcto;
+//                 const vctoBase = (typeof converterData === 'function') ? converterData(dataOriginalStr) : new Date(dataOriginalStr);
+//                 if (!vctoBase || isNaN(vctoBase)) return;
+
+//                 const ehFixo = (c.tiporepeticao === "FIXO" || c.indeterminado === true);
+//                 const ehParcelado = (c.tiporepeticao === "PARCELADO");
+//                 let maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
+
+//                 for (let i = 0; i < maxLoop; i++) {
+//                     let dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+                    
+//                     if (dProj.getFullYear() !== anoFiltro) {
+//                         if (dProj.getFullYear() > anoFiltro) break;
+//                         continue;
+//                     }
+
+//                     const chaveMes = `${c.idlancamento}-${dProj.getFullYear()}-${dProj.getMonth()}`;
+//                     if (mesesProcessadosNoLoop.has(chaveMes)) continue;
+
+//                     // 2. BUSCA DADO REAL OU PROJETA
+//                     const dadoReal = mapaDadosReais.get(chaveMes);
+                    
+//                     let statusFinal = "";
+//                     let statusFiltro = "";
+//                     let valorTotal = 0;
+//                     let valorPago = 0;
+
+//                     if (dadoReal) {
+//                         // 1. Normalizamos o status que vem do banco
+//                         const sBanco = (dadoReal.status || "").toLowerCase();
+                        
+//                         // 2. Criamos as travas (Booleans)
+//                         const ehSuspenso = (sBanco === 'suspenso');
+//                         const foiPago = (sBanco === 'pago' || sBanco === 'liquidado' || !!dadoReal.dtpagamento);
+
+//                         // 3. DEFINIÇÃO DO STATUS (Com hierarquia de prioridade)
+//                         if (ehSuspenso) {
+//                             statusFinal = "Suspenso";
+//                             statusFiltro = "suspenso";
+//                         } else if (foiPago) {
+//                             statusFinal = "Pago";
+//                             statusFiltro = "liquidado";
+//                         } else {
+//                             // Só aqui, se não for suspenso nem pago, olhamos a data
+//                             statusFinal = (dProj < hoje) ? "Atrasado" : "Pendente";
+//                             statusFiltro = (dProj < hoje) ? "vencidos" : "a_vencer";
+//                         }
+                        
+//                         // 4. VALORES
+//                         valorTotal = parseFloat(dadoReal.vlrreal || dadoReal.valor || dadoReal.vlrestimado || 0);
+//                         valorPago = (statusFinal === "Pago") ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
+
+//                     } else {
+//                         // Para projeções que não existem no banco, mantemos a lógica original
+//                         statusFinal = dProj < hoje ? "Atrasado" : "Projeção";
+//                         statusFiltro = dProj < hoje ? "vencidos" : "a_vencer";
+//                         valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
+//                         valorPago = 0;
+//                     }
+
+//                     contasProjetadas.push({
+//                         ...(dadoReal || c), // Prioriza os dados do registro real (ID 16, etc)
+//                         idempresapagadora: c.idempresapagadora, 
+//                         empresapagadora: c.empresapagadora,
+//                         vencimento: dProj.toLocaleDateString('pt-BR'),
+//                         dtvcto: dProj.toISOString().split('T')[0],
+//                         valorTotal: valorTotal,
+//                         valorPago: valorPago,
+//                         status: statusFinal,
+//                         statusFiltro: statusFiltro
+//                     });
+
+//                     mesesProcessadosNoLoop.add(chaveMes);
+//                 }
+//             });
+
+//             // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
+//             let dInicioComp, dFimComp;
+//             let dataBase = inputDataStr ? new Date(inputDataStr + 'T12:00:00') : new Date();
+
+//             switch (filtroTipo) {
+//                 case 'diario':
+//                     dInicioComp = new Date(dataBase);
+//                     dInicioComp.setHours(0,0,0,0);
+//                     dFimComp = new Date(dataBase);
+//                     dFimComp.setHours(23,59,59,999);
+//                     break;
+//                 case 'semanal':
+//                     dInicioComp = new Date(dataBase);
+//                     dInicioComp.setDate(dataBase.getDate() - dataBase.getDay());
+//                     dInicioComp.setHours(0,0,0,0);
+//                     dFimComp = new Date(dInicioComp);
+//                     dFimComp.setDate(dInicioComp.getDate() + 6);
+//                     dFimComp.setHours(23,59,59,999);
+//                     break;
+//                 case 'mensal':
+//                     const mesSel = parseInt(document.querySelector("#sub-filtro-select")?.value) - 1 || dataBase.getMonth();
+//                     dInicioComp = new Date(anoSelecionado, mesSel, 1, 0, 0, 0);
+//                     dFimComp = new Date(anoSelecionado, mesSel + 1, 0, 23, 59, 59);
+//                     break;
+//                 case 'trimestral':
+//                     const mesInicioTrim = Math.floor(dataBase.getMonth() / 3) * 3;
+//                     dInicioComp = new Date(anoSelecionado, mesInicioTrim, 1, 0, 0, 0);
+//                     dFimComp = new Date(anoSelecionado, mesInicioTrim + 3, 0, 23, 59, 59);
+//                     break;
+//                 case 'semestral':
+//                     const mesInicioSem = dataBase.getMonth() < 6 ? 0 : 6;
+//                     dInicioComp = new Date(anoSelecionado, mesInicioSem, 1, 0, 0, 0);
+//                     dFimComp = new Date(anoSelecionado, mesInicioSem + 6, 0, 23, 59, 59);
+//                     break;
+//                 case 'anual':
+//                     dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+//                     dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+//                     break;
+//                 default:
+//                     dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+//                     dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+//             }
+
+//             // --- 2. FILTRAGEM DAS CONTAS PROJETADAS ---
+            
+//             contasParaExibir = contasProjetadas.filter(c => {
+//                 const dataVcto = new Date(c.dtvcto + 'T12:00:00');
+//                 const statusC = (c.status || '').toLowerCase();
+
+//                 // 1. Verificações de Status
+//                 const ehSuspenso = (statusC === "suspenso");
+//                 const ehPago = (statusC === "pago");
+
+//                 // 2. Lógica de Período
+//                 const estaNoPeriodo = (dataVcto >= dInicioComp && dataVcto <= dFimComp);
+
+//                 // 3. Lógica de Atrasados: SÓ é atrasado se NÃO estiver suspenso e NÃO estiver pago
+//                 const ehAtrasado = (!ehSuspenso && !ehPago && statusC === "atrasado" && dataVcto < dFimComp);
+
+//                 // 4. Lógica de Pagos Anteriores
+//                 const ehPagoAnterior = (ehPago && dataVcto < dFimComp && dataVcto.getFullYear() === anoFiltro);
+
+//                 // 5. Lógica de Suspensos: Queremos que eles apareçam se forem do período ou se estiverem "pendentes" (atrás)
+//                 // Se você quer que suspensos antigos continuem aparecendo na lista:
+//                 const ehSuspensoRelevante = (ehSuspenso && dataVcto <= dFimComp);
+
+//                 return estaNoPeriodo || ehAtrasado || ehPagoAnterior || ehSuspensoRelevante;
+//             });
+
+//             // --- 3. CÁLCULO DO RESUMO BASEADO NO FILTRO ---
+            
+//             const resumo = contasParaExibir.reduce((acc, c) => {
+//                 const v = parseFloat(c.valorTotal || 0);
+//                 const statusC = (c.status || "").toLowerCase(); // Normaliza para evitar erro de maiúscula
+
+//                 acc.total += v;
+
+//                 if (statusC === "pago") {
+//                     acc.pago += parseFloat(c.valorPago || v);
+//                 } 
+//                 else if (statusC === "suspenso") {
+//                     acc.suspensos = (acc.suspensos || 0) + v; // Soma em categoria à parte
+//                 } 
+//                 else if (statusC === "atrasado") {
+//                     acc.vencidos += v;
+//                 } 
+//                 else {
+//                     acc.aVencer += v;
+//                 }
+//                 return acc;
+//             }, { pago: 0, vencidos: 0, aVencer: 0, total: 0, suspensos: 0 });
+
+
+//             // 4. RENDERIZAÇÃO
+//             // Usamos 'contasParaExibir' que já definimos e filtramos lá em cima
+//             if (contasParaExibir.length > 0) { 
+//                 // Ordenação por data de vencimento
+//                 contasParaExibir.sort((a, b) => new Date(a.dtvcto) - new Date(b.dtvcto));
+
+//                 // Título Mestre
+//                 const btnMestreContas = document.createElement('button');
+//                 btnMestreContas.className = 'accordion-mestre-header active';
+                
+//                 // Usamos o 'resumo' que já foi calculado lá em cima logo após o filtro
+//                 btnMestreContas.innerHTML = `
+//                     <div class="evento-info-container-inline">
+//                         <div class="evento-titulo-col">
+//                             <span class="setinha">▶</span> 💸 Contas a Pagar <small>(${contasParaExibir.length})</small>
+//                         </div>
+//                         <div class="evento-valores-col">
+//                             <div class="fin-resumo-item">
+//                                 <span class="label-categoria">PAGO:</span> <span class="pg">${formatarMoeda(resumo.pago)}</span>
+//                                 <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span> <span class="ap" style="color:#d9534f;">${formatarMoeda(resumo.vencidos)}</span>
+//                                 <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span> <span class="ap" style="color:#007bff;">${formatarMoeda(resumo.aVencer)}</span>
+//                                 <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
+//                                     <span class="label-categoria" style="color:#333;">TOTAL:</span> 
+//                                     <strong style="color:#333; font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
+//                                 </span>
+//                             </div>
+//                         </div>
+//                     </div>`;
+
+//                 const wrapperContas = document.createElement('div');
+//                 wrapperContas.className = "wrapper-contas-financeiro";
+//                 wrapperContas.style.display = 'block';
+
+//                 btnMestreContas.addEventListener('click', () => {
+//                     // 1. Alterna a classe active (isso fará a setinha girar via CSS)
+//                     btnMestreContas.classList.toggle('active');
+                    
+//                     // 2. Alterna a visibilidade do wrapper
+//                     const isVisible = wrapperContas.style.display === 'block';
+//                     wrapperContas.style.display = isVisible ? 'none' : 'block';
+//                 });
+
+//                 // --- NOVO: CAPTURAR EMPRESAS PAGADORAS ---
+                
+//                 const empresasMap = new Map();
+//                 contasParaExibir.forEach(c => {
+//                     // Só adiciona ao mapa se houver um ID válido e for diferente de 0
+//                     if (c.idempresapagadora && c.idempresapagadora !== 0) { 
+//                         empresasMap.set(c.idempresapagadora, c.empresapagadora);
+//                     } else {
+//                         // Opcional: Agrupar tudo que não tem empresa em um ID fictício
+//                         empresasMap.set("nulo", "Sem Empresa Definida");
+//                     }
+//                 });
+
+//                 // --- NOVO: FILTRO DE EMPRESAS PAGADORAS ---
+//                 const containerFiltroEmpresas = document.createElement("div");
+//                 containerFiltroEmpresas.className = "filtro-empresas-contas";
+//                 containerFiltroEmpresas.style = "margin: 10px; display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;";
+
+//                 containerFiltroEmpresas.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #555;">Filtrar Empresa:</span>`;
+
+//                 const selectEmpresa = document.createElement("select");
+//                 selectEmpresa.id = "select-empresa-pagadora";
+//                 selectEmpresa.style = "padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 13px; flex: 1;";
+//                 selectEmpresa.innerHTML = `<option value="todas">Todas as Empresas</option>`;
+
+//                 // Preenche o select com as empresas encontradas nas contas
+//                 empresasMap.forEach((nome, id) => {
+//                     selectEmpresa.innerHTML += `<option value="${id}">${nome}</option>`;
+//                 });
+
+//                 selectEmpresa.onchange = () => {
+//                     const idSelecionado = selectEmpresa.value;
+//                     filtrarPorEmpresaNaTela(idSelecionado);
+//                 };
+
+//                 containerFiltroEmpresas.appendChild(selectEmpresa);
+//                 wrapperContas.appendChild(containerFiltroEmpresas); // Adiciona antes dos botões de status
+
+
+//                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
+//                 const containerFiltrosContas = document.createElement("div");
+//                 containerFiltrosContas.className = "filtros-rapidos-contas";
+//                 containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+
+//                 const opcoesContas = [
+//                     { id: 'todos', label: 'Tudo', color: '#343a40' },
+//                     { id: 'vencidos', label: 'Atrasadas', color: '#d9534f' },
+//                     { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },
+//                     { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
+//                     { id: 'vencer em 5 dias', label: 'Vence em 5 dias', color: '#17a2b8' },
+//                     { id: 'liquidado', label: 'Pagas', color: '#28a745' }
+//                 ];
+
+//                 opcoesContas.forEach(opt => {
+//                     const btn = document.createElement("button");
+//                     btn.setAttribute("data-label-base", opt.label); 
+//                     btn.setAttribute("data-filtro-id", opt.id); 
+//                     btn.innerText = opt.label;
+//                     btn.className = "btn-filtro-financeiro";
+//                     btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
+                    
+//                     btn.onclick = () => {
+//                         filtrarEventosNaTela(opt.id);
+//                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
+//                             b.style.background = "white"; b.style.color = b.style.borderColor;
+//                         });
+//                         btn.style.background = opt.color; btn.style.color = "white";
+//                     };
+//                     containerFiltrosContas.appendChild(btn);
+//                 });
+
+//                 wrapperContas.appendChild(containerFiltrosContas);
+//                 accordionContainer.appendChild(btnMestreContas);
+//                 accordionContainer.appendChild(wrapperContas);
+
+//                 // Agrupamento por Vínculo (Usando as contas JÁ FILTRADAS para a tela)
+//                 const agrupados = contasParaExibir.reduce((acc, c) => {
+//                     let tipo = (c.tipovinculo || 'OUTROS').toUpperCase();
+//                     if (!acc[tipo]) acc[tipo] = [];
+//                     acc[tipo].push(c);
+//                     return acc;
+//                 }, {});
+
+//                 ['FORNECEDOR', 'FUNCIONARIO', 'CLIENTE', 'OUTROS'].forEach(t => {
+//                     // Passamos 'hojeRelativo' em vez de 'hoje' para manter a consistência do ano
+//                     if (agrupados[t]) wrapperContas.appendChild(criarAccordionVinculo(t, agrupados[t], hojeRelativo));
+//                 });
+
+//                 setTimeout(atualizarContadoresFiltrosContas, 300);
+//             }
+//        }
+
+//         console.log("✅ AGORA HÁ ITENS?", contasProjetadas.length);
+
+//         conteudoGeral.appendChild(accordionContainer);
+
+//         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
+//         atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
+//         // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
+        
+
+//     } catch (error) {
+//         console.error("Erro:", error);
+//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
+//     }
+// }
+
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
     let contasProjetadas = [];
     let dados = [];
@@ -6216,13 +7705,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             containerFiltrosRapidos.className = "filtros-rapidos-eventos";
             containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
 
-            const opcoesFiltro = [
-                { id: 'todos', label: 'Todos', color: '#666' },
+            const opcoesFiltro = [                
                 { id: 'vencidos', label: 'Vencidos', color: '#d9534f' }, // Vermelho
                 { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },       // Amarelo/Laranja
-                { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },
                 { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
-                { id: 'liquidado', label: 'Liquidados', color: '#28a745' }
+                { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },                
+                { id: 'liquidado', label: 'Liquidados', color: '#28a745' },
+                { id: 'todos', label: 'Todos', color: '#666' }
             ];
 
             opcoesFiltro.forEach(opt => {
@@ -6232,7 +7721,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 btn.dataset.filter = opt.id;
                 btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
                 
-                if(opt.id === 'todos') {
+                if(opt.id === 'hoje') {
                     btn.style.background = opt.color;
                     btn.style.color = "white";
                 }
@@ -6247,8 +7736,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     // Ativar botão clicado
                     btn.style.background = opt.color;
                     btn.style.color = "white";
+
+                    window._filtroEventosAtivo = opt.id;
                     
                     filtrarEventosNaTela(opt.id);
+                    //filtrarEventosNaTela('hoje');
                 };
                 containerFiltrosRapidos.appendChild(btn);
             });
@@ -6379,8 +7871,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
                 const item = document.createElement("div");
                 item.className = "accordion-item";
-                item.setAttribute("data-status-filtro", statusParaFiltro);
-                
+                item.setAttribute("data-status-filtro", statusParaFiltro);            
                 
 
         
@@ -6423,10 +7914,417 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             </div>
                         </div>
                     </div>
+                    
+                    <button class="btn-foco-evento" style="
+                        margin-left: 20px; 
+                        padding: 6px 12px; 
+                        background: #007bff; /* Azul vibrante */
+                        color: white; 
+                        border: none; 
+                        border-radius: 4px; 
+                        cursor: pointer; /* Cursor de clique normal */
+                        font-weight: bold;
+                        font-size: 12px;
+                        white-space: nowrap;
+                        display: none; /* COMEÇA TOTALMENTE OCULTO */
+                    ">⛶ Visualizar em Tela Cheia</button>
+                    
                 </div>`;
 
 
-                header.onclick = () => item.classList.toggle("active");
+                //header.onclick = () => item.classList.toggle("active");
+
+                // header.onclick = () => {
+                //     const estaAbrindo = !item.classList.contains("active");
+
+                //     if (estaAbrindo) {
+                //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                //             if (outro !== item) {
+                //                 outro.classList.remove("active");
+                //                 outro.classList.remove("foco-unico");
+                //                 outro.style.display = "none";
+                //             }
+                //         });
+
+                //         // ← OCULTA os cards de resumo de valores
+                //         const resumoValores = document.getElementById("valores-resumo");
+                //         if (resumoValores) resumoValores.style.display = "none";
+
+                //         // ← OCULTA também o bloco mestre de totais (PAGOS, VENCIDOS, A VENCER, TOTAL)
+                //         const btnMestre = document.querySelector(".accordion-mestre-header");
+                //         if (btnMestre) btnMestre.style.display = "none";
+
+                //         // const btnTituloContas = document.querySelectorAll(".accordion-mestre-header");
+                //         //     btnTituloContas.forEach(btn => {
+                //         //     if (btn.textContent.includes("Contas a Pagar")) btn.style.display = "none";
+                //         // });
+
+                //         const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                //         if (conteudoGeral) {
+                //             conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
+                //             conteudoGeral.style.maxHeight = "none";
+                //             conteudoGeral.style.overflow = "visible";
+                //         }
+
+                //         item.classList.add("active");
+                //         item.classList.add("foco-unico");
+
+                //     } else {
+                //         // ← RESTAURA os cards de resumo de valores
+                //         const resumoValores = document.getElementById("valores-resumo");
+                //         if (resumoValores) resumoValores.style.display = "";
+
+                //         // ← RESTAURA o bloco mestre
+                //         const btnMestre = document.querySelector(".accordion-mestre-header");
+                //         if (btnMestre) btnMestre.style.display = "";
+
+                //         // const wrapperContas = document.querySelector(".wrapper-contas-financeiro");
+                //         // if (wrapperContas) wrapperContas.style.display = "block";
+
+                //         // const btnsTituloContas = document.querySelectorAll(".accordion-mestre-header");
+                //         // btnsTituloContas.forEach(btn => {
+                //         //     if (btn.textContent.includes("Contas a Pagar")) btn.style.display = "";
+                //         // });
+
+                //         const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                //             outro.classList.remove("foco-unico");
+                //             const statusDoItem = outro.getAttribute("data-status-filtro");
+                //             const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                //             outro.style.display = deveAparecer ? "block" : "none";
+                //         });
+
+                //         const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                //         if (conteudoGeral) {
+                //             conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
+                //             conteudoGeral.style.overflow = "";
+                //         }
+
+                //         item.classList.remove("active");
+                //         item.classList.remove("foco-unico");
+                //     }
+                // };
+
+                // Removemos as buscas antigas de botaoFoco e botaoFechar daqui!
+
+                header.onclick = (e) => {
+                    const botaoFoco = header.querySelector(".btn-foco-evento");
+                    const clicouNoFoco = e.target.closest(".btn-foco-evento");
+
+                    // =========================================================================
+                    // CASO 1: USUÁRIO CLICOU NO BOTÃO "FOCAR"
+                    // =========================================================================
+                    // if (clicouNoFoco) {
+                    //         e.stopPropagation(); 
+                            
+                    //         item.classList.add("modo-tela-cheia");
+
+                    //         // 1. CAPTURA O NOME DO EVENTO (Lógica de limpeza para não pegar badges)
+                    //         const tituloElemento = item.querySelector(".accordion-title") || item.querySelector("h3") || item.querySelector("h4");
+                    //         let nomeEvento = "Detalhes do Evento";
+                            
+                    //         if (tituloElemento) {
+                    //             // Clonamos para limpar spans e botões antes de pegar o texto
+                    //             const clone = tituloElemento.cloneNode(true);
+                    //             clone.querySelectorAll('button, .badge, .status-badge, .btn-foco-evento, span[style*="background"]').forEach(el => el.remove());
+                    //             nomeEvento = clone.innerText.trim();
+                    //         }
+
+                    //         // 2. BUSCA OU CRIA O ELEMENTO DE TÍTULO NA BARRA FIXA
+                    //         let barraTitulo = header.querySelector(".titulo-tela-cheia");
+                    //         if (!barraTitulo) {
+                    //             barraTitulo = document.createElement("span");
+                    //             barraTitulo.className = "titulo-tela-cheia";
+                    //             header.insertBefore(barraTitulo, header.firstChild);
+                    //         }
+                            
+                    //         // Estilização do Título na barra
+                    //         Object.assign(barraTitulo.style, {
+                    //             display: "inline-block",
+                    //             fontSize: "18px",
+                    //             fontWeight: "bold",
+                    //             marginLeft: "15px",
+                    //             verticalAlign: "middle",
+                    //             color: "#333"
+                    //         });
+
+                    //         barraTitulo.innerText = nomeEvento;
+
+                    //         // 3. ESCONDE ELEMENTOS GERAIS
+                    //         const resumo = document.querySelector(".resumo-detalhado");
+                    //         const valoresResumo = document.getElementById("valores-resumo");
+                    //         const mestreContas = document.getElementById("btn-mestre-contas");
+                    //         const wrapperContas = document.getElementById("wrapper-contas");
+                    //         const mestreHeader = document.querySelector(".accordion-mestre-header");
+
+                    //         if (resumo) resumo.style.display = "none";
+                    //         if (valoresResumo) valoresResumo.style.display = "none";
+                    //         if (mestreContas) mestreContas.style.display = "none";
+                    //         if (wrapperContas) wrapperContas.style.display = "none";
+                    //         if (mestreHeader) mestreHeader.style.display = "none";
+                            
+                    //         wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                    //             if (outro !== item) outro.style.display = "none";
+                    //         });
+
+                    //         // 4. CRIAÇÃO DO BOTÃO VOLTAR (Mantendo sua posição e cor original)
+                    //         const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
+                    //         if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
+
+                    //         const botaoVoltar = document.createElement("button");
+                    //         botaoVoltar.id = "botao-voltar-fixo";
+                    //         botaoVoltar.innerHTML = "✕ Voltar para a Lista";
+                            
+                    //         Object.assign(botaoVoltar.style, {
+                    //             position: "fixed",
+                    //             top: "100px",
+                    //             right: "20px",
+                    //             zIndex: "9999",
+                    //             padding: "10px 20px",
+                    //             background: "#dc3545", // Sua cor original
+                    //             color: "white",
+                    //             border: "none",
+                    //             borderRadius: "5px",
+                    //             cursor: "pointer",
+                    //             fontWeight: "bold",
+                    //             fontSize: "14px",
+                    //             boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
+                    //             transition: "background 0.2s"
+                    //         });
+
+                    //         botaoVoltar.onmouseover = () => botaoVoltar.style.background = "#bd2130";
+                    //         botaoVoltar.onmouseout = () => botaoVoltar.style.background = "#dc3545";
+
+                    //         botaoVoltar.onclick = (e) => {
+                    //             e.stopPropagation();
+                    //             item.classList.remove("modo-tela-cheia");
+                    //             if (barraTitulo) barraTitulo.style.display = "none";
+
+                    //             if (resumo) resumo.style.display = "";
+                    //             if (valoresResumo) valoresResumo.style.display = "";
+                    //             if (mestreContas) mestreContas.style.display = "";
+                    //             if (wrapperContas) wrapperContas.style.display = "";
+                    //             if (mestreHeader) mestreHeader.style.display = "";
+                                
+                    //             const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                    //             wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                    //                 const statusDoItem = outro.getAttribute("data-status-filtro");
+                    //                 const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                    //                 outro.style.display = deveAparecer ? "block" : "none";
+                    //             });
+
+                    //             if (botaoFoco) botaoFoco.style.display = "inline-block";
+                    //             botaoVoltar.remove();
+                    //         };
+
+                    //         document.body.appendChild(botaoVoltar);
+                    //         if (botaoFoco) botaoFoco.style.display = "none";
+                            
+                    //         return;
+                    //     }
+
+                    if (clicouNoFoco) {
+                        e.stopPropagation();
+
+                        item.classList.add("modo-tela-cheia");
+
+                        // 1. CAPTURA O NOME DO EVENTO
+                        const nomeEvento = header.querySelector(".evento-titulo-col strong")?.innerText?.trim() 
+                                        || "Detalhes do Evento";
+
+                        console.log("Nome do Evento capturado para título de tela cheia:", nomeEvento);
+
+                        // 2. CRIAÇÃO DA BARRA DE TÍTULO (COBRINDO O MENU ORIGINAL)
+                        let barraTopoFoco = document.getElementById("barra-topo-foco-evento");
+                        if (!barraTopoFoco) {
+                            barraTopoFoco = document.createElement("div");
+                            barraTopoFoco.id = "barra-topo-foco-evento";
+                            document.body.appendChild(barraTopoFoco);
+                        }
+
+                        // Estilização para sobrepor o menu (Overlay)
+                        Object.assign(barraTopoFoco.style, {
+                            position: "fixed",
+                            top: "0",
+                            left: "0",
+                            width: "100%",
+                            height: "90px", // Aumentamos um pouco para cobrir os ícones totalmente
+                            backgroundColor: "var(--primary-color, #611414)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: "99999", // Valor extremo para garantir que fique por cima de tudo
+                            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+                            margin: "0",
+                            padding: "0"
+                        });
+
+                        // Título em branco para contraste no fundo escuro
+                        barraTopoFoco.innerHTML = `<h2 style="margin:0; font-size:18px; color:#ffffff; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">${nomeEvento}</h2>`;
+                        barraTopoFoco.style.display = "flex";
+
+                        // 3. ESCONDE ELEMENTOS GERAIS DA TELA
+                        const resumo = document.querySelector(".resumo-detalhado");
+                        const valoresResumo = document.getElementById("valores-resumo");
+                        const mestreContas = document.getElementById("btn-mestre-contas");
+                        const wrapperContas = document.getElementById("wrapper-contas");
+                        const mestreHeader = document.querySelector(".accordion-mestre-header");
+
+                        if (resumo) resumo.style.display = "none";
+                        if (valoresResumo) valoresResumo.style.display = "none";
+                        if (mestreContas) mestreContas.style.display = "none";
+                        if (wrapperContas) wrapperContas.style.display = "none";
+                        if (mestreHeader) mestreHeader.style.display = "none";
+
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            if (outro !== item) outro.style.display = "none";
+                        });
+
+                        // 4. BOTÃO VOLTAR (Posicionado sobre a nova barra)
+                        const botaoVoltarAntigo = document.getElementById("botao-voltar-fixo");
+                        if (botaoVoltarAntigo) botaoVoltarAntigo.remove();
+
+                        const botaoVoltar = document.createElement("button");
+                        botaoVoltar.id = "botao-voltar-fixo";
+                        botaoVoltar.innerHTML = '<i class="fas fa-times" style="font-size:12px;"></i> VOLTAR';
+
+                        Object.assign(botaoVoltar.style, {
+                            position: "fixed",
+                            top: "18px", // Ajustado para a nova altura de 75px
+                            right: "20px",
+                            zIndex: "100000",
+                            padding: "8px 16px",
+                            background: "transparent",
+                            color: "white",
+                            border: "1px solid rgba(255,255,255,0.5)",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "bold",
+                            fontSize: "12px"
+                        });
+
+                        // Efeito visual ao passar o mouse
+                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "rgba(255,255,255,0.1)"; };
+                        botaoVoltar.onmouseout = () => { botaoVoltar.style.background = "transparent"; };
+
+                        // 5. LÓGICA DE FECHAMENTO (RESTAURAÇÃO)
+                        botaoVoltar.onclick = (e) => {
+                            e.stopPropagation();
+
+                            // Remove o modo tela cheia
+                            item.classList.remove("modo-tela-cheia");
+
+                            // Esconde a barra de cobertura e remove o botão
+                            if (barraTopoFoco) {
+                                barraTopoFoco.style.display = "none";
+                            }
+                            botaoVoltar.remove();
+
+                            // Restaura elementos globais
+                            if (resumo) resumo.style.display = "";
+                            if (valoresResumo) valoresResumo.style.display = "";
+                            if (mestreContas) mestreContas.style.display = "";
+                            if (wrapperContas) wrapperContas.style.display = "";
+                            if (mestreHeader) mestreHeader.style.display = "";
+
+                            // Restaura a lista respeitando o filtro ativo
+                            const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                            wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                                const statusDoItem = outro.getAttribute("data-status-filtro");
+                                const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                                outro.style.display = deveAparecer ? "block" : "none";
+                            });
+
+                            // Mostra o botão de foco original novamente
+                            if (botaoFoco) {
+                                botaoFoco.style.display = "inline-block";
+                            }
+                        };
+
+                        document.body.appendChild(botaoVoltar);
+                        
+                        // Oculta o botão que disparou o foco para limpar o visual
+                        if (botaoFoco) botaoFoco.style.display = "none";
+
+                        return;
+                    }
+
+                    // =========================================================================
+                    // CASO 2: CLIQUE NORMAL NO HEADER (ABRIR / FECHAR ACCORDION)
+                    // =========================================================================
+                    const estaAbrindo = !item.classList.contains("active");                   
+
+                    if (estaAbrindo) {
+                        // 1. ESCONDE OS OUTROS CARDS
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            if (outro !== item) {
+                                outro.classList.remove("active");
+                                outro.classList.remove("foco-unico");
+                                outro.style.display = "none"; 
+                            }
+                        });
+
+                        // 2. ESCONDE OS RESUMOS GERAIS DA TELA
+                        document.getElementById("valores-resumo")?.style.setProperty("display", "none");
+                        document.getElementById("btn-mestre-contas")?.style.setProperty("display", "none");
+                        document.getElementById("wrapper-contas")?.style.setProperty("display", "none");
+                        document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "none");
+
+                        const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                        if (conteudoGeral) {
+                            conteudoGeral.dataset.alturaOriginal = conteudoGeral.style.maxHeight || "";
+                            conteudoGeral.style.maxHeight = "none";
+                            conteudoGeral.style.overflow = "visible";
+                        }
+
+                        // 3. ABRE O CARD ATUAL
+                        item.classList.add("active");
+                        item.classList.add("foco-unico");                       
+
+                        const botaoFocoAtual = item.querySelector(".btn-foco-evento") || item.closest(".accordion-item")?.querySelector(".btn-foco-evento");
+
+                        if (botaoFocoAtual) {
+                            // Força o display inline-block
+                            botaoFocoAtual.style.setProperty("display", "inline-block", "important");
+                            // Se houver qualquer bloqueio de opacidade ou cursor antigo, limpamos aqui:
+                            botaoFocoAtual.style.setProperty("opacity", "1", "important");
+                            botaoFocoAtual.style.setProperty("cursor", "pointer", "important");
+                            
+                            // Se você estava usando o atributo 'disabled' no HTML antigo, remova-o:
+                            botaoFocoAtual.removeAttribute("disabled");
+                        }
+
+                    } else {
+                        // CASO O USUÁRIO CLIQUE PARA FECHAR O CARD
+                        document.getElementById("valores-resumo")?.style.setProperty("display", "");
+                        document.getElementById("btn-mestre-contas")?.style.setProperty("display", "");
+                        document.getElementById("wrapper-contas")?.style.setProperty("display", "");
+                        document.querySelector(".accordion-mestre-header")?.style.setProperty("display", "");
+
+                        const filtroAtivo = window._filtroEventosAtivo || 'todos';
+                        wrapperEventos.querySelectorAll(".accordion-item").forEach(outro => {
+                            outro.classList.remove("foco-unico");
+                            const statusDoItem = outro.getAttribute("data-status-filtro");
+                            const deveAparecer = (filtroAtivo === 'todos' || statusDoItem === filtroAtivo);
+                            outro.style.display = deveAparecer ? "block" : "none";
+                        });
+
+                        const conteudoGeral = document.getElementById("vencimentos-conteudo");
+                        if (conteudoGeral) {
+                            conteudoGeral.style.maxHeight = conteudoGeral.dataset.alturaOriginal || "";
+                            conteudoGeral.style.overflow = "";
+                        }
+
+                        item.classList.remove("active");
+                        item.classList.remove("foco-unico");
+
+                        // SE FECHOU O CARD, ESCONDE O BOTÃO DELE NOVAMENTE
+                        const botaoFocoAtual = item.querySelector(".btn-foco-evento");
+                        if (botaoFocoAtual) {
+                            botaoFocoAtual.style.setProperty("display", "none", "important");
+                        }
+                    }
+                };
 
 
                 const body = document.createElement("div");
@@ -6476,6 +8374,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 item.appendChild(body);
                 wrapperEventos.appendChild(item);
             });
+            
         }
 
         console.log("DADOS CONTAS", resContas);
@@ -6684,6 +8583,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // Título Mestre
                 const btnMestreContas = document.createElement('button');
                 btnMestreContas.className = 'accordion-mestre-header active';
+                btnMestreContas.id = 'btn-mestre-contas';
                 
                 // Usamos o 'resumo' que já foi calculado lá em cima logo após o filtro
                 btnMestreContas.innerHTML = `
@@ -6707,6 +8607,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const wrapperContas = document.createElement('div');
                 wrapperContas.className = "wrapper-contas-financeiro";
                 wrapperContas.style.display = 'block';
+                wrapperContas.id = 'wrapper-contas';
 
                 btnMestreContas.addEventListener('click', () => {
                     // 1. Alterna a classe active (isso fará a setinha girar via CSS)
@@ -6812,6 +8713,27 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         console.log("✅ AGORA HÁ ITENS?", contasProjetadas.length);
 
         conteudoGeral.appendChild(accordionContainer);
+
+              // ✅ AQUI é o lugar certo — DOM já está montado
+        const filtroAtivo = window._filtroEventosAtivo || 'hoje';
+
+        // Marca visualmente o botão correto
+        const containerFiltros = conteudoGeral.querySelector(".filtros-rapidos-eventos");
+        if (containerFiltros) {
+            containerFiltros.querySelectorAll(".btn-filtro-rapido").forEach(b => {
+                const cor = b.style.borderColor;
+                if (b.dataset.filter === filtroAtivo) {
+                    b.style.background = cor;
+                    b.style.color = "white";
+                } else {
+                    b.style.background = "white";
+                    b.style.color = cor;
+                }
+            });
+        }
+
+        // Aplica o filtro agora que os itens já estão no DOM
+        filtrarEventosNaTela(filtroAtivo);
 
         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
         atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
@@ -7247,6 +9169,254 @@ function converterData(dataStr) {
 //     return item;
 // }
 
+// function criarAccordionVinculo(tipo, lista, hoje) {
+//     const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+//     const hojeISO = hoje.toLocaleDateString('sv-SE');
+//     const hojeBR = hoje.toLocaleDateString('pt-BR');
+
+//     const dHoje = new Date(hoje); 
+//     dHoje.setHours(0,0,0,0);
+
+//     const dProximos5Dias = new Date(dHoje);
+//     dProximos5Dias.setDate(dHoje.getDate() + 5);
+
+//     // 1. CÁLCULO DO RESUMO DO CABEÇALHO (Ignora suspensos)
+//     const resumoVinculo = lista.reduce((acc, c) => {
+//         const statusOriginal = (c.status || 'pendente').toLowerCase();
+        
+//         if (statusOriginal === 'suspenso') return acc;
+
+//         const vPago = Math.max(0, parseFloat(c.vlrpago || 0));
+//         const vSaldo = Math.max(0, parseFloat(c.saldo || 0));
+//         const vTotalItem = parseFloat(c.valorTotal || c.vlrreal || c.vlrestimado || 0);
+
+//         const dataVctoStr = c.dtvcto || (c.vencimento ? c.vencimento.split('/').reverse().join('-') : "");
+//         const dParcela = dataVctoStr ? new Date(dataVctoStr + "T12:00:00") : null;
+//         if(dParcela) dParcela.setHours(0,0,0,0);
+
+//         let statusCalculo = statusOriginal;
+//         if (statusOriginal !== 'pago' && dParcela && dParcela < dHoje) {
+//             statusCalculo = 'atrasado';
+//         }
+
+//         if (statusCalculo !== 'pago' && statusCalculo !== 'atrasado' && dParcela) {
+//             if (dParcela > dHoje && dParcela <= dProximos5Dias) {
+//                 acc.venceEm5Dias += vSaldo || vTotalItem;
+//                 acc.temProximos5 = true;
+//             }
+//         }
+
+//         if (statusCalculo === 'pago') {
+//             acc.pagos += vPago || vTotalItem;
+//             acc.total += vPago || vTotalItem;
+//         } else if (statusCalculo === 'atrasado') {
+//             acc.vencidos += vSaldo || vTotalItem;
+//             acc.total += vTotalItem;
+//             acc.pendente += vSaldo || vTotalItem;
+//             acc.temVencido = true;
+//         } else {
+//             if (dParcela && dParcela.getTime() === dHoje.getTime()) {
+//                 acc.valorHoje += vSaldo || vTotalItem;
+//                 acc.temHoje = true;
+//             } else {
+//                 acc.aVencer += vSaldo || vTotalItem;
+//             }
+//             acc.total += vTotalItem;
+//             acc.pendente += vSaldo || vTotalItem;
+//         }
+//         return acc;
+//     }, { pagos: 0, pendente: 0, total: 0, vencidos: 0, valorHoje: 0, aVencer: 0, temVencido: false, temHoje: false, temProximos5: false });
+
+//     // 2. MONTAGEM DOS ALERTAS DO HEADER
+//     let alertasTexto = [];
+//     if (resumoVinculo.vencidos > 0) {
+//         alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot-alerta"></span><strong style="color:#d9534f; font-size: 16px;">VENCIDOS: ${formatarMoeda(resumoVinculo.vencidos)}</strong></span>`);
+//     }
+//     if (resumoVinculo.temHoje) {
+//         alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;"><span class="dot-alerta pulse-amarelo" style="background-color: #ffcc00; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#f0ad4e; font-size: 16px;">HOJE: ${formatarMoeda(resumoVinculo.valorHoje)}</strong></span>`);
+//     }
+//     if (resumoVinculo.aVencer > 0) {
+//         alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap:6px; margin-right: 10px;"><span class="dot-alerta pulse-azul" style="background-color: #007bff; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#007bff; font-size: 16px;">A VENCER: ${formatarMoeda(resumoVinculo.aVencer)}</strong></span>`);
+//     }
+//     if (resumoVinculo.pagos > 0) {
+//         alertasTexto.push(`<strong style="color:#2E8B57; font-size: 16px;">PAGOS: ${formatarMoeda(resumoVinculo.pagos)}</strong>`);
+//     }
+//     if (resumoVinculo.temProximos5) {
+//         alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 6px;"><span class="dot-alerta" style="background-color: #17a2b8; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#17a2b8; font-size: 16px;">5 DIAS: ${formatarMoeda(resumoVinculo.venceEm5Dias)}</strong></span>`);
+//     }
+
+//     let subStatusHtml = alertasTexto.length > 0 
+//         ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">${alertasTexto.join(' <span style="color:#ddd">|</span> ')}</div>`
+//         : `<small style="color:#28a745; font-weight: bold; display:block; margin-top:4px;">✓ LIQUIDADO</small>`;
+
+//     const item = document.createElement("div");
+//     item.className = "accordion-item item-financeiro"; 
+    
+//     let statusParaFiltro = "a_vencer";
+//     if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
+//     else if (resumoVinculo.temHoje) statusParaFiltro = "hoje";
+//     else if (resumoVinculo.temProximos5) statusParaFiltro = "vence_5_dias";
+//     else if (resumoVinculo.pendente <= 0) statusParaFiltro = "liquidado";
+//     item.setAttribute("data-status-filtro", statusParaFiltro);
+
+//     // Ordenação
+//     lista.sort((a, b) => {
+//         const dataA = (a.dtvcto || "").substring(0, 10);
+//         const dataB = (b.dtvcto || "").substring(0, 10);
+//         if (dataA < dataB) return -1;
+//         if (dataA > dataB) return 1;
+//         return (a.nome_vinculo || "").toLowerCase().localeCompare((b.nome_vinculo || "").toLowerCase());
+//     });
+
+//     item.innerHTML = `
+//         <button class="accordion-header">
+//             <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+//                 <div class="evento-titulo-col" style="text-align: left;">
+//                     <strong style="font-size: 19px;">${tipo}</strong>
+//                     ${subStatusHtml}
+//                 </div>
+//                 <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+//                     <div class="fin-resumo-item orcado">
+//                         <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+//                         <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
+//                     </div>
+//                 </div>
+//             </div>
+//         </button>
+//         <div class="accordion-body">
+//             <div class="funcionarios-scroll-container">
+//                 <table class="tabela-funcionarios-venc">
+//                     <thead>
+//                         <tr>
+//                             <th>VÍNCULO / DESCRIÇÃO</th>
+//                             <th style="text-align:center">VENCIMENTO</th>
+//                             <th style="text-align:center">IMAGEM CONTA</th>
+//                             <th style="text-align:center">AÇÕES</th>
+//                             <th style="text-align:center">STATUS</th>
+//                             <th style="text-align:center">EMPRESA PAGADORA</th>
+//                             <th style="text-align:center">DATA PAGAMENTO</th>
+//                             <th style="text-align:center">COMPROVANTE</th>
+//                             <th style="text-align:right">VALOR</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                     ${(() => {
+//                         if (!lista || lista.length === 0) return '<tr><td colspan="8" style="text-align:center;">Nenhum registro encontrado.</td></tr>';
+
+//                         const gruposPorMes = lista.reduce((acc, curr) => {
+//                             const dStr = curr.dtvcto || curr.vencimento || "";
+//                             let rotulo = "SEM DATA";
+//                             if (dStr) {
+//                                 const dt = new Date(dStr + "T12:00:00");
+//                                 const mesesNome = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+//                                 rotulo = `${mesesNome[dt.getMonth()]} / ${dt.getFullYear()}`;
+//                             }
+//                             if (!acc[rotulo]) acc[rotulo] = [];
+//                             acc[rotulo].push(curr);
+//                             return acc;
+//                         }, {});
+
+//                         return Object.keys(gruposPorMes).map(mesAno => {
+//                             const itens = gruposPorMes[mesAno];
+//                             const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="8" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
+
+//                             const linhas = itens.map(c => {
+//                                 const statusC = (c.status || 'pendente').toLowerCase();
+//                                 const ehSuspenso = statusC === 'suspenso';
+                                
+//                                 // Lógica do Comprovante (Movida para dentro do map)
+//                                 const arquivoComp = c.comprovantepagto;
+//                                 const urlComp = (arquivoComp && arquivoComp !== '---') ? `${arquivoComp}` : null;
+//                                 const urlEncoded = urlComp ? encodeURIComponent(urlComp) : '';
+
+//                                 let vExibicao = statusC === 'pago' ? parseFloat(c.vlrpago || c.vlrreal || 0) : parseFloat(c.vlrreal || c.vlrestimado || 0);
+//                                 const dataExibicao = c.dtvcto ? c.dtvcto.split('-').reverse().join('/') : '---';
+//                                 const pgtoExibicao = (c.dtpgto && c.dtpgto !== '---') ? c.dtpgto.substring(0, 10).split('-').reverse().join('/') : '---';
+//                                 const vctoISO = c.dtvcto || "";
+
+//                                 let estiloVencido = ""; let avisoStatus = ""; let filterLinha = "";
+//                                 if (ehSuspenso) { filterLinha = "suspenso"; }
+//                                 else if (statusC === 'pago') { filterLinha = "liquidado"; }
+//                                 else {
+//                                     const dParcelaLinha = vctoISO ? new Date(vctoISO + "T12:00:00") : null;
+//                                     if(dParcelaLinha) dParcelaLinha.setHours(0,0,0,0);
+
+//                                     if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
+//                                     else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
+//                                     else if (dParcelaLinha && dParcelaLinha <= dProximos5Dias) { // AQUI
+//                                         filterLinha = "vence_5_dias";
+//                                         estiloVencido = "color: #17a2b8; font-weight: bold;";
+//                                         avisoStatus = `<span style="background:#17a2b8; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
+//                                     }
+//                                     else { filterLinha = "a_vencer"; }
+//                                 }
+
+//                                 const obsParaJs = (c.observacao || c.descricao || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+//                                 return `
+//                                     <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-id-empresa="${c.idempresapagadora || 'nulo'}">
+//                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
+//                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+//                                         </td>
+//                                         <td style="text-align:center;">${dataExibicao}</td>
+//                                         <td style="text-align:center;">
+//                                             ${c.imagemconta && c.imagemconta !== '---' 
+//                                                 ? `<a href="javascript:void(0)" 
+//                                                     onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
+//                                                     style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+//                                                     <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
+//                                                     <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
+//                                                 </a>` 
+//                                                 : `<div>
+//                                                     <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
+//                                                     <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
+//                                                 </div>`
+//                                             }
+//                                         </td>
+//                                         <td style="text-align:center;">
+//                                             ${ehSuspenso 
+//                                                 ? `<button onclick="${temPermissaoSupremo ? `reverterSuspensao('${c.idlancamento}', '${c.idpagamento}', '${vctoISO}', '${obsParaJs}')` : `Swal.fire('Negado','Acesso Supremo Requerido','warning')`}" class="btn-reverter-suspensao" style="cursor: ${temPermissaoSupremo ? 'pointer' : 'not-allowed'}; background: ${temPermissaoSupremo ? '#6c757d' : '#eee'}; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-unlock-alt" style="color:${temPermissaoSupremo ? '#fff' : '#ccc'}"></i></button>` 
+//                                                 : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : (typeof renderBotaoPagamento === 'function' ? renderBotaoPagamento(c) : ''))}
+//                                         </td>
+//                                         <td style="text-align:center;"><span class="badge-status-${statusC}">${statusC.toUpperCase()}</span></td>
+//                                         <td style="text-align:center;">${c.empresapagadora}</td>
+//                                         <td style="text-align:center;">${pgtoExibicao}</td>
+//                                         <td style="text-align:center;">
+//                                             ${(c.comprovantepgto && c.comprovantepgto !== '---')
+//                                                 ? `<a href="javascript:void(0)" 
+//                                                     onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
+//                                                     style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+//                                                     <i class="fas fa-receipt" style="font-size: 18px;"></i>
+//                                                     <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
+//                                                 </a>`
+//                                                 : (statusC === 'pago' 
+//                                                     ? `<div>
+//                                                         <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
+//                                                         <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
+                                                                                                                
+//                                                     </div>` 
+//                                                     : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+//                                                 )
+//                                             }
+//                                         </td>                                    
+//                                         <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(vExibicao)}</strong></td>
+//                                     </tr>`;
+//                             }).join('');
+//                             return headerMes + linhas;
+//                         }).join('');
+//                     })()}
+//                     </tbody>
+//                 </table>
+//             </div>
+//         </div>
+//     `;
+
+//     item.querySelector('.accordion-header').onclick = () => item.classList.toggle("active");
+//     return item;
+// }
+
+
 function criarAccordionVinculo(tipo, lista, hoje) {
     const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
     const hojeISO = hoje.toLocaleDateString('sv-SE');
@@ -7346,20 +9516,40 @@ function criarAccordionVinculo(tipo, lista, hoje) {
         return (a.nome_vinculo || "").toLowerCase().localeCompare((b.nome_vinculo || "").toLowerCase());
     });
 
+    
     item.innerHTML = `
-        <button class="accordion-header">
-            <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <div class="evento-titulo-col" style="text-align: left;">
-                    <strong style="font-size: 19px;">${tipo}</strong>
-                    ${subStatusHtml}
-                </div>
-                <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
-                    <div class="fin-resumo-item orcado">
-                        <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
-                        <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
-                    </div>
-                </div>
+    <div class="accordion-header" style="cursor: pointer; display: flex; align-items: center; width: 100%;" tabindex="0">
+        <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; flex-grow: 1; align-items: center;">
+            <div class="evento-titulo-col" style="text-align: left;">
+                <strong style="font-size: 19px;">${tipo}</strong>
+                ${subStatusHtml}
             </div>
+            <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+                <div class="fin-resumo-item orcado">
+                    <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+                    <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
+                </div>                   
+            </div>
+        </div>
+        <button type="button" class="btn-foco-contas" style="
+            margin-left: 10px; 
+            padding: 6px 12px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; /* Estilo arredondado dos seus cards */
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 12px;
+            transition: background 0.3s;
+            display: none; /* Ele aparece apenas quando o accordion abre */
+            ">
+            <i class="fas fa-expand-arrows-alt" style="margin-right: 5px;"></i> Visualizar em Tela Cheia
+        </button>
+    </div>
+   
+
+               
         </button>
         <div class="accordion-body">
             <div class="funcionarios-scroll-container">
@@ -7491,7 +9681,157 @@ function criarAccordionVinculo(tipo, lista, hoje) {
     `;
 
     item.querySelector('.accordion-header').onclick = () => item.classList.toggle("active");
+
+    // 1. Referências (Importante: buscar após o innerHTML ser injetado)
+    const header = item.querySelector('.accordion-header');
+    const corpo = item.querySelector('.accordion-body');
+    const btnFoco = item.querySelector('.btn-foco-contas');
+
+    // 2. Função de visibilidade
+    const atualizarBotaoFoco = () => {
+        if (item.classList.contains("active")) {
+            btnFoco.style.setProperty('display', 'inline-block', 'important');
+        } else {
+            btnFoco.style.display = "none";
+        }
+    };
+
+    // 3. Evento Único
+    header.onclick = (e) => {
+     
+        const clicouNoBotaoTelaCheia = e.target.closest('.btn-foco-contas');
+
+        if (clicouNoBotaoTelaCheia) {
+            e.stopPropagation();
+
+            document.body.style.overflow = "hidden";
+
+            // 1. Identifica o título da conta (ajustado para o seu HTML de fornecedores)
+            const nomeConta = item.querySelector("strong")?.innerText?.trim() || "Detalhes da Conta";
+
+            // 2. Barra de Topo
+            let barraTopoFoco = document.getElementById("barra-topo-foco-evento");
+            if (!barraTopoFoco) {
+                barraTopoFoco = document.createElement("div");
+                barraTopoFoco.id = "barra-topo-foco-evento";
+                document.body.appendChild(barraTopoFoco);
+            }
+
+            Object.assign(barraTopoFoco.style, {
+                position: "fixed", top: "0", left: "0", width: "100%", height: "90px",
+                backgroundColor: "var(--primary-color, #611414)", display: "flex", alignItems: "center",
+                justifyContent: "center", zIndex: "99999", boxShadow: "0 2px 10px rgba(0,0,0,0.5)"
+            });
+            barraTopoFoco.innerHTML = `<h2 style="margin:0; font-size:18px; color:#ffffff; font-weight:bold;">${nomeConta}</h2>`;
+            barraTopoFoco.style.display = "flex";
+
+            // 3. ESCONDE O QUE ESTÁ FORA (Mas NÃO o wrapper-contas)
+            const externos = [".resumo-detalhado", "#valores-resumo", "#btn-mestre-contas", ".accordion-mestre-header", ".sidebar"];
+            externos.forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) el.style.display = "none";
+            });
+
+            // 4. ESCONDE OS OUTROS CARDS (Irmãos)
+            const containerPai = item.parentElement;
+            containerPai.querySelectorAll(".accordion-item").forEach(outro => {
+                if (outro !== item) {
+                    outro.style.display = "none";
+                }
+            });
+
+            // 5. EXIBE OS DETALHES (O "CORPO")
+            item.classList.add("modo-tela-cheia", "active"); // Força o active para o CSS abrir o corpo
+      
+            if (corpo) {
+                // 1. Identifica os pais que podem estar limitando o tamanho
+                const containerGeral = document.getElementById("vencimentos-conteudo");
+                const accordionItem = corpo.closest('.accordion-item');
+
+                // 2. Limpa as "travas" de altura nos níveis superiores
+                [containerGeral, accordionItem].forEach(el => {
+                    if (el) {
+                        el.style.setProperty("max-height", "none", "important");
+                        el.style.setProperty("height", "auto", "important");
+                        el.style.setProperty("overflow", "visible", "important");
+                    }
+                });
+
+                // 3. Aplica a Expansão Real no Corpo
+                Object.assign(corpo.style, {
+                    display: "block",
+                    position: "fixed", 
+                    top: "90px",            // Ajuste conforme sua barra superior
+                    left: "0",
+                    width: "100vw",
+                    height: "calc(100vh - 90px)", 
+                    backgroundColor: "#fff",
+                    zIndex: "99998",        // Garante que fique acima do dashboard
+                    overflowY: "auto",      // O scroll PRECISA acontecer aqui
+                    overflowX: "hidden",
+                    padding: "15px"
+                });
+
+                // 4. Força a visibilidade da tabela e remove o "dirty checking" visual
+                const tabela = corpo.querySelector('table');
+                if (tabela) {
+                    tabela.style.setProperty("width", "100%", "important");
+                    tabela.style.setProperty("height", "auto", "important");
+                    tabela.style.setProperty("display", "table", "important");
+                    tabela.style.marginBottom = "100px"; 
+                }
+            }
+
+            // 6. BOTÃO VOLTAR
+            const botaoVoltar = document.createElement("button");
+            botaoVoltar.innerHTML = '✕ FECHAR';
+            Object.assign(botaoVoltar.style, {
+                position: "fixed", top: "25px", right: "20px", zIndex: "100000",
+                padding: "8px 20px", background: "white", color: "#611414",
+                border: "none", borderRadius: "20px", cursor: "pointer", fontWeight: "bold"
+            });
+
+            botaoVoltar.onclick = (ev) => {
+                ev.stopPropagation();
+                document.body.style.overflow = "";
+                item.classList.remove("modo-tela-cheia");
+                if (corpo) corpo.style = ""; 
+                barraTopoFoco.style.display = "none";
+                botaoVoltar.remove();
+
+                // Restaura tudo
+                externos.forEach(sel => {
+                    const el = document.querySelector(sel);
+                    if (el) el.style.display = "";
+                });
+                containerPai.querySelectorAll(".accordion-item").forEach(outro => {
+                    outro.style.display = "";
+                });
+            };
+            document.body.appendChild(botaoVoltar);
+
+        }  else {
+            // === CASO: CLIQUE NORMAL (ABRIR/FECHAR) ===
+            item.classList.toggle("active");
+            
+            // Captura o botão azul dentro deste item específico
+            const btnFoco = item.querySelector('.btn-foco-evento') || item.querySelector('.btn-foco-contas');
+            
+            if (btnFoco) {
+                // Se o card está aberto (active), o botão PRECISA aparecer
+                if (item.classList.contains("active")) {
+                    btnFoco.style.setProperty("display", "inline-block", "important");
+                    btnFoco.style.setProperty("visibility", "visible", "important");
+                    btnFoco.style.setProperty("opacity", "1", "important");
+                } else {
+                    btnFoco.style.display = "none";
+                }
+            }
+        }
+    }
     return item;
+
+
 }
 
 function aplicarFiltrosFinanceiros() {

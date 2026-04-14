@@ -369,7 +369,7 @@ router.get("/eventos-abertos", async (req, res) => {
         const sql = `
             WITH vagas_orc AS (
             SELECT 
-                o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, 
+                o.idevento, lm.descmontagem AS nmlocalmontagem, o.idmontagem, o.idcliente,
                 MAX(o.nrorcamento) AS nrorcamento,
                 -- LÓGICA MISTA: 
                 -- Se o cache está fechado, contamos 1 vaga por item (independente da qtd).
@@ -417,7 +417,7 @@ router.get("/eventos-abertos", async (req, res) => {
             AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
             AND i.categoria = 'Produto(s)' AND o.status <> 'R'
             AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
-            GROUP BY o.idevento, lm.descmontagem, o.idmontagem
+            GROUP BY o.idevento, lm.descmontagem, o.idmontagem, o.idcliente
             ),
             staff_por_funcao AS (
                 SELECT 
@@ -442,7 +442,7 @@ router.get("/eventos-abertos", async (req, res) => {
                 GROUP BY se.idevento, se.idfuncao
             ),
             cliente_info AS (
-                SELECT DISTINCT ON (o.idevento) o.idevento, c.idcliente, c.nmfantasia
+                SELECT DISTINCT ON (o.idevento) o.idevento, o.idcliente, c.nmfantasia
                 FROM orcamentos o JOIN clientes c ON c.idcliente = o.idcliente
                 WHERE o.status <> 'R' ORDER BY o.idevento, o.dtinirealizacao DESC 
             )
@@ -2069,7 +2069,7 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
         const result = await pool.query(
             `UPDATE staffeventos se SET ${coluna} = $1 
              FROM staffempresas sem
-             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3,
+             WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
              RETURNING se.*`,
             [pathArquivo, idStaff, idempresa]
         );
@@ -2278,6 +2278,7 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
     }), async (req, res) => {
     // Extraímos os dados enviados pelo frontend
     const { idPagamento, tipo } = req.body;
+    const idempresa = req.idempresa;
 
     console.log(`[UPLOAD] Iniciando processamento. Tipo: ${tipo} | ID: ${idPagamento}`);
     
@@ -2323,9 +2324,15 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         res.locals.dadosnovos = result.rows[0]; 
 
         // 6. Retorno de sucesso para o frontend
+        // res.json({ 
+        //     success: true, 
+        //     path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
+        //     colunaDestino: coluna 
+        // });
         res.json({ 
             success: true, 
-            path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
+            // Ajuste o prefixo conforme sua estrutura de pastas (ex: /uploads/contas/)
+            path: `/uploads/contas/${nomeArquivoNoBanco}`, 
             colunaDestino: coluna 
         });
 

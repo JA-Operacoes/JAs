@@ -1309,8 +1309,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 VALUES 
                                     (-48, 'Segunda Carnaval'),
                                     (-47, 'Terça Carnaval'),
-                                    (-2,  'Sexta Santa'),
-                                    (0,   'Páscoa'),
+                                    --(-2,  'Sexta Santa'),
+                                    --(0,   'Páscoa'),
                                     (60,  'Corpus Christi')
                             ) AS m(deslocamento, nome)
 
@@ -1387,6 +1387,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                 WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                 AND (
+                                    tse.nmfuncao ILIKE '%Ajudante de Marcação%'
                                     tbf.perfil ILIKE '%Free%' 
                                     OR 
                                     ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
@@ -1542,8 +1543,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 VALUES 
                                     (-48, 'Segunda Carnaval'),
                                     (-47, 'Terça Carnaval'),
-                                    (-2,  'Sexta Santa'),
-                                    (0,   'Páscoa'),
+                                    --(-2,  'Sexta Santa'),
+                                    --(0,   'Páscoa'),
                                     (60,  'Corpus Christi')
                             ) AS m(deslocamento, nome)
 
@@ -1669,8 +1670,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     VALUES 
                                         (-48, 'Segunda Carnaval'),
                                         (-47, 'Terça Carnaval'),
-                                        (-2,  'Sexta Santa'),
-                                        (0,   'Páscoa'),
+                                     --(-2,  'Sexta Santa'),
+                                     --(0,   'Páscoa'),
                                         (60,  'Corpus Christi')
                                 ) AS m(deslocamento, nome)
 
@@ -1717,11 +1718,11 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             -- 1. QTD DE CACHÊS E AJUDAS REAIS (Baseadas no valor total dividido pelo unitário)
                             -- Se já foi pago/fechado, extraímos a QTD dividindo o total pelo valor unitário
                             -- Se não foi pago, usamos a contagem do array que você já fazia.
-                            CAST(CASE 
-                                WHEN COALESCE(sub.vlrtotcache, 0) > 0 AND COALESCE(sub."VLR CACHÊ", 0) > 0 
-                                THEN sub.vlrtotcache / sub."VLR CACHÊ"
+                            CAST(CASE
+                                WHEN COALESCE(sub.vlrtotcache, 0) > 0 AND COALESCE(sub."VLR CACHÊ", 0) > 0
+                                THEN (sub.vlrtotcache - sub."VLR ADICIONAL") / sub."VLR CACHÊ"
                                 ELSE sub."QTD_CALCULADA"
-                            END AS INTEGER) AS "QTD",
+                            END AS INTEGER) AS "QTD_CALCULADA",
 
                             CAST(CASE 
                                 WHEN COALESCE(sub.vlrtotajdcusto, 0) > 0 AND COALESCE(sub."VLR AJUDA", 0) > 0 
@@ -1747,8 +1748,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             -- Soma o Cache Real + Ajuda Real + Adicionais
                             CAST(
                                 COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + 
-                                COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) + 
-                                sub."VLR ADICIONAL" 
+                                COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) 
+                                --+ sub."VLR ADICIONAL" 
                             AS NUMERIC(10,2)) AS "TOT GERAL",
 
                             -- 5. TOT PAGAR (Regra de Abatimento baseada nos Status de Pagamento)
@@ -1758,8 +1759,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHEN (sub."STATUS AJUDA" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + sub."VLR ADICIONAL"
                                 ELSE 
                                     COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + 
-                                    COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) + 
-                                    sub."VLR ADICIONAL"
+                                    COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
+                                    -- + sub."VLR ADICIONAL"
                             END AS NUMERIC(10,2)) AS "TOT PAGAR"
                         FROM (
                             SELECT 
@@ -1776,16 +1777,25 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
                                 (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
                                 
+                                CAST((
+                                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
+                                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
+                                    COALESCE(da.vlr_dobras, 0) +
+                                    COALESCE(da.vlr_meias, 0)
+                                ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
+
                                 -- Mantemos o cálculo dinâmico aqui como fallback (plano B)
                                 (SELECT COUNT(*)::int
-                                FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
-                                WHERE date_val::date >= $2::date AND date_val::date <= $3::date
-                                AND (
-                                    tbf.perfil ILIKE '%Free%' 
+                                    FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                                    WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                                    AND (
+                                        tbf.perfil ILIKE '%Free%' 
                                     OR ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
-                                    AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
-                                )
+                                        AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+                                    )
                                 ) AS "QTD_CALCULADA",
+
+                            
 
                                 (SELECT COUNT(*)::int
                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
@@ -1795,12 +1805,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 CAST(COALESCE(tse.vlrcache, 0) AS NUMERIC(10,2)) AS "VLR CACHÊ",
                                 CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS NUMERIC(10,2)) AS "VLR AJUDA",
 
-                                CAST((
-                                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-                                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
-                                    COALESCE(da.vlr_dobras, 0) +
-                                    COALESCE(da.vlr_meias, 0)
-                                ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
+                                
 
                                 COALESCE(tse.statuspgto, 'Pendente') AS "STATUS CACHÊ",
                                 COALESCE(tse.statuspgtoajdcto, 'Pago') AS "STATUS AJUDA", -- Forçando o entendimento de que já foi pago
@@ -2240,6 +2245,32 @@ router.get('/equipe', autenticarToken(), async (req, res) => {
         return res.json(rows);
     } catch (err) {
         console.error("❌ Erro ao buscar eventos:", err);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/empresas/:id', autenticarToken(), async (req, res) => {
+    try {
+        const idusuario = req.usuario.idusuario;
+        const idempresa = req.params.id;
+
+    const query = `
+        SELECT e.idempresa, e.nmfantasia
+        FROM empresas e
+        INNER JOIN usuarioempresas eu ON e.idempresa = eu.idempresa
+        WHERE eu.idusuario = $1 AND e.idempresa = $2 AND e.ativo = true
+    `;
+
+    const { rows } = await pool.query(query, [idusuario, idempresa]);
+
+    if (rows.length === 0) {
+        return res.status(404).json({
+        error: "Acesso Negado: Você não tem permissão para acessar esta empresa ou ela não existe."
+        });
+    }
+    return res.json(rows[0]);
+    } catch (err) {
+        console.error("❌ Erro ao buscar empresa:", err);
         return res.status(500).json({ error: err.message });
     }
 });
