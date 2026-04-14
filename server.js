@@ -79,7 +79,6 @@ app.use("/bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBan
 app.use("/propostatextos", autenticarToken(), contextoEmpresa, require("./routes/RotaTextos"));
 app.use("/fornecedores", autenticarToken(), contextoEmpresa, require("./routes/rotaFornecedores"));
 app.use("/planocontas", autenticarToken(), contextoEmpresa, require("./routes/rotaPlanoConta"));
-
 app.use("/modulos", autenticarToken(), contextoEmpresa, require("./routes/rotaModulo"));
 app.use("/relatorios", autenticarToken(), contextoEmpresa, require("./routes/rotaRelatorio"));
 app.use("/categoriafuncao", autenticarToken(), contextoEmpresa, require("./routes/rotaCategoriaFuncao"));
@@ -95,6 +94,9 @@ app.use("/Contrato",require("./routes/rotaContrato"));
 app.use("/index", autenticarToken(), require("./routes/rotaIndex"));
 app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
+
+// Logo após as outras rotas protegidas, no mesmo padrão:
+app.use("/notificacoes", autenticarToken(), contextoEmpresa, require("./routes/rotaNotificacao"));
 
 // Redireciona / para login.html (opcional)
 app.get("/", (req, res) => {
