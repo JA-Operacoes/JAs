@@ -1994,9 +1994,9 @@ async function abrirTelaEquipesEvento(evento) {
   header.innerHTML = `
   <button class="btn-voltar" title="Voltar">←</button>
   <div class="info-evento">
-  <h2>${evento.nmevento || "Evento sem nome"}</h2>
-  <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
-  <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    <h2>${evento.nmevento || "Evento sem nome"}</h2>
+    <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+    <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
   </div>
   `;
   container.appendChild(header);
@@ -2011,8 +2011,8 @@ async function abrirTelaEquipesEvento(evento) {
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
   rodape.innerHTML = `
-  <button class="btn-voltar-rodape"> ← Voltar</button>
-  <button class="btn-relatorio">📄 Gerar Relatório</button>
+    <button class="btn-voltar-rodape"> ← Voltar</button>
+    <button class="btn-relatorio">📄 Gerar Relatório</button>
   `;
   container.appendChild(rodape);
 
@@ -2022,24 +2022,24 @@ async function abrirTelaEquipesEvento(evento) {
   container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
   container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
-  alert("Função de relatório ainda em desenvolvimento.");
+    alert("Função de relatório ainda em desenvolvimento.");
   });
 
   // helper local
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
   // utilitário simples para escapar texto antes de inserir no innerHTML
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
   }
 
   try {
@@ -2047,9 +2047,9 @@ async function abrirTelaEquipesEvento(evento) {
   const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
 
   if (!idevento || !idempresa) {
-  console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-  corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-  return;
+    console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+    corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+    return;
   }
 
   const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
@@ -2057,14 +2057,14 @@ async function abrirTelaEquipesEvento(evento) {
   // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
   let dados;
   if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-  dados = resp;
+    dados = resp;
   } else if (resp && typeof resp === "object" && "ok" in resp) {
-  if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-  dados = await resp.json();
+    if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+    dados = await resp.json();
   } else {
-  console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-  corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-  return;
+    console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+    corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+    return;
   }
 
   // normaliza array de equipes: suportar {equipes: [...] } ou array direto
@@ -2080,82 +2080,81 @@ async function abrirTelaEquipesEvento(evento) {
   console.log("=================================================");
 
   if (!equipesRaw.length) {
-  corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-  return;
+    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+    return;
   }
 
-  // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
-  const mapFuncoes = (funcoesArray) => {
-  if (!Array.isArray(funcoesArray)) return [];
+    // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
+    const mapFuncoes = (funcoesArray) => {
+        if (!Array.isArray(funcoesArray)) return [];
 
-  return funcoesArray.map(f => {
-  // Mapeamento dos campos de Total e Preenchidas
-  const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
-  const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
+        return funcoesArray.map(f => {
+            // Mapeamento dos campos de Total e Preenchidas
+            const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
+            const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
 
-  // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
-  if (total === 0 && preenchidas === 0) {
-  return null;
-  }
+            // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
+            if (total === 0 && preenchidas === 0) {
+                return null;
+            }
 
-  return {
-  idfuncao: f.idfuncao ?? f.idFuncao ?? null,
-  nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
-  total,
-  preenchidas,
-  concluido: total > 0 && preenchidas >= total,
-  dtini_vaga: f.dtini_vaga ?? null,
-  dtfim_vaga: f.dtfim_vaga ?? null,
-  datas_staff: f.datas_staff ?? [],
-  cache_fechado: f.cache_fechado ?? false
+            return {
+                idfuncao: f.idfuncao ?? f.idFuncao ?? null,
+                nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total,
+                dtini_vaga: f.dtini_vaga ?? null,
+                dtfim_vaga: f.dtfim_vaga ?? null,
+                datas_staff: f.datas_staff ?? [],
+                cache_fechado: f.cache_fechado ?? false
+            };
+        }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
+    };
 
-  };
-  }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
-  };
-
-  console.log("Mapeando e filtrando funções...", equipesRaw);
+    console.log("Mapeando e filtrando funções...", equipesRaw);
 
   // converte e normaliza cada item
-  let equipes = equipesRaw.map(item => {
-  // Obter nome e ID da equipe
-  const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
-  const equipeId = item.idequipe;
-  let funcoesResult = [];
+    let equipes = equipesRaw.map(item => {
+    // Obter nome e ID da equipe
+    const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
+    const equipeId = item.idequipe;
+    let funcoesResult = [];
 
-  // se veio com funcoes já montadas (compatível com rota atual)
-  if (item.funcoes && Array.isArray(item.funcoes)) {
-    funcoesResult = mapFuncoes(item.funcoes);
-  }
-  // se veio como categorias agregadas (campo 'categorias' do backend)
-  else if (item.categorias && Array.isArray(item.categorias)) {
-    funcoesResult = mapFuncoes(item.categorias);
-  }
-  // item vindo como categoria direta
-  else if (item.categoria) {
-  const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
-  const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
+    // se veio com funcoes já montadas (compatível com rota atual)
+    if (item.funcoes && Array.isArray(item.funcoes)) {
+        funcoesResult = mapFuncoes(item.funcoes);
+    }
+    // se veio como categorias agregadas (campo 'categorias' do backend)
+    else if (item.categorias && Array.isArray(item.categorias)) {
+        funcoesResult = mapFuncoes(item.categorias);
+    }
+    // item vindo como categoria direta
+    else if (item.categoria) {
+        const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+        const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
 
-  // Cria função apenas se houver vagas/staff
-  if (total > 0 || preenchidas > 0) { 
-  funcoesResult = [{
-  idfuncao: item.idfuncao ?? null,
-  nome: item.categoria || "Função",
-  total,
-  preenchidas,
-  concluido: total > 0 && preenchidas >= total
-  }];
-  }
-  }
-  // fallback genérico (usando funcoes original, se houver)
-  else if (Array.isArray(item.funcoes)) {
-  funcoesResult = mapFuncoes(item.funcoes);
-  }
+        // Cria função apenas se houver vagas/staff
+        if (total > 0 || preenchidas > 0) { 
+            funcoesResult = [{
+                idfuncao: item.idfuncao ?? null,
+                nome: item.categoria || "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total
+            }];
+        }
+    }
+    // fallback genérico (usando funcoes original, se houver)
+    else if (Array.isArray(item.funcoes)) {
+        funcoesResult = mapFuncoes(item.funcoes);
+    }
 
   return {
-  equipe: equipeNome,
-  idequipe: equipeId,
-  funcoes: funcoesResult
-  };
+    equipe: equipeNome,
+    idequipe: equipeId,
+    funcoes: funcoesResult
+    };
   })
   // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
   .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
@@ -2170,82 +2169,82 @@ async function abrirTelaEquipesEvento(evento) {
 
 
   if (!equipes.length) {
-  corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-  return;
+    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+    return;
   }
 
   // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
   corpo.innerHTML = "";
   equipes.forEach(eq => {
 
-  const equipeBox = document.createElement("div");
-  equipeBox.className = "equipe-box";
+    const equipeBox = document.createElement("div");
+    equipeBox.className = "equipe-box";
 
-  const totalFuncoes = eq.funcoes?.length || 0;
-  const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-  const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+    const totalFuncoes = eq.funcoes?.length || 0;
+    const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+    const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
 
-  // resumo de vagas por função (compacto) usando total/preenchidas
-  const resumo = eq.funcoes?.map(f => {
-  const preench = Number(f.preenchidas ?? 0);
-  const total = Number(f.total ?? 0);
-  let cor = "🟢";
-  if (total === 0) cor = "⚪";
-  else if (preench === 0) cor = "🔴";
-  else if (preench < total) cor = "🟡";
+    // resumo de vagas por função (compacto) usando total/preenchidas
+    const resumo = eq.funcoes?.map(f => {
+        const preench = Number(f.preenchidas ?? 0);
+        const total = Number(f.total ?? 0);
+        let cor = "🟢";
+        if (total === 0) cor = "⚪";
+        else if (preench === 0) cor = "🔴";
+        else if (preench < total) cor = "🟡";
 
-  const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-  console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
+        const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
+        console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
 
-  return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
-  }).join(" | ");
+        return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
+    }).join(" | ");
 
-  // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+    // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
 
-  equipeBox.innerHTML = `
-  <div class="equipe-header" role="button" tabindex="0">
-  <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-  <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
-  </div>
-  <div class="barra-progresso">
-  <div class="progresso" style="width:${perc}%;"></div>
-  </div>
+    equipeBox.innerHTML = `
+        <div class="equipe-header" role="button" tabindex="0">
+        <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+        <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+        </div>
+        <div class="barra-progresso">
+        <div class="progresso" style="width:${perc}%;"></div>
+        </div>
 
-  <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
-  <div class="equipe-actions">
-  <button type="button" class="ver-funcionarios-btn">
-  <i class="fas fa-users"></i> Funcionários
-  </button>
-  </div>
-  `;
+        <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
+        <div class="equipe-actions">
+        <button type="button" class="ver-funcionarios-btn">
+        <i class="fas fa-users"></i> Funcionários
+        </button>
+        </div>
+    `;
 
-  // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
-  const headerBtn = equipeBox.querySelector(".equipe-header");
-  headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
-  headerBtn.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
-  });
-
-
-  // 🛑 NOVO LISTENER: Botão 'Funcionários'
-  const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
-  if (funcionariosBtn) {
-    // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
-    funcionariosBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); // Evita que o clique no botão ative o clique do header
-    abrirListaFuncionarios(eq, evento); 
+    // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
+    const headerBtn = equipeBox.querySelector(".equipe-header");
+        headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+        headerBtn.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
     });
-  }
-  // 🛑 FIM NOVO LISTENER
 
-  corpo.appendChild(equipeBox);
-  });
 
-  } catch (err) {
-  console.error("Erro ao buscar detalhes das equipes.", err);
-  const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
-  corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
-  }
+    // 🛑 NOVO LISTENER: Botão 'Funcionários'
+    const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+        if (funcionariosBtn) {
+            // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
+            funcionariosBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Evita que o clique no botão ative o clique do header
+            abrirListaFuncionarios(eq, evento); 
+            });
+        }
+        // 🛑 FIM NOVO LISTENER
+
+        corpo.appendChild(equipeBox);
+    });
+
+    } catch (err) {
+        console.error("Erro ao buscar detalhes das equipes.", err);
+        const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
+        corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+    }
 }
 
 /**
@@ -3339,13 +3338,23 @@ function mostrarLoader(element) {
 }
 
 
+// function ocultarLoader(element) {
+//     if (element) {
+//         // Encontra o botão de aprovação e reabilita
+//         const btn = element.querySelector('.btn-aprovar');
+//         if (btn) btn.disabled = false;
+//     }
+// }
+
+// Exemplo de correção para o seu Main.js
 function ocultarLoader(element) {
-    if (element) {
-        // Encontra o botão de aprovação e reabilita
+    if (element && typeof element.querySelector === 'function') {
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = false;
     }
 }
+
+
 
 
 async function buscarAditivoExtraCompleto() {
@@ -3389,73 +3398,93 @@ async function mostrarPedidosUsuario() {
         "statusmeiadiaria": "dtmeiadiaria",
         "statuscustofechado": "vlrcache",
         "statuscacheliberado": "vlrcache",
+        "statusvagaexcedida": "statusvagaexcedida", // Mapeia para o campo do banco
+        "statusaditivoextra": "statusaditivoextra", // Mapeia para o campo do banco
+        "aditivoextra": "statusvagaexcedida"
+
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", "statuscacheliberado", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto",
+        "statuscaixinha",
+        "statusmeiadiaria",
+        "statusdiariadobrada",
+        "statuscustofechado",
+        "statuscacheliberado",
+        "statusvagaexcedida", 
+        "statusaditivoextra",
+        "aditivoextra",
+        CAMPO_ADITIVO_EXTRA
     ];
 
     try {
         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
-        const [pedidosPadrao, aditivosExtras] = await Promise.all([
-            buscarPedidosUsuario(),
-            buscarAditivoExtraCompleto()
-        ]);
+        // const [pedidosPadrao, aditivosExtras] = await Promise.all([
+        //     buscarPedidosUsuario(),
+        //     buscarAditivoExtraCompleto()
+        // ]);
+        const pedidosPadrao = await buscarPedidosUsuario(); // Já vem agrupado do novo Backend
+        // const aditivosExtras = await buscarAditivoExtraCompleto();
 
-        window.pedidosCompletosGlobais = pedidosPadrao;
+        // window.pedidosCompletosGlobais = pedidosPadrao;
        
-        // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
-        let pedidosUnificados = pedidosPadrao;
+        // // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
+        // let pedidosUnificados = pedidosPadrao;
+
+        // let pedidosUnificados = [...pedidosPadrao, ...aditivosExtras];
+        // window.pedidosCompletosGlobais = pedidosUnificados;
+        let pedidosUnificados = [...pedidosPadrao];
+        window.pedidosCompletosGlobais = pedidosUnificados;
         
         const aditivosMapeados = [];
 
         console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
 
-        aditivosExtras.forEach(ae => {
-            const nomeFuncionarioAjustado = ae.nomefuncionario; 
-            const solicitanteAjustado = ae.nomesolicitante;
-            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+        // aditivosExtras.forEach(ae => {
+        //     const nomeFuncionarioAjustado = ae.nomefuncionario; 
+        //     const solicitanteAjustado = ae.nomesolicitante;
+        //     const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
             
-            const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
-            const corStatus = (function(status) {
-                if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
-                if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
-                return '#facc15'; // Amarelo (Pendente)
-            })(statusLower);
+        //     const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
+        //     const corStatus = (function(status) {
+        //         if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
+        //         if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
+        //         return '#facc15'; // Amarelo (Pendente)
+        //     })(statusLower);
 
-            const pedidoAditivo = {
-                funcionario: nomeFuncionarioAjustado, 
-                nomeSolicitante: solicitanteAjustado,
-                evento: ae.evento,
-                nmfuncao: ae.funcao || null,
-                idpedido: ae.idaditivoextra, 
-                idaditivoextra: ae.idaditivoextra, 
-                ehMasterStaff: ae.ehMasterStaff,
-                podeVerTodos: ae.podeVerTodos, 
-                solicitante: ae.idusuariosolicitante, 
-                dtCriacao: ae.criado_em, 
-                status_aprovacao: statusLower,
-                categoria_item: CAMPO_ADITIVO_EXTRA,
-                status: statusLower,
-                cor: corStatus,
-                dataSolicitacao: ae.criado_em,
-                dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
-                dataDecisao: ae.datadecisao || null, 
-                nomeAprovador: ae.nomeaprovador || null,     
-                [CAMPO_ADITIVO_EXTRA]: [{
-                    idfuncionario: ae.idfuncionario,
-                    status: statusLower,
-                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
-                    descricao: ae.justificativa, 
-                    quantidade: ae.qtdsolicitada,
+        //     const pedidoAditivo = {
+        //         funcionario: nomeFuncionarioAjustado, 
+        //         nomeSolicitante: solicitanteAjustado,
+        //         evento: ae.evento,
+        //         nmfuncao: ae.funcao || null,
+        //         idpedido: ae.idaditivoextra, 
+        //         idaditivoextra: ae.idaditivoextra, 
+        //         ehMasterStaff: ae.ehMasterStaff,
+        //         podeVerTodos: ae.podeVerTodos, 
+        //         solicitante: ae.idusuariosolicitante, 
+        //         dtCriacao: ae.criado_em, 
+        //         status_aprovacao: statusLower,
+        //         categoria_item: CAMPO_ADITIVO_EXTRA,
+        //         status: statusLower,
+        //         cor: corStatus,
+        //         dataSolicitacao: ae.criado_em,
+        //         dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
+        //         dataDecisao: ae.datadecisao || null, 
+        //         nomeAprovador: ae.nomeaprovador || null,     
+        //         [CAMPO_ADITIVO_EXTRA]: [{
+        //             idfuncionario: ae.idfuncionario,
+        //             status: statusLower,
+        //             tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+        //             descricao: ae.justificativa, 
+        //             quantidade: ae.qtdsolicitada,
                                         
-                }]
-            };
-            aditivosMapeados.push(pedidoAditivo);
-        });
+        //         }]
+        //     };
+        //     aditivosMapeados.push(pedidoAditivo);
+        // });
 
         pedidosUnificados.push(...aditivosMapeados);
        
@@ -3467,14 +3496,18 @@ async function mostrarPedidosUsuario() {
         pedidosUnificados.forEach(pedidoOriginal => {
            
             const categoriasPresentes = camposTodos.filter(c => {
-                 
-                const valor = pedidoOriginal[c];
-                if (c === CAMPO_ADITIVO_EXTRA) {
-                    return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
-                }
-                if (Array.isArray(valor)) return valor.length > 0;
-                return valor && valor.toString().trim() !== ''; 
-            });
+            const valor = pedidoOriginal[c];
+            
+            // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
+            if (c === 'statusvagaexcedida') {
+                return valor && valor.toString().trim() !== '' && valor !== 'null';
+            }
+            if (c === CAMPO_ADITIVO_EXTRA) {
+                return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+            }
+            if (Array.isArray(valor)) return valor.length > 0;
+            return valor && valor.toString().trim() !== ''; 
+        });
 
             console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
 
@@ -3557,10 +3590,16 @@ async function mostrarPedidosUsuario() {
             // Variáveis de Agrupamento
             const evento = p.evento || 'Sem Evento';
             const funcionario = p.funcionario || null; 
-            const nmfuncao = p.nmfuncao || null;
+            let nmfuncao = p.nmfuncao || null;
+            if (!funcionario && (p.categoria_item === 'statusvagaexcedida' || p.categoria_item === 'statusaditivoextra' || p.categoria === 'aditivoextra')) {
+                const rawJson = p.statusvagaexcedida || p.statusaditivoextra || p.statusajustecusto || '[]';
+                const arr = safeParse(rawJson);
+                nmfuncao = arr[0]?.tipoSolicitacao || p.tiposolicitacao || 'Solicitação de Função';
+            }
            
             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+            
 
             console.log(`DEBUG AGRUPAMENTO - Funcionario: ${funcionarioOuFuncao}, ID_Log: ${p.id_log}, Solicitante: ${p.nomeSolicitante}`);
             const chaveAgrupamento = funcionarioOuFuncao; //em comentario para teste da nova query
@@ -3664,48 +3703,67 @@ async function mostrarPedidosUsuario() {
             
         // Primeiro, filtramos os grupos
        
+        // window.gruposFuncoesGlobais = pedidos.filter(p => {
+        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
 
-       // window.gruposFuncionariosGlobais = pedidos.filter(p => !!p.funcionario);
-       // window.gruposFuncoesGlobais = pedidos.filter(p => !p.funcionario);
+        //     // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
+        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+        //         return true; 
+        //     }
 
-       // --- SUBSTITUIÇÃO DA SEPARAÇÃO DAS ABAS ---
+        //     return !p.funcionario; // Regra padrão para o restante
+        // });
 
-        // Filtro para a aba Funções (Onde devem aparecer os excessos de vaga)
+        // // Filtro para a aba Funcionários
+        // window.gruposFuncionariosGlobais = pedidos.filter(p => {
+        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+        //     // Se for vaga excedida, NÃO entra aqui
+        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+        //         return false;
+        //     }
+
+        //     return !!p.funcionario;
+        // });
+
+        // // Agora, contamos quantos registros individuais existem dentro de cada grupo
+        
+
         window.gruposFuncoesGlobais = pedidos.filter(p => {
-            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+            // Verifica em todos os registros do grupo
+            const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+                // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+                const tipo = (r.tiposolicitacao || '').toUpperCase();
+                return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+            });
 
-            // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
-            if (tipoSolicitacao.includes("Vaga Excedida")) {
-                return true; 
-            }
-
-            return !p.funcionario; // Regra padrão para o restante
+            if (temVagaExcedida) return true;
+            return !p.funcionario; // regra padrão: sem funcionário vai para Funções
         });
 
         // Filtro para a aba Funcionários
         window.gruposFuncionariosGlobais = pedidos.filter(p => {
-            const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-            const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+            const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+                // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+                const tipo = (r.tiposolicitacao || '').toUpperCase();
+                return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+            });
 
-            // Se for vaga excedida, NÃO entra aqui
-            if (tipoSolicitacao.includes("Vaga Excedida")) {
-                return false;
-            }
-
+            if (temVagaExcedida) return false;
             return !!p.funcionario;
         });
 
-        // Agora, contamos quantos registros individuais existem dentro de cada grupo
         const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
 
         const totalPedidosFuncoes = window.gruposFuncoesGlobais.reduce((acc, grupo) => 
             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
 
-        //console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
+        console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
 
-        // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
+        // // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
         
         const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
         const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
@@ -3737,8 +3795,7 @@ async function mostrarPedidosUsuario() {
                 });
             });
         }
-       
-        // DEBUG DE RASTREAMENTO DEFINITIVO
+
 
 
 
@@ -3887,7 +3944,6 @@ async function mostrarPedidosUsuario() {
         lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Verifique se as funções de busca e utilidade estão implementadas corretamente.'}</p>`;
     }
 }
-
 
 function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
     // statusCounts é o objeto de contagem que contém {pendente: X, autorizado: Y, rejeitado: Z}
@@ -4061,7 +4117,6 @@ function safeParse(input) {
 }
 
 
-
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     window.pedidosCompletosGlobais = pedidosCompletos;
     const container = document.getElementById(containerId);
@@ -4082,6 +4137,9 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statusdiariadobrada",
         "statuscustofechado",
         "statuscacheliberado",
+        "statusvagaexcedida", 
+        "statusaditivoextra",
+        "aditivoextra",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
@@ -4096,9 +4154,26 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     const gruposFiltrados = [];
 
     pedidosCompletos.forEach(grupoConsolidado => {
-        let chaveRenderizacao = categoria === 'funcionario'
-            ? grupoConsolidado.funcionario
-            : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+        let chaveRenderizacao;
+        if (categoria === 'funcionario') {
+            chaveRenderizacao = grupoConsolidado.funcionario;
+        } else {
+            // Tenta pegar nmfuncao, senão busca dentro dos registros
+            chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+            if (!chaveRenderizacao) {
+                // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+                const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+                    .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+                if (primeiroAditivo) {
+                    const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+                    chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+                } else {
+                    chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+                }
+            }
+        }
 
         if (!chaveRenderizacao) return;
 
@@ -4213,14 +4288,16 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const pedidosDoGrupo = grupo.registrosOriginais;
         if (!pedidosDoGrupo?.length) return;
 
+
+
         const chaveNome = categoria === 'funcionario'
             ? grupo.funcionario
-            : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+            : ((pedidosDoGrupo[0]?.descFuncao) || 'SOLICITAÇÃO DE FUNÇÃO');
 
         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
-        console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+        console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
         console .log (`Debug`, pedidosDoGrupo);
 
 
@@ -4238,7 +4315,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
         // Itera sobre os pedidos consolidados
         pedidosDoGrupo.forEach(pedido => {
-            console.log("Pedidos do grupo:", pedido);
+            console.log("📦 PEDIDO COMPLETO:", {
+                id_log: pedido.id_log,
+                categoria_item: pedido.categoria_item,
+                funcionario: pedido.funcionario,
+                nomefuncionario: pedido.nomefuncionario,  // ← ver se existe
+                nomeSolicitante: pedido.nomeSolicitante,
+                dtsolicitada: pedido.dtsolicitada,
+                chaves: Object.keys(pedido)
+            });
             // Itera sobre camposTodos e o placeholder 'pedido_principal'
             camposRenderizaveis.forEach(campo => { 
                 const itensFiltrados = pedido[campo];
@@ -4258,9 +4343,9 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
 
                     let tituloCard;
-                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra' || campo === 'statusaditivoextra'; // ← adicionar
                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
-                    const isPedidoPrincipal = campo === 'pedido_principal'; 
+                    const isPedidoPrincipal = campo === 'pedido_principal';  
 
                     if (isPedidoPrincipal) {
                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
@@ -4276,6 +4361,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
                             ? "Limite Diário Excedido por Função/Evento"
                             : tipo;
+
+                            console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
                     } else {
                         //tituloCard = formatarNomeSolicitacao(campo);
                         const categoriaParaFormatar = infoItem.categoria || campo;
@@ -4379,10 +4466,57 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                     
                     let dataFormatada = '';
-                    if (pedido.dataDecisao) {
-                        const dataObj = new Date(pedido.dataDecisao);
-                        // Verifica se a data é válida antes de formatar
-                        dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    // let dataFormatadaSolictacao = '';
+
+                    // if(pedido.dtsolicitada){
+                    //     const dataObj = new Date(pedido.dtsolicitada);
+                        
+                    //     dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
+                    //     console.log(`Formatando data de solicitação: ${pedido.dtsolicitada} -> Data Obj: ${dataObj}, Data Formatada: ${dataFormatadaSolictacao}`);
+                        
+                    // }
+                    // if (pedido.dataDecisao) {
+                    //     const dataObj = new Date(pedido.dataDecisao);
+                    //     // Verifica se a data é válida antes de formatar
+                    //     dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    // }
+
+                    let dataFormatadaSolictacao = '';
+
+                    if (pedido.dtsolicitada) {
+                        let datasParaExibir = [];
+
+                        // 1. Identifica se é a estrutura aninhada do banco: [ { data: [2026-04-01...], status: "Pendente" } ]
+                        if (Array.isArray(pedido.dtsolicitada) && pedido.dtsolicitada.length > 0 && typeof pedido.dtsolicitada[0] === 'object' && pedido.dtsolicitada[0].data) {
+                            datasParaExibir = Array.isArray(pedido.dtsolicitada[0].data) ? pedido.dtsolicitada[0].data : [pedido.dtsolicitada[0].data];
+                        } 
+                        // 2. Se for um array simples de strings ["2026-04-01", "2026-04-02"]
+                        else if (Array.isArray(pedido.dtsolicitada)) {
+                            datasParaExibir = pedido.dtsolicitada;
+                        } 
+                        // 3. Se for uma string única ou separada por vírgula
+                        else {
+                            datasParaExibir = pedido.dtsolicitada.toString().split(',');
+                        }
+
+                        // Agora formatamos cada data encontrada
+                        const datasMapeadas = datasParaExibir.map(item => {
+                            if (!item) return '';
+                            
+                            // Limpa a string e força meio-dia para evitar erro de fuso horário
+                            const dataLimpa = String(item).trim();
+                            const dataObj = new Date(dataLimpa + 'T12:00:00');
+                            
+                            if (!isNaN(dataObj.getTime())) {
+                                return dataObj.toLocaleDateString('pt-BR');
+                            }
+                            return item; // Se falhar, mostra o original
+                        });
+
+                        // Junta tudo com vírgula para o card
+                        dataFormatadaSolictacao = datasMapeadas.join(', ');
+                        
+                        console.log(`Formatado com sucesso:`, dataFormatadaSolictacao);
                     }
 
                     let dataEventoFormatada = '';
@@ -4404,6 +4538,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
 
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+                    const nomeFuncionarioExibir = pedido.funcionario || pedido.nomefuncionario || null;
 
                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
@@ -4411,30 +4546,32 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     htmlBody += `
                         <div class="pedido-card">
-                            <div>
-                                <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+                            <div class="infoPedido">
+                                    <div class="title">
+                                    <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
+                                    </div>
+                                    <br>
                     `;
                     
 
                     if (pedido.evento) {
-                        if (categoria === 'funcionario' && pedido.funcionario) {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-                            htmlBody += `<strong>Datas Contratadas:</strong> ${dataEventoFormatada}<br>`
+                        if (categoria === 'funcionario') {
+                            htmlBody += `<div class="event-info">
+                                        <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>
+                                        <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;
                         } else {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
                         }
                     }
 
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
-                        // if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br><strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
-                        // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
                         if (tipoUpper === 'FUNCEXCEDIDO' || tipoUpper === 'VAGA EXCEDIDA') {
-                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataSolicitadaFormatada} - `;
+                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
                         } else {
-                            htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataSolicitadaFormatada} - `;
+                            htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
                         }
 
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
@@ -4488,15 +4625,46 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
 
+                    // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                    //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+                    //     const dataParaAcao = isPedidoPrincipal 
+                    //         ? (pedido.dataEspecifica || '') 
+                    //         : (isDataUnica ? (infoItem.data || '').trim() : '');
+                    //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                    //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+                    //     htmlBody += `<br>
+                    //         <div class="AcoesPedido"
+                    //             data-id="${idParaAcao}"
+                    //             data-campo="${campoParaAcao}"
+                    //             data-data="${dataParaAcao}"
+                    //             data-logid="${idLogParaAcao}"
+                    //             data-aditivo="${isAditivoExtra}">
+                    //             <button class="aprovar">Autorizar</button>
+                    //             <button class="negar">Rejeitar</button>
+                    //         </div>
+                    //     `;
+                    // }
+
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+                        // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+                        const tratarData = (valor) => {
+                            if (Array.isArray(valor)) {
+                                return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+                            }
+                            return String(valor || '').trim();
+                        };
+
                         const dataParaAcao = isPedidoPrincipal 
-                            ? (pedido.dataEspecifica || '') 
-                            : (isDataUnica ? (infoItem.data || '').trim() : '');
+                            ? tratarData(pedido.dataEspecifica) 
+                            : (isDataUnica ? tratarData(infoItem.data) : '');
+
                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
-                        htmlBody += `
-                            <div class="flex gap-2 mt-2"
+
+                        htmlBody += `<br>
+                            <div class="AcoesPedido"
                                 data-id="${idParaAcao}"
                                 data-campo="${campoParaAcao}"
                                 data-data="${dataParaAcao}"
@@ -4512,6 +4680,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             </div>
                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
                         </div>
+
                     `;
                 });
             });
@@ -4583,10 +4752,12 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             try {
                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+                const novoStatus = statusTarget;
                 
                 let sucesso = false;
                 if (isAditivoExtra) {
                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+                    //sucesso = await statusUpdateFn(idReferencia, 'aditivoextra', statusTarget, cardElement, null, idLogOriginal);
                 } else {
                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
                 }
@@ -4594,21 +4765,14 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 
                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
                 if (sucesso) {
-                    console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
-
-                    // O status que queremos gravar na memória (ex: 'autorizado')
-                    // Ajustado para pegar da variável que você está usando no seu escopo
-                    const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
-
-                    // 1. ATUALIZAR STATUS NA MEMÓRIA
-                    const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
+                    // Atualiza status_aprovacao na memória
+                    const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
                     listas.forEach(lista => {
+                        if (!lista) return;
                         lista.forEach(grupo => {
                             grupo.registrosOriginais?.forEach(p => {
-                                if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
-                                    // Atualiza o campo que a sua função de contagem "Original" usa
-                                    p.status_aprovacao = novoStatus.toLowerCase().trim();
-                                    console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
+                                if (String(p.id_log) === String(idLogOriginal)) {
+                                    p.status_aprovacao = novoStatus;
                                 }
                             });
                         });
@@ -4618,44 +4782,27 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     // ... (dentro do if (sucesso), após a remoção do card)
 
                     if (cardElement) {
-                        // 1. Antes de remover, vamos identificar quem é o "container do grupo"
-                        // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
-                        const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
-                        const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
-
-                        // 2. Remove o card com um pequeno efeito
                         cardElement.style.transition = '0.3s';
                         cardElement.style.opacity = '0';
-                        
                         setTimeout(() => {
+                            const corpoGrupo = cardElement.closest('.funcionario-body');
+                            const grupoContainer = cardElement.closest('.funcionario');
                             cardElement.remove();
-                            console.log("🗑️ Card removido.");
 
-                            // 3. VERIFICAÇÃO DE GRUPO VAZIO
-                            if (corpoGrupo) {
-                                const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
-                                
-                                if (cardsRestantes === 0 && grupoContainer) {
-                                    console.log("📦 Último pedido removido. Excluindo container do grupo...");
-                                    
+                            if (corpoGrupo && corpoGrupo.querySelectorAll('.pedido-card').length === 0) {
+                                if (grupoContainer) {
                                     grupoContainer.style.transition = '0.3s';
                                     grupoContainer.style.opacity = '0';
-                                    
-                                    setTimeout(() => {
-                                        grupoContainer.remove();
-                                    }, 300);
+                                    setTimeout(() => grupoContainer.remove(), 300);
                                 }
                             }
-                            
-                            // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
+
                             atualizarContadoresGlobais();
-                            
                         }, 300);
                     }
 
                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
                 }
-    
             } catch (err) {
                 console.error("❌ Erro na execução:", err);
                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
@@ -4674,11 +4821,524 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
+// function renderizarPedidosAntesDoSolicitacoes(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     window.pedidosCompletosGlobais = pedidosCompletos;
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         "statuscustofechado",
+//         "statuscacheliberado",
+//         "statusvagaexcedida",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     let totalItensRenderizados = 0;
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
+//     const gruposFiltrados = [];
+
+//         pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao;
+//         if (categoria === 'funcionario') {
+//             chaveRenderizacao = grupoConsolidado.funcionario;
+//         } else {
+//             // Tenta pegar nmfuncao, senão busca dentro dos registros
+//             chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+//             if (!chaveRenderizacao) {
+//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+//                 if (primeiroAditivo) {
+//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+//                 } else {
+//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+//                 }
+//             }
+//         }
+
+//         if (!chaveRenderizacao) return;
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+//         const pedidosConsolidadosPorId = new Map();
+//         let temAlgumMatchNesteGrupo = false;
+
+//         registros.forEach(pedidoOriginal => {
+//             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
+//              console.log("🔍 Processando registro com ID:", pedidoOriginal );
+
+//             // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
+
+//             // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
+            
+
+//             // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             // if (!pedidoConsolidado) {
+//             //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
+//             //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             // }
+
+//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
+//             const idLog = pedidoOriginal.id_log || 'sem-log';
+
+//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
+            
+//             // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
+//             // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
+//             //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
+
+//             //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
+
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
+
+//             if (!pedidoConsolidado) {
+//                 // Criamos um novo objeto no mapa para cada ID de Log diferente
+//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
+//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
+//             }
+
+//             // Verifica status principal
+//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
+//                 temAlgumMatchNesteGrupo = true;
+//             }
+
+//             // Verifica sub-itens (Meia diária, caixinha, etc)
+//             camposTodos.forEach(campo => {
+//                 const itens = safeParse(pedidoOriginal[campo]);
+//                 const itensFiltrados = itens.filter(it => {
+//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+//                     return String(s).toLowerCase().trim() === statusDesejado;
+//                 });
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
+//                     pedidoConsolidado[campo] = itensFiltrados; 
+//                     temAlgumMatchNesteGrupo = true;
+//                 } 
+//                 // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
+//                 // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
+//             });
+//         });
+
+//         if (temAlgumMatchNesteGrupo) {
+//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
+
+//             if (registrosValidos.length > 0) {
+//                 gruposFiltrados.push({
+//                     ...grupoConsolidado,
+//                     registrosOriginais: registrosValidos
+//                 });
+//             }
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     // gruposFiltrados.sort((a, b) =>
+//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
+//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
+//     // );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+        
+//         // 🛑 V97.0: Atualiza a contagem para 0
+//         if (typeof atualizarBadgeDeStatus === 'function') {
+//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
+//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
+//         }
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
+//         const p = pedidosDoGrupo[0];
+//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+//         console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+//         console .log (`Debug`, pedidosDoGrupo);
+
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosDoGrupo.forEach(pedido => {
+//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
+//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
+
+//                     itensGrupo++;
+//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         tituloCard = formatarNomeSolicitacao(campo);
+//                         if (isDataUnica) { 
+//                             const dataBruta = String(infoItem.data || '').trim();
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                             const valor = parseFloat(infoItem.valor) || 0;
+//                             if (valor !== 0) {
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     let dataSolicFormatada = '';
+//                     if (pedido.dataSolicitacao) {
+//                         const dataObj = new Date(pedido.dataSolicitacao);
+//                         // Verifica se a data é válida antes de formatar
+//                         dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+//                     }
+                   
+//                     let dataFormatada = '';
+//                     if (pedido.dataDecisao) {
+//                         const dataObj = new Date(pedido.dataDecisao);
+//                         // Verifica se a data é válida antes de formatar
+//                         dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+//                     }
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
+//                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
+//                                 : '';
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
+//                     `;
+                    
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+//                         // if (valor !== 0) {
+//                         //     const valorFmt = valor.toFixed(2).replace('.', ',');
+//                         //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         // } else {
+//                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         // }
+
+                        
+                        
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         }
+
+//                     } else if (isDataUnica) {
+//                         const dataBruta = String(infoItem.data || '').trim();
+//                         let dataFmt = 'Data indefinida';
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     } else if (infoItem.datas) {
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d)
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
+//                         // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
+//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal 
+//                             ? (pedido.dataEspecifica || '') 
+//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
+//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-logid="${idLogParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         // 🛑 AQUI ESTÁ O PULO DO GATO:
+//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
+//         if (itensGrupo === 0) return;
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
+//     container.onclick = null; 
+
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         // Verifica se clicou nos botões
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('[data-id]');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         // Determina qual função chamar e qual o status alvo
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//         const cardElement = target.closest('.pedido-card');
+
+//         // Modal de Confirmação
+//         const result = await Swal.fire({
+//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
+//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+
+//         if (result.isConfirmed) {
+//             try {
+//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
+//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+                
+//                 let sucesso = false;
+//                 if (isAditivoExtra) {
+//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+//                 } else {
+//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
+//                 }
+
+                
+//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
+//                 if (sucesso) {
+//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
+
+//                     // O status que queremos gravar na memória (ex: 'autorizado')
+//                     // Ajustado para pegar da variável que você está usando no seu escopo
+//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
+
+//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
+//                     listas.forEach(lista => {
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
+//                                     // Atualiza o campo que a sua função de contagem "Original" usa
+//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
+//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
+//                     // ... (dentro do if (sucesso), após a remoção do card)
+
+//                     if (cardElement) {
+//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
+//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
+//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
+//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
+
+//                         // 2. Remove o card com um pequeno efeito
+//                         cardElement.style.transition = '0.3s';
+//                         cardElement.style.opacity = '0';
+                        
+//                         setTimeout(() => {
+//                             cardElement.remove();
+//                             console.log("🗑️ Card removido.");
+
+//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
+//                             if (corpoGrupo) {
+//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
+                                
+//                                 if (cardsRestantes === 0 && grupoContainer) {
+//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
+                                    
+//                                     grupoContainer.style.transition = '0.3s';
+//                                     grupoContainer.style.opacity = '0';
+                                    
+//                                     setTimeout(() => {
+//                                         grupoContainer.remove();
+//                                     }, 300);
+//                                 }
+//                             }
+                            
+//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
+//                             atualizarContadoresGlobais();
+                            
+//                         }, 300);
+//                     }
+
+//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
+//                 }
+    
+//             } catch (err) {
+//                 console.error("❌ Erro na execução:", err);
+//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
+//             }
+//         }
+//     });
+
+//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
+//     if (typeof atualizarBadgeDeStatus === 'function') {
+//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
+//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
+//     }
+
+//     if (typeof atualizarContadoresGlobais === 'function') {
+//         atualizarContadoresGlobais();
+//     }
+// } 
+
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {
         // Garantimos que os nomes das chaves (idpedido, categoria, acao, data) 
         // sejam exatamente o que o seu backend recebia no código antigo.
         const bodyData = {
+            id_log: idLog,
             idpedido: idpedido,
             categoria: categoria, // O backend espera 'categoria', que é o seu 'campo'
             acao: acao,            
@@ -4726,20 +5386,42 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
     if (!confirmacao.isConfirmed) return false;
 
     try {
-        mostrarLoader(cardElement);
 
-        const url = `/main/aditivoextra/${idAditivoExtra}/status`;
+        if (cardElement && typeof cardElement.querySelector === 'function') {
+            mostrarLoader(cardElement);
+        }
+        //mostrarLoader(cardElement);
+
+        //const url = `/main/aditivoextra/${idAditivoExtra}/status`;
+
+        const url = '/main/notificacoes-financeiras/atualizar-status';
+
         // const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
         
         // O fetchComToken já resolve o JSON
+        // const response = await fetchComToken(url, {
+        //     method: 'PATCH',            
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({ novoStatus: novoStatusCapitalizado, idlog_origem: idlog_origem })
+        // });
+
         const response = await fetchComToken(url, {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ novoStatus: novoStatusCapitalizado, idlog_origem: idlog_origem })
+            body: JSON.stringify({ 
+                idpedido: idAditivoExtra,        // ID da solicitação ou registro
+                categoria: 'aditivoextra',       // Define a categoria explicitamente
+                acao: novoStatusCapitalizado,    // 'Autorizado' ou 'Rejeitado'
+                idlog_origem: idlog_origem       // ID do log para controle
+            })
         });
 
-        ocultarLoader(cardElement);
+        //ocultarLoader(cardElement);
+
+        if (cardElement && typeof cardElement.querySelector === 'function') {
+            ocultarLoader(cardElement);
+        }
 
         if (response && response.sucesso) {
             console.log("✅ Aditivo atualizado no banco. Sincronizando memória...");
@@ -8787,6 +9469,31 @@ function filtrarEventosNaTela(statusAlvo) {
     });
 }
 
+// function filtrarEventosNaTela(statusAlvo) {
+//     const itens = document.querySelectorAll(".accordion-item");
+
+//     itens.forEach(item => {
+//         const linhasInternas = item.querySelectorAll(".item-financeiro-linha");
+
+//         if (linhasInternas.length > 0) {
+//             let temFilhoVisivel = false;
+
+//             linhasInternas.forEach(linha => {
+//                 const statusLinha = linha.getAttribute("data-status-filtro");
+//                 const mostrar = (statusAlvo === 'todos' || statusLinha === statusAlvo);
+//                 linha.style.display = mostrar ? "" : "none";
+//                 if (mostrar) temFilhoVisivel = true;
+//             });
+
+//             item.style.display = temFilhoVisivel ? "block" : "none";
+
+//         } else {
+//             const statusDoItem = item.getAttribute("data-status-filtro");
+//             item.style.display = (statusAlvo === 'todos' || statusDoItem === statusAlvo) ? "block" : "none";
+//         }
+//     });
+// }
+
 function atualizarContadoresFiltrosContas() {
     const container = document.querySelector(".filtros-rapidos-contas");
     if (!container) return;
@@ -9833,6 +10540,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
 
 }
+
+
+
+
 
 function aplicarFiltrosFinanceiros() {
     const empresaSel = document.querySelector("#select-empresa-pagadora")?.value || "todas";

@@ -1,5 +1,4 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
-
 let empresaLogoPath = 'http://localhost:3000/img/JA_Oper.png';
 
 function inicializarDadosEmpresa() {
