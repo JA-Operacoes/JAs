@@ -5655,7 +5655,68 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
                 });
 
                 if (result.isConfirmed) {
-                    (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
+                    console.group("🔍 DEBUG: Revalidação Pós-Cadastro");
+
+                    // 1. CAPTURA DAS IDs E NOMES (Antes de limpar os campos da tela)
+                    const idEv   = nmEventoSelect.value;
+                    const idCli  = nmClienteSelect.value;
+                    const idLoc  = nmLocalMontagemSelect.value;
+                    const idFunc = descFuncaoSelect.value;
+
+                    // Criamos o objeto criterios preservando os textos para a chave do cache
+                    const criteriosPreservados = {
+                        nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex]?.text || "",
+                        nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex]?.text || "",
+                        nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex]?.text || "",
+                        nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex]?.text || "",
+                        pavilhao: (nmPavilhaoSelect && nmPavilhaoSelect.selectedIndex !== -1) ? nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text : "",
+                        idFuncao: idFunc,
+                        idOrcamento: idOrcamentoAtual // Variável global que sua função buscarEPopularOrcamento preenche
+                    };
+
+                    // Captura das datas (Garante que o array não vá vazio para a função)
+                    const elDatas = document.getElementById('datasEvento') || document.getElementById('periodoEvento');
+                    const picker = elDatas?._flatpickr || window.flatpickrInstances?.['datasEvento'] || window.datasEventoPicker;
+                    
+                    let datasParaValidar = [];
+                    if (picker && picker.selectedDates.length > 0) {
+                        datasParaValidar = picker.selectedDates.map(date => {
+                            const d = new Date(date);
+                            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                            return d.toISOString().split('T')[0];
+                        });
+                    }
+                    criteriosPreservados.datasEvento = datasParaValidar;
+
+                    // 2. LIMPEZA DOS CAMPOS DE FUNCIONÁRIO
+                    if (typeof limparCamposStaffParcial === "function") {
+                        limparCamposStaffParcial();
+                    } else {
+                        limparCamposStaff();
+                    }
+
+                    // 3. EXECUÇÃO DA VALIDAÇÃO OFICIAL
+                    if (idEv && idLoc && idFunc && datasParaValidar.length > 0) {
+                        
+                        // Chamamos sua função de busca (idEv, idCli, etc. agora estão definidos aqui em cima)
+                        await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, datasParaValidar);
+
+                        console.log("🛡️ Executando verificação oficial com critérios preservados...");
+                        
+                        // Agora chamamos a sua função verificarLimiteDeFuncao
+                        // Passando os critérios que capturamos antes da limpeza
+                        const resultadoFuncao = await verificarLimiteDeFuncao(criteriosPreservados);
+
+                        if (!resultadoFuncao.allowed) {
+                            console.warn("🚫 Limite atingido após cadastro. Botão Salvar desativado.");
+                            controlarBotaoSalvarStaff(false);
+                        } else {
+                            console.log("✅ Vagas ainda disponíveis. Botão Salvar liberado.");
+                            controlarBotaoSalvarStaff(true);
+                        }
+                    }
+
+                    console.groupEnd();
                 } else if (result.isDenied) {
                     currentEditingStaffEvent = null; // <--- ADICIONE ISSO
                     limparCamposStaff();                   

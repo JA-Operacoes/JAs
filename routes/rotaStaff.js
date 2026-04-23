@@ -392,8 +392,12 @@ router.post("/orcamento/consultar",
                         AND se.idcliente = o.idcliente
                         AND se.idmontagem = o.idmontagem
                         AND se.idfuncao = oi.idfuncao
+                        AND se.setor = oi.setor
                         -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
-                        AND se.datasevento @> to_jsonb($5::text[])
+                        --AND se.datasevento @> to_jsonb($5::text[])
+                        AND ARRAY(
+                            SELECT jsonb_array_elements_text(se.datasevento::jsonb)
+                        )::text[] && $5::text[]
                 ) AS quantidade_escalada
             FROM
                 orcamentoitens oi
@@ -1459,7 +1463,7 @@ router.put("/:idStaffEvento",
                          SET status = $1::varchar, 
                              dtresposta = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END, 
                              idusuarioresponsavel = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE $2::integer END,
-                             vlrsolicitado = $3, justificativa = $4::text
+                             vlrsolicitado = $3, justificativa = $4::text, idusuariosolicitante = $2::integer
                          WHERE idregistroalterado = $5::integer AND categoria_log = $6::varchar AND idempresa = $7::integer`,
                         [item.status, idUsuarioLogado, item.valor, item.desc, idStaffEvento, item.campo, idempresa]
                     );
@@ -1467,13 +1471,44 @@ router.put("/:idStaffEvento",
                     if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(item.status)) {
                         // Certifique-se que a função registrarSolicitacao trata dtsolicitada como array se necessário
                         await registrarSolicitacao(client, {
-                            idempresa, idorcamento: body.idorcamento, idfuncionario: body.idfuncionario,
-                            idfuncao: body.idfuncao, idstaffevento: idStaffEvento, idusuariosolicitante: idUsuarioLogado,
-                            tiposolicitacao: item.tipo, categoria: item.campo, vlrsolicitado: item.valor, justificativa: item.desc
-                        });
+                        idempresa: idempresa, // $1
+                        idorcamento: body.idorcamento, // $2
+                        idfuncionario: body.idfuncionario, // $3
+                        idfuncao: body.idfuncao, // $4
+                        idstaffevento: idStaffEvento, // $5
+                        idusuariosolicitante: idUsuarioLogado, // $6 (Atenção aqui!)
+                        tiposolicitacao: item.tipo, // $7
+                        categoria: item.campo, // $8
+                        valor: item.valor, // $9
+                        justificativa: item.desc, // $10
+                        datas: item.datas // $11
+                    });
                     }
                 }
             }
+
+            await client.query(
+                `INSERT INTO notificacao (
+                    idusuario, 
+                    idreferencia, 
+                    idempresa,   -- Adicionado
+                    lido, 
+                    tipo,        -- Recomendado para evitar null
+                    mensagem,    -- Recomendado para evitar null
+                    criado_em
+                ) 
+                VALUES ($1, $2, $3, true, 'info', 'Cadastro de Staff realizado', NOW()) 
+                ON CONFLICT (idusuario, idreferencia) 
+                DO UPDATE SET lido = true, idempresa = $3`, 
+                [idUsuarioLogado, novoIdStaffEvento, idempresa] // $3 é o idempresa
+            );
+
+            // 2. "Reseta" para os outros usuários: remove o status de lido deles 
+            // para que a solicitação volte a brilhar/aparecer como pendente no painel deles.
+            await client.query(
+                `DELETE FROM notificacao WHERE idreferencia = $1 AND idusuario != $2`,
+                [idStaffEvento, idUsuarioLogado]
+            );
 
             await client.query('COMMIT');
             res.json({ message: "Atualizado", id: idStaffEvento });
@@ -1511,7 +1546,7 @@ async function registrarSolicitacao(client, dados) {
             dtsolicitada,           -- $11 (O campo JSONB com as datas)
             status,                 -- $12
             dtsolicitacao           -- Automático
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
         ON CONFLICT (idregistroalterado, categoria_log) 
         WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
         DO UPDATE SET 
@@ -1527,7 +1562,7 @@ async function registrarSolicitacao(client, dados) {
         dados.idfuncionario || null,    // $3
         dados.idfuncao,                 // $4
         dados.idstaffevento || null,    // $5
-        dados.idusuario,                // $6
+        dados.idusuariosolicitante,     // $6
         dados.tiposolicitacao,          // $7
         dados.categoria,                // $8
         dados.valor || 0,               // $9
@@ -1635,6 +1670,22 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         const resIns = await client.query(queryInsert, values);
         const novoIdStaffEvento = resIns.rows[0].idstaffevento;
 
+        await client.query(
+                `INSERT INTO notificacao (
+                    idusuario, 
+                    idreferencia, 
+                    idempresa,   -- Adicionado
+                    lido, 
+                    tipo,        -- Recomendado para evitar null
+                    mensagem,    -- Recomendado para evitar null
+                    criado_em
+                ) 
+                VALUES ($1, $2, $3, true, 'info', 'Cadastro de Staff realizado', NOW()) 
+                ON CONFLICT (idusuario, idreferencia) 
+                DO UPDATE SET lido = true, idempresa = $3`, 
+                [idUsuarioLogado, novoIdStaffEvento, idempresa] // $3 é o idempresa
+            );
+
         // 5. REGISTRAR SOLICITAÇÕES FINANCEIRAS (Se houver campos pendentes)
         const itensFinanceiros = [
             { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
@@ -1646,18 +1697,18 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         for (const item of itensFinanceiros) {
             if (item.status === 'Pendente') {
-                await registrarSolicitacao(client, {
-                    idempresa,
-                    idorcamento: body.idorcamento,
-                    idfuncionario: body.idfuncionario,
-                    idfuncao: body.idfuncao,
-                    idstaffevento: novoIdStaffEvento, // Usa o ID que acabamos de criar
-                    idusuario: idUsuarioLogado,
-                    tiposolicitacao: item.tipo,
-                    categoria: item.campo,
-                    valor: parseFloatOrNull(item.valor),
-                    justificativa: item.desc,
-                    datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
+               await registrarSolicitacao(client, {
+                    idempresa: idempresa, // $1
+                    idorcamento: body.idorcamento, // $2
+                    idfuncionario: body.idfuncionario, // $3
+                    idfuncao: body.idfuncao, // $4
+                    idstaffevento: novoIdStaffEvento, // $5
+                    idusuariosolicitante: idUsuarioLogado, // $6 (Atenção aqui!)
+                    tiposolicitacao: item.tipo, // $7
+                    categoria: item.campo, // $8
+                    valor: item.valor, // $9
+                    justificativa: item.desc, // $10
+                    datas: item.datas // $11
                 });
             }
         }
@@ -1896,6 +1947,10 @@ router.post('/aditivoextra/solicitacao',
     const idEventoSolicitadoTratado = (!idEventoSolicitado || idEventoSolicitado === 'undefined') ? null : idEventoSolicitado;
     const idEventoConflitanteTratado = (!idEventoConflitante || idEventoConflitante === 'undefined') ? null : idEventoConflitante;
 
+    const idregistroalteradoTratado = (!idregistroalterado || idregistroalterado === '' || idregistroalterado === 'undefined')
+     ? (idregistroalterado || null)
+     : idregistroalterado;
+
     if (!idUsuarioSolicitante || !idEmpresaContexto) {
       return res.status(401).json({ sucesso: false, erro: "Usuário ou Empresa não identificados." });
     }
@@ -1944,7 +1999,7 @@ router.post('/aditivoextra/solicitacao',
             AND idEmpresa = $6
             AND idregistroalterado = $7
             AND status = 'Pendente'
-        `, [idOrcamento, idFuncionarioTratado, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto, idregistroalterado]);
+        `, [idOrcamento, idFuncionarioTratado, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto, idregistroalteradoTratado]);
 
       if (checkDuplicidade.rows.length > 0) {
         return res.status(409).json({ sucesso: false, erro: "Solicitação Duplicada:Já existe uma solicitação pendente idêntica." });
@@ -2001,19 +2056,19 @@ router.post('/aditivoextra/solicitacao',
             idEventoSolicitadoTratado || null,  // $12
             idEventoConflitanteTratado || null, // $13
             categoria_log,                      // $14
-            idregistroalterado || null          // $15 (Para vincular a um registro específico, se necessário)
+            idregistroalteradoTratado || null          // $15 (Para vincular a um registro específico, se necessário)
         ];
 
       const resultado = await pool.query(queryInsert, values);
       const idSolicitacao = resultado.rows[0].idsolicitacao;
 
       if (req.logData && logMiddleware.salvarLog) {
-        req.logData.idregistroalterado = idSolicitacao;
+        req.logData.idregistroalterado = idregistroalteradoTratado || null;
         await logMiddleware.salvarLog(req.logData); 
       }
 
       res.locals.acao = 'cadastrou';
-      res.locals.idregistroalterado = idSolicitacao;
+      res.locals.idregistroalterado = idregistroalteradoTratado || null;
       res.locals.dadosnovos = {
         idSolicitacao, idOrcamento, idFuncao, tipoSolicitacao,
         qtdSolicitada, vlrSolicitado, justificativa,
