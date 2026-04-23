@@ -82,6 +82,7 @@
 .notif-nao-lida:hover .notif-icone.warning { color: #d69e2e; }
 .notif-nao-lida:hover .notif-icone.danger  { color: #e53e3e; }
 .notif-nao-lida:hover .notif-icone.info { color: #ffffff; }
+.notif-nao-lida:hover .notif-data { color: #ffffff; }
 
 .notif-mensagem { margin: 0 0 4px; font-size: 13px; line-height: 1.4; }
 .notif-data { font-size: 11px; color: #aaa; }
@@ -100,3 +101,5 @@
     flex-direction: column;
     width: 100%;
 }
+
+

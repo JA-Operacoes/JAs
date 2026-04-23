@@ -1,7 +1,29 @@
 // public/js/Notificacoes.js
 export { buscarNotificacoes };
+import { exibirToastAgenda, exibirToastSolicitacao } from './Toast.js';
 const TOKEN = localStorage.getItem('token');
-const toastsExibidos = new Set();
+
+function carregarToastsExibidos() {
+  const salvo = JSON.parse(localStorage.getItem('toastsExibidos') || '{}');
+  const hoje = new Date().toISOString().split('T')[0]; // "2025-04-22"
+
+  // Se o dia salvo for diferente do hoje, reseta
+  if (salvo.dia !== hoje) {
+    localStorage.removeItem('toastsExibidos');
+    return new Set();
+  }
+  return new Set(salvo.ids || []);
+}
+
+function salvarToastsExibidos() {
+  const hoje = new Date().toISOString().split('T')[0];
+  localStorage.setItem('toastsExibidos', JSON.stringify({
+    dia: hoje,
+    ids: [...toastsExibidos]
+  }));
+}
+
+const toastsExibidos = carregarToastsExibidos();
 
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -11,42 +33,74 @@ async function apiFetch(url, options = {}) {
 }
 
 async function atualizarTudo() {
-    //console.log("%cAtualizando notificações...","background: #4FD1C5;");
-    await buscarNotificacoes(); // Aquela função que faz os fetches
+    console.log("%cAtualizando notificações...","background: #4FD1C5;");
+    await buscarNotificacoes();
 }
 atualizarTudo();
 setInterval(() => {
     atualizarTudo();
-}, 30000);
+}, 10000);
 
 async function buscarNotificacoes() {
   try {
-    const [resNotif, resAgenda] = await Promise.all([
+    const [resNotif, resAgenda, resSol, resPag] = await Promise.all([
       apiFetch('/notificacoes'),
-      apiFetch('/notificacoes/agenda-notificacao')
+      apiFetch('/notificacoes/agenda-notificacao'),
+      apiFetch('/notificacoes/solicitacoes-notificacao'),
+      apiFetch('/notificacoes/pagamentos-contas')
     ]);
 
     const data = await resNotif.json();
     const agendaData = await resAgenda.json();
+    const solData = await resSol.json();
+    const pagData = await resPag.json();
+
+    console.log('📋 notificações do banco:', data.notificacoes);
+    console.log('📋 notificações da agenda:', agendaData);
+    console.log('📋 solicitações recebidas:', solData);
+    console.log('📋 pagamentos a vencer:', pagData);
 
     const notificacoesBanco = data.notificacoes || [];
     const listaAgenda = Array.isArray(agendaData) ? agendaData : [];
+    const listaSol = Array.isArray(solData) ? solData : [];
+    const listaPag = Array.isArray(pagData) ? pagData : [];
 
     // --- LÓGICA DO TOAST ---
     // Percorremos apenas a lista da agenda para disparar os alertas
     listaAgenda.forEach(notif => {
-            // Se o ID é novo nesta sessão, dispara o Toast
-            if (!toastsExibidos.has(notif.id)) {
-                exibirToastAgenda(notif);
-                toastsExibidos.add(notif.id);
-            }
-        });
+        // Se o ID é novo nesta sessão, dispara o Toast
+        if (!toastsExibidos.has(notif.id)) {
+            exibirToastAgenda(notif);
+            toastsExibidos.add(notif.id);
+            salvarToastsExibidos();
+        }
+    });
+
+    listaSol.forEach(notif => {
+        if (!toastsExibidos.has(notif.id)) {
+            exibirToastSolicitacao(notif);
+            toastsExibidos.add(notif.id);
+            salvarToastsExibidos();
+        }
+    });
+
+
+    listaPag.forEach(notif => {
+        if (!toastsExibidos.has(notif.id)) {
+        toastsExibidos.add(notif.id);
+        salvarToastsExibidos();
+        }
+    });
     // -----------------------
 
-    const listaCompleta = [...listaAgenda, ...notificacoesBanco];
+    const listaCompleta = [
+      ...listaAgenda, ...notificacoesBanco, ...listaSol, ...listaPag
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     // Somamos as não lidas do banco com as "fictícias" da agenda
-    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length;
+    const solNaoLidas = listaSol.filter(s => !s.read).length;
+    const pagNaoLidas = listaPag.filter(p => !p.read).length;
+    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length + solNaoLidas;
 
     atualizarBadge(totalNaoLidas);
     renderizarLista(listaCompleta);
@@ -56,36 +110,8 @@ async function buscarNotificacoes() {
   }
 }
 
-function atualizarBadge(count) {
-  const badge = document.getElementById('notif-badge');
-  if (!badge) return;
-  badge.textContent = count > 9 ? '9+' : count;
-  badge.style.display = count > 0 ? 'flex' : 'none';
-}
-
-function exibirToastAgenda(notif) {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 10000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
-
-    Toast.fire({
-        icon: notif.type === 'danger' ? 'error' : notif.type, // Ajusta o ícone do Swal
-        title: notif.message,
-        background: document.body.classList.contains('dark-theme') ? '#333' : '#fff',
-        color: document.body.classList.contains('dark-theme') ? '#fff' : '#000'
-    });
-}
-
 function renderizarLista(notificacoes) {
-  console.log('entrou no renderizarLista com notificações');
+  //console.log('entrou no renderizarLista com notificações');
   const lista = document.getElementById('notif-lista');
   if (!lista) return;
 
@@ -95,7 +121,10 @@ function renderizarLista(notificacoes) {
   }
 
   lista.innerHTML = notificacoes.map(n => `
-      <li class="notif-item ${n.read ? '' : 'notif-nao-lida'}" data-id="${n.id}">
+      <li class="notif-item ${n.read ? 'notif-lida' : 'notif-nao-lida'}" 
+          data-id="${n.id}" 
+          data-lida="${n.read}" 
+          style="${n.read ? 'opacity: 0.6; pointer-events: none;' : ''}">
         
         <span class="notif-icone ${n.type}">
           <span class="material-symbols-outlined">
@@ -107,6 +136,7 @@ function renderizarLista(notificacoes) {
           <div class="notif-info">
             <p class="notif-mensagem">${n.message}</p>
             <small class="notif-data">${formatarData(n.created_at)}</small>
+            <small class="notif-data">${n.subtext || ''}</small>
           </div>
 
           <div class="notif-icone-read ${n.typeRead || ''}">
@@ -122,14 +152,67 @@ function renderizarLista(notificacoes) {
 
   lista.querySelectorAll('.notif-item').forEach(item => {
     item.addEventListener('click', () => {
-      if (item.dataset.lida === 'false') marcarComoLida(item.dataset.id);
+        // Verifica se é "false" (string) porque dataset sempre retorna string
+        if (item.dataset.lida === 'false' || !item.classList.contains('notif-lida')) {
+            marcarComoLida(item.dataset.id);
+        }
     });
   });
 }
 
+function atualizarBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  badge.textContent = count > 9 ? '9+' : count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+// function exibirToastAgenda(notif) {
+//     const Toast = Swal.mixin({
+//         toast: true,
+//         position: 'top-end',
+//         showConfirmButton: false,
+//         timer: 10000,
+//         timerProgressBar: true,
+//         didOpen: (toast) => {
+//             toast.addEventListener('mouseenter', Swal.stopTimer)
+//             toast.addEventListener('mouseleave', Swal.resumeTimer)
+//         }
+//     });
+
+//     Toast.fire({
+//         icon: notif.type === 'danger' ? 'info' : notif.type, // Ajusta o ícone do Swal
+//         title: notif.message,
+//         background: document.body.classList.contains('dark-theme') ? '#333' : '#fff',
+//         color: document.body.classList.contains('dark-theme') ? '#fff' : '#000'
+//     });
+// }
+
+// function exibirToastSolicitacao(notif) {
+//     const Toast = Swal.mixin({
+//         toast: true,
+//         position: 'top-end',
+//         showConfirmButton: false,
+//         timer: 10000,
+//         timerProgressBar: true,
+//         didOpen: (toast) => {
+//             toast.addEventListener('mouseenter', Swal.stopTimer)
+//             toast.addEventListener('mouseleave', Swal.resumeTimer)
+//         }
+//     });
+
+//     Toast.fire({
+//         icon: notif.type === 'danger' ? 'error' : notif.type, // Ajusta o ícone do Swal
+//         title: notif.message,
+//         background: document.body.classList.contains('dark-theme') ? '#333' : '#fff',
+//         color: document.body.classList.contains('dark-theme') ? '#fff' : '#000'
+//     });
+// }
+
 function iconePorTipo(type) {
   const icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', danger: 'fa-times-circle', info: 'fa-info-circle' };
-  return icons[type] || icons.info;
+  const solicitacaoIcons = { 'Aprovada': 'check_circle', 'Rejeitada': 'cancel', 'Pendente': 'hourglass_top' };
+  return icons[type] || solicitacaoIcons[notif.tiposolicitacao] || icons.info;
 }
 
 function formatarData(iso) {
@@ -137,12 +220,14 @@ function formatarData(iso) {
 }
 
 async function marcarComoLida(id) {
-  await apiFetch(`/notificacoes/${id}/lida`, { method: 'PATCH' });
+  console.log('🖱️ Clicou para marcar como lida:', id); // ← ADICIONE
+  const res = await apiFetch(`/notificacoes/${id}/lida`, { method: 'PATCH' });
+  console.log('✅ Resposta:', res.status); // ← ADICIONE
   buscarNotificacoes();
 }
 
 async function marcarTodasComoLidas() {
-  await apiFetch('/notificacoes/todas-lidas', { method: 'PATCH' });
+  await apiFetch('/notificacoes/${id}/todas-lidas', { method: 'PATCH' });
   buscarNotificacoes();
 }
 
@@ -171,5 +256,15 @@ function iniciarSino() {
 document.addEventListener('DOMContentLoaded', () => {
   iniciarSino();
   buscarNotificacoes();
-  setInterval(buscarNotificacoes, 30000); // polling a cada 30s
+  setInterval(buscarNotificacoes, 10000); // polling a cada 10s
+
+   setInterval(() => {
+    const agora = new Date();
+    if (agora.getHours() === 17 && agora.getMinutes() === 50) {
+      toastsExibidos.clear();
+      salvarToastsExibidos();
+      buscarNotificacoes(); // vai reexibir todos os toasts
+    }
+  }, 60000);
+
 });
