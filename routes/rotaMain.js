@@ -136,15 +136,16 @@ router.get("/proximo-evento", async (req, res) => {
     const { rows: eventos } = await pool.query(
     `SELECT 
         e.nmevento, 
-        o.dtinimarcacao, 
-        o.dtinimontagem, 
-        o.dtinirealizacao
+        MIN(o.dtinimarcacao) as dtinimarcacao, 
+        MIN(o.dtinimontagem) as dtinimontagem, 
+        MIN(o.dtinirealizacao) as dtinirealizacao
     FROM orcamentos o
     JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
     JOIN eventos e ON e.idevento = o.idevento
     WHERE oe.idempresa = $1
-    AND (o.dtinimarcacao >= CURRENT_DATE + INTERVAL '7 day' OR o.dtinirealizacao >= CURRENT_DATE)
-    ORDER BY o.dtinimarcacao ASC`,
+        AND (o.dtinimarcacao >= CURRENT_DATE OR o.dtinirealizacao >= CURRENT_DATE)
+    GROUP BY e.nmevento
+    ORDER BY dtinimarcacao ASC`,
     [idempresa]
     );
 
@@ -152,7 +153,8 @@ router.get("/proximo-evento", async (req, res) => {
     const respostaFormatada = eventos.map(ev => {
         return {
             nmevento: ev.nmevento,
-            datas: {
+            data: ev.dtinimarcacao || ev.dtinimontagem || ev.dtinirealizacao, 
+            fases: {
                 "Marcação": ev.dtinimarcacao,
                 "Montagem": ev.dtinimontagem,
                 "Realização": ev.dtinirealizacao
@@ -1580,8 +1582,8 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             [idusuario]
         );
 
-        const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
-        const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.supremo === 'true');
+        const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && p.master === true);
+        const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.supremo === true);
         const podeVerTodos   = ehMasterStaff || ehSupremoStaff;
 
         // 🛑 Monta params e filtro dinamicamente
@@ -1716,7 +1718,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
 
                 // 🔍 CONSOLE LOG PARA DEBUG DE DUPLICIDADE
     if (categoriaReal === 'statusaditivoextra') {
-        console.log(`[DEBUG ADITIVO] ID: ${r.id_log} | Funcionário: ${r.nomefuncionario} | Datas no Grupo: ${r.dtsolicitada_agrupada ? r.dtsolicitada_agrupada.length : 0}`);
+        // console.log(`[DEBUG ADITIVO] ID: ${r.id_log} | Funcionário: ${r.nomefuncionario} | Datas no Grupo: ${r.dtsolicitada_agrupada ? r.dtsolicitada_agrupada.length : 0}`);
     }
 
             const valorFormatado = JSON.stringify([{

@@ -607,9 +607,14 @@ async function atualizarProximoEvento() {
   hoje.setHours(0, 0, 0, 0);
 
   // 1. Pega todos os eventos que ainda não passaram
-  let proximos = resposta.eventos
-    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
-    .filter(ev => ev.data.getTime() >= hoje.getTime());
+let proximos = resposta.eventos
+    .map(ev => {
+        const dataProcessada = parseDateLocal(ev.data);
+        return { ...ev, data: dataProcessada };
+    })
+    // Filtra apenas datas válidas e que não passaram
+    .filter(ev => ev.data instanceof Date && !isNaN(ev.data) && ev.data.getTime() >= hoje.getTime())
+    .sort((a, b) => a.data - b.data);
 
   if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
@@ -648,7 +653,7 @@ async function atualizarProximoEvento() {
   } 
   else {
     // CASO 2: Múltiplos eventos na semana (Lista compacta)
-    nomeSpan.style.fontSize = "1em";
+    nomeSpan.style.fontSize = "15px";
     const eventosPorData = {};
     proximos7Dias.forEach(ev => {
       const dataStr = ev.data.toLocaleDateString();
@@ -1292,19 +1297,19 @@ async function abrirPopupEvento(idevento) {
   }
 
   // Criar popup
-  const popup = document.createElement("div");
-  popup.className = "popup-evento";
-  popup.innerHTML = `
-  <div class="popup-header">
-  <h2>Funcionários do Evento: ${resp.staff.nmevento}</h2>
-  <button class="popup-close">X</button>
-  </div>
-  <div class="popup-body">
-  <ul>
-  ${staff.map(f => `<li>${f.funcionario} - ${f.funcao}</li>`).join("")}
-  </ul>
-  </div>
-  `;
+const popup = document.createElement("div");
+popup.className = "popup-evento";
+popup.innerHTML = `
+    <div class="popup-header">
+        <h2>Funcionários do Evento: ${resp.staff.nmevento}</h2>
+        <button class="popup-close">X</button>
+    </div>
+    <div class="popup-body">
+        <ul>
+            ${staff.map(f => `<li>${f.funcionario} - ${f.funcao}</li>`).join("")}
+        </ul>
+    </div>
+`;
 
   // Fechar popup
   popup.querySelector(".popup-close").addEventListener("click", () => popup.remove());
