@@ -502,6 +502,7 @@
     text-align: center;
     width: 100%;
     display: flex;
+    background: transparent;
     justify-content: center;
     align-self: center;
     font-size: 20px;
@@ -920,6 +921,7 @@ span.pavilhao-tag {
 
   td input.qtdProduto, td input.qtdDias{
     display: flex;
+    pointer-events: none;
     justify-content: center;
     align-items: center;
     width: 55px;

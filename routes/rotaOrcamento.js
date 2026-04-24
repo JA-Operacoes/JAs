@@ -88,7 +88,7 @@ router.get(
             descontoitem, percentdescontoitem, acrescimoitem, percentacrescimoitem,
             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
             vlrajdctotransporte, totajdctoitem, hospedagem, transporte,            
-            totgeralitem, setor, cachefechado
+            totgeralitem, setor, cachefechado, adicional
         FROM orcamentoitens
         WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
@@ -1366,8 +1366,7 @@ router.post("/salvarContratoUrl",
   }
 });
 
-router.get(
-  "/:nrOrcamento/proposta",
+router.get("/:nrOrcamento/proposta",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "pesquisar"),
@@ -1583,8 +1582,196 @@ router.get(
   }
 );
 
-router.get(
-  "/download/proposta/:filename",
+router.get("/:nrOrcamento/proposta/adicionais",
+  autenticarToken(),
+  contextoEmpresa,
+  verificarPermissao("Orcamentos", "pesquisar"),
+  async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { nrOrcamento } = req.params;
+      const idempresa = req.idempresa;
+
+      // ✅ Etapa 1: Busca dados do orçamento
+      const queryOrcamento = `
+                SELECT 
+                    o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
+                    o.dtinirealizacao AS inicio_realizacao, o.dtfimrealizacao AS fim_realizacao, 
+                    o.dtinimarcacao AS inicio_marcacao, o.dtfimmarcacao AS fim_marcacao, 
+                    o.dtinimontagem AS inicio_montagem, o.dtfimmontagem AS fim_montagem, 
+                    o.dtinidesmontagem AS inicio_desmontagem, o.dtfimdesmontagem AS fim_desmontagem, 
+                    o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
+                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual,
+                    c.nmcontato AS cliente_responsavel, c.celcontato AS cliente_celular, c.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
+                    c.complemento AS cliente_complemento, c.cep AS cliente_cep,
+                    e.nmevento AS evento_nome, lm.descmontagem AS local_montagem, STRING_AGG(lp.nmpavilhao, ', ') AS pavilhoes
+                FROM orcamentos o
+                JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+                LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN eventos e ON o.idevento = e.idevento
+                LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+                LEFT JOIN orcamentopavilhoes op ON o.idorcamento = op.idorcamento
+                LEFT JOIN localmontpavilhao lp ON op.idpavilhao = lp.idpavilhao
+                WHERE o.nrorcamento = $1 AND oe.idempresa = $2
+                GROUP BY 
+                o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura,
+                o.dtinirealizacao, o.dtfimrealizacao, o.formapagamento, o.obsproposta,
+                c.razaosocial, c.cnpj, c.inscestadual, c.nmcontato, c.celcontato, 
+                c.emailcontato, c.rua, c.numero, c.complemento, c.cep,
+                e.nmevento, lm.descmontagem
+                LIMIT 1
+            `;
+
+      const resultOrcamento = await client.query(queryOrcamento, [
+        nrOrcamento,
+        idempresa,
+      ]);
+
+      if (resultOrcamento.rows.length === 0) {
+        return res.status(404).json({ error: "Orçamento não encontrado" });
+      }
+
+      const dados = resultOrcamento.rows[0];
+      dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
+      dados.nr_orcamento = nrOrcamento;
+      dados.valor_total = dados.vlrcliente;
+      dados.ano_atual = new Date().getFullYear();
+
+      // ✅ Etapa 2: Busca itens do orçamento
+      const queryItens = `
+                SELECT 
+                    oi.qtditens AS qtd_itens, 
+                    oi.produto AS produto, 
+                    oi.setor,
+                    oi.qtddias AS qtd_dias,
+                    oi.categoria AS categoria,
+                    oi.periododiariasinicio AS inicio_datas,
+                    oi.periododiariasfim AS fim_datas,
+                    oi.adicional AS is_adicional,
+                    oi.vlrdiaria AS vlr_diaria
+                FROM orcamentoitens oi
+                LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+                WHERE oi.idorcamento = $1
+                AND oi.adicional = 'true'
+            `;
+      const resultItens = await client.query(queryItens, [dados.idorcamento]);
+
+      const categoriasMap = {};
+      const adicionais = [];
+      let valorTotalAdicionais = 0;
+
+      // ✅ Etapa 3: Processa itens
+      resultItens.rows.forEach((item) => {
+          const valorItem = (parseFloat(item.qtd_itens) || 0) 
+                    * (parseFloat(item.qtd_dias) || 0) 
+                    * (parseFloat(item.vlr_diaria) || 0);
+          
+          if (valorItem <= 0) return;
+
+          valorTotalAdicionais += valorItem;
+          
+          const datasFormatadas =
+              item.inicio_datas && item.fim_datas
+                  ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
+                  : "";
+
+          let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+
+          if (item.setor && item.setor.toLowerCase() !== "null" && item.setor !== "") {
+              itemDescricao += `, (${item.setor})`;
+          }
+
+          if (item.qtd_dias !== "0" && datasFormatadas) {
+              itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
+          }
+
+          if (item.qtd_itens > 0) {
+              adicionais.push(itemDescricao);
+          }
+      });
+
+      // ✅ Etapa 4: Adiciona itens ao objeto de dados
+      dados.valor_total = valorTotalAdicionais;
+      dados.itens_categorias = [];
+      dados.adicionais = adicionais;
+
+      console.log("📦 Dados enviados para o Python (Adicionais):", dados);
+
+      // ✅ Etapa 5: Executa script Python
+      const pythonExecutable = "python";
+      const pythonScriptPath = path.join(
+        __dirname,
+        "../public/python/Adicionais.py"
+      );
+      const python = spawn(pythonExecutable, [pythonScriptPath]);
+
+      let output = "";
+      let errorOutput = "";
+
+      python.stdin.write(JSON.stringify(dados));
+      python.stdin.end();
+
+      python.stdout.setEncoding("utf-8");
+      python.stderr.setEncoding("utf-8");
+
+      python.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+      python.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+      });
+
+      python.on("close", (code) => {
+        if (code !== 0) {
+          console.error("🐍 Erro Python Proposta:", errorOutput);
+          return res
+            .status(500)
+            .json({
+              error: "Erro ao gerar proposta (Python)",
+              detail: errorOutput,
+            });
+        }
+
+        const filePath = output.trim();
+        console.log("📝 Proposta gerada:", filePath);
+
+        if (!fs.existsSync(filePath)) {
+          console.error(
+            "❌ Erro: Arquivo da proposta não encontrado:",
+            filePath
+          );
+          return res
+            .status(500)
+            .json({ error: "Arquivo da proposta não encontrado" });
+        }
+
+        const fileName = path.basename(filePath);
+        const downloadUrl = `/orcamentos/download/proposta/${encodeURIComponent(
+          fileName
+        )}`;
+
+        res.status(200).json({
+          success: true,
+          message: "Proposta gerada com sucesso",
+          fileUrl: downloadUrl,
+        });
+      });
+
+      python.on("error", (err) => {
+        console.error("❌ Erro ao iniciar o processo Python:", err);
+      });
+    } catch (error) {
+      console.error("Erro ao gerar proposta:", error);
+      res
+        .status(500)
+        .json({ error: "Erro ao gerar proposta", detail: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+router.get("/download/proposta/:filename",
   autenticarToken(),
   contextoEmpresa,
   async (req, res) => {

@@ -1,7 +1,7 @@
 
 ## JAs (JA SYSTEM) 
 
-Este é um sistema interno em desenvolvimento para a empresa **JA Promoções**, com foco em **gestão de clientes, eventos e geração de orçamentos detalhados**. O projeto está sendo estruturado como base para uma futura **startup SaaS** voltada ao setor de eventos e promoções.
+Este é um sistema interno em desenvolvimento para a empresa **JA Promoções**, com foco em **gestão de eventos incluindo desde clientes, Orçamentos, Funcionarios, Financeiro...**. O projeto está sendo estruturado como base para uma futura **startup SaaS** voltada ao setor de eventos e promoções.
 
 
 ## Autores
@@ -24,6 +24,10 @@ Este é um sistema interno em desenvolvimento para a empresa **JA Promoções**,
 
 
 - Gerador de Propostas/Orçamentos semi-automatico
+- Sistema de Notificação entre Usuarios
+- Contratação de Staff direcionados a Eventos
+- MicroFinanceiro ( Contas Comerciais e pagamentos de Funcionarios )
+- Agenda Individual para ter acesso as seus compromissos
 - Multiplataforma ( ainda em teste )
 
 
