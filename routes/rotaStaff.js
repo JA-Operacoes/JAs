@@ -1344,6 +1344,18 @@ router.put("/:idStaffEvento",
             const old = oldResult.rows[0];
             const perfil = old.perfil?.toLowerCase() || 'freelancer';
 
+            const paths = {
+                cache: req.files?.comppgtocache ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : (body.limparComprovanteCache === 'true' ? null : old.comppgtocache),
+                ajd: req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto === 'true' ? null : old.comppgtoajdcusto),
+                ajd50: req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto50 === 'true' ? null : old.comppgtoajdcusto50),
+                cx: req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha === 'true' ? null : old.comppgtocaixinha)
+            };
+
+            if (req.files?.comppgtocache) deletarArquivoAntigo(old.comppgtocache);
+            if (req.files?.comppgtoajdcusto) deletarArquivoAntigo(old.comppgtoajdcusto);
+            if (req.files?.comppgtoajdcusto50) deletarArquivoAntigo(old.comppgtoajdcusto50);
+            if (req.files?.comppgtocaixinha) deletarArquivoAntigo(old.comppgtocaixinha);
+
             // 2. TRATAMENTO DE VALORES E STRINGS (Recalculo)
             const parseJSON = (val) => {
                 if (!val) return [];
@@ -1409,7 +1421,8 @@ router.put("/:idStaffEvento",
                     body.statuspgto, body.statusajustecusto, body.statuscaixinha, body.statusdiariadobrada,
                     body.statusmeiadiaria, JSON.stringify(dtdiariadobrada), JSON.stringify(dtmeiadiaria),
                     body.desccaixinha, body.descdiariadobrada, body.descmeiadiaria,
-                    body.comppgtocache, body.comppgtoajdcusto, body.comppgtoajdcusto50, body.comppgtocaixinha,
+                    // body.comppgtocache, body.comppgtoajdcusto, body.comppgtoajdcusto50, body.comppgtocaixinha,
+                    paths.cache, paths.ajd, paths.ajd50, paths.cx,
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, body.obspospgto, idStaffEvento, idempresa
@@ -1500,7 +1513,7 @@ router.put("/:idStaffEvento",
                 VALUES ($1, $2, $3, true, 'info', 'Cadastro de Staff realizado', NOW()) 
                 ON CONFLICT (idusuario, idreferencia) 
                 DO UPDATE SET lido = true, idempresa = $3`, 
-                [idUsuarioLogado, novoIdStaffEvento, idempresa] // $3 é o idempresa
+                [idUsuarioLogado, idStaffEvento, idempresa] // $3 é o idempresa
             );
 
             // 2. "Reseta" para os outros usuários: remove o status de lido deles 
