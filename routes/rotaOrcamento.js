@@ -1791,6 +1791,38 @@ router.post(
   }
 );
 
+// Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
+router.post('/verificar-duplicidade', async (req, res) => {
+    const { idOrcamento, idFuncao, setor } = req.body;
+    
+    try {
+        // Se não houver ID de orçamento (orçamento novo), não há o que duplicar ainda
+        if (!idOrcamento) {
+            return res.status(200).send("Novo orçamento, sem duplicidade.");
+        }
+
+        const check = await client.query(`
+            SELECT idorcamentoitem FROM orcamentoitens 
+            WHERE idorcamento = $1 
+              AND idfuncao = $2 
+              AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+            LIMIT 1
+        `, [idOrcamento, idFuncao, (setor || '').trim()]);
+
+        if (check.rows.length > 0) {
+            return res.status(409).json({ 
+                status: "duplicado", 
+                message: "Já existe este item para o setor informado." 
+            });
+        }
+        
+        res.status(200).send("OK");
+    } catch (err) {
+        console.error("Erro na verificação:", err);
+        res.status(500).send("Erro interno ao verificar duplicidade");
+    }
+});
+
 router.put("/:id",
   autenticarToken(), contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"),
@@ -1912,6 +1944,118 @@ router.put("/:id",
         const isAdicional = item.adicional === true;
         // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
         const valorBase = item.vlrbase ?? item.vlrdiaria; 
+        const setorItem = (item.setor || '').trim();
+
+
+        // Se for um item NOVO (sem item.id) e o frontend não enviou a flag 'ignorarDuplicata'
+        if (!item.id && !req.body.ignorarDuplicata) {
+            const checkDuplicidade = await client.query(`
+                SELECT idorcamentoitem 
+                FROM orcamentoitens 
+                WHERE idorcamento = $1 
+                  AND idfuncao = $2 
+                  AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+                LIMIT 1
+            `, [idOrcamento, item.idfuncao, setorItem]);
+
+            if (checkDuplicidade.rows.length > 0) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({ // 409 = Conflict
+                    status: "duplicado",
+                    isDuplicado: true,
+                    idFuncao: item.idfuncao,
+                    produto: item.produto,
+                    setor: setorItem || "Geral",
+                    message: `Já existe um item "${item.produto}" para o setor "${setorItem || 'Geral'}" neste orçamento.`
+                });
+            }
+        }
+
+        console.log(`Processando item: ${item.idfuncao}, orçamento: ${idOrcamento} -  (Adicional: ${isAdicional})`);        
+      
+        if (isAdicional) {
+          // 1. Tenta buscar a solicitação autorizada que bata exatamente com o setor enviado (ou Geral)
+          const itensSemSetorPermitidos = req.body.itensSemSetorPermitidos ?? [];
+          const ignorarValidacaoSetor = itensSemSetorPermitidos.includes(item.idfuncao);
+
+          if (!ignorarValidacaoSetor) {
+            const checkSolicitacao = await client.query(`
+                SELECT 
+                    se.statusstaff, 
+                    sol.status as status_solicitacao,
+                    se.setor,
+                    se.pavilhao,
+                    se.idstaffevento
+                FROM staffeventos se
+                INNER JOIN solicitacoes sol ON (
+                    sol.idregistroalterado = se.idstaffevento
+                    AND sol.idorcamento = se.idorcamento
+                )
+                WHERE se.idorcamento = $1 
+                  AND se.idfuncao = $2 
+                  AND (se.setor = $3 OR (se.setor IS NULL AND $3 = ''))
+                  AND se.statusstaff != 'Deletado'
+                  AND sol.status != 'Deletado'
+                LIMIT 1
+            `, [idOrcamento, item.idfuncao, setorItem]);
+
+            if (checkSolicitacao.rows.length > 0) {
+                const { status_solicitacao, idstaffevento, statusstaff } = checkSolicitacao.rows[0];
+
+                if (status_solicitacao === 'Autorizado') {
+                    if (statusstaff === 'Pendente') {
+                        await client.query(`UPDATE staffeventos SET statusstaff = 'Ativo' WHERE idstaffevento = $1`, [idstaffevento]);
+                    }
+                    // Segue o fluxo de salvamento normal
+                } 
+                else if (status_solicitacao === 'Pendente') {
+                    await client.query("ROLLBACK");
+                    return res.status(400).json({ 
+                        isSwal: true, icon: 'info', title: 'Processo em Análise',
+                        message: `A função "${item.produto}" ainda aguarda aprovação financeira.`,
+                        suprimirErroDefault: true
+                    });
+                }
+            } else {
+                // --- CASO O SETOR ESTEJA VAZIO NO ORÇAMENTO MAS PREENCHIDO NO STAFF ---
+                // Se o setorItem for vazio, procuramos se existe qualquer aditivo autorizado para essa função
+                const buscaQualquerSetor = await client.query(`
+                    SELECT se.setor, se.pavilhao
+                    FROM staffeventos se
+                    INNER JOIN solicitacoes sol ON (sol.idregistroalterado = se.idstaffevento)
+                    WHERE se.idorcamento = $1 
+                      AND se.idfuncao = $2 
+                      AND sol.status = 'Autorizado'
+                      AND se.setor IS NOT NULL 
+                      AND se.setor != ''
+                    LIMIT 1
+                `, [idOrcamento, item.idfuncao]);
+
+ 
+                if (buscaQualquerSetor.rows.length > 0 && (!setorItem || setorItem === '')) {
+                    await client.query("ROLLBACK");
+                    const sug = buscaQualquerSetor.rows[0];
+
+                    // IMPORTANTE: Use .json() em vez de .send() ou retornar apenas a string
+                    return res.status(400).json({ 
+                        isConfirmarSetor: true, 
+                        idFuncao: item.idfuncao,
+                        produto: item.produto,
+                        setorSugerido: sug.setor,
+                        message: `O item "${item.produto}" está sem setor no orçamento, mas existe um aditivo aprovado para o setor "<strong>${sug.setor}</strong>".`
+                    });
+                }
+                // Se realmente não houver nada
+                // await client.query("ROLLBACK");
+                // return res.status(400).json({ 
+                //     isSwal: true, icon: 'warning', title: 'Divergência',
+                //     message: `Não existe aditivo aprovado para "${item.produto}".`,
+                //     suprimirErroDefault: true
+                // });
+            }
+          }
+        }
+      
 
         if (item.id && existingItemIds.has(Number(item.id))) {
           // UPDATE DO ITEM EXISTENTE
@@ -2034,6 +2178,9 @@ router.put("/:id",
     }
   }
 );
+
+
+
 
 router.put(
   "/fechar/:id",

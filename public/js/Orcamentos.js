@@ -1113,6 +1113,10 @@ function removerLinha(linha) {
 
 function inicializarLinha(linha) {
   // 1. Encontra o select de função na linha e o popula com as opções
+  const idItemInputOrc = linha.querySelector("input.idItemOrcamento");
+   if (!idItemInputOrc || !idItemInputOrc.value) {
+       linha.setAttribute('data-adicional', 'true');
+   }
   const selectFuncao = linha.querySelector(".idFuncao");
   if (selectFuncao) {
     selectFuncao.innerHTML = "";
@@ -1126,6 +1130,7 @@ function inicializarLinha(linha) {
         let option = document.createElement("option");
         option.value = funcao.idfuncao;
         option.textContent = funcao.descfuncao;
+        
         option.setAttribute("data-descproduto", funcao.descfuncao);
         option.setAttribute("data-cto", funcao.ctofuncao);
         option.setAttribute("data-vda", funcao.vdafuncao);
@@ -1142,6 +1147,11 @@ function inicializarLinha(linha) {
   selectFuncao?.addEventListener("change", function (event) {
     const linhaAtual = this.closest("tr");
     if (linhaAtual) {
+      if (this.value) {
+          linhaAtual.setAttribute('data-idfuncao', this.value);
+      } else {
+          linhaAtual.removeAttribute('data-idfuncao');
+      }
       atualizaProdutoOrc(event, linhaAtual);
       recalcularLinha(linhaAtual);
     } else {
@@ -2210,6 +2220,23 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     recalcularTotaisGerais();
     if (typeof aplicarMascaraMoeda === "function") aplicarMascaraMoeda();
     if (typeof limparSelects === "function") limparSelects();
+
+
+    // 8. Verificação de Duplicidade Instantânea (Apenas para Adicionais)
+    const inputSetor = novaLinha.querySelector('.setor-input');
+    if (inputSetor) {
+        inputSetor.addEventListener('change', async function() {
+            const setor = this.value.trim();
+            const idFuncao = novaLinha.querySelector('.idFuncao')?.value;
+            // Busca o nome do produto no input ou na célula da linha
+            const produtoNome = novaLinha.querySelector('.produto-input')?.value || 
+                               novaLinha.querySelector('.produto')?.value || "Item";
+
+            if (setor && idFuncao) {
+                await verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, this);
+            }
+        });
+    }
 }
 
 function removerLinhaOrc(botao) {
@@ -2724,8 +2751,8 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     
     // Garantindo que Categoria e Ajudas existam no escopo
     let Categoria = selectedOption.getAttribute("data-categoria") || "Produto(s)";
-    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-vlr_alimentacao")) || 0;
-    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-vlr_transporte")) || 0;
+    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
 
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
@@ -2832,7 +2859,7 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     );
     if (funcaoCorrespondente) {
       //  baseAlmoco = parseFloat(funcaoCorrespondente.almoco || 0);
-      baseAlimentacao = parseFloat(funcaoCorrespondente.alimentaao || 0);
+      baseAlimentacao = parseFloat(funcaoCorrespondente.alimentacao || 0);
       baseTransporte = parseFloat(funcaoCorrespondente.transporte || 0);
       console.log(
         `Bases lidas (da linha ${idFuncaoDaLinha}): Alimentação: ${baseAlimentacao}, Transporte: ${baseTransporte}`
@@ -3088,6 +3115,11 @@ async function verificaOrcamento() {
     });
   }
   gerenciarBotoesProposta(statusInput);
+
+  if (event) {
+        window._setorSugeridoCache = null;
+        window._forcarSalvarSemSetor = [];
+  }
 
   const nrOrcamentoInput = document.getElementById("nrOrcamento");
   if (nrOrcamentoInput) {
@@ -3411,6 +3443,18 @@ async function verificaOrcamento() {
         return; // Interrompe o envio
       }
 
+      const edicaoVal = document.querySelector("#edicao")?.value?.trim();
+      if (!edicaoVal) {
+        Swal.fire(
+          "Atenção!",
+          "O campo 'Edição' é obrigatório e não pode ser deixado em branco.",
+          "warning"
+        );
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "Salvar Orçamento";
+        return;
+      }
+
       const idsPavilhoesSelecionadosInput = document.getElementById(
         "idsPavilhoesSelecionados"
       );
@@ -3437,6 +3481,63 @@ async function verificaOrcamento() {
         }
       }
       console.log("Pavilhões para enviar:", pavilhoesParaEnviar);
+
+      // ===== VALIDAÇÃO DE LINHAS EM BRANCO =====
+      // ===== VALIDAÇÃO DE LINHAS EM BRANCO =====
+      const tabelaBodyParaColeta = document.querySelector("#tabela tbody"); // ← SOBE PARA CÁ
+      const todasLinhas = tabelaBodyParaColeta ? tabelaBodyParaColeta.querySelectorAll("tr") : [];
+      const linhasEmBranco = [];
+
+      todasLinhas.forEach((linha, index) => {
+        const idFuncaoVal = linha.querySelector(".idFuncao")?.value?.trim();
+        const idEquipamentoVal = linha.querySelector(".idEquipamento")?.value?.trim();
+        const idSuprimentoVal = linha.querySelector(".idSuprimento")?.value?.trim();
+        const produtoTexto = linha.querySelector(".produto")?.textContent?.trim();
+
+        const semFuncao = !idFuncaoVal || idFuncaoVal === "0" || idFuncaoVal === "";
+        const semEquipamento = !idEquipamentoVal || idEquipamentoVal === "0" || idEquipamentoVal === "";
+        const semSuprimento = !idSuprimentoVal || idSuprimentoVal === "0" || idSuprimentoVal === "";
+        const semProduto = !produtoTexto || produtoTexto === "" || produtoTexto === "—";
+
+        if (semFuncao && semEquipamento && semSuprimento && semProduto) {
+          linhasEmBranco.push({ linha, index: index + 1 });
+        }
+      });
+
+      if (linhasEmBranco.length > 0) {
+        const resultado = await Swal.fire({
+          title: "Linhas em branco detectadas",
+          html: `Foram encontradas <strong>${linhasEmBranco.length}</strong> linha(s) sem produto/função preenchida.<br><br>
+                Deseja <strong>removê-las automaticamente</strong> e continuar salvando?`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Sim, remover e salvar",
+          cancelButtonText: "Não, deixa eu corrigir",
+          reverseButtons: true,
+          confirmButtonColor: "#28a745",
+          cancelButtonColor: "#8B0000"
+        });
+
+        if (resultado.isConfirmed) {
+          // Remove as linhas em branco do DOM
+          linhasEmBranco.forEach(({ linha }) => linha.remove());
+        } else {
+          // Destaca as linhas em branco para o usuário identificar visualmente
+          linhasEmBranco.forEach(({ linha }) => {
+            linha.style.outline = "2px solid #dc3545";
+            linha.style.backgroundColor = "#fff0f0";
+            setTimeout(() => {
+              linha.style.outline = "";
+              linha.style.backgroundColor = "";
+            }, 4000);
+          });
+
+          btnEnviar.disabled = false;
+          btnEnviar.textContent = "Salvar Orçamento";
+          return; // Interrompe o salvamento
+        }
+      }
+      // ===== FIM DA VALIDAÇÃO =====
       
 
       const dadosOrcamento = {
@@ -3523,7 +3624,7 @@ async function verificaOrcamento() {
       const itensOrcamento = [];
       //    const linhas = document.querySelectorAll("#tabela tbody tr");
 
-      const tabelaBodyParaColeta = document.querySelector("#tabela tbody"); // Pegue o tbody novamente para garantir
+    //  const tabelaBodyParaColeta = document.querySelector("#tabela tbody"); // Pegue o tbody novamente para garantir
 
       //console.log("DEBUG FRONTEND: HTML do tbody ANTES de coletar as linhas:", tabelaBodyParaColeta ? tabelaBodyParaColeta.innerHTML : "tbody não encontrado");
 
@@ -3538,176 +3639,210 @@ async function verificaOrcamento() {
       );
 
       linhas.forEach((linha) => {
-    // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
-    // Prioriza a leitura do input hidden, que é adicionado apenas na linha adicional.
-      const isAdicionalInput = linha.querySelector(".isAdicional");
-      const isAdicional = isAdicionalInput?.value === "true"; 
+      // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
+      // Prioriza a leitura do input hidden, que é adicionado apenas na linha adicional.
+        const isAdicionalInput = linha.querySelector(".isAdicional");
+        const isAdicional = isAdicionalInput?.value === "true"; 
 
-      // O console.log agora reflete o resultado da nova e mais robusta lógica
-      console.log("Processando linha. É adicional?", isAdicional, linha);
+        // O console.log agora reflete o resultado da nova e mais robusta lógica
+        console.log("Processando linha. É adicional?", isAdicional, linha);
 
-      const descontoItemValor = desformatarMoeda(
-        linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
-        "0"
-      );
-      const acrescimoItemValor = desformatarMoeda(
-        linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
-        "0"
-      );
-      const vlrVendaAtual = desformatarMoeda(
-        linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
-      );
-      const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
-      const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
-        ? vlrBaseLinhaRaw
-        : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
+        const descontoItemValor = desformatarMoeda(
+          linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
+          "0"
+        );
+        const acrescimoItemValor = desformatarMoeda(
+          linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
+          "0"
+        );
+        const vlrVendaAtual = desformatarMoeda(
+          linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
+        );
+        const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
+        const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
+          ? vlrBaseLinhaRaw
+          : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
 
-      const item = {
-          id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
-          nrorcamento:
-              parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
-          enviarnaproposta:
-              linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
-              false,
-          cachefechado: !!linha.querySelector('.cacheFechado input[type="checkbox"]')?.checked || false,
-          categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-          qtditens:
-              parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
-          idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
-          idequipamento:
-              parseInt(linha.querySelector(".idEquipamento")?.value) || null,
-          idsuprimento:
-              parseInt(linha.querySelector(".idSuprimento")?.value) || null,
-          produto: linha.querySelector(".produto")?.textContent.trim(),
-          setor:
-              linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
-              null,
+        //TRECHO incluido para quando trazemos o setor da solicitação para aditivo, caso não venha da solicitação ele 
+        // --- DENTRO DO FOREACH DAS LINHAS ---
+        const inputId = linha.querySelector(".idFuncao");
+        // Tenta pegar de .value ou .textContent (caso seja uma célula <td>)
+        const rawId = inputId ? (inputId.value || inputId.textContent) : null;
+        const idFuncaoAtual = rawId ? parseInt(rawId.trim()) : null;
 
-          qtdDias:
-            parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-            0,
-          qtddias:
-            parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-            0,
+        const inputSetor = linha.querySelector(".setor-input");
+        let valorSetor = inputSetor?.value?.trim().toUpperCase() || null;
 
-          descontoitem: descontoItemValor,
-          percentdescontoitem: parsePercentValue(
-              linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
-          ),
-          acrescimoitem: acrescimoItemValor,
-          percentacrescimoitem: parsePercentValue(
-              linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
-          ),
+        console.log(`Lendo linha para ID função: ${idFuncaoAtual}, setor atual: ${valorSetor}`);
 
-          vlrdiaria: vlrVendaAtual,
-          totvdadiaria: desformatarMoeda(
-              linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
-          ),
-          ctodiaria: desformatarMoeda(
-              linha.querySelector(".vlrCusto.Moeda")?.textContent || "0"
-          ),
-          totctodiaria: desformatarMoeda(
-              linha.querySelector(".totCtoDiaria.Moeda")?.textContent || "0"
-          ),
+        // Log silencioso para te ajudar a ver o que está acontecendo nas linhas
+        if (window._setorSugeridoCache) {
+            console.log(`Verificando Linha: ID capturado [${idFuncaoAtual}] vs ID no Cache [${window._setorSugeridoCache.idFuncao}]`);
+        }
 
-          tpajdctoalimentacao:
-              linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
-          vlrajdctoalimentacao: desformatarMoeda(
-              linha.querySelector(".vlralimentacao-input")?.textContent || "0"
-          ),
-          tpajdctotransporte:
-              linha.querySelector(".tpAjdCusto-transporte")?.value || null,
-          vlrajdctotransporte: desformatarMoeda(
-              linha.querySelector(".vlrtransporte-input")?.textContent || "0"
-          ),
-          totajdctoitem: desformatarMoeda(
-              linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
-          ),
+        // Se o campo está vazio e o ID bate
+        if (!valorSetor && window._setorSugeridoCache && parseInt(window._setorSugeridoCache.idFuncao) === idFuncaoAtual) {
+            valorSetor = window._setorSugeridoCache.setor;
+            if (inputSetor) {
+                inputSetor.value = valorSetor;
+                // Força o preenchimento visual para o usuário
+                inputSetor.setAttribute('value', valorSetor); 
+            }
+            console.log(`%c[REENVIO] Aplicando setor do cache para ID ${idFuncaoAtual}: ${valorSetor}`, "color: orange");
+        }
+        //FIM DO TRECHO 
 
-          hospedagem: desformatarMoeda(
-              linha.querySelector(".extraCampo .hospedagem")?.value || "0"
-          ),
-          transporte: desformatarMoeda(
-              linha.querySelector(".extraCampo .transporteExtraInput")?.value ||
-              "0"
-          ),
+        const item = {
+            id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
+            nrorcamento:
+                parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
+            enviarnaproposta:
+                linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
+                false,
+            cachefechado: !!linha.querySelector('.cacheFechado input[type="checkbox"]')?.checked || false,
+            categoria: linha.querySelector(".Categoria")?.textContent.trim(),
+            qtditens:
+                parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
+           // idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
+            idfuncao: idFuncaoAtual, // Usa a variável já lida e processada acima
+            idequipamento:
+                parseInt(linha.querySelector(".idEquipamento")?.value) || null,
+            idsuprimento:
+                parseInt(linha.querySelector(".idSuprimento")?.value) || null,
+            produto: linha.querySelector(".produto")?.textContent.trim(),
+            //setor:
+            //    linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
+            //    null,
+            setor: valorSetor, // Usa o valor do setor já processado, que pode vir da sugestão ou do input
 
-          totgeralitem: desformatarMoeda(
-              linha.querySelector(".totGeral")?.textContent || "0"
-          ),
+            qtdDias:
+              parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+              0,
+            qtddias:
+              parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+              0,
 
-          // Base do item para manter o valor original sem desconto/acréscimo
-          vlrbase: vlrBaseLinha,
+            descontoitem: descontoItemValor,
+            percentdescontoitem: parsePercentValue(
+                linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
+            ),
+            acrescimoitem: acrescimoItemValor,
+            percentacrescimoitem: parsePercentValue(
+                linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
+            ),
 
-          // 2. CORREÇÃO DE ATRIBUIÇÃO:
-          // Usa a variável local 'isAdicional' (calculada corretamente acima).
-          adicional: isAdicional, // <--- ESSA LINHA GARANTE QUE O TRUE É ENVIADO
-          
-          // 3. ATRIBUTO EXTRA BONIFICADO:
-          extrabonificado: linha.dataset?.extrabonificado === "true" || false,
-      };
+            vlrdiaria: vlrVendaAtual,
+            totvdadiaria: desformatarMoeda(
+                linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
+            ),
+            ctodiaria: desformatarMoeda(
+                linha.querySelector(".vlrCusto.Moeda")?.textContent || "0"
+            ),
+            totctodiaria: desformatarMoeda(
+                linha.querySelector(".totCtoDiaria.Moeda")?.textContent || "0"
+            ),
 
-      // 🎯 Aqui vem o tratamento correto dos períodos:
-      const campoPeriodo = linha.querySelector(".datas-item");
-      const valorPeriodoInput = campoPeriodo?.value?.trim() || "";
+            tpajdctoalimentacao:
+                linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
+            vlrajdctoalimentacao: desformatarMoeda(
+                linha.querySelector(".vlralimentacao-input")?.textContent || "0"
+            ),
+            tpajdctotransporte:
+                linha.querySelector(".tpAjdCusto-transporte")?.value || null,
+            vlrajdctotransporte: desformatarMoeda(
+                linha.querySelector(".vlrtransporte-input")?.textContent || "0"
+            ),
+            totajdctoitem: desformatarMoeda(
+                linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
+            ),
 
-      console.log(
-          "valorPeriodoInput",
-          valorPeriodoInput,
-          item.idfuncao,
-          item.idequipamento,
-          item.idsuprimento
-      );
+            hospedagem: desformatarMoeda(
+                linha.querySelector(".extraCampo .hospedagem")?.value || "0"
+            ),
+            transporte: desformatarMoeda(
+                linha.querySelector(".extraCampo .transporteExtraInput")?.value ||
+                "0"
+            ),
 
-      let dataInicioFormatada = null;
-      let dataFimFormatada = null;
+            totgeralitem: desformatarMoeda(
+                linha.querySelector(".totGeral")?.textContent || "0"
+            ),
 
-      if (valorPeriodoInput) {
-          // Utilize a lógica de parsing que já existe na sua formatarRangeDataParaBackend
-          const partes = valorPeriodoInput
-              .replace(" até ", " to ")
-              .replace(" a ", " to ")
-              .split(" to ")
-              .map((d) => d.trim());
+            // Base do item para manter o valor original sem desconto/acréscimo
+            vlrbase: vlrBaseLinha,
 
-          if (partes.length === 2) {
-              // ASSUMINDO que você já tem a função `formatarDataParaBackend`
-              // que converte "DD/MM/YYYY" para "YYYY-MM-DD"
-              dataInicioFormatada = formatarDataParaBackend(partes[0]);
-              dataFimFormatada = formatarDataParaBackend(partes[1]);
-          } else if (partes.length === 1) {
-              // Única data: "DD/MM/YYYY"
-              dataInicioFormatada = formatarDataParaBackend(partes[0]);
-              dataFimFormatada = formatarDataParaBackend(partes[0]); // Corrigido aqui!
-          } else {
-              // Formato inválido ou inesperado
-              dataInicioFormatada = null;
-              dataFimFormatada = null;
-          }
-      }
+            // 2. CORREÇÃO DE ATRIBUIÇÃO:
+            // Usa a variável local 'isAdicional' (calculada corretamente acima).
+            adicional: isAdicional, // <--- ESSA LINHA GARANTE QUE O TRUE É ENVIADO
+            
+            // 3. ATRIBUTO EXTRA BONIFICADO:
+            extrabonificado: linha.dataset?.extrabonificado === "true" || false,
+        };
 
-      // ATRIBUIÇÃO CORRETA:
-      item.periododiariasinicio = dataInicioFormatada;
-      item.periododiariasfim = dataFimFormatada; // <--- AGORA ESTAMOS ATRIBUINDO A DATA DE FIM SEPARADAMENTE
+        // 🎯 Aqui vem o tratamento correto dos períodos:
+        const campoPeriodo = linha.querySelector(".datas-item");
+        const valorPeriodoInput = campoPeriodo?.value?.trim() || "";
 
-      console.log("ITENS", item);
+        console.log(
+            "valorPeriodoInput",
+            valorPeriodoInput,
+            item.idfuncao,
+            item.idequipamento,
+            item.idsuprimento
+        );
 
-      itensOrcamento.push(item);
-      // --- FIM DO NOVO TRECHO ---
+        let dataInicioFormatada = null;
+        let dataFimFormatada = null;
 
-      // Seus logs de depuração (opcionais, mas úteis para confirmar)
-      console.log("Valor do input recebido:", valorPeriodoInput); // Ex: "03/07/2025 a 05/07/2025"
-      console.log(
-          "item.periododiariasinicio (para o backend):",
-          item.periododiariasinicio
-      ); // Ex: "2025-07-03"
-      console.log(
-          "item.periododiariasfim (para o backend):",
-          item.periododiariasfim
-      ); // Ex: "2025-07-05"
-  });
+        if (valorPeriodoInput) {
+            // Utilize a lógica de parsing que já existe na sua formatarRangeDataParaBackend
+            const partes = valorPeriodoInput
+                .replace(" até ", " to ")
+                .replace(" a ", " to ")
+                .split(" to ")
+                .map((d) => d.trim());
+
+            if (partes.length === 2) {
+                // ASSUMINDO que você já tem a função `formatarDataParaBackend`
+                // que converte "DD/MM/YYYY" para "YYYY-MM-DD"
+                dataInicioFormatada = formatarDataParaBackend(partes[0]);
+                dataFimFormatada = formatarDataParaBackend(partes[1]);
+            } else if (partes.length === 1) {
+                // Única data: "DD/MM/YYYY"
+                dataInicioFormatada = formatarDataParaBackend(partes[0]);
+                dataFimFormatada = formatarDataParaBackend(partes[0]); // Corrigido aqui!
+            } else {
+                // Formato inválido ou inesperado
+                dataInicioFormatada = null;
+                dataFimFormatada = null;
+            }
+        }
+
+        // ATRIBUIÇÃO CORRETA:
+        item.periododiariasinicio = dataInicioFormatada;
+        item.periododiariasfim = dataFimFormatada; // <--- AGORA ESTAMOS ATRIBUINDO A DATA DE FIM SEPARADAMENTE
+
+        console.log("ITENS", item);
+
+        itensOrcamento.push(item);
+        // --- FIM DO NOVO TRECHO ---
+
+        // Seus logs de depuração (opcionais, mas úteis para confirmar)
+        console.log("Valor do input recebido:", valorPeriodoInput); // Ex: "03/07/2025 a 05/07/2025"
+        console.log(
+            "item.periododiariasinicio (para o backend):",
+            item.periododiariasinicio
+        ); // Ex: "2025-07-03"
+        console.log(
+            "item.periododiariasfim (para o backend):",
+            item.periododiariasfim
+        ); // Ex: "2025-07-05"
+      });
 
       dadosOrcamento.itens = itensOrcamento;
+
+      dadosOrcamento.ignorarDuplicata = window._ignorarDuplicata || false;
+      dadosOrcamento.forcarSemSetor = window._forcarSalvarSemSetor || [];
 
       console.log(
         "Payload Final do Orçamento (sem id_empresa):",
@@ -3729,6 +3864,12 @@ async function verificaOrcamento() {
       // 4. Lidar com a resposta do backend
       //if (response.ok) {
       //    const resultado = await response.json();
+
+      // Limpa a flag para que a próxima alteração exija uma nova confirmação
+      window._ignorarDuplicata = false;
+      // 4. Lidar com a resposta do backend
+      window._setorSugeridoCache = null;
+
       Swal.fire(
         "Sucesso!",
         resultado.message || "Orçamento salvo com sucesso!",
@@ -3771,53 +3912,386 @@ async function verificaOrcamento() {
           // Mantenha bproximoano = true para possível retentativa ou log
         }
       }
-    } catch (error) {
-      console.error("Erro inesperado ao salvar orçamento:", error);
-      // let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
-      // if (error.message) {
-      //     errorMessage = error.message; // Pega a mensagem do erro lançada por fetchComToken
-      // } else if (typeof error === 'string') {
-      //     errorMessage = error; // Caso o erro seja uma string simples
-      // }
-      // Swal.fire("Erro!", "Falha ao salvar orçamento: " + errorMessage, "error");
-      let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
-      let swalTitle = "Erro!";
+    // } catch (error) {
+    //   console.error("Erro inesperado ao salvar orçamento:", error);
+    //   // let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
+    //   // if (error.message) {
+    //   //     errorMessage = error.message; // Pega a mensagem do erro lançada por fetchComToken
+    //   // } else if (typeof error === 'string') {
+    //   //     errorMessage = error; // Caso o erro seja uma string simples
+    //   // }
+    //   // Swal.fire("Erro!", "Falha ao salvar orçamento: " + errorMessage, "error");
+    //   let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
+    //   let swalTitle = "Erro!";
 
-      // Tentativa 1: Pegar a mensagem de erro da API (se for um objeto Error)
-      if (error.message) {
-        errorMessage = error.message; // Ex: "Erro na requisição: [object Object]"
+    //   // Tentativa 1: Pegar a mensagem de erro da API (se for um objeto Error)
+    //   if (error.message) {
+    //     errorMessage = error.message; // Ex: "Erro na requisição: [object Object]"
 
-        // Tentativa 2: Tentar extrair o detalhe do PostgreSQL se estiver em formato de string no erro
-        // O erro do PG que você viu é: 'error: o valor nulo na coluna "dtinimarcacao"...'
-        if (errorMessage.includes("o valor nulo na coluna")) {
-          swalTitle = "Erro de Dados Faltantes";
-          // Tenta simplificar a mensagem do PG para ser mais amigável
-          errorMessage = errorMessage
-            .replace(/(\r\n|\n|\r)/gm, " ") // Remove quebras de linha
-            .match(/o valor nulo na coluna "([^"]+)"/i);
+    //     // Tentativa 2: Tentar extrair o detalhe do PostgreSQL se estiver em formato de string no erro
+    //     // O erro do PG que você viu é: 'error: o valor nulo na coluna "dtinimarcacao"...'
+    //     if (errorMessage.includes("o valor nulo na coluna")) {
+    //       swalTitle = "Erro de Dados Faltantes";
+    //       // Tenta simplificar a mensagem do PG para ser mais amigável
+    //       errorMessage = errorMessage
+    //         .replace(/(\r\n|\n|\r)/gm, " ") // Remove quebras de linha
+    //         .match(/o valor nulo na coluna "([^"]+)"/i);
 
-          if (errorMessage && errorMessage[1]) {
-            const coluna = errorMessage[1].toUpperCase();
-            errorMessage = `Atenção: O campo de data **${coluna}** não pode ficar em branco. Por favor, preencha o campo de Marcação.`;
-          } else {
-            errorMessage =
-              "Um campo obrigatório (data) está faltando. Verifique as datas de Marcação, Montagem, etc.";
+    //       if (errorMessage && errorMessage[1]) {
+    //         const coluna = errorMessage[1].toUpperCase();
+    //         errorMessage = `Atenção: O campo de data **${coluna}** não pode ficar em branco. Por favor, preencha o campo de Marcação.`;
+    //       } else {
+    //         errorMessage =
+    //           "Um campo obrigatório (data) está faltando. Verifique as datas de Marcação, Montagem, etc.";
+    //       }
+    //     }
+    //   } else if (typeof error === "string") {
+    //     errorMessage = error;
+    //   }
+    //   // --- FIM DA LÓGICA DE EXTRAÇÃO ---
+
+    //   Swal.fire({
+    //     title: swalTitle,
+    //     html: `Falha ao salvar orçamento:<br><br><strong>${errorMessage}</strong>`,
+    //     icon: "error",
+    //   });
+    // } finally {
+    //   btnEnviar.disabled = false;
+    //   btnEnviar.textContent = "Salvar Orçamento";
+    // }
+
+    // } catch (error) {
+    //     console.error("Erro capturado:", error);
+
+    //     // Tenta extrair o objeto de erro (o backend envia como JSON no body do erro)
+    //     let erroData = {};
+    //     try {
+    //         erroData = JSON.parse(error.message.replace("Erro na requisição: ", ""));
+    //     } catch (e) {
+    //         erroData = { message: error.message };
+    //     }
+
+    //     // Caso 1: O Backend sugeriu um setor existente
+    //     if (erroData.isConfirmarSetor) {
+    //         const result = await Swal.fire({
+    //             title: 'Vincular Setor?',
+    //             html: `${erroData.message}<br><br>Deseja vincular este item ao setor <strong>${erroData.setorSugerido}</strong> automaticamente?`,
+    //             icon: 'question',
+    //             showCancelButton: true,
+    //             showDenyButton: true,
+    //             confirmButtonText: 'Sim, vincular',
+    //             denyButtonText: 'Não (Manter Vazio)',
+    //             cancelButtonText: 'Cancelar',
+    //             confirmButtonColor: '#28a745',
+    //             denyButtonColor: '#6c757d'
+    //         });
+
+    //         if (result.isConfirmed) {
+    //             // AÇÃO: Localiza a linha na tabela e preenche o input visualmente
+    //             const linhas = document.querySelectorAll("#tabela tbody tr");
+    //             linhas.forEach(linha => {
+    //                 const idFuncaoLinha = parseInt(linha.querySelector(".idFuncao")?.value);
+    //                 if (idFuncaoLinha === erroData.idFuncao) {
+    //                     const inputSetor = linha.querySelector(".setor-input");
+    //                     if (inputSetor) inputSetor.value = erroData.setorSugerido;
+    //                 }
+    //             });
+    //             // Clica no botão enviar novamente para processar com o dado preenchido
+    //             return btnEnviar.click(); 
+
+    //         } else if (result.isDenied) {
+    //             // AÇÃO: Marca uma flag oculta ou envia um parâmetro para ignorar essa validação específica
+    //             // (Requer que você adicione essa lógica no objeto dadosOrcamento ou trate no backend)
+    //             Swal.fire("Aviso", "Para salvar sem setor, o item será tratado como extra fora do orçamento.", "info");
+    //             return;
+    //         } else {
+    //             return; // Cancelou
+    //         }
+    //     }
+
+    //     let errorMessage = "Ocorreu um erro inesperado.";
+    //     let swalTitle = "Erro!";
+    //     let swalIcon = "error";
+
+    //     // 1. Tenta pegar o JSON direto da resposta (se disponível)
+    //     const responseData = error.response ? error.response.data : (error.data || null);
+
+    //     if (responseData && responseData.isSwal) {
+    //         swalTitle = responseData.title;
+    //         swalIcon = responseData.icon;
+    //         errorMessage = responseData.message;
+    //     } 
+    //     // 2. Se o fetchComToken transformou tudo em uma string dentro de error.message
+    //     else if (error.message && typeof error.message === "string") {
+    //         errorMessage = error.message.replace("Erro na requisição: ", "");
+
+    //         // Se a mensagem contiver o texto de "depende de aprovação", forçamos o estilo 'info'
+    //         if (errorMessage.includes("depende de aprovação") || errorMessage.includes("em análise")) {
+    //             swalTitle = "Processo em Análise";
+    //             swalIcon = "info";
+    //         } 
+    //         else if (errorMessage.includes("foi REJEITADA") || errorMessage.includes("Não autorizado")) {
+    //             swalTitle = "Item Não Autorizado";
+    //             swalIcon = "info";
+    //         }
+    //         // Tratamento para erro de banco de dados (nulo)
+    //         else if (errorMessage.includes("o valor nulo na coluna")) {
+    //             swalTitle = "Dados Faltantes";
+    //             const match = errorMessage.match(/o valor nulo na coluna "([^"]+)"/i);
+    //             errorMessage = match ? `O campo **${match[1].toUpperCase()}** é obrigatório.` : "Preencha as datas obrigatórias.";
+    //         }
+    //     }
+
+    //     // 3. Exibição amigável
+    //     // Se for informação, não mostramos o prefixo de "Falha"
+    //     const htmlContent = swalIcon === 'info' 
+    //         ? `<strong>${errorMessage}</strong>` 
+    //         : `Falha ao salvar orçamento:<br><br><strong>${errorMessage}</strong>`;
+
+    //     Swal.fire({
+    //         title: swalTitle,
+    //         html: htmlContent,
+    //         icon: swalIcon,
+    //         confirmButtonColor: '#8B0000'
+    //     });
+
+    // } finally {
+    //     btnEnviar.disabled = false;
+    //     btnEnviar.textContent = "Salvar Orçamento";
+    // }
+
+    // No frontend (Evento de clique do botão salvar)
+
+
+      } catch (error) {
+          console.error("Erro capturado:", error);
+
+          let erroData = null;
+          let errorMessage = "";
+          let swalTitle = "Erro!";
+          let swalIcon = "error";
+
+          // 1. Tenta extrair dados (JSON ou String)
+          try {
+              const rawMessage = error.message.replace(/^Erro na requisição:\s*/i, '').trim();
+              erroData = JSON.parse(rawMessage);
+          } catch (e) {
+              // Se falhar o parse, tratamos como String bruta
+              errorMessage = error.message.replace(/^Erro na requisição:\s*/i, '').trim();
+              
+              // INTERCEPTADOR: Se for o erro de setor mas veio como texto puro
+              if (errorMessage.includes("existe um aditivo aprovado para o setor")) {
+                  const aspasMatch = errorMessage.match(/"([^"]+)"/g);
+                  erroData = {
+                      isConfirmarSetor: true,
+                      message: errorMessage,
+                      setorSugerido: aspasMatch && aspasMatch[1] ? aspasMatch[1].replace(/"/g, '') : "SETOR NÃO IDENTIFICADO",
+                      idFuncao: null // Buscaremos abaixo via DOM
+                  };
+              }
+              if (errorMessage.includes("Já existe um item") && errorMessage.includes("neste orçamento")) {
+                  erroData = {
+                      status: "duplicado",
+                      message: errorMessage
+                  };
+              }
           }
-        }
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-      // --- FIM DA LÓGICA DE EXTRAÇÃO ---
 
-      Swal.fire({
-        title: swalTitle,
-        html: `Falha ao salvar orçamento:<br><br><strong>${errorMessage}</strong>`,
-        icon: "error",
-      });
-    } finally {
-      btnEnviar.disabled = false;
-      btnEnviar.textContent = "Salvar Orçamento";
-    }
+          if (erroData && (erroData.status === "duplicado" || erroData.isDuplicado)) {
+              const result = await Swal.fire({
+                  title: 'Item já existente',
+                  html: `${erroData.message}<br><br>Deseja incluir como um <strong>Novo Item</strong>?`,
+                  icon: 'warning',
+                  showCancelButton: true,
+                  confirmButtonText: 'Sim, Incluir',
+                  cancelButtonText: 'Cancelar',
+                  reverseButtons: true,
+                  confirmButtonColor: '#28a745'
+              });
+
+              if (result.isConfirmed) {
+                  // AJUSTE: O nome deve ser IGUAL ao que o Backend busca: req.body.ignorarDuplicata
+                  window._ignorarDuplicata = true; 
+                  
+                  // Se você usa uma função que monta o JSON antes do fetch, 
+                  // certifique-se de que ela inclua: ignorarDuplicata: window._ignorarDuplicata
+                  btnEnviar.click(); 
+              }
+              return; 
+          }
+
+          // 2. Lógica de CONFIRMAÇÃO DE SETOR
+          if (erroData && (erroData.isConfirmarSetor === true || erroData.isConfirmarSetor === "true")) {
+    
+              // Dentro do seu catch (Erro capturado)
+              if (!erroData.idFuncao) {
+                  const nomeProdutoErro = erroData.message.match(/"([^"]+)"/)?.[1]?.trim() || "";
+                  
+                  document.querySelectorAll('#tabela tbody tr').forEach(linha => {
+                      const textoLinha = linha.innerText || "";
+                      
+                      if (textoLinha.includes(nomeProdutoErro)) {
+                          // Tenta primeiro o atributo que você adicionou no change
+                          let idEncontrado = linha.getAttribute('data-idfuncao');
+
+                          // Se não encontrar o atributo, busca o valor selecionado no select daquela linha
+                          if (!idEncontrado) {
+                              const select = linha.querySelector('.idFuncao');
+                              idEncontrado = select ? select.value : null;
+                          }
+
+                          if (idEncontrado) {
+                              erroData.idFuncao = parseInt(idEncontrado);
+                              console.log("%c ID Recuperado para o Cache: " + erroData.idFuncao, "color: yellow;");
+                          }
+                      }
+                  });
+              }
+
+              const result = await Swal.fire({
+                  title: 'Vincular Setor?',
+                  html: `${erroData.message}<br><br>Deseja vincular este item ao setor <strong>${erroData.setorSugerido}</strong> automaticamente?`,
+                  icon: 'question',
+                  showCancelButton: true,
+                  showDenyButton: true,
+                  confirmButtonText: 'Sim, vincular',
+                  denyButtonText: 'Não, salvar sem vincular',
+                  cancelButtonText: 'Cancelar',
+                  confirmButtonColor: '#28a745',
+                  denyButtonColor: '#d33'
+              });
+
+              // if (result.isConfirmed && erroData.idFuncao) {
+              //     document.querySelectorAll('#tabela tbody tr').forEach(linha => {
+              //         const inputIdFuncao = linha.querySelector('.idFuncao');
+              //         if (inputIdFuncao && parseInt(inputIdFuncao.value) === erroData.idFuncao) {
+              //             // Tenta encontrar o input do setor (ajuste a classe se necessário)
+              //             const inputSetor = linha.querySelector('.setor-input, input[name*="setor"]');
+              //             if (inputSetor) {
+              //                 inputSetor.value = erroData.setorSugerido;
+                              
+              //                 // IMPORTANTE: Dispara eventos para atualizar componentes Vue/React ou scripts de cache
+              //                 inputSetor.dispatchEvent(new Event('input', { bubbles: true }));
+              //                 inputSetor.dispatchEvent(new Event('change', { bubbles: true }));
+                              
+              //                 // Se o seu sistema usa um objeto global para salvar (ex: dataOrçamento), 
+              //                 // você precisará atualizar ele manualmente aqui se o dispatch não bastar.
+              //             }
+              //         }
+              //     });
+
+              //     // Pequeno delay para garantir que o DOM processou a mudança antes do click
+              //     setTimeout(() => btnEnviar.click(), 100);
+              //     return;
+              // }
+
+              if (result.isConfirmed) {
+                  let idFinal = erroData.idFuncao;
+
+                  // Limpa tags HTML do setor (ex: <strong>PRE EVENTO</strong> -> PRE EVENTO)
+                  const setorLimpo = erroData.setorSugerido.replace(/<[^>]*>/g, '').trim();
+
+                  
+
+                  if (!idFinal) {
+                      const produtoMatch = erroData.message.match(/"([^"]+)"/);
+                      const nomeProdutoErro = produtoMatch ? produtoMatch[1].trim() : "";
+                      
+                      document.querySelectorAll('#tabela tbody tr').forEach(l => {
+                          const celula = l.querySelector('.produto-nome, td:nth-child(3), .produto'); 
+                          const nomeNaLinha = (celula?.value || celula?.textContent || "").trim();
+                          if (nomeNaLinha.includes(nomeProdutoErro)) {
+                              idFinal = parseInt(l.querySelector('.idFuncao')?.value);
+                          }
+                      });
+                  }
+
+                  // SALVA NO CACHE COM O SETOR LIMPO
+                  window._setorSugeridoCache = {
+                      idFuncao: idFinal,
+                      setor: setorLimpo
+                  };
+
+                  console.log("Cache atualizado (Setor Limpo):", window._setorSugeridoCache);
+
+                  // Preenchimento Visual
+                  let preencheuVerdadeiramente = false;
+                  document.querySelectorAll('#tabela tbody tr').forEach(linha => {
+                      const inputId = linha.querySelector('.idFuncao');
+                      
+                      // Compara garantindo que ambos sejam números
+                      if (inputId && parseInt(inputId.value) === parseInt(idFinal)) {
+                          const inputSetor = linha.querySelector('input.setor-input');
+                          if (inputSetor) {
+                              inputSetor.value = setorLimpo;
+                              inputSetor.dispatchEvent(new Event('input', { bubbles: true }));
+                              inputSetor.dispatchEvent(new Event('change', { bubbles: true }));
+                              preencheuVerdadeiramente = true;
+                          }
+                      }
+                  });
+
+                  await Swal.fire({
+                      title: "Setor Vinculado!",
+                      html: `Setor <strong>${setorLimpo}</strong> aplicado.<br>Reenviando...`,
+                      icon: "success",
+                      timer: 1000,
+                      showConfirmButton: false
+                  });
+
+                  btnEnviar.click();
+              }
+
+              if (result.isDenied && erroData.idFuncao) {
+                  window._forcarSalvarSemSetor = window._forcarSalvarSemSetor || [];
+                  window._forcarSalvarSemSetor.push(erroData.idFuncao);
+                  return btnEnviar.click();
+              }
+
+              return; 
+          }
+
+          // 3. Lógica de TRATAMENTO DE TEXTOS E FALLBACKS (Erro Vermelho ou Info Azul)
+          if (erroData?.isSwal) {
+              swalTitle = erroData.title;
+              swalIcon  = erroData.icon;
+              errorMessage = erroData.message;
+          } else {
+              errorMessage = erroData?.message || errorMessage || error.message;
+
+              if (errorMessage.includes("depende de aprovação") || errorMessage.includes("em análise")) {
+                  swalTitle = "Processo em Análise";
+                  swalIcon  = "info";
+              } else if (errorMessage.includes("foi REJEITADA") || errorMessage.includes("Não autorizado")) {
+                  swalTitle = "Item Não Autorizado";
+                  swalIcon  = "info";
+              } else if (errorMessage.includes("o valor nulo na coluna")) {
+                  swalTitle = "Dados Faltantes";
+                  const match = errorMessage.match(/o valor nulo na coluna "([^"]+)"/i);
+                  errorMessage = match
+                      ? `O campo <strong>${match[1].toUpperCase()}</strong> é obrigatório.`
+                      : "Preencha as datas obrigatórias.";
+              } else if (erroData?.detail?.includes("Edição") || errorMessage.includes("Edição")) {
+                  swalTitle = "Campo obrigatório";
+                  swalIcon  = "warning";
+                  errorMessage = "O campo <strong>Edição</strong> é obrigatório e não pode ser deixado em branco.";
+              }
+          }
+
+          // 4. Exibição final (Caso não tenha sido interceptado pela confirmação)
+          Swal.fire({
+              title: swalTitle,
+              html: swalIcon === 'info' 
+                  ? `<strong>${errorMessage}</strong>` 
+                  : `Falha ao salvar orçamento:<br><br><strong>${errorMessage}</strong>`,
+              icon: swalIcon,
+              confirmButtonColor: swalIcon === 'info' ? '#3085d6' : '#8B0000'
+          });
+
+      } finally {
+          btnEnviar.disabled = false;
+          btnEnviar.textContent = "Salvar Orçamento";
+      }
   });
 
   
@@ -3856,6 +4330,85 @@ async function verificaOrcamento() {
       }
     });
   }
+}
+
+
+async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, elementoInput) {
+    if (!idFuncao) return;
+
+    console.log(`Iniciando verificação de duplicidade para Função ID ${idFuncao} e Setor "${setor}"`);
+
+    const idOrcamentoExistenteValue = document.getElementById("idOrcamento")?.value;
+    const orcamentoIdAtual = idOrcamentoExistenteValue && !isNaN(parseInt(idOrcamentoExistenteValue)) 
+        ? parseInt(idOrcamentoExistenteValue) 
+        : null;
+
+        console.log(`ID do Orçamento Atual para verificação: ${orcamentoIdAtual}`);
+    if (orcamentoIdAtual) {
+        try {
+            const response = await fetchComToken(`orcamentos/verificar-duplicidade`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    idOrcamento: orcamentoIdAtual,
+                    idFuncao: idFuncao,
+                    setor: (setor || '').trim()
+                })
+            });
+
+            if (response && response.status === 409) {
+                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+            }
+        } catch (error) {
+            if (error.message.includes("409") || error.message.includes("Já existe")) {
+                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+            }
+        }
+    } 
+    
+    // SE O ORÇAMENTO É NOVO (ID NULL) OU PARA REFORÇAR A SEGURANÇA:
+    // Verificamos se já existe uma linha com o mesmo ID Função e Setor na tabela agora
+    let duplicadoNoDOM = false;
+    document.querySelectorAll('#tabela tbody tr').forEach(linha => {
+        const idLinha = linha.querySelector('.idFuncao')?.value;
+        const setorLinha = linha.querySelector('.setor-input')?.value?.trim();
+        
+        // Verifica se é a mesma função e mesmo setor, mas NÃO é a linha atual que estamos editando
+        if (idLinha == idFuncao && setorLinha == setor.trim() && linha !== document.activeElement.closest('tr')) {
+            duplicadoNoDOM = true;
+        }
+    });
+
+    if (duplicadoNoDOM) {
+        await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+    }
+}
+
+// Função auxiliar para evitar repetição de código
+async function exibirAlertaDuplicidade(produto, setor, elementoInput) {
+    const result = await Swal.fire({
+        title: 'Item já existente',
+        html: `O item <strong>${produto}</strong> já existe para o setor <strong>${setor || 'Geral'}</strong>.<br><br>Deseja manter assim mesmo?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, manter',
+        cancelButtonText: 'Vou alterar',
+        confirmButtonColor: '#28a745'
+    });
+
+    if (result.isConfirmed) {
+        // Usuário quer manter a duplicidade (útil para Aditivos/Extra Bonificados)
+        window._ignorarDuplicata = true;
+    } else {
+        // 🎯 AÇÃO: Limpa o setor se o usuário clicar em "Vou Alterar" ou fechar o modal
+        if (elementoInput) {
+            elementoInput.value = '';
+            setTimeout(() => elementoInput.focus(), 100); // Um pequeno delay para o foco voltar após o modal fechar
+        }
+        
+        // Garante que a flag de ignorar não fique ativa por engano
+        window._ignorarDuplicata = false;
+    }
 }
 
 async function atualizarCampoGeradoAnoPosterior(
