@@ -337,7 +337,7 @@ async function login(req, res) {
     }
 
     // Buscar usuário pelo email
-    const queryUsuario = "SELECT idusuario, email, senha_hash, nome, idempresadefault FROM usuarios WHERE email = $1";
+    const queryUsuario = "SELECT idusuario, nome, email, senha_hash, sobrenome, idempresadefault FROM usuarios WHERE email = $1";
     const resultUsuario = await db.query(queryUsuario, [email]);
 
     if (resultUsuario.rows.length === 0) {
@@ -410,6 +410,7 @@ async function login(req, res) {
 
     const tokenPayload = {
         idusuario: usuario.idusuario,
+        nomeusuario: `${usuario.nome} ${usuario.sobrenome || ''}`.trim(),
         email: usuario.email,
         empresas: empresasParaToken, // array de IDs das empresas que o usuário tem acesso
         // Passe a idempresadefault do usuário para o token
@@ -435,7 +436,7 @@ async function login(req, res) {
     res.json({
         token,
         idusuario: usuario.idusuario,
-        nome: usuario.nome,
+        nome: `${usuario.nome} ${usuario.sobrenome || ''}`.trim(),
         empresas: empresasParaToken, // Todas as empresas que ele pode acessar
         idempresaDefault: usuarioIdEmpresaDefault // A empresa padrão configurada para o usuário
     });
