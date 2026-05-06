@@ -25,7 +25,7 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     }
 
     const dados = await response.json();
-    const { token, idusuario, empresas, idempresaDefault } = dados;
+    const { token, idusuario, nome, empresas, idempresaDefault } = dados;
 
     console.log("token, idusuario", token, idusuario);
 
@@ -33,6 +33,7 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     localStorage.clear();
     localStorage.setItem("token", token);
     localStorage.setItem("idusuario", idusuario);    
+    localStorage.setItem('usuarioNome', nome);
     localStorage.setItem("empresas", JSON.stringify(empresas));
 
         // 📌 Encontra a empresa padrão na lista de empresas do usuário
