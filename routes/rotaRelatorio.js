@@ -1360,7 +1360,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         AS NUMERIC(10,2)) AS "TOT DIÁRIAS",
                         
                         CAST(
-                            ((COALESCE("VLR DIÁRIA", 0) * (CASE WHEN COALESCE("QTDPESSOAS", 0) <= 0 THEN 1 ELSE "QTDPESSOAS" END) * COALESCE("QTD", 0)) + COALESCE("VLR ADICIONAL", 0)) 
+                             ((COALESCE("VLR DIÁRIA", 0) * (CASE WHEN COALESCE("QTDPESSOAS", 0) <= 0 THEN 1 ELSE "QTDPESSOAS" END) * COALESCE("QTD", 0)) 
                         AS NUMERIC(10,2)) AS "TOT GERAL"
                     FROM (
                         SELECT
@@ -1387,7 +1387,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                 AND (
                                     tse.nmfuncao ILIKE '%Ajudante de Marcação%'
-                                    tbf.perfil ILIKE '%Free%' 
+                                    OR tbf.perfil ILIKE '%Free%' 
                                     OR 
                                     ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
                                     AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
@@ -1675,8 +1675,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                         (-48, 'Segunda Carnaval'),
                                         (-47, 'Terça Carnaval'),
                                         --(-46, 'Quarta de Cinzas'),
-                                        (-2,  'Sexta Santa'),
-                                        (0,   'Páscoa'),
+                                        --(-2,  'Sexta Santa'),
+                                        --(0,   'Páscoa'),
                                         (60,  'Corpus Christi')
                                 ) AS m(deslocamento, nome)
 
@@ -1755,18 +1755,16 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             CAST(
                                 COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + 
                                 COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
-                                -- + sub."VLR ADICIONAL" 
                             AS NUMERIC(10,2)) AS "TOT GERAL",
 
                             -- 5. TOT PAGAR (Regra de Abatimento baseada nos Status de Pagamento)
                             CAST(CASE 
-                                WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0 
-                                WHEN (sub."STATUS CACHÊ" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
-                                WHEN (sub."STATUS AJUDA" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + sub."VLR ADICIONAL"
+                                WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0 --+ sub."VLR ADICIONAL"
+                                WHEN (sub."STATUS CACHÊ" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) --+ sub."VLR ADICIONAL"
+                                WHEN (sub."STATUS AJUDA" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) --+ sub."VLR ADICIONAL"
                                 ELSE 
                                     COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + 
                                     COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) 
-                                    --+ sub."VLR ADICIONAL"
                             END AS NUMERIC(10,2)) AS "TOT PAGAR"
                         FROM (
                             SELECT 

@@ -2727,8 +2727,8 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     
     // Garantindo que Categoria e Ajudas existam no escopo
     let Categoria = selectedOption.getAttribute("data-categoria") || "Produto(s)";
-    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-vlr_alimentacao")) || 0;
-    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-vlr_transporte")) || 0;
+    let vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+    let vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
 
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;

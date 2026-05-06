@@ -2131,6 +2131,14 @@ function inicializarEPreencherCampos(eventData) {
     const datesDiariaDobrada = extractDatesFromStatusArray(datasDobrada); // 💡 USAR O NOVO AUXILIAR
     const datesMeiaDiaria = extractDatesFromStatusArray(datasMeiaDiaria); // 💡 USAR O NOVO AUXILIAR
 
+    window.currentEventDataCache = {
+        ...window.currentEventDataCache,
+        vlrtotajdcusto: eventData.vlrtotajdcusto,
+        statusAjudaCustoOriginal: (eventData.statuspgtoajdcto || "").trim().toLowerCase(),
+        statusPgtoCacheOriginalDoBanco: (eventData.statuspgto || "").trim().toLowerCase(),
+        datasOriginaisBanco: datesEvento
+    }
+
     //  // **PASSO 3: INICIALIZAR AS NOVAS INSTÂNCIAS COM AS CONFIGURAÇÕES CORRETAS**
 
     // console.log("Valor de dtdiariadobrada:", eventData.dtdiariadobrada, eventData.dtmeiadiaria,eventData.datasevento );
@@ -5316,7 +5324,7 @@ async function verificaStaff() {
                         const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                         
-                        textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO`;
+                        textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
                     }
                 }
 
@@ -6193,7 +6201,39 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()
         ) || dadosDoOrcamento.find(item => !item.setor) || dadosDoOrcamento[0];
 
+        console.log("💎 ESTRUTURA REAL DO ORCAMENTO:", orcamentoBase);
+
         idOrcamentoAtual = orcamentoBase.idorcamento;
+
+        if(orcamentosBase){
+            const nmEventoBanco = (orcamentoBase.nmevento || "").trim().toUpperCase();
+            const nmFuncaoBanco = (orcamentoBase.descfuncao || "").trim().toUpperCase();
+            const setorBanco = (orcamentoBase.setor || "").trim().toUpperCase();
+
+            console.log("🔍 Mapeando para Cache:", { nmEventoBanco, nmFuncaoBanco, setorBanco });
+
+            const chaveSimples = [nmEventoBanco, nmFuncaoBanco].filter(p => p !== "").join("-");
+
+            const chaveCompleta = [nmEventoBanco, nmFuncaoBanco, setorBanco].filter(p => p !== "").join("-");
+
+            if (typeof orcamentoPorfuncao !== 'undefined') {
+                const dadosParaCache = {
+                    idOrcamento: orcamentoBase.idorcamento,
+                    quantidadeOrcada: Number(orcamentoBase.quantidade_orcada || 0),
+                    quantidadeEscalada: Number(orcamentoBase.quantidade_escalada || 0),
+                    status: orcamentoBase.status
+                };
+
+                orcamentoPorFuncao[chaveCompleta] = dadosParaCache;
+                orcamentoPorFuncao[chaveSimples] = dadosParaCache;
+
+                console.log("💾 Cache Sincronizado:",{
+                    chave: chaveSimples,
+                    vagas: `${dadosParaCache.quantidadeEscalada}/${dadosParaCache.quantidadeOrcada}`
+                });
+            }
+        }
+
         const statusOrcamentoAtual = orcamentoBase.status;
         const liberadoCadastro = orcamentoBase.contratarstaff;
 
@@ -6239,8 +6279,8 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         // }
 
         const datasPermitidas = new Set();
-        dadosDoOrcamento.forEach(item =>{
-            if (Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+        dadosDoOrcamento.forEach(item => {
+            if (Array.isArray(item.datas_totais_orcadas)) {
             item.datas_totais_orcadas.forEach(d => {
                 if (d) datasPermitidas.add(d.split('T')[0]);
             });
@@ -6348,6 +6388,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             temOrcamento = true;
             controlarBotaoSalvarStaff(true);
         }
+        return dadosDoOrcamento;
 
     } catch (error) {
         console.error("❌ Erro em buscarEPopularOrcamento:", error);
@@ -7888,10 +7929,11 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             isLote = false;
             labelFuncionario.textContent = "FUNCIONÁRIO";
             labelFuncionario.style.color = "green";
-            descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+
 
             if (baseCheck) baseCheck.checked = true;
             if (seniorCheck) seniorCheck.disabled = true;
+            if (seniorCheck2) seniorCheck2.disabled = true;
             if (plenoCheck) plenoCheck.disabled = true;
             if (juniorCheck) juniorCheck.disabled = true;
             if (baseCheck) baseCheck.disabled = false;
@@ -7904,7 +7946,16 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
             const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
 
-            document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+            if (perfilSelecionado.toLowerCase() === "externo"){
+                document.getElementById(vlrCusto).value = "0,00";
+                descBeneficioTextarea.value = "Funcionário externo Não recebe Cachê, apenas beneficios (alimentação e transporte) conforme função.";
+            }
+            if(perfilSelecionado.toLowerCase() === "interno"){
+                document.getElementById(vlrCusto).value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+                descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+            }
+
+
             // AJUDANTE interno/externo: tem alimentação e transporte
             // Qualquer outra função interno/externo: tem alimentação e transporte
             // (só freelancer AJUDANTE não tem)
@@ -9170,7 +9221,7 @@ function registrarListenersNivel() {
             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
 
-                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('campoStatusCustoFechado').style.display = 'none';
             document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
             if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
 
@@ -10256,18 +10307,44 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     const isFechado = document.getElementById('Fechadocheck').checked;
     
     // Status de Pagamento
-    const statusPgtoAjudCusto = document.getElementById('statusPgtoAjudaCusto')?.value || "";
-    const isAjudaCustoPaga = statusPgtoAjudCusto.toLowerCase() === 'pago';
+    const statusPgtoAjudCusto = (document.getElementById('statusPgtoAjudaCusto')?.value || "").trim().toLowerCase();
+    const statusBanco = (window.currentEventDataCache?.statusPgtoAjudaCustoOriginal || "").trim().toLowerCase();
+    const isAjudaCustoPaga = statusPgtoAjudCusto.toLowerCase() === 'pago' || statusBanco === 'pago';
+
+    const cacheGlobal = window.currentEventDataCache || {};
 
     const datasOriginaisAjudCusto = window.currentEventDataCache?.datasOriginaisBanco || [];
 
-    // Se já foi pago, pegamos o valor fixo do banco
-    const vlrJaPagoAjdCusto = isAjudaCustoPaga 
-        ? (window.currentEventDataCache?.vlrtotajdcusto || 0) 
-        : 0;
+    const qtdOriginais = datasOriginaisAjudCusto.length;
+    const qtdAtuais = datasParaProcessar.length;
+
+    console.log("Checagem de Regra:",{
+        isAjudaCustoPaga,
+        qtdOriginais,
+        qtdAtuais,
+        comparacao: (qtdAtuais < qtdOriginais)
+    });
 
     let totalCache = 0;
-    let totalAjdCusto = isAjudaCustoPaga ? vlrJaPagoAjdCusto : 0; 
+
+    // Se já foi pago, pegamos o valor fixo do banco
+    // const vlrJaPagoAjdCusto = isAjudaCustoPaga 
+    //     ? (window.currentEventDataCache?.vlrtotajdcusto || 0) 
+    //     : 0;
+
+    
+    // let totalAjdCusto = isAjudaCustoPaga ? vlrJaPagoAjdCusto : 0; 
+
+    let totalAjdCusto = isAjudaCustoPaga
+        ? (window.currentEventDataCache?.vlrtotajdcusto || 0)
+        : 0;
+
+    console.log("LOG DE CORREÇÃO:", {
+        statusPgtoAjudCusto,
+        statusBanco,
+        isAjudaCustoPaga,
+        valorFixado: totalAjdCusto
+    });
 
     // --- 1. CÁLCULO DE DIÁRIAS (BASE) ---
     if (isFechado) {
@@ -10278,44 +10355,53 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
         }
     } else {
         // Quantidade de datas que geraram o pagamento original
-        const qtdDatasOriginais = datasOriginaisAjudCusto.length || 16; // 16 como fallback baseado no seu relato
-        const qtdDatasAtuais = datasParaProcessar.length;
+        // const qtdDatasOriginais = datasOriginaisAjudCusto.length || 16; // 16 como fallback baseado no seu relato
+        // const qtdDatasAtuais = datasParaProcessar.length;
 
         // Calcula o cachê base somando todas as datas selecionadas atualmente
         datasParaProcessar.forEach((data) => {
             let vlrDiariaBase = 0;
-            let vlrAjudCustoDiaria = 0;
+            // let vlrAjudCustoDiaria = 0;
 
             if (perfilFuncionario === "Freelancer") {
                 vlrDiariaBase = cacheInput;
-                vlrAjudCustoDiaria = transporte + alimentacao;
+                // vlrAjudCustoDiaria = transporte + alimentacao;
             } else if (perfilFuncionario === "Lote") {
                 vlrDiariaBase = cacheInput * qtdpessoas;
-                vlrAjudCustoDiaria = (transporte + alimentacao) * qtdpessoas;
+                // vlrAjudCustoDiaria = (transporte + alimentacao) * qtdpessoas;
             } else {
                 vlrDiariaBase = isFinalDeSemanaOuFeriado(data) ? cacheInput : 0;
-                vlrAjudCustoDiaria = transporte + alimentacao;
+                // vlrAjudCustoDiaria = transporte + alimentacao;
             }
 
             totalCache += vlrDiariaBase;
             
             // Se NÃO pago, acumula ajuda de custo
             if (!isAjudaCustoPaga) {
-                totalAjdCusto += vlrAjudCustoDiaria;
+                // totalAjdCusto += vlrAjudCustoDiaria;
+                let vlrAjdDiaria = ( transporte + alimentacao);
+                    if(perfilFuncionario === "Lote") vlrAjdDiaria *= qtdpessoas;
+                    totalAjdCusto += vlrAjdDiaria;
             }
         });
 
         // REGRA DE OURO PARA O DESCONTO (Se a ajuda já foi paga)
         if (isAjudaCustoPaga) {
-            let vlrAjudaUnitario = transporte + alimentacao; // 75.00
+            let vlrAjudaUnitario = (transporte + alimentacao); // 75.00
             if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
 
-            // Se o usuário tirou datas, a quantidade atual será menor que a original
-            if (qtdDatasAtuais < qtdDatasOriginais) {
-                const diferencaDatas = qtdDatasOriginais - qtdDatasAtuais;
-                
-                // Descontamos do Cachê o valor das ajudas de custo dessas datas removidas
-                totalCache -= (diferencaDatas * vlrAjudaUnitario);
+                if (qtdAtuais < qtdOriginais) {
+                    const qtdRemovida = qtdOriginais - qtdAtuais;
+                    const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
+
+                    console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<<", "background: #ff0000; color: #fff");
+                    totalCache = totalCache - valorParaDescontar
+                }else if (qtdAtuais > qtdOriginais) {
+                    const qtdAdicionada = qtdAtuais - qtdOriginais;
+                    const valorParaAdicionar = qtdAdicionada * vlrAjudaUnitario;
+
+                    console.log("%c >>> INCLUSÃO: Somando ajuda extra ao Cachê <<<", "background: #008000; color: #fff");
+                    totalCache = totalCache + valorParaAdicionar
             }
         }
     }
@@ -10324,10 +10410,10 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     if (typeof diariaDobradacheck !== 'undefined' && diariaDobradacheck.checked && datasDobrada?.length > 0) {
         const autorizadas = datasDobrada.filter(item => item.status === 'Autorizado');
         if (autorizadas.length > 0) {
-            let vlrDobraTotal = cacheInput * autorizadas.length;
+            totalCache += cacheInput * autorizadas.length;
             let vlrAjudDobraTotal = (vlrAlimentacaoDobra || 0) * autorizadas.length;
 
-            totalCache += vlrDobraTotal;
+
             if (isAjudaCustoPaga) {
                 totalCache += vlrAjudDobraTotal; 
             } else {
@@ -10384,6 +10470,7 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     }
 }
 
+
 function gerarLogDiferencaDatas(datasOriginais, datasAtuais, motivoInput) {
     // 1. Garante que estamos lidando com strings no formato DD/MM/AAAA para comparar e exibir
     const formatarParaDiaMesAno = (data) => {
@@ -10416,7 +10503,7 @@ function gerarLogDiferencaDatas(datasOriginais, datasAtuais, motivoInput) {
     // 4. Retorna a string final idêntica ao seu padrão
     const dataHoraAtual = new Date().toLocaleDateString('pt-BR') + ', ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     
-    return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO`;
+    return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
 }
 
 function registrarLogPosPagamento(msg) {
@@ -10439,7 +10526,7 @@ function registrarLogPosPagamento(msg) {
             minute: '2-digit' 
         });
         
-        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO\n`;
+        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
 
         // Só adiciona se a mensagem exata ainda não existir para esta ação
         if (!obsInput.value.includes(msg)) {
@@ -10961,19 +11048,72 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     //     return { allowed: false };
     // }
 
-    if (totalJaOcupado >= limite) {
+//     if (totalJaOcupado >= limite) {
         
-        // 🎯 PASSO 1: Antes de mostrar qualquer aviso, checamos se este funcionário já está autorizado
-        // Testamos os dois tipos possíveis de solicitação
-        // const verificacaoAditivo = await verificarStatusAditivoExtra(
-        //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Aditivo - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
-        // );
+//         // 🎯 PASSO 1: Antes de mostrar qualquer aviso, checamos se este funcionário já está autorizado
+//         // Testamos os dois tipos possíveis de solicitação
+//         // const verificacaoAditivo = await verificarStatusAditivoExtra(
+//         //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Aditivo - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
+//         // );
 
-        // const verificacaoExtra = await verificarStatusAditivoExtra(
-        //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Extra Bonificado - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
-        // );
-        // Exemplo de verificação de DATA
-            const checkVaga = await verificarStatusAditivoExtra(
+//         // const verificacaoExtra = await verificarStatusAditivoExtra(
+//         //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Extra Bonificado - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
+//         // );
+//         // Exemplo de verificação de DATA
+//             const checkVaga = await verificarStatusAditivoExtra(
+//             dadosOrcamento.idOrcamento, 
+//             criterios.idFuncao, 
+//             'QUALQUER_VAGA', 
+//             idFuncionario, 
+//             nmFuncionario, 
+//             nmFuncao, 
+//             dataUnicaParaBanco
+//         );
+
+//         // ✅ Se houver autorização específica para este funcionário nesta vaga
+//         if (checkVaga && checkVaga.autorizado) {
+//             console.log("✅ Cadastro liberado: Autorização de vaga encontrada.");
+//             return { allowed: true }; 
+//         }
+
+//         // 🛑 Se houver uma solicitação PENDENTE ou REJEITADA
+//         // (O Swal já foi disparado dentro da função verificarStatusAditivoExtra)
+//         if (checkVaga && checkVaga.bloqueado) {
+//             return { allowed: false };
+//         }
+
+//         // 🎯 PASSO 2: Se não houver nada no banco, aí sim mostramos o Swal de ESCOLHA
+//         const { value: decisao } = await Swal.fire({
+//             icon: 'warning',
+//             title: 'Limite de Vagas Excedido',
+//             html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
+//                 `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
+//             showCancelButton: true,
+//             showDenyButton: true,
+//             confirmButtonText: 'Solicitar Aditivo',
+//             denyButtonText: 'Extra Bonificado',
+//             cancelButtonText: 'Cancelar Cadastro',
+//         });
+
+//         if (decisao === true || decisao === false) {
+//             const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
+
+//             // Chama o formulário de justificativa
+//             await solicitarDadosExcecao(
+//                 tipoEscolhido, dadosOrcamento.idOrcamento, 
+//                 nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
+//             );
+//         }
+        
+//         return { allowed: false };
+//     }
+
+//     return { allowed: true };
+// }
+
+    if (totalJaOcupado >= limite) {
+        // 1. Pergunta ao banco se já existe algo para este caso específico
+        const checkVaga = await verificarStatusAditivoExtra( 
             dadosOrcamento.idOrcamento, 
             criterios.idFuncao, 
             'QUALQUER_VAGA', 
@@ -10983,42 +11123,40 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
             dataUnicaParaBanco
         );
 
-        // ✅ Se houver autorização específica para este funcionário nesta vaga
-        if (checkVaga && checkVaga.autorizado) {
-            console.log("✅ Cadastro liberado: Autorização de vaga encontrada.");
+        // ✅ CASO A: Já está autorizado especificamente (Libera direto)
+        if (checkVaga && checkVaga.autorizado) {   
             return { allowed: true }; 
         }
 
-        // 🛑 Se houver uma solicitação PENDENTE ou REJEITADA
-        // (O Swal já foi disparado dentro da função verificarStatusAditivoExtra)
+        // 🛑 CASO B: Está pendente ou foi rejeitado (O Swal já foi mostrado dentro da verificarStatusAditivoExtra)
         if (checkVaga && checkVaga.bloqueado) {
             return { allowed: false };
         }
 
-        // 🎯 PASSO 2: Se não houver nada no banco, aí sim mostramos o Swal de ESCOLHA
-        const { value: decisao } = await Swal.fire({
-            icon: 'warning',
-            title: 'Limite de Vagas Excedido',
-            html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
-                `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Solicitar Aditivo',
-            denyButtonText: 'Extra Bonificado',
-            cancelButtonText: 'Cancelar Cadastro',
-        });
+        // 🎯 CASO C: Se chegou aqui, é porque não existe NADA no banco (checkVaga.encontrado === false)
+        // Mostramos o alerta original de escolha apenas se não houver registro prévio
+        if (!checkVaga.encontrado) {
+            const { value: decisao } = await Swal.fire({
+                icon: 'warning',
+                title: 'Limite de Vagas Excedido',
+                html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
+                    `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Solicitar Aditivo',
+                denyButtonText: 'Extra Bonificado',
+                cancelButtonText: 'Cancelar Cadastro',
+            });
 
-        if (decisao === true || decisao === false) {
-            const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
-
-            // Chama o formulário de justificativa
-            await solicitarDadosExcecao(
-                tipoEscolhido, dadosOrcamento.idOrcamento, 
-                nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
-            );
+            if (decisao === true || decisao === false) {
+                const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
+                await solicitarDadosExcecao(
+                    tipoEscolhido, dadosOrcamento.idOrcamento, 
+                    nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
+                );
+            }
+            return { allowed: false };
         }
-        
-        return { allowed: false };
     }
 
     return { allowed: true };
@@ -11777,6 +11915,7 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 });
                 return { bloqueado: false, autorizado: true };
             }
+            
 
             // CASO C: Pendente em outro evento na mesma data → AVISAR e perguntar
             if (solicitacaoRecente && solicitacaoRecente.status === 'Pendente') {
@@ -11813,6 +11952,14 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
         }
 
         // ← daqui para baixo só chega para outros tipos (Aditivo, Extra, Data Fora)
+        if (!solicitacaoRecente && !autorizadoEspecifico) {
+                console.log("ℹ️ Nenhuma solicitação prévia encontrada. Retornando ao fluxo principal.");
+                return { 
+                    bloqueado: false, 
+                    encontrado: false, 
+                    autorizado: false 
+                };
+        }
 
         // --- 1. CASO AUTORIZADO ESPECÍFICO ---
         if (autorizadoEspecifico) {

@@ -1320,10 +1320,15 @@ router.put("/:idStaffEvento",
     // ... (mantenha os middlewares de autenticação e log conforme o código anterior)
 
     async (req, res) => {
-        const { idStaffEvento } = req.params;
+        // const { idStaffEvento } = req.params;
+        const idStaffEvento = req.params.idStaffEvento;
         const idempresa = req.idempresa;
         const idUsuarioLogado = req.usuario.idusuario;
         const body = req.body;
+
+        console.log("BODY DO PUT STAFF", req.body);
+        console.log("ID Staff Evento (param):", req.params.idStaffEvento);
+        console.log("ID Staff Evento (req):", idStaffEvento);
 
         let client;
         try {
@@ -1535,53 +1540,113 @@ router.put("/:idStaffEvento",
 );
 
 
-async function registrarSolicitacao(client, dados) {
-    const formatarParaJsonB = (valor) => {
-        if (!valor) return null;
-        if (typeof valor === 'object') return JSON.stringify(valor);
-        return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
-    };
+// async function registrarSolicitacao(client, dados) {
+//     const formatarParaJsonB = (valor) => {
+//         if (!valor) return null;
+//         if (typeof valor === 'object') return JSON.stringify(valor);
+//         return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
+//     };
 
-    // Ajustamos a ordem para refletir exatamente os dados.
-    // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
+//     // Ajustamos a ordem para refletir exatamente os dados.
+//     // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
+//     const query = `
+//         INSERT INTO public.solicitacoes (
+//             idempresa,              -- $1
+//             idorcamento,            -- $2
+//             idfuncionario,          -- $3
+//             idfuncao,               -- $4
+//             idregistroalterado,     -- $5
+//             idusuariosolicitante,   -- $6
+//             tiposolicitacao,        -- $7
+//             categoria_log,          -- $8
+//             vlrsolicitado,          -- $9
+//             justificativa,          -- $10
+//             dtsolicitada,           -- $11 (O campo JSONB com as datas)
+//             status,                 -- $12
+//             dtsolicitacao           -- Automático
+//         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+//         ON CONFLICT (idregistroalterado, categoria_log) 
+//         WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
+//         DO UPDATE SET 
+//             vlrsolicitado = EXCLUDED.vlrsolicitado,
+//             justificativa = EXCLUDED.justificativa,
+//             dtsolicitada = EXCLUDED.dtsolicitada,
+//             dtsolicitacao = CURRENT_TIMESTAMP;
+//     `;
+
+//     const values = [
+//         dados.idempresa,                // $1
+//         dados.idorcamento,              // $2
+//         dados.idfuncionario || null,    // $3
+//         dados.idfuncao,                 // $4
+//         dados.idstaffevento || null,    // $5
+//         dados.idusuariosolicitante,     // $6
+//         dados.tiposolicitacao,          // $7
+//         dados.categoria,                // $8
+//         dados.valor || 0,               // $9
+//         dados.justificativa,            // $10 (Texto comum)
+//         formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
+//         'Pendente'                      // $12
+//     ];
+
+//     await client.query(query, values);
+// }
+
+async function registrarSolicitacao(client, dados) {
+  //  const dtsol = (dados.datas && dados.datas.length > 0 && dados.datas !== '[]') ? dados.datas : null;
+
+  let datasLimpas = dados.datas;
+
+    // Se vier um objeto (como no seu log), extraímos apenas a string da data
+    if (datasLimpas && typeof datasLimpas === 'object' && !Array.isArray(datasLimpas)) {
+        datasLimpas = datasLimpas.data ? [datasLimpas.data] : null;
+    } 
+    // Se vier uma string "[]" ou estiver vazio, tratamos como null
+    else if (datasLimpas === '[]' || (Array.isArray(datasLimpas) && datasLimpas.length === 0)) {
+        datasLimpas = null;
+    }
+    // Se vier uma data única em string fora de array, colocamos no array
+    else if (typeof datasLimpas === 'string' && datasLimpas.length > 0) {
+        datasLimpas = [datasLimpas];
+    }
+
+    const dtsol = datasLimpas;
+
+    // const conflitoAlvo = dtsol 
+    //     ? "(idregistroalterado, categoria_log, dtsolicitada, idfuncionario) WHERE status = 'Pendente' AND dtsolicitada IS NOT NULL"
+    //     : "(idregistroalterado, categoria_log, idfuncionario) WHERE status = 'Pendente' AND dtsolicitada IS NULL";
+
+    const conflitoAlvo = dtsol 
+        ? "(idregistroalterado, categoria_log, dtsolicitada, idfuncionario) WHERE status = 'Pendente' AND dtsolicitada IS NOT NULL"
+        : "(idregistroalterado, categoria_log, idfuncionario) WHERE status = 'Pendente' AND dtsolicitada IS NULL";
+
     const query = `
         INSERT INTO public.solicitacoes (
-            idempresa,              -- $1
-            idorcamento,            -- $2
-            idfuncionario,          -- $3
-            idfuncao,               -- $4
-            idregistroalterado,     -- $5
-            idusuariosolicitante,   -- $6
-            tiposolicitacao,        -- $7
-            categoria_log,          -- $8
-            vlrsolicitado,          -- $9
-            justificativa,          -- $10
-            dtsolicitada,           -- $11 (O campo JSONB com as datas)
-            status,                 -- $12
-            dtsolicitacao           -- Automático
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
-        ON CONFLICT (idregistroalterado, categoria_log) 
-        WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
+            idempresa, idorcamento, idfuncionario, idfuncao, 
+            idregistroalterado, idusuariosolicitante, tiposolicitacao, 
+            categoria_log, vlrsolicitado, justificativa, dtsolicitada, status, dtsolicitacao
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        ON CONFLICT ${conflitoAlvo} 
         DO UPDATE SET 
             vlrsolicitado = EXCLUDED.vlrsolicitado,
             justificativa = EXCLUDED.justificativa,
-            dtsolicitada = EXCLUDED.dtsolicitada,
-            dtsolicitacao = CURRENT_TIMESTAMP;
+            dtsolicitacao = CURRENT_TIMESTAMP,
+            idusuariosolicitante = EXCLUDED.idusuariosolicitante;
     `;
 
     const values = [
-        dados.idempresa,                // $1
-        dados.idorcamento,              // $2
-        dados.idfuncionario || null,    // $3
-        dados.idfuncao,                 // $4
-        dados.idstaffevento || null,    // $5
-        dados.idusuariosolicitante,     // $6
-        dados.tiposolicitacao,          // $7
-        dados.categoria,                // $8
-        dados.valor || 0,               // $9
-        dados.justificativa,            // $10 (Texto comum)
-        formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
-        'Pendente'                      // $12
+        dados.idempresa,
+        dados.idorcamento,
+        dados.idfuncionario || null,
+        dados.idfuncao,
+        dados.idstaffevento || null,
+        dados.idusuario || dados.idusuariosolicitante,
+        dados.tiposolicitacao,
+        dados.categoria,
+        dados.valor || 0,
+        dados.justificativa,
+        dtsol,
+        'Pendente'
     ];
 
     await client.query(query, values);
@@ -2010,7 +2075,7 @@ router.post('/aditivoextra/solicitacao',
             -- Comparação de Arrays nativos
             AND (dtsolicitada = $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
             AND idEmpresa = $6
-            AND idregistroalterado = $7
+            AND idregistroalterado = $7 OR (idregistroalterado IS NULL AND $7 IS NULL)
             AND status = 'Pendente'
         `, [idOrcamento, idFuncionarioTratado, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto, idregistroalteradoTratado]);
 
