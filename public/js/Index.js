@@ -358,6 +358,8 @@ function fecharModal() {
     document.getElementById("modal-overlay").style.display = "none";
     document.body.classList.remove("modal-open");
 
+    const origemAbertura = sessionStorage.getItem("origemAbertura");
+
     // 3. Lógica de Ação Pós-Fechamento (Callback vs. Refresh Geral)
     
     // ⭐️ PASSO CRUCIAL: Se a função de callback específica existir (definida em abrirDetalhesEquipe), chame-a.
