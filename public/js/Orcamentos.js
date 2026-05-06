@@ -1987,8 +1987,11 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
-        novaLinha.style.backgroundColor = "#f0fff4";
+        novaLinha.style.backgroundColor = "#c5eed0";
         novaLinha.style.borderLeft = "4px solid #48bb78"; // Borda verde
+    } else {
+        novaLinha.style.backgroundColor = "#e48585"; // Cor padrão para aditivos
+        novaLinha.style.borderLeft = " 4px solid #ff0000 "; // Sem borda para aditivos
     }
 
     // 2. HTML da Nova Linha
@@ -5455,6 +5458,250 @@ function atualizarEstadoLiberaStaff(status) {
 // =============================
 
 
+// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
+//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
+
+//   const tabelaBody = document.querySelector("#tabela tbody");
+
+//   if (!tabelaBody) {
+//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
+//     return;
+//   }
+
+//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
+
+//   if (!itens || itens.length === 0) {
+//     const emptyRow = tabelaBody.insertRow();
+//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
+//     return;
+//   }
+
+//   // --- LÓGICA DE REAJUSTE ---
+//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
+  
+//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
+//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+
+//   // =======================================================
+//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
+//   // =======================================================
+//   const PRIORIDADE_CATEGORIAS = {
+//     "PRODUTOS": 1,
+//     "EQUIPAMENTOS": 2,
+//     "SUPRIMENTOS": 3
+//   };
+
+//   itens.sort((a, b) => {
+//     const catA = (a.categoria || "OUTROS").toUpperCase();
+//     const catB = (b.categoria || "OUTROS").toUpperCase();
+
+//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
+//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
+
+//     // 1º Passo: Comparar o peso da Categoria
+//     if (pesoA !== pesoB) {
+//       return pesoA - pesoB;
+//     }
+
+//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
+//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
+//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
+//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
+//     return nomeA.localeCompare(nomeB);
+//   });
+//   // =======================================================
+
+// itens.forEach((item) => {
+//   // VALORES ORIGINAIS (NÃO mexer!)
+//   let vlrDiaria = parseFloat(item.vlrdiaria || 0);
+//   let ctoDiaria = parseFloat(item.ctodiaria || 0);
+//   let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
+//   let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
+//   let vlrHospedagem = parseFloat(item.hospedagem || 0);
+//   let vlrTransporte = parseFloat(item.transporte || 0);
+
+//   let itemOrcamentoID = item.idorcamentoitem;
+//   const qtdItens = item.qtditens || 0;
+//   const qtdDias = item.qtddias || 0;
+
+//   // TOTAIS ORIGINAIS do banco
+//   let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
+//   let totCtoDiaria = parseFloat(item.totctodiaria || 0);
+//   let totAjuda = parseFloat(item.totajdctoitem || 0);
+//   let totGeralItem = parseFloat(item.totgeralitem || 0);
+//   let descontoItem = parseFloat(item.descontoitem || 0);
+//   let acrescimoItem = parseFloat(item.acrescimoitem || 0);
+
+//   // ✅ REAJUSTA SÓ OS TOTAIS FINAIS (+8% exato)
+//   if (aplicarReajuste) {
+//     totVdaDiaria = ceilToTenCents(totVdaDiaria, fatorGeral);
+//     totCtoDiaria = ceilToTenCents(totCtoDiaria, fatorGeral);
+//     totAjuda = ceilToTenCents(totAjuda, fatorAjuda);
+//     totGeralItem = totCtoDiaria + totAjuda;
+
+//     itemOrcamentoID = ""; // Novo orçamento
+//   }
+
+//   const vlrBaseItem = vlrDiaria; // Unitário ORIGINAL
+
+//   const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
+
+//   const newRow = tabelaBody.insertRow();
+//   newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
+//   newRow.dataset.idfuncao = item.idfuncao || "";
+//   newRow.dataset.idequipamento = item.idequipamento || "";
+//   newRow.dataset.idsuprimento = item.idsuprimento || "";
+//   newRow.dataset.vlrbase = vlrBaseItem.toString(); // ORIGINAL
+//   newRow.dataset.reajustadoTotal = aplicarReajuste ? 'true' : 'false'; // Flag
+//   newRow.dataset.adicional = item.adicional ? "true" : "false";
+//   newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
+
+//   if (item.extrabonificado) {
+//     newRow.style.backgroundColor = "#f0fff4";
+//     newRow.style.borderLeft = "4px solid #48bb78";
+//   }
+
+//     newRow.innerHTML = `
+//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
+//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
+//             <td class="Proposta">
+//                 <div class="checkbox-wrapper-33">
+//                     <label class="checkbox">
+//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
+//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
+//                     </label>
+//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
+//                 </div>
+//             </td>
+//             <td class="cacheFechado">
+//             <div class="checkbox-wrapper-33">
+//                 <label class="checkbox">
+//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
+//                     <span class="checkbox__symbol">
+//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+//                             <path d="M4 14l8 7L24 7"></path>
+//                         </svg>
+//                     </span>
+//                     <p class="checkbox__textwrapper"></p>
+//                 </label>
+//             </div>
+//         </td>
+//             <td class="Categoria">${item.categoria || ""}</td>
+//             <td class="qtdProduto">
+//                 <div class="add-less">
+//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
+//                     <div class="Bt">
+//                         <button type="button" class="increment">+</button>
+//                         <button type="button" class="decrement">-</button>
+//                     </div>
+//                 </div>
+//             </td>
+//             <td class="produto">${nomeProduto}</td>
+//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
+//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
+//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
+//             <td class="descontoItem Moeda">
+//                 <div class="Acres-Desc">
+//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}">
+//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
+//                 </div>
+//             </td>
+//             <td class="acrescimoItem Moeda">
+//                 <div class="Acres-Desc">
+//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}">
+//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
+//                 </div>
+//             </td>            
+//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
+//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
+//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
+//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
+//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
+//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
+//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
+//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
+//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
+//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
+//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+//         `;
+
+//     // --- EVENTOS ---
+//     const setupAcresDesc = (sel, type) => {
+//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
+//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
+//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
+//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
+//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
+//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
+//     };
+
+//     setupAcresDesc(".descontoItem", "desconto");
+//     setupAcresDesc(".acrescimoItem", "acrescimo");
+
+//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
+//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
+//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
+
+//     const itemDateInput = newRow.querySelector(".datas-item");
+//     if (itemDateInput) {
+//       const dates = [];
+//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
+//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
+//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
+//         // Garante que o campo de datas seja sempre preenchido visualmente
+//         if (item.datas && item.datas.length > 0) {
+//           let fpInstance = itemDateInput._flatpickr;
+//           if (!fpInstance) {
+//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
+//           }
+//           fpInstance.setDate(item.datas, true);
+//         }
+//     }
+
+//     const delBtn = newRow.querySelector(".btnApagar");
+//     if (delBtn) {
+//       delBtn.addEventListener("click", async (e) => {
+//         e.preventDefault();
+//         const id = newRow.dataset.idorcamentoitem;
+//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
+//         else {
+//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
+//           if (isConfirmed) {
+//             try {
+//               const principalId = document.getElementById("idOrcamento").value;
+//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
+//               newRow.remove();
+//               recalcularTotaisGerais();
+//               Swal.fire("Deletado!", "", "success");
+//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
+//           }
+//         }
+//       });
+//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
+//     }
+//       if (item.cachefechado === true || item.cachefechado === "true") {
+//         const chkCache = newRow.querySelector(".chk-cache-fechado");
+//         if (chkCache) {
+//             // Chamamos a função passando o elemento para que ela trave os botões
+//             window.toggleEditavel(chkCache); 
+//         }
+//     }
+//   });
+
+
+//   if (aplicarReajuste) {
+//     const aviso = document.getElementById("avisoReajusteMensagem");
+//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
+//     recalcularTotaisGerais();
+//     aplicarDescontoEAcrescimo("Desconto"); 
+//   }
+
+//   aplicarMascaraMoeda();
+// }
+
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
@@ -5465,7 +5712,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     return;
   }
 
-  tabelaBody.innerHTML = ""; // Limpa as linhas existentes
+  tabelaBody.innerHTML = "";
 
   if (!itens || itens.length === 0) {
     const emptyRow = tabelaBody.insertRow();
@@ -5475,187 +5722,224 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
 
   // --- LÓGICA DE REAJUSTE ---
   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
-  
+
   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
 
-  // =======================================================
-  // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
-  // =======================================================
-  const PRIORIDADE_CATEGORIAS = {
-    "PRODUTOS": 1,
-    "EQUIPAMENTOS": 2,
-    "SUPRIMENTOS": 3
-  };
-
+  // --- ORDENAÇÃO ---
+  const PRIORIDADE_CATEGORIAS = { "PRODUTOS": 1, "EQUIPAMENTOS": 2, "SUPRIMENTOS": 3 };
   itens.sort((a, b) => {
     const catA = (a.categoria || "OUTROS").toUpperCase();
     const catB = (b.categoria || "OUTROS").toUpperCase();
-
     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
-
-    // 1º Passo: Comparar o peso da Categoria
-    if (pesoA !== pesoB) {
-      return pesoA - pesoB;
-    }
-
-    // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
-    // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
+    if (pesoA !== pesoB) return pesoA - pesoB;
     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
     return nomeA.localeCompare(nomeB);
   });
-  // =======================================================
 
-itens.forEach((item) => {
-  // VALORES ORIGINAIS (NÃO mexer!)
-  let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-  let ctoDiaria = parseFloat(item.ctodiaria || 0);
-  let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-  let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-  let vlrHospedagem = parseFloat(item.hospedagem || 0);
-  let vlrTransporte = parseFloat(item.transporte || 0);
+  // ✅ Helper: lê boolean vindo do PostgreSQL (true, "true", 1, "1") ou false para qualquer outro valor
+  const parseBool = (val) => val === true || val === "true" || val === 1 || val === "1";
 
-  let itemOrcamentoID = item.idorcamentoitem;
-  const qtdItens = item.qtditens || 0;
-  const qtdDias = item.qtddias || 0;
+  itens.forEach((item) => {
 
-  // TOTAIS ORIGINAIS do banco
-  let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-  let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-  let totAjuda = parseFloat(item.totajdctoitem || 0);
-  let totGeralItem = parseFloat(item.totgeralitem || 0);
-  let descontoItem = parseFloat(item.descontoitem || 0);
-  let acrescimoItem = parseFloat(item.acrescimoitem || 0);
+    let vlrDiaria        = parseFloat(item.vlrdiaria || 0);
+    let ctoDiaria        = parseFloat(item.ctodiaria || 0);
+    let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
+    let vlrAjdTransporte  = parseFloat(item.vlrajdctotransporte || 0);
+    let vlrHospedagem    = parseFloat(item.hospedagem || 0);
+    let vlrTransporte    = parseFloat(item.transporte || 0);
 
-  // ✅ REAJUSTA SÓ OS TOTAIS FINAIS (+8% exato)
-  if (aplicarReajuste) {
-    totVdaDiaria = ceilToTenCents(totVdaDiaria, fatorGeral);
-    totCtoDiaria = ceilToTenCents(totCtoDiaria, fatorGeral);
-    totAjuda = ceilToTenCents(totAjuda, fatorAjuda);
-    totGeralItem = totCtoDiaria + totAjuda;
+    let itemOrcamentoID  = item.idorcamentoitem;
+    const qtdItens       = item.qtditens || 0;
+    const qtdDias        = item.qtddias || 0;
 
-    itemOrcamentoID = ""; // Novo orçamento
-  }
+    let totVdaDiaria  = parseFloat(item.totvdadiaria || 0);
+    let totCtoDiaria  = parseFloat(item.totctodiaria || 0);
+    let totAjuda      = parseFloat(item.totajdctoitem || 0);
+    let totGeralItem  = parseFloat(item.totgeralitem || 0);
+    let descontoItem  = parseFloat(item.descontoitem || 0);
+    let acrescimoItem = parseFloat(item.acrescimoitem || 0);
 
-  const vlrBaseItem = vlrDiaria; // Unitário ORIGINAL
+    const isAdicional    = parseBool(item.adicional);
+    const isBonificado   = isAdicional && vlrDiaria === 0;
 
-  const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
+    if (aplicarReajuste) {
+      totVdaDiaria  = ceilToTenCents(totVdaDiaria, fatorGeral);
+      totCtoDiaria  = ceilToTenCents(totCtoDiaria, fatorGeral);
+      totAjuda      = ceilToTenCents(totAjuda, fatorAjuda);
+      totGeralItem  = totCtoDiaria + totAjuda;
+      itemOrcamentoID = "";
+    }
 
-  const newRow = tabelaBody.insertRow();
-  newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-  newRow.dataset.idfuncao = item.idfuncao || "";
-  newRow.dataset.idequipamento = item.idequipamento || "";
-  newRow.dataset.idsuprimento = item.idsuprimento || "";
-  newRow.dataset.vlrbase = vlrBaseItem.toString(); // ORIGINAL
-  newRow.dataset.reajustadoTotal = aplicarReajuste ? 'true' : 'false'; // Flag
-  newRow.dataset.adicional = item.adicional ? "true" : "false";
-  newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
+    const vlrBaseItem  = vlrDiaria;
+    const nomeProduto  = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
 
-  if (item.extrabonificado) {
-    newRow.style.backgroundColor = "#f0fff4";
-    newRow.style.borderLeft = "4px solid #48bb78";
-  }
+
+
+    const newRow = tabelaBody.insertRow();
+
+    // ✅ ESTILIZAÇÃO: aplica cor conforme os campos do banco
+    if (isAdicional) {
+      newRow.classList.add("liberada", "linhaAdicional", "adicional");
+      if (isBonificado) {
+        newRow.style.backgroundColor = "#c5eed0"; // Verde — bonificado
+        newRow.style.borderLeft = "4px solid #48bb78";
+      } else {
+        newRow.style.backgroundColor = "#e48585"; // Vermelho — aditivo
+        newRow.style.borderLeft = "4px solid #dc3545";
+      }
+    }
+    // Datasets para uso em outros lugares
+    newRow.dataset.idorcamentoitem  = itemOrcamentoID || "";
+    newRow.dataset.idfuncao         = item.idfuncao || "";
+    newRow.dataset.idequipamento    = item.idequipamento || "";
+    newRow.dataset.idsuprimento     = item.idsuprimento || "";
+    newRow.dataset.vlrbase          = vlrBaseItem.toString();
+    newRow.dataset.adicional        = isAdicional  ? "true" : "false";
+    newRow.dataset.extrabonificado  = isBonificado ? "true" : "false";
 
     newRow.innerHTML = `
-            <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
-            <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
-            <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
-            <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
-            <td class="Proposta">
-                <div class="checkbox-wrapper-33">
-                    <label class="checkbox">
-                        <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
-                        <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
-                    </label>
-                    ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
-                </div>
-            </td>
-            <td class="cacheFechado">
-            <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
-                    <span class="checkbox__symbol">
-                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 14l8 7L24 7"></path>
-                        </svg>
-                    </span>
-                    <p class="checkbox__textwrapper"></p>
-                </label>
-            </div>
-        </td>
-            <td class="Categoria">${item.categoria || ""}</td>
-            <td class="qtdProduto">
-                <div class="add-less">
-                    <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
-                    <div class="Bt">
-                        <button type="button" class="increment">+</button>
-                        <button type="button" class="decrement">-</button>
-                    </div>
-                </div>
-            </td>
-            <td class="produto">${nomeProduto}</td>
-            <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
-            <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
-            <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
-            <td class="descontoItem Moeda">
-                <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}">
-                    <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-                </div>
-            </td>
-            <td class="acrescimoItem Moeda">
-                <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}">
-                    <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-                </div>
-            </td>            
-            <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
-            <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
-            <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
-            <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-            <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
-            <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
-            <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-            <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
-            <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
-            <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-            <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-        `;
+      <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
+      <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
+      <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
+      <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
+      <td class="Proposta">
+        <div class="checkbox-wrapper-33">
+          <label class="checkbox">
+            <input class="checkbox__trigger visuallyhidden" type="checkbox"
+              ${item.enviarnaproposta && !isBonificado ? "checked" : ""}
+              ${isBonificado ? "checked" : ""} />
+            <span class="checkbox__symbol">
+              <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                <path d="M4 14l8 7L24 7"></path>
+              </svg>
+            </span>
+          </label>
+          ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;"></span>' : ''}
+        </div>
+      </td>
+      <td class="cacheFechado">
+        <div class="checkbox-wrapper-33">
+          <label class="checkbox">
+            <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox"
+              onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
+            <span class="checkbox__symbol">
+              <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                <path d="M4 14l8 7L24 7"></path>
+              </svg>
+            </span>
+          </label>
+        </div>
+      </td>
+      <td class="Categoria">${item.categoria || ""}</td>
+      <td class="qtdProduto">
+        <div class="add-less">
+          <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
+          <div class="Bt">
+            <button type="button" class="increment">+</button>
+            <button type="button" class="decrement">-</button>
+          </div>
+        </div>
+      </td>
+      <td class="produto">
+        ${nomeProduto}
+        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isAdicional && !isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>' : ''}
+      </td>
+      <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
+      <td class="qtdDias">
+        <div class="add-less">
+          <input type="number" readonly class="qtdDias" min="0" value="${qtdDias}">
+        </div>
+      </td>
+      <td class="Periodo">
+        <div class="flatpickr-container">
+          <input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar">
+        </div>
+      </td>
+      <td class="descontoItem Moeda">
+        <div class="Acres-Desc">
+          <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}" ${isBonificado ? 'readonly' : ''}>
+          <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%" ${isBonificado ? 'readonly' : ''}>
+        </div>
+      </td>
+      <td class="acrescimoItem Moeda">
+        <div class="Acres-Desc">
+          <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}" ${isBonificado ? 'readonly' : ''}>
+          <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%" ${isBonificado ? 'readonly' : ''}>
+        </div>
+      </td>
+      <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
+      <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
+      <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
+      <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
+      <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}">
+        <span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span>
+      </td>
+      <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}">
+        <span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span>
+      </td>
+      <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
+      <td class="extraCampo Moeda" style="display: none;">
+        <input type="text" class="hospedagem" value="${vlrHospedagem}">
+      </td>
+      <td class="extraCampo Moeda" style="display: none;">
+        <input type="text" class="transporteExtraInput" value="${vlrTransporte}">
+      </td>
+      <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
+      <td>
+        <div class="Acao">
+          <button class="btnApagar" type="button">
+            <svg class="delete-svgIcon" viewBox="0 0 448 512">
+              <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
+            </svg>
+          </button>
+        </div>
+      </td>
+    `;
 
     // --- EVENTOS ---
     const setupAcresDesc = (sel, type) => {
-        const vi = newRow.querySelector(`${sel} .ValorInteiros`);
-        const vp = newRow.querySelector(`${sel} .valorPerCent`);
-        vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
-        vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
-        vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
-        vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
+      const vi = newRow.querySelector(`${sel} .ValorInteiros`);
+      const vp = newRow.querySelector(`${sel} .valorPerCent`);
+      vi?.addEventListener("input", function () { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
+      vi?.addEventListener("blur",  function () { this.value = formatarMoeda(desformatarMoeda(this.value)); });
+      vp?.addEventListener("input", function () { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
+      vp?.addEventListener("blur",  function () { this.value = formatarPercentual(desformatarPercentual(this.value)); });
     };
-
     setupAcresDesc(".descontoItem", "desconto");
     setupAcresDesc(".acrescimoItem", "acrescimo");
 
     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
-    newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
-    newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
+    newRow.querySelector(".increment")?.addEventListener("click", () => {
+      const chk = newRow.querySelector(".chk-cache-fechado");
+      if (chk && chk.checked) return;
+      const i = newRow.querySelector(".qtdProduto input");
+      i.value = parseInt(i.value) + 1;
+      recalcularLinha(newRow);
+    });
+    newRow.querySelector(".decrement")?.addEventListener("click", () => {
+      const chk = newRow.querySelector(".chk-cache-fechado");
+      if (chk && chk.checked) return;
+      const i = newRow.querySelector(".qtdProduto input");
+      if (parseInt(i.value) > 0) { i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }
+    });
 
     const itemDateInput = newRow.querySelector(".datas-item");
     if (itemDateInput) {
       const dates = [];
       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
-      if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
-      flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
-        // Garante que o campo de datas seja sempre preenchido visualmente
-        if (item.datas && item.datas.length > 0) {
-          let fpInstance = itemDateInput._flatpickr;
-          if (!fpInstance) {
-            fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
-          }
-          fpInstance.setDate(item.datas, true);
-        }
+      if (item.periododiariasfim)    dates.push(new Date(item.periododiariasfim));
+      flatpickr(itemDateInput, {
+        mode: "range",
+        dateFormat: "d/m/Y",
+        locale: flatpickr.l10ns.pt,
+        defaultDate: dates,
+        onChange: (sd) => atualizarQtdDias(itemDateInput, sd),
+      });
     }
 
     const delBtn = newRow.querySelector(".btnApagar");
@@ -5665,7 +5949,12 @@ itens.forEach((item) => {
         const id = newRow.dataset.idorcamentoitem;
         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
         else {
-          const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
+          const { isConfirmed } = await Swal.fire({
+            title: `Excluir "${nomeProduto}"?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Sim, deletar!",
+          });
           if (isConfirmed) {
             try {
               const principalId = document.getElementById("idOrcamento").value;
@@ -5679,25 +5968,24 @@ itens.forEach((item) => {
       });
       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
     }
-      if (item.cachefechado === true || item.cachefechado === "true") {
-        const chkCache = newRow.querySelector(".chk-cache-fechado");
-        if (chkCache) {
-            // Chamamos a função passando o elemento para que ela trave os botões
-            window.toggleEditavel(chkCache); 
-        }
+
+    if (item.cachefechado === true || item.cachefechado === "true") {
+      const chkCache = newRow.querySelector(".chk-cache-fechado");
+      if (chkCache) window.toggleEditavel(chkCache);
     }
   });
-
 
   if (aplicarReajuste) {
     const aviso = document.getElementById("avisoReajusteMensagem");
     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
     recalcularTotaisGerais();
-    aplicarDescontoEAcrescimo("Desconto"); 
+    aplicarDescontoEAcrescimo("Desconto");
   }
 
   aplicarMascaraMoeda();
 }
+
+
 // =============================
 // VERIFICA LINHAS PELO PERÍODO
 // =============================
@@ -7442,15 +7730,26 @@ async function PropostaouContrato() {
                 confirmButtonText: "Visualizar Contrato",
                 reverseButtons: true,
             }).then((res) => {
-
                 if (res.isConfirmed) {
                     window.open(contratoExistenteUrl, "_blank");
-                }
-
-                else if (res.isDenied) {
-
-                    gerarPropostaPDF(); 
-                }
+                }else if (res.isDenied) {
+                      swal.fire({
+                        title: "Gerar Proposta",
+                        text: "Você escolheu gerar uma proposta mesmo com um contrato existente. Deseja prosseguir?",
+                        icon: "question",
+                        showCancelButton: true,
+                        confirmButtonText: "Proposta Completa",
+                        denyButtonText: "Proposta de Adicionais",
+                        cancelButtonText: "Cancelar",
+                        reverseButtons: true,
+                      }).then((propostaRes) => {
+                        if (propostaRes.isConfirmed) {
+                            gerarPropostaPDF(); 
+                        } else if (propostaRes.isDenied) {
+                            gerarPropostaAdicionaisPDF();
+                        }
+                      });
+                  }
             });
 
             return; 
@@ -7479,9 +7778,23 @@ async function PropostaouContrato() {
         },
     }).then((result) => {
         if (result.isConfirmed) {
-            // Clicou no botão CONFIRM (Gerar Proposta)
-            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta.");
-            gerarPropostaPDF();
+            swal.fire({
+                  title: "Gerar Proposta",
+                  text: "Você escolheu gerar uma proposta mesmo com um contrato existente. Deseja prosseguir?",
+                  icon: "question",
+                  showCancelButton: true,
+                  showDenyButton: true,
+                  confirmButtonText: "Proposta Completa",
+                  denyButtonText: "Proposta de Adicionais",
+                  cancelButtonText: "Cancelar",
+                  reverseButtons: true,
+                }).then((propostaRes) => {
+                  if (propostaRes.isConfirmed) {
+                      gerarPropostaPDF(); 
+                  } else if (propostaRes.isDenied) {
+                      gerarPropostaAdicionaisPDF();
+                  }
+                });
         } else if (result.dismiss === Swal.DismissReason.cancel) {
             // Clicou no botão CANCEL (Gerar Contrato)
             // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
@@ -7703,17 +8016,193 @@ async function gerarPropostaPDF() {
           // Não interrompe, mas avisa que o status não será atualizado.
       } else {
           console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+          const statusAtual = document.getElementById('statusOrcamento')?.value 
+              || document.getElementById('statusOrcamento')?.innerText 
+              || '';
 
+          const statusUpdateResult = podeAtualizarParaStatusP(statusAtual)
+                ? await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "P" })
+                  })
+                : { success: false, skipped: true };
+
+            if (statusUpdateResult.skipped) {
+                console.log(`ℹ️ Status '${statusAtual}' já é superior a 'P', atualização ignorada.`);
+            }
+    
+
+          if (statusUpdateResult.success) {
+              console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
+              
+              try {
+                  const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                  const orcamento = await fetchComToken(url, { method: 'GET' });
+                  preencherFormularioComOrcamento(orcamento);
+
+              } catch (error) {
+                  console.error("Erro ao buscar orçamento:", error);
+
+                  let errorMessage = error.message;
+                  if (error.message.includes("404")) {
+                      errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                      limparOrcamento();
+                  } else if (error.message.includes("400")) {
+                      errorMessage = "Número do orçamento é inválido ou vazio.";
+                      limparOrcamento();
+                  } else {
+                      errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                      limparOrcamento();
+                  }
+
+                  Swal.fire("Erro!", errorMessage, "error");
+              }
+              //gerenciarBotoesProposta('P'); 
+                              
+          } else {
+              console.warn("⚠️ Falha ao atualizar o status do orçamento para 'P':", statusUpdateResult.message);
+              // Você pode decidir se isso deve interromper o fluxo ou apenas mostrar um aviso.
+          }
+      }
+      Swal.fire({
+        icon: "success",
+        title: "Proposta gerada!",
+        text: "A proposta foi gerada com sucesso.",
+        showCancelButton: true,
+        confirmButtonText: "📥 Baixar Proposta",
+        cancelButtonText: "OK",
+        reverseButtons: true,
+      }).then((res) => {
+        if (res.isConfirmed) {
+          (async () => {
+            try {
+              const fileUrl = result.fileUrl;
+              const fileName = decodeURIComponent(fileUrl.split("/").pop());
+
+              const response = await fetch(fileUrl, {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              });
+
+              if (!response.ok) throw new Error("Erro ao baixar o arquivo");
+
+              const blob = await response.blob();
+              const link = document.createElement("a");
+              link.href = window.URL.createObjectURL(blob);
+              link.download = fileName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (err) {
+              console.error("❌ Erro no download:", err);
+              Swal.fire("Erro", "Não foi possível baixar o arquivo", "error");
+            }
+          })();
+        }
+      });
+    } else {
+      throw new Error(
+        result.message || "Ocorreu um erro desconhecido ao gerar a proposta."
+      );
+    }
+  } catch (err) {
+    console.error("❌ Erro ao gerar proposta:", err);
+
+    Swal.close();
+
+    Swal.fire({
+      icon: "error",
+      title: "Erro!",
+      text: `Ocorreu um erro ao gerar a proposta: ${err.message}`,
+      confirmButtonText: "Fechar",
+    });
+  }
+}
+
+function podeAtualizarParaStatusP(statusAtual) {
+    // Ordem: A (Aberto), P (Proposta), E (Em execução/Enviado), F (Finalizado)
+    // Só permite atualizar se o status atual for 'A'
+    const hierarquia = { 'A': 1, 'P': 2, 'E': 3, 'F': 4 };
+    
+    // Se não encontrarmos o status, por segurança, não atualizamos
+    if (!statusAtual || !hierarquia[statusAtual]) return false;
+
+    return hierarquia[statusAtual] < hierarquia['P'];
+}
+
+async function gerarPropostaAdicionaisPDF() {
+  let nrOrcamentoElem = document.getElementById("nrOrcamento");
+  let nrOrcamento = "";
+
+  if (nrOrcamentoElem) {
+    nrOrcamento =
+      nrOrcamentoElem.tagName === "INPUT"
+        ? nrOrcamentoElem.value.trim()
+        : nrOrcamentoElem.innerText.trim();
+  }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento');   
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
+
+  if (!nrOrcamento) {
+    Swal.fire({
+      icon: "error",
+      title: "Erro!",
+      text: "Número do orçamento não encontrado!",
+      confirmButtonText: "Fechar",
+    });
+    console.warn("Número do orçamento não encontrado!");
+    return;
+  }
+
+  try {
+    console.log("🔍 Iniciando requisição para gerar a proposta...");
+
+    Swal.fire({
+      title: "Gerando Proposta...",
+      html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div><p class="text-gray-500 text-sm mt-2">Aguarde enquanto a proposta é gerada.</p>`,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+    });
+
+    const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta/adicionais`, {
+      method: "GET",
+    });
+
+    Swal.close();
+
+    if (result.success) {
+      console.log("✅ Proposta gerada com sucesso!");
+      console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+      if (!idOrcamento) {
+          console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
+          // Não interrompe, mas avisa que o status não será atualizado.
+      } else {
+          console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+          const statusAtual = document.getElementById('statusOrcamento')?.value 
+              || document.getElementById('statusOrcamento')?.innerText 
+              || '';
           // USA O ID OBTIDO DO HTML
-          const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
-              method: "PATCH", // Ou 'PUT', dependendo da sua API
-              headers: {
-                  "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                  status: "P" 
-              })
-          });
+          const statusUpdateResult = podeAtualizarParaStatusP(statusAtual)
+              ? await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "P" })
+                })
+              : { success: false, skipped: true };
+
+          if (statusUpdateResult.skipped) {
+              console.log(`ℹ️ Status '${statusAtual}' já é superior a 'P', atualização ignorada.`);
+          }
 
           if (statusUpdateResult.success) {
               console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
@@ -7931,6 +8420,8 @@ async function gerarContrato() {
     });
   }
 }
+
+
 
 document.getElementById('AprovarProposta')?.addEventListener('click', function(event) {
         event.preventDefault();

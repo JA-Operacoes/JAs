@@ -5340,6 +5340,7 @@ async function verificaStaff() {
                         const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                         
                         textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
+                        textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
                     }
                 }
 
@@ -9154,6 +9155,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             if (baseCheck) baseCheck.checked = true;
             if (seniorCheck) seniorCheck.disabled = true;
             if (seniorCheck2) seniorCheck2.disabled = true;
+            if (seniorCheck2) seniorCheck2.disabled = true;
             if (plenoCheck) plenoCheck.disabled = true;
             if (juniorCheck) juniorCheck.disabled = true;
             if (baseCheck) baseCheck.disabled = false;
@@ -10460,7 +10462,7 @@ function registrarListenersNivel() {
             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
 
-                        document.getElementById('campoStatusCustoFechado').style.display = 'none';
+            document.getElementById('campoStatusCustoFechado').style.display = 'none';
             document.getElementById('wrapperJustificativaCustoFechado').style.display = 'none';
             if (descCustoFechadoTextarea) descCustoFechadoTextarea.style.display = 'none';
 
@@ -11767,6 +11769,7 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     }
 }
 
+
 function gerarLogDiferencaDatas(datasOriginais, datasAtuais, motivoInput) {
     // 1. Garante que estamos lidando com strings no formato DD/MM/AAAA para comparar e exibir
     const formatarParaDiaMesAno = (data) => {
@@ -11800,6 +11803,7 @@ function gerarLogDiferencaDatas(datasOriginais, datasAtuais, motivoInput) {
     const dataHoraAtual = new Date().toLocaleDateString('pt-BR') + ', ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     
     return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
+    return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
 }
 
 function registrarLogPosPagamento(msg) {
@@ -11822,6 +11826,7 @@ function registrarLogPosPagamento(msg) {
             minute: '2-digit' 
         });
         
+        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
         const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
 
         // Só adiciona se a mensagem exata ainda não existir para esta ação
@@ -13475,6 +13480,7 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 return { bloqueado: false, autorizado: true };
             }
             
+            
 
             // CASO C: Pendente em outro evento na mesma data → AVISAR e perguntar
             if (solicitacaoRecente && solicitacaoRecente.status === 'Pendente') {
@@ -13511,6 +13517,14 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
         }
 
         // ← daqui para baixo só chega para outros tipos (Aditivo, Extra, Data Fora)
+        if (!solicitacaoRecente && !autorizadoEspecifico) {
+                console.log("ℹ️ Nenhuma solicitação prévia encontrada. Retornando ao fluxo principal.");
+                return { 
+                    bloqueado: false, 
+                    encontrado: false, 
+                    autorizado: false 
+                };
+        }
         if (!solicitacaoRecente && !autorizadoEspecifico) {
                 console.log("ℹ️ Nenhuma solicitação prévia encontrada. Retornando ao fluxo principal.");
                 return { 

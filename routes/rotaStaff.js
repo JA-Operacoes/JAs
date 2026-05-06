@@ -1339,9 +1339,11 @@ router.put("/:idStaffEvento",
         const idStaffEvento = req.params.idStaffEvento;
         const idempresa = req.idempresa;
         const idUsuarioLogado = req.usuario.idusuario;
-        const body = req.body;      
-        
-        
+        const body = req.body;
+
+        console.log("BODY DO PUT STAFF", req.body);
+        console.log("ID Staff Evento (param):", req.params.idStaffEvento);
+        console.log("ID Staff Evento (req):", idStaffEvento);
 
         let client;
         try {
@@ -1541,23 +1543,47 @@ router.put("/:idStaffEvento",
                     [item.status, idUsuarioLogado, item.valor, item.desc, idStaffEvento, item.campo, idempresa]
                 );
 
-                // 2. Se não existia o registro, cria um novo
-                if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(item.status)) {
-                    await registrarSolicitacao(client, {
-                        idempresa, 
-                        idorcamento: body.idorcamento, 
-                        idfuncionario: body.idfuncionario,
-                        idfuncao: body.idfuncao, 
-                        idstaffevento: idStaffEvento, 
-                        idusuariosolicitante: idUsuarioLogado, // Enviando com o nome correto
-                        tiposolicitacao: item.tipo, 
-                        categoria: item.campo, 
-                        valor: item.valor, 
-                        justificativa: item.desc
+                    if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(item.status)) {
+                        // Certifique-se que a função registrarSolicitacao trata dtsolicitada como array se necessário
+                        await registrarSolicitacao(client, {
+                        idempresa: idempresa, // $1
+                        idorcamento: body.idorcamento, // $2
+                        idfuncionario: body.idfuncionario, // $3
+                        idfuncao: body.idfuncao, // $4
+                        idstaffevento: idStaffEvento, // $5
+                        idusuariosolicitante: idUsuarioLogado, // $6 (Atenção aqui!)
+                        tiposolicitacao: item.tipo, // $7
+                        categoria: item.campo, // $8
+                        valor: item.valor, // $9
+                        justificativa: item.desc, // $10
+                        datas: item.datas // $11
                     });
+                    }
                 }
             }
-        }
+
+            await client.query(
+                `INSERT INTO notificacao (
+                    idusuario, 
+                    idreferencia, 
+                    idempresa,   -- Adicionado
+                    lido, 
+                    tipo,        -- Recomendado para evitar null
+                    mensagem,    -- Recomendado para evitar null
+                    criado_em
+                ) 
+                VALUES ($1, $2, $3, true, 'info', 'Cadastro de Staff realizado', NOW()) 
+                ON CONFLICT (idusuario, idreferencia) 
+                DO UPDATE SET lido = true, idempresa = $3`, 
+                [idUsuarioLogado, idStaffEvento, idempresa] // $3 é o idempresa
+            );
+
+            // 2. "Reseta" para os outros usuários: remove o status de lido deles 
+            // para que a solicitação volte a brilhar/aparecer como pendente no painel deles.
+            await client.query(
+                `DELETE FROM notificacao WHERE idreferencia = $1 AND idusuario != $2`,
+                [idStaffEvento, idUsuarioLogado]
+            );
 
             await client.query('COMMIT');
             res.json({ message: "Atualizado", id: idStaffEvento });
@@ -1570,6 +1596,58 @@ router.put("/:idStaffEvento",
 
 );
 
+
+// async function registrarSolicitacao(client, dados) {
+//     const formatarParaJsonB = (valor) => {
+//         if (!valor) return null;
+//         if (typeof valor === 'object') return JSON.stringify(valor);
+//         return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
+//     };
+
+//     // Ajustamos a ordem para refletir exatamente os dados.
+//     // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
+//     const query = `
+//         INSERT INTO public.solicitacoes (
+//             idempresa,              -- $1
+//             idorcamento,            -- $2
+//             idfuncionario,          -- $3
+//             idfuncao,               -- $4
+//             idregistroalterado,     -- $5
+//             idusuariosolicitante,   -- $6
+//             tiposolicitacao,        -- $7
+//             categoria_log,          -- $8
+//             vlrsolicitado,          -- $9
+//             justificativa,          -- $10
+//             dtsolicitada,           -- $11 (O campo JSONB com as datas)
+//             status,                 -- $12
+//             dtsolicitacao           -- Automático
+//         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+//         ON CONFLICT (idregistroalterado, categoria_log) 
+//         WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
+//         DO UPDATE SET 
+//             vlrsolicitado = EXCLUDED.vlrsolicitado,
+//             justificativa = EXCLUDED.justificativa,
+//             dtsolicitada = EXCLUDED.dtsolicitada,
+//             dtsolicitacao = CURRENT_TIMESTAMP;
+//     `;
+
+//     const values = [
+//         dados.idempresa,                // $1
+//         dados.idorcamento,              // $2
+//         dados.idfuncionario || null,    // $3
+//         dados.idfuncao,                 // $4
+//         dados.idstaffevento || null,    // $5
+//         dados.idusuariosolicitante,     // $6
+//         dados.tiposolicitacao,          // $7
+//         dados.categoria,                // $8
+//         dados.valor || 0,               // $9
+//         dados.justificativa,            // $10 (Texto comum)
+//         formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
+//         'Pendente'                      // $12
+//     ];
+
+//     await client.query(query, values);
+// }
 
 async function registrarSolicitacao(client, dados) {
     console.log("DEBUG registrarSolicitacao - Objeto recebido:", JSON.stringify(dados, null, 2));
@@ -1602,8 +1680,8 @@ async function registrarSolicitacao(client, dados) {
         DO UPDATE SET 
             vlrsolicitado = EXCLUDED.vlrsolicitado,
             justificativa = EXCLUDED.justificativa,
-            dtsolicitada = EXCLUDED.dtsolicitada,
-            dtsolicitacao = CURRENT_TIMESTAMP;
+            dtsolicitacao = CURRENT_TIMESTAMP,
+            idusuariosolicitante = EXCLUDED.idusuariosolicitante;
     `;
 
     const values = [

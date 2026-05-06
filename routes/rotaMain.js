@@ -136,15 +136,16 @@ router.get("/proximo-evento", async (req, res) => {
     const { rows: eventos } = await pool.query(
     `SELECT 
         e.nmevento, 
-        o.dtinimarcacao, 
-        o.dtinimontagem, 
-        o.dtinirealizacao
+        MIN(o.dtinimarcacao) as dtinimarcacao, 
+        MIN(o.dtinimontagem) as dtinimontagem, 
+        MIN(o.dtinirealizacao) as dtinirealizacao
     FROM orcamentos o
     JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
     JOIN eventos e ON e.idevento = o.idevento
     WHERE oe.idempresa = $1
-    AND (o.dtinimarcacao >= CURRENT_DATE + INTERVAL '7 day' OR o.dtinirealizacao >= CURRENT_DATE)
-    ORDER BY o.dtinimarcacao ASC`,
+        AND (o.dtinimarcacao >= CURRENT_DATE OR o.dtinirealizacao >= CURRENT_DATE)
+    GROUP BY e.nmevento
+    ORDER BY dtinimarcacao ASC`,
     [idempresa]
     );
 
@@ -152,7 +153,8 @@ router.get("/proximo-evento", async (req, res) => {
     const respostaFormatada = eventos.map(ev => {
         return {
             nmevento: ev.nmevento,
-            datas: {
+            data: ev.dtinimarcacao || ev.dtinimontagem || ev.dtinirealizacao, 
+            fases: {
                 "Marcação": ev.dtinimarcacao,
                 "Montagem": ev.dtinimontagem,
                 "Realização": ev.dtinirealizacao
@@ -1129,8 +1131,6 @@ router.get("/atividades-recentes", async (req, res) => {
   res.status(500).json({ error: "Erro ao buscar atividades" });
   }
 });
-
-
 // =======================================
 
 
@@ -2862,8 +2862,10 @@ router.get("/vencimentos", async (req, res) => {
 
     const resultado = eventosRaw.map(ev => {
         const staffs = staffRows.filter(s => s.idevento === ev.idevento);
-        let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
-        
+        let ajT = 0, ajP = 0, ajS = 0, ajR = 0,
+            chT = 0, chP = 0, chS = 0, chR = 0,
+            cxT = 0, cxP = 0, cxS = 0, cxR = 0;
+
         // Variáveis para capturar a escala real do staff
         let minEscalaStaff = null;
         let maxEscalaStaff = null;
@@ -2886,9 +2888,27 @@ router.get("/vencimentos", async (req, res) => {
                 return match ? amount * (Number(match[1]) / 100) : amount;
             };
 
+            const calcSuspenso = (status, amount) => {
+                if (!status) return 0;
+                return String(status).toLowerCase() === 'suspenso' ? amount : 0;
+            };
+
+            const calcRecusado = (status, amount) => {
+                if (!status) return 0;
+                return String(status).toLowerCase() === 'rejeitado' ? amount : 0;
+            };
+
             chP += calcPago(s.statuspgto, vC);
             ajP += calcPago(s.statuspgtoajdcto, vA);
             cxP += calcPago(s.statuscaixinha, vX);
+
+            chS += calcSuspenso(s.statuspgto, vC);
+            ajS += calcSuspenso(s.statuspgtoajdcto, vA);
+            cxS += calcSuspenso(s.statuscaixinha, vX);
+
+            chR += calcRecusado(s.statuspgto, vC);
+            ajR += calcRecusado(s.statuspgtoajdcto, vA);
+            cxR += calcRecusado(s.statuscaixinha, vX);
 
             // --- LÓGICA DE ESCALA REAL (VENCIMENTOS) ---
             const startD = normalizarParaDate(s.periodo_eventoini_all);
@@ -2922,9 +2942,9 @@ router.get("/vencimentos", async (req, res) => {
             dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             dataVencimentoCaixinha: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
-            ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
-            cache: { total: chT, pendente: chT - chP, pago: chP },
-            caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
+            ajuda:   { total: ajT, pendente: ajT - ajP - ajS - ajR, pago: ajP, suspenso: ajS, recusado: ajR },
+            cache:   { total: chT, pendente: chT - chP - chS - chR, pago: chP, suspenso: chS, recusado: chR },
+            caixinha:{ total: cxT, pendente: cxT - cxP - cxS - cxR, pago: cxP, suspenso: cxS, recusado: cxR },
             funcionarios: staffsProcessados
         };
     });
