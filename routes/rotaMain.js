@@ -424,6 +424,7 @@ router.get("/eventos-abertos", async (req, res) => {
                     se.idevento, 
                     se.idfuncao, 
                     COUNT(DISTINCT se.idstaff) AS preenchidas,
+                    COUNT(DISTINCT CASE WHEN se.statusstaff = 'Pendente' THEN se.idstaff END) AS pendentes,
                     MIN(f.idequipe) AS idequipe_staff,
                     MIN(eq.nmequipe) AS equipe_staff
                 FROM staffeventos se
@@ -455,6 +456,7 @@ router.get("/eventos-abertos", async (req, res) => {
                         'nome_funcao', b->>'nome_funcao',
                         'total_vagas', (b->>'total_vagas')::int,
                         'preenchidas', COALESCE(spf.preenchidas, 0),
+                        'qtd_pendente', COALESCE(spf.pendentes, 0),
                         'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
                     ))
                     FROM json_array_elements(
@@ -488,19 +490,28 @@ router.get("/eventos-abertos", async (req, res) => {
         const mappedRows = rows.map(evt => {
             const resumoEquipesMap = (evt.equipes_detalhes || []).reduce((acc, func) => {
                 const nomeEquipe = func.equipe;
-                if (!acc[nomeEquipe]) acc[nomeEquipe] = { total: 0, preenchido: 0 };
+                if (!acc[nomeEquipe]) acc[nomeEquipe] = { total: 0, preenchido: 0, pendentes: 0 };
                 acc[nomeEquipe].total += (func.total_vagas || 0);
                 acc[nomeEquipe].preenchido += (func.preenchidas || 0);
+                acc[nomeEquipe].pendentes += (func.qtd_pendente || 0);
                 return acc;
             }, {});
 
             const resumoFormatado = Object.entries(resumoEquipesMap).map(([equipe, dados]) => {
-                const restante = dados.total - dados.preenchido;
+                const confirmadosReal = dados.preenchido - dados.pendentes;
+                const restante = dados.total - confirmadosReal;
+                //const restante = dados.total - dados.preenchido;
                 let cor = "🟢"; 
                 if (dados.total === 0) cor = "⚪"; 
                 else if (dados.preenchido === 0) cor = "🔴"; 
                 else if (restante > 0) cor = "🟡"; 
-                return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
+                //return `${equipe}: ${cor} ${dados.preenchido}/${dados.total}`;
+
+                // Exibe: Equipe: 🟢 2/2 (+1 ⏳)
+                let texto = `${equipe}: ${cor} ${confirmadosReal}/${dados.total}`;
+                if (dados.pendentes > 0) texto += ` (+${dados.pendentes} ⏳)`;
+                return texto;
+
             }).join(" | ");
 
             // Recalcula totais para o card principal
@@ -743,38 +754,91 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
           COALESCE(i.setor, '') AS setor_orcamento,
           -- Aqui está a mágica:
-          SUM(CASE 
-              WHEN i.cachefechado = true THEN i.qtddias 
-              ELSE i.qtditens                                     
-          END) AS qtd_orcamento,
+          --SUM(CASE 
+          --    WHEN i.cachefechado = true THEN i.qtddias 
+          --    ELSE i.qtditens                                     
+          --END) AS qtd_orcamento,
+          CASE
+            WHEN bool_or(i.cachefechado = true) THEN SUM(i.qtddias)  -- cache: soma diárias
+            ELSE MAX(i.qtditens)                                       -- pessoas: max de vagas (não soma)
+          END AS qtd_orcamento,
           MIN(i.periododiariasinicio) AS dtini_vaga,
           MAX(i.periododiariasfim) AS dtfim_vaga,
           -- Retornamos se QUALQUER item desse grupo é cache fechado
           bool_or(i.cachefechado = true) as tem_cache_fechado,
           i.idorcamento -- 🎯 IMPORTANTE: Adicione o idorcamento para o frontend usar
-   FROM orcamentoitens i
-   JOIN funcao f ON f.idfuncao = i.idfuncao
-   JOIN equipe eq ON eq.idequipe = f.idequipe
-   WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
-   GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento`,
+        FROM orcamentoitens i
+        JOIN funcao f ON f.idfuncao = i.idfuncao
+        JOIN equipe eq ON eq.idequipe = f.idequipe
+        WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
+        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento`,
         [idsOrcamentos]
     );
-
+    // trecho original
     // 3️⃣ Busca Realizado (Adicionada vírgula e diarias_consumidas)
+    // const { rows: staffCount } = await pool.query(
+    //   `SELECT se.idfuncao, 
+    //           COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+    //           COUNT(DISTINCT se.idstaff) AS qtd_cadastrada_pessoas,
+    //           SUM(jsonb_array_length(se.datasevento)) AS diarias_consumidas
+    //    FROM staffeventos se
+    //    WHERE se.idevento = $1 
+    //      AND se.idcliente = $2
+    //      AND EXISTS (
+    //          SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+    //          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+    //      )
+    //    GROUP BY se.idfuncao, localizacao`,
+    //   [idevento, idcliente, ano]
+    // );
+    
+
+    // const { rows: staffCount } = await pool.query(
+    //   `SELECT se.idfuncao, 
+    //           COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+    //           COUNT(DISTINCT se.idstaff) AS qtd_cadastrada_pessoas,
+    //           -- ✅ Conta quantos são pendentes
+    //           COUNT(DISTINCT CASE WHEN se.statusstaff = 'Pendente' THEN se.idstaff END) AS qtd_pendente,
+    //           SUM(jsonb_array_length(se.datasevento)) AS diarias_consumidas
+    //    FROM staffeventos se
+    //    WHERE se.idevento = $1 
+    //      AND se.idcliente = $2
+    //      AND EXISTS (
+    //          SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+    //          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+    //      )
+    //    GROUP BY se.idfuncao, localizacao`,
+    //   [idevento, idcliente, ano]
+    // );
+
+    // 3️⃣ Busca Realizado - Lógica de Status Ativo vs Outros
     const { rows: staffCount } = await pool.query(
-      `SELECT se.idfuncao, 
-              COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
-              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada_pessoas,
-              SUM(jsonb_array_length(se.datasevento)) AS diarias_consumidas
-       FROM staffeventos se
-       WHERE se.idevento = $1 
-         AND se.idcliente = $2
-         AND EXISTS (
-             SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-             WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
-         )
-       GROUP BY se.idfuncao, localizacao`,
-      [idevento, idcliente, ano]
+        `SELECT se.idfuncao, 
+                COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+                -- ✅ Conta APENAS quem está Ativo para bater com o orçamento
+                --COUNT(DISTINCT CASE WHEN se.statusstaff = 'Ativo' THEN se.idstaff END) AS qtd_cadastrada_pessoas,
+                COUNT(DISTINCT CASE 
+                    WHEN se.statusstaff IN ('Ativo', 'Pendente') THEN se.idstaff 
+                END) AS qtd_cadastrada_pessoas,
+                -- ✅ Conta quantos são pendentes (para exibição visual apenas)
+                COUNT(DISTINCT CASE WHEN se.statusstaff = 'Pendente' THEN se.idstaff END) AS qtd_pendente,
+                -- ✅ Diárias consumidas também devem considerar apenas os Ativos para o cálculo de Cache Fechado?
+                -- Se sim, usamos a lógica abaixo:
+                --SUM(CASE WHEN se.statusstaff = 'Ativo' THEN jsonb_array_length(se.datasevento) ELSE 0 END) AS diarias_consumidas
+                SUM(CASE 
+                    WHEN se.statusstaff IN ('Ativo', 'Pendente') THEN jsonb_array_length(se.datasevento) 
+                    ELSE 0 
+                END) AS diarias_consumidas
+        FROM staffeventos se
+        WHERE se.idevento = $1 
+            AND se.idcliente = $2
+            AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+            AND EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+                WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+            )
+        GROUP BY se.idfuncao, localizacao`,
+        [idevento, idcliente, ano]
     );
 
     // 4️⃣ Busca Datas (Inalterado)
@@ -820,10 +884,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       // --- LÓGICA DE TRANSIÇÃO ---
       // Se for cache fechado, pegamos a soma de diárias, senão a contagem de pessoas
       let qtd_cadastrada = 0;
+      let qtd_pendente = 0;
       if (cadastrado) {
         qtd_cadastrada = item.tem_cache_fechado 
           ? Number(cadastrado.diarias_consumidas) 
           : Number(cadastrado.qtd_cadastrada_pessoas);
+
+          qtd_pendente = Number(cadastrado.qtd_pendente) || 0;
       }
       // ---------------------------
 
@@ -838,6 +905,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
         qtd_cadastrada, // Agora reflete ou pessoas ou diárias
+        qtd_pendente,
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
@@ -877,9 +945,12 @@ router.get("/ListarFuncionarios", async (req, res) => {
     se.nmfuncao AS funcao, 
     se.vlrtotal, 
     se.statuspgto AS status_pagamento,
+    se.statuspgtoajdcto AS status_ajuda_custo,
     -- Aqui está a correção:
     COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
-    se.nivelexperiencia
+    se.nivelexperiencia,
+    se.statusstaff,
+    se.datasevento AS datas
 FROM public.staffeventos se
 INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
 WHERE se.idevento = $1
@@ -1567,6 +1638,249 @@ router.get("/atividades-recentes", async (req, res) => {
 //     }
 // );
 
+
+//22/04
+// router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, async (req, res) => {
+//     try {
+//         const idempresa = req.idempresa;
+//         const idusuario = req.usuario?.idusuario;
+//         const statusBruto = req.query.status || 'todos';
+
+//         if (!idempresa) return res.status(400).json({ error: 'Empresa não identificada.' });
+
+//         const { rows: allPermissoes } = await pool.query(
+//             `SELECT modulo, master, supremo FROM permissoes WHERE idusuario = $1`,
+//             [idusuario]
+//         );
+
+//         const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && p.master === true);
+//         const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.supremo === true);
+//         const podeVerTodos   = ehMasterStaff || ehSupremoStaff;
+
+//         // 🛑 Monta params e filtro dinamicamente
+//         const params = [idempresa];
+//         let filtroStatus = '';
+
+//         if (statusBruto.toLowerCase() !== 'todos') {
+//             const statusFiltro = statusBruto.charAt(0).toUpperCase() + statusBruto.slice(1).toLowerCase();
+//             params.push(statusFiltro);
+//             filtroStatus += ` AND s.status = $${params.length}`;
+//         }
+
+//         if (!podeVerTodos) {
+//             params.push(idusuario);
+//             filtroStatus += ` AND s.idusuariosolicitante = $${params.length}`;
+//         }
+
+//         // const queryBase = `
+//         //     SELECT 
+//         //         s.idsolicitacao        AS id_log,
+//         //         s.idregistroalterado   AS idstaffevento,
+//         //         s.idusuariosolicitante AS idexecutor,
+//         //         fn.descfuncao          AS descfuncao,
+//         //         s.tiposolicitacao,
+//         //         (u.nome || ' ' || u.sobrenome)       AS nomesolicitante,
+//         //         (resp.nome || ' ' || resp.sobrenome) AS nomeaprovador,
+//         //         s.dtresposta           AS datadecisao,
+//         //         f.nome                 AS nomefuncionario,
+//         //         e.nmevento             AS evento,
+//         //         se.datasevento,
+//         //         s.dtsolicitacao        AS criado_em,
+//         //         s.categoria_log        AS categoria,
+//         //         s.status               AS status_atual,
+//         //         s.vlrsolicitado,
+//         //         s.justificativa        AS desccaixinha,
+//         //         s.dtsolicitada,
+//         //         COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+//         //         s.idfuncionario        AS idusuarioalvo,
+//         //         se.vlralimentacao,
+//         //         se.vlrtransporte,
+//         //         se.dtdiariadobrada::text AS dtdiariadobrada,
+//         //         se.dtmeiadiaria::text    AS dtmeiadiaria
+//         //     FROM public.solicitacoes s
+//         //     LEFT JOIN public.staffeventos se ON s.idregistroalterado = se.idstaffevento
+//         //     LEFT JOIN public.usuarios u      ON u.idusuario = s.idusuariosolicitante
+//         //     LEFT JOIN public.usuarios resp   ON resp.idusuario = s.idusuarioresponsavel
+//         //     LEFT JOIN public.funcionarios f  ON f.idfuncionario = s.idfuncionario
+//         //     LEFT JOIN public.orcamentos o    ON o.idorcamento = s.idorcamento
+//         //     LEFT JOIN public.eventos e       ON e.idevento = o.idevento
+//         //     LEFT JOIN public.funcao fn       ON fn.idfuncao = s.idfuncao
+//         //     WHERE s.idempresa = $1
+//         //     ${filtroStatus}
+//         //     ORDER BY s.dtsolicitacao DESC
+//         // `;
+
+//         const queryBase = `
+//             SELECT 
+//                 MIN(s.idsolicitacao)   AS id_log,
+//                 s.idregistroalterado   AS idstaffevento,
+//                 s.idusuariosolicitante AS idexecutor,
+//                 fn.descfuncao          AS descfuncao,
+//                 s.tiposolicitacao,
+//                 (u.nome || ' ' || u.sobrenome)       AS nomesolicitante,
+//                 (resp.nome || ' ' || resp.sobrenome) AS nomeaprovador,
+//                 MAX(s.dtresposta)      AS datadecisao,
+//                 f.nome                 AS nomefuncionario,
+//                 e.nmevento             AS evento,
+//                 se.datasevento,
+//                 MIN(s.dtsolicitacao)   AS criado_em,
+//                 s.categoria_log        AS categoria,
+//                 s.status               AS status_atual,
+//                 SUM(s.vlrsolicitado)   AS vlrsolicitado,
+//                 MIN(s.justificativa)   AS desccaixinha,
+                
+//                 -- Agregamos as datas para não precisar colocar s.dtsolicitada no GROUP BY
+//                 jsonb_agg(
+//                     jsonb_build_object('data', s.dtsolicitada, 
+//                                        'status', s.status,
+//                                        'justificativa', s.justificativa)
+//                 ) AS dtsolicitada_agrupada,
+
+//                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+//                 s.idfuncionario        AS idusuarioalvo,
+//                 se.vlralimentacao,
+//                 se.vlrtransporte,
+//                 se.dtdiariadobrada::text AS dtdiariadobrada,
+//                 se.dtmeiadiaria::text    AS dtmeiadiaria
+//             FROM public.solicitacoes s
+//             LEFT JOIN public.staffeventos se ON s.idregistroalterado = se.idstaffevento
+//             LEFT JOIN public.usuarios u      ON u.idusuario = s.idusuariosolicitante
+//             LEFT JOIN public.usuarios resp   ON resp.idusuario = s.idusuarioresponsavel
+//             LEFT JOIN public.funcionarios f  ON f.idfuncionario = s.idfuncionario
+//             LEFT JOIN public.orcamentos o    ON o.idorcamento = s.idorcamento
+//             LEFT JOIN public.eventos e       ON e.idevento = o.idevento
+//             LEFT JOIN public.funcao fn       ON fn.idfuncao = s.idfuncao
+//             WHERE s.idempresa = $1
+//             ${filtroStatus}
+//             GROUP BY 
+//                 s.idregistroalterado, 
+//                 s.idusuariosolicitante, 
+//                 fn.descfuncao, 
+//                 s.tiposolicitacao,
+//                 u.nome, 
+//                 u.sobrenome, 
+//                 resp.nome, 
+//                 resp.sobrenome, 
+//                 f.nome, 
+//                 e.nmevento,
+//                 se.datasevento, 
+//                 s.categoria_log, 
+//                 s.status,                 
+//                 o.dtfiminfradesmontagem,
+//                 o.dtfimdesmontagem, 
+//                 s.idfuncionario, 
+//                 se.vlralimentacao, 
+//                 se.vlrtransporte,
+//                 se.dtdiariadobrada, 
+//                 se.dtmeiadiaria
+//             ORDER BY MIN(s.dtsolicitacao) DESC
+//         `;
+
+//         const { rows } = await pool.query(queryBase, params);
+
+//         const parseValor = (v) => {
+//             if (!v) return 0;
+//             if (typeof v === 'number') return v;
+//             return parseFloat(String(v).replace(',', '.')) || 0;
+//         };
+
+//     //     const resultadoFinal = rows.map(r => {
+//     //         const categoriaReal = (r.tiposolicitacao === 'FUNCEXCEDIDO' || r.tiposolicitacao?.includes('VAGA EXCEDIDA'))
+//     //             ? 'statusvagaexcedida'
+//     //             : r.categoria === 'aditivoextra' ? 'statusaditivoextra' : r.categoria;
+
+//     //             // 🔍 CONSOLE LOG PARA DEBUG DE DUPLICIDADE
+//     // if (categoriaReal === 'statusaditivoextra') {
+//     //     console.log(`[DEBUG ADITIVO] ID: ${r.id_log} | Funcionário: ${r.nomefuncionario} | Datas no Grupo: ${r.dtsolicitada_agrupada ? r.dtsolicitada_agrupada.length : 0}`);
+//     // }
+
+//     //         const valorFormatado = JSON.stringify([{
+//     //             status:          r.status_atual,
+//     //             valor:           parseValor(r.vlrsolicitado),
+//     //             descricao:       r.desccaixinha,
+//     //             vlralimentacao:  parseValor(r.vlralimentacao),
+//     //             vlrtransporte:   parseValor(r.vlrtransporte),
+//     //             tipoSolicitacao: r.tiposolicitacao
+//     //         }]);
+
+//     // 2. Dentro do seu router.get...
+// const resultadoFinal = rows.map(r => {
+//     const categoriaReal = (r.tiposolicitacao === 'FUNCEXCEDIDO' || r.tiposolicitacao?.includes('VAGA EXCEDIDA'))
+//         ? 'statusvagaexcedida'
+//         : r.categoria === 'aditivoextra' ? 'statusaditivoextra' : r.categoria;
+
+//     // --- AQUI ENTRA A CHAMADA ---
+//     const tituloExibicao = obterTituloFormatado(r);
+
+//     const valorFormatado = JSON.stringify([{
+//         status: r.status_atual,
+//         valor: parseValor(r.vlrsolicitado),
+//         descricao: r.desccaixinha,
+//         vlralimentacao: parseValor(r.vlralimentacao),
+//         vlrtransporte: parseValor(r.vlrtransporte),
+//         tipoSolicitacao: r.tiposolicitacao,
+//         titulo: tituloExibicao // Você também pode injetar o título aqui dentro se quiser
+//     }]);
+
+    
+
+
+//             // const getDiaria = (campo) => {
+//             //     if (r.idstaffevento && r[campo]) return r[campo];
+//             //     if (r.dtsolicitada) return typeof r.dtsolicitada === 'string' ? r.dtsolicitada : JSON.stringify(r.dtsolicitada);
+//             //     return null;
+//             // };
+
+//             const getDiaria = () => {
+//                 return r.dtsolicitada_agrupada ? JSON.stringify(r.dtsolicitada_agrupada) : null;
+//             };
+
+//             return {
+//                 id_log:          r.id_log,
+//                 idStaffEvento:   r.idstaffevento,
+//                 idpedido:        r.id_log,
+//                 titulo_formatado: tituloExibicao,
+//                 solicitante:     r.idexecutor || null,
+//                 nomeSolicitante: r.nomesolicitante || '',
+//                 descFuncao:      r.descfuncao || '',
+//                 nomeAprovador:   r.nomeaprovador || '',      // 🛑 aprovador
+//                 dataDecisao:     r.datadecisao || null,      // 🛑 data decisão
+//                 funcionario:     categoriaReal === 'statusvagaexcedida' ? null : (r.nomefuncionario || '-'),
+//                 nomefuncionario: r.nomefuncionario || null,
+//                 evento:          r.evento || '-',
+//                 dtCriacao:       r.criado_em,
+//                 //dtsolicitada:    r.dtsolicitada || null,
+//                 dtsolicitada:        r.dtsolicitada_agrupada, // Agora é um array
+//                 dataSolicitacao: r.criado_em || null,
+//                 datasevento:     r.datasevento || (r.dtsolicitada ? (typeof r.dtsolicitada === 'string' ? r.dtsolicitada : JSON.stringify(r.dtsolicitada)) : '-'),
+//                 dtfimrealizacao: r.dtfimrealizacao || null,
+//                 ehMasterStaff,
+//                 podeVerTodos,
+
+//                 categoria:        r.categoria,
+//                 categoria_item:   categoriaReal,
+//                 status_aprovacao: r.status_atual.toLowerCase(),
+
+//                 statuscaixinha:      r.categoria === 'statuscaixinha'      ? valorFormatado : null,
+//                 statusajustecusto:   r.categoria === 'statusajustecusto'   ? valorFormatado : null,
+//                 statuscustofechado:  r.categoria === 'statuscustofechado'  ? valorFormatado : null,
+//                 //statusdiariadobrada: r.categoria === 'statusdiariadobrada' ? getDiaria('dtdiariadobrada') : null,
+//                 //statusmeiadiaria:    r.categoria === 'statusmeiadiaria'    ? getDiaria('dtmeiadiaria') : null,
+//                 statusdiariadobrada: r.categoria === 'statusdiariadobrada' ? getDiaria() : null,
+//                 statusmeiadiaria:    r.categoria === 'statusmeiadiaria'    ? getDiaria() : null,
+//                 statusaditivoextra:  categoriaReal === 'statusaditivoextra' ? valorFormatado : null,
+//                // statusvagaexcedida:  categoriaReal === 'statusvagaexcedida' ? valorFormatado : null,
+//             };
+//         });
+
+//         res.json(resultadoFinal);
+
+//     } catch (err) {
+//         console.error('ERRO SQL:', err.message);
+//         res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
+//     }
+// });
+
 router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, async (req, res) => {
     try {
         const idempresa = req.idempresa;
@@ -1580,11 +1894,10 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             [idusuario]
         );
 
-        const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
-        const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.supremo === 'true');
-        const podeVerTodos   = ehMasterStaff || ehSupremoStaff;
+        const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === true);
+        const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.supremo === true);
+        const podeVerTodos = ehMasterStaff || ehSupremoStaff;
 
-        // 🛑 Monta params e filtro dinamicamente
         const params = [idempresa];
         let filtroStatus = '';
 
@@ -1598,44 +1911,6 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             params.push(idusuario);
             filtroStatus += ` AND s.idusuariosolicitante = $${params.length}`;
         }
-
-        // const queryBase = `
-        //     SELECT 
-        //         s.idsolicitacao        AS id_log,
-        //         s.idregistroalterado   AS idstaffevento,
-        //         s.idusuariosolicitante AS idexecutor,
-        //         fn.descfuncao          AS descfuncao,
-        //         s.tiposolicitacao,
-        //         (u.nome || ' ' || u.sobrenome)       AS nomesolicitante,
-        //         (resp.nome || ' ' || resp.sobrenome) AS nomeaprovador,
-        //         s.dtresposta           AS datadecisao,
-        //         f.nome                 AS nomefuncionario,
-        //         e.nmevento             AS evento,
-        //         se.datasevento,
-        //         s.dtsolicitacao        AS criado_em,
-        //         s.categoria_log        AS categoria,
-        //         s.status               AS status_atual,
-        //         s.vlrsolicitado,
-        //         s.justificativa        AS desccaixinha,
-        //         s.dtsolicitada,
-        //         COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
-        //         s.idfuncionario        AS idusuarioalvo,
-        //         se.vlralimentacao,
-        //         se.vlrtransporte,
-        //         se.dtdiariadobrada::text AS dtdiariadobrada,
-        //         se.dtmeiadiaria::text    AS dtmeiadiaria
-        //     FROM public.solicitacoes s
-        //     LEFT JOIN public.staffeventos se ON s.idregistroalterado = se.idstaffevento
-        //     LEFT JOIN public.usuarios u      ON u.idusuario = s.idusuariosolicitante
-        //     LEFT JOIN public.usuarios resp   ON resp.idusuario = s.idusuarioresponsavel
-        //     LEFT JOIN public.funcionarios f  ON f.idfuncionario = s.idfuncionario
-        //     LEFT JOIN public.orcamentos o    ON o.idorcamento = s.idorcamento
-        //     LEFT JOIN public.eventos e       ON e.idevento = o.idevento
-        //     LEFT JOIN public.funcao fn       ON fn.idfuncao = s.idfuncao
-        //     WHERE s.idempresa = $1
-        //     ${filtroStatus}
-        //     ORDER BY s.dtsolicitacao DESC
-        // `;
 
         const queryBase = `
             SELECT 
@@ -1655,12 +1930,11 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 s.status               AS status_atual,
                 SUM(s.vlrsolicitado)   AS vlrsolicitado,
                 MIN(s.justificativa)   AS desccaixinha,
-                
-                -- Agregamos as datas para não precisar colocar s.dtsolicitada no GROUP BY
                 jsonb_agg(
-                    jsonb_build_object('data', s.dtsolicitada, 'status', s.status)
+                    jsonb_build_object('data', s.dtsolicitada, 
+                                       'status', s.status,
+                                       'justificativa', s.justificativa)
                 ) AS dtsolicitada_agrupada,
-
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
                 s.idfuncionario        AS idusuarioalvo,
                 se.vlralimentacao,
@@ -1678,26 +1952,11 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             WHERE s.idempresa = $1
             ${filtroStatus}
             GROUP BY 
-                s.idregistroalterado, 
-                s.idusuariosolicitante, 
-                fn.descfuncao, 
-                s.tiposolicitacao,
-                u.nome, 
-                u.sobrenome, 
-                resp.nome, 
-                resp.sobrenome, 
-                f.nome, 
-                e.nmevento,
-                se.datasevento, 
-                s.categoria_log, 
-                s.status,                 
-                o.dtfiminfradesmontagem,
-                o.dtfimdesmontagem, 
-                s.idfuncionario, 
-                se.vlralimentacao, 
-                se.vlrtransporte,
-                se.dtdiariadobrada, 
-                se.dtmeiadiaria
+                s.idregistroalterado, s.idusuariosolicitante, fn.descfuncao, s.tiposolicitacao,
+                u.nome, u.sobrenome, resp.nome, resp.sobrenome, f.nome, e.nmevento,
+                se.datasevento, s.categoria_log, s.status, o.dtfiminfradesmontagem,
+                o.dtfimdesmontagem, s.idfuncionario, se.vlralimentacao, se.vlrtransporte,
+                se.dtdiariadobrada, se.dtmeiadiaria
             ORDER BY MIN(s.dtsolicitacao) DESC
         `;
 
@@ -1710,79 +1969,94 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         };
 
         const resultadoFinal = rows.map(r => {
+            // 1. Determina a Categoria Única para evitar duplicidade no front
             const categoriaReal = (r.tiposolicitacao === 'FUNCEXCEDIDO' || r.tiposolicitacao?.includes('VAGA EXCEDIDA'))
                 ? 'statusvagaexcedida'
                 : r.categoria === 'aditivoextra' ? 'statusaditivoextra' : r.categoria;
+              
+            // 2. Título formatado conforme sua regra
+            const tituloExibicao = obterTituloFormatado(r);
 
-                // 🔍 CONSOLE LOG PARA DEBUG DE DUPLICIDADE
-    if (categoriaReal === 'statusaditivoextra') {
-        console.log(`[DEBUG ADITIVO] ID: ${r.id_log} | Funcionário: ${r.nomefuncionario} | Datas no Grupo: ${r.dtsolicitada_agrupada ? r.dtsolicitada_agrupada.length : 0}`);
-    }
-
-            const valorFormatado = JSON.stringify([{
-                status:          r.status_atual,
-                valor:           parseValor(r.vlrsolicitado),
-                descricao:       r.desccaixinha,
-                vlralimentacao:  parseValor(r.vlralimentacao),
-                vlrtransporte:   parseValor(r.vlrtransporte),
-                tipoSolicitacao: r.tiposolicitacao
-            }]);
-
-            // const getDiaria = (campo) => {
-            //     if (r.idstaffevento && r[campo]) return r[campo];
-            //     if (r.dtsolicitada) return typeof r.dtsolicitada === 'string' ? r.dtsolicitada : JSON.stringify(r.dtsolicitada);
-            //     return null;
-            // };
-
-            const getDiaria = () => {
-                return r.dtsolicitada_agrupada ? JSON.stringify(r.dtsolicitada_agrupada) : null;
+            // 3. Montagem do valor formatado (o front espera isso em string JSON por causa do seu legado)
+            const dadosFinanceiros = {
+                status: r.status_atual,
+                valor: parseValor(r.vlrsolicitado),
+                descricao: r.desccaixinha,
+                vlralimentacao: parseValor(r.vlralimentacao),
+                vlrtransporte: parseValor(r.vlrtransporte),
+                tipoSolicitacao: r.tiposolicitacao,
+                titulo: tituloExibicao
             };
+            const valorFormatado = JSON.stringify([dadosFinanceiros]);
 
+            const getDiaria = () => r.dtsolicitada_agrupada ? JSON.stringify(r.dtsolicitada_agrupada) : null;
+
+            // 4. Retorno do objeto limpo
             return {
-                id_log:          r.id_log,
-                idStaffEvento:   r.idstaffevento,
-                idpedido:        r.id_log,
-
-                solicitante:     r.idexecutor || null,
+                id_log: r.id_log,
+                idpedido: r.id_log, // Importante: usar o mesmo ID único
+                titulo_formatado: tituloExibicao,
+                solicitante: r.idexecutor,
                 nomeSolicitante: r.nomesolicitante || '',
-                descFuncao:      r.descfuncao || '',
-                nomeAprovador:   r.nomeaprovador || '',      // 🛑 aprovador
-                dataDecisao:     r.datadecisao || null,      // 🛑 data decisão
-                funcionario:     categoriaReal === 'statusvagaexcedida' ? null : (r.nomefuncionario || '-'),
-                nomefuncionario: r.nomefuncionario || null,
-                evento:          r.evento || '-',
-                dtCriacao:       r.criado_em,
-                //dtsolicitada:    r.dtsolicitada || null,
-                dtsolicitada:        r.dtsolicitada_agrupada, // Agora é um array
-                dataSolicitacao: r.criado_em || null,
-                datasevento:     r.datasevento || (r.dtsolicitada ? (typeof r.dtsolicitada === 'string' ? r.dtsolicitada : JSON.stringify(r.dtsolicitada)) : '-'),
-                dtfimrealizacao: r.dtfimrealizacao || null,
+                descFuncao: r.descfuncao || '',
+                nomeAprovador: r.nomeaprovador || '',
+                dataDecisao: r.datadecisao,
+                funcionario: categoriaReal === 'statusvagaexcedida' ? null : (r.nomefuncionario || '-'),
+                nomefuncionario: r.nomefuncionario,
+                evento: r.evento || '-',
+                dtCriacao: r.criado_em,
+                dtsolicitada: r.dtsolicitada_agrupada,
+                datasevento: r.datasevento || '-',
+                dtfimrealizacao: r.dtfimrealizacao,
                 ehMasterStaff,
                 podeVerTodos,
-
-                categoria:        r.categoria,
-                categoria_item:   categoriaReal,
+                categoria: r.categoria,
+                categoria_item: categoriaReal,
                 status_aprovacao: r.status_atual.toLowerCase(),
-
-                statuscaixinha:      r.categoria === 'statuscaixinha'      ? valorFormatado : null,
-                statusajustecusto:   r.categoria === 'statusajustecusto'   ? valorFormatado : null,
-                statuscustofechado:  r.categoria === 'statuscustofechado'  ? valorFormatado : null,
-                //statusdiariadobrada: r.categoria === 'statusdiariadobrada' ? getDiaria('dtdiariadobrada') : null,
-                //statusmeiadiaria:    r.categoria === 'statusmeiadiaria'    ? getDiaria('dtmeiadiaria') : null,
+                
+                // Mapeamento dinâmico: apenas a categoria correspondente recebe o valor
+                statuscaixinha: r.categoria === 'statuscaixinha' ? valorFormatado : null,
+                statusajustecusto: r.categoria === 'statusajustecusto' ? valorFormatado : null,
+                statuscustofechado: r.categoria === 'statuscustofechado' ? valorFormatado : null,
                 statusdiariadobrada: r.categoria === 'statusdiariadobrada' ? getDiaria() : null,
-                statusmeiadiaria:    r.categoria === 'statusmeiadiaria'    ? getDiaria() : null,
-                statusaditivoextra:  categoriaReal === 'statusaditivoextra' ? valorFormatado : null,
-                statusvagaexcedida:  categoriaReal === 'statusvagaexcedida' ? valorFormatado : null,
+                statusmeiadiaria: r.categoria === 'statusmeiadiaria' ? getDiaria() : null,
+                statusaditivoextra: categoriaReal === 'statusaditivoextra' ? valorFormatado : null,
+                statusvagaexcedida: categoriaReal === 'statusvagaexcedida' ? valorFormatado : null,
             };
-        });
+        });       
 
+        console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}`);
         res.json(resultadoFinal);
+       
 
     } catch (err) {
-        console.error('ERRO SQL:', err.message);
-        res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
+        console.error('ERRO:', err.message);
+        res.status(500).json({ error: 'Erro interno' });
     }
 });
+
+// 1. Coloque a função auxiliar fora da rota
+const obterTituloFormatado = (r) => {
+    if (r.tiposolicitacao === 'FUNCEXCEDIDO') return "Func Excedido";
+
+    let natureza = "";
+    const categoria = (r.categoria || "").toLowerCase();
+    const tipo = (r.tiposolicitacao || "").toUpperCase();
+
+    if (categoria === 'aditivoextra' || tipo.includes('ADITIVO')) {
+        natureza = "Aditivo";
+    } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
+        natureza = "Extra Bonificado";
+    }
+
+    let motivo = (tipo.includes('VAGA EXCEDIDA') || tipo.includes('VAGA')) 
+        ? "Vaga Excedida" 
+        : "Datas fora do Orçamento";
+
+    return natureza && motivo ? `${natureza} - ${motivo}` : "Solicitação Financeira";
+};
+
+
 
 //correto antes de criarmos a tabela solicitacoes
 // router.post('/notificacoes-financeiras/atualizar-status',
@@ -2088,6 +2362,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // Garante que o status seja sempre 'Autorizado' ou 'Rejeitado' (Capitalizado corretamente)
             const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
 
+            console.log(`Iniciando atualização de status financeiro...`, statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, categoria );
+
             // 1. ATUALIZA A TABELA SOLICITACOES
             let querySolicitacoes = `
                 UPDATE public.solicitacoes 
@@ -2124,6 +2400,36 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             // 3. TRATAMENTO PARA ADITIVOS
             if (isAditivoOuExtra && !colunaDB) {
+
+                // if (statusParaAtualizar === 'Autorizado') {
+                //     await pool.query(`
+                //         UPDATE staffeventos
+                //         SET ativo = true
+                //         WHERE (idstaffevento = $1 
+                //             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
+                //         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
+                //     `, [idpedido, idempresa]);
+                // }
+
+                if (statusParaAtualizar === 'Autorizado') {
+                    await pool.query(`
+                        UPDATE staffeventos
+                        SET statusstaff = 'Ativo'
+                        WHERE (idstaffevento = $1 
+                            OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
+                        AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
+                    `, [idpedido, idempresa]);
+                } else if (statusParaAtualizar === 'Rejeitado') {
+                    // Rejeitado volta para Inativo (mantém histórico mas não ocupa vaga)
+                    await pool.query(`
+                        UPDATE staffeventos
+                        SET statusstaff = 'Inativo'
+                        WHERE (idstaffevento = $1 
+                            OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
+                        AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
+                    `, [idpedido, idempresa]);
+                }
+
                 return res.json({ 
                     sucesso: true, 
                     mensagem: `Solicitação de Aditivo/Extra atualizada para ${statusParaAtualizar}`,
@@ -3121,289 +3427,289 @@ router.delete("/agenda/:idagenda", logMiddleware('agenda', {
 });
 
 
-router.patch('/aditivoextra/:idAditivoExtra/status/anterior',
-  autenticarToken(),
-  contextoEmpresa,
-  verificarPermissao('staff', 'cadastrar'),
-  logMiddleware('aditivoextra', {
-    buscarDadosAnteriores: async (req) => {
-        console.log("⚠️ACESSOU A ROTA PATCH ADITIVOEXTRA");
-        const id = req.params.idAditivoExtra;
+// router.patch('/aditivoextra/:idAditivoExtra/status/anterior',
+//   autenticarToken(),
+//   contextoEmpresa,
+//   verificarPermissao('staff', 'cadastrar'),
+//   logMiddleware('aditivoextra', {
+//     buscarDadosAnteriores: async (req) => {
+//         console.log("⚠️ACESSOU A ROTA PATCH ADITIVOEXTRA");
+//         const id = req.params.idAditivoExtra;
 
-        // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
-        if (!id || isNaN(parseInt(id))) return null;
+//         // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
+//         if (!id || isNaN(parseInt(id))) return null;
 
-        // Usa a coluna justificativa que já existe no banco
-        const query = `SELECT idaditivoextra, status, tiposolicitacao FROM AditivoExtra WHERE idAditivoExtra = $1`;
-        const result = await pool.query(query, [id]);
-        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
-        }
-    }),
-    async (req, res) => {
-    const idAditivoExtra = req.params.idAditivoExtra;
-    // ⚠️ Vamos ignorar a justificativaStatus na lógica
-    const { novoStatus, idlog_origem } = req.body; 
-    const idUsuarioAprovador = req.usuario?.idusuario;
-
-
-    console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
-
-    // 1. Validação
-    if (!novoStatus || !idUsuarioAprovador) {
-        return res.status(400).json({
-            sucesso: false,
-            erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
-        });
-    }
-
-    console.log(`Validando novoStatus: ${novoStatus}`);
-
-    const statusPermitidos = ['Autorizado', 'Rejeitado'];
-    if (!statusPermitidos.includes(novoStatus)) {
-        return res.status(400).json({
-            sucesso: false,
-            erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
-        });
-    }
-
-    console.log(`Status permitido: ${novoStatus}`);
+//         // Usa a coluna justificativa que já existe no banco
+//         const query = `SELECT idaditivoextra, status, tiposolicitacao FROM AditivoExtra WHERE idAditivoExtra = $1`;
+//         const result = await pool.query(query, [id]);
+//         return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
+//         }
+//     }),
+//     async (req, res) => {
+//     const idAditivoExtra = req.params.idAditivoExtra;
+//     // ⚠️ Vamos ignorar a justificativaStatus na lógica
+//     const { novoStatus, idlog_origem } = req.body; 
+//     const idUsuarioAprovador = req.usuario?.idusuario;
 
 
-    try {
-    // 2. Verifica o status atual da solicitação
-    const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
-    const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
+//     console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
 
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
-    }
-    console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
+//     // 1. Validação
+//     if (!novoStatus || !idUsuarioAprovador) {
+//         return res.status(400).json({
+//             sucesso: false,
+//             erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
+//         });
+//     }
 
-    const currentStatus = checkResult.rows[0].status;
+//     console.log(`Validando novoStatus: ${novoStatus}`);
 
-    if (currentStatus !== 'Pendente') {
-        return res.status(400).json({
-            sucesso: false,
-            erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
-        });
-    }
+//     const statusPermitidos = ['Autorizado', 'Rejeitado'];
+//     if (!statusPermitidos.includes(novoStatus)) {
+//         return res.status(400).json({
+//             sucesso: false,
+//             erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
+//         });
+//     }
 
-    // 3. Comando SQL de Atualização
-    let query;
-    let values;
-
-    console.log(`Preparando atualização para status: ${novoStatus}`, idAditivoExtra, req.idempresa);
-
-    // A query de Autorizado já estava correta, sem a justificativa
-    if (novoStatus === 'Autorizado') {
-        query = `
-            UPDATE AditivoExtra
-            SET status = $1, 
-            dtresposta = NOW(), 
-            idusuarioresponsavel = $2
-            WHERE idaditivoextra = $3 AND idempresa = $4
-            RETURNING *;
-            `;
-        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
-    } else if (novoStatus === 'Rejeitado') {
-        query = `
-            UPDATE AditivoExtra
-            SET status = $1, 
-            dtresposta = NOW(), 
-            idusuarioresponsavel = $2  
-            WHERE idaditivoextra = $3 AND idempresa = $4
-            RETURNING *;
-            `;
-        // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
-        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
-    } else {
-    throw new Error("Erro de lógica: Status de atualização inválido.");
-    }
-
-    const resultado = await pool.query(query, values);
-
-    if (resultado.rows.length === 0) {
-    throw new Error("A atualização falhou. Nenhuma linha afetada.");
-    }
-
-    res.locals.idlog_origem = idlog_origem || null;
-
-    res.locals.acao = 'atualizou';
-    res.locals.idregistroalterado = idAditivoExtra;
-    res.locals.dadosnovos = resultado.rows[0];
-
-    // 4. Resposta de Sucesso
-    res.json({
-        sucesso: true,
-        mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
-        dados: resultado.rows[0]
-    });
-
-    } catch (error) {
-        console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
-        res.status(500).json({
-            sucesso: false,
-            erro: "Erro interno do servidor ao processar a atualização do status."
-        });
-    }
-});
+//     console.log(`Status permitido: ${novoStatus}`);
 
 
-router.get('/aditivoextra/anterior', async (req, res) => {
-    try {
-        const idEmpresa = req.idempresa || req.headers.idempresa; 
-        const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+//     try {
+//     // 2. Verifica o status atual da solicitação
+//     const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
+//     const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
 
-        if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
-        if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+//     if (checkResult.rows.length === 0) {
+//       return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
+//     }
+//     console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
 
-        // 1. Busca todas as permissões de uma vez
-        const { rows: allPermissoes } = await pool.query(`
-            SELECT modulo, master FROM permissoes 
-            WHERE idusuario = $1
-        `, [idUsuario]);
+//     const currentStatus = checkResult.rows[0].status;
 
-        // 2. Define o acesso de Master (apenas para botões de Aprovação/Rejeição)
-        const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
+//     if (currentStatus !== 'Pendente') {
+//         return res.status(400).json({
+//             sucesso: false,
+//             erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
+//         });
+//     }
+
+//     // 3. Comando SQL de Atualização
+//     let query;
+//     let values;
+
+//     console.log(`Preparando atualização para status: ${novoStatus}`, idAditivoExtra, req.idempresa);
+
+//     // A query de Autorizado já estava correta, sem a justificativa
+//     if (novoStatus === 'Autorizado') {
+//         query = `
+//             UPDATE AditivoExtra
+//             SET status = $1, 
+//             dtresposta = NOW(), 
+//             idusuarioresponsavel = $2
+//             WHERE idaditivoextra = $3 AND idempresa = $4
+//             RETURNING *;
+//             `;
+//         values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
+//     } else if (novoStatus === 'Rejeitado') {
+//         query = `
+//             UPDATE AditivoExtra
+//             SET status = $1, 
+//             dtresposta = NOW(), 
+//             idusuarioresponsavel = $2  
+//             WHERE idaditivoextra = $3 AND idempresa = $4
+//             RETURNING *;
+//             `;
+//         // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
+//         values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
+//     } else {
+//     throw new Error("Erro de lógica: Status de atualização inválido.");
+//     }
+
+//     const resultado = await pool.query(query, values);
+
+//     if (resultado.rows.length === 0) {
+//     throw new Error("A atualização falhou. Nenhuma linha afetada.");
+//     }
+
+//     res.locals.idlog_origem = idlog_origem || null;
+
+//     res.locals.acao = 'atualizou';
+//     res.locals.idregistroalterado = idAditivoExtra;
+//     res.locals.dadosnovos = resultado.rows[0];
+
+//     // 4. Resposta de Sucesso
+//     res.json({
+//         sucesso: true,
+//         mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
+//         dados: resultado.rows[0]
+//     });
+
+//     } catch (error) {
+//         console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
+//         res.status(500).json({
+//             sucesso: false,
+//             erro: "Erro interno do servidor ao processar a atualização do status."
+//         });
+//     }
+// });
+
+
+// router.get('/aditivoextra/anterior', async (req, res) => {
+//     try {
+//         const idEmpresa = req.idempresa || req.headers.idempresa; 
+//         const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+
+//         if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+//         if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+
+//         // 1. Busca todas as permissões de uma vez
+//         const { rows: allPermissoes } = await pool.query(`
+//             SELECT modulo, master FROM permissoes 
+//             WHERE idusuario = $1
+//         `, [idUsuario]);
+
+//         // 2. Define o acesso de Master (apenas para botões de Aprovação/Rejeição)
+//         const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
         
-        // 3. Define a permissão de Visualização Total (AGORA CHECA SE O MÓDULO 'Staff' EXISTE)
-        const temPermissaoVisualizacaoTotal = allPermissoes.some(p => 
-            p.modulo === 'Staff' || p.modulo.toLowerCase().includes('aditivoextra')
-        );
+//         // 3. Define a permissão de Visualização Total (AGORA CHECA SE O MÓDULO 'Staff' EXISTE)
+//         const temPermissaoVisualizacaoTotal = allPermissoes.some(p => 
+//             p.modulo === 'Staff' || p.modulo.toLowerCase().includes('aditivoextra')
+//         );
         
-        const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal; 
+//         const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal; 
 
-        // 4. Lógica de Filtro Condicional
-        let filtroSolicitante = '';
-        const params = [idEmpresa]; 
+//         // 4. Lógica de Filtro Condicional
+//         let filtroSolicitante = '';
+//         const params = [idEmpresa]; 
 
-        // Se PODE VER TODOS for TRUE, o filtroSolicitante será vazio.
-        if (!podeVerTodos) {
-            filtroSolicitante = `AND ae.idUsuarioSolicitante = $2`;
-            params.push(idUsuario); 
-        }
+//         // Se PODE VER TODOS for TRUE, o filtroSolicitante será vazio.
+//         if (!podeVerTodos) {
+//             filtroSolicitante = `AND ae.idUsuarioSolicitante = $2`;
+//             params.push(idUsuario); 
+//         }
 
-        // DEBUG
-        console.log(`[FINAL QUERY STATE] Aditivo Extra | PodeVerTodos: ${podeVerTodos} | Filtro: "${filtroSolicitante}" | Params: ${params.join(', ')}`);
-
-
-        // 5. Consulta SQL 
-        const query = `
-        SELECT 
-        ae.idAditivoExtra, ae.tipoSolicitacao, ae.justificativa, ae.status, ae.qtdSolicitada, ae.dtsolicitada,
-        ae.dtSolicitacao AS criado_em, ae.idFuncionario, 
-        func.nome AS nomeFuncionario, f.descfuncao AS funcao,
-        e.nmevento AS evento, s.nome || ' ' || s.sobrenome AS nomesolicitante,
-        resp.nome || ' ' || resp.sobrenome AS nomeAprovador, dtresposta AS dataDecisao,
-        f.descfuncao AS nmfuncao
-        FROM 
-        AditivoExtra ae
-        LEFT JOIN Funcao f ON ae.idFuncao = f.idFuncao
-        LEFT JOIN Funcionarios func ON ae.idFuncionario = func.idFuncionario
-        JOIN Orcamentos o ON ae.idOrcamento = o.idOrcamento
-        JOIN Eventos e ON o.idEvento = e.idEvento      
-        JOIN Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
-        LEFT JOIN Usuarios resp ON ae.idUsuarioResponsavel = resp.idUsuario
-        WHERE 
-        ae.idEmpresa = $1 
-        ${filtroSolicitante} 
-        ORDER BY 
-        e.nmevento, f.descfuncao, ae.tipoSolicitacao;
-        `;
-
-        const resultado = await pool.query(query, params); 
-        console.log(`[ADITIVO EXTRA DEBUG] Linhas retornadas do DB: ${resultado.rows.length}`);
+//         // DEBUG
+//         console.log(`[FINAL QUERY STATE] Aditivo Extra | PodeVerTodos: ${podeVerTodos} | Filtro: "${filtroSolicitante}" | Params: ${params.join(', ')}`);
 
 
-        // 6. Mapeamento e Resposta
-        const dadosComPermissao = resultado.rows.map(row => ({
-            ...row,
-            ehMasterStaff: ehMasterStaff, 
-            podeVerTodos: podeVerTodos 
-        }));
+//         // 5. Consulta SQL 
+//         const query = `
+//         SELECT 
+//         ae.idAditivoExtra, ae.tipoSolicitacao, ae.justificativa, ae.status, ae.qtdSolicitada, ae.dtsolicitada,
+//         ae.dtSolicitacao AS criado_em, ae.idFuncionario, 
+//         func.nome AS nomeFuncionario, f.descfuncao AS funcao,
+//         e.nmevento AS evento, s.nome || ' ' || s.sobrenome AS nomesolicitante,
+//         resp.nome || ' ' || resp.sobrenome AS nomeAprovador, dtresposta AS dataDecisao,
+//         f.descfuncao AS nmfuncao
+//         FROM 
+//         AditivoExtra ae
+//         LEFT JOIN Funcao f ON ae.idFuncao = f.idFuncao
+//         LEFT JOIN Funcionarios func ON ae.idFuncionario = func.idFuncionario
+//         JOIN Orcamentos o ON ae.idOrcamento = o.idOrcamento
+//         JOIN Eventos e ON o.idEvento = e.idEvento      
+//         JOIN Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+//         LEFT JOIN Usuarios resp ON ae.idUsuarioResponsavel = resp.idUsuario
+//         WHERE 
+//         ae.idEmpresa = $1 
+//         ${filtroSolicitante} 
+//         ORDER BY 
+//         e.nmevento, f.descfuncao, ae.tipoSolicitacao;
+//         `;
 
-        res.json({
-            sucesso: true,
-            dados: dadosComPermissao 
-        });
+//         const resultado = await pool.query(query, params); 
+//         console.log(`[ADITIVO EXTRA DEBUG] Linhas retornadas do DB: ${resultado.rows.length}`);
 
-    } catch (error) {
-        console.error("Erro ao listar AditivoExtra pendentes:", error);
-        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
-    }
-});
 
-router.get('/aditivoextra', autenticarToken(), contextoEmpresa, async (req, res) => {
-    try {
-        const idEmpresa = req.idempresa;
-        const idUsuario = req.usuario?.idusuario;
+//         // 6. Mapeamento e Resposta
+//         const dadosComPermissao = resultado.rows.map(row => ({
+//             ...row,
+//             ehMasterStaff: ehMasterStaff, 
+//             podeVerTodos: podeVerTodos 
+//         }));
 
-        if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+//         res.json({
+//             sucesso: true,
+//             dados: dadosComPermissao 
+//         });
 
-        const { rows: allPermissoes } = await pool.query(
-            `SELECT modulo, master FROM permissoes WHERE idusuario = $1`, [idUsuario]
-        );
+//     } catch (error) {
+//         console.error("Erro ao listar AditivoExtra pendentes:", error);
+//         res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+//     }
+// });
 
-        const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
-        const temPermissaoVisualizacaoTotal = allPermissoes.some(p =>
-            p.modulo === 'Staff' || p.modulo.toLowerCase().includes('aditivoextra')
-        );
-        const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal;
+// router.get('/aditivoextra', autenticarToken(), contextoEmpresa, async (req, res) => {
+//     try {
+//         const idEmpresa = req.idempresa;
+//         const idUsuario = req.usuario?.idusuario;
 
-        let query = `
-            SELECT 
-                s.idsolicitacao                     AS idaditivoextra,
-                s.tiposolicitacao,
-                s.justificativa,
-                s.status,
-                s.qtdsolicitada,
-                s.dtsolicitada,
-                s.dtsolicitacao                     AS criado_em,
-                s.idfuncionario,
-                s.dtresposta                        AS dataDecisao,
-                s.idorcamento,
-                s.idusuariosolicitante,
-                f.descfuncao                        AS funcao,
-                f.descfuncao                        AS nmfuncao,
-                func.nome                           AS nomefuncionario,
-                e.nmevento                          AS evento,
-                (sol.nome || ' ' || sol.sobrenome)  AS nomesolicitante,
-                (resp.nome || ' ' || resp.sobrenome) AS nomeaprovador
-            FROM public.solicitacoes s
-            LEFT JOIN funcao f          ON f.idfuncao = s.idfuncao
-            LEFT JOIN funcionarios func ON func.idfuncionario = s.idfuncionario
-            LEFT JOIN orcamentos o      ON o.idorcamento = s.idorcamento
-            LEFT JOIN eventos e         ON e.idevento = o.idevento
-            LEFT JOIN usuarios sol      ON sol.idusuario = s.idusuariosolicitante
-            LEFT JOIN usuarios resp     ON resp.idusuario = s.idusuarioresponsavel
-            WHERE s.idempresa = $1
-            AND s.categoria_log = 'aditivoextra'
-        `;
+//         if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
 
-        const params = [idEmpresa];
+//         const { rows: allPermissoes } = await pool.query(
+//             `SELECT modulo, master FROM permissoes WHERE idusuario = $1`, [idUsuario]
+//         );
 
-        if (!podeVerTodos) {
-            query += ` AND s.idusuariosolicitante = $2`;
-            params.push(idUsuario);
-        }
+//         const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
+//         const temPermissaoVisualizacaoTotal = allPermissoes.some(p =>
+//             p.modulo === 'Staff' || p.modulo.toLowerCase().includes('aditivoextra')
+//         );
+//         const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal;
 
-        query += ` ORDER BY e.nmevento, f.descfuncao, s.tiposolicitacao`;
+//         let query = `
+//             SELECT 
+//                 s.idsolicitacao                     AS idaditivoextra,
+//                 s.tiposolicitacao,
+//                 s.justificativa,
+//                 s.status,
+//                 s.qtdsolicitada,
+//                 s.dtsolicitada,
+//                 s.dtsolicitacao                     AS criado_em,
+//                 s.idfuncionario,
+//                 s.dtresposta                        AS dataDecisao,
+//                 s.idorcamento,
+//                 s.idusuariosolicitante,
+//                 f.descfuncao                        AS funcao,
+//                 f.descfuncao                        AS nmfuncao,
+//                 func.nome                           AS nomefuncionario,
+//                 e.nmevento                          AS evento,
+//                 (sol.nome || ' ' || sol.sobrenome)  AS nomesolicitante,
+//                 (resp.nome || ' ' || resp.sobrenome) AS nomeaprovador
+//             FROM public.solicitacoes s
+//             LEFT JOIN funcao f          ON f.idfuncao = s.idfuncao
+//             LEFT JOIN funcionarios func ON func.idfuncionario = s.idfuncionario
+//             LEFT JOIN orcamentos o      ON o.idorcamento = s.idorcamento
+//             LEFT JOIN eventos e         ON e.idevento = o.idevento
+//             LEFT JOIN usuarios sol      ON sol.idusuario = s.idusuariosolicitante
+//             LEFT JOIN usuarios resp     ON resp.idusuario = s.idusuarioresponsavel
+//             WHERE s.idempresa = $1
+//             AND s.categoria_log = 'aditivoextra'
+//         `;
 
-        const { rows } = await pool.query(query, params);
+//         const params = [idEmpresa];
 
-        const dadosComPermissao = rows.map(row => ({
-            ...row,
-            ehMasterStaff,
-            podeVerTodos
-        }));
+//         if (!podeVerTodos) {
+//             query += ` AND s.idusuariosolicitante = $2`;
+//             params.push(idUsuario);
+//         }
 
-        res.json({ sucesso: true, dados: dadosComPermissao });
+//         query += ` ORDER BY e.nmevento, f.descfuncao, s.tiposolicitacao`;
 
-    } catch (error) {
-        console.error("Erro ao listar AditivoExtra:", error);
-        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
-    }
-});
+//         const { rows } = await pool.query(query, params);
+
+//         const dadosComPermissao = rows.map(row => ({
+//             ...row,
+//             ehMasterStaff,
+//             podeVerTodos
+//         }));
+
+//         res.json({ sucesso: true, dados: dadosComPermissao });
+
+//     } catch (error) {
+//         console.error("Erro ao listar AditivoExtra:", error);
+//         res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+//     }
+// });
 
 router.patch('/aditivoextra/:idAditivoExtra/status',
     autenticarToken(),
