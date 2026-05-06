@@ -30,6 +30,11 @@ let setorEsperado = '';
 let estaSalvando = false;
 let alteracaoRegistrada = false;
 
+let bSalvarComoInativo = false;
+let tipoExcecaoAtual = null;
+let justificativaParaSalvar = "";
+let prefixoSolicitacao = "";
+
 window.addEventListener('prefill:registered', function (e) {
     console.log("⚡ EVENTO RECEBIDO: prefill:registered. Tentando chamar a busca...");
     
@@ -820,20 +825,20 @@ function configurarFlatpickrs() {
 
                 // console.log("DEBUG - onChange Datas Evento: isPago:", isPago, "adicionouDatas:", adicionouDatas, "removeuDatas:", removeuDatas);
 
-// 1. Pegamos as datas do calendário no clique atual
-                    const formatarIso = (d) => flatpickr.formatDate(d, 'Y-m-d');
-const strAtuais = selectedDates.map(formatarIso).sort();
+                    // 1. Pegamos as datas do calendário no clique atual
+                                        const formatarIso = (d) => flatpickr.formatDate(d, 'Y-m-d');
+                    const strAtuais = selectedDates.map(formatarIso).sort();
 
-// ✅ FIX: Se não foi o usuário quem abriu (é um setDate programático),
-// apenas atualiza o cache e sai. Evita falsos positivos de "inserção".
-if (!instance.usuarioAbriu) {
-    window.datasEventoNoCalendarioCache = [...strAtuais];
-    atualizarContadorEDatas(selectedDates);
-    debouncedOnCriteriosChanged();
-    return;
-}
+                    // ✅ FIX: Se não foi o usuário quem abriu (é um setDate programático),
+                    // apenas atualiza o cache e sai. Evita falsos positivos de "inserção".
+                    if (!instance.usuarioAbriu) {
+                        window.datasEventoNoCalendarioCache = [...strAtuais];
+                        atualizarContadorEDatas(selectedDates);
+                        debouncedOnCriteriosChanged();
+                        return;
+                    }
 
-const strAnteriores = window.datasEventoNoCalendarioCache || [];
+                    const strAnteriores = window.datasEventoNoCalendarioCache || [];
 
 
                     // 3. Comparações ultra precisas
@@ -843,7 +848,7 @@ const strAnteriores = window.datasEventoNoCalendarioCache || [];
                     const removeuDatas = removidasArray.length > 0;
                     const adicionouDatas = inseridasArray.length > 0;
 
-console.log("=== DEBUG ATÔMICO CORRIGIDO ===");
+                    console.log("=== DEBUG ATÔMICO CORRIGIDO ===");
                     console.log("Datas que estavam no calendário (Cache):", strAnteriores);
                     console.log("Datas que ficaram no calendário (Atuais):", strAtuais);
                     console.log("O que foi de fato REMOVIDO:", removidasArray);
@@ -933,6 +938,14 @@ console.log("=== DEBUG ATÔMICO CORRIGIDO ===");
                             // Se o usuário cancelou, voltamos o calendário para o estado anterior usando o cache!
                         const datasAnterioresObj = strAnteriores.map(d => new Date(d + 'T12:00:00')); // T12:00:00 evita bugs de fuso
                         instance.setDate(datasAnterioresObj, false);
+
+                        if (typeof atualizarContadorEDatas === 'function') {
+                            atualizarContadorEDatas(datasAnterioresObj);
+                        }
+                        
+                        if (typeof calcularValorTotal === 'function') {
+                            calcularValorTotal(); // Isso faz o valor voltar ao que era antes
+                        }
                         return;
                     }
                     
@@ -2130,6 +2143,17 @@ function inicializarEPreencherCampos(eventData) {
     const datesEvento = getDatesForFlatpickr(eventData.datasevento); // Presumindo que datasevento seja uma string JSON de datas
     const datesDiariaDobrada = extractDatesFromStatusArray(datasDobrada); // 💡 USAR O NOVO AUXILIAR
     const datesMeiaDiaria = extractDatesFromStatusArray(datasMeiaDiaria); // 💡 USAR O NOVO AUXILIAR
+
+
+    // 🚩 ADICIONE ESTE BLOCO AQUI PARA CORRIGIR O qtdOriginais: 0
+    window.currentEventDataCache = {
+        ...window.currentEventDataCache, // Mantém o que já existir (como vlrtotajdcusto)
+        vlrtotajdcusto: eventData.vlrtotajdcusto,
+        statusAjudaCustoOriginal: (eventData.statuspgtoajdcto || "").trim().toLowerCase(),
+        statusPgtoCacheOriginalDoBanco: (eventData.statuspgto || "").trim().toLowerCase(),
+        // Salva as datas originais como Array para o .length funcionar no calcularValorTotal
+        datasOriginaisBanco: datesEvento 
+    };
 
     //  // **PASSO 3: INICIALIZAR AS NOVAS INSTÂNCIAS COM AS CONFIGURAÇÕES CORRETAS**
 
@@ -3533,7 +3557,8 @@ async function verificaStaff() {
             });
         }
 
-        if (statusPgtoAjudaCustoInput.value !== 'Pago') {
+        const status = statusPgtoAjudaCustoInput.value.toLowerCase();
+        if (status !== 'pago') {
             event.preventDefault(); // Impede a abertura do modal de upload
             Swal.fire({
                 icon: 'warning',
@@ -3558,7 +3583,9 @@ async function verificaStaff() {
             });
         }
 
-        if (statusPgtoAjudaCustoInput.value !== 'Pago50') {
+        const status50 = statusPgtoAjudaCustoInput.value.toLowerCase();
+
+        if (status50 !== 'pago50') {
             event.preventDefault(); // Impede a abertura do modal de upload
             Swal.fire({
                 icon: 'warning',
@@ -4007,7 +4034,7 @@ async function verificaStaff() {
             caixinhaInput.value = vOriginal.toFixed(2).replace('.', ',');
             textarea.value = dOriginal;
 
-            const campoInput = document.getElementById('statuscaixinha');
+            const campoInput = document.getElementById('statusCaixinha');
             //if (campoInput) campoInput.value = sOriginal || 'Pendente';
             const vlrCaixaOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) : 0;
             campoInput.value = sOriginal || (vlrCaixaOriginal !== 0 ? 'Pendente' : '');
@@ -5043,7 +5070,7 @@ async function verificaStaff() {
                                 html: `Já existe uma solicitação <strong>AUTORIZADA</strong>. O agendamento será processado.`,
                                 icon: "success", confirmButtonText: "Prosseguir"
                             });
-                            return;
+                           // return;
                         }
 
                         msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> Máximo: ${limiteMaximo}.`;
@@ -5055,7 +5082,8 @@ async function verificaStaff() {
                             html: `${msg}<br>
                                 <label for="swal-input-justificativa">Justificativa:</label>
                                 <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>`,
-                            icon: "warning", showCancelButton: true,
+                            icon: "warning", 
+                            showCancelButton: true,
                             confirmButtonText: "Sim, Solicitar e Agendar",
                             cancelButtonText: "Não, Cancelar",
                             preConfirm: () => {
@@ -5068,55 +5096,13 @@ async function verificaStaff() {
                         if (!swalResult.isConfirmed) return;
 
                         const justificativa = swalResult.value;
-                        try {
-                            const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                            const detalheConflitos = conflitosReais.map(c => {
-                                const dataFormatada = c.data_conflito ? new Date(c.data_conflito).toLocaleDateString('pt-BR') : '';
-                                return `[${c.nmevento || 'N/A'} - ${c.nmfuncao}${dataFormatada ? ' em ' + dataFormatada : ''}]`;
-                            }).join(', ');
 
-                            let justificativaFinal = '';
-                            if (dtInicio && dtFim) justificativaFinal += `[Período Novo: ${dtInicio} a ${dtFim}] `;
-                            if (detalheConflitos) justificativaFinal += `| Agendado em: ${detalheConflitos} `;
-                            justificativaFinal += `- Justificativa Usuário: ${justificativa}`;
+                        window.bSalvarComoInativo = true; 
+                        window.tipoExcecaoAtual = "FuncExcedido";
 
-                            const result = await salvarSolicitacaoAditivoExtra(
-                                idOrcamentoAtual, idFuncaoDoFormulario, 1, 'FuncExcedido',
-                                justificativaFinal, idFuncionarioParaVerificacao,
-                                datasConflitantes, idEventoPrincipal, conflitosReais[0]?.idevento
-                            );
-
-                            if (!result.sucesso) {
-                                await Swal.fire("Erro", `Falha ao registrar: ${result.erro}`, "error");
-                                return;
-                            }
-                        } catch (error) {
-                            console.error("Erro no salvamento:", error);
-                            await Swal.fire("Erro Crítico", error.message, "error");
-                            return;
-                        }
-
-                        const resultDecisao = await Swal.fire({
-                            title: "Solicitação Registrada!",
-                            html: `A exceção está <strong>Pendente</strong>. O agendamento não foi realizado ainda.<br><br>O que deseja fazer?`,
-                            icon: "info", showCancelButton: true, showDenyButton: true,
-                            confirmButtonText: "Cadastrar mais um (Mesmo Evento)",
-                            denyButtonText: "Novo Staff (Limpar tudo)",
-                            cancelButtonText: "Finalizar e Sair"
-                        });
-
-                        if (resultDecisao.isConfirmed) {
-                            (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
-                        } else if (resultDecisao.isDenied) {
-                            limparCamposStaff();
-                        } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
-                            currentEditingStaffEvent = null;
-                            limparCamposStaff();
-                            window.location.reload();
-                        }
-                        return;
-
-                    // CASO B: Dentro do limite → Apenas aviso
+                        window.prefixoSolicitacao = "[SOLICITAÇÃO - FUNCEXCEDIDO (Limite de agendamento diário excedido)]";
+                        window.justificativaParaSalvar = justificativa;                       
+                        
                     } else {
                         msg += `<br><br>Você está no <strong>${(totalConflitosExistentes + 1)}º</strong> agendamento (Limite: ${limiteMaximo}).`;
                         msg += `<br>Motivo: ${motivoLiberacao}<br><br>Deseja continuar?`;
@@ -5148,10 +5134,47 @@ async function verificaStaff() {
                     idFuncao: descFuncaoSelect.value
                 };
 
+                console.log("Critérios para verificação de limite de função:", criteriosDeVerificacao);
                 const resultadoFuncao = await verificarLimiteDeFuncao(criteriosDeVerificacao);
+                console.log("Resultado da verificação de limite de função:", resultadoFuncao);
+                // if (!resultadoFuncao.allowed) {
+                //     controlarBotaoSalvarStaff(false);
+                //     return;
+                // }
+
+                // Se não for permitido (limite excedido), mas o usuário confirmar a solicitação:
                 if (!resultadoFuncao.allowed) {
-                    controlarBotaoSalvarStaff(false);
-                    return;
+                    // Se a função 'verificarLimiteDeFuncao' já abre o Swal e retorna a justificativa,
+                    // use o valor retornado. Caso contrário, se ela apenas retornar allowed: false,
+                    // precisamos abrir o Swal de justificativa aqui.
+                    
+                    if (resultadoFuncao.solicitouAutorizacao) { // Supondo que sua função retorne isso
+                        window.bSalvarComoInativo = true;
+                        justificativaParaSalvar = resultadoFuncao.justificativa;
+                        // Aqui você define o prefixo baseado no que excedeu (Vaga ou Data Fora)
+
+                        window.tipoExcecaoAtual = resultadoFuncao.tipoSolicitacao;
+
+                        // 4. Define o prefixo do log (obsgeral) verificando o conteúdo da string
+                        // Usamos .includes() porque o retorno é "Aditivo - Vaga Excedida" ou similar
+                        if (window.tipoExcecaoAtual && window.tipoExcecaoAtual.includes("Vaga Excedida")) {
+                            window.prefixoSolicitacao = "[SOLICITAÇÃO - VAGA EXCEDIDA]";
+                        } else {
+                            // Caso seja "Datas fora do Orçamento" ou qualquer outro
+                            window.prefixoSolicitacao = "[SOLICITAÇÃO - DATAS FORA ORÇAMENTO]";
+                        }
+                        
+                        // prefixoSolicitacao = resultadoFuncao.tipoSolicitacao === 'VagaExcedida' 
+                        //     ? "[SOLICITAÇÃO - VAGA EXCEDIDA]" 
+                        //     : "[SOLICITAÇÃO - DATAS FORA ORÇAMENTO]";                      
+                        
+                        
+                        // NÃO DAMOS RETURN! Deixamos seguir para salvar como inativo.
+                    } else {
+                        // Se o usuário simplesmente cancelou no Swal dentro da verificarLimiteDeFuncao
+                        controlarBotaoSalvarStaff(false);
+                        return; 
+                    }
                 }
 
                 statusAditivoFinal = resultadoFuncao.statusAditivo;
@@ -5316,7 +5339,7 @@ async function verificaStaff() {
                         const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                         
-                        textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO`;
+                        textoLogDatas = `[${dataFormatada}, ${horaFormatada}] Alteração de Datas: ${partesLog.join(' | ')} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
                     }
                 }
 
@@ -5364,8 +5387,8 @@ async function verificaStaff() {
                 const idEquipeAtual = String(idEquipe || '').trim();
 
                 // ADICIONE ESTAS 2 LINHAS antes do houveAlteracao:
-console.log("🔍 DEBUG idequipe:", currentEditingStaffEvent?.idequipe, "| idEquipeOriginalRaw:", idEquipeOriginalRaw, "| idEquipeOriginal:", idEquipeOriginal);
-console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingStaffEvent || {}));
+                console.log("🔍 DEBUG idequipe:", currentEditingStaffEvent?.idequipe, "| idEquipeOriginalRaw:", idEquipeOriginalRaw, "| idEquipeOriginal:", idEquipeOriginal);
+                console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingStaffEvent || {}));
                 
 
                 const houveAlteracao =
@@ -5596,9 +5619,7 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
 
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
             formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
-            formData.append('statusmeiadiaria', statusMeiaDiaria);
-
-            console.log()
+            formData.append('statusmeiadiaria', statusMeiaDiaria);            
 
             //formData.append('obspospgto', obsPosPgtoElement ? obsPosPgtoElement.value.trim() : '');
 
@@ -5613,12 +5634,26 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
             // Grava no FormData para enviar ao banco de dados
             formData.append('obspospgto', obsFinal);
 
-            // Comprovantes
+            // if (bSalvarComoInativo) {
+            //     const agora = new Date().toLocaleString('pt-BR');
+            //     const usuarioLogado = window.usuarioNome || "Usuário";
+            //     const logSolicitacao = `${prefixoSolicitacao} - Solicitado em ${agora} por ${usuarioLogado}. Justificativa: ${justificativaParaSalvar}`;
+                
+            //     formData.append('obsgeral', logSolicitacao);
+            //     formData.append('ativo', 'false');
+            // } else {
+            //     formData.append('ativo', 'true');
+            // }
+
+            // 🚩 ADICIONA O NOVO CAMPO ATIVO
+           // formData.append('ativo', bSalvarComoInativo ? 'false' : 'true');
+
+            //Comprovantes
             if (fileCacheInput.files?.[0]) formData.append('comppgtocache', fileCacheInput.files[0]);
             else if (hiddenRemoverCacheInput.value === 'true') formData.append('limparComprovanteCache', 'true');
 
-            if (fileAjdCustoInput.files?.[0]) formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-            else if (hiddenRemoverAjdCustoInput.value === 'true') formData.append('limparComprovanteAjdCusto', 'true');
+            // if (fileAjdCustoInput.files?.[0]) formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+            // else if (hiddenRemoverAjdCustoInput.value === 'true') formData.append('limparComprovanteAjdCusto', 'true');
 
             if (fileAjdCusto2Input.files?.[0]) formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
             else if (hiddenRemoverAjdCusto2Input.value === 'true') formData.append('limparComprovanteAjdCusto2', 'true');
@@ -5626,115 +5661,634 @@ console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingSta
             if (fileCaixinhaInput.files?.[0]) formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
             else if (hiddenRemoverCaixinhaInput.value === 'true') formData.append('limparComprovanteCaixinha', 'true');
 
+            if (fileAjdCustoInput.files?.[0]) {
+                console.log("📎 Anexando NOVO comprovante de Ajuda de Custo");
+                formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+            } else if (hiddenRemoverAjdCustoInput.value === 'true') {
+                console.log("🗑️ Marcando comprovante de Ajuda de Custo para REMOÇÃO");
+                formData.append('limparComprovanteAjdCusto', 'true');
+            }
+
+           
+            console.log("Chega aqui antes do try do envio...");
+
+            // // =========================================================
+            // // 16. ENVIO DA REQUISIÇÃO
+            // // =========================================================
+            // try {
+            //     estaSalvando = true;
+            //     console.log("Preparando envio. Método:", metodo, "URL:", url);
+               
+            //     for (let pair of formData.entries()) console.log(pair[0] + ': ' + pair[1]);
+
+            //     const respostaApi = await fetchComToken(url, { method: metodo, body: formData });
+
+            //     if (bSalvarComoInativo && respostaApi.sucesso) {
+        
+            //         // Pegamos o ID do staff que acabou de ser criado/editado
+            //         // O backend deve retornar isso no objeto da resposta (ex: respostaApi.id)
+            //         const idGerado = respostaApi.id || document.querySelector("#idStaffEvento")?.value;
+
+            //         console.log("🛠️ Staff salvo como inativo. Iniciando salvamento da solicitação...");
+
+            //         const resSolicitacao = await salvarSolicitacaoAditivoExtra(
+            //             idOrcamentoAtual, 
+            //             descFuncaoSelect.value, // idFuncao
+            //             1,                      // qtd
+            //             tipoExcecaoAtual,       // O tipo que guardamos (Aditivo - Vaga Excedida, etc)
+            //             justificativaParaSalvar, 
+            //             idFuncionario,
+            //             periodoDoEvento,        // dataSolicitada
+            //             idGerado                // idregistroalterado
+            //         );
+
+            //         if (!resSolicitacao.sucesso) {
+            //             console.error("❌ Staff foi salvo, mas a solicitação falhou:", resSolicitacao.erro);
+            //             // Opcional: Avisar o usuário que houve um erro parcial
+            //         }
+            //     }
+
+            //     // Reseta flag de troca de nível após salvar com sucesso
+            //     nivelFoiTrocado = false;
+            //     nivelOriginalCarregado = null;
+
+            //     await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
+            //     await carregarTabelaStaff(idFuncionario);
+
+            // ... (parte anterior das observações e comprovantes)
+
             // =========================================================
             // 16. ENVIO DA REQUISIÇÃO
             // =========================================================
+            // try {
+            //     estaSalvando = true;
+
+            //     console.log("Entrou no try. Método:", metodo, "URL:", url, tipoExcecaoAtual ? "Tipo de Exceção: " + tipoExcecaoAtual : "Sem tipo de exceção");
+
+            //     // 🎯 Configuração de Ativo/Inativo e Log de Solicitação
+            //     if (bSalvarComoInativo) {
+            //         const agora = new Date().toLocaleString('pt-BR');
+            //         const usuarioLogado = window.usuarioNome || localStorage.getItem("usuarioNome") || "Usuário";
+
+            //         console.log("Usuário logado:", usuarioLogado);
+                    
+            //         const prefixoReal = tipoExcecaoAtual ? `[SOLICITAÇÃO - ${tipoExcecaoAtual.toUpperCase()}]` : prefixoSolicitacao;
+
+            //         const logSolicitacao = `${prefixoReal} - Solicitado em ${agora} por ${usuarioLogado}. Justificativa: ${justificativaParaSalvar}`;
+                    
+            //         formData.set('obsgeral', logSolicitacao);
+            //         formData.set('ativo', 'false'); // Força inativo para o backend
+
+            //         formData.set('tipoSolicitacaoAditivo', tipoExcecaoAtual || "ADITIVO");
+                    
+            //         formData.set('justificativaAditivo', justificativaParaSalvar);
+            //     } else {
+            //         formData.set('ativo', 'true');
+            //     }
+
+            //     nivelFoiTrocado = false; // Reseta a flag de troca de nível antes do envio
+            //     nivelOriginalCarregado = null; // Reseta o nível original carregado para evitar confusão em futuras edições
+               
+            //     console.log("Preparando envio. Método:", metodo, "URL:", url);
+                
+            //     // 1. SALVA O STAFF (Ativo ou Inativo)
+            //     const respostaApi = await fetchComToken(url, { method: metodo, body: formData });
+            //     console.log("Full API Response:", respostaApi);
+
+            //     // 2. SE FOR EXCEÇÃO (Inativo), SALVA A SOLICITAÇÃO VINCULADA
+            //     // if (bSalvarComoInativo && respostaApi.sucesso) {
+            //     //     const idStaffRecemCriado = respostaApi.idstaffevento || document.querySelector("#idStaffEvento")?.value;
+            //     //     console.log("🛠️ Staff salvo como inativo. ID:", idStaffRecemCriado);
+
+            //     //     // Variáveis seguras (com fallback para evitar ReferenceError)
+            //     //     let orcamentoSeguro = null;
+            //     //     let tipoSeguro = "ADITIVO";
+            //     //     let justificativaSegura = "";
+            //     //     let funcionarioSeguro = null;
+
+            //     //     try { orcamentoSeguro = idOrcamentoAtual; } catch(e) { console.warn("idOrcamentoAtual não definido."); }
+            //     //     try { tipoSeguro = (typeof tipoExcecaoAtual !== 'undefined' && tipoExcecaoAtual) ? tipoExcecaoAtual : (resultadoFuncao?.tipoSolicitacao || "ADITIVO"); } catch(e) { console.warn("Erro ao definir tipoSeguro."); }
+            //     //     try { justificativaSegura = justificativaParaSalvar; } catch(e) { justificativaSegura = "Justificativa não capturada"; }
+            //     //     try { funcionarioSeguro = idFuncionario; } catch(e) { console.warn("idFuncionario não definido."); }
+
+            //     //     console.log("Variáveis recuperadas com segurança:", {
+            //     //         idOrcamento: orcamentoSeguro,
+            //     //         tipo: tipoSeguro,
+            //     //         idStaff: idStaffRecemCriado,
+            //     //         justificativa: justificativaSegura
+            //     //     });
+
+            //     //     // Chamada da função com tratamento de erro
+            //     //     try {
+            //     //         const resSolicitacao = await salvarSolicitacaoAditivoExtra(
+            //     //             orcamentoSeguro,
+            //     //             descFuncaoSelect.value,
+            //     //             1,
+            //     //             tipoSeguro,
+            //     //             justificativaSegura,
+            //     //             funcionarioSeguro,
+            //     //             periodoDoEvento,
+            //     //             (typeof idEventoSelect !== 'undefined' ? idEventoSelect.value : nmEventoSelect.value),
+            //     //             null,
+            //     //             idStaffRecemCriado
+            //     //         );
+                        
+            //     //         if (resSolicitacao && resSolicitacao.sucesso) {
+            //     //             console.log("✅ Solicitação vinculada com sucesso!");
+            //     //         } else {
+            //     //             console.error("⚠️ Erro retornado pela função de solicitação:", resSolicitacao?.erro);
+            //     //         }
+            //     //     } catch (err) {
+            //     //         console.error("FALHA CRÍTICA ao executar salvarSolicitacaoAditivoExtra:", err.message);
+            //     //     }
+            //     // }
+
+            //     if (respostaApi && (respostaApi.sucesso || respostaApi.message === 'Atualizado' || respostaApi.id)) {
+            //         console.log("✅ Sucesso total:", respostaApi);                   
+                   
+
+            //         // 3. FINALIZAÇÃO E RESETS
+            //         bSalvarComoInativo = false; 
+            //         justificativaParaSalvar = "";
+            //         tipoExcecaoAtual = null;
+            //         nivelFoiTrocado = false;
+
+            //         await Swal.fire({
+            //             icon: 'success',
+            //             title: 'Sucesso!',
+            //             text: respostaApi.message || "Staff salvo com sucesso.",
+            //             confirmButtonColor: '#3085d6'
+            //         });
+            //         await carregarTabelaStaff(idFuncionario);                
+                    
+            //         window.StaffOriginal = null;
+
+            //         const result = await Swal.fire({
+            //             title: "Deseja continuar?",
+            //             text: "O cadastro foi concluído. Quer cadastrar mais um ou finalizar?",
+            //             icon: "question", showCancelButton: true, showDenyButton: true,
+            //             confirmButtonText: "Cadastrar mais um (Manter dados)",
+            //             cancelButtonText: "Finalizar e Sair",
+            //             denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+            //             reverseButtons: true, focusCancel: true
+            //         });
+
+                    
+            //         if (result.isConfirmed) {
+            //             console.group("🔍 DEBUG: Revalidação Pós-Cadastro");
+
+            //             // 1. CAPTURA DAS IDs E NOMES (Antes de limpar os campos da tela)
+            //             const idEv   = nmEventoSelect.value;
+            //             const idCli  = nmClienteSelect.value;
+            //             const idLoc  = nmLocalMontagemSelect.value;
+            //             const idFunc = descFuncaoSelect.value;
+
+            //             // Criamos o objeto criterios preservando os textos para a chave do cache
+            //             const criteriosPreservados = {
+            //                 nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex]?.text || "",
+            //                 nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex]?.text || "",
+            //                 nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex]?.text || "",
+            //                 nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex]?.text || "",
+            //                 pavilhao: (nmPavilhaoSelect && nmPavilhaoSelect.selectedIndex !== -1) ? nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text : "",
+            //                 idFuncao: idFunc,
+            //                 idOrcamento: idOrcamentoAtual // Variável global que sua função buscarEPopularOrcamento preenche
+            //             };
+
+            //             // Captura das datas (Garante que o array não vá vazio para a função)
+            //             const elDatas = document.getElementById('datasEvento') || document.getElementById('periodoEvento');
+            //             const picker = elDatas?._flatpickr || window.flatpickrInstances?.['datasEvento'] || window.datasEventoPicker;
+                        
+            //             let datasParaValidar = [];
+            //             if (picker && picker.selectedDates.length > 0) {
+            //                 datasParaValidar = picker.selectedDates.map(date => {
+            //                     const d = new Date(date);
+            //                     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            //                     return d.toISOString().split('T')[0];
+            //                 });
+            //             }
+            //             criteriosPreservados.datasEvento = datasParaValidar;
+
+            //             // 2. LIMPEZA DOS CAMPOS DE FUNCIONÁRIO
+            //             if (typeof limparCamposStaffParcial === "function") {
+            //                 limparCamposStaffParcial();
+            //             } else {
+            //                 limparCamposStaff();
+            //             }
+
+            //             // 3. EXECUÇÃO DA VALIDAÇÃO OFICIAL
+            //             if (idEv && idLoc && idFunc && datasParaValidar.length > 0) {
+                            
+            //                 // Chamamos sua função de busca (idEv, idCli, etc. agora estão definidos aqui em cima)
+            //                 await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, datasParaValidar);
+
+            //                 console.log("🛡️ Executando verificação oficial com critérios preservados...");
+                            
+            //                 // Agora chamamos a sua função verificarLimiteDeFuncao
+            //                 // Passando os critérios que capturamos antes da limpeza
+            //                 const resultadoFuncao = await verificarLimiteDeFuncao(criteriosPreservados);
+
+            //                 // if (!resultadoFuncao.allowed) {
+            //                 //     console.warn("🚫 Limite atingido após cadastro. Botão Salvar desativado.");
+            //                 //     controlarBotaoSalvarStaff(false);
+            //                 // } else {
+            //                 //     console.log("✅ Vagas ainda disponíveis. Botão Salvar liberado.");
+            //                 //     controlarBotaoSalvarStaff(true);
+            //                 // }
+
+            //                 if (!resultadoFuncao.allowed) {
+            //                     // Se o limite foi atingido com o cadastro que acabamos de fazer:
+            //                     if (resultadoFuncao.solicitouAutorizacao) {
+            //                         // Se ele já justificou no ato da revalidação, preparamos as flags
+            //                         tipoExcecaoAtual = resultadoFuncao.tipoSolicitacao;
+            //                         bSalvarComoInativo = true;
+            //                         justificativaParaSalvar = resultadoFuncao.justificativa;
+            //                         prefixoSolicitacao = `[SOLICITAÇÃO - ${resultadoFuncao.tipoSolicitacao.toUpperCase()}]`;
+            //                         controlarBotaoSalvarStaff(true); // Deixa habilitado porque será inativo
+            //                     } else {
+            //                         // Se ele cancelou o Swal de autorização na revalidação, bloqueia o botão
+            //                         controlarBotaoSalvarStaff(false);
+            //                     }
+            //                 } else {
+            //                     // Vagas livres, reseta flags de inativo
+            //                     bSalvarComoInativo = false;
+            //                     controlarBotaoSalvarStaff(true);
+            //                 }
+            //             }
+
+            //             console.groupEnd();
+            //         }
+
+            //         else if (result.isDenied) {
+            //             currentEditingStaffEvent = null; // <--- ADICIONE ISSO
+            //             temOrcamento = false;
+            //             decisaoUsuarioDataFora = null;
+            //             limparCamposStaff();                   
+            //         } else if (result.dismiss === Swal.DismissReason.cancel) {
+            //             console.log("Usuário escolheu: Finalizar e Sair");
+
+            //             currentEditingStaffEvent = null;
+
+            //             if (typeof fecharModal === "function") {
+            //                 fecharModal();
+            //             } else {
+            //                 document.getElementById("modal-container").innerHTML = "";
+            //                 document.getElementById("modal-overlay").style.display = "none";
+            //                 document.body.classList.remove("modal-open");
+            //                 if (typeof window.onStaffModalClosed === 'function') {
+            //                     const callback = window.onStaffModalClosed;
+            //                     window.onStaffModalClosed = null;
+            //                     callback(true); 
+            //                 }
+            //             }
+            //         }
+            //     }
+            
+            // } catch (error) {
+            //     // ... código que identifica o erro de limite ...
+            //     const botaoEnviar = document.getElementById("botaoEnviar");
+            //     if (botaoEnviar) {
+            //         botaoEnviar.disabled = false;
+            //         botaoEnviar.textContent = 'Salvar'; 
+            //     }
+
+            //     console.error("Erro ao salvar:", error);
+
+            //     // 1. Tenta extrair o JSON de erro que o backend enviou dentro da mensagem
+            //     let dadosErroBackend = null;
+            //     try {
+            //         const jsonMatch = error.message?.match(/\{.*\}/s);
+            //         if (jsonMatch) {
+            //             dadosErroBackend = JSON.parse(jsonMatch[0]);
+            //         }
+            //     } catch (e) {
+            //         console.warn("Não foi possível parsear o JSON do erro.");
+            //     }
+                
+            //     if (dadosErroBackend && dadosErroBackend.tipoErro === "LIMITE_EXCEDIDO") {
+                    
+            //         // 1. Chama a função que abre o modal que você viu no log
+            //         const resultadoExcecao = await verificarLimiteDeFuncao(criteriosDeVerificacao, dadosErroBackend);
+
+            //         // 2. IMPORTANTE: Se o usuário confirmou no modal, reativa o processo
+            //         if (resultadoExcecao && resultadoExcecao.solicitouAutorizacao) {
+                        
+            //             // Atualizamos as flags globais com o que veio do modal
+            //             bSalvarComoInativo = true;
+            //             justificativaParaSalvar = resultadoExcecao.justificativa;
+            //             tipoExcecaoAtual = resultadoExcecao.tipoSolicitacao; 
+            //             prefixoSolicitacao = `[SOLICITAÇÃO - ${tipoExcecaoAtual.toUpperCase()}]`;
+
+            //             // Avisamos o usuário que agora ele pode salvar como solicitação
+            //             const confirmacao = await Swal.fire({
+            //                 icon: 'info',
+            //                 title: 'Justificativa Capturada',
+            //                 text: 'Solicitação: ${tipoExcecaoAtual}. Clique em "Salvar" novamente para enviar como solicitação (o registro ficará inativo até aprovação).',
+            //                 confirmButtonText: 'Entendido'
+            //             });
+
+            //             // Opcional: Disparar o clique automaticamente se quiser poupar o usuário
+            //             // if (confirmacao.isConfirmed) BotaoEnviar.click();
+
+            //         }else {
+            //             // Erro desconhecido ou erro de rede (mostra o alerta padrão)
+            //             Swal.fire({
+            //                 title: "Erro no servidor",
+            //                 text: error.message || "Não foi possível processar a requisição.",
+            //                 icon: "error"
+            //             });
+            //         }
+            //     }
+            // }
+            
+            // finally {
+            //     // 🔓 Desliga a trava
+            //     setTimeout(() => {
+            //         estaSalvando = false;
+            //     }, 1000);
+            // }
             try {
                 estaSalvando = true;
+
+                console.log("Entrou no try. Método:", metodo, "URL:", url, window.tipoExcecaoAtual ? "Tipo de Exceção: " + window.tipoExcecaoAtual : "Sem tipo de exceção");
+
+                const deveSerInativo = window.bSalvarComoInativo === true || 
+                       (window.tipoExcecaoAtual !== null && window.tipoExcecaoAtual !== undefined && window.tipoExcecaoAtual !== '');
+
+                if (deveSerInativo) {
+                    console.log("⚠️ Bloqueando registro: Enviando como INATIVO para aprovação.");
+                    formData.set('ativo', 'false');
+                    formData.set('tipoSolicitacaoAditivo', window.tipoExcecaoAtual);
+                    formData.set('justificativaAditivo', window.justificativaParaSalvar);
+                    
+                    const datasConflito = Array.isArray(window.datasParaSalvarNoBanco) 
+                        ? window.datasParaSalvarNoBanco 
+                        : [window.datasParaSalvarNoBanco];
+                    
+                    formData.set('datasExcecao', JSON.stringify(datasConflito));
+                    // Atualiza o log obsgeral
+                    const agora = new Date().toLocaleString('pt-BR');
+                    const prefixo = `[SOLICITAÇÃO - ${window.tipoExcecaoAtual?.toUpperCase() || 'ADITIVO'}]`;
+                    formData.set('obsgeral', `${prefixo} - ${agora}. Justificativa: ${window.justificativaParaSalvar}`);
+                } else {
+                    formData.set('ativo', 'true');
+                }
+
+                // 🎯 Configuração de Ativo/Inativo e Log de Solicitação
+                // if (window.bSalvarComoInativo) {
+                //     const agora = new Date().toLocaleString('pt-BR');
+                //     const usuarioLogado = window.usuarioNome || localStorage.getItem("usuarioNome") || "Usuário";
+
+                //     console.log("Usuário logado:", usuarioLogado);
+                    
+                //     // Formatação solicitada: [SOLICITAÇÃO - TIPO - MOTIVO]
+                //     const prefixoReal = window.tipoExcecaoAtual ? `[SOLICITAÇÃO - ${window.tipoExcecaoAtual.toUpperCase()}]` : "[SOLICITAÇÃO]";
+
+                //     const logSolicitacao = `${prefixoReal} - Solicitado em ${agora} por ${usuarioLogado}. Justificativa: ${window.justificativaParaSalvar}`;
+                    
+                //     formData.set('obsgeral', logSolicitacao);
+                //     formData.set('ativo', 'false'); // Força inativo para o backend
+                //     formData.set('tipoSolicitacaoAditivo', window.tipoExcecaoAtual || "ADITIVO");
+                //     formData.set('justificativaAditivo', window.justificativaParaSalvar);
+                // } else {
+                //     formData.set('ativo', 'true');
+                // }
+
+                nivelFoiTrocado = false; 
+                nivelOriginalCarregado = null; 
+
                 console.log("Preparando envio. Método:", metodo, "URL:", url);
-                for (let pair of formData.entries()) console.log(pair[0] + ': ' + pair[1]);
 
+                // Ajuda de Custo
+
+                
+                // 1. SALVA O STAFF
                 const respostaApi = await fetchComToken(url, { method: metodo, body: formData });
+                console.log("Full API Response:", respostaApi);
 
-                // Reseta flag de troca de nível após salvar com sucesso
-                nivelFoiTrocado = false;
-                nivelOriginalCarregado = null;
+                if (respostaApi && (respostaApi.sucesso || respostaApi.message === 'Atualizado' || respostaApi.id)) {
+                    console.log("✅ Sucesso total:", respostaApi);
 
-                await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
-                await carregarTabelaStaff(idFuncionario);
-                window.StaffOriginal = null;
+                    // 3. FINALIZAÇÃO E RESETS DE FLAGS DE EXCEÇÃO
+                    window.bSalvarComoInativo = false; 
+                    window.justificativaParaSalvar = "";
+                    window.tipoExcecaoAtual = null;
+                    window.nivelFoiTrocado = false;
 
-                const result = await Swal.fire({
-                    title: "Deseja continuar?",
-                    text: "O cadastro foi concluído. Quer cadastrar mais um ou finalizar?",
-                    icon: "question", showCancelButton: true, showDenyButton: true,
-                    confirmButtonText: "Cadastrar mais um (Manter dados)",
-                    cancelButtonText: "Finalizar e Sair",
-                    denyButtonText: "Cadastrar novo staff (Limpar tudo)",
-                    reverseButtons: true, focusCancel: true
-                });
+                    // await Swal.fire({
+                    //     icon: 'success',
+                    //     title: 'Sucesso!',
+                    //     text: respostaApi.message || "Staff salvo com sucesso.",
+                    //     confirmButtonColor: '#3085d6'
+                    // });
 
-                if (result.isConfirmed) {
-                    (typeof limparCamposStaffParcial === "function") ? limparCamposStaffParcial() : limparCamposStaff();
-                } else if (result.isDenied) {
-                    currentEditingStaffEvent = null; // <--- ADICIONE ISSO
-                    limparCamposStaff();                   
-                } else if (result.dismiss === Swal.DismissReason.cancel) {
-                    console.log("Usuário escolheu: Finalizar e Sair");
+                    //const foiSolicitacao = formData.get('ativo') === 'false';
 
-                    currentEditingStaffEvent = null;
+                    const foiSolicitacao = formData.get('statusstaff') === 'Pendente';
 
-                    if (typeof fecharModal === "function") {
-                        fecharModal();
-                     } else {
-                        document.getElementById("modal-container").innerHTML = "";
-                        document.getElementById("modal-overlay").style.display = "none";
-                        document.body.classList.remove("modal-open");
-                        if (typeof window.onStaffModalClosed === 'function') {
-                            const callback = window.onStaffModalClosed;
-                            window.onStaffModalClosed = null;
-                            callback(true); 
+                    await Swal.fire({
+                        icon: foiSolicitacao ? 'info' : 'success',
+                        title: foiSolicitacao ? 'Solicitação Enviada!' : 'Sucesso!',
+                        text: foiSolicitacao 
+                            ? 'Solicitação enviada com sucesso. Staff cadastrado como inativo, aguardando aprovação.' 
+                            : (respostaApi.message || 'Staff salvo com sucesso.'),
+                        confirmButtonColor: '#3085d6'
+                    });
+
+                    const idFuncionarioParaRecarregar = document.getElementById('idFuncionario')?.value;
+                    if (idFuncionarioParaRecarregar) await carregarTabelaStaff(idFuncionarioParaRecarregar);
+                    
+                    window.StaffOriginal = null;
+
+                    // --- MODAL DE DECISÃO PÓS-SALVAMENTO ---
+                    const result = await Swal.fire({
+                        title: "Deseja continuar?",
+                        text: "O cadastro foi concluído. Quer cadastrar mais um ou finalizar?",
+                        icon: "question", 
+                        showCancelButton: true, 
+                        showDenyButton: true,
+                        confirmButtonText: "Cadastrar mais um (Manter dados)",
+                        cancelButtonText: "Finalizar e Sair",
+                        denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+                        reverseButtons: true, 
+                        focusCancel: true
+                    });
+
+                    if (result.isConfirmed) {
+                        // OPÇÃO: CADASTRAR MAIS UM (MANTER DADOS)
+                        console.group("🔍 DEBUG: Revalidação Pós-Cadastro (Manter Dados)");
+
+                        // 1. CAPTURA DAS IDs (Antes de limpar campos específicos de funcionário)
+                        const idEv   = document.getElementById('nmEvento').value;
+                        const idCli  = document.getElementById('nmCliente').value;
+                        const idLoc  = document.getElementById('nmLocalMontagem').value;
+                        const idFunc = document.getElementById('descFuncao').value;
+                        const setor  = document.getElementById('setor')?.value;
+
+                        // Captura das datas do Picker
+                        const elDatas = document.getElementById('datasEvento') || document.getElementById('periodoEvento');
+                        const picker = elDatas?._flatpickr || window.flatpickrInstances?.['datasEvento'];
+                        
+                        let datasParaValidar = [];
+                        if (picker && picker.selectedDates.length > 0) {
+                            datasParaValidar = picker.selectedDates.map(date => {
+                                const d = new Date(date);
+                                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                                return d.toISOString().split('T')[0];
+                            });
+                        }
+
+                        // 2. LIMPEZA PARCIAL (Remove o funcionário mas mantém o evento/função/datas)
+                        if (typeof limparCamposStaffParcial === "function") {
+                            limparCamposStaffParcial();
+                        } else {
+                            // Fallback manual se não houver a função parcial
+                            document.getElementById('idFuncionario').value = '';
+                            document.getElementById('nmFuncionario').value = '';
+                            if(document.getElementById('imgFuncionario')) document.getElementById('imgFuncionario').src = 'img/sem-foto.png';
+                        }
+
+                        // 3. REVALIDAÇÃO AUTOMÁTICA DO ORÇAMENTO E LIMITES
+                        // Aqui chamamos a função que agora possui a regra de 1 mês de margem
+                        if (idEv && idLoc && idFunc && datasParaValidar.length > 0) {
+                            console.log("🛡️ Revalidando orçamento para a próxima inserção...");
+                            
+                            // buscarEPopularOrcamento já abrirá o modal de Aditivo/Extra/1 Mês se necessário
+                            await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, datasParaValidar);
+                            
+                            // Também revalidamos o limite de vagas (se ultrapassou a quantidade orçada)
+                            const criterios = {
+                                idEvento: idEv,
+                                idLocalMontagem: idLoc,
+                                idFuncao: idFunc,
+                                setor: setor,
+                                datasEvento: datasParaValidar
+                            };
+                            
+                            if (typeof verificarLimiteDeFuncao === "function") {
+                                await verificarLimiteDeFuncao(criterios);
+                            }
+                        }
+
+                        console.groupEnd();
+
+                    } else if (result.isDenied) {
+                        // OPÇÃO: CADASTRAR NOVO (LIMPAR TUDO)
+                        window.currentEditingStaffEvent = null;
+                        window.temOrcamento = false;
+                        window.decisaoUsuarioDataFora = null;
+                        limparCamposStaff(); // Limpa tudo, inclusive evento e datas
+                        
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // OPÇÃO: FINALIZAR E SAIR
+                        console.log("Usuário escolheu: Finalizar e Sair");
+                        window.currentEditingStaffEvent = null;
+                        currentEditingStaffEvent = null;
+                        window.temOrcamento = false;
+                        window.decisaoUsuarioDataFora = null;
+                        limparCamposStaff(); // Limpeza completa antes de fechar
+
+                        if (typeof fecharModal === "function") {
+                            fecharModal();
+                        } else {
+                            const modalCont = document.getElementById("modal-container");
+                            if (modalCont) modalCont.innerHTML = "";
+                            const overlay = document.getElementById("modal-overlay");
+                            if (overlay) overlay.style.display = "none";
+                            document.body.classList.remove("modal-open");
                         }
                     }
                 }
-
             } catch (error) {
+                console.error("Erro ao salvar:", error);
                 const botaoEnviar = document.getElementById("botaoEnviar");
                 if (botaoEnviar) {
                     botaoEnviar.disabled = false;
                     botaoEnviar.textContent = 'Salvar'; 
                 }
 
-                // Tenta parsear o JSON que vem dentro do error.message
-                let titulo = "Erro ao salvar funcionário";
-                let htmlErro = `<p>${error.message || "Erro desconhecido."}</p>`;
-                let dadosErroBackend = null;
+                console.error("Erro ao salvar:", error);
 
+                // 1. Tenta extrair o JSON de erro que o backend enviou dentro da mensagem
+                let dadosErroBackend = null;
                 try {
                     const jsonMatch = error.message?.match(/\{.*\}/s);
                     if (jsonMatch) {
-                        const dados = JSON.parse(jsonMatch[0]);
-
-                        if (dados.tipoErro === "LIMITE_EXCEDIDO") {
-                            dadosErroBackend = dados;
-                            titulo = dados.title;
-                            htmlErro = `
-                                <p>O limite de <strong>${dados.tipo}</strong> para essa função foi atingido.</p>
-                                <br>
-                                <table style="margin: 0 auto; text-align: center; border-collapse: collapse; width: 80%">
-                                    <tr style="background: #f0f0f0;">
-                                        <th style="padding: 8px 20px;">Limite</th>
-                                        <th style="padding: 8px 20px;">Tentou</th>
-                                        <th style="padding: 8px 20px;">Usado</th>
-                                        <th style="padding: 8px 20px;">Saldo</th>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 8px 20px;">${dados.limite}</td>
-                                        <td style="padding: 8px 20px;">${dados.tentativa}</td>
-                                        <td style="padding: 8px 20px;">${dados.usado}</td>
-                                        <td style="padding: 8px 20px; color: ${dados.saldo <= 0 ? '#d63030' : '#28a745'}; font-weight: bold;">${dados.saldo}</td>
-                                    </tr>
-                                </table>
-                            `;
-                        }
+                        dadosErroBackend = JSON.parse(jsonMatch[0]);
                     }
-                } catch (_) { /* mantém o htmlErro padrão */ }
+                } catch (e) {
+                    console.warn("Não foi possível parsear o JSON do erro.");
+                }
+                
+                if (dadosErroBackend && dadosErroBackend.tipoErro === "LIMITE_EXCEDIDO") {
+                    
+                    // 1. Chama a função que abre o modal que você viu no log
+                    const resultadoExcecao = await verificarLimiteDeFuncao(criteriosDeVerificacao, dadosErroBackend);
 
-                const swalErro = await Swal.fire({
-                    title: titulo,
-                    html: htmlErro,
-                    icon: "error",
-                    confirmButtonText: "Entendi"
-                });
-            }finally {
-                // 🔓 Desliga a trava com um delay para o Flatpickr "sossegar"
-                setTimeout(() => {
-                    estaSalvando = false;
-                }, 1000);
+                    // 2. IMPORTANTE: Se o usuário confirmou no modal, reativa o processo
+                    if (resultadoExcecao && resultadoExcecao.solicitouAutorizacao) {
+                        
+                        // Atualizamos as flags globais com o que veio do modal
+                        window.bSalvarComoInativo = true;
+                        window.justificativaParaSalvar = resultadoExcecao.justificativa;
+                        window.tipoExcecaoAtual = resultadoExcecao.tipoSolicitacao; 
+                        window.prefixoSolicitacao = `[SOLICITAÇÃO - ${window.tipoExcecaoAtual.toUpperCase()}]`;
+
+                        // Avisamos o usuário que agora ele pode salvar como solicitação
+                        const confirmacao = await Swal.fire({
+                            icon: 'info',
+                            title: 'Justificativa Capturada',
+                            text: 'Solicitação: ${tipoExcecaoAtual}. Clique em "Salvar" novamente para enviar como solicitação (o registro ficará inativo até aprovação).',
+                            confirmButtonText: 'Entendido'
+                        });
+
+                        // Opcional: Disparar o clique automaticamente se quiser poupar o usuário
+                        // if (confirmacao.isConfirmed) BotaoEnviar.click();
+
+                    }else {
+                        // Erro desconhecido ou erro de rede (mostra o alerta padrão)
+                        Swal.fire({
+                            title: "Erro no servidor",
+                            text: error.message || "Não foi possível processar a requisição.",
+                            icon: "error"
+                        });
+                    }
+                }
+            } finally {
+                setTimeout(() => { estaSalvando = false; }, 1000);
             }
         });
     }
 }
+
+// Instale ou importe uma biblioteca como jwt-decode ou use essa função simples:
+function obterNomeDoToken() {
+    const token = localStorage.getItem('token'); // ou o nome que você usa
+    if (!token) return "Usuário";
+
+    console.group("🔍 Debug: Identificação do Usuário");
+    console.log("Token bruto encontrado:", token ? "Sim (Iniciado com " + token.substring(0, 10) + "...)" : "Não encontrado");
+
+    if (!token) {
+        console.warn("Aviso: Nenhum token encontrado no localStorage/sessionStorage.");
+        console.groupEnd();
+        return "Usuário";
+    }
+
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const payload = JSON.parse(jsonPayload);
+        return payload.nomeusuario || "Usuário";
+    } catch (e) {
+        return "Usuário";
+    }
+}
+
+
 
 function processarMudancaStatus(novoStatus) {
     const hiddenField = document.getElementById("statusCustoFechado");
@@ -5792,21 +6346,26 @@ const debouncedOnCriteriosChanged = debounce(() => {
     }
 }, 500);
 
+//ok antes de liberar período
 // async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
 //     try {
-//         console.log("🚀 Iniciando busca de orçamento...", { idEvento, idCliente, idLocalMontagem, idFuncao });
+//         console.log("🚀 Buscando orçamento...", { idEvento, idCliente, idLocalMontagem, idFuncao });
 
 //         decisaoUsuarioDataFora = null; 
+//         let orcamentoBase = null; // 🎯 DECLARAÇÃO NO TOPO (Escopo amplo)
 
 //         const idFuncionario = document.getElementById('idFuncionario').value;
 //         const selectFunc = document.getElementById('nmFuncionario');
 //         const nmFuncionario = selectFunc.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
+//         const elInputSetor = document.getElementById('setor');
+//         const setorAtual = elInputSetor ? elInputSetor.value.trim() : null;
 
 //         const criteriosDeBusca = {
 //             idEvento,
 //             idCliente,
 //             idLocalMontagem,
 //             idFuncao,
+//             setor: setorAtual, // Enviando o setor para o backend fixado
 //             datasEvento: datasEvento || []
 //         };
 
@@ -5816,8 +6375,6 @@ const debouncedOnCriteriosChanged = debounce(() => {
 //             body: JSON.stringify(criteriosDeBusca)
 //         });
 
-//         orcamentoPorFuncao = {}; 
-        
 //         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
 //             temOrcamento = false;
 //             controlarBotaoSalvarStaff(false); 
@@ -5825,105 +6382,66 @@ const debouncedOnCriteriosChanged = debounce(() => {
 //             return;
 //         }
 
-//         // --- 1. CONFIGURAÇÕES BÁSICAS ---
-//         statusOrcamentoAtual = dadosDoOrcamento[0].status;
-//         idOrcamentoAtual = dadosDoOrcamento[0].idorcamento;
-//         const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;
+//         // --- 1. DEFINIÇÃO DA LINHA BASE ---
+//         // Tenta achar a linha que bate com o setor da tela, senão pega a primeira
+//         orcamentoBase = dadosDoOrcamento.find(item => 
+//             setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()
+//         ) || dadosDoOrcamento.find(item => !item.setor) || dadosDoOrcamento[0];
+
+//         console.log("💎 ESTRUTURA REAL DO ORCAMENTO:", orcamentoBase);
+
+//         idOrcamentoAtual = orcamentoBase.idorcamento;
+
+//         if (orcamentoBase) {
+//             // 🎯 NOMES EXATOS EXTRAÍDOS DO SEU CONSOLE.LOG
+//             const nmEventoBanco = (orcamentoBase.nmevento || "").trim().toUpperCase();
+//             const nmFuncaoBanco = (orcamentoBase.descfuncao || "").trim().toUpperCase(); // Era 'descfuncao'!
+//             const setorBanco    = (orcamentoBase.setor || "").trim().toUpperCase();
+
+//             console.log("🔍 Mapeamento para Cache:", { nmEventoBanco, nmFuncaoBanco, setorBanco });
+
+//             // 1. Montagem das chaves seguindo o padrão da sua função verificarLimiteDeFuncao
+//             // Chave Simples (Evento-Função)
+//             const chaveSimples = [nmEventoBanco, nmFuncaoBanco].filter(p => p !== "").join('-');
+            
+//             // Chave Completa (Evento-Função-Setor)
+//             const chaveCompleta = [nmEventoBanco, nmFuncaoBanco, setorBanco].filter(p => p !== "").join('-');
+
+//             if (typeof orcamentoPorFuncao !== 'undefined') {
+//                 const dadosParaCache = {
+//                     idOrcamento: orcamentoBase.idorcamento,
+//                     quantidadeOrcada: Number(orcamentoBase.quantidade_orcada || 0),
+//                     quantidadeEscalada: Number(orcamentoBase.quantidade_escalada || 0),
+//                     status: orcamentoBase.status
+//                 };
+
+//                 // Alimentamos o objeto global
+//                 orcamentoPorFuncao[chaveCompleta] = dadosParaCache;
+//                 orcamentoPorFuncao[chaveSimples] = dadosParaCache;
+                
+//                 console.log("💾 Cache Sincronizado:", { 
+//                     chave: chaveSimples, 
+//                     vagas: `${dadosParaCache.quantidadeEscalada}/${dadosParaCache.quantidadeOrcada}` 
+//                 });
+//             }
+//         }
+
+//         const statusOrcamentoAtual = orcamentoBase.status;
+//         const liberadoCadastro = orcamentoBase.contratarstaff;
 
 //         if (statusOrcamentoAtual === 'A' || (statusOrcamentoAtual === 'P' && !liberadoCadastro)) {
-//             Swal.fire({ icon: 'warning', title: 'Contratação bloqueada', text: 'Este orçamento não possui liberação para cadastro de staff no momento.' });
+//             Swal.fire({ icon: 'warning', title: 'Contratação bloqueada', text: 'Este orçamento não possui liberação para cadastro de staff.' });
 //             controlarBotaoSalvarStaff(false);
 //             return;
 //         }
 
-//         //// --- 2. TRATAMENTO DO CAMPO SETOR (PAVILHÃO) ---
-//         // const elSetor = document.getElementById('setor'); 
-//         // if (elSetor) {
-//         //     let setorEncontrado = dadosDoOrcamento[0].setor; 
-
-//         //     // Tenta extrair do nome da função se o campo setor vier vazio do orçamento
-//         //     if (!setorEncontrado && dadosDoOrcamento[0].descfuncao?.includes('(')) {
-//         //         const match = dadosDoOrcamento[0].descfuncao.match(/\(([^)]+)\)/);
-//         //         if (match) setorEncontrado = match[1];
-//         //     }
-
-//         //     // Prioridade final para o que já está salvo no banco (edição)
-//         //     if (!setorEncontrado && window.__modalFetchedData?.setor) {
-//         //         setorEncontrado = window.__modalFetchedData.setor;
-//         //     }
-
-//         //     if (setorEncontrado) {
-//         //         console.log(`🔍 Aplicando setor(es): ${setorEncontrado}`);
-//         //         const alvos = String(setorEncontrado).split(',').map(s => s.trim().toUpperCase());
-
-//         //         Array.from(elSetor.options).forEach(opt => {
-//         //             if (alvos.some(a => opt.text.toUpperCase().includes(a))) {
-//         //                 opt.selected = true;
-//         //             }
-//         //         });
-                
-//         //         // Estilização de "Travado" para o Select
-//         //         elSetor.style.backgroundColor = "#e9ecef";
-//         //         elSetor.style.pointerEvents = "none"; // Impede alteração manual se vier do orçamento
-//         //     }
-//         // }
-
-
-        
-
-//         // // --- 3. VALIDAÇÃO DE DATAS ---
-//         // const descFuncaoSelect = document.getElementById('descFuncao');
-//         // const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
-//         // const datasPermitidas = new Set();
-
-//         // dadosDoOrcamento.forEach(item => {
-//         //     if (item.descfuncao === funcaoTexto && item.datas_totais_orcadas) {
-//         //         item.datas_totais_orcadas.forEach(d => datasPermitidas.add(d.split('T')[0]));
-//         //     }
-//         // });
-
-//         // const datasNaoOrcadas = datasEvento.filter(d => !datasPermitidas.has(d));
-
-       
-//         // --- 2. RESET E TRATAMENTO DO CAMPO SETOR/PAVILHÃO ---
+//         // --- 2. TRATAMENTO VISUAL DO SETOR ---
 //         const elSelectPavilhao = document.getElementById('nmPavilhao');
-//         const elInputSetor = document.getElementById('setor');
-
 //         if (elSelectPavilhao && elInputSetor) {
-//             // 🧹 RESET TOTAL INICIAL: Limpa tudo antes de decidir o que fazer
-//             const setorNaTela = elInputSetor.value.trim().toUpperCase();
-
-//             // 2. Procura no array de retorno a linha que dá "match" com o setor da tela
-//             // Se não houver nada na tela, ele tenta pegar a linha onde o setor é vazio/null
-//             let orcamentoBase = dadosDoOrcamento.find(item => 
-//                 (item.setor?.trim().toUpperCase() === setorNaTela)
-//             ) || dadosDoOrcamento.find(item => !item.setor) || dadosDoOrcamento[0];
-
-//             console.log("🎯 Linha de orçamento selecionada:", orcamentoBase);
-
 //             let setorEncontrado = orcamentoBase.setor;
 
-//             // Obtém o nome exato da função que o usuário selecionou no SELECT da tela
-//             const descFuncaoSelect = document.getElementById('descFuncao');
-//             const funcaoSelecionadaTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
-
-//             // 🛡️ CORREÇÃO CRÍTICA: Só tenta extrair do parênteses se a função do orçamento for EXATAMENTE a selecionada
-//             if (!setorEncontrado && orcamentoBase.descfuncao === funcaoSelecionadaTexto && orcamentoBase.descfuncao?.includes('(')) {
-//                 const match = orcamentoBase.descfuncao.match(/\(([^)]+)\)/);
-//                 const termoExtraido = match ? match[1].trim().toUpperCase() : "";
-                
-//                 // Lista negra: Se o que estiver no parênteses for um desses termos, ignora (não é pavilhão)
-//                 const termosIgnorar = ["MONO", "BILINGUE", "TRILINGUE", "COORD", "COLETOR DE DADOS"];
-//                 if (termoExtraido && !termosIgnorar.includes(termoExtraido)) {
-//                     setorEncontrado = termoExtraido;
-//                 }
-//             }
-
-//             // 🛑 APLICAÇÃO FINAL
 //             if (setorEncontrado && setorEncontrado !== "null" && setorEncontrado !== "") {
 //                 const nomeUpper = String(setorEncontrado).trim().toUpperCase();
-//                 console.log(`✅ Setor oficial encontrado: ${nomeUpper}`);
-
 //                 elSelectPavilhao.innerHTML = `<option value="${nomeUpper}" selected>${nomeUpper}</option>`;
 //                 elInputSetor.value = nomeUpper;
 //                 elInputSetor.readOnly = true;
@@ -5931,369 +6449,1174 @@ const debouncedOnCriteriosChanged = debounce(() => {
 //                     el.style.backgroundColor = "#e9ecef";
 //                     el.style.pointerEvents = "none";
 //                 });
-//                 if (container) container.classList.add('active', 'is-filled');
-//                 if (typeof $ !== 'undefined' && $(elSelectPavilhao).data('select2')) $(elSelectPavilhao).trigger('change');
 //             } else {
-//                 console.log("🔓 Nenhum setor vinculado. Campo liberado.");
+//                 // Se for nulo no banco, libera para preenchimento manual
+//                 elInputSetor.readOnly = false;
+//                 [elSelectPavilhao, elInputSetor].forEach(el => {
+//                     el.style.backgroundColor = "#ffffff";
+//                     el.style.pointerEvents = "auto";
+//                 });
 //             }
 //         }
 
-//         // --- 3. VALIDAÇÃO DE DATAS ---
+//         // --- 3. VALIDAÇÃO DE DATAS (AGORA RECONHECE O orcamentoBase) ---
 //         const descFuncaoSelect = document.getElementById('descFuncao');
 //         const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
-//         const datasPermitidas = new Set();
 
-//         if (Array.isArray(dadosDoOrcamento)) {
-//             dadosDoOrcamento.forEach(item => {
-//                 if (item && item.descfuncao === funcaoTexto && Array.isArray(item.datas_totais_orcadas)) {
-//                     item.datas_totais_orcadas.forEach(d => {
-//                         if (d) datasPermitidas.add(d.split('T')[0]);
-//                     });
-//                 }
-//             });
-//         }
+//         // const datasPermitidas = new Set();
+//         // if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+//         //     orcamentoBase.datas_totais_orcadas.forEach(d => {
+//         //         if (d) datasPermitidas.add(d.split('T')[0]);
+//         //     });
+//         // }
+
+//         // const datasPermitidas = new Set();
+//         // dadosDoOrcamento.forEach(item =>{
+//         //     if (Array.isArray(orcamentoBase.datas_totais_orcadas)) {
+//         //         item.datas_totais_orcadas.forEach(d => {
+//         //             if (d) datasPermitidas.add(d.split('T')[0]);
+//         //         });
+//         //     }
+//         // })
+
+//         const datasPermitidas = new Set();
+//         dadosDoOrcamento.forEach(item => {
+//             if (Array.isArray(item.datas_totais_orcadas)) { // Use 'item' em vez de 'orcamentoBase' aqui
+//                 item.datas_totais_orcadas.forEach(d => {
+//                     if (d) datasPermitidas.add(d.split('T')[0]);
+//                 });
+//             }
+//         });
+        
 
 //         const listaDatasEvento = Array.isArray(datasEvento) ? datasEvento : [];
 //         const datasNaoOrcadas = listaDatasEvento.filter(d => !datasPermitidas.has(d));        
 
 //         if (datasNaoOrcadas.length > 0) {
+//             // 🇧🇷 Formata as datas para exibição no Swal (DD/MM/YYYY)
+//             const datasFormatadasBR = datasNaoOrcadas.map(dataIso => {
+//                 const [ano, mes, dia] = dataIso.split('-');
+//                 return `${dia}/${mes}/${ano}`;
+//             }).join(', ');
+
+//             console.log("🚨 Datas fora formatadas:", datasFormatadasBR);
+
+//             // 🎯 DEFINIÇÃO DOS TIPOS PADRONIZADOS PARA VERIFICAÇÃO INICIAL
+//             const tiposParaVerificar = [
+//                 "ADITIVO - DATA FORA DO ORÇAMENTO",
+//                 "EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO"
+//             ];
+
+//             // 🚀 Agora verificamos pelos TIPOS REAIS em vez de 'QUALQUER_DATA'
+//             const checkData = await verificarStatusAditivoExtra(
+//                 idOrcamentoAtual, 
+//                 idFuncao, 
+//                 tiposParaVerificar.join(','), 
+//                 idFuncionario, 
+//                 nmFuncionario,
+//                 funcaoTexto,
+//                 datasNaoOrcadas[0] ?? null
+//             );
+
+//             // 1. Se já estiver autorizado, libera o processo
+//             if (checkData && checkData.autorizado) {
+//                 console.log("✅ Solicitação já autorizada previamente para este motivo.");
+//                 temOrcamento = true;
+//                 controlarBotaoSalvarStaff(true);
+//                 return; 
+//             }
+
+//             // 2. Se retornar bloqueado (pendente ou rejeitado), encerra aqui
+//             if (checkData && checkData.bloqueado) {
+//                 console.warn(`🛑 Processo interrompido: Existe solicitação de data pendente/rejeitada.`);
+//                 controlarBotaoSalvarStaff(false);
+//                 return; 
+//             }
+
+//             // 3. Se não houver solicitação, abre o Swal para escolha
 //             const result = await Swal.fire({
 //                 icon: 'question',
 //                 title: 'Datas fora do orçamento',
-//                 text: 'Existem datas selecionadas que não constam no orçamento original.',
+//                 html: `As datas <b>${datasFormatadasBR}</b> não constam no orçamento original para este setor.<br><br>Como deseja prosseguir?`,
 //                 showCancelButton: true,
 //                 showDenyButton: true,
 //                 confirmButtonText: 'Solicitar Aditivo',
 //                 denyButtonText: 'Extra Bonificado',
-//                 cancelButtonText: 'Cancelar'
+//                 cancelButtonText: 'Cancelar',
+//                 confirmButtonColor: '#3085d6',
+//                 denyButtonColor: '#d33',
 //             });
 
 //             if (result.isConfirmed || result.isDenied) {
-
+//                 // Limpeza visual do seletor de datas
 //                 if (window.datasEventoPicker) {
 //                     const datasApenasOrcadas = listaDatasEvento.filter(d => datasPermitidas.has(d));
 //                     window.datasEventoPicker.setDate(datasApenasOrcadas); 
-//                     console.log("🧹 Flatpickr limpo. Mantidas apenas datas orçadas:", datasApenasOrcadas);
 //                 }
 
-//                 const motivo = " - Data fora do Orçamento";
-//                 //const tipo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
-//                 const tipo = result.isConfirmed ? `Aditivo${motivo}` : `Extra Bonificado${motivo}`;
+//                 // 🎯 MONTAGEM DO TIPO CONFORME PADRÃO (CAIXA ALTA)
+//                 const motivoExcecao = " - DATA FORA DO ORÇAMENTO";
+//                 const tipoFinal = result.isConfirmed ? `ADITIVO${motivoExcecao}` : `EXTRA BONIFICADO${motivoExcecao}`;
 
-//                 console.log(`🔍 Verificando existência de ${tipo} pendente para o orçamento...`, idOrcamentoAtual, idFuncao, tipo, idFuncionario, nmFuncionario, nmFuncaoDoFormulario);
-
-//                 // const verificacao = await verificarStatusAditivoExtra(
-//                 //     idOrcamentoAtual, 
-//                 //     idFuncao,                     
-//                 //     //tipo, 
-//                 //     'QUALQUER_DATA',
-//                 //     idFuncionario, 
-//                 //     nmFuncionario,
-//                 //     funcaoTexto,
-//                 //     datasNaoOrcadas // certifique-se que nmFuncionario está acessível aqui
-//                 // );
-
-//                 // // 2. Se retornar bloqueado, para o processo aqui mesmo e não abre o próximo Swal
-//                 // if (verificacao && verificacao.bloqueado) {
-//                 //     console.warn(`🛑 Bloqueado: Já existe um ${tipo} pendente.`);
-//                 //     return; // Encerra a função buscarEPopularOrcamento
-//                 // }
-//                 // const resultadoExcecao = await solicitarDadosExcecao(tipo, idOrcamentoAtual, funcaoTexto, idFuncao, idFuncionario, datasNaoOrcadas);
-
-//                 const checkData = await verificarStatusAditivoExtra(
-//                     idOrcamentoAtual, 
-//                     idFuncao, 
-//                     'QUALQUER_DATA', // 🚀 Filtro mestre para Aditivo/Extra de DATA
-//                     idFuncionario, 
-//                     nmFuncionario,
-//                     funcaoTexto,
-//                     datasNaoOrcadas 
-//                 );
-
-//                 // 1. Se já estiver autorizado para estas datas, libera o processo
-//                 if (checkData && checkData.autorizado) {
-//                     console.log("✅ Datas já autorizadas previamente para este funcionário.");
-//                     temOrcamento = true;
-//                     controlarBotaoSalvarStaff(true);
-//                     return; 
-//                 }
-
-//                 // 2. Se retornar bloqueado (pendente ou rejeitado), encerra aqui
-//                 // O 'verificarStatusAditivoExtra' já terá exibido o Swal de aviso
-//                 if (checkData && checkData.bloqueado) {
-//                     console.warn(`🛑 Processo interrompido: Existe solicitação de data pendente/rejeitada.`);
-//                     cancelarProcessoOrcamento();
-//                     return; 
-//                 }
-
+//                 console.log(`🔍 Solicitando: ${tipoFinal}`);
+                
 //                 const resultadoExcecao = await solicitarDadosExcecao(
-//                     tipo, 
+//                     tipoFinal, 
 //                     idOrcamentoAtual, 
 //                     funcaoTexto, 
 //                     idFuncao, 
 //                     idFuncionario, 
 //                     datasNaoOrcadas
-//                 );
-                
-//                 // if (resultadoExcecao && resultadoExcecao.sucesso) {
-//                 //     decisaoUsuarioDataFora = result.isConfirmed ? 'ADITIVO' : 'EXTRA';
-//                 //     temOrcamento = true;
-//                 //     controlarBotaoSalvarStaff(true);
+//                 );              
 
 //                 if (resultadoExcecao && resultadoExcecao.sucesso) {
-//                     if (tipo.includes("Data fora do Orçamento")) {
-//                         // Garante que o input de datas só tenha o que é permitido antes de liberar o botão salvar
-//                         const datasApenasOrcadas = listaDatasEvento.filter(d => datasPermitidas.has(d));
-//                         window.datasEventoPicker.setDate(datasApenasOrcadas);
-//                     }
 //                     decisaoUsuarioDataFora = result.isConfirmed ? 'ADITIVO' : 'EXTRA';
 //                     temOrcamento = true;
 //                     controlarBotaoSalvarStaff(true);
-
 //                 } else {
-//                     cancelarProcessoOrcamento();
+//                     temOrcamento = false;
+//                     controlarBotaoSalvarStaff(false);
 //                     return;
 //                 }
+
 //             } else {
-//                 cancelarProcessoOrcamento();
+//                 temOrcamento = false;
+//                 controlarBotaoSalvarStaff(false);
 //                 return;
+//             }
+//         } else {
+//             // Tudo dentro do orçamento
+//             temOrcamento = true;
+//             controlarBotaoSalvarStaff(true);
+//         }
+//         return dadosDoOrcamento; // Retorna os dados para possível uso futuro
+
+//     } catch (error) {
+//         console.error("❌ Erro em buscarEPopularOrcamento:", error);
+//         controlarBotaoSalvarStaff(false);
+//     }
+// }
+
+
+
+// async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
+//     try {
+//         console.log("🚀 [INÍCIO] buscarEPopularOrcamento", { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento });
+
+//         let orcamentoBase = null;
+//         const idFuncionario = document.getElementById('idFuncionario')?.value;
+//         const selectFunc = document.getElementById('nmFuncionario');
+//         const nmFuncionario = selectFunc?.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
+//         const elInputSetor = document.getElementById('setor');
+//         const setorAtual = elInputSetor ? elInputSetor.value.trim() : null;
+//         const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
+
+//         // Limpeza de estados anteriores para garantir integridade
+//         if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = '';
+//         if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = '';
+//         window.tipoExcecaoAtual = null;
+//         window.justificativaParaSalvar = null;
+//         window.bSalvarComoInativo = false;
+
+//         const criteriosDeBusca = {
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             idFuncao,
+//             setor: setorAtual,
+//             datasEvento: datasEvento || []
+//         };
+
+//         let dadosDoOrcamento;
+//         try {
+//             dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(criteriosDeBusca)
+//             });
+//         } catch (e) {
+//             dadosDoOrcamento = [];
+//         }
+
+//         // Busca fallback (ignora datas exatas se necessário para encontrar o planejamento base)
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             try {
+//                 dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                     method: 'POST',
+//                     headers: { 'Content-Type': 'application/json' },
+//                     body: JSON.stringify({ ...criteriosDeBusca, ignorarFiltroData: true })
+//                 });
+//             } catch (err) {
+//                 console.error("❌ Busca expandida falhou.");
+//             }
+//         }
+
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             temOrcamento = false;
+//             controlarBotaoSalvarStaff(false); 
+//             Swal.fire({ icon: 'warning', title: 'Orçamento não localizado', text: 'Não existe planejamento para esta função nos critérios selecionados.' });
+//             return;
+//         }
+
+//         // --- 1. DEFINIÇÃO DA LINHA BASE E SINCRONIZAÇÃO DE CACHE ---
+//         orcamentoBase = dadosDoOrcamento.find(item => setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()) 
+//                         || dadosDoOrcamento.find(item => !item.setor) 
+//                         || dadosDoOrcamento[0];
+        
+//         idOrcamentoAtual = orcamentoBase.idorcamento;
+
+//         console.log("💎 ESTRUTURA REAL DO ORÇAMENTO:", orcamentoBase);
+
+//         // Atualiza Cache Global de Limites (para uso na função verificarLimiteDeFuncao)
+//         if (typeof orcamentoPorFuncao !== 'undefined' && orcamentoBase) {
+//             const nmEventoBanco = (orcamentoBase.nmevento || "").trim().toUpperCase();
+//             const nmFuncaoBanco = (orcamentoBase.descfuncao || "").trim().toUpperCase();
+//             const setorBanco    = (orcamentoBase.setor || "").trim().toUpperCase();
+
+//             const chaveSimples = [nmEventoBanco, nmFuncaoBanco].filter(p => p !== "").join('-');
+//             const chaveCompleta = [nmEventoBanco, nmFuncaoBanco, setorBanco].filter(p => p !== "").join('-');
+
+//             const dadosParaCache = {
+//                 idOrcamento: orcamentoBase.idorcamento,
+//                 quantidadeOrcada: Number(orcamentoBase.quantidade_orcada || 0),
+//                 quantidadeEscalada: Number(orcamentoBase.quantidade_escalada || 0),
+//                 status: orcamentoBase.status
+//             };
+
+//             orcamentoPorFuncao[chaveCompleta] = dadosParaCache;
+//             orcamentoPorFuncao[chaveSimples] = dadosParaCache;
+            
+//             console.log("💾 Cache Sincronizado:", { chave: chaveCompleta, vagas: `${dadosParaCache.quantidadeEscalada}/${dadosParaCache.quantidadeOrcada}` });
+//         }
+
+//         // --- 2. VALIDAÇÃO DE STATUS DO ORÇAMENTO ---
+//         const statusOrcamentoAtual = orcamentoBase.status; // 'A'berto, a'P'rovado, 'E' em andamento gerado proposta, 'F' fechado  etc
+//         const liberadoCadastro = orcamentoBase.contratarstaff; // Boolean que indica se RH pode mexer
+
+//         if (statusOrcamentoAtual === 'A' || (statusOrcamentoAtual === 'P' && !liberadoCadastro)) {
+//             Swal.fire({ 
+//                 icon: 'warning', 
+//                 title: 'Contratação bloqueada', 
+//                 text: 'Este orçamento não possui liberação para cadastro de staff..' 
+//             });
+//             controlarBotaoSalvarStaff(false);
+//             return;
+//         }
+
+//         // --- 3. TRATAMENTO VISUAL DO SETOR/PAVILHÃO ---
+//         const elSelectPavilhao = document.getElementById('nmPavilhao');
+//         if (elSelectPavilhao && elInputSetor) {
+//             let setorEncontrado = orcamentoBase.setor;
+//             if (setorEncontrado && setorEncontrado !== "null" && setorEncontrado !== "") {
+//                 const nomeUpper = String(setorEncontrado).trim().toUpperCase();
+//                 elSelectPavilhao.innerHTML = `<option value="${nomeUpper}" selected>${nomeUpper}</option>`;
+//                 elInputSetor.value = nomeUpper;
+//                 elInputSetor.readOnly = true;
+//                 [elSelectPavilhao, elInputSetor].forEach(el => {
+//                     el.style.backgroundColor = "#e9ecef";
+//                     el.style.pointerEvents = "none";
+//                 });
+//             } else {
+//                 elInputSetor.readOnly = false;
+//                 [elSelectPavilhao, elInputSetor].forEach(el => {
+//                     el.style.backgroundColor = "#ffffff";
+//                     el.style.pointerEvents = "auto";
+//                 });
+//             }
+//         }
+
+//         // --- 4. LÓGICA DE DATAS E EXCEÇÕES ---
+//         const datasOriginaisArray = (orcamentoBase.datas_totais_orcadas || []).map(d => d.includes('T') ? d.split('T')[0] : d);
+//         const totalDiariasPermitidas = Number(datasOriginaisArray.length) * Number(orcamentoBase.quantidade_orcada || 0);
+//         const totalDiariasJaEscaladas = Number(orcamentoBase.quantidade_escalada || 0);
+//         const diariasSolicitadasAgora = Array.isArray(datasEvento) ? datasEvento.length : 0;
+        
+//         const ultrapassouDiarias = (totalDiariasJaEscaladas + diariasSolicitadasAgora) > totalDiariasPermitidas;
+
+//         const datasOriginaisSet = new Set(datasOriginaisArray);
+//         const datasSolicitadasArray = Array.isArray(datasEvento) ? datasEvento : [];
+//         const datasForaDoPlanejado = datasSolicitadasArray.filter(d => !datasOriginaisSet.has(d));
+
+//         if (datasForaDoPlanejado.length > 0 || ultrapassouDiarias) {
+//             const descFuncaoSelect = document.getElementById('descFuncao');
+//             const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
+//             const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
+//             const periodoOriginalBR = datasOriginaisArray.map(d => d.split('-').reverse().join('/')).join(', ');
+
+//             // Verificação de margem de 1 mês para permitir "Prosseguir sem solicitação"
+//             let dentroDaMargem = true;
+//             if (datasOriginaisArray.length > 0) {
+//                 const datasBaseDates = datasOriginaisArray.map(d => new Date(d + 'T00:00:00'));
+//                 const minDataOrig = new Date(Math.min(...datasBaseDates));
+//                 const maxDataOrig = new Date(Math.max(...datasBaseDates));
+
+//                 const margemInicio = new Date(minDataOrig); 
+//                 margemInicio.setMonth(margemInicio.getMonth() - 1);
+//                 const margemFim = new Date(maxDataOrig); 
+//                 margemFim.setMonth(margemFim.getMonth() + 1);
+
+//                 const datasMuitoFora = datasSolicitadasArray.filter(d => {
+//                     const dt = new Date(d + 'T00:00:00');
+//                     return dt < margemInicio || dt > margemFim;
+//                 });
+
+//                 if (datasMuitoFora.length > 0) dentroDaMargem = false;
+//             }
+
+//             // --- Lógica de verificação se já existe autorização prévia (Evita abrir modal se já aprovado) ---
+//             const tiposParaVerificar = [
+//                 "ADITIVO - DATA FORA DO ORÇAMENTO",
+//                 "EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO",
+//                 "ADITIVO - VAGA EXCEDIDA",
+//                 "EXTRA BONIFICADO - VAGA EXCEDIDA"
+//             ];
+
+//             const checkData = await verificarStatusAditivoExtra(
+//                 idOrcamentoAtual, 
+//                 idFuncao, 
+//                 tiposParaVerificar.join(','), 
+//                 idFuncionario, 
+//                 nmFuncionario,
+//                 funcaoTexto,
+//                 datasForaDoPlanejado[0] ?? null
+//             );
+
+//             if (checkData && checkData.autorizado) {
+//                 console.log("✅ Já autorizado previamente.");
+//                 temOrcamento = true;
+//                 controlarBotaoSalvarStaff(true);
+//                 return dadosDoOrcamento;
+//             }
+
+//             if (checkData && checkData.bloqueado) {
+//                 console.warn(`🛑 Existe solicitação pendente ou rejeitada.`);
+//                 controlarBotaoSalvarStaff(false);
+//                 return;
+//             }
+
+//             // MODAL DE DECISÃO
+//             const swalOptions = {
+//                 icon: 'warning',
+//                 title: 'Divergência com o Orçamento',
+//                 html: datasForaDoPlanejado.length > 0 
+//                     ? `As datas <b>${datasFormatadasBR}</b> não constam no orçamento aprovado.<br>Como deseja tratar esta exceção?`
+//                     : `Esta escalação excede o limite de vagas orçadas para esta função.<br>Como deseja tratar esta exceção?`,
+//                 showCancelButton: true,
+//                 showDenyButton: true,
+//                 confirmButtonText: 'Solicitar Aditivo',
+//                 denyButtonText: 'Extra Bonificado',
+//                 cancelButtonText: 'Corrigir dados',
+//                 confirmButtonColor: '#28a745',
+//                 denyButtonColor: '#17a2b8'
+//             };
+
+//             if (dentroDaMargem && datasForaDoPlanejado.length > 0) {
+//                 swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer;">Prosseguir sem solicitação</button>';
+//             }
+
+//             const result = await Swal.fire(swalOptions);
+
+//             let prosseguirSemSolicitacao = false;
+//             if (dentroDaMargem) {
+//                 const btnFooter = document.getElementById('btnProsseguirSem');
+//                 if (btnFooter) {
+//                     btnFooter.onclick = () => {
+//                         prosseguirSemSolicitacao = true;
+//                         Swal.clickConfirm();
+//                     };
+//                 }
+//             }
+
+//             if (prosseguirSemSolicitacao) {
+//                 const elObs = document.getElementById('obsgeral');
+//                 if (elObs) {
+//                     const logHist = `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasFormatadasBR}. Por: ${nomeUsuarioLogado}.`;
+//                     elObs.value = (elObs.value + logHist).trim();
+//                 }
+//                 temOrcamento = true;
+//                 controlarBotaoSalvarStaff(true);
+//                 return dadosDoOrcamento;
+//             }
+
+//             if (result.isConfirmed || result.isDenied) {
+//                 let baseTipo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//                 let motivo = (datasForaDoPlanejado.length > 0) ? 'Datas fora do Orçamento' : 'Vaga Excedida';
+//                 const tipoFinal = `${baseTipo} - ${motivo}`;
+
+//                 const resEx = await solicitarDadosExcecao(tipoFinal, idOrcamentoAtual, funcaoTexto, idFuncao, idFuncionario, datasForaDoPlanejado);
+                
+//                 if (resEx && resEx.confirmado) {
+//                     window.tipoExcecaoAtual = tipoFinal;
+//                     window.justificativaParaSalvar = resEx.justificativa;
+//                     window.bSalvarComoInativo = true;
+
+//                     if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = tipoFinal;
+//                     if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = resEx.justificativa;
+//                     if (document.getElementById('ativo')) document.getElementById('ativo').value = 'false';
+
+//                     temOrcamento = true;
+//                     controlarBotaoSalvarStaff(true);
+//                 } else {
+//                     controlarBotaoSalvarStaff(false);
+//                 }
+//             } else {
+//                 controlarBotaoSalvarStaff(false);
+//             }
+//         } else {
+//             // Tudo em ordem com o orçamento
+//             temOrcamento = true;
+//             controlarBotaoSalvarStaff(true);
+//         }
+
+//         return dadosDoOrcamento;
+//     } catch (error) {
+//         console.error("❌ [CRÍTICO] Erro em buscarEPopularOrcamento:", error);
+//         controlarBotaoSalvarStaff(false);
+//     }
+// }
+
+// async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
+//     try {
+//         console.log("🚀 [INÍCIO] buscarEPopularOrcamento", { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento });
+
+//         let orcamentoBase = null;
+//         const idFuncionario = document.getElementById('idFuncionario')?.value;
+//         const selectFunc = document.getElementById('nmFuncionario');
+//         const nmFuncionario = selectFunc?.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
+//         const elInputSetor = document.getElementById('setor');
+//         const setorAtual = elInputSetor ? elInputSetor.value.trim() : null;
+//         const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
+
+//         // Limpeza de estados anteriores
+//         if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = '';
+//         if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = '';
+//         window.tipoExcecaoAtual = null;
+//         window.justificativaParaSalvar = null;
+//         window.bSalvarComoInativo = false;
+
+//         const criteriosDeBusca = {
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             idFuncao,
+//             setor: setorAtual,
+//             datasEvento: datasEvento || []
+//         };
+
+//         let dadosDoOrcamento;
+//         try {
+//             dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(criteriosDeBusca)
+//             });
+//         } catch (e) {
+//             dadosDoOrcamento = [];
+//         }
+
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             try {
+//                 dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                     method: 'POST',
+//                     headers: { 'Content-Type': 'application/json' },
+//                     body: JSON.stringify({ ...criteriosDeBusca, ignorarFiltroData: true })
+//                 });
+//             } catch (err) {
+//                 console.error("❌ Busca expandida falhou.");
+//             }
+//         }
+
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             temOrcamento = false;
+//             controlarBotaoSalvarStaff(false); 
+//             Swal.fire({ icon: 'warning', title: 'Orçamento não localizado', text: 'Não existe planejamento para esta função nos critérios selecionados.' });
+//             return;
+//         }
+
+//         orcamentoBase = dadosDoOrcamento.find(item => setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()) 
+//                         || dadosDoOrcamento.find(item => !item.setor) 
+//                         || dadosDoOrcamento[0];
+        
+//         idOrcamentoAtual = orcamentoBase.idorcamento;
+
+//         // --- 1. SINCRONIZAÇÃO DE CACHE ---
+//         if (typeof orcamentoPorFuncao !== 'undefined' && orcamentoBase) {
+//             const nmEventoBanco = (orcamentoBase.nmevento || "").trim().toUpperCase();
+//             const nmFuncaoBanco = (orcamentoBase.descfuncao || "").trim().toUpperCase();
+//             const setorBanco    = (orcamentoBase.setor || "").trim().toUpperCase();
+//             const chaveCompleta = [nmEventoBanco, nmFuncaoBanco, setorBanco].filter(p => p !== "").join('-');
+
+//             orcamentoPorFuncao[chaveCompleta] = {
+//                 idOrcamento: orcamentoBase.idorcamento,
+//                 quantidadeOrcada: Number(orcamentoBase.quantidade_orcada || 0),
+//                 quantidadeEscalada: Number(orcamentoBase.quantidade_escalada || 0),
+//                 status: orcamentoBase.status
+//             };
+//         }
+
+//         // --- 2. VALIDAÇÃO DE STATUS ---
+//         if (orcamentoBase.status === 'A' || (orcamentoBase.status === 'P' && !orcamentoBase.contratarstaff)) {
+//             Swal.fire({ icon: 'warning', title: 'Contratação bloqueada', text: 'Este orçamento não possui liberação para cadastro de staff.' });
+//             controlarBotaoSalvarStaff(false);
+//             return;
+//         }
+
+//         // --- 3. LOGICA DE DATAS E CÁLCULO DE VAGAS (DETALHADO) ---
+//         const datasOriginaisArray = (orcamentoBase.datas_totais_orcadas || []).map(d => d.includes('T') ? d.split('T')[0] : d);
+        
+//         // Quantidades para o Dashboard do Modal
+//         const q_orcada = Number(orcamentoBase.quantidade_orcada || 0);
+//         const q_escalada = Number(orcamentoBase.quantidade_escalada || 0);
+//         const q_solicitada = 1; // Estamos tentando cadastrar 1 pessoa agora
+//         const saldo_apos = q_orcada - q_escalada - q_solicitada;
+//         const excedente = saldo_apos < 0 ? Math.abs(saldo_apos) : 0;
+
+//         const datasSolicitadasArray = Array.isArray(datasEvento) ? datasEvento : [];
+//         const datasForaDoPlanejado = datasSolicitadasArray.filter(d => !new Set(datasOriginaisArray).has(d));
+//         const ultrapassouVagas = saldo_apos < 0;
+
+//         if (datasForaDoPlanejado.length > 0 || ultrapassouVagas) {
+//             const descFuncaoSelect = document.getElementById('descFuncao');
+//             const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
+            
+//             // Verificação de autorização prévia
+//             const checkData = await verificarStatusAditivoExtra(
+//                 idOrcamentoAtual, idFuncao, 
+//                 "ADITIVO - DATA FORA DO ORÇAMENTO,EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO,ADITIVO - VAGA EXCEDIDA,EXTRA BONIFICADO - VAGA EXCEDIDA", 
+//                 idFuncionario, nmFuncionario, funcaoTexto, datasForaDoPlanejado[0] ?? null
+//             );
+
+//             if (checkData?.autorizado) {
+//                 temOrcamento = true;
+//                 controlarBotaoSalvarStaff(true);
+//                 return dadosDoOrcamento;
+//             }
+
+//             if (checkData?.bloqueado) {
+//                 controlarBotaoSalvarStaff(false);
+//                 return;
+//             }
+
+//             // --- CONSTRUÇÃO DO HTML DO MODAL COM INDICADORES ---
+//             let htmlInformativo = `
+//                 <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6;">
+//                     <p style="margin-bottom: 10px;"><b>Função:</b> ${funcaoTexto}</p>
+                    
+//                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+//                         <span>Vagas Orçadas:</span>
+//                         <span class="badge" style="background:#6c757d; color:white; padding:2px 8px; border-radius:4px;">${q_orcada}</span>
+//                     </div>
+//                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+//                         <span>Vagas Já Ocupadas:</span>
+//                         <span class="badge" style="background:#17a2b8; color:white; padding:2px 8px; border-radius:4px;">${q_escalada}</span>
+//                     </div>
+//                     <div style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 5px; font-weight: bold;">
+//                         <span>Excedente Atual:</span>
+//                         <span style="color: ${ultrapassouVagas ? '#dc3545' : '#28a745'};">${excedente} vaga(s)</span>
+//                     </div>
+//                 </div>
+//             `;
+
+//             if (datasForaDoPlanejado.length > 0) {
+//                 const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
+//                 htmlInformativo += `
+//                     <div style="margin-top:15px; color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem;">
+//                         ⚠️ <b>Datas fora do planejado:</b> ${datasFormatadasBR}
+//                     </div>
+//                 `;
+//             }
+
+//             const swalOptions = {
+//                 icon: 'warning',
+//                 title: 'Divergência com o Orçamento',
+//                 html: htmlInformativo + `<p style="margin-top:15px;">Como deseja tratar esta exceção?</p>`,
+//                 showCancelButton: true,
+//                 showDenyButton: true,
+//                 confirmButtonText: 'Solicitar Aditivo',
+//                 denyButtonText: 'Extra Bonificado',
+//                 cancelButtonText: 'Corrigir dados',
+//                 confirmButtonColor: '#28a745',
+//                 denyButtonColor: '#17a2b8'
+//             };
+
+//             const result = await Swal.fire(swalOptions);
+
+//             if (result.isConfirmed || result.isDenied) {
+//                 let baseTipo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//                 let motivo = (datasForaDoPlanejado.length > 0) ? 'Datas fora do Orçamento' : 'Vaga Excedida';
+//                 const tipoFinal = `${baseTipo} - ${motivo}`;
+
+//                 const resEx = await solicitarDadosExcecao(tipoFinal, idOrcamentoAtual, funcaoTexto, idFuncao, idFuncionario, datasForaDoPlanejado);
+                
+//                 if (resEx?.confirmado) {
+//                     window.tipoExcecaoAtual = tipoFinal;
+//                     window.justificativaParaSalvar = resEx.justificativa;
+//                     window.bSalvarComoInativo = true;
+
+//                     if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = tipoFinal;
+//                     if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = resEx.justificativa;
+//                     if (document.getElementById('ativo')) document.getElementById('ativo').value = 'false';
+
+//                     temOrcamento = true;
+//                     controlarBotaoSalvarStaff(true);
+//                 } else {
+//                     controlarBotaoSalvarStaff(false);
+//                 }
+//             } else {
+//                 controlarBotaoSalvarStaff(false);
 //             }
 //         } else {
 //             temOrcamento = true;
 //             controlarBotaoSalvarStaff(true);
 //         }
 
-//         console.log("✅ Orçamento carregado com sucesso:", dadosDoOrcamento, temOrcamento);
-
-//         // --- 4. ATUALIZAÇÃO GLOBAL ---
-//         dadosDoOrcamento.forEach(item => {
-//             const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-//             if (!orcamentoPorFuncao[chave]) {
-//                 orcamentoPorFuncao[chave] = {
-//                     quantidadeOrcada: Number(item.quantidade_orcada), 
-//                     quantidadeEscalada: Number(item.quantidade_escalada),
-//                     idOrcamento: item.idorcamento,
-//                     idFuncao: item.idfuncao
-//                 };
-//             }
-//         });
-
+//         return dadosDoOrcamento;
 //     } catch (error) {
-//         console.error("❌ Erro em buscarEPopularOrcamento:", error);
+//         console.error("❌ [CRÍTICO] Erro em buscarEPopularOrcamento:", error);
 //         controlarBotaoSalvarStaff(false);
-//     }
-
-//     function cancelarProcessoOrcamento() {
-//         temOrcamento = false;
-//         controlarBotaoSalvarStaff(false);
-//         if (window.datasEventoPicker) window.datasEventoPicker.clear();
-//         decisaoUsuarioDataFora = null;
 //     }
 // }
 
+
+//aqui está a versão que libera cadastro mesmo com divergência bloqueando a quantidade de vagas orçadas
+// async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
+//     try {
+//         console.log("🚀 [INÍCIO] buscarEPopularOrcamento", { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento });
+
+//         let orcamentoBase = null;
+//         const idFuncionario = document.getElementById('idFuncionario')?.value;
+//         const selectFunc = document.getElementById('nmFuncionario');
+//         const nmFuncionario = selectFunc?.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
+//         const elInputSetor = document.getElementById('setor');
+//         const setorAtual = elInputSetor ? elInputSetor.value.trim() : null;
+//         const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
+
+//         // Limpeza de estados
+//         if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = '';
+//         if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = '';
+//         window.tipoExcecaoAtual = null;
+//         window.justificativaParaSalvar = null;
+//         window.bSalvarComoInativo = false;
+
+//         const criteriosDeBusca = { idEvento, idCliente, idLocalMontagem, idFuncao, setor: setorAtual, datasEvento: datasEvento || [] };
+
+//         let dadosDoOrcamento;
+//         try {
+//             dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(criteriosDeBusca)
+//             });
+//         } catch (e) { dadosDoOrcamento = []; }
+
+//         // Fallback expandido
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             try {
+//                 dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+//                     method: 'POST',
+//                     headers: { 'Content-Type': 'application/json' },
+//                     body: JSON.stringify({ ...criteriosDeBusca, ignorarFiltroData: true })
+//                 });
+//             } catch (err) { console.error("❌ Busca expandida falhou."); }
+//         }
+
+//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+//             temOrcamento = false;
+//             controlarBotaoSalvarStaff(false); 
+//             Swal.fire({ icon: 'warning', title: 'Orçamento não localizado', text: 'Não existe planejamento para esta função nos critérios selecionados.' });
+//             return;
+//         }
+
+//         orcamentoBase = dadosDoOrcamento.find(item => setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()) 
+//                         || dadosDoOrcamento.find(item => !item.setor) 
+//                         || dadosDoOrcamento[0];
+        
+//         idOrcamentoAtual = orcamentoBase.idorcamento;
+
+//         const idStaffExistente = document.getElementById('idStaff')?.value;
+
+//         // --- 1. DEFINIÇÃO DE VARIÁVEIS DE CÁLCULO ---
+//         const q_orcada = Number(orcamentoBase.quantidade_orcada || 0);
+//         const q_escalada = Number(orcamentoBase.quantidade_escalada || 0);
+//         const ultrapassouVagas = !idStaffExistente && (q_escalada + 1) > q_orcada;
+//         const excedente = ultrapassouVagas ? Math.abs(q_orcada - (q_escalada + 1)) : 0;
+
+//         const datasOriginaisArray = (orcamentoBase.datas_totais_orcadas || []).map(d => d.includes('T') ? d.split('T')[0] : d);
+//         const datasSolicitadasArray = Array.isArray(datasEvento) ? datasEvento : [];
+//         const datasForaDoPlanejado = datasSolicitadasArray.filter(d => !new Set(datasOriginaisArray).has(d));
+//         const temDataFora = datasForaDoPlanejado.length > 0;
+
+//         // --- 2. LÓGICA DE MARGEM (1 MÊS) ---
+//         let dentroDaMargem = true;
+//         if (temDataFora && datasOriginaisArray.length > 0) {
+//             const datasBaseDates = datasOriginaisArray.map(d => new Date(d + 'T00:00:00'));
+//             const minDataOrig = new Date(Math.min(...datasBaseDates));
+//             const maxDataOrig = new Date(Math.max(...datasBaseDates));
+
+//             const margemInicio = new Date(minDataOrig); margemInicio.setMonth(margemInicio.getMonth() - 1);
+//             const margemFim = new Date(maxDataOrig); margemFim.setMonth(margemFim.getMonth() + 1);
+
+//             const datasMuitoFora = datasSolicitadasArray.filter(d => {
+//                 const dt = new Date(d + 'T00:00:00');
+//                 return dt < margemInicio || dt > margemFim;
+//             });
+//             if (datasMuitoFora.length > 0) dentroDaMargem = false;
+//         }
+
+//         // Se estiver tudo OK, libera e encerra
+//         if (!temDataFora && !ultrapassouVagas) {
+//             temOrcamento = true;
+//             controlarBotaoSalvarStaff(true);
+//             return dadosDoOrcamento;
+//         }
+
+//         // --- 3. VERIFICAÇÃO DE AUTORIZAÇÃO PRÉVIA ---
+//         const descFuncaoSelect = document.getElementById('descFuncao');
+//         const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
+//         const checkData = await verificarStatusAditivoExtra(
+//             idOrcamentoAtual, idFuncao, 
+//             "ADITIVO - DATA FORA DO ORÇAMENTO,EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO,ADITIVO - VAGA EXCEDIDA,EXTRA BONIFICADO - VAGA EXCEDIDA", 
+//             idFuncionario, nmFuncionario, funcaoTexto, datasForaDoPlanejado[0] ?? null
+//         );
+
+//         if (checkData?.autorizado) {
+//             temOrcamento = true;
+//             controlarBotaoSalvarStaff(true);
+//             return dadosDoOrcamento;
+//         }
+//         if (checkData?.bloqueado) {
+//             controlarBotaoSalvarStaff(false);
+//             return;
+//         }
+
+//         // --- 4. CONSTRUÇÃO DO DASHBOARD VISUAL ---
+//         const htmlDashboard = `
+//             <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+//                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+//                     <span>Vagas Orçadas:</span>
+//                     <span style="font-weight:bold;">${q_orcada}</span>
+//                 </div>
+//                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+//                     <span>Vagas Já Ocupadas:</span>
+//                     <span style="font-weight:bold;">${q_escalada}</span>
+//                 </div>
+//                 <div style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold; color: ${ultrapassouVagas ? '#dc3545' : '#28a745'};">
+//                     <span>Com esse Status de Vagas:</span>
+//                     <span>${ultrapassouVagas ? `Excedido em ${excedente}` : 'Dentro do Limite'}</span>
+//                 </div>
+//             </div>
+//         `;
+
+//         // --- 5. DECISÃO DO TIPO DE MODAL ---
+//         let swalOptions = {
+//             icon: 'warning',
+//             title: 'Divergência com o Orçamento',
+//             showCancelButton: true,
+//             showDenyButton: true,
+//             confirmButtonText: 'Solicitar Aditivo',
+//             denyButtonText: 'Extra Bonificado',
+//             cancelButtonText: 'Corrigir dados',
+//             confirmButtonColor: '#28a745',
+//             denyButtonColor: '#17a2b8'
+//         };
+
+//         const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
+
+//         // CENÁRIO A: Tem data fora mas está DENTRO da margem e NÃO ultrapassou vagas
+//         if (temDataFora && dentroDaMargem && !ultrapassouVagas) {
+//             swalOptions.html = htmlDashboard + `
+//                 <div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//                     As datas <b>${datasFormatadasBR}</b> não estão no orçamento, mas estão dentro da margem permitida de 30 dias.
+//                 </div>
+//                 <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
+//             `;
+//             swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+//         } 
+//         // CENÁRIO B: Vaga excedida ou Data muito fora (BLOQUEIO RÍGIDO)
+//         else {
+//             const msgMotivo = ultrapassouVagas ? `Limite de vagas excedido.` : `Datas (<b>${datasFormatadasBR}</b>) fora da margem permitida.`;
+//             swalOptions.html = htmlDashboard + `
+//                 <div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//                     🛑 <b>Bloqueio:</b> ${msgMotivo}
+//                 </div>
+//                 <p style="margin-top:15px;">Uma autorização é obrigatória para salvar.</p>
+//             `;
+//         }
+
+//         const result = await Swal.fire(swalOptions);
+
+//         // Lógica do botão especial no footer (Prosseguir sem solicitação)
+//         let prosseguirSemSolicitacao = false;
+//         const btnFooter = document.getElementById('btnProsseguirSem');
+//         if (btnFooter) {
+//             btnFooter.onclick = () => {
+//                 prosseguirSemSolicitacao = true;
+//                 Swal.clickConfirm();
+//             };
+//         }
+
+//         if (prosseguirSemSolicitacao) {
+//             const elObs = document.getElementById('obsgeral');
+//             if (elObs) {
+//                 const periodoOriginalBR = datasOriginaisArray.map(d => d.split('-').reverse().join('/')).join(', ');
+//                 const logHist = `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasFormatadasBR} por margem de tolerância. Por: ${nomeUsuarioLogado}.`;
+//                 elObs.value = (elObs.value + logHist).trim();
+//             }
+//             temOrcamento = true;
+//             controlarBotaoSalvarStaff(true);
+//             return dadosDoOrcamento;
+//         }
+
+//         if (result.isConfirmed || result.isDenied) {
+//             const baseTipo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//             const motivo = temDataFora ? 'Datas fora do Orçamento' : 'Vaga Excedida';
+//             const tipoFinal = `${baseTipo} - ${motivo}`;
+
+//             const resEx = await solicitarDadosExcecao(tipoFinal, idOrcamentoAtual, funcaoTexto, idFuncao, idFuncionario,  datasForaDoPlanejado.length > 0 ? datasForaDoPlanejado : datasSolicitadasArray);
+            
+//             if (resEx?.confirmado) {
+//                 window.tipoExcecaoAtual = tipoFinal;
+//                 window.justificativaParaSalvar = resEx.justificativa;
+//                 window.bSalvarComoInativo = true;
+//                 if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = tipoFinal;
+//                 if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = resEx.justificativa;
+//                // if (document.getElementById('ativo')) document.getElementById('ativo').value = 'false';
+//                 temOrcamento = true;
+//                 controlarBotaoSalvarStaff(true);
+//             } else {
+//                 controlarBotaoSalvarStaff(false);
+//             }
+//         } else {
+//             controlarBotaoSalvarStaff(false);
+//         }
+
+//         return dadosDoOrcamento;
+//     } catch (error) {
+//         console.error("❌ [CRÍTICO] Erro em buscarEPopularOrcamento:", error);
+//         controlarBotaoSalvarStaff(false);
+//     }
+// }
+
+
 async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
     try {
-        console.log("🚀 Buscando orçamento...", { idEvento, idCliente, idLocalMontagem, idFuncao });
+        console.log("🚀 [INÍCIO] buscarEPopularOrcamento", { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento });
 
-        decisaoUsuarioDataFora = null; 
-        let orcamentoBase = null; // 🎯 DECLARAÇÃO NO TOPO (Escopo amplo)
-
-        const idFuncionario = document.getElementById('idFuncionario').value;
+        let orcamentoBase = null;
+        const idFuncionario = document.getElementById('idFuncionario')?.value;
         const selectFunc = document.getElementById('nmFuncionario');
-        const nmFuncionario = selectFunc.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
+        const nmFuncionario = selectFunc?.options[selectFunc.selectedIndex]?.text || "Funcionário não identificado";
         const elInputSetor = document.getElementById('setor');
         const setorAtual = elInputSetor ? elInputSetor.value.trim() : null;
+        const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
 
-        const criteriosDeBusca = {
-            idEvento,
-            idCliente,
-            idLocalMontagem,
-            idFuncao,
-            setor: setorAtual, // Enviando o setor para o backend fixado
-            datasEvento: datasEvento || []
-        };
+        // Limpeza de estados
+        if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = '';
+        if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = '';
+        window.tipoExcecaoAtual = null;
+        window.justificativaParaSalvar = null;
+        window.bSalvarComoInativo = false;
 
-        const dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(criteriosDeBusca)
-        });
+        const criteriosDeBusca = { idEvento, idCliente, idLocalMontagem, idFuncao, setor: setorAtual, datasEvento: datasEvento || [] };
+
+        let dadosDoOrcamento;
+        try {
+            dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(criteriosDeBusca)
+            });
+        } catch (e) { dadosDoOrcamento = []; }
+
+        if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+            try {
+                dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...criteriosDeBusca, ignorarFiltroData: true })
+                });
+            } catch (err) { console.error("❌ Busca expandida falhou."); }
+        }
 
         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
             temOrcamento = false;
             controlarBotaoSalvarStaff(false); 
-            Swal.fire({ icon: 'info', title: 'Orçamento não encontrado', text: 'Não existem itens de orçamento para os critérios selecionados.' });
+            Swal.fire({ icon: 'warning', title: 'Orçamento não localizado', text: 'Não existe planejamento para esta função nos critérios selecionados.' });
             return;
         }
 
-        // --- 1. DEFINIÇÃO DA LINHA BASE ---
-        // Tenta achar a linha que bate com o setor da tela, senão pega a primeira
-        orcamentoBase = dadosDoOrcamento.find(item => 
-            setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()
-        ) || dadosDoOrcamento.find(item => !item.setor) || dadosDoOrcamento[0];
+        orcamentoBase = dadosDoOrcamento.find(item => setorAtual && item.setor?.trim().toUpperCase() === setorAtual.toUpperCase()) 
+                        || dadosDoOrcamento.find(item => !item.setor) 
+                        || dadosDoOrcamento[0];
+        
+        console.log("DEBUG ORÇAMENTO:", orcamentoBase);
 
         idOrcamentoAtual = orcamentoBase.idorcamento;
-        const statusOrcamentoAtual = orcamentoBase.status;
-        const liberadoCadastro = orcamentoBase.contratarstaff;
+        const idStaffExistente = document.getElementById('idStaff')?.value;
 
-        if (statusOrcamentoAtual === 'A' || (statusOrcamentoAtual === 'P' && !liberadoCadastro)) {
-            Swal.fire({ icon: 'warning', title: 'Contratação bloqueada', text: 'Este orçamento não possui liberação para cadastro de staff.' });
+        if (window.isFormLoadedFromDoubleClick || (idStaffExistente && idStaffExistente !== "")) {
+            console.log("ℹ️ Carregamento de dados detectado. Pulando validações de divergência.");
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+
+        // --- 1. CÁLCULOS DE VAGAS E DIÁRIAS (AJUSTADO VIA DEBUG) ---
+        const q_orcada = Number(orcamentoBase.quantidade_orcada || 0);
+        const q_escalada = Number(orcamentoBase.quantidade_escalada || 0);
+
+        // 🔥 O segredo está aqui: pegamos o tamanho do array de datas enviado pelo banco
+        const d_orcadas = Array.isArray(orcamentoBase.datas_totais_orcadas) 
+            ? orcamentoBase.datas_totais_orcadas.length 
+            : 0;
+
+        const d_escaladas = Number(orcamentoBase.diarias_escaladas || 0);
+
+        const datasSolicitadasArray = Array.isArray(datasEvento) ? datasEvento : [];
+        const d_solicitadas = datasSolicitadasArray.length;
+
+        // Se não houver datas no formulário, encerra sem disparar o Swal
+        if (d_solicitadas === 0) {
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+
+        // Validações
+        const ultrapassouVagas = !idStaffExistente && (q_escalada + 1) > q_orcada;
+
+        // Agora o d_orcadas será 5, então a validação funcionará corretamente
+        const ultrapassouDiarias = !idStaffExistente && d_orcadas > 0 && (d_escaladas + d_solicitadas) > d_orcadas;
+
+        const excedenteVagas = ultrapassouVagas ? Math.abs(q_orcada - (q_escalada + 1)) : 0;
+        const excedenteDiarias = ultrapassouDiarias ? Math.abs(d_orcadas - (d_escaladas + d_solicitadas)) : 0;
+
+        // Lógica de Datas (AQUI REMOVI O 'CONST' REPETIDO)
+        const datasOriginaisArray = (orcamentoBase.datas_totais_orcadas || []).map(d => d.includes('T') ? d.split('T')[0] : d);
+        
+        // Apenas filtramos, sem declarar a variável de novo
+        const datasForaDoPlanejado = datasSolicitadasArray.filter(d => !new Set(datasOriginaisArray).has(d));
+        const temDataFora = datasForaDoPlanejado.length > 0;
+
+        // --- 2. MARGEM DE TOLERÂNCIA ---
+        let dentroDaMargem = true;
+        if (temDataFora && datasOriginaisArray.length > 0) {
+            const datasBaseDates = datasOriginaisArray.map(d => new Date(d + 'T00:00:00'));
+            const minDataOrig = new Date(Math.min(...datasBaseDates));
+            const maxDataOrig = new Date(Math.max(...datasBaseDates));
+            const margemInicio = new Date(minDataOrig); margemInicio.setMonth(margemInicio.getMonth() - 1);
+            const margemFim = new Date(maxDataOrig); margemFim.setMonth(margemFim.getMonth() + 1);
+
+            const datasMuitoFora = datasSolicitadasArray.filter(d => {
+                const dt = new Date(d + 'T00:00:00');
+                return dt < margemInicio || dt > margemFim;
+            });
+            if (datasMuitoFora.length > 0) dentroDaMargem = false;
+        }
+
+        // --- 3. LIBERAÇÃO AUTOMÁTICA ---
+        if (!temDataFora && !ultrapassouVagas && !ultrapassouDiarias) {
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+
+        // --- 3. LIBERAÇÃO AUTOMÁTICA ---
+        if (!temDataFora && !ultrapassouVagas && !ultrapassouDiarias) {
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+
+        // --- 4. VERIFICAÇÃO DE AUTORIZAÇÃO PRÉVIA ---
+        const descFuncaoSelect = document.getElementById('descFuncao');
+        const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
+        const checkData = await verificarStatusAditivoExtra(
+            idOrcamentoAtual, idFuncao, 
+            "ADITIVO - DATA FORA DO ORÇAMENTO,EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO,ADITIVO - VAGA EXCEDIDA,EXTRA BONIFICADO - VAGA EXCEDIDA", 
+            idFuncionario, nmFuncionario, funcaoTexto, datasForaDoPlanejado[0] ?? null
+        );
+
+        if (checkData?.autorizado) {
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+        if (checkData?.bloqueado) {
             controlarBotaoSalvarStaff(false);
             return;
         }
 
-        // --- 2. TRATAMENTO VISUAL DO SETOR ---
-        const elSelectPavilhao = document.getElementById('nmPavilhao');
-        if (elSelectPavilhao && elInputSetor) {
-            let setorEncontrado = orcamentoBase.setor;
+        // --- 5. DASHBOARD E MODAL (CORRIGIDO) ---
+        const htmlDashboard = `
+            <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Vagas (Pessoas):</span>
+                    <span style="font-weight:bold;">${q_escalada} / ${q_orcada}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Diárias (Total):</span>
+                    <span style="font-weight:bold;">${d_escaladas} / ${d_orcadas}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 4px; font-weight: bold;">
+                    <span>Status:</span>
+                    <span style="color: ${(ultrapassouVagas || ultrapassouDiarias) ? '#dc3545' : '#28a745'}">
+                        ${ultrapassouVagas ? `Vagas Excedidas (${excedenteVagas})` : (ultrapassouDiarias ? `Diárias Excedidas (${excedenteDiarias})` : 'Divergência Detectada')}
+                    </span>
+                </div>
+            </div>
+        `;
 
-            if (setorEncontrado && setorEncontrado !== "null" && setorEncontrado !== "") {
-                const nomeUpper = String(setorEncontrado).trim().toUpperCase();
-                elSelectPavilhao.innerHTML = `<option value="${nomeUpper}" selected>${nomeUpper}</option>`;
-                elInputSetor.value = nomeUpper;
-                elInputSetor.readOnly = true;
-                [elSelectPavilhao, elInputSetor].forEach(el => {
-                    el.style.backgroundColor = "#e9ecef";
-                    el.style.pointerEvents = "none";
+        const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
+
+        let swalOptions = {
+            icon: 'warning',
+            title: 'Divergência com o Orçamento',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Solicitar Aditivo',
+            denyButtonText: 'Extra Bonificado',
+            cancelButtonText: 'Corrigir dados',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#17a2b8',
+            html: htmlDashboard
+        };
+
+        const podeProsseguirSem = temDataFora && dentroDaMargem && !ultrapassouVagas && !ultrapassouDiarias;
+
+        if (podeProsseguirSem) {
+            swalOptions.html += `
+                <div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+                    As datas <b>${datasFormatadasBR}</b> não estão no orçamento, mas estão dentro da margem permitida de 30 dias.
+                </div>
+                <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
+            `;
+            swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+        } else {
+            // Define a mensagem de erro específica para o bloqueio
+            let msgErro = "";
+            if (ultrapassouDiarias) msgErro = `Limite de Diárias excedido (${d_orcadas} orçadas).`;
+            else if (ultrapassouVagas) msgErro = `Limite de vagas excedido.`;
+            else msgErro = `Datas (<b>${datasFormatadasBR}</b>) fora da margem permitida.`;
+
+            swalOptions.html += `
+                <div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+                    🛑 <b>Bloqueio:</b> ${msgErro}
+                </div>
+                <p style="margin-top:15px;">Uma autorização é obrigatória para salvar.</p>
+            `;
+            swalOptions.footer = ''; 
+        }
+
+       const result = await Swal.fire(swalOptions);
+
+        if (result.dismiss === Swal.DismissReason.cancel) {
+            // 1. Localize o input onde o Flatpickr está instanciado
+            const inputData = document.getElementById('datasEvento'); // Ajuste para o ID real do seu input
+            
+            if (inputData && inputData._flatpickr) {
+                const fp = inputData._flatpickr;
+                
+                // 2. Filtramos as datas atuais removendo as que estão fora do planejado
+                // Usamos o Set para performance na comparação
+                const setFora = new Set(datasForaDoPlanejado);
+                const datasCorrigidas = fp.selectedDates.filter(date => {
+                    const dataISO = date.toISOString().split('T')[0];
+                    return !setFora.has(dataISO);
                 });
+
+                // 3. Atualizamos o calendário
+                fp.setDate(datasCorrigidas, true); // O 'true' dispara o evento onChange do Flatpickr
+                
+                // 4. Feedback visual opcional
+                console.log("✅ Calendário corrigido. Datas removidas:", datasForaDoPlanejado);
+            }
+        }
+
+        let prosseguirSemSolicitacao = false;
+        // O listener do botão de footer precisa ser anexado via delegate ou checado após o clique se for disparado pelo Swal
+        // Mas a forma mais segura com SweetAlert2 é capturar o clique do elemento injetado:
+        if (podeProsseguirSem) {
+             const btnFooter = document.getElementById('btnProsseguirSem');
+             if (btnFooter) {
+                 btnFooter.onclick = () => {
+                     prosseguirSemSolicitacao = true;
+                     Swal.clickConfirm();
+                 };
+             }
+        }
+
+        if (prosseguirSemSolicitacao) {
+            const elObs = document.getElementById('obsgeral');
+            if (elObs) {
+                const periodoOriginalBR = datasOriginaisArray.map(d => d.split('-').reverse().join('/')).join(', ');
+                const logHist = `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasFormatadasBR} por margem de tolerância. Por: ${nomeUsuarioLogado}.`;
+                elObs.value = (elObs.value + logHist).trim();
+            }
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+            return dadosDoOrcamento;
+        }
+
+        if (result.isConfirmed || result.isDenied) {
+            const baseTipo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+            // Prioridade do motivo: Se estourou diária ou vaga, o motivo é Vaga Excedida
+            const motivo = (ultrapassouVagas || ultrapassouDiarias) ? 'Vaga Excedida' : 'Datas fora do Orçamento';
+            const tipoFinal = `${baseTipo} - ${motivo}`;
+
+            let datasParaSolicitacao = [];
+
+            if (temDataFora) {
+                // Se houver datas fora do planeado (ex: 11/04), enviamos APENAS essas
+                datasParaSolicitacao = datasForaDoPlanejado;
+            } else if (ultrapassouDiarias || ultrapassouVagas) {
+                // Se o erro for apenas excesso de quantidade, mas as datas estão no orçamento,
+                // enviamos a última data selecionada como o "ponto de conflito" 
+                // ou o array completo, dependendo da sua preferência.
+                // Para mostrar apenas a excedente:
+                datasParaSolicitacao = [datasSolicitadasArray[datasSolicitadasArray.length - 1]];
             } else {
-                // Se for nulo no banco, libera para preenchimento manual
-                elInputSetor.readOnly = false;
-                [elSelectPavilhao, elInputSetor].forEach(el => {
-                    el.style.backgroundColor = "#ffffff";
-                    el.style.pointerEvents = "auto";
-                });
-            }
-        }
-
-        // --- 3. VALIDAÇÃO DE DATAS (AGORA RECONHECE O orcamentoBase) ---
-        const descFuncaoSelect = document.getElementById('descFuncao');
-        const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
-
-        // const datasPermitidas = new Set();
-        // if (orcamentoBase && Array.isArray(orcamentoBase.datas_totais_orcadas)) {
-        //     orcamentoBase.datas_totais_orcadas.forEach(d => {
-        //         if (d) datasPermitidas.add(d.split('T')[0]);
-        //     });
-        // }
-
-        const datasPermitidas = new Set();
-        dadosDoOrcamento.forEach(item =>{
-            if (Array.isArray(orcamentoBase.datas_totais_orcadas)) {
-            item.datas_totais_orcadas.forEach(d => {
-                if (d) datasPermitidas.add(d.split('T')[0]);
-            });
-        }
-    })
-        
-
-        const listaDatasEvento = Array.isArray(datasEvento) ? datasEvento : [];
-        const datasNaoOrcadas = listaDatasEvento.filter(d => !datasPermitidas.has(d));        
-
-        if (datasNaoOrcadas.length > 0) {
-            // 🇧🇷 Formata as datas para exibição no Swal (DD/MM/YYYY)
-            const datasFormatadasBR = datasNaoOrcadas.map(dataIso => {
-                const [ano, mes, dia] = dataIso.split('-');
-                return `${dia}/${mes}/${ano}`;
-            }).join(', ');
-
-            console.log("🚨 Datas fora formatadas:", datasFormatadasBR);
-
-            // 🎯 DEFINIÇÃO DOS TIPOS PADRONIZADOS PARA VERIFICAÇÃO INICIAL
-            const tiposParaVerificar = [
-                "ADITIVO - DATA FORA DO ORÇAMENTO",
-                "EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO"
-            ];
-
-            // 🚀 Agora verificamos pelos TIPOS REAIS em vez de 'QUALQUER_DATA'
-            const checkData = await verificarStatusAditivoExtra(
-                idOrcamentoAtual, 
-                idFuncao, 
-                tiposParaVerificar.join(','), 
-                idFuncionario, 
-                nmFuncionario,
-                funcaoTexto,
-                datasNaoOrcadas[0] ?? null
-            );
-
-            // 1. Se já estiver autorizado, libera o processo
-            if (checkData && checkData.autorizado) {
-                console.log("✅ Solicitação já autorizada previamente para este motivo.");
-                temOrcamento = true;
-                controlarBotaoSalvarStaff(true);
-                return; 
+                datasParaSolicitacao = datasSolicitadasArray;
             }
 
-            // 2. Se retornar bloqueado (pendente ou rejeitado), encerra aqui
-            if (checkData && checkData.bloqueado) {
-                console.warn(`🛑 Processo interrompido: Existe solicitação de data pendente/rejeitada.`);
-                controlarBotaoSalvarStaff(false);
-                return; 
-            }
+           // const resEx = await solicitarDadosExcecao(tipoFinal, idOrcamentoAtual, funcaoTexto, idFuncao, idFuncionario, datasForaDoPlanejado.length > 0 ? datasForaDoPlanejado : datasSolicitadasArray);
+            
+// 🔥 CONSOLE DE VERIFICAÇÃO 1
+console.log("DEBUG ANTES DE ENVIAR:");
+console.log("- Tipo Final:", tipoFinal);
+console.log("- Array Filtrado (datasParaSolicitacao):", datasParaSolicitacao);
 
-            // 3. Se não houver solicitação, abre o Swal para escolha
-            const result = await Swal.fire({
-                icon: 'question',
-                title: 'Datas fora do orçamento',
-                html: `As datas <b>${datasFormatadasBR}</b> não constam no orçamento original para este setor.<br><br>Como deseja prosseguir?`,
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: 'Solicitar Aditivo',
-                denyButtonText: 'Extra Bonificado',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#3085d6',
-                denyButtonColor: '#d33',
-            });
-
-            if (result.isConfirmed || result.isDenied) {
-                // Limpeza visual do seletor de datas
-                if (window.datasEventoPicker) {
-                    const datasApenasOrcadas = listaDatasEvento.filter(d => datasPermitidas.has(d));
-                    window.datasEventoPicker.setDate(datasApenasOrcadas); 
-                }
-
-                // 🎯 MONTAGEM DO TIPO CONFORME PADRÃO (CAIXA ALTA)
-                const motivoExcecao = " - DATA FORA DO ORÇAMENTO";
-                const tipoFinal = result.isConfirmed ? `ADITIVO${motivoExcecao}` : `EXTRA BONIFICADO${motivoExcecao}`;
-
-                console.log(`🔍 Solicitando: ${tipoFinal}`);
-
-                const resultadoExcecao = await solicitarDadosExcecao(
+            const resEx = await solicitarDadosExcecao(
                     tipoFinal, 
                     idOrcamentoAtual, 
                     funcaoTexto, 
                     idFuncao, 
                     idFuncionario, 
-                    datasNaoOrcadas
-                );              
+                    datasParaSolicitacao // Enviando apenas a(s) data(s) de conflito
+                );
 
-                if (resultadoExcecao && resultadoExcecao.sucesso) {
-                    decisaoUsuarioDataFora = result.isConfirmed ? 'ADITIVO' : 'EXTRA';
-                    temOrcamento = true;
-                    controlarBotaoSalvarStaff(true);
-                } else {
-                    temOrcamento = false;
-                    controlarBotaoSalvarStaff(false);
-                    return;
-                }
-
+            if (resEx?.confirmado) {
+                window.tipoExcecaoAtual = tipoFinal;
+                window.justificativaParaSalvar = resEx.justificativa;
+                window.datasParaSalvarNoBanco = resEx.dataConflito;
+                window.bSalvarComoInativo = true;
+                if (document.getElementById('tipoSolicitacaoAditivo')) document.getElementById('tipoSolicitacaoAditivo').value = tipoFinal;
+                if (document.getElementById('justificativaAditivo')) document.getElementById('justificativaAditivo').value = resEx.justificativa;
+                temOrcamento = true;
+                controlarBotaoSalvarStaff(true);
             } else {
-                temOrcamento = false;
                 controlarBotaoSalvarStaff(false);
-                return;
             }
         } else {
-            // Tudo dentro do orçamento
-            temOrcamento = true;
-            controlarBotaoSalvarStaff(true);
+            controlarBotaoSalvarStaff(false);
         }
 
+        return dadosDoOrcamento;
     } catch (error) {
-        console.error("❌ Erro em buscarEPopularOrcamento:", error);
+        console.error("❌ [CRÍTICO] Erro em buscarEPopularOrcamento:", error);
         controlarBotaoSalvarStaff(false);
     }
 }
-
 
 function mostrarStatusComoPendente(statusType) {
     const statusTypeLower = statusType.toLowerCase(); // Ex: statusaditivo
@@ -7826,11 +9149,11 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
         } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
             isLote = false;
             labelFuncionario.textContent = "FUNCIONÁRIO";
-            labelFuncionario.style.color = "green";
-            descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+            labelFuncionario.style.color = "green";           
 
             if (baseCheck) baseCheck.checked = true;
             if (seniorCheck) seniorCheck.disabled = true;
+            if (seniorCheck2) seniorCheck2.disabled = true;
             if (plenoCheck) plenoCheck.disabled = true;
             if (juniorCheck) juniorCheck.disabled = true;
             if (baseCheck) baseCheck.disabled = false;
@@ -7843,7 +9166,17 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
             const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
 
-            document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+            if (perfilSelecionado.toLowerCase() === "externo")
+            {
+                document.getElementById("vlrCusto").value = "0,00";
+                descBeneficioTextarea.value = "Funcionário externo Não recebe Cachê, apenas benefícios (alimentação e transporte) conforme função";
+            }
+            if (perfilSelecionado.toLowerCase() === "interno")
+            {
+               document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
+               descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+            }
+            
             // AJUDANTE interno/externo: tem alimentação e transporte
             // Qualquer outra função interno/externo: tem alimentação e transporte
             // (só freelancer AJUDANTE não tem)
@@ -8376,7 +9709,7 @@ function limparCamposEvento() {
         "descMeiaDiaria", "qtdPessoas", "idequipe", "nmEquipe",
         "selectStatusAjusteCusto", "selectStatusDiariaDobrada", "selectStatusMeiaDiaria",
         "diariaDobrada", "meiaDiaria", "vlrTotalCache", "vlrTotalAjdCusto",
-        "statusPgtoAjudaCusto", "setor"
+        "statusPgtoAjudaCusto", "setor", "vlrTotalCache"
     ];
 
     camposEvento.forEach(id => {
@@ -8490,29 +9823,19 @@ function limparCamposEvento() {
 
     currentEditingStaffEvent = null;
 
-    // DEBUG VISUAL - remover depois
-console.log('=== DEBUG CAMPOS VISÍVEIS APÓS LIMPEZA ===');
-console.log('campoAjusteCusto display:', document.getElementById('campoAjusteCusto')?.style.display);
-console.log('campoStatusAjusteCusto display:', document.getElementById('campoStatusAjusteCusto')?.style.display);
-console.log('selectStatusAjusteCusto value:', document.getElementById('selectStatusAjusteCusto')?.value);
-console.log('statusAjusteCusto value:', document.getElementById('statusAjusteCusto')?.value);
-console.log('campoDiariaDobrada display:', document.getElementById('campoDiariaDobrada')?.style.display);
-console.log('campoStatusDiariaDobrada display:', document.getElementById('campoStatusDiariaDobrada')?.style.display);
-console.log('campoMeiaDiaria display:', document.getElementById('campoMeiaDiaria')?.style.display);
-console.log('meiaDiariacheck checked:', document.getElementById('meiaDiariacheck')?.checked);
-console.log('diariaDobradacheck checked:', document.getElementById('diariaDobradacheck')?.checked);
-console.log('ajusteCustocheck checked:', document.getElementById('ajusteCustocheck')?.checked);
-console.log('==========================================');
+    // Força reset dos campos de totais calculados para o valor padrão
+    const camposTotais = ["vlrTotal", "vlrTotalCache", "vlrTotalAjdCusto"];
+    camposTotais.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "R$ 0,00";
+    });
 
-// Aguarda 500ms e verifica novamente — detecta se algo está repreenchendo depois
-setTimeout(() => {
-    console.log('=== DEBUG 500ms DEPOIS ===');
-    console.log('campoAjusteCusto display:', document.getElementById('campoAjusteCusto')?.style.display);
-    console.log('campoDiariaDobrada display:', document.getElementById('campoDiariaDobrada')?.style.display);
-    console.log('campoMeiaDiaria display:', document.getElementById('campoMeiaDiaria')?.style.display);
-    console.log('meiaDiariacheck checked:', document.getElementById('meiaDiariacheck')?.checked);
-    console.log('==========================');
-}, 500);
+    // Reseta também os hiddens
+    const camposHidden = ["vlrTotalHidden", "vlrTotalCacheHidden", "vlrTotalAjdCustoHidden"];
+    camposHidden.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "0.00";
+    });
 
     limparCamposComprovantes();
     limparStaffOriginal();
@@ -8709,6 +10032,20 @@ function limparCamposStaff() {
         tabelaCorpo.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:20px;">Nenhum item adicionado.</td></tr>`;
     }
 
+     // Força reset dos campos de totais calculados para o valor padrão
+    const camposTotais = ["vlrTotal", "vlrTotalCache", "vlrTotalAjdCusto"];
+    camposTotais.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "R$ 0,00";
+    });
+
+    // Reseta também os hiddens
+    const camposHidden = ["vlrTotalHidden", "vlrTotalCacheHidden", "vlrTotalAjdCustoHidden"];
+    camposHidden.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "0.00";
+    });
+
     // Funções auxiliares externas
     limparCamposComprovantes();
     limparFoto();
@@ -8843,6 +10180,20 @@ async function limparCamposStaffParcial() {
         tarjaAvaliacao.className = 'tarja-avaliacao';
         tarjaAvaliacao.textContent = '';
     }
+
+     // Força reset dos campos de totais calculados para o valor padrão
+    const camposTotais = ["vlrTotal", "vlrTotalCache", "vlrTotalAjdCusto"];
+    camposTotais.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "R$ 0,00";
+    });
+
+    // Reseta também os hiddens
+    const camposHidden = ["vlrTotalHidden", "vlrTotalCacheHidden", "vlrTotalAjdCustoHidden"];
+    camposHidden.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "0.00";
+    });
 
     // Funções de limpeza externa
     limparCamposComprovantes();
@@ -9335,6 +10686,10 @@ function registrarListenersNivel() {
         document.getElementById("alimentacao").value = vlrAlimentacaoViagem1.toFixed(2);
         document.getElementById("transporte").value = (0).toFixed(2)
 
+        const isFechadoOuLiberado = fechadoCheck?.checked || liberadoCheck?.checked;
+        document.getElementById("alimentacao").readOnly = !isFechadoOuLiberado;
+        document.getElementById("transporte").readOnly = !isFechadoOuLiberado;
+
         // Texto
         let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
         descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
@@ -9342,6 +10697,9 @@ function registrarListenersNivel() {
         // Reset para o padrão da função
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+        document.getElementById("alimentacao").readOnly = false;
+        document.getElementById("transporte").readOnly = false;
         descBeneficioTextarea.value = descBeneficioAtual;
     }
     calcularValorTotal();
@@ -9358,6 +10716,10 @@ function registrarListenersNivel() {
             document.getElementById("alimentacao").value = vlrAlimentacaoViagem2.toFixed(2);
             document.getElementById("transporte").value = (0).toFixed(2)
 
+            const isFechadoOuLiberado = fechadoCheck?.checked || liberadoCheck?.checked;
+            document.getElementById("alimentacao").readOnly = !isFechadoOuLiberado;
+            document.getElementById("transporte").readOnly = !isFechadoOuLiberado;
+
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n" : "";
             descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem2;
 
@@ -9365,6 +10727,9 @@ function registrarListenersNivel() {
 
             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+            document.getElementById("alimentacao").readOnly = false;
+            document.getElementById("transporte").readOnly = false;
 
             descBeneficioTextarea.value = descBeneficioAtual;
         }
@@ -9381,6 +10746,10 @@ function registrarListenersNivel() {
             document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
             document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2)
 
+            const isFechadoOuLiberado = fechadoCheck?.checked || liberadoCheck?.checked;
+            document.getElementById("alimentacao").readOnly = !isFechadoOuLiberado;
+            document.getElementById("transporte").readOnly = !isFechadoOuLiberado;
+
             let separador = descBeneficioAtual.trim().length > 0 ? "\n\n":""
                 descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem3;
 
@@ -9388,6 +10757,9 @@ function registrarListenersNivel() {
 
                 document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
                 document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+                document.getElementById("alimentacao").readOnly = false;
+                document.getElementById("transporte").readOnly = false;
                 descBeneficioTextarea.value = descBeneficioAtual;
         }
         calcularValorTotal();
@@ -10195,18 +11567,46 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     const isFechado = document.getElementById('Fechadocheck').checked;
     
     // Status de Pagamento
-    const statusPgtoAjudCusto = document.getElementById('statusPgtoAjudaCusto')?.value || "";
-    const isAjudaCustoPaga = statusPgtoAjudCusto.toLowerCase() === 'pago';
+    const statusPgtoAjudCusto = (document.getElementById('statusPgtoAjudaCusto')?.value || "").trim().toLowerCase();
+    const statusBanco = (window.currentEventDataCache?.statusAjudaCustoOriginal || "").trim().toLowerCase();
+    const isAjudaCustoPaga = statusPgtoAjudCusto === 'pago' || statusBanco === 'pago';
+
+    const cacheGlobal = window.currentEventDataCache || {};
 
     const datasOriginaisAjudCusto = window.currentEventDataCache?.datasOriginaisBanco || [];
 
-    // Se já foi pago, pegamos o valor fixo do banco
-    const vlrJaPagoAjdCusto = isAjudaCustoPaga 
-        ? (window.currentEventDataCache?.vlrtotajdcusto || 0) 
-        : 0;
+    const qtdOriginais = datasOriginaisAjudCusto.length; 
+    const qtdAtuais = datasParaProcessar.length;
+
+    console.log("Checagem de Regra:", { 
+        isAjudaCustoPaga, 
+        qtdOriginais, 
+        qtdAtuais,
+        comparacao: (qtdAtuais < qtdOriginais)
+    });
 
     let totalCache = 0;
-    let totalAjdCusto = isAjudaCustoPaga ? vlrJaPagoAjdCusto : 0; 
+
+    // Se já foi pago, pegamos o valor fixo do banco
+    // const vlrJaPagoAjdCusto = isAjudaCustoPaga 
+    //     ? (window.currentEventDataCache?.vlrtotajdcusto || 0) 
+    //     : 0;
+
+    
+    // let totalAjdCusto = isAjudaCustoPaga ? vlrJaPagoAjdCusto : 0; 
+
+    
+
+    let totalAjdCusto = isAjudaCustoPaga 
+        ? (parseFloat(window.currentEventDataCache?.vlrtotajdcusto) || 0) 
+        : 0;
+
+    console.log("LOG DE CORREÇÃO:", {
+        statusPgtoAjudCusto,
+        statusBanco,
+        isAjudaCustoPaga,
+        valorFixado: totalAjdCusto
+    });
 
     // --- 1. CÁLCULO DE DIÁRIAS (BASE) ---
     if (isFechado) {
@@ -10217,58 +11617,102 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
         }
     } else {
         // Quantidade de datas que geraram o pagamento original
-        const qtdDatasOriginais = datasOriginaisAjudCusto.length || 16; // 16 como fallback baseado no seu relato
-        const qtdDatasAtuais = datasParaProcessar.length;
+       // const qtdDatasOriginais = datasOriginaisAjudCusto.length || 16; // 16 como fallback baseado no seu relato
+        //const qtdDatasAtuais = datasParaProcessar.length;
 
         // Calcula o cachê base somando todas as datas selecionadas atualmente
         datasParaProcessar.forEach((data) => {
             let vlrDiariaBase = 0;
-            let vlrAjudCustoDiaria = 0;
+            //let vlrAjudCustoDiaria = 0;
 
             if (perfilFuncionario === "Freelancer") {
                 vlrDiariaBase = cacheInput;
-                vlrAjudCustoDiaria = transporte + alimentacao;
+               // vlrAjudCustoDiaria = transporte + alimentacao;
             } else if (perfilFuncionario === "Lote") {
                 vlrDiariaBase = cacheInput * qtdpessoas;
-                vlrAjudCustoDiaria = (transporte + alimentacao) * qtdpessoas;
+              //  vlrAjudCustoDiaria = (transporte + alimentacao) * qtdpessoas;
             } else {
                 vlrDiariaBase = isFinalDeSemanaOuFeriado(data) ? cacheInput : 0;
-                vlrAjudCustoDiaria = transporte + alimentacao;
+              //  vlrAjudCustoDiaria = transporte + alimentacao;
             }
 
             totalCache += vlrDiariaBase;
             
             // Se NÃO pago, acumula ajuda de custo
             if (!isAjudaCustoPaga) {
-                totalAjdCusto += vlrAjudCustoDiaria;
+              //  totalAjdCusto += vlrAjudCustoDiaria;
+              let vlrAjdDiaria = (transporte + alimentacao);
+                if (perfilFuncionario === "Lote") vlrAjdDiaria *= qtdpessoas;
+                totalAjdCusto += vlrAjdDiaria;
             }
         });
 
         // REGRA DE OURO PARA O DESCONTO (Se a ajuda já foi paga)
+        // if (isAjudaCustoPaga) {
+        //     let vlrAjudaUnitario = transporte + alimentacao; // 75.00
+        //     if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
+
+        //     // Se o usuário tirou datas, a quantidade atual será menor que a original
+        //     if (qtdDatasAtuais < qtdDatasOriginais) {
+        //         const diferencaDatas = qtdDatasOriginais - qtdDatasAtuais;
+                
+        //         // Descontamos do Cachê o valor das ajudas de custo dessas datas removidas
+        //         totalCache -= (diferencaDatas * vlrAjudaUnitario);
+        //     }
+        // }
+        
+        // --- REGRA DE OURO: AJUSTE DE CACHÊ POR AJUDA PAGA (INCLUSÃO E REMOÇÃO) ---
         if (isAjudaCustoPaga) {
-            let vlrAjudaUnitario = transporte + alimentacao; // 75.00
+            // 1. Calculamos quanto vale 1 Ajuda de Custo unitária
+            let vlrAjudaUnitario = (transporte + alimentacao);
             if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
 
-            // Se o usuário tirou datas, a quantidade atual será menor que a original
-            if (qtdDatasAtuais < qtdDatasOriginais) {
-                const diferencaDatas = qtdDatasOriginais - qtdDatasAtuais;
-                
-                // Descontamos do Cachê o valor das ajudas de custo dessas datas removidas
-                totalCache -= (diferencaDatas * vlrAjudaUnitario);
+            if (qtdAtuais < qtdOriginais) {
+                // CASO A: REMOÇÃO - O funcionário recebeu ajuda de custo por dias que não vai trabalhar
+                // Descontamos esse excesso do Cachê (pois o campo Ajuda de Custo está travado/pago)
+                const qtdRemovida = qtdOriginais - qtdAtuais;
+                const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
+
+                console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<< ", "background: #ff0000; color: #fff");
+                totalCache = totalCache - valorParaDescontar;
+
+            } else if (qtdAtuais > qtdOriginais) {
+                // CASO B: INCLUSÃO - O funcionário vai trabalhar dias extras e precisa de ajuda de custo para eles
+                // Como a ajuda original já foi paga, somamos o valor dessas novas ajudas ao Cachê
+                const qtdAdicionada = qtdAtuais - qtdOriginais;
+                const valorParaAdicionar = qtdAdicionada * vlrAjudaUnitario;
+
+                console.log("%c >>> INCLUSÃO: Somando ajuda extra ao Cachê <<< ", "background: #008000; color: #fff");
+                totalCache = totalCache + valorParaAdicionar;
             }
         }
+       
     }
 
     // --- 2. DIÁRIAS DOBRADAS ---
+    // if (typeof diariaDobradacheck !== 'undefined' && diariaDobradacheck.checked && datasDobrada?.length > 0) {
+    //     const autorizadas = datasDobrada.filter(item => item.status === 'Autorizado');
+    //     if (autorizadas.length > 0) {
+    //         let vlrDobraTotal = cacheInput * autorizadas.length;
+    //         let vlrAjudDobraTotal = (vlrAlimentacaoDobra || 0) * autorizadas.length;
+
+    //         totalCache += vlrDobraTotal;
+    //         if (isAjudaCustoPaga) {
+    //             totalCache += vlrAjudDobraTotal; 
+    //         } else {
+    //             totalAjdCusto += vlrAjudDobraTotal;
+    //         }
+    //     }
+    // }
+
     if (typeof diariaDobradacheck !== 'undefined' && diariaDobradacheck.checked && datasDobrada?.length > 0) {
         const autorizadas = datasDobrada.filter(item => item.status === 'Autorizado');
         if (autorizadas.length > 0) {
-            let vlrDobraTotal = cacheInput * autorizadas.length;
+            totalCache += (cacheInput * autorizadas.length);
             let vlrAjudDobraTotal = (vlrAlimentacaoDobra || 0) * autorizadas.length;
-
-            totalCache += vlrDobraTotal;
+            
             if (isAjudaCustoPaga) {
-                totalCache += vlrAjudDobraTotal; 
+                totalCache += vlrAjudDobraTotal; // Vai para o cache para não mexer na ajuda paga
             } else {
                 totalAjdCusto += vlrAjudDobraTotal;
             }
@@ -10355,7 +11799,7 @@ function gerarLogDiferencaDatas(datasOriginais, datasAtuais, motivoInput) {
     // 4. Retorna a string final idêntica ao seu padrão
     const dataHoraAtual = new Date().toLocaleDateString('pt-BR') + ', ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     
-    return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO`;
+    return `[${dataHoraAtual}] Alteração em Alteração de Datas: ${mensagensDiferenca.join(' | ')} - Motivo: ${motivoInput} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
 }
 
 function registrarLogPosPagamento(msg) {
@@ -10378,7 +11822,7 @@ function registrarLogPosPagamento(msg) {
             minute: '2-digit' 
         });
         
-        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUSTE DE CUSTO já está PAGO\n`;
+        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
 
         // Só adiciona se a mensagem exata ainda não existir para esta ação
         if (!obsInput.value.includes(msg)) {
@@ -10576,6 +12020,21 @@ export function preencherComprovanteCampo(filePath, campoNome) {
 
 document.addEventListener('click', function(e) {
     // Verifica se o clique foi em um botão com a classe 'remover-comprovante-btn'
+
+    // // 1. Identifica o botão de forma precisa
+    // const removerBtn = e.target.closest('.remover-comprovante-btn');
+
+    // // 2. Se não clicou no botão de remover, ignora o resto da função
+    // if (!removerBtn) return;
+
+    // // 3. Evita que o evento suba para outros elementos ou interfira em calendários
+    // e.preventDefault();
+    // e.stopPropagation();
+
+    // const campoNome = removerBtn.getAttribute('data-campo');
+
+    // if (!campoNome) return;
+
     if (e.target.classList.contains('remover-comprovante-btn') || e.target.closest('.remover-comprovante-btn')) {
         const removerBtn = e.target.closest('.remover-comprovante-btn');
         const campoNome = removerBtn.getAttribute('data-campo');
@@ -10745,219 +12204,481 @@ document.addEventListener('click', function(e) {
 //     return { allowed: true };
 // }
 
-
-async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
+//correto antes de liberar período
+// async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
    
-    const nmEvento = (criterios.nmEvento || '').trim().toUpperCase();
-    const nmCliente = (criterios.nmCliente || '').trim().toUpperCase();
-    const nmlocalMontagem = (criterios.nmlocalMontagem || '').trim().toUpperCase();
-    const pavilhao = (criterios.pavilhao || '').trim().toUpperCase();
-    const nmFuncao = (criterios.nmFuncao || '').trim().toUpperCase();
-    const setor = (criterios.setor || '').trim().toUpperCase();
+//     const nmEvento = (criterios.nmEvento || '').trim().toUpperCase();
+//     const nmCliente = (criterios.nmCliente || '').trim().toUpperCase();
+//     const nmlocalMontagem = (criterios.nmlocalMontagem || '').trim().toUpperCase();
+//     const pavilhao = (criterios.pavilhao || '').trim().toUpperCase();
+//     const nmFuncao = (criterios.nmFuncao || '').trim().toUpperCase();
+//     const setor = (criterios.setor || '').trim().toUpperCase();
 
+//     const idFuncionario = criterios.idFuncionario || document.getElementById('idFuncionario')?.value || null;
+//     const selectFunc = document.getElementById('nmFuncionario');       
+//     const nmFuncionario = criterios.nmFuncionario || selectFunc.options[selectFunc.selectedIndex]?.text;;
+
+//     // --- CAPTURA DAS DATAS (Melhorada para evitar Array Vazio) ---
+//     const campoData = document.getElementById('periodoEvento'); 
+//     let datasSelecionadas = [];
+
+//     // 1. Tenta pelo Flatpickr do elemento
+//     if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+//         datasSelecionadas = campoData._flatpickr.selectedDates.map(d => d.toLocaleDateString('en-CA'));
+//     } 
+//     // 2. Tenta pela variável global que o CIOSP costuma usar
+//     else if (window.datasEventoPicker && window.datasEventoPicker.selectedDates.length > 0) {
+//         datasSelecionadas = window.datasEventoPicker.selectedDates.map(d => d.toLocaleDateString('en-CA'));
+//     }
+//     // 3. Tenta pelo que já veio no objeto criterios
+//     else if (criterios.datasEvento && (Array.isArray(criterios.datasEvento) ? criterios.datasEvento.length > 0 : true)) {
+//         datasSelecionadas = Array.isArray(criterios.datasEvento) ? criterios.datasEvento : [criterios.datasEvento];
+//     }
+
+//     // 🎯 Segurança: Se ainda estiver vazio, não deixa prosseguir sem data
+//     if (datasSelecionadas.length === 0) {
+//         console.warn("⚠️ Nenhuma data detectada. Usando data de hoje como último recurso.");
+//         datasSelecionadas = [new Date().toLocaleDateString('en-CA')];
+//     }
+
+//     const dataUnicaParaBanco = datasSelecionadas[0] || null;
+   
+//     //const setorAlocacao = (criterios.pavilhao || criterios.setor || '').trim().toUpperCase();
+//     if (dadosErroBackend && dadosErroBackend.tipoErro === 'LIMITE_EXCEDIDO') {
+//         const limite  = dadosErroBackend.limite;
+//         const usado   = dadosErroBackend.usado;
+//         const tipo    = dadosErroBackend.tipo; // 'vagas' ou 'diárias'
+
+//         const { value: decisao } = await Swal.fire({
+//             icon: 'warning',
+//             title: 'Limite de Vagas Excedido',
+//             html: `A função <b>${nmFuncao}</b> atingiu o limite de <b>${limite}</b> ${tipo}.<br>` +
+//                   `Já foram utilizadas <b>${usado}</b>. Como deseja prosseguir?`,
+//             showCancelButton: true,
+//             showDenyButton: true,
+//             confirmButtonText: 'Solicitar Aditivo',
+//             denyButtonText: 'Extra Bonificado',
+//             cancelButtonText: 'Cancelar Cadastro',
+//         });
+
+//         if (decisao === true || decisao === false) {
+//             const tipoEscolhido = decisao === true
+//                 ? 'Aditivo - Vaga Excedida'
+//                 : 'Extra Bonificado - Vaga Excedida';
+
+//             await solicitarDadosExcecao(
+//                 tipoEscolhido,
+//                 criterios.idOrcamento,
+//                 nmFuncao,
+//                 criterios.idFuncao,
+//                 idFuncionario,
+//                 dataUnicaParaBanco
+//             );
+
+//             if (dados && dados.confirmado) {
+//                 // RETORNAMOS allowed: false mas com um sinalizador de que o usuário quer prosseguir
+//                 return { allowed: false, solicitouAutorizacao: true, justificativa: dados.justificativa, tipoSolicitacao: tipoEscolhido };
+//             }
+//         }
+
+//         return { allowed: false };
+//     }
+
+//     // 1. Tenta achar a chave exata ou a simples
+//     const chaveCompleta = [nmEvento, nmFuncao, setor, pavilhao].filter(p => p).join('-');
+//     const chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+
+//     let dadosOrcamento = orcamentoPorFuncao[chaveCompleta] || orcamentoPorFuncao[chaveSimples];
+
+//     // 🎯 FALLBACK: O que fazia o seu funcionar antes
+//     if (!dadosOrcamento) {
+//         const todasAsChaves = Object.keys(orcamentoPorFuncao);
+//         const chaveEncontrada = todasAsChaves.find(c => c.includes(nmEvento) && c.includes(nmFuncao));
+//         if (chaveEncontrada) dadosOrcamento = orcamentoPorFuncao[chaveEncontrada];
+//     }
+
+//     if (!dadosOrcamento) {
+//         console.warn("⚠️ Orçamento não localizado. Permitindo...");
+//         return { allowed: true };
+//     }
+
+//     // 2. CONTAGEM (Banco + Tabela atual)
+//     let countNaTabela = 0;
+//     document.querySelectorAll('#eventsTableBody tr').forEach(linha => {
+//         try {
+//             const data = JSON.parse(linha.dataset.eventData);
+//             if (data.nmfuncao?.trim().toUpperCase() === nmFuncao &&
+//                 data.nmevento?.trim().toUpperCase() === nmEvento) {
+//                 countNaTabela++;
+//             }
+//         } catch (e) {}
+//     });
+
+//     const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada || 0) + countNaTabela;
+//     const limite = Number(dadosOrcamento.quantidadeOrcada || 0);
+
+//     // 🚨 REGRA: Se o total for MAIOR OU IGUAL ao limite, bloqueia e pergunta
+//     // if (totalJaOcupado >= limite) {
+//     //     const { value: decisao } = await Swal.fire({
+//     //         icon: 'warning',
+//     //         title: 'Limite de Vagas Excedido',
+//     //         html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>Já existem <b>${totalJaOcupado}</b> cadastradas.`,
+//     //         showCancelButton: true,
+//     //         showDenyButton: true,
+//     //         confirmButtonText: 'Solicitar Aditivo',
+//     //         denyButtonText: 'Extra Bonificado',
+//     //         cancelButtonText: 'Cancelar Cadastro',
+//     //     });
+
+//     //     if (decisao === true || decisao === false) {
+//     //         const motivo = " - Vaga Excedida";
+//     //         const tipoEscolhido = (decisao === true) ? `Aditivo${motivo}` : `Extra Bonificado${motivo}`;
+
+//     //         // 🛠️ CORREÇÃO DO ERRO 500: Garante que a data nunca seja "undefined"
+//     //         const dataUnicaParaBanco = datasSelecionadas[0];
+
+//     //             console.log("DATA REFERENCIA PARA VERIFICAÇÃO:", datasSelecionadas, dadosOrcamento.idOrcamento, criterios.idFuncao, tipoEscolhido, idFuncionario, nmFuncionario, nmFuncao);
+
+//     //         const verificacao = await verificarStatusAditivoExtra(
+//     //             dadosOrcamento.idOrcamento, 
+//     //             criterios.idFuncao, 
+//     //             tipoEscolhido, 
+//     //             idFuncionario, 
+//     //             nmFuncionario,
+//     //             nmFuncao,
+//     //             dataUnicaParaBanco // Passa null se não tiver data
+//     //         );
+
+//     //         console.log("Criterios para exceção:", verificacao, criterios);
+
+//     //         if (verificacao && verificacao.bloqueado) return { allowed: false };
+            
+
+//     //         await solicitarDadosExcecao(
+//     //             tipoEscolhido, dadosOrcamento.idOrcamento, 
+//     //             nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
+//     //         );
+//     //     }
+        
+//     //     // RETORNA FALSE para qualquer caso onde o limite foi excedido
+//     //     return { allowed: false };
+//     // }
+
+//     // if (totalJaOcupado >= limite) {
+        
+//     //     // 🎯 PASSO 1: Antes de mostrar qualquer aviso, checamos se este funcionário já está autorizado
+//     //     // Testamos os dois tipos possíveis de solicitação
+//     //     // const verificacaoAditivo = await verificarStatusAditivoExtra(
+//     //     //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Aditivo - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
+//     //     // );
+
+//     //     // const verificacaoExtra = await verificarStatusAditivoExtra(
+//     //     //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Extra Bonificado - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
+//     //     // );
+//     //     // Exemplo de verificação de DATA
+//     //         const checkVaga = await verificarStatusAditivoExtra(
+//     //         dadosOrcamento.idOrcamento, 
+//     //         criterios.idFuncao, 
+//     //         'QUALQUER_VAGA', 
+//     //         idFuncionario, 
+//     //         nmFuncionario, 
+//     //         nmFuncao, 
+//     //         dataUnicaParaBanco
+//     //     );
+
+//     //     // ✅ Se houver autorização específica para este funcionário nesta vaga
+//     //     if (checkVaga && checkVaga.autorizado) {
+//     //         console.log("✅ Cadastro liberado: Autorização de vaga encontrada.");
+//     //         return { allowed: true }; 
+//     //     }
+
+//     //     // 🛑 Se houver uma solicitação PENDENTE ou REJEITADA
+//     //     // (O Swal já foi disparado dentro da função verificarStatusAditivoExtra)
+//     //     if (checkVaga && checkVaga.bloqueado) {
+//     //         return { allowed: false };
+//     //     }
+
+//     //     // 🎯 PASSO 2: Se não houver nada no banco, aí sim mostramos o Swal de ESCOLHA
+//     //     const { value: decisao } = await Swal.fire({
+//     //         icon: 'warning',
+//     //         title: 'Limite de Vagas Excedido',
+//     //         html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
+//     //             `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
+//     //         showCancelButton: true,
+//     //         showDenyButton: true,
+//     //         confirmButtonText: 'Solicitar Aditivo',
+//     //         denyButtonText: 'Extra Bonificado',
+//     //         cancelButtonText: 'Cancelar Cadastro',
+//     //     });
+
+//     //     if (decisao === true || decisao === false) {
+//     //         const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
+
+//     //         // Chama o formulário de justificativa
+//     //         await solicitarDadosExcecao(
+//     //             tipoEscolhido, dadosOrcamento.idOrcamento, 
+//     //             nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
+//     //         );
+//     //     }
+        
+//     //     return { allowed: false };
+//     // }
+//     if (totalJaOcupado >= limite) {
+//         // 1. Pergunta ao banco se já existe algo para este caso específico
+//         const checkVaga = await verificarStatusAditivoExtra( 
+//             dadosOrcamento.idOrcamento, 
+//             criterios.idFuncao, 
+//             'QUALQUER_VAGA', 
+//             idFuncionario, 
+//             nmFuncionario, 
+//             nmFuncao, 
+//             dataUnicaParaBanco
+//         );
+
+//         // ✅ CASO A: Já está autorizado especificamente (Libera direto)
+//         if (checkVaga && checkVaga.autorizado) {   
+//             return { allowed: true }; 
+//         }
+
+//         // 🛑 CASO B: Está pendente ou foi rejeitado (O Swal já foi mostrado dentro da verificarStatusAditivoExtra)
+//         if (checkVaga && checkVaga.bloqueado) {
+//             return { allowed: false };
+//         }
+
+//         // 🎯 CASO C: Se chegou aqui, é porque não existe NADA no banco (checkVaga.encontrado === false)
+//         // Mostramos o alerta original de escolha apenas se não houver registro prévio
+//         if (!checkVaga.encontrado) {
+//             const { value: decisao } = await Swal.fire({
+//                 icon: 'warning',
+//                 title: 'Limite de Vagas Excedido',
+//                 html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
+//                     `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
+//                 showCancelButton: true,
+//                 showDenyButton: true,
+//                 confirmButtonText: 'Solicitar Aditivo',
+//                 denyButtonText: 'Extra Bonificado',
+//                 cancelButtonText: 'Cancelar Cadastro',
+//             });
+
+//             if (decisao === true || decisao === false) {
+//                 const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
+               
+//                 // 🎯 CORREÇÃO: Capture o retorno aqui
+//                 const dadosExcecao = await solicitarDadosExcecao(
+//                     tipoEscolhido, dadosOrcamento.idOrcamento, 
+//                     nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
+//                 );
+
+//                 // 🎯 CORREÇÃO: Verifique se o usuário confirmou e retorne os dados para o Botão Enviar
+//                 if (dadosExcecao && dadosExcecao.confirmado) {
+//                     return { 
+//                         allowed: false, 
+//                         solicitouAutorizacao: true, 
+//                         justificativa: dadosExcecao.justificativa, 
+//                         tipoSolicitacao: tipoEscolhido // ou dadosExcecao.tipoPadronizado
+//                     };
+//                 }
+//             }
+//             return { allowed: false };
+//         }
+//     }
+
+//     return { allowed: true };
+// }
+
+/**
+ * FUNÇÃO: verificarLimiteDeFuncao
+ * Ajustada para separar a notificação de data (onchange) da solicitação real (envio/erro).
+ */
+async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
+    const nmEvento = (criterios.nmEvento || '').trim().toUpperCase();
+    const nmFuncao = (criterios.nmFuncao || '').trim().toUpperCase();
     const idFuncionario = criterios.idFuncionario || document.getElementById('idFuncionario')?.value || null;
     const selectFunc = document.getElementById('nmFuncionario');       
-    const nmFuncionario = criterios.nmFuncionario || selectFunc.options[selectFunc.selectedIndex]?.text;;
+    const nmFuncionario = criterios.nmFuncionario || selectFunc?.options[selectFunc.selectedIndex]?.text;
 
-    // --- CAPTURA DAS DATAS (Melhorada para evitar Array Vazio) ---
+    // 1. Coleta de datas de forma robusta
     const campoData = document.getElementById('periodoEvento'); 
     let datasSelecionadas = [];
-
-    // 1. Tenta pelo Flatpickr do elemento
     if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
         datasSelecionadas = campoData._flatpickr.selectedDates.map(d => d.toLocaleDateString('en-CA'));
-    } 
-    // 2. Tenta pela variável global que o CIOSP costuma usar
-    else if (window.datasEventoPicker && window.datasEventoPicker.selectedDates.length > 0) {
-        datasSelecionadas = window.datasEventoPicker.selectedDates.map(d => d.toLocaleDateString('en-CA'));
-    }
-    // 3. Tenta pelo que já veio no objeto criterios
-    else if (criterios.datasEvento && (Array.isArray(criterios.datasEvento) ? criterios.datasEvento.length > 0 : true)) {
+    } else if (criterios.datasEvento) {
         datasSelecionadas = Array.isArray(criterios.datasEvento) ? criterios.datasEvento : [criterios.datasEvento];
-    }
-
-    // 🎯 Segurança: Se ainda estiver vazio, não deixa prosseguir sem data
-    if (datasSelecionadas.length === 0) {
-        console.warn("⚠️ Nenhuma data detectada. Usando data de hoje como último recurso.");
-        datasSelecionadas = [new Date().toLocaleDateString('en-CA')];
+    } else if (window.datasEventoPicker && window.datasEventoPicker.selectedDates.length > 0) {
+        datasSelecionadas = window.datasEventoPicker.selectedDates.map(d => d.toLocaleDateString('en-CA'));
     }
 
     const dataUnicaParaBanco = datasSelecionadas[0] || null;
-   
-    //const setorAlocacao = (criterios.pavilhao || criterios.setor || '').trim().toUpperCase();
-    if (dadosErroBackend && dadosErroBackend.tipoErro === 'LIMITE_EXCEDIDO') {
-        const limite  = dadosErroBackend.limite;
-        const usado   = dadosErroBackend.usado;
-        const tipo    = dadosErroBackend.tipo; // 'vagas' ou 'diárias'
 
-        const { value: decisao } = await Swal.fire({
-            icon: 'warning',
-            title: 'Limite de Vagas Excedido',
-            html: `A função <b>${nmFuncao}</b> atingiu o limite de <b>${limite}</b> ${tipo}.<br>` +
-                  `Já foram utilizadas <b>${usado}</b>. Como deseja prosseguir?`,
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Solicitar Aditivo',
-            denyButtonText: 'Extra Bonificado',
-            cancelButtonText: 'Cancelar Cadastro',
-        });
-
-        if (decisao === true || decisao === false) {
-            const tipoEscolhido = decisao === true
-                ? 'Aditivo - Vaga Excedida'
-                : 'Extra Bonificado - Vaga Excedida';
-
-            await solicitarDadosExcecao(
-                tipoEscolhido,
-                criterios.idOrcamento,
-                nmFuncao,
-                criterios.idFuncao,
-                idFuncionario,
-                dataUnicaParaBanco
-            );
-        }
-
-        return { allowed: false };
-    }
-
-    // 1. Tenta achar a chave exata ou a simples
-    const chaveCompleta = [nmEvento, nmFuncao, setor, pavilhao].filter(p => p).join('-');
+    // 2. Busca do Orçamento na Memória
     const chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+    let dadosOrcamento = orcamentoPorFuncao[chaveSimples];
 
-    let dadosOrcamento = orcamentoPorFuncao[chaveCompleta] || orcamentoPorFuncao[chaveSimples];
-
-    // 🎯 FALLBACK: O que fazia o seu funcionar antes
     if (!dadosOrcamento) {
         const todasAsChaves = Object.keys(orcamentoPorFuncao);
         const chaveEncontrada = todasAsChaves.find(c => c.includes(nmEvento) && c.includes(nmFuncao));
         if (chaveEncontrada) dadosOrcamento = orcamentoPorFuncao[chaveEncontrada];
     }
 
-    if (!dadosOrcamento) {
-        console.warn("⚠️ Orçamento não localizado. Permitindo...");
-        return { allowed: true };
+    if (!dadosOrcamento && typeof idOrcamentoAtual !== 'undefined' && idOrcamentoAtual) {
+        dadosOrcamento = Object.values(orcamentoPorFuncao).find(o => o.idOrcamento == idOrcamentoAtual);
     }
 
-    // 2. CONTAGEM (Banco + Tabela atual)
-    let countNaTabela = 0;
-    document.querySelectorAll('#eventsTableBody tr').forEach(linha => {
-        try {
-            const data = JSON.parse(linha.dataset.eventData);
-            if (data.nmfuncao?.trim().toUpperCase() === nmFuncao &&
-                data.nmevento?.trim().toUpperCase() === nmEvento) {
-                countNaTabela++;
+    // --- LÓGICA CRÍTICA: VERIFICAÇÃO DE DATAS ---
+    if (datasSelecionadas.length > 0) {
+        let ehExcecaoDeData = false;
+        let datasPermitidas = [];
+
+        if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
+            datasPermitidas = Array.isArray(dadosOrcamento.datasOrcadas) ? dadosOrcamento.datasOrcadas : [dadosOrcamento.datasOrcadas];
+            ehExcecaoDeData = datasSelecionadas.some(dataSel => !datasPermitidas.includes(dataSel));
+        } else {
+            ehExcecaoDeData = true; 
+        }
+
+        if (ehExcecaoDeData) {
+            // Se já capturamos a justificativa nesta sessão, apenas retorna os dados salvos
+            if (window.justificativaParaSalvar && window.tipoExcecaoAtual) {
+                return { 
+                    allowed: false, 
+                    solicitouAutorizacao: true, 
+                    justificativa: window.justificativaParaSalvar,
+                    tipoSolicitacao: window.tipoExcecaoAtual 
+                };
             }
-        } catch (e) {}
-    });
 
-    const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada || 0) + countNaTabela;
-    const limite = Number(dadosOrcamento.quantidadeOrcada || 0);
+            // DISTINÇÃO DE COMPORTAMENTO:
+            // Se NÃO temos dadosErroBackend, significa que é apenas uma verificação preventiva (ex: onchange)
+            if (!dadosErroBackend && !window.estaSalvando) {
+                const { isConfirmed } = await Swal.fire({
+                    icon: 'info',
+                    title: 'Período fora do planejado',
+                    html: `As datas <b>${datasSelecionadas.join(', ')}</b> não constam no orçamento aprovado.<br>Deseja prosseguir ou corrigir?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Prosseguir',
+                    cancelButtonText: 'Corrigir Datas',
+                    confirmButtonColor: '#28a745'
+                });
 
-    // 🚨 REGRA: Se o total for MAIOR OU IGUAL ao limite, bloqueia e pergunta
-    // if (totalJaOcupado >= limite) {
-    //     const { value: decisao } = await Swal.fire({
-    //         icon: 'warning',
-    //         title: 'Limite de Vagas Excedido',
-    //         html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>Já existem <b>${totalJaOcupado}</b> cadastradas.`,
-    //         showCancelButton: true,
-    //         showDenyButton: true,
-    //         confirmButtonText: 'Solicitar Aditivo',
-    //         denyButtonText: 'Extra Bonificado',
-    //         cancelButtonText: 'Cancelar Cadastro',
-    //     });
+                // Se prosseguir, apenas permite mas não seta exceção ainda (deixa para o botão enviar)
+                return { allowed: isConfirmed, preventDefault: !isConfirmed };
+            }
 
-    //     if (decisao === true || decisao === false) {
-    //         const motivo = " - Vaga Excedida";
-    //         const tipoEscolhido = (decisao === true) ? `Aditivo${motivo}` : `Extra Bonificado${motivo}`;
+            // SE CHEGOU AQUI: É o momento do ENVIO ou um ERRO do backend retornou
+            // Mostrar o modal completo com todas as opções
+            const result = await Swal.fire({
+                icon: 'warning',
+                title: 'Data fora do Orçamento',
+                html: `As datas selecionadas não constam no orçamento aprovado.<br>Como deseja prosseguir?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                showNeutralButton: true, // Simularemos o botão neutro via HTML/Custom se necessário, ou usamos um ternário
+                confirmButtonText: 'Solicitar Aditivo',
+                denyButtonText: 'Extra Bonificado',
+                cancelButtonText: 'Cancelar',
+                footer: '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881;">Prosseguir sem solicitação</button>'
+            });
 
-    //         // 🛠️ CORREÇÃO DO ERRO 500: Garante que a data nunca seja "undefined"
-    //         const dataUnicaParaBanco = datasSelecionadas[0];
+            // Lógica para capturar o clique no botão customizado do footer se necessário
+            let decisaoManual = null;
+            const btnProsseguir = document.getElementById('btnProsseguirSem');
+            if (btnProsseguir) {
+                btnProsseguir.onclick = () => {
+                    decisaoManual = 'prosseguir';
+                    Swal.clickConfirm();
+                };
+            }
 
-    //             console.log("DATA REFERENCIA PARA VERIFICAÇÃO:", datasSelecionadas, dadosOrcamento.idOrcamento, criterios.idFuncao, tipoEscolhido, idFuncionario, nmFuncionario, nmFuncao);
+            if (result.isConfirmed || result.isDenied) {
+                const sufixo = result.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+                const tipoEscolhido = `${sufixo} - Datas fora do Orçamento`;
+                
+                const dadosExcecao = await solicitarDadosExcecao(
+                    tipoEscolhido, 
+                    dadosOrcamento ? dadosOrcamento.idOrcamento : (idOrcamentoAtual || 0), 
+                    nmFuncao, 
+                    criterios.idFuncao, 
+                    idFuncionario, 
+                    dataUnicaParaBanco
+                );
 
-    //         const verificacao = await verificarStatusAditivoExtra(
-    //             dadosOrcamento.idOrcamento, 
-    //             criterios.idFuncao, 
-    //             tipoEscolhido, 
-    //             idFuncionario, 
-    //             nmFuncionario,
-    //             nmFuncao,
-    //             dataUnicaParaBanco // Passa null se não tiver data
-    //         );
+                if (dadosExcecao && dadosExcecao.confirmado) {
+                    window.tipoExcecaoAtual = tipoEscolhido;
+                    window.justificativaParaSalvar = dadosExcecao.justificativa;
+                    window.bSalvarComoInativo = true;
+                    
+                    return { 
+                        allowed: false, 
+                        solicitouAutorizacao: true, 
+                        justificativa: dadosExcecao.justificativa, 
+                        tipoSolicitacao: tipoEscolhido 
+                    };
+                }
+            } else if (decisaoManual === 'prosseguir') {
+                // Usuário escolheu prosseguir sem solicitação (Ativo: true)
+                window.bSalvarComoInativo = false;
+                window.tipoExcecaoAtual = null;
+                return { allowed: true };
+            }
 
-    //         console.log("Criterios para exceção:", verificacao, criterios);
-
-    //         if (verificacao && verificacao.bloqueado) return { allowed: false };
-            
-
-    //         await solicitarDadosExcecao(
-    //             tipoEscolhido, dadosOrcamento.idOrcamento, 
-    //             nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
-    //         );
-    //     }
-        
-    //     // RETORNA FALSE para qualquer caso onde o limite foi excedido
-    //     return { allowed: false };
-    // }
-
-    if (totalJaOcupado >= limite) {
-        
-        // 🎯 PASSO 1: Antes de mostrar qualquer aviso, checamos se este funcionário já está autorizado
-        // Testamos os dois tipos possíveis de solicitação
-        // const verificacaoAditivo = await verificarStatusAditivoExtra(
-        //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Aditivo - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
-        // );
-
-        // const verificacaoExtra = await verificarStatusAditivoExtra(
-        //     dadosOrcamento.idOrcamento, criterios.idFuncao, "Extra Bonificado - Vaga Excedida", idFuncionario, nmFuncionario, nmFuncao, dataUnicaParaBanco
-        // );
-        // Exemplo de verificação de DATA
-            const checkVaga = await verificarStatusAditivoExtra(
-            dadosOrcamento.idOrcamento, 
-            criterios.idFuncao, 
-            'QUALQUER_VAGA', 
-            idFuncionario, 
-            nmFuncionario, 
-            nmFuncao, 
-            dataUnicaParaBanco
-        );
-
-        // ✅ Se houver autorização específica para este funcionário nesta vaga
-        if (checkVaga && checkVaga.autorizado) {
-            console.log("✅ Cadastro liberado: Autorização de vaga encontrada.");
-            return { allowed: true }; 
+            return { allowed: false }; 
         }
+    }
 
-        // 🛑 Se houver uma solicitação PENDENTE ou REJEITADA
-        // (O Swal já foi disparado dentro da função verificarStatusAditivoExtra)
-        if (checkVaga && checkVaga.bloqueado) {
-            return { allowed: false };
-        }
-
-        // 🎯 PASSO 2: Se não houver nada no banco, aí sim mostramos o Swal de ESCOLHA
-        const { value: decisao } = await Swal.fire({
-            icon: 'warning',
-            title: 'Limite de Vagas Excedido',
-            html: `A função <b>${nmFuncao}</b> tem limite de <b>${limite}</b> vaga(s).<br>` +
-                `Já existem <b>${totalJaOcupado}</b> cadastradas.`,
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Solicitar Aditivo',
-            denyButtonText: 'Extra Bonificado',
-            cancelButtonText: 'Cancelar Cadastro',
+    // 3. CONTAGEM DE VAGAS
+    if (dadosOrcamento) {
+        let countNaTabela = 0;
+        document.querySelectorAll('#eventsTableBody tr').forEach(linha => {
+            try {
+                const data = JSON.parse(linha.dataset.eventData);
+                if (data.nmfuncao?.trim().toUpperCase() === nmFuncao &&
+                    data.nmevento?.trim().toUpperCase() === nmEvento) {
+                    countNaTabela++;
+                }
+            } catch (e) {}
         });
 
-        if (decisao === true || decisao === false) {
-            const tipoEscolhido = (decisao === true) ? `Aditivo - Vaga Excedida` : `Extra Bonificado - Vaga Excedida`;
+        const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada || 0) + countNaTabela;
+        const limite = Number(dadosOrcamento.quantidadeOrcada || 0);
 
-            // Chama o formulário de justificativa
-            await solicitarDadosExcecao(
-                tipoEscolhido, dadosOrcamento.idOrcamento, 
-                nmFuncao, criterios.idFuncao, idFuncionario, dataUnicaParaBanco
-            );
+        if (totalJaOcupado >= limite) {
+             if (window.tipoExcecaoAtual && window.tipoExcecaoAtual.includes("Vaga Excedida")) {
+                return { allowed: false, solicitouAutorizacao: true, justificativa: window.justificativaParaSalvar };
+            }
+
+            const { value: decisaoVaga } = await Swal.fire({
+                icon: 'warning',
+                title: 'Limite de Vagas Excedido',
+                text: `A função ${nmFuncao} já atingiu o limite de ${limite} vaga(s). Deseja solicitar autorização?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Solicitar Aditivo',
+                denyButtonText: 'Extra Bonificado',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (decisaoVaga === true || decisaoVaga === false) {
+                const sufixo = decisaoVaga === true ? 'Aditivo' : 'Extra Bonificado';
+                const tipoEscolhido = `${sufixo} - Vaga Excedida`;
+                
+                const dadosExcecao = await solicitarDadosExcecao(
+                    tipoEscolhido, 
+                    dadosOrcamento.idOrcamento, 
+                    nmFuncao, 
+                    criterios.idFuncao, 
+                    idFuncionario, 
+                    dataUnicaParaBanco
+                );
+
+                if (dadosExcecao && dadosExcecao.confirmado) {
+                    window.tipoExcecaoAtual = tipoEscolhido;
+                    window.justificativaParaSalvar = dadosExcecao.justificativa;
+                    window.bSalvarComoInativo = true;
+                    return { allowed: false, solicitouAutorizacao: true, justificativa: dadosExcecao.justificativa, tipoSolicitacao: tipoEscolhido };
+                }
+            }
+            return { allowed: false };
         }
-        
-        return { allowed: false };
     }
 
     return { allowed: true };
@@ -11095,13 +12816,15 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
 
 
 async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao, idFuncionario, dataEspecifica) { 
+
+    console.log("Iniciando solicitação de exceção com os seguintes parâmetros:", {tipo, idOrcamentoAtual, nmFuncao, idFuncao, idFuncionario, dataEspecifica});
     
     const mapaTipos = {
         "ADITIVO - DATA FORA DO ORÇAMENTO": "Aditivo - Datas fora do Orçamento",
-        "ADITIVO - DATAS FORA DO ORÇAMENTO": "Aditivo - Datas fora do Orçamento",
+        //"ADITIVO - DATAS FORA DO ORÇAMENTO": "Aditivo - Datas fora do Orçamento",
         "ADITIVO - VAGA EXCEDIDA": "Aditivo - Vaga Excedida",
         "EXTRA BONIFICADO - DATA FORA DO ORÇAMENTO": "Extra Bonificado - Datas fora do Orçamento",
-        "EXTRA BONIFICADO - DATAS FORA DO ORÇAMENTO": "Extra Bonificado - Datas fora do Orçamento",
+        //"EXTRA BONIFICADO - DATAS FORA DO ORÇAMENTO": "Extra Bonificado - Datas fora do Orçamento",
         "EXTRA BONIFICADO - VAGA EXCEDIDA": "Extra Bonificado - Vaga Excedida"
     };
 
@@ -11109,7 +12832,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     const tipoPadronizado = mapaTipos[tipo.toUpperCase().trim()] || tipo;
 
     console.log("Tipo original:", tipo, "-> Tipo Padronizado:", tipoPadronizado);
-    
+    prefixoSolicitacao = `[SOLICITAÇÃO - ${tipoPadronizado}]`;
     
     console.log("Solicitando dados de exceção para:", {
         tipo: tipoPadronizado,
@@ -11121,16 +12844,37 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     });
     // 1. Prioridade para a data vinda do Flatpickr
     const campoData = document.getElementById('periodoEvento');
+    // let dataReal = "";
+
+    // if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+    //     // Pega a primeira data selecionada no calendário
+    //     dataReal = campoData._flatpickr.selectedDates[0].toLocaleDateString('en-CA'); // Retorna YYYY-MM-DD
+    // } else if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
+    //     dataReal = dataEspecifica[0];
+    // } else if (typeof dataEspecifica === 'string' && dataEspecifica.length > 5) {
+    //     dataReal = dataEspecifica;
+    // }
+
     let dataReal = "";
 
-    if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
-        // Pega a primeira data selecionada no calendário
-        dataReal = campoData._flatpickr.selectedDates[0].toLocaleDateString('en-CA'); // Retorna YYYY-MM-DD
-    } else if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
-        dataReal = dataEspecifica[0];
-    } else if (typeof dataEspecifica === 'string' && dataEspecifica.length > 5) {
+    // 1. PRIORIDADE: Se passamos uma data específica (ex: 11/04), usamos essa!
+    if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
+        // Pega a primeira data do array de conflito
+        dataReal = dataEspecifica[0]; 
+    } 
+    else if (typeof dataEspecifica === 'string' && dataEspecifica.length > 5) {
         dataReal = dataEspecifica;
     }
+    // 2. FALLBACK: Só olha para o calendário se não houver data específica
+    else {
+        const campoData = document.getElementById('periodoEvento');
+        if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+            dataReal = campoData._flatpickr.selectedDates[0].toLocaleDateString('en-CA');
+        }
+    }
+
+    // Garante que não leva o horário (T03:00...) se vier do banco
+    if (dataReal.includes('T')) dataReal = dataReal.split('T')[0];
 
     // Se ainda assim não tiver data, avisa o usuário em vez de chutar "hoje"
     if (!dataReal) {
@@ -11169,54 +12913,66 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     });
 
     if (isConfirmed && formValues) {
-        const resultado = await salvarSolicitacaoAditivoExtra(
-            idOrcamentoAtual, 
-            idFuncao,             
-            1, // Qtd é sempre 1 por registro de data
-            tipoPadronizado, 
-            formValues.justificativa, 
-            idFuncionario,
-            dataReal // 🎯 NOVO PARÂMETRO
-        );
+        // const resultado = await salvarSolicitacaoAditivoExtra(
+        //     idOrcamentoAtual, 
+        //     idFuncao,             
+        //     1, // Qtd é sempre 1 por registro de data
+        //     tipoPadronizado, 
+        //     formValues.justificativa, 
+        //     idFuncionario,
+        //     dataReal // 🎯 NOVO PARÂMETRO
+        // );
 
         
-        if (resultado.sucesso) {
-            // 🎯 TRATAMENTO ESPECÍFICO PARA DATAS FORA DO ORÇAMENTO
-            if (tipo.includes("Data fora do Orçamento")) {
+        // if (resultado.sucesso) {
+        //     // 🎯 TRATAMENTO ESPECÍFICO PARA DATAS FORA DO ORÇAMENTO
+        //     if (tipo.includes("Data fora do Orçamento")) {
                 
-                // 1. Removemos as datas excedentes do Flatpickr
-                if (window.datasEventoPicker) {
-                    const todasDatas = window.datasEventoPicker.selectedDates.map(d => d.toISOString().split('T')[0]);
+        //         // 1. Removemos as datas excedentes do Flatpickr
+        //         if (window.datasEventoPicker) {
+        //             const todasDatas = window.datasEventoPicker.selectedDates.map(d => d.toISOString().split('T')[0]);
                          
-                    await Swal.fire({
-                        icon: 'success',
-                        title: 'Solicitação Enviada!',
-                        html: `Sua solicitação de <b>${tipoPadronizado}</b> foi registrada.<br><br>` +
-                              `<span style="color: #d33">Importante:</span> As datas fora do orçamento foram removidas da sua seleção atual e só poderão ser usadas após a aprovação.`,
-                        confirmButtonText: 'OK'
-                    });
-                }
-            } else {
-                // Mensagem padrão para Vagas Excedidas ou outros tipos
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Solicitação Enviada!',
-                    text: `Sua solicitação de ${tipoPadronizado} foi registrada com sucesso.`,
-                    confirmButtonText: 'OK'
-                });
-            }
-        }
-        else {
-            await Swal.fire({
-                icon: 'error',
-                title: 'Falha na Solicitação',
-                text: resultado.erro || 'Ocorreu um erro ao salvar.',
-                confirmButtonText: 'Entendido'
-            });
-        }
+        //             await Swal.fire({
+        //                 icon: 'success',
+        //                 title: 'Solicitação Enviada!',
+        //                 html: `Sua solicitação de <b>${tipoPadronizado}</b> foi registrada.<br><br>` +
+        //                       `<span style="color: #d33">Importante:</span> As datas fora do orçamento foram removidas da sua seleção atual e só poderão ser usadas após a aprovação.`,
+        //                 confirmButtonText: 'OK'
+        //             });
+        //         }
+        //     } else {
+        //         // Mensagem padrão para Vagas Excedidas ou outros tipos
+        //         await Swal.fire({
+        //             icon: 'success',
+        //             title: 'Solicitação Enviada!',
+        //             text: `Sua solicitação de ${tipoPadronizado} foi registrada com sucesso.`,
+        //             confirmButtonText: 'OK'
+        //         });
+        //     }
+        // }
+        // else {
+        //     await Swal.fire({
+        //         icon: 'error',
+        //         title: 'Falha na Solicitação',
+        //         text: resultado.erro || 'Ocorreu um erro ao salvar.',
+        //         confirmButtonText: 'Entendido'
+        //     });
+        // }
 
-        return resultado; // Mantém o retorno original para quem chamou a função
+        // return resultado; // Mantém o retorno original para quem chamou a função
+
+        return { //para testar o salvar do staff com status inativo antes das solicitações de exceção
+            confirmado: true, 
+            solicitouAutorizacao: true,
+            justificativa: formValues.justificativa,
+            tipoPadronizado: tipoPadronizado,
+            dataConflito: dataReal 
+        };
+
     }
+     //para testar o salvar do staff com status inativo antes das solicitações de exceção
+     console.log("❌ Usuário cancelou o Swal");
+    return { confirmado: false, solicitouAutorizacao: false };
     
 }
 
@@ -11633,10 +13389,12 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
             }
 
             let textoBase = `<strong>"${nomeExibicao}"</strong>`;
-            let statusTexto = `<strong style="color: #ffc107;">"PENDENTE"</strong>`;
+            //let statusTexto = `<strong style="color: #ffc107;">"PENDENTE"</strong>`;
+            let statusPendente = `<strong style="color: #ffc107;">"PENDENTE"</strong>`;
+            let statusAutorizado = `<strong style="color: #007bff;">"AUTORIZADO"</strong>`;
             let funcaoTexto = `<strong>${nmFuncaoInput || 'Não informada'}</strong>`;
             
-            return { textoBase, statusTexto, funcaoTexto, nomeLimpo: nomeExibicao };
+            return { textoBase, statusPendente, statusAutorizado, funcaoTexto, nomeLimpo: nomeExibicao };
         };
 
         const infoMsg = formatarMensagemPersonalizada(tipoExibicao, nmFuncao);
@@ -11716,6 +13474,7 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 });
                 return { bloqueado: false, autorizado: true };
             }
+            
 
             // CASO C: Pendente em outro evento na mesma data → AVISAR e perguntar
             if (solicitacaoRecente && solicitacaoRecente.status === 'Pendente') {
@@ -11752,6 +13511,14 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
         }
 
         // ← daqui para baixo só chega para outros tipos (Aditivo, Extra, Data Fora)
+        if (!solicitacaoRecente && !autorizadoEspecifico) {
+                console.log("ℹ️ Nenhuma solicitação prévia encontrada. Retornando ao fluxo principal.");
+                return { 
+                    bloqueado: false, 
+                    encontrado: false, 
+                    autorizado: false 
+                };
+        }
 
         // --- 1. CASO AUTORIZADO ESPECÍFICO ---
         if (autorizadoEspecifico) {
@@ -11778,9 +13545,7 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 confirmButtonText: 'Entendido'
             });
             return { bloqueado: true };
-        }
-
-       
+        }       
         
         // --- 2. TRATAMENTO DE SOLICITAÇÃO EXISTENTE (PENDENTE/REJEITADA) ---
         if (solicitacaoRecente) {
@@ -11793,12 +13558,12 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
                 let mensagemHtml;
 
                 if (mesmaPessoa) {
-                    mensagemHtml = `Você já tem uma solicitação de ${infoMsg.textoBase} com status ${infoMsg.statusTexto} ` +
+                    mensagemHtml = `Você já tem uma solicitação de ${infoMsg.textoBase} com status ${infoMsg.statusPendente} ` +
                                    `para a função de ${infoMsg.funcaoTexto} para esse mesmo Funcionário: <strong>"${nmFuncionarioDono}"</strong>` +
                                    `<hr>` +                                
                                    `<strong>Aguarde a análise do gestor</strong> antes de tentar realizar o cadastro novamente.`;
                 } else {
-                    mensagemHtml = `Já existe uma solicitação de ${infoMsg.textoBase} com status ${infoMsg.statusTexto}, ` +
+                    mensagemHtml = `Já existe uma solicitação de ${infoMsg.textoBase} com status ${infoMsg.statusPendente}, ` +
                                    `para a função de ${infoMsg.funcaoTexto}, solicitada para <strong>"${nmFuncionarioDono}"</strong>.` +
                                    `<hr>` +
                                    `Funcionário Atual: <strong>${nmFuncionario || 'Não informado'}</strong><br><br>` +
@@ -11917,14 +13682,14 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acessível
 
 
-async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante) {
+async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idEventoSolicitado, idEventoConflitante, idStaffCriado) {
    
     const tipoPadronizado = tipo ? tipo.toUpperCase().trim() : "";
     const quantidadeGarantida = (qtd && qtd > 0) ? qtd : 1;
     const datasFormatadas = Array.isArray(dataSolicitada) ? dataSolicitada.join(',') : dataSolicitada;
-    const idStaffEventoAtual = document.querySelector("#idStaffEvento")?.value;
+    const idStaffEventoFinal = idStaffCriado || document.querySelector("#idStaffEvento")?.value;
 
-     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idStaffEventoAtual });
+     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario, dataSolicitada, idStaffEventoFinal });
 
     // Objeto de dados a ser enviado
     const dadosParaEnvio = { 
@@ -11933,7 +13698,7 @@ async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormula
         qtdSolicitada: quantidadeGarantida, 
         tipoSolicitacao: tipoPadronizado, 
         categoria_log: "aditivoextra", 
-        idregistroalterado: idStaffEventoAtual,
+        idregistroalterado: idStaffEventoFinal,
         justificativa,
         idFuncionario: idFuncionario || null,
         dataSolicitada: datasFormatadas,
@@ -12489,8 +14254,7 @@ function validarCamposAntesDoPeriodo() {
     // Se nenhuma estiver marcada, retorna o nome do campo
     if (!isAnyChecked) {
         return 'Nível de Experiência';
-    }
-   
+    }   
     
     if (document.getElementById('nmLocalMontagem').value === '') {
         return 'Local Montagem';
