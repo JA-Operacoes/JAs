@@ -167,19 +167,10 @@ export function exibirToast(type, msg, sub = '') {
 }
 
 // ─── Funções de compatibilidade com o Notificacoes.js existente ───────────────
-
-export function exibirToastAgenda(notif) {
-  exibirToast(
-    notif.type === 'danger' ? 'danger' : (notif.type || 'info'),
-    notif.message,
-    notif.subtext || ''
-  );
-}
-
-export function exibirToastSolicitacao(notif) {
-  exibirToast(
-    notif.type === 'danger' ? 'danger' : (notif.type || 'info'),
-    notif.message,
-    notif.subtext || ''
-  );
+export function exibirToastGeral(notif) {
+    exibirToast(
+      notif.type === 'danger' ? 'danger' : (notif.type || 'info'),
+      notif.message,
+      notif.subtext || ''
+    );
 }

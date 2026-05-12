@@ -14,17 +14,27 @@ async function buscarNotificacoes(idusuario, { apenasNaoLidas = false } = {}) {
   const { rows } = await pool.query(
     `SELECT 
         idnotificacao AS id, 
-        tipo AS type, 
-        mensagem AS message, 
-        lido AS read, 
+        tipo          AS type, 
+        mensagem      AS message, 
+        lido          AS read, 
         metadata, 
-        criado_em AS created_at 
+        criado_em     AS created_at 
      FROM notificacao
      WHERE idusuario = $1 ${filtro}
      ORDER BY criado_em DESC LIMIT 50`,
     [idusuario]
   );
-  return rows;
+
+  return rows.map(n => ({
+    ...n,
+    // Expande os campos do metadata para o frontend consumir igual às outras listas
+    id:       `notif-${n.id}`,
+    icon:     n.metadata?.icon     || 'notifications',
+    subtext:  n.metadata?.subtext  || '',
+    iconRead: n.read ? 'done_all'    : 'check_small',
+    typeRead: n.read ? 'success'     : 'danger',
+    ficticio: false,
+  }));
 }
 
 async function contarNaoLidas(idusuario) {

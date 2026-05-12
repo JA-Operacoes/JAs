@@ -33,21 +33,16 @@
 }
 
 .swal2-confirm {
-  /* background-color: #28a745 !important;  Verde para confirmar */
   background-color: var(--primary-color)!important;
-  /* Vermelho para confirmar */
   color: #ffffff !important;
 }
 
 .swal2-confirm:hover {
-  /* background-color: #218838 !important; */
   background-color: var(--hover-color) !important;
-  /* Vermelho para confirmar */
 }
 
 .swal2-cancel {
   background-color: #6c757d !important;
-  /* Cinza para cancelar */
   color: #ffffff !important;
 }
 
@@ -61,6 +56,23 @@
 
 .swal2-cancel.Contrato:hover {
   background-color: var(--hover-color) !important; /* Azul mais escuro no hover */
+}
+
+.body-sol {
+  text-align: left;
+  font-size: 20px;
+  line-height: 2;
+}
+
+@media screen and (max-width: 1321px) {
+  .swal2-title {
+    font-size: 1.5rem !important;
+  }
+  .body-sol {
+    font-size: 16px !important;
+    text-align: left;
+    line-height: 2;
+  }
 }
 
 /* Garantir que o loader fique centralizado dentro do Swal */

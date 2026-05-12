@@ -220,6 +220,7 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
     const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && (p.supremo === true || p.supremo === 'true'));
     const temAcessoTotal = ehMasterStaff || ehSupremoStaff;
 
+    
     // 3. Query com JOIN para saber se o usuário já leu a notificação "fictícia"
     let sqlBase = `
       SELECT 
@@ -302,8 +303,8 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
           };
       } else {
         return {
-            id: `sol-${sol.idsolicitacao}`,
-            type: type,
+          id: `sol-${sol.idsolicitacao}`,
+          type: type,
             icon: iconStatus,
             message: statusLower === 'pendente'
               ? `Sua Solicitação: ${tipoDb}`
@@ -325,6 +326,196 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
   }
 });
 
+router.get('/inclusao-orcamentos-notificacao', autenticarToken(), async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+
+    const { rows: allPermissoes } = await pool.query(
+        `SELECT modulo, master, supremo, comercial FROM permissoes WHERE idusuario = $1`,
+        [idusuario]
+    );
+
+    // 2. Corrigindo a lógica de permissão (Aceita booleano ou string 'true')
+    const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && (p.master === true || p.master === 'true'));
+    const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && (p.supremo === true || p.supremo === 'true'));
+    const ehComercialOrcamento = allPermissoes.some(p => p.modulo === 'Orcamentos' && (p.comercial === true || p.comercial === 'true'));
+    const temAcessoTotal = ehMasterStaff || ehSupremoStaff || ehComercialOrcamento;
+
+    console.log('[notificacao] acesso:', { ehMasterStaff, ehSupremoStaff, ehComercialOrcamento, temAcessoTotal });
+
+    if (!temAcessoTotal) { return res.status(200).json([]);}
+
+    // let sqlBase = ` SELECT 
+    //         s.idsolicitacao,
+    //         (u.nome || ' ' || u.sobrenome) AS funcionario,
+    //         s.tiposolicitacao,
+    //         -- Busca apenas o PRIMEIRO setor vinculado ao orçamento
+    //         (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
+    //         s.status,
+    //         s.dtsolicitacao,
+    //         s.dtresposta,
+    //         f.descfuncao,
+    //         s.idusuariosolicitante,
+    //         o.nrorcamento,
+    //         EXISTS (
+    //             SELECT 1 FROM notificacao n
+    //             WHERE n.idreferencia = s.idsolicitacao
+    //             AND n.idusuario = $1
+    //             AND n.lido = true
+    //         ) AS ja_lido
+    //     FROM solicitacoes s
+    //     LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
+    //     LEFT JOIN orcamentos o ON s.idorcamento = o.idorcamento
+    //     LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
+    //     WHERE s.idempresa = $2
+    //       AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'FUNCEXEDIDO')
+    //       AND s.status = 'Autorizado'
+    //       AND s.dtresposta > NOW() - INTERVAL '7 days'
+    //     ORDER BY s.dtresposta DESC`;
+
+        let sqlBase =` SELECT 
+            s.idsolicitacao,
+            (u.nome || ' ' || u.sobrenome) AS funcionario,
+            s.tiposolicitacao,
+            (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
+            s.status,
+            s.dtsolicitacao,
+            s.dtresposta, 
+            f.descfuncao,
+            s.idusuariosolicitante,
+            o.nrorcamento,
+            EXISTS (
+                SELECT 1 FROM notificacao n
+                WHERE n.idreferencia = s.idsolicitacao
+                AND n.idusuario = $1
+                AND n.lido = true
+            ) AS ja_lido
+        FROM solicitacoes s
+        LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
+        LEFT JOIN orcamentos o ON s.idorcamento = o.idorcamento
+        LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
+        WHERE s.idempresa = $2
+          AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'FUNCEXEDIDO')
+          AND s.status = 'Autorizado'
+          AND s.dtresposta > NOW() - INTERVAL '7 days'
+          
+          -- NOVA TRAVA AQUI: 
+          -- Se o item já foi inserido no orçamento, o NOT EXISTS será falso e a linha não retornará.
+          AND NOT EXISTS (
+              SELECT 1 FROM orcamentoitens oi 
+              WHERE oi.idsolicitacao = s.idsolicitacao
+          )
+
+        ORDER BY s.dtresposta DESC;`;
+
+    const result = await pool.query(sqlBase,[idusuario, idempresa]);
+
+    const mensagensPorTipo = {
+      'Aditivo - Vaga Excedida':         'Aditivo de Vaga Excedida Autorizado — incluir no orçamento',
+      'Extra Bonificado - Vaga Excedida': 'Extra Bonificado Autorizado — incluir no orçamento',
+    };
+
+    // 5. Mapeia para o formato de notificação
+    const listaFormatada = result.rows.map(sol => {
+        const statusLido = sol.ja_lido === true;
+        const configRead = {
+            false: { iconRead: 'check_small', typeRead: 'danger'  },
+            true:  { iconRead: 'done_all',    typeRead: 'success' }
+        };
+        const { iconRead, typeRead } = configRead[statusLido];
+
+        return {
+            id: `sol-${sol.idsolicitacao}`,
+            type: 'success',
+            icon: 'add_circle',
+            message: mensagensPorTipo[sol.tiposolicitacao] ?? `Solicitação Autorizada — incluir no orçamento`,
+            subtext: `Solicitante: ${sol.funcionario} - Função: ${sol.descfuncao} - Orçamento: ${sol.nrorcamento} - Setor: ${sol.setor}`,
+            created_at: sol.dtresposta,
+            read: statusLido,
+            ficticio: true,
+            iconRead,
+            typeRead,
+            // dados extras para o fluxo de inclusão no orçamento:
+            idsolicitacao: sol.idsolicitacao,
+            nrorcamento: sol.nrorcamento,
+            valoraditivo: sol.valoraditivo
+        };
+    });
+
+    return res.status(200).json(listaFormatada);
+
+  } catch (err) {
+    console.error('Erro ao buscar aditivos extras autorizados:', err);
+    return res.status(500).json({ erro: 'Erro interno ao buscar aditivos extras.' });
+  }
+});
+
+// // Em rotaNotificacao.js
+router.get('/retorno-inclusao', autenticarToken(), async (req, res) => {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT 
+                s.idsolicitacao,
+                (u.nome || ' ' || u.sobrenome) AS funcionario_solicitante,
+                s.tiposolicitacao,
+                s.dtresposta,
+                f.descfuncao,
+                o.nrorcamento,
+                oi.idorcamentoitem,
+                oi.setor,
+                EXISTS (
+                    SELECT 1 FROM notificacao n 
+                    WHERE n.idreferencia = s.idsolicitacao 
+                    AND n.idusuario = $1 
+                    AND n.lido = true
+                ) as ja_lido
+            FROM solicitacoes s
+            INNER JOIN orcamentoitens oi ON s.idsolicitacao = oi.idsolicitacao
+            INNER JOIN orcamentos o ON s.idorcamento = o.idorcamento
+            LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
+            LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
+            WHERE s.status = 'Autorizado'
+              AND s.idempresa = $2
+              AND s.dtresposta > NOW() - INTERVAL '7 days'
+            ORDER BY s.dtresposta DESC;`,
+            [idusuario, idempresa] // $1 é idusuario para o EXISTS, $2 é idempresa
+        );
+
+        const listaFormatada = rows.map(sol => {
+            const statusLido = sol.ja_lido === true;
+            const configRead = {
+            false: { iconRead: 'check_small', typeRead: 'danger'  },
+            true:  { iconRead: 'done_all',    typeRead: 'success' }
+            };
+            const { iconRead, typeRead } = configRead[statusLido];
+            
+            return {
+                id: `inc-${sol.idsolicitacao}`, 
+                type: 'success',
+                icon: 'task_alt',
+                message: `${sol.tiposolicitacao} Incluído!`,
+                subtext: `${sol.descfuncao} - ${sol.setor} (Orçamento N° ${sol.nrorcamento})já consta nos itens do orçamento.`,
+                created_at: sol.dtresposta,
+                read: statusLido,
+                ficticio: true,
+                iconRead,
+                typeRead,
+                idsolicitacao: sol.idsolicitacao,
+                idorcamentoitem: sol.idorcamentoitem
+            };
+        });
+
+        return res.status(200).json(listaFormatada);
+
+    } catch (err) {
+        console.error('Erro ao buscar retorno de inclusão:', err);
+        return res.status(500).json({ erro: 'Erro interno.' });
+    }
+});
 router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
   try {
     const idempresa = req.idempresa;

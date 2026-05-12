@@ -1,6 +1,6 @@
 // public/js/Notificacoes.js
 export { buscarNotificacoes };
-import { exibirToastAgenda, exibirToastSolicitacao } from './Toast.js';
+import { exibirToastGeral } from './Toast.js';
 const TOKEN = localStorage.getItem('token');
 
 function carregarToastsExibidos() {
@@ -43,10 +43,12 @@ setInterval(() => {
 
 async function buscarNotificacoes() {
   try {
-    const [resNotif, resAgenda, resSol, resPag] = await Promise.all([
+    const [resNotif, resAgenda, resSol, resPag, resInclusao, resRetornoInclusao] = await Promise.all([
       apiFetch('/notificacoes'),
       apiFetch('/notificacoes/agenda-notificacao'),
       apiFetch('/notificacoes/solicitacoes-notificacao'),
+      apiFetch('/notificacoes/inclusao-orcamentos-notificacao'),
+      apiFetch('/notificacoes/retorno-Inclusao'),
       apiFetch('/notificacoes/pagamentos-contas')
     ]);
 
@@ -54,23 +56,29 @@ async function buscarNotificacoes() {
     const agendaData = await resAgenda.json();
     const solData = await resSol.json();
     const pagData = await resPag.json();
+    const inclusaoData = await resInclusao.json();
+    const retornoInclusaoData = await resRetornoInclusao.json();
 
     console.log('📋 notificações do banco:', data.notificacoes);
     console.log('📋 notificações da agenda:', agendaData);
     console.log('📋 solicitações recebidas:', solData);
     console.log('📋 pagamentos a vencer:', pagData);
+    console.log('📋 aditivos extras autorizados:', inclusaoData);
+    console.log('📋 retornos do usuário:', retornoInclusaoData);
 
     const notificacoesBanco = data.notificacoes || [];
     const listaAgenda = Array.isArray(agendaData) ? agendaData : [];
     const listaSol = Array.isArray(solData) ? solData : [];
     const listaPag = Array.isArray(pagData) ? pagData : [];
+    const listaInclusao = Array.isArray(inclusaoData) ? inclusaoData : [];
+    const listaRetornoInclusao = Array.isArray(retornoInclusaoData) ? retornoInclusaoData : [];
 
     // --- LÓGICA DO TOAST ---
     // Percorremos apenas a lista da agenda para disparar os alertas
     listaAgenda.forEach(notif => {
         // Se o ID é novo nesta sessão, dispara o Toast
         if (!toastsExibidos.has(notif.id)) {
-            exibirToastAgenda(notif);
+            exibirToastGeral(notif);
             toastsExibidos.add(notif.id);
             salvarToastsExibidos();
         }
@@ -78,12 +86,27 @@ async function buscarNotificacoes() {
 
     listaSol.forEach(notif => {
         if (!toastsExibidos.has(notif.id)) {
-            exibirToastSolicitacao(notif);
+            exibirToastGeral(notif);
             toastsExibidos.add(notif.id);
             salvarToastsExibidos();
         }
     });
 
+    listaInclusao.forEach(notif => {
+        if (!toastsExibidos.has(notif.id)) {
+            exibirToastGeral(notif);
+            toastsExibidos.add(notif.id);
+            salvarToastsExibidos();
+        }
+    });
+
+    listaRetornoInclusao.forEach(notif => {
+        if (!toastsExibidos.has(notif.id)) {
+            exibirToastGeral(notif);
+            toastsExibidos.add(notif.id);
+            salvarToastsExibidos();
+        }
+    });
 
     listaPag.forEach(notif => {
         if (!toastsExibidos.has(notif.id)) {
@@ -94,13 +117,15 @@ async function buscarNotificacoes() {
     // -----------------------
 
     const listaCompleta = [
-      ...listaAgenda, ...notificacoesBanco, ...listaSol, ...listaPag
+      ...listaAgenda, ...notificacoesBanco, ...listaSol, ...listaPag, ...listaInclusao, ...listaRetornoInclusao
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     // Somamos as não lidas do banco com as "fictícias" da agenda
     const solNaoLidas = listaSol.filter(s => !s.read).length;
     const pagNaoLidas = listaPag.filter(p => !p.read).length;
-    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length + solNaoLidas;
+    const inclusaoNaoLidas = listaInclusao.filter(i => !i.read).length;
+    const retornoInclusaoNaoLidas = listaRetornoInclusao.filter(r => !r.read).length;
+    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length + solNaoLidas + pagNaoLidas + inclusaoNaoLidas + retornoInclusaoNaoLidas;
 
     atualizarBadge(totalNaoLidas);
     renderizarLista(listaCompleta);
@@ -167,47 +192,6 @@ function atualizarBadge(count) {
   badge.style.display = count > 0 ? 'flex' : 'none';
 }
 
-// function exibirToastAgenda(notif) {
-//     const Toast = Swal.mixin({
-//         toast: true,
-//         position: 'top-end',
-//         showConfirmButton: false,
-//         timer: 10000,
-//         timerProgressBar: true,
-//         didOpen: (toast) => {
-//             toast.addEventListener('mouseenter', Swal.stopTimer)
-//             toast.addEventListener('mouseleave', Swal.resumeTimer)
-//         }
-//     });
-
-//     Toast.fire({
-//         icon: notif.type === 'danger' ? 'info' : notif.type, // Ajusta o ícone do Swal
-//         title: notif.message,
-//         background: document.body.classList.contains('dark-theme') ? '#333' : '#fff',
-//         color: document.body.classList.contains('dark-theme') ? '#fff' : '#000'
-//     });
-// }
-
-// function exibirToastSolicitacao(notif) {
-//     const Toast = Swal.mixin({
-//         toast: true,
-//         position: 'top-end',
-//         showConfirmButton: false,
-//         timer: 10000,
-//         timerProgressBar: true,
-//         didOpen: (toast) => {
-//             toast.addEventListener('mouseenter', Swal.stopTimer)
-//             toast.addEventListener('mouseleave', Swal.resumeTimer)
-//         }
-//     });
-
-//     Toast.fire({
-//         icon: notif.type === 'danger' ? 'error' : notif.type, // Ajusta o ícone do Swal
-//         title: notif.message,
-//         background: document.body.classList.contains('dark-theme') ? '#333' : '#fff',
-//         color: document.body.classList.contains('dark-theme') ? '#fff' : '#000'
-//     });
-// }
 
 function iconePorTipo(type) {
   const icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', danger: 'fa-times-circle', info: 'fa-info-circle' };
