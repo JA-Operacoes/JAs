@@ -1453,6 +1453,8 @@ window.toggleEditavel = function(checkbox) {
     }
 };
 
+
+
 function adicionarLinhaOrc() {
   let tabela = document
     .getElementById("tabela")
@@ -1761,11 +1763,25 @@ function adicionarLinhaOrc() {
 
   novaLinha
     .querySelector(".idFuncao")
-    .addEventListener("change", function (event) {
+    .addEventListener("change", async function (event) {
       const linha = this.closest("tr");
       if (linha) {
         atualizaProdutoOrc(event, linha);
         recalcularLinha(linha);
+
+        const idOrcamento = document.getElementById("idOrcamento")?.value;
+        const idFuncao    = this.value;
+
+            if (idOrcamento && idFuncao) {
+                const solicitacao = await verificarSolicitacaoPendente(
+                    idOrcamento, idFuncao, null, null
+                );
+
+                // Guarda o idsolicitacao no dataset da linha para usar no save
+                if (solicitacao) {
+                    linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
+                }
+            }
       } else {
         console.error(
           "Erro: Não foi possível encontrar a linha (<tr>) pai para o select recém-adicionado."
@@ -1830,6 +1846,7 @@ function adicionarLinhaOrc() {
 
       const linhaParaRemover = this.closest("tr");
       const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
+       
 
       if (!idOrcamentoItem || idOrcamentoItem.trim() === "") {
         // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
@@ -1977,6 +1994,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     const initialDisplayStyle = ufAtual.toUpperCase() === "SP" ? "display: none;" : "display: table-cell;";
 
     const novaLinha = tabelaBody.insertRow();
+    
 
     // Aplica classes e dataset para identificação e estilo
     novaLinha.classList.add("liberada", "linhaAdicional", "adicional");
@@ -2230,15 +2248,83 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     if (inputSetor) {
         inputSetor.addEventListener('change', async function() {
             const setor = this.value.trim();
-            const idFuncao = novaLinha.querySelector('.idFuncao')?.value;
-            // Busca o nome do produto no input ou na célula da linha
+            const idFuncaoVal = novaLinha.querySelector('.idFuncao')?.value;
             const produtoNome = novaLinha.querySelector('.produto-input')?.value || 
-                               novaLinha.querySelector('.produto')?.value || "Item";
-
-            if (setor && idFuncao) {
-                await verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, this);
+                              novaLinha.querySelector('.produto')?.value || "Item";
+            if (setor && idFuncaoVal) {
+                await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this);
             }
         });
+    }
+
+    // ✅ NOVO bloco 9 — verificação no lugar certo
+    const idFuncaoInputAdicional = novaLinha.querySelector('.idFuncao');
+          idFuncaoInputAdicional.addEventListener('change', async function () {
+          console.log('🔥 [idFuncao change] Disparou! Valor:', this.value);
+          
+          const idOrcamento = document.getElementById("idOrcamento")?.value;
+          const idFuncaoVal = this.value;
+          
+          console.log('🔍 [idFuncao change] idOrcamento:', idOrcamento, '| idFuncaoVal:', idFuncaoVal);
+
+          if (idOrcamento && idFuncaoVal) {
+              const solicitacao = await verificarSolicitacaoPendente(idOrcamento, idFuncaoVal, null, null);
+              if (solicitacao) {
+                  novaLinha.dataset.idsolicitacao = solicitacao.idsolicitacao;
+              }
+          }
+      });
+    }
+
+
+async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento) {
+    if (!idOrcamento) return null;
+
+    try {
+        const params = new URLSearchParams({ idorcamento: idOrcamento });
+        if (idFuncao)      params.append('idfuncao', idFuncao);
+        if (idEquipamento) params.append('idequipamento', idEquipamento);
+        if (idSuprimento)  params.append('idsuprimento', idSuprimento);
+
+        const data = await fetchComToken(`/orcamentos/solicitacoes/verificar?${params.toString()}`);
+
+        if (!data.encontrou || data.solicitacoes.length === 0) {
+            return null; // ✅ Sem solicitação — sem ruído, fluxo normal
+        }
+
+        const sol = data.solicitacoes[0];
+        const tipoLabel   = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
+        const dtSolicita  = new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR');
+        const dtResposta  = new Date(sol.dtresposta).toLocaleDateString('pt-BR');
+
+        // ✅ Apenas informa — não bloqueia o fluxo
+        await Swal.fire({
+            title: `${tipoLabel} — Solicitação Encontrada`,
+            html: `
+                <div class="body-sol">
+                    <p>📌 <b>Solicitação #${sol.idsolicitacao}</b></p>
+                    <p>👤 Solicitante: <b>${sol.nomesolicitante || '—'}</b> em ${dtSolicita}</p>
+                    <p>✅ Autorizado por: <b>${sol.nomeresponsavel || '—'}</b> em ${dtResposta}</p>
+                    <p>📦 Qtd solicitada: <b>${sol.qtdsolicitada}</b></p>
+                    <p>🧭 Setor: <b>${sol.setor || '—'}</b></p>
+                    <p>📅 Data Solicitada: <b>${sol.dtsolicitada ? new Date(sol.dtsolicitada).toLocaleDateString('pt-BR') : '—'}</b></p>
+                    ${sol.justificativa ? `<p>📝 Justificativa: <i>${sol.justificativa}</i></p>` : ''}
+                    <hr style="margin:8px 0">
+                    <p style="color:#28a745; font-weight:bold;">
+                        ✔ Este item será vinculado automaticamente a esta solicitação ao salvar.
+                    </p>
+                </div>
+            `,
+            icon: 'info',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#3085d6',
+        });
+
+        return sol;
+
+    } catch (err) {
+        console.error('Erro ao verificar solicitação:', err);
+        return null;
     }
 }
 
@@ -2796,6 +2882,17 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     const inputSupri = linha.querySelector("input.idSuprimento");
 
     if (select.classList.contains("idFuncao") && inputFuncao) inputFuncao.value = valorSelecionado;
+        // ✅ Verificação de solicitação — momento certo, idFuncao acabou de ser preenchido
+        const idOrcamento = document.getElementById("idOrcamento")?.value;
+        if (idOrcamento && valorSelecionado) {
+            verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null)
+                .then(solicitacao => {
+                    if (solicitacao) {
+                        linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
+                        console.log('✅ [atualizaProduto] Solicitação vinculada:', solicitacao.idsolicitacao);
+                    }
+                });
+        }
     if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
     if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
 
@@ -3780,6 +3877,7 @@ async function verificaOrcamento() {
             
             // 3. ATRIBUTO EXTRA BONIFICADO:
             extrabonificado: linha.dataset?.extrabonificado === "true" || false,
+            idsolicitacao: linha.dataset?.idsolicitacao ? parseInt(linha.dataset.idsolicitacao) : null,
         };
 
         // 🎯 Aqui vem o tratamento correto dos períodos:
@@ -8015,10 +8113,10 @@ async function gerarPropostaPDF() {
           console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
           // Não interrompe, mas avisa que o status não será atualizado.
       } else {
-          console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
-          const statusAtual = document.getElementById('statusOrcamento')?.value 
-              || document.getElementById('statusOrcamento')?.innerText 
+        const statusAtual = document.getElementById('Status')?.value 
+              || document.getElementById('Status')?.innerText 
               || '';
+              console.log("🔄 Tentando atualizar o status do orçamento para 'P'...", statusAtual);
 
           const statusUpdateResult = podeAtualizarParaStatusP(statusAtual)
                 ? await fetchComToken(`/orcamentos/${idOrcamento}/status`, {

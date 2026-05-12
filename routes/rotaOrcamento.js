@@ -2010,6 +2010,84 @@ router.post('/verificar-duplicidade', async (req, res) => {
     }
 });
 
+// GET /solicitacoes/verificar?idorcamento=364&idfuncao=22
+router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
+    const { idorcamento, idfuncao, idequipamento, idsuprimento } = req.query;
+     console.log('🔍 [verificar] Params recebidos:', { idorcamento, idfuncao, idequipamento, idsuprimento });
+
+
+    try {
+        let filtroItem = '';
+        let params = [idorcamento];
+
+        if (idfuncao) {
+            filtroItem = 'AND s.idfuncao = $2';
+            params.push(idfuncao);
+        } else if (idequipamento) {
+            filtroItem = 'AND s.idequipamento = $2';
+            params.push(idequipamento);
+        } else if (idsuprimento) {
+            filtroItem = 'AND s.idsuprimento = $2';
+            params.push(idsuprimento);
+        }
+
+         console.log('📋 [verificar] Filtro montado:', filtroItem || '(sem filtro de item)');
+        console.log('📋 [verificar] Params da query:', params);
+
+
+        const result = await pool.query(`
+            SELECT 
+                s.idsolicitacao,
+                s.tiposolicitacao,
+                s.qtdsolicitada,
+                s.status,
+                (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
+                s.dtsolicitada,
+                s.justificativa,
+                s.dtsolicitacao,
+                s.dtresposta,
+                s.idusuariosolicitante,
+                s.idusuarioresponsavel,
+                u1.nome AS nomesolicitante,
+                u2.nome AS nomeresponsavel
+            FROM solicitacoes s
+            LEFT JOIN usuarios u1 ON u1.idusuario = s.idusuariosolicitante
+            LEFT JOIN usuarios u2 ON u2.idusuario = s.idusuarioresponsavel
+            LEFT JOIN orcamentoitens oi ON oi.idsolicitacao = s.idsolicitacao
+            LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
+            WHERE s.idorcamento = $1
+              ${filtroItem}
+              AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida')
+              AND s.status = 'Autorizado'
+              AND s.idsolicitacao NOT IN (
+                  SELECT idsolicitacao FROM orcamentoitens WHERE idsolicitacao IS NOT NULL
+              )
+            ORDER BY s.dtresposta DESC
+        `, params);
+
+        console.log(`✅ [verificar] Resultado: ${result.rows.length} solicitação(ões) encontrada(s)`);
+        if (result.rows.length > 0) {
+            console.log('📌 [verificar] Solicitações:', result.rows.map(r => ({
+                id: r.idsolicitacao,
+                tipo: r.tiposolicitacao,
+                status: r.status,
+                setor: r.setor,
+                solicitante: r.nomesolicitante,
+                dtsolicitada: r.dtsolicitada
+            })));
+        }
+
+        res.json({ 
+            encontrou: result.rows.length > 0,
+            solicitacoes: result.rows 
+        });
+
+    } catch (err) {
+        console.error('Erro ao verificar solicitação:', err);
+        res.status(500).json({ erro: 'Erro ao verificar solicitações.' });
+    }
+});
+
 router.put("/:id",
   autenticarToken(), contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"),
@@ -2255,8 +2333,8 @@ router.put("/:id",
                 tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
                 totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
                 adicional = $28, 
-                vlrbase = $29, cachefechado = $30
-            WHERE idorcamentoitem = $31 AND idorcamento = $32;
+                vlrbase = $29, cachefechado = $30, idsolicitacao = $31
+            WHERE idorcamentoitem = $32 AND idorcamento = $33;
           `;
 
           const itemValues = [
@@ -2271,8 +2349,9 @@ router.put("/:id",
             item.totgeralitem, item.setor ?? '', isAdicional,
             valorBase, // $29
             item.cachefechado, // $30
-            item.id,   // $31
-            idOrcamento // $32
+            item.idsolicitacao, // $31
+            item.id,   // $32
+            idOrcamento // $33
           ];
 
           await client.query(updateItemQuery, itemValues);
@@ -2291,7 +2370,7 @@ router.put("/:id",
                 vlrajdctotransporte, totajdctoitem,
                 hospedagem, transporte, totgeralitem,
                 setor, adicional, 
-                vlrbase, cachefechado
+                vlrbase, cachefechado, idsolicitacao
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6, $7, $8,
@@ -2302,7 +2381,7 @@ router.put("/:id",
                 $21, $22, $23,
                 $24, $25, $26,
                 $27, $28, $29,
-                $30, $31
+                $30, $31, $32
             )
           `;
 
@@ -2318,7 +2397,8 @@ router.put("/:id",
             item.hospedagem, item.transporte, item.totgeralitem,
             item.setor ?? '', isAdicional,
             valorBase, // $30
-            item.cachefechado // $31
+            item.cachefechado, // $31
+            item.idsolicitacao // $32
           ];
 
           await client.query(insertItemQuery, itemValues);
@@ -2365,9 +2445,6 @@ router.put("/:id",
     }
   }
 );
-
-
-
 
 router.put(
   "/fechar/:id",
