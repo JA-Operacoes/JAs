@@ -2201,3 +2201,100 @@ select:disabled {
     vertical-align: middle;
 }
 
+
+/* ── LINHA DELETADA ── */
+tr.row-deletado td {
+    text-decoration: line-through;
+    opacity: 0.5;
+    color: #888 !important;
+    background-color: #fdecea !important;
+}
+tr.row-deletado:hover td {
+    opacity: 0.65;
+}
+
+/* ── LINHA PENDENTE ── */
+tr.row-pendente td {
+    background-color: #fff8e1 !important;
+    font-style: italic;
+}
+tr.row-pendente:hover td {
+    background-color: #fff3cd !important;
+}
+
+/* ── LINHA INATIVA ── */
+tr.row-inativo td {
+    background-color: #f0f0f0 !important;
+    color: #999 !important;
+}
+
+/* ── BADGES ── */
+.badge-statusstaff {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-decoration: none !important; /* garante que não herda o line-through */
+}
+.badge-statusstaff--deletado {
+    background-color: #cc0000;
+    color: #fff;
+}
+.badge-statusstaff--pendente {
+    background-color: #e67e22;
+    color: #fff;
+}
+.badge-statusstaff--inativo {
+    background-color: #aaa;
+    color: #fff;
+}
+
+/* Esconde deletados por padrão */
+tr.row-deletado { display: none; }
+
+/* Mostra quando toggle ativo */
+table.mostrar-deletados tr.row-deletado { display: table-row; }
+
+/* Esconde inativos por padrão */
+tr.row-inativo { display: none; }
+
+/* Mostra quando toggle ativo */
+table.mostrar-inativos tr.row-inativo { display: table-row; }
+
+/* Estilo do container do toggle */
+.container-toggle-deletados {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #856404;
+}
+.label-toggle-deletados {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+.label-toggle-deletados input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+.badge-count-status {
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+}
+.badge-count-deletados { background: #cc0000; }
+.badge-count-inativos  { background: #555; }
+

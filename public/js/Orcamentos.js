@@ -1956,10 +1956,10 @@ async function adicionarLinhaAdicional(isBonificado = false) {
   // if (isCleaning) return;
     // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
     //if (isBonificado === false) { 
-    if (isCleaning) {
-      isBonificado = false; // Define como Aditivo por padrão na limpeza
-      // Pula direto para a lógica de inserção (o bloco do Swal abaixo não executa)
-    } else if (isBonificado === false) {
+    if (typeof isCleaning !== 'undefined' && isCleaning) {
+        return; 
+    }
+    if (isBonificado === false) {
         const result = await Swal.fire({
             title: 'Tipo de Item Adicional',
             text: "Selecione o tipo de item que deseja adicionar:",
@@ -4549,6 +4549,8 @@ async function atualizarCampoGeradoAnoPosterior(
 }
 
 function desinicializarOrcamentosModal() {
+
+  window.isCleaning = true;
   console.log("🧹 Desinicializando módulo Orcamentos.js");
 
   const selectLocalMontagem = document.getElementById("idMontagem");
@@ -4585,14 +4587,9 @@ function desinicializarOrcamentosModal() {
     btnAdicionarLinhaListener = null;
   }
 
-  const btnAdicionarLinhaAdicional = document.getElementById(
-    "adicionarLinhaAdicional"
-  );
+  const btnAdicionarLinhaAdicional = document.getElementById("adicionarLinhaAdicional");
   if (btnAdicionarLinhaAdicional && btnAdicionarLinhaAdicionalListener) {
-    btnAdicionarLinhaAdicional.removeEventListener(
-      "click",
-      btnAdicionarLinhaAdicionalListener
-    );
+    btnAdicionarLinhaAdicional.removeEventListener("click", btnAdicionarLinhaAdicionalListener);
     btnAdicionarLinhaAdicionalListener = null;
   }
 
@@ -4694,6 +4691,8 @@ function desinicializarOrcamentosModal() {
   limparOrcamento(); // Chame sua função de limpeza de formulário
 
   lastEditedGlobalFieldType = null;
+
+  setTimeout(() => { window.isCleaning = false; }, 500);
 
   console.log("✅ Módulo Orcamentos.js desinicializado.");
 }
@@ -8113,7 +8112,8 @@ async function gerarPropostaPDF() {
           console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
           // Não interrompe, mas avisa que o status não será atualizado.
       } else {
-        const statusAtual = document.getElementById('Status')?.value 
+          console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+          const statusAtual = document.getElementById('Status')?.value 
               || document.getElementById('Status')?.innerText 
               || '';
               console.log("🔄 Tentando atualizar o status do orçamento para 'P'...", statusAtual);
