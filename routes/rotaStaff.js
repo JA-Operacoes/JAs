@@ -83,7 +83,8 @@ const uploadComprovantesMiddleware = multer({
     { name: 'comppgtocache', maxCount: 1 },
     { name: 'comppgtoajdcusto', maxCount: 1 },
     { name: 'comppgtocaixinha', maxCount: 1 },
-    { name: 'comppgtoajdcusto50', maxCount: 1 }
+    { name: 'comppgtoajdcusto50', maxCount: 1 },
+    { name: 'compcontrolegastos', maxCount: 1 }
 ]);
 
 const fileFilter = (req, file, cb) => {
@@ -174,9 +175,10 @@ router.get("/funcionarios",  async (req, res) => {
   try {         
       // Busca TODOS os funcionários associados à empresa do usuário logado
       const result = await pool.query(
-      `SELECT func.* FROM funcionarios func
+      `SELECT func.*, s.avaliacao FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-      WHERE funce.idempresa = $1 AND ativo = 'true' ORDER BY func.nome ASC`,
+      INNER JOIN staff s ON s.idfuncionario = func.idfuncionario
+      WHERE funce.idempresa = $1 AND func.ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
       return result.rows.length
@@ -364,98 +366,242 @@ router.post("/orcamento/consultar",
             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
         }
 
-        const query = `
-            WITH datas_orcamento AS (
-                -- CTE: Gera o array de datas específico para CADA item individualmente
-                SELECT
-                    oi.idorcamentoitem,
-                    ARRAY(
-                        SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
-                    ) AS periodos_disponiveis
-                FROM orcamentoitens oi
-                WHERE oi.idorcamentoitem IS NOT NULL
-            )
-            SELECT
-                o.status, o.idorcamento, o.contratarstaff,
-                -- CORREÇÃO AQUI:
-                -- Em vez de recalcular todas as datas do evento inteiro,
-                -- pegamos apenas as datas deste item específico que já calculamos na CTE.
-                dto.periodos_disponiveis AS datas_totais_orcadas,
+        // const query = `
+        //     WITH datas_orcamento AS (
+        //         -- CTE: Gera o array de datas específico para CADA item individualmente
+        //         SELECT
+        //             oi.idorcamentoitem,
+        //             ARRAY(
+        //                 SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+        //             ) AS periodos_disponiveis
+        //         FROM orcamentoitens oi
+        //         WHERE oi.idorcamentoitem IS NOT NULL
+        //     )
+        //     SELECT
+        //         o.status, o.idorcamento, o.contratarstaff,
+        //         -- CORREÇÃO AQUI:
+        //         -- Em vez de recalcular todas as datas do evento inteiro,
+        //         -- pegamos apenas as datas deste item específico que já calculamos na CTE.
+        //         dto.periodos_disponiveis AS datas_totais_orcadas,
                 
-                oi.qtditens AS quantidade_orcada, 
-                oi.idfuncao,         
-                f.descfuncao,
-                e.nmevento,
-                c.nmfantasia AS nmcliente,
-                lm.descmontagem AS nmlocalmontagem,
-                oi.setor AS setor,
-                (
-                    SELECT COUNT(DISTINCT se.idfuncionario)
-                    FROM staffeventos se
-                    WHERE
-                        se.idevento = o.idevento
-                        AND se.idcliente = o.idcliente
-                        AND se.idmontagem = o.idmontagem
-                        AND se.idfuncao = oi.idfuncao                   
-                        AND se.setor = oi.setor 
-                        -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
-                        --AND se.datasevento @> to_jsonb($5::text[])
-                        AND se.ativo = true -- Garante que não conte funcionários deletados
-                        -- A MÁGICA ESTÁ AQUI:
-                        -- Transformamos o JSONB do banco em um array de texto do Postgres 
-                        -- e usamos o operador '&&' para ver se há intersecção com as datas enviadas ($5)
-                        AND ARRAY(
-                            SELECT jsonb_array_elements_text(se.datasevento::jsonb)
-                        )::text[] && $5::text[]
+        //         oi.qtditens AS quantidade_orcada, 
+        //         oi.idfuncao,         
+        //         f.descfuncao,
+        //         e.nmevento,
+        //         c.nmfantasia AS nmcliente,
+        //         lm.descmontagem AS nmlocalmontagem,
+        //         oi.setor AS setor,
+        //         (
+        //             SELECT COUNT(DISTINCT se.idfuncionario)
+        //             FROM staffeventos se
+        //             WHERE
+        //                 se.idevento = o.idevento
+        //                 AND se.idcliente = o.idcliente
+        //                 AND se.idmontagem = o.idmontagem
+        //                 AND se.idfuncao = oi.idfuncao                   
+        //                 --AND se.setor = oi.setor --setor não entrará na contagem de vagas
+        //                 -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
+        //                 --AND se.datasevento @> to_jsonb($5::text[])
+        //                 AND se.ativo = true -- Garante que não conte funcionários deletados
+        //                 -- A MÁGICA ESTÁ AQUI:
+        //                 -- Transformamos o JSONB do banco em um array de texto do Postgres 
+        //                 -- e usamos o operador '&&' para ver se há intersecção com as datas enviadas ($5)
+        //                 AND ARRAY(
+        //                     SELECT jsonb_array_elements_text(se.datasevento::jsonb)
+        //                 )::text[] && $5::text[]
                         
-                ) AS quantidade_escalada
-            FROM
-                orcamentoitens oi
-            JOIN
-                orcamentos o ON oi.idorcamento = o.idorcamento
-            JOIN
-                orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-            LEFT JOIN
-                funcao f ON oi.idfuncao = f.idfuncao
-            LEFT JOIN
-                eventos e ON o.idevento = e.idevento
-            LEFT JOIN
-                clientes c ON o.idcliente = c.idcliente
-            LEFT JOIN
-                localmontagem lm ON o.idmontagem = lm.idmontagem
-            JOIN
-                datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
-            WHERE
-                oe.idempresa = $1
-                AND o.idevento = $2
-                AND o.idcliente = $3
-                AND o.idmontagem = $4
-                AND o.status != 'R' -- Exclui orçamentos recusados
-                --AND oi.idfuncao IS NOT NULL
-                AND oi.idfuncao = $6
-                AND (oi.setor = $7 OR $7 IS NULL)
-                -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
-                --AND dto.periodos_disponiveis && $5::date[]
-                AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
-            GROUP BY
-                oi.idorcamentoitem, 
-                f.descfuncao, 
-                e.nmevento, 
-                c.nmfantasia, 
-                lm.descmontagem, 
-                oi.setor, 
-                o.idevento, 
-                o.idcliente, 
-                o.idmontagem, 
-                oi.idfuncao, 
-                o.status, 
-                o.idorcamento,
-                oi.qtditens,
-                o.contratarstaff,
-                dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
-            ORDER BY
-                oi.idorcamentoitem;
-        `;
+        //         ) AS quantidade_escalada
+        //     FROM
+        //         orcamentoitens oi
+        //     JOIN
+        //         orcamentos o ON oi.idorcamento = o.idorcamento
+        //     JOIN
+        //         orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+        //     LEFT JOIN
+        //         funcao f ON oi.idfuncao = f.idfuncao
+        //     LEFT JOIN
+        //         eventos e ON o.idevento = e.idevento
+        //     LEFT JOIN
+        //         clientes c ON o.idcliente = c.idcliente
+        //     LEFT JOIN
+        //         localmontagem lm ON o.idmontagem = lm.idmontagem
+        //     JOIN
+        //         datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+        //     WHERE
+        //         oe.idempresa = $1
+        //         AND o.idevento = $2
+        //         AND o.idcliente = $3
+        //         AND o.idmontagem = $4
+        //         AND o.status != 'R' -- Exclui orçamentos recusados
+        //         --AND oi.idfuncao IS NOT NULL
+        //         AND oi.idfuncao = $6
+        //         AND (oi.setor = $7 OR $7 IS NULL)
+        //         -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
+        //         --AND dto.periodos_disponiveis && $5::date[]
+        //         AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
+        //     GROUP BY
+        //         oi.idorcamentoitem, 
+        //         f.descfuncao, 
+        //         e.nmevento, 
+        //         c.nmfantasia, 
+        //         lm.descmontagem, 
+        //         oi.setor, 
+        //         o.idevento, 
+        //         o.idcliente, 
+        //         o.idmontagem, 
+        //         oi.idfuncao, 
+        //         o.status, 
+        //         o.idorcamento,
+        //         oi.qtditens,
+        //         o.contratarstaff,
+        //         dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
+        //     ORDER BY
+        //         oi.idorcamentoitem;
+        // `;
+
+        // const query = `
+        //     WITH datas_orcamento AS (
+        //         SELECT
+        //             oi.idorcamentoitem,
+        //             ARRAY(
+        //                 SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+        //             ) AS periodos_disponiveis
+        //         FROM orcamentoitens oi
+        //         WHERE oi.idorcamentoitem IS NOT NULL
+        //     )
+        //     SELECT
+        //         o.status, o.idorcamento, o.contratarstaff,
+        //         dto.periodos_disponiveis AS datas_totais_orcadas,
+                
+        //         -- O total de diárias orçadas (Vagas * Dias)
+        //         (oi.qtditens * oi.qtddias) AS total_diarias_orcadas, 
+                
+        //         oi.idfuncao,         
+        //         f.descfuncao,
+        //         e.nmevento,
+        //         c.nmfantasia AS nmcliente,
+        //         lm.descmontagem AS nmlocalmontagem,
+        //         oi.setor AS setor,
+
+        //         -- NOVA LÓGICA DE CONTAGEM:
+        //         (
+        //             SELECT COALESCE(SUM(
+        //                 (SELECT COUNT(*) 
+        //                 FROM jsonb_array_elements_text(se.datasevento::jsonb) AS d 
+        //                 WHERE d::date = ANY(dto.periodos_disponiveis::date[])
+        //                 )
+        //             ), 0)
+        //             FROM staffeventos se
+        //             WHERE
+        //                 se.idevento = o.idevento
+        //                 AND se.idcliente = o.idcliente
+        //                 AND se.idmontagem = o.idmontagem
+        //                 AND se.idfuncao = oi.idfuncao
+        //                 AND se.ativo = true
+        //                 AND se.statusstaff != 'Inativo' -- Não conta quem foi removido/rejeitado
+        //         ) AS total_diarias_escaladas
+                
+        //     FROM
+        //         orcamentoitens oi
+        //     JOIN
+        //         orcamentos o ON oi.idorcamento = o.idorcamento
+        //     JOIN
+        //         orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+        //     LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+        //     LEFT JOIN eventos e ON o.idevento = e.idevento
+        //     LEFT JOIN clientes c ON o.idcliente = c.idcliente
+        //     LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+        //     JOIN datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+        //     WHERE
+        //         oe.idempresa = $1
+        //         AND o.idevento = $2
+        //         AND o.idcliente = $3
+        //         AND o.idmontagem = $4
+        //         AND o.status != 'R'
+        //         AND oi.idfuncao = $6
+        //         AND (oi.setor = $7 OR $7 IS NULL)
+        //         AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
+        //     GROUP BY
+        //         oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia, 
+        //         lm.descmontagem, oi.setor, o.idevento, o.idcliente, 
+        //         o.idmontagem, oi.idfuncao, o.status, o.idorcamento,
+        //         oi.qtditens, oi.qtddias, o.contratarstaff, dto.periodos_disponiveis
+        //     ORDER BY
+        //         oi.idorcamentoitem;
+        // `;
+
+        const query = `WITH datas_orcamento AS (
+    SELECT
+        oi.idorcamentoitem,
+        ARRAY(
+            SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+        ) AS periodos_disponiveis
+    FROM orcamentoitens oi
+    WHERE oi.idorcamentoitem IS NOT NULL
+),
+diarias_por_funcao AS (
+    SELECT
+        se.idorcamento,
+        se.idfuncao,
+        SUM(jsonb_array_length(se.datasevento)) AS total
+    FROM staffeventos se
+    WHERE se.ativo = true
+    AND se.statusstaff != 'Inativo'
+    GROUP BY se.idorcamento, se.idfuncao
+),
+total_orcado_por_funcao AS (
+    SELECT
+        oi2.idorcamento,
+        oi2.idfuncao,
+        SUM(oi2.qtditens * oi2.qtddias) AS total
+    FROM orcamentoitens oi2
+    GROUP BY oi2.idorcamento, oi2.idfuncao
+)
+SELECT
+    o.status,
+    o.idorcamento,
+    o.contratarstaff,
+    dto.periodos_disponiveis AS datas_totais_orcadas,  -- front usa .datas_totais_orcadas.length
+    tof.total AS quantidade_orcada,                   -- d_escaladas no front (total orçado real)    
+     COALESCE(dpf.total, 0) AS quantidade_escalada,    -- pessoas distintas (mantém front)
+    COALESCE(dpf.total, 0) AS diarias_escaladas,      -- total de diárias já usadas
+                
+    oi.idfuncao,
+    f.descfuncao,
+    e.nmevento,
+    c.nmfantasia AS nmcliente,
+    lm.descmontagem AS nmlocalmontagem,
+    oi.setor
+FROM orcamentoitens oi
+JOIN orcamentos o ON oi.idorcamento = o.idorcamento
+JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+LEFT JOIN eventos e ON o.idevento = e.idevento
+LEFT JOIN clientes c ON o.idcliente = c.idcliente
+LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+JOIN datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+LEFT JOIN diarias_por_funcao dpf ON
+    dpf.idorcamento = o.idorcamento
+    AND dpf.idfuncao = oi.idfuncao
+LEFT JOIN total_orcado_por_funcao tof ON
+    tof.idorcamento = o.idorcamento
+    AND tof.idfuncao = oi.idfuncao
+WHERE
+    oe.idempresa = $1
+    AND o.idevento = $2
+    AND o.idcliente = $3
+    AND o.idmontagem = $4
+    AND o.status != 'R'
+    AND oi.idfuncao = $6
+    AND (oi.setor = $7 OR $7 IS NULL)
+    AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
+GROUP BY
+    oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia,
+    lm.descmontagem, oi.setor, o.idevento, o.idcliente,
+    o.idmontagem, oi.idfuncao, o.status, o.idorcamento,
+    o.contratarstaff, dto.periodos_disponiveis,
+    dpf.total, tof.total
+ORDER BY oi.idorcamentoitem;`;
 
         console.log("QUERY", query);
         const values = [
@@ -657,7 +803,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
                 se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
                 se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                 se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
-                s.idstaff, s.avaliacao, se.comppgtoajdcusto50
+                s.idstaff, s.avaliacao, se.comppgtoajdcusto50, se.compcontgastos
             FROM staffeventos se
             INNER JOIN staff s ON se.idstaff = s.idstaff
             WHERE se.idfuncionario = $1 
@@ -868,6 +1014,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.comppgtoajdcusto,
           se.comppgtoajdcusto50,
           se.comppgtocaixinha,
+          se.compcontgastos,
           se.setor,
           se.statuspgto,
           se.statusajustecusto,
@@ -894,6 +1041,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.obsgeral,
           se.ativo,
           se.desccustofechado,
+          se.statusstaff,
           (
             SELECT jsonb_agg(elem ORDER BY elem::date)
             FROM jsonb_array_elements_text(
@@ -979,6 +1127,8 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 
       const result = await client.query(query, queryParams);
 
+      console.log("RESULTADO DA QUERY DE EVENTOS POR FUNCIONÁRIO:", result.rows);
+
       res.status(200).json(result.rows);
 
     } catch (error) {
@@ -1000,297 +1150,6 @@ function ordenarDatas(datas) {
     // Supondo que as datas estejam no formato 'YYYY-MM-DD'
     return datas.sort((a, b) => new Date(a) - new Date(b));
 }
-
-// router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'alterar'), uploadComprovantesMiddleware, 
-//     logMiddleware('staffeventos', {
-//         buscarDadosAnteriores: async (req) => {
-//             const idstaffEvento = req.params.idStaffEvento;
-//             const idempresa = req.idempresa; // Captura o ID da empresa do contexto
-//             if (!idstaffEvento) {
-//                 return { dadosanteriores: null, idregistroalterado: null };
-//             }
-//             try {
-//                 // Ajustar a query para buscar o registro de staffeventos
-//                 // Incluímos o JOIN com staffempresas para verificar a posse da empresa
-//                 // const result = await pool.query(
-//                 //     `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
-//                 //             se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
-//                 //     FROM staffeventos se
-//                 //     INNER JOIN staff s ON se.idfuncionario = s.idfuncionario
-//                 //     INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
-//                 //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
-//                 //     [idstaffEvento, idempresa]
-//                 // );
-
-//                 // const result = await pool.query(
-//                 //     `SELECT se.* FROM staffeventos se
-//                 //     INNER JOIN staffempresas sme ON se.idstaff = sme.idstaff
-//                 //     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
-//                 //     [idstaffEvento, idempresa]
-//                 // );
-
-//                 const result = await pool.query(
-//                     `SELECT se.* FROM staffeventos se
-//                     WHERE se.idstaffevento = $1 
-//                     AND EXISTS (
-//                         SELECT 1 FROM staffempresas sme 
-//                         WHERE sme.idstaff = se.idstaff 
-//                         AND sme.idempresa = $2
-//                     )`, 
-//                     [idstaffEvento, idempresa]
-//                 );
-//                 const linha = result.rows[0] || null;
-
-//                 if (!linha) {
-//                     console.warn(`⚠️ LogMiddleware: Nenhum dado anterior encontrado para ID ${idstaffEvento}`);
-//                 }
-
-//                 const dadosLimpos = linha ? JSON.parse(JSON.stringify(linha)) : null;
-//                 console.log("DADOS ANTERIORES:", linha);
-//                 return {
-//                     dadosanteriores: dadosLimpos,
-//                     //idregistroalterado: linha?.idstaffevento || null
-//                     idregistroalterado: idstaffEvento
-//                 };
-//             } catch (error) {
-//                 console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
-//                 return { dadosanteriores: null, idregistroalterado: idstaffEvento };
-//             }
-//         }
-//     }),
-//     async (req, res) => {
-//         const { idStaffEvento } = req.params;
-//         const idempresa = req.idempresa;
-//         const idUsuarioLogado = req.usuario.idusuario;
-//         const body = req.body;
-
-//         console.log("BODY DO PUT STAFF", req.body);
-
-//         let client;
-//         try {
-//             client = await pool.connect();
-//             await client.query('BEGIN');
-
-//             // 1. Buscar dados antigos para gerir ficheiros
-//             const oldResult = await client.query(`
-//                 SELECT se.* FROM staffeventos se 
-//                 JOIN staffempresas sme ON se.idstaff = sme.idstaff 
-//                 WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, [idStaffEvento, idempresa]);
-            
-//             if (oldResult.rowCount === 0) throw new Error("Evento não encontrado ou sem permissão.");
-//             const old = oldResult.rows[0];
-
-//             const paths = {
-//                 cache: req.files?.comppgtocache ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : (body.limparComprovanteCache === 'true' ? null : old.comppgtocache),
-//                 ajd: req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto === 'true' ? null : old.comppgtoajdcusto),
-//                 ajd50: req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto50 === 'true' ? null : old.comppgtoajdcusto50),
-//                 cx: req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha === 'true' ? null : old.comppgtocaixinha)
-//             };
-
-//             if (req.files?.comppgtocache) deletarArquivoAntigo(old.comppgtocache);
-//             if (req.files?.comppgtoajdcusto) deletarArquivoAntigo(old.comppgtoajdcusto);
-
-//             // 2. Query de Update Corrigida
-//             const queryUpdate = `
-//                 UPDATE staffeventos se
-//                 SET
-//                 idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
-//                 idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
-//                 nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
-//                 vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18, 
-//                 vlrtotal = $19, descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
-//                 statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27, 
-//                 dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
-//                 comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
-//                 nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-//                 statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, 
-//                 statuscustofechado = $46, desccustofechado = $47, obspospgto = $48
-//                 FROM staffempresas sme
-//                 WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $49 AND sme.idempresa = $50
-//                 RETURNING se.idstaffevento;
-//             `;
-
-//             const diariaDobradaFinal = typeof body.datadiariadobrada === 'string' 
-//                 ? body.datadiariadobrada 
-//                 : JSON.stringify(body.datadiariadobrada);
-
-//             console.log("DEBUG DIARIA DOBRADA FINAL:", diariaDobradaFinal);
-
-//             const values = [
-//                 body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
-//                 body.idcliente, body.nmcliente, body.idevento, body.nmevento, body.idmontagem,
-//                 body.nmlocalmontagem, body.pavilhao,
-//                 parseFloatOrNull(body.vlrcache), parseFloatOrNull(body.vlrajustecusto), parseFloatOrNull(body.vlrtransporte),
-//                 parseFloatOrNull(body.vlralimentacao), parseFloatOrNull(body.vlrcaixinha),
-//                 body.descajustecusto, body.datasevento, parseFloatOrNull(body.vlrtotal),
-//                 body.descbeneficios, body.setor, body.statuspgto, body.statusajustecusto, body.statuscaixinha,
-//                 body.statusdiariadobrada, body.statusmeiadiaria, body.datadiariadobrada, body.datameiadiaria,
-//                 body.desccaixinha, body.descdiariadobrada, body.descmeiadiaria,
-//                 paths.cache, paths.ajd, paths.ajd50, paths.cx,
-//                 body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
-//                 body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
-//                 parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado, body.desccustofechado,
-//                 body.obspospgto,
-//                 idStaffEvento, idempresa
-//             ];
-
-//             const resUp = await client.query(queryUpdate, values);
-//             const itensFinanceiros = [
-//                 { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
-//                 { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
-//                 { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
-//                 { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: body.datadiariadobrada },
-//                 { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: body.datameiadiaria }
-//             ];
-
-//             // for (const item of itensFinanceiros) {
-//             //     if (item.status === 'Pendente') {
-//             //         await registrarSolicitacao(client, {
-//             //             idempresa,
-//             //             idorcamento: body.idorcamento,
-//             //             idfuncionario: body.idfuncionario,
-//             //             idfuncao: body.idfuncao,
-//             //             idstaffevento: idStaffEvento,
-//             //             idusuario: idUsuarioLogado,
-//             //             tiposolicitacao: item.tipo,
-//             //             categoria: item.campo,
-//             //             valor: parseFloatOrNull(item.valor),
-//             //             justificativa: item.desc,
-//             //             datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
-//             //         });
-//             //     } else if (item.status === 'Aprovado' || item.status === 'Rejeitado') {
-//             //         // Se o status mudou para algo final nesta rota, encerramos na solicitacoes
-//             //         await client.query(
-//             //             `UPDATE public.solicitacoes SET status = $1, dtresposta = CURRENT_TIMESTAMP, idusuarioresponsavel = $2 
-//             //              WHERE idregistroalterado = $3 AND categoria_log = $4 AND status = 'Pendente'`,
-//             //             [item.status, idUsuarioLogado, idStaffEvento, item.campo]
-//             //         );
-//             //     }
-//             // }
-
-//             for (const item of itensFinanceiros) {
-//                 if (item.campo === 'statusdiariadobrada' || item.campo === 'statusmeiadiaria') {
-//                     const datas = item.datas 
-//                         ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) 
-//                         : [];
-
-//                     for (const entrada of datas) {
-//                         const statusDecidido = (entrada.status || '').trim();
-//                         const dataAlvo = entrada.data;
-
-//                         if (!dataAlvo || statusDecidido === '') continue;
-
-//                         console.log(`Individualizando Diária: ${item.campo} | Data: ${dataAlvo} | Status: ${statusDecidido}`);
-
-//                         // 1. Tenta atualizar o registro individual daquela data
-              
-//                         const updateRes = await client.query(
-//                             `UPDATE public.solicitacoes 
-//                             SET 
-//                                 status = $1::character varying, 
-//                                 dtresposta = CASE 
-//                                     WHEN $1::character varying = 'Pendente' THEN NULL 
-//                                     ELSE CURRENT_TIMESTAMP 
-//                                 END, 
-//                                 idusuarioresponsavel = CASE 
-//                                     WHEN $1::character varying = 'Pendente' THEN NULL 
-//                                     ELSE $2::integer 
-//                                 END
-//                             WHERE idregistroalterado = $3 
-//                             AND categoria_log = $4::character varying 
-//                             AND idempresa = $5 
-//                             AND dtsolicitada = $6::date`, // Força o tipo DATE aqui também
-//                             [statusDecidido, idUsuarioLogado, idStaffEvento, item.campo, idempresa, dataAlvo]
-//                         );
-
-//                         // 2. Se não existia o registro para essa data específica e o status é Pendente/Autorizado, cria
-//                         if (updateRes.rowCount === 0 && (statusDecidido === 'Pendente' || statusDecidido === 'Autorizado')) {
-//                             await client.query(`
-//                                 INSERT INTO public.solicitacoes (
-//                                     idorcamento, idregistroalterado, idfuncionario, idfuncao, idempresa, 
-//                                     tiposolicitacao, status, dtsolicitacao, idusuariosolicitante, 
-//                                     categoria_log, justificativa, dtsolicitada
-//                                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, $10, $11)`,
-//                                 [
-//                                     body.idorcamento, idStaffEvento, body.idfuncionario, body.idfuncao, idempresa,
-//                                     item.tipo, statusDecidido, idUsuarioLogado, item.campo, item.desc, dataAlvo
-//                                 ]
-//                             );
-//                         }
-//                     }
-//                 }
-//                 // 2. Tratamento para campos simples (Caixinha, Ajuste, etc)
-//                 else {
-//                     // Verificação usando a PK idsolicitacao que vimos no seu pgAdmin
-//                     const checkExistencia = await client.query(
-//                         `SELECT idsolicitacao FROM public.solicitacoes 
-//                         WHERE idregistroalterado = $1 AND categoria_log = $2 AND idempresa = $3`,
-//                         [idStaffEvento, item.campo, idempresa]
-//                     );
-
-//                     if (checkExistencia.rowCount > 0) {
-//                         // Nomes corrigidos: dtresposta e vlrsolicitado
-//                         await client.query(
-//                             `UPDATE public.solicitacoes 
-//                             SET status = $1::character varying, 
-//                                 dtresposta = CASE WHEN $1::character varying = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END, 
-//                                 idusuarioresponsavel = CASE WHEN $1::character varying = 'Pendente' THEN NULL ELSE $2::integer END,
-//                                 vlrsolicitado = $6,
-//                                 justificativa = $7
-//                             WHERE idregistroalterado = $3 
-//                             AND categoria_log = $4::character varying 
-//                             AND idempresa = $5`,
-//                             [
-//                                 item.status, 
-//                                 idUsuarioLogado, 
-//                                 idStaffEvento, 
-//                                 item.campo, 
-//                                 idempresa,
-//                                 parseFloatOrNull(item.valor),
-//                                 item.desc
-//                             ]
-//                         );
-//                     } else if (['Pendente', 'Autorizado', 'Aprovado'].includes(item.status)) {
-//                         // Se não existe, cria novo registro
-//                         await registrarSolicitacao(client, {
-//                             idempresa,
-//                             idorcamento: body.idorcamento,
-//                             idfuncionario: body.idfuncionario,
-//                             idfuncao: body.idfuncao,
-//                             idstaffevento: idStaffEvento,
-//                             idusuariosolicitante: idUsuarioLogado, // Nome da coluna no seu pgAdmin
-//                             tiposolicitacao: item.tipo,
-//                             categoria: item.campo,
-//                             vlrsolicitado: parseFloatOrNull(item.valor), // Nome da coluna no seu pgAdmin
-//                             justificativa: item.desc,
-//                             datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
-//                         });
-//                     }
-//                 }
-//             }
-            
-//             await client.query('COMMIT');
-
-//             const dadosParaLog = { 
-//                 ...body, 
-//                 comppgtocache: paths.cache,
-//                 comppgtoajdcusto: paths.ajd,
-//                 comppgtoajdcusto50: paths.ajd50,
-//                 comppgtocaixinha: paths.cx
-//             };
-
-//             res.locals.acao = 'atualizou';
-//             res.locals.idregistroalterado = idStaffEvento;
-//             res.locals.dadosnovos = dadosParaLog;
-//             res.locals.dadosanteriores = JSON.parse(JSON.stringify(old));
-
-//             res.json({ message: "Atualizado", id: idStaffEvento});
-//         } catch (e) {
-//             if (client) await client.query('ROLLBACK');
-//             res.status(500).json({ error: e.message });
-//         } finally { if (client) client.release(); }
-//     }
-// );
 
 
 router.put("/:idStaffEvento", 
@@ -1368,13 +1227,15 @@ router.put("/:idStaffEvento",
                 cache:  req.files?.comppgtocache    ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}`    : (body.limparComprovanteCache      === 'true' ? null : old.comppgtocache),
                 ajd:    req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto    === 'true' ? null : old.comppgtoajdcusto),
                 ajd50:  req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto2 === 'true' ? null : old.comppgtoajdcusto50),
-                cx:     req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha     === 'true' ? null : old.comppgtocaixinha)
+                cx:     req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha     === 'true' ? null : old.comppgtocaixinha),
+                contgastos: req.files?.compcontrolegastos ? `/uploads/staff_comprovantes/${req.files.compcontrolegastos[0].filename}` : (body.limparComprovanteControleGastos     === 'true' ? null : old.compcontgastos)
             };
 
             if (req.files?.comppgtocache)     deletarArquivoAntigo(old.comppgtocache);
             if (req.files?.comppgtoajdcusto)  deletarArquivoAntigo(old.comppgtoajdcusto);
             if (req.files?.comppgtoajdcusto50)deletarArquivoAntigo(old.comppgtoajdcusto50);
             if (req.files?.comppgtocaixinha)  deletarArquivoAntigo(old.comppgtocaixinha);
+            if (req.files?.compcontrolegastos) deletarArquivoAntigo(old.compcontgastos); // ← corrigido
 
             // 2. TRATAMENTO DE VALORES E STRINGS (Recalculo)
             const parseJSON = (val) => {
@@ -1430,7 +1291,8 @@ router.put("/:idStaffEvento",
                     comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
                     nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
                     statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, 
-                    statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff)
+                    statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff),
+                    compcontgastos = $52
                 WHERE idstaffevento = $49 
                 AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $50)`,
                 [
@@ -1444,7 +1306,8 @@ router.put("/:idStaffEvento",
                     paths.cache, paths.ajd, paths.ajd50, paths.cx,
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
-                    body.statuscustofechado, body.desccustofechado, body.obspospgto, idStaffEvento, idempresa, body.statusstaff || null
+                    body.statuscustofechado, body.desccustofechado, body.obspospgto, idStaffEvento, idempresa, body.statusstaff || null,
+                    paths.contgastos
                 ]
             );
 
@@ -1711,510 +1574,6 @@ function ordenarDatas(datas) {
 }
 
 
-// router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
-//     uploadComprovantesMiddleware, 
-//     logMiddleware('staffeventos', { 
-//         buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) 
-//     }), async (req, res) => {
-    
-//     // 1. No cadastro (POST /), não existe idStaffEvento nos params ainda.
-//     const idUsuarioLogado = req.usuario.idusuario;
-//     const body = req.body;
-//     const idempresa = req.idempresa;
-
-//     const {
-//         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-//         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-//         vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
-//         vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
-//         statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
-//         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
-//         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
-//         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-//         vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto, obsgeral, ativo
-//     } = req.body;
-
-//     let client;
-
-//     try {
-//         client = await pool.connect();
-//         await client.query('BEGIN');
-
-//         // 2. Tratamento das datas (converte string do FormData para Array)
-//         let datasArray = [];
-//         try {
-//             datasArray = Array.isArray(datasevento) ? datasevento : JSON.parse(datasevento || "[]");
-//         } catch (e) { datasArray = []; }
-
-//         // --- [SUA VALIDAÇÃO DE LIMITE DE ORÇAMENTO AQUI] ---
-
-//         // 3. Verificar/Criar Staff (Tabela Base)
-//         const staffResult = await client.query(`
-//             SELECT s.idstaff FROM staff s 
-//             JOIN staffempresas se ON s.idstaff = se.idstaff 
-//             WHERE s.idfuncionario = $1 AND se.idempresa = $2`, [idfuncionario, idempresa]);
-
-//         let idstaffExistente = staffResult.rows[0]?.idstaff;
-//         if (!idstaffExistente) {
-//             const resS = await client.query(`INSERT INTO staff (idfuncionario) VALUES ($1) RETURNING idstaff`, [idfuncionario]);
-//             idstaffExistente = resS.rows[0].idstaff;
-//             await client.query(`INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)`, [idstaffExistente, idempresa]);
-//         }
-
-//         // 4. Inserir na staffeventos
-//         const queryInsert = `
-//             INSERT INTO staffeventos (
-//                 idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-//                 idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao, vlrcache, 
-//                 vlralimentacao, vlrtransporte, vlrajustecusto, vlrcaixinha, descajustecusto,
-//                 datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
-//                 descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha,
-//                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
-//                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
-//                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-//                 statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, 
-//                 desccustofechado, obspospgto, obsgeral, ativo
-//             ) VALUES (
-//                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
-//                 $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,
-//                 $49,$50,$51
-//             ) RETURNING idstaffevento;
-//         `;
-
-//         const values = [
-//             idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-//             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-//             parseFloatOrNull(vlrcache), parseFloatOrNull(vlralimentacao),
-//             parseFloatOrNull(vlrtransporte), parseFloatOrNull(vlrajustecusto), parseFloatOrNull(vlrcaixinha),
-//             descajustecusto, JSON.stringify(datasArray), parseFloatOrNull(vlrtotal),
-//             req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
-//             req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
-//             req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
-//             descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada,
-//             statusmeiadiaria, datadiariadobrada,
-//             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
-//             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
-//             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-//             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral, ativo === 'false' ? false : true
-//         ];
-
-//         const resIns = await client.query(queryInsert, values);
-//         const novoIdStaffEvento = resIns.rows[0].idstaffevento;
-
-//         // 5. REGISTRAR SOLICITAÇÕES FINANCEIRAS (Se houver campos pendentes)
-//         const itensFinanceiros = [
-//             { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
-//             { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
-//             { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
-//             { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: body.datadiariadobrada },
-//             { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: body.datameiadiaria }
-//         ];
-
-//         for (const item of itensFinanceiros) {
-//             if (item.status === 'Pendente') {
-//                 await registrarSolicitacao(client, {
-//                     idempresa,
-//                     idorcamento: body.idorcamento,
-//                     idfuncionario: body.idfuncionario,
-//                     idfuncao: body.idfuncao,
-//                     idstaffevento: novoIdStaffEvento, // Usa o ID que acabamos de criar
-//                     idusuario: idUsuarioLogado,
-//                     tiposolicitacao: item.tipo,
-//                     categoria: item.campo,
-//                     valor: parseFloatOrNull(item.valor),
-//                     justificativa: item.desc,
-//                     datas: item.datas ? (typeof item.datas === 'string' ? JSON.parse(item.datas) : item.datas) : null
-//                 });
-//             }
-//         }
-
-//         await client.query('COMMIT');
-
-//         res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = resIns.rows[0].idstaffevento;
-//         res.locals.dadosnovos = {...req.body,
-//             idstaffevento: resIns.rows[0].idstaffevento,
-//             ativo: ativo === 'false' ? false : true,           
-//             datasevento: datasArray, // Garante o array tratado e não a string crua do FormData
-//             comprovantes: { // Salva os caminhos exatos dos arquivos gerados, se existirem
-//                 comppgtocache: req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
-//                 comppgtoajdcusto: req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
-//                 comppgtocaixinha: req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
-//                 comppgtoajdcusto50: req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null
-//             }
-//         };
-
-//         res.status(201).json({ sucesso: true, message: "Sucesso", idstaffevento: novoIdStaffEvento });
-
-//     } catch (e) {
-//         if (client) await client.query('ROLLBACK');
-//         console.error("Erro ao salvar staff:", e);
-//         res.status(500).json({ sucesso: false, error: e.message });
-//     } finally { 
-//         if (client) client.release(); 
-//     }
-// });
-
-
-// router.post('/aditivoextra/solicitacao', 
-//   autenticarToken(), 
-//   contextoEmpresa, 
-//   verificarPermissao('staff', 'cadastrar'), 
-
-//   logMiddleware('aditivoextra', { 
-//     buscarDadosAnteriores: async (req) => {
-//       return { dadosanteriores: null, idregistroalterado: null };
-//     }
-//   }),
-
-//   async (req, res) => {
-//     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
-
-//     const { 
-//       idOrcamento, 
-//       idFuncao, 
-//       qtdSolicitada, 
-//       tipoSolicitacao, 
-//       justificativa, 
-//       idFuncionario,
-//       dataSolicitada,
-//       idEventoSolicitado,    
-//       idEventoConflitante    
-      
-//     } = req.body; 
-
-//     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
-//     const idUsuarioSolicitante = req.usuario?.idusuario; 
-//     const statusInicial = 'Pendente';
-
-//    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
-//     ? dataSolicitada.split(',').map(d => d.trim()) 
-//     : null;
-
-    
-
-//     // Se idEvento vier como um objeto vazio {} como mostra o seu log, tratamos também
-//     // const idEventoTratado = (typeof idEvento === 'object' && Object.keys(idEvento).length === 0) || idEvento === '' 
-//     //     ? null 
-//     //     : idEvento;
-
-//     const idFuncionarioTratado = (idFuncionario === '' || idFuncionario === 'undefined') ? null : idFuncionario;
-
-//     const idEventoSolicitadoTratado = (idEventoSolicitado === '' || idEventoSolicitado === 'undefined' || idEventoSolicitado == null) ? null : idEventoSolicitado;
-//     const idEventoConflitanteTratado = (idEventoConflitante === '' || idEventoConflitante === 'undefined' || idEventoConflitante == null) ? null : idEventoConflitante;
-
-//     // 1. Validações de Contexto
-//     if (!idUsuarioSolicitante || !idEmpresaContexto) {
-//         return res.status(401).json({ 
-//             sucesso: false, 
-//             erro: "Usuário ou Empresa não identificados no contexto da requisição." 
-//         });
-//     }
-
-//     // 2. Validação de Campos Obrigatórios
-//     let campoFaltante = null;
-//     if (!idOrcamento) campoFaltante = 'idOrcamento';
-//     else if (!idFuncao) campoFaltante = 'idFuncao';
-//     else if (!qtdSolicitada) campoFaltante = 'qtdSolicitada';
-//     else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
-//     else if (!justificativa) campoFaltante = 'justificativa';
-    
-
-//     if (campoFaltante) { 
-//         return res.status(400).json({ 
-//             sucesso: false,
-//             erro: `O campo obrigatório **${campoFaltante}** está faltando.` 
-//         });
-//     }
-
-//     // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
-//     // const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
-//     // const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
-//     //     ? dataTratada 
-//     //     : null;
-
-//     // 4. Verificação de Duplicidade (CORRIGIDA)
-//     try {
-//         const checkDuplicidade = await pool.query(`
-//             SELECT idAditivoExtra FROM AditivoExtra 
-//             WHERE idOrcamento = $1 
-//               AND idFuncionario = $2 
-//               AND idFuncao = $3 
-//               AND tipoSolicitacao = $4 
-//               --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
-//               AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
-//               AND idEmpresa = $6
-//               AND status = 'Pendente'
-//         `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
-
-//         if (checkDuplicidade.rows.length > 0) {
-//             return res.status(409).json({ 
-//                 sucesso: false, 
-//                 erro: "Já existe uma solicitação pendente idêntica para este funcionário." 
-//             });
-//         }
-
-//         // 5. Inserção no Banco
-//         const queryInsert = `
-//             INSERT INTO AditivoExtra (
-//               idOrcamento, idFuncao, idEmpresa, tipoSolicitacao, 
-//               qtdSolicitada, justificativa, idUsuarioSolicitante,
-//               status, idFuncionario, dtSolicitada, ideventosolicitado, ideventoconflitante
-//             )
-//             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-//             RETURNING idAditivoExtra;
-//         `;
-
-//         const values = [
-//           idOrcamento, 
-//           idFuncao, 
-//           idEmpresaContexto, 
-//           tipoSolicitacao, 
-//           qtdSolicitada, 
-//           justificativa, 
-//           idUsuarioSolicitante,
-//           statusInicial,
-//           idFuncionarioTratado || null,
-//           dataParaBanco,
-//           idEventoSolicitadoTratado,
-//           idEventoConflitanteTratado
-//         ];
-
-//         const resultado = await pool.query(queryInsert, values);
-//         const idAditivoExtra = resultado.rows[0].idaditivoextra;
-
-//         // Log de Auditoria
-//         if (req.logData && logMiddleware.salvarLog) {
-//           req.logData.idregistroalterado = idAditivoExtra;
-//           await logMiddleware.salvarLog(req.logData); 
-//         }
-
-//         res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = idAditivoExtra;
-//         res.locals.dadosnovos = { // ❌ Estava faltando
-//             idAditivoExtra,
-//             idOrcamento,
-//             idFuncao,
-//             tipoSolicitacao,
-//             qtdSolicitada,
-//             justificativa,
-//             idFuncionario: idFuncionarioTratado,
-//             dataSolicitada: dataParaBanco,
-//             idEventoSolicitado: idEventoSolicitadoTratado,
-//             idEventoConflitante: idEventoConflitanteTratado,
-//             status: statusInicial
-//         };
-
-//         res.status(201).json({ 
-//           sucesso: true, 
-//           mensagem: `Solicitação salva com sucesso.`,
-//           idAditivoExtra: idAditivoExtra
-//         });
-
-//     } catch (error) {
-//         console.error("❌ Erro ao processar AditivoExtra:", error.message);
-//         res.status(500).json({ 
-//             sucesso: false, 
-//             erro: "Erro interno ao processar a solicitação.",
-//             detalhe: error.message 
-//         });
-//     }
-// });
-
-// router.post('/aditivoextra/solicitacao', 
-//   autenticarToken(), 
-//   contextoEmpresa, 
-//   verificarPermissao('staff', 'cadastrar'), 
-//   logMiddleware('aditivoextra', { 
-//     buscarDadosAnteriores: async (req) => {
-//       return { dadosanteriores: null, idregistroalterado: null };
-//     }
-//   }),
-
-//   async (req, res) => {
-//     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
-
-//     const { 
-//       idOrcamento, idFuncao, qtdSolicitada, tipoSolicitacao, 
-//       justificativa, idFuncionario, dataSolicitada, idregistroalterado,
-//       idEventoSolicitado, idEventoConflitante, vlrSolicitado, categoria_log
-//     } = req.body; 
-
-//     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
-//     const idUsuarioSolicitante = req.usuario?.idusuario; 
-//     const statusInicial = 'Pendente';
-
-// //    const dataParaBanco = (dataSolicitada && dataSolicitada !== 'undefined' && String(dataSolicitada).trim() !== "") 
-// //       ? JSON.stringify(dataSolicitada.split(',').map(d => d.trim()))
-// //       : null;
-
-//     // const dataParaBanco = (dataSolicitada && String(dataSolicitada).trim() !== "" && dataSolicitada !== 'undefined') 
-//     //     ? JSON.stringify(dataSolicitada.split(',').map(d => d.trim()))
-//     //     : null;
-
-//     // Remova o JSON.stringify. O driver 'pg' converte arrays JS em arrays Postgres automaticamente.
-//    // O driver 'pg' converte automaticamente ['2026-04-01'] para {2026-04-01}
-//     const dataParaBanco = (dataSolicitada && String(dataSolicitada).trim() !== "" && dataSolicitada !== 'undefined') 
-//         ? dataSolicitada.split(',').map(d => d.trim()) 
-//         : null;
-
-//     const idFuncionarioTratado = (idFuncionario === '' || idFuncionario === 'undefined') ? null : idFuncionario;
-//     const idEventoSolicitadoTratado = (!idEventoSolicitado || idEventoSolicitado === 'undefined') ? null : idEventoSolicitado;
-//     const idEventoConflitanteTratado = (!idEventoConflitante || idEventoConflitante === 'undefined') ? null : idEventoConflitante;
-
-//     const idregistroalteradoTratado = (!idregistroalterado || idregistroalterado === '' || idregistroalterado === 'undefined')
-//      ? (idEventoSolicitadoTratado || null)
-//      : idregistroalterado; // Se idregistroalterado não for fornecido, tente usar os eventos como referência
-
-//     if (!idUsuarioSolicitante || !idEmpresaContexto) {
-//       return res.status(401).json({ sucesso: false, erro: "Usuário ou Empresa não identificados." });
-//     }
-
-//     let campoFaltante = null;
-//     if (!idOrcamento) campoFaltante = 'idOrcamento';
-//     else if (!idFuncao) campoFaltante = 'idFuncao';
-//     else if (!qtdSolicitada && !vlrSolicitado) campoFaltante = 'qtdSolicitada ou vlrSolicitado';
-//     else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
-//     else if (!justificativa) campoFaltante = 'justificativa';
-
-//     if (campoFaltante) { 
-//       return res.status(400).json({ sucesso: false, erro: `O campo obrigatório **${campoFaltante}** está faltando.` });
-//     }
-
-//     // // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
-//     // const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
-//     // const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
-//     //     ? dataTratada 
-//     //     : null;
-
-//     // 4. Verificação de Duplicidade (CORRIGIDA)
-//     try {
-//         // const checkDuplicidade = await pool.query(`
-//         //     SELECT idAditivoExtra FROM AditivoExtra 
-//         //     WHERE idOrcamento = $1 
-//         //       AND idFuncionario = $2 
-//         //       AND idFuncao = $3 
-//         //       AND tipoSolicitacao = $4 
-//         //       --AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
-//         //       --AND (dtsolicitada = ANY($5::date[]) OR (dtsolicitada IS NULL AND $5 IS NULL))
-//         //       --AND (dtsolicitada && $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
-//         //       AND (dtsolicitada::jsonb = $5::jsonb OR (dtsolicitada IS NULL AND $5 IS NULL))
-//         //       AND idEmpresa = $6
-//         //       AND status = 'Pendente'
-//         // `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
-
-//         const checkDuplicidade = await pool.query(`
-//             SELECT idsolicitacao FROM solicitacoes 
-//             WHERE idOrcamento = $1 
-//             AND (idFuncionario = $2 OR (idFuncionario IS NULL AND $2 IS NULL))
-//             AND idFuncao = $3 
-//             AND tipoSolicitacao = $4 
-//             -- Comparação de Arrays nativos
-//             AND (dtsolicitada = $5::date[] OR (dtsolicitada IS NULL AND $5 IS NULL))
-//             AND idEmpresa = $6
-//             AND (idregistroalterado = $7 OR (idregistroalterado IS NULL AND $7 IS NULL))
-//             AND status = 'Pendente'
-//         `, [idOrcamento, idFuncionarioTratado, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto, idregistroalteradoTratado]);
-
-//       if (checkDuplicidade.rows.length > 0) {
-//         return res.status(409).json({ sucesso: false, erro: "Solicitação Duplicada:Já existe uma solicitação pendente idêntica." });
-//       }
-
-//       // ✅ INSERT na tabela solicitacoes
-//       // 1. A QUERY (Ajustada com as vírgulas que faltavam e ordem lógica)
-//         // const queryInsert = `
-//         //     INSERT INTO public.solicitacoes (
-//         //         idorcamento,            -- $1
-//         //         idfuncionario,          -- $2
-//         //         idfuncao,               -- $3
-//         //         idempresa,              -- $4
-//         //         tiposolicitacao,        -- $5
-//         //         qtdsolicitada,          -- $6
-//         //         vlrsolicitado,          -- $7
-//         //         status,                 -- $8
-//         //         justificativa,          -- $9
-//         //         idusuariosolicitante,   -- $10
-//         //         dtsolicitada,           -- $11
-//         //         ideventosolicitado,     -- $12
-//         //         ideventoconflitante,    -- $13
-//         //         categoria_log,          -- $14
-//         //         dtsolicitacao           -- (Automático pelo Banco se omitido, ou use DEFAULT)
-//         //     )
-//         //     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
-//         //     RETURNING idsolicitacao;
-//         // `;
-
-//         const queryInsert = `
-//             INSERT INTO public.solicitacoes (
-//                 idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao, 
-//                 qtdsolicitada, vlrsolicitado, status, justificativa, 
-//                 idusuariosolicitante, dtsolicitada, ideventosolicitado, 
-//                 ideventoconflitante, categoria_log, idregistroalterado
-//             )
-//             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, $13, $14, $15)
-//             RETURNING idsolicitacao;
-//         `;
-
-//         // 2. OS VALUES (Mapeados exatamente na ordem acima)
-//         const values = [
-//             idOrcamento,                        // $1
-//             idFuncionarioTratado || null,       // $2
-//             idFuncao,                           // $3
-//             idEmpresaContexto,                  // $4
-//             tipoSolicitacao,                    // $5
-//             qtdSolicitada || 1,                 // $6
-//             vlrSolicitado || 0,                 // $7
-//             statusInicial || 'Pendente',        // $8
-//             justificativa,                      // $9
-//             idUsuarioSolicitante,               // $10
-//             dataParaBanco,                      // $11 (O array de datas em formato JSON)
-//             idEventoSolicitadoTratado || null,  // $12
-//             idEventoConflitanteTratado || null, // $13
-//             categoria_log,                      // $14
-//             idregistroalteradoTratado || null          // $15 (Para vincular a um registro específico, se necessário)
-//         ];
-
-//       const resultado = await pool.query(queryInsert, values);
-//       const idSolicitacao = resultado.rows[0].idsolicitacao;
-
-//       if (req.logData && logMiddleware.salvarLog) {
-//         req.logData.idregistroalterado = idregistroalteradoTratado || null;
-//         await logMiddleware.salvarLog(req.logData); 
-//       }
-
-//       res.locals.acao = 'cadastrou';
-//       res.locals.idregistroalterado = idregistroalteradoTratado || null;
-//       res.locals.dadosnovos = {
-//         idSolicitacao, idOrcamento, idFuncao, tipoSolicitacao,
-//         qtdSolicitada, vlrSolicitado, justificativa,
-//         idFuncionario: idFuncionarioTratado,
-//         dataSolicitada: dataParaBanco,
-//         idEventoSolicitado: idEventoSolicitadoTratado,
-//         idEventoConflitante: idEventoConflitanteTratado,
-//         status: statusInicial
-//       };
-
-//       res.status(201).json({ 
-//         sucesso: true, 
-//         mensagem: `Solicitação salva com sucesso.`,
-//         idSolicitacao
-//       });
-
-//     } catch (error) {
-//       console.error("❌ Erro AditivoExtra | message:", error.message);
-//       console.error("❌ Erro AditivoExtra | code:", error.code);
-//       console.error("❌ Erro AditivoExtra | detail:", error.detail);
-      
-//       res.status(500).json({ 
-//         sucesso: false, 
-//         erro: "Erro interno ao processar a solicitação.",
-//         detalhe: error.message,
-//         code: error.code,
-//         detail: error.detail
-//       });
-//     }
-// });
-
 
 
 router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'cadastrar'), 
@@ -2287,11 +1646,11 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
                 statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, 
-                desccustofechado, obspospgto, obsgeral, statusstaff
+                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos
             ) VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
                 $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,
-                $49,$50,$51
+                $49,$50,$51,$52
             ) RETURNING idstaffevento;
         `;
 
@@ -2311,7 +1670,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral, 
             //ativo === 'false' ? false : true
-            statusStaff
+            statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -2344,14 +1703,33 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         // 🎯 5. VÍNCULO DE ADITIVO / EXTRA (Se salvo como Inativo)
         //if (!isAtivo && tipoSolicitacaoAditivo) {
         if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
+            // let datasSolicitadasArray = [];
+            // try {
+            //     // Se o frontend enviou datasExcecao, usa elas. Se não, usa o datasArray (completo).
+            //     const fonteDatas = datasExcecao || datasevento;
+            //     datasSolicitadasArray = Array.isArray(fonteDatas) ? fonteDatas : JSON.parse(fonteDatas || "[]");
+            // } catch (e) { 
+            //     datasSolicitadasArray = datasArray; // Fallback para o array completo em caso de erro
+            // }
+
             let datasSolicitadasArray = [];
             try {
-                // Se o frontend enviou datasExcecao, usa elas. Se não, usa o datasArray (completo).
-                const fonteDatas = datasExcecao || datasevento;
-                datasSolicitadasArray = Array.isArray(fonteDatas) ? fonteDatas : JSON.parse(fonteDatas || "[]");
+                // Usa datasExcecao se vier do frontend, senão usa o datasArray já parseado no passo 1
+                const fonteDatas = datasExcecao 
+                    ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
+                    : datasArray; // ← já está parseado e seguro
+                
+                // Garante que as datas estejam no formato YYYY-MM-DD (sem timestamp),
+                // pois o campo é date[] no Postgres
+                datasSolicitadasArray = fonteDatas
+                    .filter(d => d) // remove nulls/undefined
+                    .map(d => String(d).split('T')[0]); // remove timezone/time part
+                    
             } catch (e) { 
-                datasSolicitadasArray = datasArray; // Fallback para o array completo em caso de erro
+                console.warn("⚠️ Falha ao processar datas para solicitação, usando datasArray:", e.message);
+                datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
             }
+            console.log("📅 datasSolicitadasArray para INSERT:", datasSolicitadasArray);
 
             const queryAditivo = `
                 INSERT INTO public.solicitacoes (
@@ -2417,18 +1795,23 @@ router.get('/aditivoextra/verificar-status',
 
             if (tipoSolicitacao === 'FuncExcedido') {
                 const paramsFE = [idEmpresa, idFuncionario];
-                let filtroData = "";
+                let filtroDataExcedida = "";
 
                 if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
                     const arrayDatas = dataSolicitada.split(',').map(d => d.trim());
                     paramsFE.push(arrayDatas);
-                    filtroData = ` AND (s.dtsolicitada && $${paramsFE.length}::date[])`;
+                    filtroDataExcedida = ` AND (s.dtsolicitada && $${paramsFE.length}::date[])`;
                 }
 
                 // BUSCA 1: Solicitação IDÊNTICA (mesmo evento + mesma função + mesma data)
                 // Para bloquear completamente
                 const paramsDuplicata = [...paramsFE];
-                let filtroDuplicata = filtroData;
+                let filtroDuplicata = filtroDataExcedida;
+
+                if (idOrcamento) {
+                    paramsDuplicata.push(idOrcamento);
+                    filtroDuplicata += ` AND s.idorcamento = $${paramsDuplicata.length}`;
+                }
 
                 if (idEventoSolicitado) {
                     paramsDuplicata.push(idEventoSolicitado);
@@ -2446,7 +1829,7 @@ router.get('/aditivoextra/verificar-status',
                     LEFT JOIN funcionarios f ON s.idfuncionario = f.idfuncionario        
                     LEFT JOIN eventos e ON e.idevento = s.ideventosolicitado
                     WHERE s.idEmpresa = $1
-                    AND s.idfuncionario = $2
+                    AND s.idfuncionario = $2             
                     AND s.tipoSolicitacao ILIKE '%FuncExcedido%'
                     AND s.status = 'Pendente'
                     AND s.ideventosolicitado IS NOT NULL   
@@ -2454,6 +1837,10 @@ router.get('/aditivoextra/verificar-status',
                     ORDER BY s.dtSolicitacao DESC LIMIT 1
                 `;
 
+                console.log("🔍 Query de Verificação de Duplicata (FuncExcedido):", queryDuplicata);
+                const paramsGeral = [...paramsFE];
+                paramsGeral.push(idOrcamento);
+                const idxOrcamento = paramsGeral.length;
                 const resultDuplicata = await pool.query(queryDuplicata, paramsDuplicata);
                 const solicitacaoDuplicada = resultDuplicata.rows[0] || null;
 
@@ -2464,16 +1851,19 @@ router.get('/aditivoextra/verificar-status',
                     ev.nmevento AS "nmeventosolicitado"
                     FROM solicitacoes s
                     LEFT JOIN funcionarios f ON s.idfuncionario = f.idfuncionario
-                    LEFT JOIN eventos ev ON ev.idevento = s.ideventosolicitado
+                    LEFT JOIN eventos ev ON ev.idevento = s.ideventosolicitado  
                     WHERE s.idEmpresa = $1
-                    AND s.idfuncionario = $2
+                    AND s.idfuncionario = $2   
+                    AND s.idorcamento = $${idxOrcamento}        
                     AND s.tipoSolicitacao ILIKE '%FuncExcedido%'
-                    AND s.status IN ('Pendente', 'Autorizado')
-                    ${filtroData}
+                    AND s.status IN ('Pendente', 'Autorizado')                   
+                    ${filtroDataExcedida}
                     ORDER BY s.dtSolicitacao DESC LIMIT 1
                 `;
 
-                const resultGeral = await pool.query(queryGeral, paramsFE);
+                console.log("🔍 Query de Verificação Geral (FuncExcedido):", queryGeral);
+
+                const resultGeral = await pool.query(queryGeral, paramsGeral);
                 const solicitacaoGeral = resultGeral.rows[0] || null;
                 
                 return res.json({
@@ -2481,8 +1871,14 @@ router.get('/aditivoextra/verificar-status',
                     dados: {
                         solicitacaoDuplicada,           // ← mesma data + mesmo evento + mesma função = BLOQUEAR
                         solicitacaoRecente: solicitacaoGeral, // ← mesma data, qualquer evento = AVISAR
-                        autorizadoEspecifico: solicitacaoGeral?.status === 'Autorizado' && 
-                                            String(solicitacaoGeral?.ideventosolicitado) === String(idEventoSolicitado),
+                        //autorizadoEspecifico: solicitacaoGeral?.status === 'Autorizado' && 
+                        //                    String(solicitacaoGeral?.ideventosolicitado) === String(idEventoSolicitado), 
+                        autorizadoEspecifico: solicitacaoGeral?.status === 'Autorizado' &&
+                            String(solicitacaoGeral?.idorcamento) === String(idOrcamento) &&
+                            (
+                                String(solicitacaoGeral?.ideventosolicitado) === String(idEventoSolicitado) ||
+                                String(solicitacaoGeral?.ideventoconflitante) === String(idEventoConflitante)
+                            ),
                         totaisFuncao: null
                     }
                 });
@@ -2503,11 +1899,11 @@ router.get('/aditivoextra/verificar-status',
                 params.push(tipoSolicitacao);
             }
 
-            let filtroData = "";
+            let filtroDataPadrao = "";
             if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
                 const dataIndex = params.length + 1;
                 const arrayDatas = dataSolicitada.split(',').map(d => d.trim());
-                filtroData = ` AND (s.dtsolicitada && $${dataIndex}::date[] OR s.dtsolicitada IS NULL)`;
+                filtroDataPadrao = ` AND (s.dtsolicitada && $${dataIndex}::date[] OR s.dtsolicitada IS NULL)`;
                 params.push(arrayDatas);
             }
 
@@ -2524,7 +1920,7 @@ router.get('/aditivoextra/verificar-status',
                 LEFT JOIN funcionarios f ON s.idfuncionario = f.idfuncionario
                 WHERE s.idOrcamento = $1 AND s.idFuncao = $2 AND s.idEmpresa = $3
                 ${filtroTipo}
-                ${filtroData}
+                ${filtroDataPadrao}
                 ${filtroEvento}
                 ORDER BY s.dtSolicitacao DESC LIMIT 1;
             `;
