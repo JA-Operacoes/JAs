@@ -2399,17 +2399,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                                      categoria.toLowerCase().includes('extra');
 
             // 3. TRATAMENTO PARA ADITIVOS
-            if (isAditivoOuExtra && !colunaDB) {
-
-                // if (statusParaAtualizar === 'Autorizado') {
-                //     await pool.query(`
-                //         UPDATE staffeventos
-                //         SET ativo = true
-                //         WHERE (idstaffevento = $1 
-                //             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-                //         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-                //     `, [idpedido, idempresa]);
-                // }
+            if (isAditivoOuExtra && !colunaDB) {               
 
                 if (statusParaAtualizar === 'Autorizado') {
                     await pool.query(`
@@ -2419,22 +2409,93 @@ router.post('/notificacoes-financeiras/atualizar-status',
                             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
                         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
                     `, [idpedido, idempresa]);
+                
+
+                // } else if (statusParaAtualizar === 'Rejeitado') {
+                //     await pool.query(`
+                //         UPDATE staffeventos
+                //         SET 
+                //             statusstaff = 'Ativo',
+                //             datasevento = (
+                //                 SELECT jsonb_agg(elem)
+                //                 FROM jsonb_array_elements(
+                //                     (SELECT se2.datasevento 
+                //                     FROM staffeventos se2 
+                //                     WHERE se2.idstaffevento = staffeventos.idstaffevento)
+                //                 ) AS elem
+                //                 WHERE elem #>> '{}' NOT IN (
+                //                     SELECT TO_CHAR(d, 'YYYY-MM-DD')
+                //                     FROM unnest(
+                //                         (SELECT dtsolicitada FROM solicitacoes WHERE idsolicitacao = $1)
+                //                     ) AS d
+                //                 )
+                //             )
+                //         WHERE idstaffevento = (
+                //             SELECT idregistroalterado 
+                //             FROM solicitacoes 
+                //             WHERE idsolicitacao = $1
+                //             LIMIT 1
+                //         )
+                //         AND EXISTS (
+                //             SELECT 1 FROM staffempresas sem 
+                //             WHERE sem.idstaff = staffeventos.idstaff 
+                //             AND sem.idempresa = $2
+                //         )
+                //     `, [idpedido, idempresa]);
+                // }
+
                 } else if (statusParaAtualizar === 'Rejeitado') {
-                    // Rejeitado volta para Inativo (mantém histórico mas não ocupa vaga)
                     await pool.query(`
-                        UPDATE staffeventos
-                        SET statusstaff = 'Inativo'
-                        WHERE (idstaffevento = $1 
-                            OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-                        AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
+                        WITH dados AS (
+                            SELECT 
+                                se.idstaffevento,
+                                se.datasevento,
+                                se.obsgeral,
+                                (
+                                    SELECT jsonb_agg(elem)
+                                    FROM jsonb_array_elements(se.datasevento) AS elem
+                                    WHERE elem #>> '{}' NOT IN (
+                                        SELECT TO_CHAR(d, 'YYYY-MM-DD')
+                                        FROM unnest(
+                                            (SELECT dtsolicitada FROM solicitacoes WHERE idsolicitacao = $1)
+                                        ) AS d
+                                    )
+                                ) AS novas_datas
+                            FROM staffeventos se
+                            WHERE se.idstaffevento = (
+                                SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1
+                            )
+                        )
+                        UPDATE staffeventos se
+                        SET
+                            datasevento = CASE 
+                                WHEN dados.novas_datas IS NULL THEN dados.datasevento
+                                ELSE dados.novas_datas
+                            END,
+                            statusstaff = CASE 
+                                WHEN dados.novas_datas IS NULL THEN 'Deletado'
+                                ELSE 'Ativo'
+                            END,
+                            obsgeral = CASE 
+                                WHEN dados.novas_datas IS NULL 
+                                    THEN COALESCE(dados.obsgeral, '') || ' | Deletado por solicitação REJEITADA (data única).'
+                                ELSE dados.obsgeral
+                            END
+                        FROM dados
+                        WHERE se.idstaffevento = dados.idstaffevento
+                        AND EXISTS (
+                            SELECT 1 FROM staffempresas sem 
+                            WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2
+                        )
                     `, [idpedido, idempresa]);
                 }
 
                 return res.json({ 
                     sucesso: true, 
-                    mensagem: `Solicitação de Aditivo/Extra atualizada para ${statusParaAtualizar}`,
-                    idlog_origem 
+                    mensagem: `Aditivo ${statusParaAtualizar} com sucesso.` 
                 });
+
+   
             }
 
             // Se não for aditivo e não estiver no mapa, é um erro de categoria
@@ -2537,9 +2598,13 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             res.json({ sucesso: true, atualizado: finalResult.rows[0], idlog_origem, categoria });
 
-        } catch (err) {
-            console.error('Erro:', err);
-            res.status(500).json({ error: 'Erro interno' });
+        // } catch (err) {
+        //     console.error('Erro:', err);
+        //     res.status(500).json({ error: 'Erro interno' });
+        // }
+        } catch (dbError) {
+            console.error('ERRO NO BANCO DE DADOS:', dbError.message);
+            return res.status(500).json({ error: 'Erro ao processar atualização no banco de dados', detalhe: dbError.message });
         }
     }
 );

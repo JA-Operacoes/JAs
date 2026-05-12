@@ -2619,7 +2619,8 @@ function abrirDetalhesEquipe(equipe, evento) {
         // A função só é considerada "Realmente Completa" se os CONFIRMADOS atingirem o total
         const concluido = total > 0 && confirmados >= total;
 
-        console.log(`DEBUG ${func.nome}: Total=${total}, Geral=${preenchidas}, Pend=${pendentes}, Conf=${confirmados}`);
+        const bloqueadoPorPendente = !concluido && (confirmados + pendentes) >= total && pendentes > 0;
+    console.log(`DEBUG ${func.nome}: Total=${total}, Confirmados=${confirmados}, Pendentes=${pendentes}, Concluido=${concluido}, BloqueadoPorPendente=${bloqueadoPorPendente}`);
 
         const li = document.createElement("li");
         li.className = "funcao-item";
@@ -2634,6 +2635,15 @@ function abrirDetalhesEquipe(equipe, evento) {
         }
         htmlEstado += `</div>`;
 
+        let htmlBotao;
+        if (concluido) {
+            htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+        } else if (bloqueadoPorPendente) {
+            htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Aguarde a autorização ou rejeição do(s) funcionário(s) pendente(s)">🔒 Vagas Ocupadas</span>';
+        } else {
+            htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+        }
+
         li.innerHTML = `
             <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <div class="func-nome" style="flex: 1;">
@@ -2642,27 +2652,24 @@ function abrirDetalhesEquipe(equipe, evento) {
                 </div>
                 ${htmlEstado}
                 <div class="func-detalhes" style="margin-left: 15px; min-width: 100px; text-align: right;">
-                    ${concluido 
-                        ? '<span style="color: green; font-weight: bold;">✅ Completa</span>' 
-                        : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-                    }
+                    ${htmlBotao}
                 </div>
             </div>
         `;
 
     // Se não estiver concluído, precisamos adicionar o listener ao botão.
-    if (!concluido) {
+    if (!concluido && !bloqueadoPorPendente) {
         const botao = li.querySelector(".btn-abrir-staff");
         if (botao) {
             botao.addEventListener("click", (e) => {
-                e.stopPropagation(); // evita conflito com o clique no <li>
+                e.stopPropagation();
                 abrirStaffModal();
             });
         }
     }
 
     function abrirStaffModal() {
-        if (concluido) return;
+        if (concluido || bloqueadoPorPendente) return;
 
         const params = new URLSearchParams();
 
