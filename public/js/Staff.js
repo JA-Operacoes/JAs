@@ -6191,11 +6191,14 @@ async function verificaStaff() {
                         if (typeof fecharModal === "function") {
                             fecharModal();
                         } else {
-                            const modalCont = document.getElementById("modal-container");
-                            if (modalCont) modalCont.innerHTML = "";
-                            const overlay = document.getElementById("modal-overlay");
-                            if (overlay) overlay.style.display = "none";
+                            document.getElementById("modal-container").innerHTML = "";
+                            document.getElementById("modal-overlay").style.display = "none";
                             document.body.classList.remove("modal-open");
+                            if (typeof window.onStaffModalClosed === 'function') {
+                                const callback = window.onStaffModalClosed;
+                                window.onStaffModalClosed = null;
+                                callback(true); 
+                            }
                         }
                     }
                 }
@@ -11826,7 +11829,6 @@ function registrarLogPosPagamento(msg) {
             minute: '2-digit' 
         });
         
-        const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
         const novaEntrada = `[${dataHora}] ${msg} - Valores refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO\n`;
 
         // Só adiciona se a mensagem exata ainda não existir para esta ação
