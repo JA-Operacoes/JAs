@@ -64,6 +64,7 @@ async function listarPermissoesPorUsuario(req, res) {
       master: !!row.master,
       financeiro: !!row.financeiro,
       supremo: !!row.supremo,
+      comercial: !!row.comercial,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -76,26 +77,27 @@ async function listarPermissoesPorUsuario(req, res) {
 }
 
 async function cadastrarOuAtualizarPermissoes(req, res) {
-  console.log("ENTROU NA ROTA CADASTRAR PERMISSAO", req.body, req.headers);
   const {
     idusuario, 
     modulo,
     acesso,
-    cadastrar,
-    alterar,
-    pesquisar,
+    cadastrar, 
+    alterar, 
+    pesquisar, 
     apagar,
-    master,
-    financeiro,
-    supremo    
+    master, 
+    financeiro, 
+    supremo, 
+    comercial,
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
+  const idempresa = req.headers.idempresa; 
 
+  console.log("ENTROU NA ROTA CADASTRAR PERMISSAO", req.body, req.headers);
   console.log("ATIVO", ativo);
   
 
-  const idempresa = req.headers.idempresa; 
 
   // if (!idusuario || !modulo || !Array.isArray(empresas) || empresas.length === 0) {
   //   return res.status(400).json({ erro: 'Dados inválidos ou incompletos.' });
@@ -125,10 +127,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8
-          WHERE idusuario = $9 AND modulo = $10 AND idempresa = $11
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9
+          WHERE idusuario = $10 AND modulo = $11 AND idempresa = $12
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -137,10 +139,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idempresa)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }
