@@ -25,7 +25,8 @@ const outrasPermissoes = [
     document.getElementById('Apagar'),
     document.getElementById('Master'),
     document.getElementById('Financeiro'),
-    document.getElementById('AdminSupremo')
+    document.getElementById('AdminSupremo'),
+    document.getElementById('Comercial')
 ];
 
 
@@ -1523,14 +1524,15 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   // Permissões atuais
   const atuais = {
     modulo,
-    acesso:    document.getElementById("Acesso").checked,
-    cadastrar: document.getElementById("Cadastrar").checked,
-    alterar:   document.getElementById("Alterar").checked,
-    pesquisar: document.getElementById("Pesquisar").checked,
-    apagar:    document.getElementById("Apagar").checked,
-    master:    document.getElementById("Master").checked,
-    financeiro:document.getElementById("Financeiro").checked,
-    supremo:   document.getElementById("AdminSupremo").checked    
+    acesso:       document.getElementById("Acesso").checked,
+    cadastrar:    document.getElementById("Cadastrar").checked,
+    alterar:      document.getElementById("Alterar").checked,
+    pesquisar:    document.getElementById("Pesquisar").checked,
+    apagar:       document.getElementById("Apagar").checked,
+    master:       document.getElementById("Master").checked,
+    financeiro:   document.getElementById("Financeiro").checked,
+    supremo:      document.getElementById("AdminSupremo").checked,
+    comercial:    document.getElementById("Comercial").checked
   };
 
   // Verifica se há mudança nas permissões
@@ -1570,6 +1572,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     master: atuais.master,
     financeiro: atuais.financeiro,
     supremo: atuais.supremo,
+    comercial: atuais.comercial,
     ativo: empresaAtiva
   };
 
@@ -1684,6 +1687,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   const chkMaster    = document.getElementById("Master");
   const chkFinanceiro= document.getElementById("Financeiro");
   const chkSupremo   = document.getElementById("AdminSupremo");
+  const chkComercial  = document.getElementById("Comercial");
   
 
   try {
@@ -1722,6 +1726,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       chkMaster.checked     = Boolean(p.master);
       chkFinanceiro.checked = Boolean(p.financeiro);      
       chkSupremo.checked    = Boolean(p.supremo);
+      chkComercial.checked  = Boolean(p.comercial);
 
       verificarE_HabilitarPermissoes();
 
@@ -1734,7 +1739,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         apagar: Boolean(p.apagar),
         master: Boolean(p.master),
         financeiro: Boolean(p.financeiro),
-        supremo: Boolean(p.supremo)
+        supremo: Boolean(p.supremo),
+        comercial: Boolean(p.comercial)
        
       };
     } else {
@@ -1748,7 +1754,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         apagar: false,
         master: false,
         financeiro: false,
-        supremo: false
+        supremo: false,
+        comercial: false
       };
     }
     console.log("Permissões originais:", permissoesOriginais);
