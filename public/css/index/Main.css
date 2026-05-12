@@ -3246,6 +3246,17 @@ display: none;
   margin-bottom: 2px;
   display: block;
   }
+
+  .card span{
+    font-size: 16px;
+  }
+  .card div {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  select#selectAno, .vec-title{
+    font-size: 18px;
+  }
 }
 
 /* De 1325px até 1472px */
