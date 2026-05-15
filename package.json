@@ -1,6 +1,6 @@
 {
   "name": "ja-system---teste",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -22,6 +22,7 @@
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
     "pg": "^8.14.1",
+    "scrollreveal": "^4.0.9",
     "xlsx": "^0.18.5"
   },
   "description": "",
