@@ -485,6 +485,7 @@ button#btnVoltarorc {
     display: flex;
     flex-direction: column;
     width: 100%;
+    gap: 10px;
 }
 
 .accordion-orc-header {
@@ -507,6 +508,12 @@ button#btnVoltarorc {
     color: var(--font-color);
     transition: all 0.3s ease;
 }
+
+.accordion-orc-header:hover .periodo-container p{
+  color: var(--font-color);
+  transition: all 0.3s ease;
+}
+
 
 .orc-header-info {
     margin: 0 10px;
@@ -583,14 +590,6 @@ button#btnVoltarorc {
     margin-bottom: 20px;
 }
 
-#container-mestre-eventos {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    max-height: calc(100vh - 320px);
-}
 
 .accordion-item.active .funcionarios-scroll-container {
     max-height: calc(100vh - 520px);
@@ -603,18 +602,21 @@ button#btnVoltarorc {
 
 .valor-container {
     display: flex;
+    width: 400px;
     gap: 20px;
 }
 
 .periodo-container{
     display: flex;
     justify-content: center;
+    width: 300px;
     gap: 10px;
     margin-left: 10px;
 }
 
 .periodo-container p {
     font-size: 12px;
+    width: 200px;
 }
 .periodo-container p.data-range {
     margin-left: 5px;
@@ -629,6 +631,8 @@ button#btnVoltarorc {
 
 button.btn-detalhes-orcamento {
     display: flex;
+    justify-content: center;
+    width: 100%;
     border-radius: 10px;
     padding: 5px;
     background: var(--primary-color);
@@ -3248,7 +3252,7 @@ display: none;
   }
 
   .card span{
-    font-size: 16px;
+    font-size: 15.5px;
   }
   .card div {
     font-size: 14px;
@@ -3257,6 +3261,17 @@ display: none;
   select#selectAno, .vec-title{
     font-size: 18px;
   }
+
+  .accordion-vencimentos {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
 }
 
 /* De 1325px até 1472px */

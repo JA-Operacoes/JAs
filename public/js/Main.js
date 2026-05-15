@@ -2839,10 +2839,10 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
         <label class="label-select">Período</label>
         <div class="wrapper" style="width: 300px;">
             <div class="option" style="width: 30px;"><input checked value="diario" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Diário</span></div></div>
-            <div class="option" style="width: 30px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
-            <div class="option" style="width: 30px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
-            <div class="option" style="width: 30px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
-            <div class="option" style="width: 30px;"><input value="semestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semestral</span></div></div>
+            <div class="option" style="width: 45px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
+            <div class="option" style="width: 35px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
+            <div class="option" style="width: 45px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
+            <div class="option" style="width: 45px;"><input value="semestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semestral</span></div></div>
             <div class="option" style="width: 30px;"><input value="anual" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Anual</span></div></div>
         </div>`;
 
@@ -8694,30 +8694,29 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
            
 
             btnMestreEventos.innerHTML = `
-                <div class="evento-info-container-inline">
-                    <div class="evento-titulo-col">
-                        <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
-                        <div class="qtdTotal"><small>(${dados.length} eventos)</small></div>
-                    </div>
-                    <div class="evento-valores-col">
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria">PAGOS:</span>
-                            <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
-                        </div>
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria" style="color: #d9534f;">VENCIDOS:</span>
-                            <span class="ap" style="color: #d9534f; font-weight: bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
-                        </div>
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria" style="color: #007bff;">A VENCER:</span>
-                            <span class="ap" style="color: #007bff; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
-                        </div>
-                        <div class="fin-resumo-item orcado">
-                            <span class="label-categoria">TOTAL:</span>
-                            <strong>${formatarMoeda(resumoStaffMestre.total)}</strong>
-                        </div>
-                    </div>
-                </div>`;
+               <div class="evento-info-container-inline">
+        <div class="evento-titulo-col">
+            <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
+            <div class="qtdTotal"><small>(${dados.length} eventos)</small></div>
+        </div>
+        <div class="evento-valores-col">
+            <div class="fin-resumo-item">
+                <span class="label-categoria">PAGOS:</span>
+                <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
+
+                <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span>
+                <span class="ap" style="color:#d9534f; font-weight:bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
+
+                <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span>
+                <span class="ap" style="color:#007bff; font-weight:bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
+
+                <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
+                    <span class="label-categoria" style="color:#333;">TOTAL:</span>
+                    <strong style="color:#333; font-size:16px;">${formatarMoeda(resumoStaffMestre.total)}</strong>
+                </span>
+            </div>
+        </div>
+    </div>`;
             
             const wrapperEventos = document.createElement('div');
             wrapperEventos.id = 'container-mestre-eventos';
