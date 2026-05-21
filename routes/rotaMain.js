@@ -170,16 +170,108 @@ router.get("/proximo-evento", async (req, res) => {
   }
 });
 
+// router.get("/eventos-calendario", async (req, res) => {
+//   try {
+//     const idempresa = req.headers.idempresa || req.query.idempresa;
+//     const ano = parseInt(req.query.ano);
+//     const mes = parseInt(req.query.mes);
+
+//     if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+//     if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+
+//     const { rows: eventos } = await pool.query(`
+//       SELECT 
+//         e.idevento,
+//         o.nomenclatura,
+//         e.nmevento AS evento_nome,
+//         o.dtiniinframontagem, o.dtfiminframontagem,
+//         o.dtinimarcacao, o.dtfimmarcacao,
+//         o.dtinimontagem, o.dtfimmontagem,
+//         o.dtinirealizacao, o.dtfimrealizacao,
+//         o.dtinidesmontagem, o.dtfimdesmontagem,
+//         o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+//       FROM orcamentos o
+//       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+//       JOIN eventos e ON e.idevento = o.idevento
+//       WHERE oe.idempresa = $1
+//       AND o.status != 'R'
+//       AND (
+//         -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
+//         EXISTS (
+//           SELECT 1 FROM unnest(ARRAY[
+//             o.dtiniinframontagem, o.dtfiminframontagem,
+//             o.dtinimarcacao, o.dtfimmarcacao,
+//             o.dtinimontagem, o.dtfimmontagem,
+//             o.dtinirealizacao, o.dtfimrealizacao,
+//             o.dtinidesmontagem, o.dtfimdesmontagem,
+//             o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+//           ]) AS d(data)
+//           WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
+//         )
+//       )
+//       ORDER BY o.dtinimarcacao ASC;
+//     `, [idempresa, ano, mes]);
+
+//     const resposta = [];
+
+//     // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
+//     const formatDate = (date) => {
+//       if (!date) return null;
+//       const d = new Date(date);
+//       return d.getFullYear() + "-" + 
+//              String(d.getMonth() + 1).padStart(2, '0') + "-" + 
+//              String(d.getDate()).padStart(2, '0');
+//     };
+
+//     eventos.forEach(ev => {
+//       const fasesConfig = [
+//         { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+//         { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
+//         { tipo: "Montagem", ini: ev.dtinimontagem, fim: ev.dtfimmontagem },
+//         { tipo: "Realização", ini: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+//         { tipo: "Desmontagem", ini: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+//         { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+//       ];
+
+//       fasesConfig.forEach(f => {
+//         if (f.ini) {
+//           resposta.push({
+//             idevento: ev.idevento,
+//             nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+//             inicio: formatDate(f.ini),
+//             fim: formatDate(f.fim || f.ini),
+//             tipo: f.tipo
+//           });
+//         }
+//       });
+//     });
+
+//     res.json({ eventos: resposta });
+
+//   } catch (err) {
+//     console.error("Erro em /eventos-calendario:", err);
+//     res.status(500).json({ error: "Erro interno do servidor" });
+//   }
+// });
 router.get("/eventos-calendario", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
-    const ano = parseInt(req.query.ano);
-    const mes = parseInt(req.query.mes);
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
 
-    if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
-    if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
 
-    const { rows: eventos } = await pool.query(`
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
       SELECT 
         e.idevento,
         o.nomenclatura,
@@ -194,36 +286,30 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
-      AND o.status != 'R'
-      AND (
-        -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
-        EXISTS (
-          SELECT 1 FROM unnest(ARRAY[
-            o.dtiniinframontagem, o.dtfiminframontagem,
-            o.dtinimarcacao, o.dtfimmarcacao,
-            o.dtinimontagem, o.dtfimmontagem,
-            o.dtinirealizacao, o.dtfimrealizacao,
-            o.dtinidesmontagem, o.dtfimdesmontagem,
-            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
-          ]) AS d(data)
-          WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
+        AND o.status != 'R'
+        AND (
+          (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
         )
-      )
-      ORDER BY o.dtinimarcacao ASC;
-    `, [idempresa, ano, mes]);
+      ORDER BY COALESCE(o.dtinimarcacao, o.dtinimontagem, o.dtinirealizacao, o.dtinidesmontagem, o.dtiniinframontagem, o.dtiniinfradesmontagem) ASC
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
 
-    const resposta = [];
-
-    // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
     const formatDate = (date) => {
       if (!date) return null;
       const d = new Date(date);
-      return d.getFullYear() + "-" + 
-             String(d.getMonth() + 1).padStart(2, '0') + "-" + 
-             String(d.getDate()).padStart(2, '0');
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     };
 
-    eventos.forEach(ev => {
+    const resposta = [];
+
+    eventos.forEach((ev) => {
       const fasesConfig = [
         { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
         { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
@@ -233,21 +319,114 @@ router.get("/eventos-calendario", async (req, res) => {
         { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
       ];
 
-      fasesConfig.forEach(f => {
-        if (f.ini) {
-          resposta.push({
-            idevento: ev.idevento,
-            nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
-            inicio: formatDate(f.ini),
-            fim: formatDate(f.fim || f.ini),
-            tipo: f.tipo
-          });
-        }
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
       });
     });
 
     res.json({ eventos: resposta });
+  } catch (err) {
+    console.error("Erro em /eventos-calendario:", err);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+router.get("/export-eventos-calendario", async (req, res) => {
+  try {
+    const idempresa = req.headers.idempresa || req.query.idempresa;
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
 
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
+
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
+      SELECT 
+            e.idevento,
+            e.nmevento AS evento_nome, -- Mantemos apenas o nome do evento
+            
+            -- Agregação das datas para consolidar o período total de todos os orçamentos do evento
+            MIN(o.dtiniinframontagem) AS dtiniinframontagem, MAX(o.dtfiminframontagem) AS dtfiminframontagem,
+            MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
+            MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
+            MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+            MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
+            MIN(o.dtiniinfradesmontagem) AS dtiniinfradesmontagem, MAX(o.dtfiminfradesmontagem) AS dtfiminfradesmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        JOIN eventos e ON e.idevento = o.idevento
+        WHERE oe.idempresa = $1
+        AND o.status != 'R'
+        AND (
+            (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
+        )
+        GROUP BY e.idevento, e.nmevento
+        ORDER BY COALESCE(
+            MIN(o.dtinimarcacao), 
+            MIN(o.dtinimontagem), 
+            MIN(o.dtinirealizacao), 
+            MIN(o.dtinidesmontagem), 
+            MIN(o.dtiniinframontagem), 
+            MIN(o.dtiniinfradesmontagem)
+        ) ASC;
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
+
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+
+    const resposta = [];
+
+    eventos.forEach((ev) => {
+      const fasesConfig = [
+        { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+        { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
+        { tipo: "Montagem", ini: ev.dtinimontagem, fim: ev.dtfimmontagem },
+        { tipo: "Realização", ini: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+        { tipo: "Desmontagem", ini: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+        { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+      ];
+
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
+      });
+    });
+
+    res.json({ eventos: resposta });
   } catch (err) {
     console.error("Erro em /eventos-calendario:", err);
     res.status(500).json({ error: "Erro interno do servidor" });
