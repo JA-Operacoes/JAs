@@ -2403,6 +2403,35 @@ router.put("/:id",
 
           await client.query(insertItemQuery, itemValues);
         }
+        // ✅ APÓS INSERT OU UPDATE DO ITEM — ativa staffevento se solicitação aditivo foi incluída no orçamento
+        if (item.idsolicitacao) {
+            const solicitacaoResult = await client.query(`
+                SELECT idregistroalterado, status, categoria_log 
+                FROM solicitacoes 
+                WHERE idsolicitacao = $1 
+                AND categoria_log = 'aditivoextra'
+                AND status = 'Autorizado'
+                LIMIT 1
+            `, [item.idsolicitacao]);
+
+            if (solicitacaoResult.rows.length > 0) {
+                const { idregistroalterado } = solicitacaoResult.rows[0];
+
+                await client.query(`
+                    UPDATE staffeventos 
+                    SET statusstaff = 'Ativo'
+                    WHERE idstaffevento = $1
+                    AND statusstaff = 'Pendente'
+                    AND EXISTS (
+                        SELECT 1 FROM staffempresas sem 
+                        WHERE sem.idstaff = staffeventos.idstaff 
+                        AND sem.idempresa = $2
+                    )
+                `, [idregistroalterado, idempresa]);
+
+                console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitação ${item.idsolicitacao})`);
+            }
+        }
       }
 
       await client.query("COMMIT");

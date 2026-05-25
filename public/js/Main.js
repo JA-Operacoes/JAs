@@ -2127,13 +2127,14 @@ async function abrirTelaEquipesEvento(evento) {
             const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
             const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
             const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
-
+           
             // Filtro de segurança: se não tem nada orçado nem nada cadastrado, ignora
             // if (qtd_orcamento === 0 && qtd_cadastrada === 0) {
             //     return null;
             // }
 
-            if (qtd_orcamento === 0 && ativos === 0 && pendentes === 0) return null;
+           
+            if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0) return null;
 
             return {
                 ...f, // Mantém todas as propriedades originais (idfuncao, dtini, etc)
@@ -4448,37 +4449,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
              console.log("🔍 Processando registro com ID:", pedidoOriginal );
 
-            // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
-
-            // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
-            
-
-            // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
-
-            // if (!pedidoConsolidado) {
-            //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-            //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
-            // }
-
+      
             const categoriaItem = pedidoOriginal.categoria_item || "geral";
             const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
 
             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
             
-            // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
-            // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
-            //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
-
-            //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
-
-            // let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
-
-            // if (!pedidoConsolidado) {
-            //     // Criamos um novo objeto no mapa para cada ID de Log diferente
-            //     pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
-            //     pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
-            // }
-
+            
             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
 
             if (!pedidoConsolidado) {
@@ -4516,8 +4493,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     pedidoConsolidado[campo] = itensFiltrados; 
                     temAlgumMatchNesteGrupo = true;
                 } 
-                // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
-                // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
+ 
             });            
 
         });
@@ -4533,14 +4509,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
         }
     });
-    
-    // FIM DA SEÇÃO 1: Consolidação.
-
-    // Ordenação... (inalterada)
-    // gruposFiltrados.sort((a, b) =>
-    //     new Date(b.dtCriacao || '1970-01-01').getTime() -
-    //     new Date(a.dtCriacao || '1970-01-01').getTime()
-    // );
+  
 
     if (gruposFiltrados.length === 0) {
         const msg = document.createElement("p");
@@ -4571,7 +4540,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
         console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
-        console .log (`Debug`, pedidosDoGrupo);
+        console .log (`Debug Rendeiração`, pedidosDoGrupo);
 
 
         const divGrupo = document.createElement("div");
@@ -4605,6 +4574,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
 
                 itensParaRenderizar.forEach(infoItem => {
+                    let htmlBodyAditivoAgrupado = '';
+                    let datasProcessadas = [];
                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
 
@@ -4634,9 +4605,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         console.log(`Formatando título para pedido principal: ${tituloCard} (Campo: ${campo})`);
                     } else if (isAditivoExtra) {
                         const tipo = infoItem.tipoSolicitacao;
-                        tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
-                            ? "Limite Diário Excedido por Função/Evento"
-                            : tipo;
+                        if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
+                            tituloCard = "Aditivo - Vaga Excedida";
+                        } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO')) {
+                            tituloCard = "Aditivo - Datas fora do Orçamento";
+                        } else {
+                            tituloCard = tipo || "Aditivo/Extra";
+                        }
 
                            
                             console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
@@ -4674,32 +4649,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
                     }
 
-                    // let dataSolicitadaFormatada = '';
-
-                    // if (pedido.dataSolicitada) {
-                    //     // 1. Garante que temos um array (se vier string com vírgula, vira array)
-                    //     const datasArray = Array.isArray(pedido.dataSolicitada) 
-                    //         ? pedido.dataSolicitada 
-                    //         : pedido.dataSolicitada.toString().split(',');
-
-                    //     // 2. Mapeia cada data formatando para pt-BR
-                    //     const datasFormatadas = datasArray.map(dataStr => {
-                    //         if (dataStr == null) return '';
-                    //         const dataObj = new Date(dataStr);
-                            
-                    //         // Se a data for válida, formata. Se não, retorna o texto original.
-                    //         if (!isNaN(dataObj.getTime())) {
-                    //             // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
-                    //             return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
-                    //                 (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
-                    //                 dataObj.getUTCFullYear();
-                    //         }
-                    //         return dataStr;
-                    //     });
-
-                    //     // 3. Junta tudo com vírgula e espaço para exibir na tela
-                    //     dataSolicitadaFormatada = datasFormatadas.join(', ');
-                    // }
+                    
                    
                     let dataSolicitadaFormatada = '';
 
@@ -4745,21 +4695,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                     
                     let dataFormatada = '';
-                    // let dataFormatadaSolictacao = '';
-
-                    // if(pedido.dtsolicitada){
-                    //     const dataObj = new Date(pedido.dtsolicitada);
-                        
-                    //     dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
-                    //     console.log(`Formatando data de solicitação: ${pedido.dtsolicitada} -> Data Obj: ${dataObj}, Data Formatada: ${dataFormatadaSolictacao}`);
-                        
-                    // }
-                    // if (pedido.dataDecisao) {
-                    //     const dataObj = new Date(pedido.dataDecisao);
-                    //     // Verifica se a data é válida antes de formatar
-                    //     dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
-                    // }
-
+                   
                     let dataFormatadaSolictacao = '';
 
                     if (pedido.dtsolicitada) {
@@ -4829,7 +4765,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                     <div class="title">
                                     <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
                                     </div>
-                                    <br>
+                                    <br>                                   
+           
                     `;
                     
 
@@ -4856,12 +4793,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
-                        // if (valor !== 0) {
-                        //     const valorFmt = valor.toFixed(2).replace('.', ',');
-                        //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-                        // } else {
-                        //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-                        // }                       
+                                        
                         
                         console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
                         
@@ -4899,18 +4831,30 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
 
                     if (infoItem.descricao) {
-                        // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
-                        // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
+                        
                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
 
+                    
+
                     // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
                     //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+                    //     // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+                    //     const tratarData = (valor) => {
+                    //         if (Array.isArray(valor)) {
+                    //             return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+                    //         }
+                    //         return String(valor || '').trim();
+                    //     };
+
                     //     const dataParaAcao = isPedidoPrincipal 
-                    //         ? (pedido.dataEspecifica || '') 
-                    //         : (isDataUnica ? (infoItem.data || '').trim() : '');
+                    //         ? tratarData(pedido.dataEspecifica) 
+                    //         : (isDataUnica ? tratarData(infoItem.data) : '');
+
                     //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                     //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
                     //     htmlBody += `<br>
                     //         <div class="AcoesPedido"
                     //             data-id="${idParaAcao}"
@@ -4925,35 +4869,45 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     // }
 
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                        const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+    // 1. Identificamos se é uma ação coletiva para mudar o texto do botão
+    const textoBotaoGeral = (isAditivoExtra && htmlBodyAditivoAgrupado !== '') ? ' Tudo' : '';
 
-                        // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
-                        const tratarData = (valor) => {
-                            if (Array.isArray(valor)) {
-                                return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
-                            }
-                            return String(valor || '').trim();
-                        };
+    // 2. Definimos qual campo do banco será afetado
+    const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo;
 
-                        const dataParaAcao = isPedidoPrincipal 
-                            ? tratarData(pedido.dataEspecifica) 
-                            : (isDataUnica ? tratarData(infoItem.data) : '');
+    // 3. Sanitização da Data: Garante que tratamos Array (múltiplas datas) ou String (data única)
+    const tratarData = (valor) => {
+        if (Array.isArray(valor)) {
+            // Se vier do agrupamento de Aditivos, une as datas por vírgula para processamento em lote
+            return valor.join(','); 
+        }
+        return String(valor || '').trim();
+    };
 
-                        const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-                        const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+    // 4. Determina qual valor de data será injetado no data-attribute do HTML
+    const dataParaAcao = isPedidoPrincipal 
+        ? tratarData(pedido.dataEspecifica) 
+        : (isDataUnica ? tratarData(infoItem.data) : '');
 
-                        htmlBody += `<br>
-                            <div class="AcoesPedido"
-                                data-id="${idParaAcao}"
-                                data-campo="${campoParaAcao}"
-                                data-data="${dataParaAcao}"
-                                data-logid="${idLogParaAcao}"
-                                data-aditivo="${isAditivoExtra}">
-                                <button class="aprovar">Autorizar</button>
-                                <button class="negar">Rejeitar</button>
-                            </div>
-                        `;
-                    }
+    // 5. IDs de Referência
+    const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+    const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
+    // 6. Montagem do HTML das Ações do Card
+    htmlBody += `
+        <br>
+        <div class="AcoesPedido"
+            data-id="${idParaAcao}"
+            data-campo="${campoParaAcao}"
+            data-data="${dataParaAcao}"
+            data-logid="${idLogParaAcao}"
+            data-aditivo="${isAditivoExtra}">
+            
+            <button class="aprovar">Autorizar${textoBotaoGeral}</button>
+            <button class="negar">Rejeitar${textoBotaoGeral}</button>
+        </div>
+    `;
+}
 
                     htmlBody += `
                             </div>
@@ -5100,517 +5054,27 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
-// function renderizarPedidosAntesDoSolicitacoes(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
-//     window.pedidosCompletosGlobais = pedidosCompletos;
-//     const container = document.getElementById(containerId);
-//     if (!container) return;
 
-//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
-//     container.style.display = 'flex';
-//     container.style.flexDirection = 'column';
-//     container.style.flexWrap = 'nowrap';
-//     container.style.gap = '10px';
+async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
+    const confirm = await Swal.fire({
+        title: 'Confirmar data única?',
+        text: `Deseja definir como ${novoStatus} apenas a data ${dataEspecifica}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim',
+        cancelButtonText: 'Cancelar'
+    });
 
-//     container.innerHTML = '';
-
-//     const camposTodos = [
-//         "statusajustecusto",
-//         "statuscaixinha",
-//         "statusmeiadiaria",
-//         "statusdiariadobrada",
-//         "statuscustofechado",
-//         "statuscacheliberado",
-//         "statusvagaexcedida",
-//         CAMPO_ADITIVO_EXTRA
-//     ];
-//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
-//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
-
-//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
-//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
-//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
-
-//     let totalItensRenderizados = 0;
-//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
-//     const gruposFiltrados = [];
-
-//         pedidosCompletos.forEach(grupoConsolidado => {
-//         let chaveRenderizacao;
-//         if (categoria === 'funcionario') {
-//             chaveRenderizacao = grupoConsolidado.funcionario;
-//         } else {
-//             // Tenta pegar nmfuncao, senão busca dentro dos registros
-//             chaveRenderizacao = grupoConsolidado.nmfuncao;
-            
-//             if (!chaveRenderizacao) {
-//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
-//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
-//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
-                
-//                 if (primeiroAditivo) {
-//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
-//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-//                 } else {
-//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
-//                 }
-//             }
-//         }
-
-//         if (!chaveRenderizacao) return;
-
-//         const registros = grupoConsolidado.registrosOriginais || [];
-//         const pedidosConsolidadosPorId = new Map();
-//         let temAlgumMatchNesteGrupo = false;
-
-//         registros.forEach(pedidoOriginal => {
-//             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
-//              console.log("🔍 Processando registro com ID:", pedidoOriginal );
-
-//             // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
-
-//             // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
-            
-
-//             // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
-
-//             // if (!pedidoConsolidado) {
-//             //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-//             //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
-//             // }
-
-//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
-//             const idLog = pedidoOriginal.id_log || 'sem-log';
-
-//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
-            
-//             // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
-//             // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
-//             //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
-
-//             //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
-
-//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
-
-//             if (!pedidoConsolidado) {
-//                 // Criamos um novo objeto no mapa para cada ID de Log diferente
-//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
-//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
-//             }
-
-//             // Verifica status principal
-//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
-//             if (statusPrincipal === statusDesejado) {
-//                 pedidoConsolidado.temMatch = true;
-//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
-//                 temAlgumMatchNesteGrupo = true;
-//             }
-
-//             // Verifica sub-itens (Meia diária, caixinha, etc)
-//             camposTodos.forEach(campo => {
-//                 const itens = safeParse(pedidoOriginal[campo]);
-//                 const itensFiltrados = itens.filter(it => {
-//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
-//                     return String(s).toLowerCase().trim() === statusDesejado;
-//                 });
-
-//                 if (itensFiltrados.length > 0) {
-//                     pedidoConsolidado.temMatch = true;
-//                     // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
-//                     pedidoConsolidado[campo] = itensFiltrados; 
-//                     temAlgumMatchNesteGrupo = true;
-//                 } 
-//                 // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
-//                 // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
-//             });
-//         });
-
-//         if (temAlgumMatchNesteGrupo) {
-//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
-
-//             if (registrosValidos.length > 0) {
-//                 gruposFiltrados.push({
-//                     ...grupoConsolidado,
-//                     registrosOriginais: registrosValidos
-//                 });
-//             }
-//         }
-//     });
-    
-//     // FIM DA SEÇÃO 1: Consolidação.
-
-//     // Ordenação... (inalterada)
-//     // gruposFiltrados.sort((a, b) =>
-//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
-//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
-//     // );
-
-//     if (gruposFiltrados.length === 0) {
-//         const msg = document.createElement("p");
-//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
-//         container.appendChild(msg);
+    if (confirm.isConfirmed) {
+        // Aqui você chama seu backend passando o id_log e a data específica
+        // Exemplo: await atualizarStatusAditivoExtra(idLog, novoStatus, null, idLog, dataEspecifica);
+        console.log("Enviando para o banco:", { idLog, dataEspecifica, novoStatus });
         
-//         // 🛑 V97.0: Atualiza a contagem para 0
-//         if (typeof atualizarBadgeDeStatus === 'function') {
-//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
-//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
-//         }
-//         return;
-//     }
-
-//     // --- 2. RENDERIZAÇÃO ---
-//     const listaGrupos = document.createElement("div");
-//     listaGrupos.className = "lista-funcionarios";
-
-//     gruposFiltrados.forEach(grupo => {
-//         const pedidosDoGrupo = grupo.registrosOriginais;
-//         if (!pedidosDoGrupo?.length) return;
-
-//         const chaveNome = categoria === 'funcionario'
-//             ? grupo.funcionario
-//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
-
-//         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
-//         const p = pedidosDoGrupo[0];
-//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
-//         console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
-//         console .log (`Debug`, pedidosDoGrupo);
-
-
-//         const divGrupo = document.createElement("div");
-//         divGrupo.className = "funcionario";
-
-//         const header = document.createElement("div");
-//         header.className = "funcionario-header";
-
-//         const body = document.createElement("div");
-//         body.className = "funcionario-body hidden";
-
-//         let htmlBody = '';
-//         let itensGrupo = 0;
-
-//         // Itera sobre os pedidos consolidados
-//         pedidosDoGrupo.forEach(pedido => {
-//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
-//             camposRenderizaveis.forEach(campo => { 
-//                 const itensFiltrados = pedido[campo];
-//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
-
-//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
-
-//                 itensParaRenderizar.forEach(infoItem => {
-//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
-//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
-
-//                     itensGrupo++;
-//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
-
-//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
-//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
-//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
-
-//                     let tituloCard;
-//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
-//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
-
-//                     if (isPedidoPrincipal) {
-//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
-//                         if (pedido.dataPrincipal) {
-//                             tituloCard += ` (${pedido.dataPrincipal})`;
-//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
-//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
-//                             tituloCard += ` (R$ ${valorFmt})`;
-//                         }
-//                     } else if (isAditivoExtra) {
-//                         const tipo = infoItem.tipoSolicitacao;
-//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
-//                             ? "Limite Diário Excedido por Função/Evento"
-//                             : tipo;
-//                     } else {
-//                         tituloCard = formatarNomeSolicitacao(campo);
-//                         if (isDataUnica) { 
-//                             const dataBruta = String(infoItem.data || '').trim();
-//                             let dataFmt = '';
-//                             if (dataBruta !== '') {
-//                                 const dataObj = parseDateLocal(dataBruta); 
-//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
-//                             }
-//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
-//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                             const valor = parseFloat(infoItem.valor) || 0;
-//                             if (valor !== 0) {
-//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
-//                                 tituloCard += ` (R$ ${valorFmt})`;
-//                             }
-//                         }
-//                     }
-
-//                     let dataSolicFormatada = '';
-//                     if (pedido.dataSolicitacao) {
-//                         const dataObj = new Date(pedido.dataSolicitacao);
-//                         // Verifica se a data é válida antes de formatar
-//                         dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
-//                     }
-                   
-//                     let dataFormatada = '';
-//                     if (pedido.dataDecisao) {
-//                         const dataObj = new Date(pedido.dataDecisao);
-//                         // Verifica se a data é válida antes de formatar
-//                         dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
-//                     }
-
-//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
-
-//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
-//                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
-//                                 : '';
-
-//                     htmlBody += `
-//                         <div class="pedido-card">
-//                             <div>
-//                                 <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
-//                     `;
-                    
-
-//                     if (pedido.evento) {
-//                         if (categoria === 'funcionario' && pedido.funcionario) {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//                         } else {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//                         }
-//                     }
-
-//                     if (isPedidoPrincipal) {
-//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (isAditivoExtra) {
-//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
-//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                         const valor = parseFloat(infoItem.valor) || 0; 
-//                         // if (valor !== 0) {
-//                         //     const valorFmt = valor.toFixed(2).replace('.', ',');
-//                         //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         // } else {
-//                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         // }
-
-                        
-                        
-
-//                         if (valor !== 0) {
-//                             const valorFmt = valor.toFixed(2).replace('.', ',');
-//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                         } else {
-//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                         }
-
-//                     } else if (isDataUnica) {
-//                         const dataBruta = String(infoItem.data || '').trim();
-//                         let dataFmt = 'Data indefinida';
-//                         if (dataBruta !== '') {
-//                             const dataObj = parseDateLocal(dataBruta);
-//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
-//                         }
-//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                     } else if (infoItem.datas) {
-//                         const datasFmt = infoItem.datas
-//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
-//                             .filter(d => d)
-//                             .join(', ');
-//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                     }
-
-//                     if (infoItem.descricao) {
-//                         // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
-//                         // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
-//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
-//                     }
-
-//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
-//                         const dataParaAcao = isPedidoPrincipal 
-//                             ? (pedido.dataEspecifica || '') 
-//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
-//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
-//                         htmlBody += `
-//                             <div class="flex gap-2 mt-2"
-//                                 data-id="${idParaAcao}"
-//                                 data-campo="${campoParaAcao}"
-//                                 data-data="${dataParaAcao}"
-//                                 data-logid="${idLogParaAcao}"
-//                                 data-aditivo="${isAditivoExtra}">
-//                                 <button class="aprovar">Autorizar</button>
-//                                 <button class="negar">Rejeitar</button>
-//                             </div>
-//                         `;
-//                     }
-
-//                     htmlBody += `
-//                             </div>
-//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
-//                         </div>
-//                     `;
-//                 });
-//             });
-//         });
-
-//         // 🛑 AQUI ESTÁ O PULO DO GATO:
-//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
-//         if (itensGrupo === 0) return;
-
-//         body.innerHTML = htmlBody;
-
-//         header.innerHTML = `
-//             <div>
-//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
-//                 <strong>${chaveNome}</strong><br>
-//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
-//             </div>
-//             <div class="flex items-center gap-2">
-//                 <span>${itensGrupo}</span>
-//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-//             </div>
-//         `;
-
-//         header.addEventListener("click", () => {
-//             body.classList.toggle("hidden");
-//             header.querySelector('i').classList.toggle('rotate-180');
-//         });
-
-//         divGrupo.appendChild(header);
-//         divGrupo.appendChild(body);
-//         listaGrupos.appendChild(divGrupo);
-//     });
-
-//     container.appendChild(listaGrupos);
-
-//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
-//     container.onclick = null; 
-
-//     container.addEventListener('click', async function(event) {
-//         const target = event.target;
-//         // Verifica se clicou nos botões
-//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
-
-//         const actionDiv = target.closest('[data-id]');
-//         if (!actionDiv) return;
-
-//         const isAprovar = target.classList.contains('aprovar');
-//         const idReferencia = actionDiv.getAttribute('data-id'); 
-//         const campoParaBackend = actionDiv.getAttribute('data-campo');
-//         const dataParaUpdate = actionDiv.getAttribute('data-data');
-//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
-
-//         // Determina qual função chamar e qual o status alvo
-//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
-//         const cardElement = target.closest('.pedido-card');
-
-//         // Modal de Confirmação
-//         const result = await Swal.fire({
-//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
-//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
-//             icon: 'warning',
-//             showCancelButton: true,
-//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-//             confirmButtonText: 'Confirmar'
-//         });
-
-//         if (result.isConfirmed) {
-//             try {
-//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
-//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
-                
-//                 let sucesso = false;
-//                 if (isAditivoExtra) {
-//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
-//                 } else {
-//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
-//                 }
-
-                
-//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
-//                 if (sucesso) {
-//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
-
-//                     // O status que queremos gravar na memória (ex: 'autorizado')
-//                     // Ajustado para pegar da variável que você está usando no seu escopo
-//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
-
-//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
-//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
-//                     listas.forEach(lista => {
-//                         lista.forEach(grupo => {
-//                             grupo.registrosOriginais?.forEach(p => {
-//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
-//                                     // Atualiza o campo que a sua função de contagem "Original" usa
-//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
-//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
-//                                 }
-//                             });
-//                         });
-//                     });
-
-//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
-//                     // ... (dentro do if (sucesso), após a remoção do card)
-
-//                     if (cardElement) {
-//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
-//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
-//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
-//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
-
-//                         // 2. Remove o card com um pequeno efeito
-//                         cardElement.style.transition = '0.3s';
-//                         cardElement.style.opacity = '0';
-                        
-//                         setTimeout(() => {
-//                             cardElement.remove();
-//                             console.log("🗑️ Card removido.");
-
-//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
-//                             if (corpoGrupo) {
-//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
-                                
-//                                 if (cardsRestantes === 0 && grupoContainer) {
-//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
-                                    
-//                                     grupoContainer.style.transition = '0.3s';
-//                                     grupoContainer.style.opacity = '0';
-                                    
-//                                     setTimeout(() => {
-//                                         grupoContainer.remove();
-//                                     }, 300);
-//                                 }
-//                             }
-                            
-//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
-//                             atualizarContadoresGlobais();
-                            
-//                         }, 300);
-//                     }
-
-//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
-//                 }
-    
-//             } catch (err) {
-//                 console.error("❌ Erro na execução:", err);
-//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
-//             }
-//         }
-//     });
-
-//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
-//     if (typeof atualizarBadgeDeStatus === 'function') {
-//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
-//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
-//     }
-
-//     if (typeof atualizarContadoresGlobais === 'function') {
-//         atualizarContadoresGlobais();
-//     }
-// } 
+        // Após o sucesso, você pode recarregar a lista ou remover a linha do HTML manualmente
+        Swal.fire('Sucesso!', 'Data atualizada.', 'success');
+        // window.recarregarSuaFuncao(); 
+    }
+}
 
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {

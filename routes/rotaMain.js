@@ -815,7 +815,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 
     // 3️⃣ Busca Realizado - Lógica de Status Ativo vs Outros
     const { rows: staffCount } = await pool.query(
-        `SELECT se.idfuncao, 
+        `SELECT se.idfuncao, se.idorcamento,
                 COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
                 -- ✅ Conta APENAS quem está Ativo para bater com o orçamento
                 --COUNT(DISTINCT CASE WHEN se.statusstaff = 'Ativo' THEN se.idstaff END) AS qtd_cadastrada_pessoas,
@@ -839,7 +839,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
                 SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
                 WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
             )
-        GROUP BY se.idfuncao, localizacao`,
+        GROUP BY se.idfuncao, localizacao, se.idorcamento`,
         [idevento, idcliente, ano]
     );
 
@@ -1931,7 +1931,8 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 SUM(s.vlrsolicitado)   AS vlrsolicitado,
                 MIN(s.justificativa)   AS desccaixinha,
                 jsonb_agg(
-                    jsonb_build_object('data', s.dtsolicitada, 
+                    jsonb_build_object('idsolicitacao', s.idsolicitacao,
+                                       'data', s.dtsolicitada, 
                                        'status', s.status,
                                        'justificativa', s.justificativa)
                 ) AS dtsolicitada_agrupada,
@@ -1961,6 +1962,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         `;
 
         const { rows } = await pool.query(queryBase, params);
+        
 
         const parseValor = (v) => {
             if (!v) return 0;
@@ -2022,10 +2024,16 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 statusmeiadiaria: r.categoria === 'statusmeiadiaria' ? getDiaria() : null,
                 statusaditivoextra: categoriaReal === 'statusaditivoextra' ? valorFormatado : null,
                 statusvagaexcedida: categoriaReal === 'statusvagaexcedida' ? valorFormatado : null,
+
+                solicitacoes_individuais: (r.dtsolicitada_agrupada || []).map(sol => ({
+                    idsolicitacao: sol.idsolicitacao,
+                    data: Array.isArray(sol.data) ? sol.data : [sol.data],
+                    status: sol.status
+                })),
             };
         });       
 
-        console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}`);
+        console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}, resultadoFinal:`, resultadoFinal);
         res.json(resultadoFinal);
        
 
@@ -2401,48 +2409,36 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // 3. TRATAMENTO PARA ADITIVOS
             if (isAditivoOuExtra && !colunaDB) {               
 
+                // if (statusParaAtualizar === 'Autorizado') {
+                //     await pool.query(`
+                //         UPDATE staffeventos
+                //         SET statusstaff = 'Ativo'
+                //         WHERE (idstaffevento = $1 
+                //             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
+                //         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
+                //     `, [idpedido, idempresa]);
                 if (statusParaAtualizar === 'Autorizado') {
+                
+                    const { rows: rowsOrcamento } = await pool.query(`
+                        SELECT 1 FROM orcamentoitens WHERE idsolicitacao = $1 LIMIT 1
+                    `, [idpedido]);
+
+                    if (!rowsOrcamento.length) {
+                        // Não foi incluído no orçamento — não altera staffeventos
+                        return res.json({ 
+                            sucesso: true, 
+                            mensagem: `Solicitação autorizada, mas staffevento não foi ativado pois não há inclusão no orçamento.`,
+                            aguardandoOrcamento: true
+                        });
+                    }
+
                     await pool.query(`
                         UPDATE staffeventos
                         SET statusstaff = 'Ativo'
                         WHERE (idstaffevento = $1 
                             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
                         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-                    `, [idpedido, idempresa]);
-                
-
-                // } else if (statusParaAtualizar === 'Rejeitado') {
-                //     await pool.query(`
-                //         UPDATE staffeventos
-                //         SET 
-                //             statusstaff = 'Ativo',
-                //             datasevento = (
-                //                 SELECT jsonb_agg(elem)
-                //                 FROM jsonb_array_elements(
-                //                     (SELECT se2.datasevento 
-                //                     FROM staffeventos se2 
-                //                     WHERE se2.idstaffevento = staffeventos.idstaffevento)
-                //                 ) AS elem
-                //                 WHERE elem #>> '{}' NOT IN (
-                //                     SELECT TO_CHAR(d, 'YYYY-MM-DD')
-                //                     FROM unnest(
-                //                         (SELECT dtsolicitada FROM solicitacoes WHERE idsolicitacao = $1)
-                //                     ) AS d
-                //                 )
-                //             )
-                //         WHERE idstaffevento = (
-                //             SELECT idregistroalterado 
-                //             FROM solicitacoes 
-                //             WHERE idsolicitacao = $1
-                //             LIMIT 1
-                //         )
-                //         AND EXISTS (
-                //             SELECT 1 FROM staffempresas sem 
-                //             WHERE sem.idstaff = staffeventos.idstaff 
-                //             AND sem.idempresa = $2
-                //         )
-                //     `, [idpedido, idempresa]);
-                // }
+                    `, [idpedido, idempresa]);                
 
                 } else if (statusParaAtualizar === 'Rejeitado') {
                     await pool.query(`

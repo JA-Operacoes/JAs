@@ -583,14 +583,6 @@ button#btnVoltarorc {
     margin-bottom: 20px;
 }
 
-#container-mestre-eventos {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    max-height: calc(100vh - 320px);
-}
 
 .accordion-item.active .funcionarios-scroll-container {
     max-height: calc(100vh - 520px);
