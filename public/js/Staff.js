@@ -35,7 +35,7 @@ let tipoExcecaoAtual = null;
 let justificativaParaSalvar = "";
 let prefixoSolicitacao = "";
 
-window.addEventListener('prefill:registered', function (e) {
+window.addEventListener('prefill:registered', function (e) { 
     console.log("⚡ EVENTO RECEBIDO: prefill:registered. Tentando chamar a busca...");
     
     // 1. Sinalize que o evento foi capturado
@@ -385,6 +385,7 @@ function configurarFlatpickrs() {
             },
 
             onClose: function(selectedDates, dateStr, instance) {
+
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasDobrada);
                     if (window.meiaDiariaPicker) {
@@ -717,7 +718,7 @@ function configurarFlatpickrs() {
                 if (!instance.usuarioAbriu) {
                     window.datasEventoNoCalendarioCache = [...strAtuais];
                     atualizarContadorEDatas(selectedDates);
-                    debouncedOnCriteriosChanged();
+                    // debouncedOnCriteriosChanged();
                     return;
                 }
 
@@ -2442,18 +2443,45 @@ const carregarTabelaStaff = async (funcionarioId) => {
                         setTimeout(() => bloquearFormularioVisualizacao('Registro deletado — edição não permitida', 'deletado'), 200);
                         return;
                     }
+                    // if (statusAtual === 'Pendente') {
+                    //     await Swal.fire({
+                    //         icon: 'warning',
+                    //         title: 'SOLICITAÇÃO PENDENTE',
+                    //         text: 'Modo visualização. Edição bloqueada até aprovação ou rejeição.',
+                    //         confirmButtonText: 'Visualizar',
+                    //         timer: 2500,
+                    //         timerProgressBar: true
+                    //     });
+                    //     document.getElementById('Enviar')?.setAttribute('data-bloqueado', 'true');
+                    //     carregarDadosParaEditar(eventData, true); // bloquear = true
+                    //     setTimeout(() => bloquearFormularioVisualizacao('Solicitação pendente de aprovação', 'pendente'), 200);
+                    //     return;
+                    // }
                     if (statusAtual === 'Pendente') {
-                        await Swal.fire({
+                        const solAditivo = eventData.solicitacao_aditivo;
+                        const aguardandoOrcamento = solAditivo && 
+                            solAditivo.status === 'Autorizado' && 
+                            !solAditivo.noOrcamento;
+
+                            console.log("eventData completo:", eventData);
+                            console.log("Status Pendente com aditivo:", {solAditivo, aguardandoOrcamento});
+
+                        await Swal.fire({ 
                             icon: 'warning',
-                            title: 'SOLICITAÇÃO PENDENTE',
-                            text: 'Modo visualização. Edição bloqueada até aprovação ou rejeição.',
+                            title: aguardandoOrcamento ? 'AGUARDANDO ORÇAMENTO' : 'SOLICITAÇÃO PENDENTE',
+                            text: aguardandoOrcamento 
+                                ? 'Modo visualização. Aditivo autorizado, mas ainda não incluído no orçamento.' 
+                                : 'Modo visualização. Edição bloqueada até aprovação ou rejeição.',
                             confirmButtonText: 'Visualizar',
                             timer: 2500,
                             timerProgressBar: true
                         });
                         document.getElementById('Enviar')?.setAttribute('data-bloqueado', 'true');
-                        carregarDadosParaEditar(eventData, true); // bloquear = true
-                        setTimeout(() => bloquearFormularioVisualizacao('Solicitação pendente de aprovação', 'pendente'), 200);
+                        carregarDadosParaEditar(eventData, true);
+                        setTimeout(() => bloquearFormularioVisualizacao(
+                            aguardandoOrcamento ? 'Aguardando inclusão no orçamento' : 'Solicitação pendente de aprovação', 
+                            'pendente'
+                        ), 200);
                         return;
                     }
 
@@ -2678,14 +2706,43 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 cellTotalGeral.textContent = totais.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 cellTotalGeral.style.fontWeight = 'bold'; 
 
+                // if (statusStaff === 'Deletado' || statusStaff === 'Pendente' || statusStaff === 'Inativo') {
+                //     const celulaEvento = row.cells[3]; // nmevento
+                //     if (celulaEvento) {
+                //         const badge = document.createElement('div');
+                //         badge.className = `badge-statusstaff badge-statusstaff--${statusStaff.toLowerCase()}`;
+                //         if (statusStaff === 'Deletado') badge.textContent = '🚫 DELETADO';
+                //         else if (statusStaff === 'Pendente') badge.textContent = '⏳ Aguardando Autorização';
+                //         else if (statusStaff === 'Inativo') badge.textContent = '🔒 Inativo';
+                //         celulaEvento.appendChild(badge);
+                //     }
+                // }
                 if (statusStaff === 'Deletado' || statusStaff === 'Pendente' || statusStaff === 'Inativo') {
-                    const celulaEvento = row.cells[3]; // nmevento
+                    const celulaEvento = row.cells[3];
                     if (celulaEvento) {
                         const badge = document.createElement('div');
-                        badge.className = `badge-statusstaff badge-statusstaff--${statusStaff.toLowerCase()}`;
-                        if (statusStaff === 'Deletado') badge.textContent = '🚫 DELETADO';
-                        else if (statusStaff === 'Pendente') badge.textContent = '⏳ Aguardando Autorização';
-                        else if (statusStaff === 'Inativo') badge.textContent = '🔒 Inativo';
+
+                        if (statusStaff === 'Deletado') {
+                            badge.className = `badge-statusstaff badge-statusstaff--deletado`;
+                            badge.textContent = '🚫 DELETADO';
+                        } else if (statusStaff === 'Inativo') {
+                            badge.className = `badge-statusstaff badge-statusstaff--inativo`;
+                            badge.textContent = '🔒 Inativo';
+                        } else if (statusStaff === 'Pendente') {
+                            const solAditivo = eventData.solicitacao_aditivo;
+                            const aguardandoOrcamento = solAditivo && 
+                                solAditivo.status === 'Autorizado' && 
+                                !solAditivo.noOrcamento;
+
+                            if (aguardandoOrcamento) {
+                                badge.className = `badge-statusstaff badge-statusstaff--orcamento`;
+                                badge.textContent = '📋 Aguardando Inclusão no Orçamento';
+                            } else {
+                                badge.className = `badge-statusstaff badge-statusstaff--pendente`;
+                                badge.textContent = '⏳ Aguardando Autorização';
+                            }
+                        }
+
                         celulaEvento.appendChild(badge);
                     }
                 }
@@ -4649,15 +4706,25 @@ async function verificaStaff() {
                 const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
                 const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
 
+                // const criteriosDeVerificacao = {
+                //     nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                //     nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                //     nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                //     nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                //     pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                //     datasEvento: datasSelecionadas,
+                //     datasEventoDobradas: datasDobradas,
+                //     idFuncao: descFuncaoSelect.value
+                // };
                 const criteriosDeVerificacao = {
-                    nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
-                    nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
-                    nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
-                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
-                    pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                    nmEvento: getSelectedText(nmEventoSelect),
+                    nmCliente: getSelectedText(nmClienteSelect),
+                    nmlocalMontagem: getSelectedText(nmLocalMontagemSelect),
+                    nmFuncao: getSelectedText(descFuncaoSelect),
+                    pavilhao: getSelectedText(nmPavilhaoSelect),
                     datasEvento: datasSelecionadas,
                     datasEventoDobradas: datasDobradas,
-                    idFuncao: descFuncaoSelect.value
+                    idFuncao: descFuncaoSelect?.value || ""
                 };
 
                 console.log("Critérios para verificação de limite de função EM POST:", criteriosDeVerificacao);
@@ -4990,16 +5057,28 @@ async function verificaStaff() {
                     const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
                     const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
 
+                    // const criteriosDeVerificacao = {
+                    //     nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                    //     nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                    //     nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                    //     nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                    //     pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                    //     datasEvento: datasSelecionadas,
+                    //     datasEventoDobradas: datasDobradas,
+                    //     idFuncao: descFuncaoSelect.value,
+                    //     idStaff: currentEditingStaffEvent.idstaff // Importante no PUT para o back-end ignorar o próprio registro na contagem
+                    // };
+
                     const criteriosDeVerificacao = {
-                        nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
-                        nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
-                        nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
-                        nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
-                        pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                        nmEvento: getSelectedText(nmEventoSelect),
+                        nmCliente: getSelectedText(nmClienteSelect),
+                        nmlocalMontagem: getSelectedText(nmLocalMontagemSelect),
+                        nmFuncao: getSelectedText(descFuncaoSelect),
+                        pavilhao: getSelectedText(nmPavilhaoSelect),
                         datasEvento: datasSelecionadas,
                         datasEventoDobradas: datasDobradas,
-                        idFuncao: descFuncaoSelect.value,
-                        idStaff: currentEditingStaffEvent.idstaff // Importante no PUT para o back-end ignorar o próprio registro na contagem
+                        idFuncao: descFuncaoSelect?.value || "",
+                        idStaff: currentEditingStaffEvent.idstaff
                     };
 
                     console.log("Critérios para verificação de limite de função EM PUT:", criteriosDeVerificacao);
@@ -5829,6 +5908,8 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             cancelButtonText: 'Corrigir dados',
             confirmButtonColor: '#28a745',
             denyButtonColor: '#17a2b8',
+            allowOutsideClick: false,  // ✅ impede fechar clicando fora
+            allowEscapeKey: false,  
             html: htmlDashboard
         };
 
@@ -10440,6 +10521,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     // 1. Prioridade para a data vinda do Flatpickr
     const campoData = document.getElementById('periodoEvento');
     // let dataReal = "";
+    
 
     // if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
     //     // Pega a primeira data selecionada no calendário
@@ -10451,28 +10533,36 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     // }
 
     let dataReal = "";
+    let listaDatas = [];
 
     // 1. PRIORIDADE: Se passamos uma data específica (ex: 11/04), usamos essa!
-    if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
-        // Pega a primeira data do array de conflito
-        dataReal = dataEspecifica[0]; 
+    // if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
+    //     // Pega a primeira data do array de conflito
+    //     dataReal = dataEspecifica[0]; 
+    // } 
+    // else if (typeof dataEspecifica === 'string' && dataEspecifica.length > 5) {
+    //     dataReal = dataEspecifica;
+    // }
+    // // 2. FALLBACK: Só olha para o calendário se não houver data específica
+    // else {
+    //     const campoData = document.getElementById('periodoEvento');
+    //     if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+    //         dataReal = campoData._flatpickr.selectedDates[0].toLocaleDateString('en-CA');
+    //     }
+    // }
+if (Array.isArray(dataEspecifica) && dataEspecifica.length > 0) {
+        listaDatas = dataEspecifica.map(d => d.includes('T') ? d.split('T')[0] : d);
     } 
     else if (typeof dataEspecifica === 'string' && dataEspecifica.length > 5) {
-        dataReal = dataEspecifica;
-    }
-    // 2. FALLBACK: Só olha para o calendário se não houver data específica
-    else {
-        const campoData = document.getElementById('periodoEvento');
-        if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
-            dataReal = campoData._flatpickr.selectedDates[0].toLocaleDateString('en-CA');
-        }
+        listaDatas = [dataEspecifica.includes('T') ? dataEspecifica.split('T')[0] : dataEspecifica];
     }
 
     // Garante que não leva o horário (T03:00...) se vier do banco
-    if (dataReal.includes('T')) dataReal = dataReal.split('T')[0];
+   // if (dataReal.includes('T')) dataReal = dataReal.split('T')[0];
 
     // Se ainda assim não tiver data, avisa o usuário em vez de chutar "hoje"
-    if (!dataReal) {
+    //if (!dataReal) {
+    if (listaDatas.length === 0) {
         console.warn("⚠️ Nenhuma data selecionada no Flatpickr.");
         return Swal.fire({
             icon: 'error',
@@ -10483,15 +10573,38 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     }
 
     // 2. Formata para o padrão brasileiro DD/MM/YYYY
-    const dataFormatada = dataReal.split('-').reverse().join('/'); 
+   // const dataFormatada = dataReal.split('-').reverse().join('/'); 
+   listaDatas = [...new Set(listaDatas)].sort();
+
+    const datasFormatadasExibicao = listaDatas
+        .map(d => d.split('-').reverse().join('/'))
+        .join(', ');
     
     // ... segue para o seu Swal.fire usando a dataFormatada ...
-    console.log("📅 Data utilizada no formulário:", dataFormatada);
+    console.log("📅 Data utilizada no formulário:", datasFormatadasExibicao);
 
+    // const { value: formValues, isConfirmed } = await Swal.fire({
+    //     title: `Solicitar ${tipo}`,
+    //     html: `
+    //         <div style="margin-bottom: 10px;"><b>Data:</b> ${dataFormatada}</div>
+    //         <div style="margin-bottom: 10px;"><b>Função:</b> ${nmFuncao}</div>
+    //         <textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa para esta data (obrigatório)"></textarea>`,
+    //     showCancelButton: true,
+    //     confirmButtonText: 'Enviar Solicitação',
+    //     cancelButtonText: 'Cancelar Solicitação',
+    //     preConfirm: () => {
+    //         const justificativa = document.getElementById('swal-justificativa').value;
+    //         if (!justificativa.trim()) {
+    //             Swal.showValidationMessage('A justificativa é obrigatória.');
+    //             return false;
+    //         }
+    //         return { justificativa: justificativa };
+    //     }
+    // });
     const { value: formValues, isConfirmed } = await Swal.fire({
         title: `Solicitar ${tipo}`,
         html: `
-            <div style="margin-bottom: 10px;"><b>Data:</b> ${dataFormatada}</div>
+            <div style="margin-bottom: 10px;"><b>Data:</b> ${datasFormatadasExibicao}</div>
             <div style="margin-bottom: 10px;"><b>Função:</b> ${nmFuncao}</div>
             <textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa para esta data (obrigatório)"></textarea>`,
         showCancelButton: true,
@@ -10508,60 +10621,13 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     });
 
     if (isConfirmed && formValues) {
-        // const resultado = await salvarSolicitacaoAditivoExtra(
-        //     idOrcamentoAtual, 
-        //     idFuncao,             
-        //     1, // Qtd é sempre 1 por registro de data
-        //     tipoPadronizado, 
-        //     formValues.justificativa, 
-        //     idFuncionario,
-        //     dataReal // 🎯 NOVO PARÂMETRO
-        // );
-
-        
-        // if (resultado.sucesso) {
-        //     // 🎯 TRATAMENTO ESPECÍFICO PARA DATAS FORA DO ORÇAMENTO
-        //     if (tipo.includes("Data fora do Orçamento")) {
-                
-        //         // 1. Removemos as datas excedentes do Flatpickr
-        //         if (window.datasEventoPicker) {
-        //             const todasDatas = window.datasEventoPicker.selectedDates.map(d => d.toISOString().split('T')[0]);
-                         
-        //             await Swal.fire({
-        //                 icon: 'success',
-        //                 title: 'Solicitação Enviada!',
-        //                 html: `Sua solicitação de <b>${tipoPadronizado}</b> foi registrada.<br><br>` +
-        //                       `<span style="color: #d33">Importante:</span> As datas fora do orçamento foram removidas da sua seleção atual e só poderão ser usadas após a aprovação.`,
-        //                 confirmButtonText: 'OK'
-        //             });
-        //         }
-        //     } else {
-        //         // Mensagem padrão para Vagas Excedidas ou outros tipos
-        //         await Swal.fire({
-        //             icon: 'success',
-        //             title: 'Solicitação Enviada!',
-        //             text: `Sua solicitação de ${tipoPadronizado} foi registrada com sucesso.`,
-        //             confirmButtonText: 'OK'
-        //         });
-        //     }
-        // }
-        // else {
-        //     await Swal.fire({
-        //         icon: 'error',
-        //         title: 'Falha na Solicitação',
-        //         text: resultado.erro || 'Ocorreu um erro ao salvar.',
-        //         confirmButtonText: 'Entendido'
-        //     });
-        // }
-
-        // return resultado; // Mantém o retorno original para quem chamou a função
 
         return { //para testar o salvar do staff com status inativo antes das solicitações de exceção
             confirmado: true, 
             solicitouAutorizacao: true,
             justificativa: formValues.justificativa,
             tipoPadronizado: tipoPadronizado,
-            dataConflito: dataReal 
+             dataConflito: listaDatas//dataReal 
         };
 
     }
@@ -11625,15 +11691,38 @@ function inicializarFlatpickrStaffComLimites() {
             // maxDate: null, 
             
             onChange: function(selectedDates) {
+                console.log("📅 Clique no calendário detectado...");
                 // Mantém sua lógica de callback
                 atualizarContadorEDatas(selectedDates);
 
                 if (selectedDates.length > 0) {
                     console.log("✅ ONCHANGE MANUAL: Critérios atendidos. Chamando debouncedOnCriteriosChanged.");
-                    debouncedOnCriteriosChanged(); 
+                    // debouncedOnCriteriosChanged(); 
                 } else {
                     console.log(`❌ ONCHANGE MANUAL: Bloqueado (Datas: ${selectedDates.length}, Evento: ${!!idEvento}, Cliente: ${!!idCliente}).`);
                 }
+            },
+            onClose: function(selectedDates, dateStr, instance) {
+                console.log("🟢 [onClose] Usuário fechou o calendário.");
+
+                if (selectedDates.length > 0) {
+                    console.log("🚀 Disparando validação de orçamento completa...");
+                    
+                    // Usamos o setTimeout para garantir que o DOM e o input 
+                    // estejam 100% sincronizados antes da busca rodar
+                    setTimeout(() => {
+                        // Passamos 'true' para o force (caso você tenha implementado o parâmetro)
+                        // ou simplesmente chamamos a função agora que o picker está FECHADO.
+                        debouncedOnCriteriosChanged(true); 
+                    }, 100);
+                } else {
+                    console.log("⚠️ Nenhuma data selecionada no fechamento.");
+                }
+
+                // Reset da flag de controle (se você usar em outros lugares do sistema)
+                setTimeout(() => { 
+                    instance.usuarioAbriu = false; 
+                }, 500);
             },
         });        
         

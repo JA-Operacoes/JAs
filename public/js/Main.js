@@ -2654,77 +2654,48 @@ async function abrirTelaEquipesEvento(evento) {
   }
 
   try {
-  const idevento = evento.idevento || evento.id || evento.id_evento;
-  const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
 
-  if (!idevento || !idempresa) {
-    console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-    corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-    return;
-  }
+    if (!idevento || !idempresa) {
+        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+        return;
+    }
 
-  const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
 
-  // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
-  let dados;
-  if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-    dados = resp;
-  } else if (resp && typeof resp === "object" && "ok" in resp) {
-    if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-    dados = await resp.json();
-  } else {
-    console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-    corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-    return;
-  }
+    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+    let dados;
+    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+        dados = resp;
+    } else if (resp && typeof resp === "object" && "ok" in resp) {
+        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+        dados = await resp.json();
+    } else {
+        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+        return;
+    }
 
-  // normaliza array de equipes: suportar {equipes: [...] } ou array direto
-  const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
-  // Adiciona idorcamento ao evento
-  evento.idorcamento = dados.idorcamento;
+    // Adiciona idorcamento ao evento
+    evento.idorcamento = dados.idorcamento;
 
-  // CONSOLE 1: Dados Brutos do Backend
-  console.log("=================================================");
-  console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
-  console.log(equipesRaw);
-  console.log("=================================================");
+    // CONSOLE 1: Dados Brutos do Backend
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+    console.log(equipesRaw);
+    console.log("=================================================");
 
-  if (!equipesRaw.length) {
-    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-    return;
-  }
+    if (!equipesRaw.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+        return;
+    }
 
-    // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
-    // const mapFuncoes = (funcoesArray) => {
-    //     if (!Array.isArray(funcoesArray)) return [];
-
-    //     return funcoesArray.map(f => {
-    //         // Mapeamento dos campos de Total e Preenchidas
-    //         const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
-    //         const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
-    //         const pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
-
-    //         // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
-    //         if (total === 0 && preenchidas === 0) {
-    //             return null;
-    //         }
-
-    //         return {
-    //             idfuncao: f.idfuncao ?? f.idFuncao ?? null,
-    //             nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
-    //             total,
-    //             preenchidas,
-    //             pendente,
-    //             concluido: total > 0 && preenchidas >= total,
-    //             dtini_vaga: f.dtini_vaga ?? null,
-    //             dtfim_vaga: f.dtfim_vaga ?? null,
-    //             datas_staff: f.datas_staff ?? [],
-    //             cache_fechado: f.cache_fechado ?? false
-    //         };
-    //     }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
-    // };
-
+        
     const mapFuncoes = (funcoesArray) => {
         if (!Array.isArray(funcoesArray)) return [];
 
@@ -2733,13 +2704,19 @@ async function abrirTelaEquipesEvento(evento) {
             const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
             const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
             const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+            const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
+
+            //const ativos    = qtd_cadastrada - qtd_pendente;
+            //const pendentes = qtd_pendente;
 
             // Filtro de segurança: se não tem nada orçado nem nada cadastrado, ignora
             // if (qtd_orcamento === 0 && qtd_cadastrada === 0) {
             //     return null;
             // }
 
-            if (qtd_orcamento === 0 && ativos === 0 && pendentes === 0) return null;
+            //if (qtd_orcamento === 0 && ativos === 0 && pendentes === 0) return null;
+
+            if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
 
             return {
                 ...f, // Mantém todas as propriedades originais (idfuncao, dtini, etc)
@@ -2747,6 +2724,7 @@ async function abrirTelaEquipesEvento(evento) {
                 qtd_orcamento,
                 qtd_cadastrada,
                 qtd_pendente,
+                diarias_consumidas,
                 // Calculamos o concluído real (Confirmados >= Orçado)
                 concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
             };
@@ -2755,7 +2733,7 @@ async function abrirTelaEquipesEvento(evento) {
 
     console.log("Mapeando e filtrando funções...", equipesRaw);
 
-  // converte e normaliza cada item
+    // converte e normaliza cada item
     let equipes = equipesRaw.map(item => {
     // Obter nome e ID da equipe
     const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
@@ -2791,124 +2769,117 @@ async function abrirTelaEquipesEvento(evento) {
         funcoesResult = mapFuncoes(item.funcoes);
     }
 
-  return {
-    equipe: equipeNome,
-    idequipe: equipeId,
-    funcoes: funcoesResult
-    };
-  })
-  // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
-  .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
-  // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
-  .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+    return {
+        equipe: equipeNome,
+        idequipe: equipeId,
+        funcoes: funcoesResult
+        };
+    })
+    // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
+    .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+    // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
+    .filter(eq => eq.funcoes && eq.funcoes.length > 0);
 
-  // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
-  console.log("=================================================");
-  console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
-  console.log(equipes);
-  console.log("=================================================");
+    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+    console.log(equipes);
+    console.log("=================================================");
 
 
-  if (!equipes.length) {
-    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-    return;
-  }
+    if (!equipes.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+        return;
+    }
 
-  // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
-  corpo.innerHTML = "";
-  equipes.forEach(eq => {
+    // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
+    corpo.innerHTML = "";
+    equipes.forEach(eq => {
 
-    const equipeBox = document.createElement("div");
-    equipeBox.className = "equipe-box";
+        const equipeBox = document.createElement("div");
+        equipeBox.className = "equipe-box";
 
-    const totalFuncoes = eq.funcoes?.length || 0;
-    const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-    const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+        const totalFuncoes = eq.funcoes?.length || 0;
+        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
 
-    // resumo de vagas por função (compacto) usando total/preenchidas
-    // const resumo = eq.funcoes?.map(f => {
-    //     const preench = Number(f.preenchidas ?? 0);
-    //     const total = Number(f.total ?? 0);
-    //     let cor = "🟢";
-    //     if (total === 0) cor = "⚪";
-    //     else if (preench === 0) cor = "🔴";
-    //     else if (preench < total) cor = "🟡";
+        const resumoItens = eq.funcoes?.map(f => {
+        const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
+                            || f.cache_fechado === true || f.cache_fechado === "true";
 
-    //     const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-    //     console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
+        const qtdItensOrcados    = Number(f.qtd_orcamento ?? 0);
+        const qtdDiasOrcados     = Number(f.qtddias_orcamento ?? 1);
+        const pessoasCadastradas = Number(f.qtd_cadastrada ?? 0);
+        const diariasConsumidas  = Number(f.diarias_consumidas ?? 0);
+        const pendentes          = Number(f.qtd_pendente ?? 0);
 
-    //     return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
-    // }).join(" | ");
+        const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+        const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes));
+        const confirmados  = pessoasCadastradas - pendentes;
 
-    // resumo de vagas por função (compacto) usando a lógica de confirmados
-    const resumo = eq.funcoes?.map(f => {
-        // 1. Extraímos os valores usando os novos nomes que definimos no mapFuncoes
-        const total = Number(f.qtd_orcamento ?? 0);
-        const bruto = Number(f.qtd_cadastrada ?? 0);
-        const pendentes = Number(f.qtd_pendente ?? 0);
-        
-        // 2. O que realmente conta para a cor é o confirmado
-        const confirmados = bruto - pendentes;
+        let cor = "#4caf50";
+        if (qtdItensOrcados === 0)             cor = "#aaa";
+        else if (confirmados === 0)            cor = "#e53935";
+        else if (confirmados < qtdItensOrcados) cor = "#ff9800";
 
-        // 3. Lógica de Cores refinada
-        let cor = "🟢"; // Verde: Confirmados >= Total
-        if (total === 0) {
-            cor = "⚪"; // Cinza: Sem orçamento
-        } else if (confirmados === 0) {
-            cor = "🔴"; // Vermelho: Zero confirmados
-        } else if (confirmados < total) {
-            cor = "🟡"; // Amarelo: Tem gente, mas não atingiu o total
-        }
-
+        const sufixo = isCacheFechado ? "diárias" : "vgs";
+        const textoPendentes = pendentes > 0 ? ` <span style="color:#e67e22">(+${pendentes} ⏳)</span>` : "";
         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-        
-        // Retornamos a string formatada. 
-        // Dica: Se houver pendentes, incluímos o aviso (+1 ⏳) no resumo também.
-        const textoPendentes = pendentes > 0 ? ` (+${pendentes} ⏳)` : "";
-        
-        return `${f.nome}: ${cor} (${periodoVaga}) ${confirmados}${textoPendentes}/${total}`;
-    }).join(" | ");
 
-    // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+        return `
+            <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+                <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+                <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+                <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+                <span style="color:#fff; font-weight:bold; min-width:60px; text-align:right;">
+                    ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+                </span>
+                <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+                    Disp: ${disponiveis}
+                </span>
+            </div>`;
+    }).join("");
+
 
     equipeBox.innerHTML = `
         <div class="equipe-header" role="button" tabindex="0">
-        <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-        <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
         </div>
         <div class="barra-progresso">
-        <div class="progresso" style="width:${perc}%;"></div>
+            <div class="progresso" style="width:${perc}%;"></div>
         </div>
-
-        <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
+        <div class="equipe-resumo" style="padding:4px 0;">
+            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+        </div>
         <div class="equipe-actions">
-        <button type="button" class="ver-funcionarios-btn">
-        <i class="fas fa-users"></i> Funcionários
-        </button>
+            <button type="button" class="ver-funcionarios-btn">
+                <i class="fas fa-users"></i> Funcionários
+            </button>
         </div>
     `;
 
-    // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
-    const headerBtn = equipeBox.querySelector(".equipe-header");
-        headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
-        headerBtn.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
-    });
+        // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
+        const headerBtn = equipeBox.querySelector(".equipe-header");
+            headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+            headerBtn.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+        });
 
 
-    // 🛑 NOVO LISTENER: Botão 'Funcionários'
-    const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
-        if (funcionariosBtn) {
-            // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
-            funcionariosBtn.addEventListener("click", (e) => {
-            e.stopPropagation(); // Evita que o clique no botão ative o clique do header
-            abrirListaFuncionarios(eq, evento); 
-            });
-        }
-        // 🛑 FIM NOVO LISTENER
+        // 🛑 NOVO LISTENER: Botão 'Funcionários'
+        const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+            if (funcionariosBtn) {
+                // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
+                funcionariosBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); // Evita que o clique no botão ative o clique do header
+                abrirListaFuncionarios(eq, evento); 
+                });
+            }
+            // 🛑 FIM NOVO LISTENER
 
-        corpo.appendChild(equipeBox);
-    });
+            corpo.appendChild(equipeBox);
+        });
 
     } catch (err) {
         console.error("Erro ao buscar detalhes das equipes.", err);
@@ -3161,16 +3132,14 @@ function abrirDetalhesEquipe(equipe, evento) {
     .replace(/'/g, "&#39;");
   }
 
-  // helper local (assumindo que está definido globalmente ou em escopo superior)
   function formatarPeriodo(inicio, fim) {
     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
-  // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+  // ===== HEADER =====
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
@@ -3180,90 +3149,112 @@ function abrirDetalhesEquipe(equipe, evento) {
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
-//   (equipe.funcoes || []).forEach(func => {
-//     const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-//     const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-//     const concluido = total > 0 && preenchidas >= total;
+(equipe.funcoes || []).forEach(func => {
+    // ----------------------------------------------------
+    // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
+    // ----------------------------------------------------
+    const nomeFuncao = func.funcao || func.descfuncao || func.nome || func.nmfuncao || "Função";
+    //const isCacheFechado = func.tem_cache_fechado === true || func.tem_cache_fechado === "true" || func.cachefechado === true;
+    const isCacheFechado = func.cache_fechado === true || func.cache_fechado === "true"
+                    || func.tem_cache_fechado === true || func.tem_cache_fechado === "true";
 
-//     const li = document.createElement("li");
-//     li.className = "funcao-item";
-//     if (concluido) li.classList.add("concluido");
-//     li.setAttribute("role", "button");
-//     li.tabIndex = 0;
+    // Seus novos campos direto do MAX() da query do orçamento
+    const qtdItensOrcados = Number(func.qtd_orcamento ?? func.qtditens ?? 0); 
+    const qtdDiasOrcados = Number(func.qtddias_orcamento ?? func.qtddias ?? 1); 
 
-//     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    console.log(`Processando função "${nomeFuncao}": isCacheFechado=${isCacheFechado}, qtdItensOrcados=${qtdItensOrcados}, qtdDiasOrcados=${qtdDiasOrcados}`);
 
-//     // NÓS DE TEXTO criados por createElement geralmente não são um problema,
-//     // mas vamos garantir que o HTML injetado seja compacto.
+    // Recupera os dados do Staff (Tratando possíveis variações para não zerar)
+    const pessoasCadastradas = Number(func.qtd_cadastrada_pessoas ?? func.pessoas_cadastradas ?? func.qtd_cadastrada ?? func.total_pessoas ?? 0);
+    const diariasConsumidas = Number(func.diarias_consumidas ?? func.vagas_consumidas ?? func.total_diarias ?? func.diarias ?? 0);
+    const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
 
-//     // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
-//     li.innerHTML = `
-//         <div class="func-wrapper">
-//         <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
-//         <div class="func-estado">${preenchidas}/${total}</div>
-//         <div class="func-detalhes">
-//         ${concluido 
-//         ? '✅ Completa' 
-//         : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-//         }
-//         </div>
-//         </div>
-//     `;
+    // ----------------------------------------------------
+    // 🎯 2. A MÁGICA DA MATEMÁTICA DAS METAS
+    // ----------------------------------------------------
+    let itensOrcados = 0;
+    let vagasOrcadas = 0;
 
-    (equipe.funcoes || []).forEach(func => {
-        console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`);
-        const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-        const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-        const pendentes = Number(func.pendente ?? func.qtd_pendente ?? 0);
-        
-         console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`, `=> Total: ${total}, Preenchidas: ${preenchidas}, Pendente: ${pendentes ?? 'N/A'}`);
-        // Supondo que o backend envie quantos desses preenchidos estão pendentes
-        // Se 'preenchidas' for o total geral, subtraímos os pendentes para saber os confirmados
-       
-        const confirmados = preenchidas - pendentes;
+    if (isCacheFechado) {
+        console.log(`Função "${nomeFuncao}" é Cache Fechado. Aplicando regra de vagas igual aos dias orçados.`);
+        // 🚀 REGRA SOLICITADA PARA CACHE FECHADO (Ex: Orçamento 226):
+        // Se qtd_orcamento no banco traz o limite físico total vendido (Ex: 14)
+        vagasOrcadas = qtdDiasOrcados; 
+        itensOrcados = qtdItensOrcados; // Para bater o 9/14 itens e 12/14 vagas perfeitamente
+    } else {
+        // REGRA PARA POSTO NORMAL (Postos × Dias)
+        itensOrcados = qtdItensOrcados;
+        vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+    
+    }
 
-        // A função só é considerada "Realmente Completa" se os CONFIRMADOS atingirem o total
-        const concluido = total > 0 && confirmados >= total;
+    // ----------------------------------------------------
+    // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL
+    // ----------------------------------------------------
+    // Desconta os pendentes apenas se a sua query de contagem já os incluir no total
+    const confirmadosPessoas = Math.max(0, pessoasCadastradas - pendentes);
+    const confirmadosVagas = Math.max(0, diariasConsumidas - pendentes);
 
-        const bloqueadoPorPendente = !concluido && (confirmados + pendentes) >= total && pendentes > 0;
-    console.log(`DEBUG ${func.nome}: Total=${total}, Confirmados=${confirmados}, Pendentes=${pendentes}, Concluido=${concluido}, BloqueadoPorPendente=${bloqueadoPorPendente}`);
+    // O saldo disponível abate o que já está garantido e o que está travado na fila de espera
+    const disponiveis = Math.max(0, vagasOrcadas - (confirmadosVagas + pendentes));
+    
+    // Regras de conclusão para ativar as cores e o botão correto
+    const concluido = vagasOrcadas > 0 && confirmadosVagas >= vagasOrcadas;
+    const bloqueadoPorPendente = !concluido && (confirmadosVagas + pendentes) >= vagasOrcadas && pendentes > 0;
 
-        const li = document.createElement("li");
-        li.className = "funcao-item";
-        if (concluido) li.classList.add("concluido");
-        
-        const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    // ----------------------------------------------------
+    // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
+    // ----------------------------------------------------
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
+    
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    
+    // Filtro para o setor não aparecer repetido se o nome da função já o contiver
+    const setor = (func.setor_orcamento || func.localizacao || "").trim();
+    let labelLocal = "";
+    if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
+        labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+    }
 
-        // Lógica do texto de estado
-        let htmlEstado = `<div class="func-estado" style="font-weight: bold;">${confirmados}/${total}`;
-        if (pendentes > 0) {
-            htmlEstado += ` <span class="badge-pendentes-alerta" title="Aguardando Autorização">(+${pendentes} ⏳ Aguardando Autorização)</span>`;
-        }
-        htmlEstado += `</div>`;
+    const textoUnidade = "diárias";
 
-        let htmlBotao;
-        if (concluido) {
-            htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
-        } else if (bloqueadoPorPendente) {
-            htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Aguarde a autorização ou rejeição do(s) funcionário(s) pendente(s)">🔒 Vagas Ocupadas</span>';
-        } else {
-            htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
-        }
+    let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+    htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+    htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diariasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
+    htmlEstado += `  <div style="min-width: 65px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+    if (pendentes > 0) {
+        htmlEstado += ` <span class="badge-pendentes-alerta" style="font-size: 0.8em; color: #e67e22;" title="Aguardando Autorização">(+${pendentes} ⏳)</span>`;
+    }
+    htmlEstado += `</div>`;
 
-        li.innerHTML = `
-            <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div class="func-nome" style="flex: 1;">
-                    ${escapeHtml(func.nome || func.nmfuncao || "Função")} 
-                    <span class="func-data-vaga">(${periodoVaga})</span>
-                </div>
-                ${htmlEstado}
-                <div class="func-detalhes" style="margin-left: 15px; min-width: 100px; text-align: right;">
-                    ${htmlBotao}
-                </div>
+    let htmlBotao;
+    if (concluido) {
+        htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+    } else if (bloqueadoPorPendente) {
+        htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
+    } else {
+        htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+    }
+
+    li.innerHTML = `
+        <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+            <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+                <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+                <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
             </div>
-        `;
+            ${htmlEstado}
+            <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+                ${htmlBotao}
+            </div>
+        </div>
+    `;
 
-    // Se não estiver concluído, precisamos adicionar o listener ao botão.
+    // ... o restante dos event listeners e modal permanecem intocados ...
+
+    // ... manter os listeners abaixo e a função abrirStaffModal() iguais ...
+
     if (!concluido && !bloqueadoPorPendente) {
         const botao = li.querySelector(".btn-abrir-staff");
         if (botao) {
@@ -3278,7 +3269,6 @@ function abrirDetalhesEquipe(equipe, evento) {
         if (concluido || bloqueadoPorPendente) return;
 
         const params = new URLSearchParams();
-
         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
         params.set("nmfuncao", func.nome ?? func.nmfuncao);
         params.set("idequipe", equipe.idequipe || "");
@@ -3301,28 +3291,40 @@ function abrirDetalhesEquipe(equipe, evento) {
         params.set("dtfim_vaga", func.dtfim_vaga || null);
         params.set("cache_fechado", func.cache_fechado ?? false);
 
-    // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
-    // O código de fechar o modal deve chamar window.onStaffModalClosed()
+        // RECARREGAMENTO NO CALLBACK
         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
             console.log("🔥 onStaffModalClosed chamado!");
             
             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
-            console.log("dados:", resp);
+            const dadosRaw = Array.isArray(resp.equipes) ? resp.equipes : [];
             
-            const dados = Array.isArray(resp.equipes) ? resp.equipes : [];
-            console.log("equipes encontradas:", dados);
-            console.log("procurando idequipe:", equipe.idequipe);
-            
-            const equipeAtualizada = dados
-                .flatMap(d => d.equipes || [d])
-                .find(e => String(e.idequipe) === String(equipe.idequipe));
-            
-            console.log("equipeAtualizada:", equipeAtualizada);
-            console.log("chamando abrirDetalhesEquipe com:", equipeAtualizada);
-            abrirDetalhesEquipe(equipeAtualizada, evento);
-        };
+            const equipesNormalizadas = dadosRaw.map(item => {
+                const mapFuncoes = (funcoesArray) => {
+                    if (!Array.isArray(funcoesArray)) return [];
+                    return funcoesArray.map(f => {
+                        return {
+                            ...f,
+                            nome: f.nome ?? f.descfuncao ?? "Função",
+                            concluido: Number(f.vagas_orcamento ?? f.total ?? 0) > 0 && Number(f.diarias_consumidas ?? f.preenchidas ?? 0) >= Number(f.vagas_orcamento ?? f.total ?? 0)
+                        };
+                    });
+                };
 
-        console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+                return {
+                    equipe: item.equipe || item.nmequipe || (`Equipe ${item.idequipe ?? ""}`),
+                    idequipe: item.idequipe,
+                    funcoes: Array.isArray(item.funcoes) ? mapFuncoes(item.funcoes) : []
+                };
+            });
+
+            const equipeAtualizada = equipesNormalizadas.find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+            if (equipeAtualizada) {
+                abrirDetalhesEquipe(equipeAtualizada, evento);
+            } else {
+                voltarParaEquipes();
+            }
+        };
 
         window.__modalInitialParams = params.toString();
         window.moduloAtual = "Staff";
@@ -3346,7 +3348,7 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   container.appendChild(lista);
 
-  // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
+  // ===== RODAPÉ =====
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
@@ -3354,12 +3356,9 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   painel.appendChild(container);
 
-  // Eventos de navegação
   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
-
-
 
 // =========================
 //    Pedidos Orçamentos 

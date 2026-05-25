@@ -635,144 +635,6 @@ ORDER BY oi.idorcamentoitem;`;
     }
 );
 
-// router.post("/orcamento/consultar",
-//   async (req, res) => {
-//   console.log("Dados recebidos no backend:", req.body);
-//   const client = await pool.connect();
-//   try {
-//         const {
-//             idEvento,
-//             idCliente, // Recebido do frontend mas não usado no WHERE (evita bug de race condition)
-//             idLocalMontagem,
-//             idFuncao,
-//             setor,
-//             datasEvento = [],
-//         } = req.body;
- 
-//         const idempresa = req.idempresa;
- 
-//         console.log("ORCAMENTO/CONSULTAR", req.body);
- 
-//         if (!idEvento || !idLocalMontagem || !idFuncao) {
-//             return res.status(400).json({ 
-//                 error: "Evento, Local e Função são obrigatórios." 
-//             });
-//         }
- 
-//         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
-//             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
-//         }
- 
-//         // CORREÇÃO: idCliente removido do WHERE pois o frontend pode enviar o valor
-//         // de um modal anterior (race condition entre prefill e carregamento do select).
-//         // idEvento + idLocalMontagem + idEmpresa + idFuncao já identificam o orçamento unicamente.
-//         const query = `
-//             WITH datas_orcamento AS (
-//                 SELECT
-//                     oi.idorcamentoitem,
-//                     ARRAY(
-//                         SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
-//                     ) AS periodos_disponiveis
-//                 FROM orcamentoitens oi
-//                 WHERE oi.idorcamentoitem IS NOT NULL
-//             )
-//             SELECT
-//                 o.status, o.idorcamento, o.contratarstaff,
-//                 o.idcliente,
-//                 dto.periodos_disponiveis AS datas_totais_orcadas,
- 
-//                 oi.qtditens AS quantidade_orcada,
-//                 oi.idfuncao,
-//                 f.descfuncao,
-//                 e.nmevento,
-//                 c.nmfantasia AS nmcliente,
-//                 lm.descmontagem AS nmlocalmontagem,
-//                 oi.setor AS setor,
-//                 (
-//                     SELECT COUNT(DISTINCT se.idfuncionario)
-//                     FROM staffeventos se
-//                     WHERE
-//                         se.idevento = o.idevento
-//                         AND se.idcliente = o.idcliente
-//                         AND se.idmontagem = o.idmontagem
-//                         AND se.idfuncao = oi.idfuncao
-//                         -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($4)
-//                         AND se.datasevento @> to_jsonb($4::text[])
-//                 ) AS quantidade_escalada
-//             FROM
-//                 orcamentoitens oi
-//             JOIN
-//                 orcamentos o ON oi.idorcamento = o.idorcamento
-//             JOIN
-//                 orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//             LEFT JOIN
-//                 funcao f ON oi.idfuncao = f.idfuncao
-//             LEFT JOIN
-//                 eventos e ON o.idevento = e.idevento
-//             LEFT JOIN
-//                 clientes c ON o.idcliente = c.idcliente
-//             LEFT JOIN
-//                 localmontagem lm ON o.idmontagem = lm.idmontagem
-//             JOIN
-//                 datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
-//             WHERE
-//                 oe.idempresa = $1
-//                 AND o.idevento = $2
-//                 AND o.idmontagem = $3
-//                 -- idCliente removido do WHERE: era fonte de bug quando o frontend
-//                 -- enviava o ID de um cliente de sessão anterior (race condition).
-//                 AND oi.idfuncao = $5
-//                 AND (oi.setor = $6 OR $6 IS NULL OR $6 = '' OR oi.setor IS NULL OR oi.setor = '')
-//                 AND dto.periodos_disponiveis && $4::date[]
-//             GROUP BY
-//                 oi.idorcamentoitem,
-//                 f.descfuncao,
-//                 e.nmevento,
-//                 c.nmfantasia,
-//                 lm.descmontagem,
-//                 oi.setor,
-//                 o.idevento,
-//                 o.idcliente,
-//                 o.idmontagem,
-//                 oi.idfuncao,
-//                 o.status,
-//                 o.idorcamento,
-//                 oi.qtditens,
-//                 o.contratarstaff,
-//                 dto.periodos_disponiveis
-//             ORDER BY
-//                 oi.idorcamentoitem;
-//         `;
- 
-//         console.log("QUERY", query);
-//         const values = [
-//             idempresa,       // $1
-//             idEvento,        // $2
-//             idLocalMontagem, // $3 (era $4, idCliente removido)
-//             datasEvento,     // $4 (era $5)
-//             idFuncao,        // $5 (era $6)
-//             setor || null    // $6 (era $7)
-//         ];
- 
-//         const result = await client.query(query, values);
-//         const orcamentoItems = result.rows;
-//         // console.log("📊 LINHAS ENCONTRADAS PELO BANCO:", orcamentoItems);
- 
-//         res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null;
- 
-//         res.status(200).json(orcamentoItems);
-//        } catch (error) {
-//         console.error("Erro ao buscar itens de orçamento por critérios:", error);
-//         res.status(500).json({
-//             error: "Erro ao buscar orçamento por critérios.",
-//             detail: error.message,
-//         });
-//        } finally {
-//         client.release();
-//       }
-//     });
-
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-duplicate acessada");
     let client;
@@ -1071,7 +933,21 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     ELSE '[]'::jsonb 
                 END
             ) elem
-          ) AS dtmeiadiaria_aggr -- Renomeado
+          ) AS dtmeiadiaria_aggr, -- Renomeado
+           (
+                SELECT jsonb_build_object(
+                    'idsolicitacao', sol.idsolicitacao,
+                    'status', sol.status,
+                    'noOrcamento', EXISTS (
+                        SELECT 1 FROM orcamentoitens oi WHERE oi.idsolicitacao = sol.idsolicitacao
+                    )
+                )
+                FROM solicitacoes sol
+                WHERE sol.idregistroalterado = se.idstaffevento
+                AND sol.categoria_log = 'aditivoextra'
+                ORDER BY sol.dtsolicitacao DESC
+                LIMIT 1
+            ) AS solicitacao_aditivo
             FROM staffeventos se
             INNER JOIN staff s 
           ON se.idstaff = s.idstaff
@@ -1512,57 +1388,111 @@ router.put("/:idStaffEvento",
 //     await client.query(query, values);
 // }
 
+// async function registrarSolicitacao(client, dados) {
+//     console.log("DEBUG registrarSolicitacao - Objeto recebido:", JSON.stringify(dados, null, 2));
+//     const formatarParaJsonB = (valor) => {
+//         if (!valor) return null;
+//         if (typeof valor === 'object') return JSON.stringify(valor);
+//         return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
+//     };
+
+//     // Ajustamos a ordem para refletir exatamente os dados.
+//     // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
+//     const query = `
+//         INSERT INTO public.solicitacoes (
+//             idempresa,              -- $1
+//             idorcamento,            -- $2
+//             idfuncionario,          -- $3
+//             idfuncao,               -- $4
+//             idregistroalterado,     -- $5
+//             idusuariosolicitante,   -- $6
+//             tiposolicitacao,        -- $7
+//             categoria_log,          -- $8
+//             vlrsolicitado,          -- $9
+//             justificativa,          -- $10
+//             dtsolicitada,           -- $11 (O campo JSONB com as datas)
+//             status,                 -- $12
+//             dtsolicitacao           -- Automático
+//         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+//         ON CONFLICT (idregistroalterado, categoria_log, dtsolicitada) 
+//         WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
+//         DO UPDATE SET 
+//             vlrsolicitado = EXCLUDED.vlrsolicitado,
+//             justificativa = EXCLUDED.justificativa,
+//             dtsolicitacao = CURRENT_TIMESTAMP,
+//             idusuariosolicitante = EXCLUDED.idusuariosolicitante;
+//     `;
+
+//     const values = [
+//         dados.idempresa,                // $1
+//         dados.idorcamento,              // $2
+//         dados.idfuncionario || null,    // $3
+//         dados.idfuncao,                 // $4
+//         dados.idstaffevento || null,    // $5
+//         dados.idusuariosolicitante,                // $6
+//         dados.tiposolicitacao,          // $7
+//         dados.categoria,                // $8
+//         dados.valor || 0,               // $9
+//         dados.justificativa,            // $10 (Texto comum)
+//         formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
+//         'Pendente'                      // $12
+//     ];
+
+//     await client.query(query, values);
+// }
+
 async function registrarSolicitacao(client, dados) {
     console.log("DEBUG registrarSolicitacao - Objeto recebido:", JSON.stringify(dados, null, 2));
+    
     const formatarParaJsonB = (valor) => {
         if (!valor) return null;
         if (typeof valor === 'object') return JSON.stringify(valor);
-        return valor; // Se já for string, o driver do pg lida com o cast ::jsonb
+        return valor;
     };
 
-    // Ajustamos a ordem para refletir exatamente os dados.
-    // Importante: Justificativa costuma ser TEXT, dtsolicitada é que é JSONB (as datas).
-    const query = `
-        INSERT INTO public.solicitacoes (
-            idempresa,              -- $1
-            idorcamento,            -- $2
-            idfuncionario,          -- $3
-            idfuncao,               -- $4
-            idregistroalterado,     -- $5
-            idusuariosolicitante,   -- $6
-            tiposolicitacao,        -- $7
-            categoria_log,          -- $8
-            vlrsolicitado,          -- $9
-            justificativa,          -- $10
-            dtsolicitada,           -- $11 (O campo JSONB com as datas)
-            status,                 -- $12
-            dtsolicitacao           -- Automático
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
-        ON CONFLICT (idregistroalterado, categoria_log, dtsolicitada) 
-        WHERE status = 'Pendente' AND idregistroalterado IS NOT NULL
-        DO UPDATE SET 
-            vlrsolicitado = EXCLUDED.vlrsolicitado,
-            justificativa = EXCLUDED.justificativa,
+    // 1. Tenta atualizar registro existente
+    const updateRes = await client.query(`
+        UPDATE public.solicitacoes SET
+            vlrsolicitado = $1,
+            justificativa = $2,
             dtsolicitacao = CURRENT_TIMESTAMP,
-            idusuariosolicitante = EXCLUDED.idusuariosolicitante;
-    `;
+            idusuariosolicitante = $3
+        WHERE idregistroalterado = $4
+          AND categoria_log = $5
+          AND status = 'Pendente'
+          AND idregistroalterado IS NOT NULL
+    `, [
+        dados.valor || 0,
+        dados.justificativa,
+        dados.idusuariosolicitante,
+        dados.idstaffevento || null,
+        dados.categoria
+    ]);
 
-    const values = [
-        dados.idempresa,                // $1
-        dados.idorcamento,              // $2
-        dados.idfuncionario || null,    // $3
-        dados.idfuncao,                 // $4
-        dados.idstaffevento || null,    // $5
-        dados.idusuariosolicitante,                // $6
-        dados.tiposolicitacao,          // $7
-        dados.categoria,                // $8
-        dados.valor || 0,               // $9
-        dados.justificativa,            // $10 (Texto comum)
-        formatarParaJsonB(dados.datas), // $11 (JSONB - datas selecionadas)
-        'Pendente'                      // $12
-    ];
-
-    await client.query(query, values);
+    // 2. Se não achou nada para atualizar, insere
+    if (updateRes.rowCount === 0) {
+        await client.query(`
+            INSERT INTO public.solicitacoes (
+                idempresa, idorcamento, idfuncionario, idfuncao,
+                idregistroalterado, idusuariosolicitante, tiposolicitacao,
+                categoria_log, vlrsolicitado, justificativa,
+                dtsolicitada, status, dtsolicitacao
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+        `, [
+            dados.idempresa,
+            dados.idorcamento,
+            dados.idfuncionario || null,
+            dados.idfuncao,
+            dados.idstaffevento || null,
+            dados.idusuariosolicitante,
+            dados.tiposolicitacao,
+            dados.categoria,
+            dados.valor || 0,
+            dados.justificativa,
+            formatarParaJsonB(dados.datas),
+            'Pendente'
+        ]);
+    }
 }
 
 function ordenarDatas(datas) {
@@ -1702,63 +1632,114 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         // 🎯 5. VÍNCULO DE ADITIVO / EXTRA (Se salvo como Inativo)
         //if (!isAtivo && tipoSolicitacaoAditivo) {
-        if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
-            // let datasSolicitadasArray = [];
-            // try {
-            //     // Se o frontend enviou datasExcecao, usa elas. Se não, usa o datasArray (completo).
-            //     const fonteDatas = datasExcecao || datasevento;
-            //     datasSolicitadasArray = Array.isArray(fonteDatas) ? fonteDatas : JSON.parse(fonteDatas || "[]");
-            // } catch (e) { 
-            //     datasSolicitadasArray = datasArray; // Fallback para o array completo em caso de erro
-            // }
+        // if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
+        //     // let datasSolicitadasArray = [];
+        //     // try {
+        //     //     // Se o frontend enviou datasExcecao, usa elas. Se não, usa o datasArray (completo).
+        //     //     const fonteDatas = datasExcecao || datasevento;
+        //     //     datasSolicitadasArray = Array.isArray(fonteDatas) ? fonteDatas : JSON.parse(fonteDatas || "[]");
+        //     // } catch (e) { 
+        //     //     datasSolicitadasArray = datasArray; // Fallback para o array completo em caso de erro
+        //     // }
 
+        //     let datasSolicitadasArray = [];
+        //     try {
+        //         // Usa datasExcecao se vier do frontend, senão usa o datasArray já parseado no passo 1
+        //         const fonteDatas = datasExcecao 
+        //             ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
+        //             : datasArray; // ← já está parseado e seguro
+                
+        //         // Garante que as datas estejam no formato YYYY-MM-DD (sem timestamp),
+        //         // pois o campo é date[] no Postgres
+        //         datasSolicitadasArray = fonteDatas
+        //             .filter(d => d) // remove nulls/undefined
+        //             .map(d => String(d).split('T')[0]); // remove timezone/time part
+                    
+        //     } catch (e) { 
+        //         console.warn("⚠️ Falha ao processar datas para solicitação, usando datasArray:", e.message);
+        //         datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
+        //     }
+        //     console.log("📅 datasSolicitadasArray para INSERT:", datasSolicitadasArray);
+
+        //     const queryAditivo = `
+        //         INSERT INTO public.solicitacoes (
+        //             idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao, 
+        //             qtdsolicitada, vlrsolicitado, status, justificativa, 
+        //             idusuariosolicitante, dtsolicitada, ideventosolicitado, 
+        //             categoria_log, idregistroalterado
+        //         )
+        //         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, $13, $14)
+        //     `;
+
+        //     const valuesAditivo = [
+        //         idorcamento,
+        //         idfuncionario,
+        //         idfuncao,
+        //         idempresa,
+        //         tipoSolicitacaoAditivo,
+        //         1, // Qtd padrão
+        //         0, // Vlr padrão (ou use vlrtotal se necessário)
+        //         'Pendente',
+        //         justificativaAditivo || obsgeral,
+        //         idUsuarioLogado,
+        //         datasSolicitadasArray, 
+        //         idevento,
+        //         'aditivoextra',
+        //         novoIdStaffEvento
+        //     ];
+
+        //     await client.query(queryAditivo, valuesAditivo);
+        // }
+
+        if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
             let datasSolicitadasArray = [];
             try {
-                // Usa datasExcecao se vier do frontend, senão usa o datasArray já parseado no passo 1
                 const fonteDatas = datasExcecao 
                     ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
-                    : datasArray; // ← já está parseado e seguro
+                    : datasArray;
                 
-                // Garante que as datas estejam no formato YYYY-MM-DD (sem timestamp),
-                // pois o campo é date[] no Postgres
                 datasSolicitadasArray = fonteDatas
-                    .filter(d => d) // remove nulls/undefined
-                    .map(d => String(d).split('T')[0]); // remove timezone/time part
+                    .filter(d => d)
+                    .map(d => String(d).split('T')[0]);
                     
             } catch (e) { 
-                console.warn("⚠️ Falha ao processar datas para solicitação, usando datasArray:", e.message);
+                console.warn("⚠️ Falha ao processar datas:", e.message);
                 datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
             }
-            console.log("📅 datasSolicitadasArray para INSERT:", datasSolicitadasArray);
 
-            const queryAditivo = `
-                INSERT INTO public.solicitacoes (
-                    idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao, 
-                    qtdsolicitada, vlrsolicitado, status, justificativa, 
-                    idusuariosolicitante, dtsolicitada, ideventosolicitado, 
-                    categoria_log, idregistroalterado
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, $13, $14)
-            `;
+            // 🚀 A MÁGICA: Iterar sobre as datas para criar solicitações individuais
+            for (const dataUnica of datasSolicitadasArray) {
+                const queryAditivo = `
+                    INSERT INTO public.solicitacoes (
+                        idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao, 
+                        qtdsolicitada, vlrsolicitado, status, justificativa, 
+                        idusuariosolicitante, dtsolicitada, ideventosolicitado, 
+                        categoria_log, idregistroalterado
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                `;
 
-            const valuesAditivo = [
-                idorcamento,
-                idfuncionario,
-                idfuncao,
-                idempresa,
-                tipoSolicitacaoAditivo,
-                1, // Qtd padrão
-                0, // Vlr padrão (ou use vlrtotal se necessário)
-                'Pendente',
-                justificativaAditivo || obsgeral,
-                idUsuarioLogado,
-                datasSolicitadasArray, 
-                idevento,
-                'aditivoextra',
-                novoIdStaffEvento
-            ];
+                // Note que passamos [dataUnica] como um array de uma posição só 
+                // para manter a compatibilidade se o campo for DATE[] ou apenas DATE
+                const valuesAditivo = [
+                    idorcamento,
+                    idfuncionario,
+                    idfuncao,
+                    idempresa,
+                    tipoSolicitacaoAditivo,
+                    1, 
+                    0, 
+                    'Pendente',
+                    justificativaAditivo || obsgeral,
+                    idUsuarioLogado,
+                    `{${dataUnica}}`, // Formato de array do Postgres para uma única data
+                    idevento,
+                    'aditivoextra',
+                    novoIdStaffEvento
+                ];
 
-            await client.query(queryAditivo, valuesAditivo);
+                await client.query(queryAditivo, valuesAditivo);
+            }
         }
 
         // FIM DA TRANSAÇÃO: Se qualquer INSERT falhou acima, o código pula para o CATCH e nada é salvo.
