@@ -116,6 +116,31 @@
     flex-direction: column;
   }
 
+  .search{
+    display: flex;
+  }
+
+input#search-aside {
+    all: unset;
+    display: flex;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid black;
+    text-decoration: none;
+    
+    /* SOLUÇÃO PARA O CURSOR INVISÍVEL */
+    cursor: text;          /* Devolve o ícone de 'I' ao passar o mouse */
+    caret-color: black;    /* Garante que o traço que pisca seja visível */
+    color: black;          /* Garante que o texto digitado seja visível */
+    
+    width: 120px;
+    padding: 2px 0;
+}
+
+#search-aside::placeholder{
+  color: var(--Font-primary);
+}
+
   .lista-scroll {
   flex: 1;
   overflow-y: auto;
@@ -212,14 +237,12 @@
    
   }
   
-  #lista-dados-clientes, #lista-dados-eventos, #lista-dados-orcamentos{
+  /* #lista-dados-clientes, #lista-dados-eventos, #lista-dados-orcamentos{
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction:column ;
-    
-   
-  }
+  } */
   
   #painel-clientes.ativo ~ #painel-eventos, #painel-eventos.ativo ~ #painel-clientes {
     transform: translateX(100%);
@@ -238,7 +261,6 @@
     align-items: center;
     list-style: none;
     transition: background 2ms ease-in-out;
-
   }
   
   #lista-dados-clientes li, #lista-dados-eventos li, #lista-dados-orcamentos li{
@@ -333,6 +355,7 @@
     cursor: pointer;
     text-align: center;
     transition: background 0.2s, border 0.2s;
+    will-change: transform, opacity;
   }
   
   ul[id^="lista-dados"] li:hover {

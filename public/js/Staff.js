@@ -35,7 +35,7 @@ let tipoExcecaoAtual = null;
 let justificativaParaSalvar = "";
 let prefixoSolicitacao = "";
 
-window.addEventListener('prefill:registered', function (e) {
+window.addEventListener('prefill:registered', function (e) { 
     console.log("⚡ EVENTO RECEBIDO: prefill:registered. Tentando chamar a busca...");
     
     // 1. Sinalize que o evento foi capturado
@@ -385,7 +385,7 @@ function configurarFlatpickrs() {
             },
 
             onClose: function(selectedDates, dateStr, instance) {
-    
+
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasDobrada);
                     if (window.meiaDiariaPicker) {
@@ -718,7 +718,7 @@ function configurarFlatpickrs() {
                 if (!instance.usuarioAbriu) {
                     window.datasEventoNoCalendarioCache = [...strAtuais];
                     atualizarContadorEDatas(selectedDates);
-                    //debouncedOnCriteriosChanged();
+                    // debouncedOnCriteriosChanged();
                     return;
                 }
 
@@ -5928,7 +5928,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             confirmButtonColor: '#28a745',
             denyButtonColor: '#17a2b8',
             allowOutsideClick: false,  // ✅ impede fechar clicando fora
-            allowEscapeKey: false,     // ✅ impede fechar com ESC também
+            allowEscapeKey: false,  
             html: htmlDashboard
         };
 
@@ -10600,6 +10600,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
 
     // Se ainda assim não tiver data, avisa o usuário em vez de chutar "hoje"
     //if (!dataReal) {
+    //if (!dataReal) {
     if (listaDatas.length === 0) {
         console.warn("⚠️ Nenhuma data selecionada no Flatpickr.");
         return Swal.fire({
@@ -10639,10 +10640,10 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     //         return { justificativa: justificativa };
     //     }
     // });
-
     const { value: formValues, isConfirmed } = await Swal.fire({
         title: `Solicitar ${tipo}`,
         html: `
+            <div style="margin-bottom: 10px;"><b>Data:</b> ${datasFormatadasExibicao}</div>
             <div style="margin-bottom: 10px;"><b>Data:</b> ${datasFormatadasExibicao}</div>
             <div style="margin-bottom: 10px;"><b>Função:</b> ${nmFuncao}</div>
             <textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa para esta data (obrigatório)"></textarea>`,
@@ -10660,13 +10661,13 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     });
 
     if (isConfirmed && formValues) {
-        
+
         return { //para testar o salvar do staff com status inativo antes das solicitações de exceção
             confirmado: true, 
             solicitouAutorizacao: true,
             justificativa: formValues.justificativa,
             tipoPadronizado: tipoPadronizado,
-            dataConflito: listaDatas//dataReal 
+             dataConflito: listaDatas//dataReal 
         };
 
     }
@@ -10675,6 +10676,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     return { confirmado: false, solicitouAutorizacao: false };
     
 }
+
 
 
 window.solicitarDadosExcecao = solicitarDadosExcecao;
@@ -11736,12 +11738,11 @@ function inicializarFlatpickrStaffComLimites() {
 
                 if (selectedDates.length > 0) {
                     console.log("✅ ONCHANGE MANUAL: Critérios atendidos. Chamando debouncedOnCriteriosChanged.");
-                   // debouncedOnCriteriosChanged(); 
+                    // debouncedOnCriteriosChanged(); 
                 } else {
                     console.log(`❌ ONCHANGE MANUAL: Bloqueado (Datas: ${selectedDates.length}, Evento: ${!!idEvento}, Cliente: ${!!idCliente}).`);
                 }
             },
-            // O onClose é o "Gatilho de Ouro": dispara a validação quando o usuário termina
             onClose: function(selectedDates, dateStr, instance) {
                 console.log("🟢 [onClose] Usuário fechou o calendário.");
 

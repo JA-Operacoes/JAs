@@ -102,4 +102,33 @@
     width: 100%;
 }
 
+.vencimento{
+  font-weight: bolder;
+  animation: pulsar-suave 1s infinite;
+}
+
+.notif-vencidos, .notif-hoje, .notif-amanha{
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  animation: pulsar-suave 2s infinite;
+}
+.notif-vencidos, .notif-hoje, .notif-amanha, .notif-a-vencer{
+  border-bottom: #000000;
+}
+
+@keyframes pulsar-suave {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+    }
+    70% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(231, 35, 54, 0.692);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgb(255, 0, 25);
+    }
+}
+
 

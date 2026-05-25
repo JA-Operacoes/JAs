@@ -635,7 +635,6 @@ ORDER BY oi.idorcamentoitem;`;
     }
 );
 
-
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-duplicate acessada");
     let client;
@@ -1632,7 +1631,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         }
 
         // 🎯 5. VÍNCULO DE ADITIVO / EXTRA (Se salvo como Inativo)
-        ////if (!isAtivo && tipoSolicitacaoAditivo) {
+        //if (!isAtivo && tipoSolicitacaoAditivo) {
         // if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
         //     // let datasSolicitadasArray = [];
         //     // try {
@@ -1692,7 +1691,6 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         //     await client.query(queryAditivo, valuesAditivo);
         // }
 
-        // 🎯 5. VÍNCULO DE ADITIVO / EXTRA (Desmembrado por data)
         if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
             let datasSolicitadasArray = [];
             try {

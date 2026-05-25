@@ -65,6 +65,7 @@ async function listarPermissoesPorUsuario(req, res) {
       financeiro: !!row.financeiro,
       supremo: !!row.supremo,
       comercial: !!row.comercial,
+      devs: !!row.devs,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -89,6 +90,7 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     financeiro, 
     supremo, 
     comercial,
+    devs
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
@@ -127,10 +129,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9
-          WHERE idusuario = $10 AND modulo = $11 AND idempresa = $12
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10
+          WHERE idusuario = $11 AND modulo = $12 AND idempresa = $13
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -139,10 +141,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idempresa)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idempresa)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }

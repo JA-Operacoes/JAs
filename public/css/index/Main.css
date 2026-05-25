@@ -485,6 +485,7 @@ button#btnVoltarorc {
     display: flex;
     flex-direction: column;
     width: 100%;
+    gap: 10px;
 }
 
 .accordion-orc-header {
@@ -507,6 +508,12 @@ button#btnVoltarorc {
     color: var(--font-color);
     transition: all 0.3s ease;
 }
+
+.accordion-orc-header:hover .periodo-container p{
+  color: var(--font-color);
+  transition: all 0.3s ease;
+}
+
 
 .orc-header-info {
     margin: 0 10px;
@@ -595,18 +602,21 @@ button#btnVoltarorc {
 
 .valor-container {
     display: flex;
+    width: 400px;
     gap: 20px;
 }
 
 .periodo-container{
     display: flex;
     justify-content: center;
+    width: 300px;
     gap: 10px;
     margin-left: 10px;
 }
 
 .periodo-container p {
     font-size: 12px;
+    width: 200px;
 }
 .periodo-container p.data-range {
     margin-left: 5px;
@@ -621,6 +631,8 @@ button#btnVoltarorc {
 
 button.btn-detalhes-orcamento {
     display: flex;
+    justify-content: center;
+    width: 100%;
     border-radius: 10px;
     padding: 5px;
     background: var(--primary-color);
@@ -963,6 +975,7 @@ button.btn-detalhes-orcamento:hover {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  flex-direction: column;
 }
 
 .calendario-grid {
@@ -1021,6 +1034,7 @@ button.btn-detalhes-orcamento:hover {
   display: flex;
   flex-direction: row;
   align-items: center;
+  gap: 20px;
 }
 
 .label-select {
@@ -1030,15 +1044,140 @@ button.btn-detalhes-orcamento:hover {
   width: 190px;
 }
 
-select#mesSelect, select#anoSelect,select#viewSelect {
-  font-family: var(--Font-primary);
+.ano, .mes, .view {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-filtro-eventos, .btn-Exportar, .btn-Imprimir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #ccc;
+  background: #f5f5f5;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-filtro-eventos:hover, .btn-Exportar:hover, .btn-Imprimir:hover {
+    color: var(--font-color);
+    font-weight: var(--font-weight);
+    border-color: var(--border-color);
+    background: var(--hover-color);
+}
+
+.btn-filtro-ativo {
+  border-color: var(--border-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  font-weight: var(--font-weight);
+}
+
+.badge-filtro {
+  background: #e55;
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.swal-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.calendario-Filtro-Eventos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.chip-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;   /* altura antes do scroll */
+  overflow-y: auto;
+  padding: 4px 6px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1.5px solid #ccc;
+  background: #f5f5f5;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.chip:hover {
+    color: var(--font-color);
+    font-weight: var(--font-weight);
+    border-color: var(--border-color);
+    background: var(--hover-color);
+}
+
+.chip.ativo {
+  border-color: var(--border-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  font-weight: var(--font-weight);
+}
+
+.chip-cor {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-limpar {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1.5px solid #e55;
+  background: #fff0f0;
+  color: #c00;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-limpar:hover {
+  background: #ffe0e0;
+}
+
+
+select#mesSelect,select#anoSelect,select#viewSelect,select#semanaSelect {
+  appearance: none;
+  -webkit-appearance: none;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 6px;
   font-size: 15px;
-  padding: 0 15px;
-  border: 1px solid #000000;
+  text-align: center;
+  padding: 0 5px;
+  border-bottom: 1px solid black;
+  border: none;
   background: transparent;
   color: #000000;
   outline: none;
@@ -1057,12 +1196,17 @@ select#mesSelect, select#anoSelect,select#viewSelect {
   justify-content: center;
   align-items: center;
   padding: 0 5px;
+  width: 900px;
 }
 
 .legenda-item {
   display: flex;
+  justify-content: center;
   align-items: center;
   margin: 6px;
+  font-size: 12px;
+  width: 150px;
+
   }
 
   .legenda-cor {
@@ -3217,7 +3361,7 @@ display: none;
 /* Até 1324px */
 @media (max-width: 1324px) {
   .calendario-grid div {
-  height: 55px;
+  height: 60px;
   font-size: 12px;
   position: relative;
   overflow-y: auto;
@@ -3234,13 +3378,15 @@ display: none;
   }
   .calendario-grid .numero-dia {
   font-weight: bold;
-  font-size: 10px;
+  font-size: 15px;
   margin-bottom: 2px;
   display: block;
+  position: fixed;
+  background: white;
   }
 
   .card span{
-    font-size: 16px;
+    font-size: 15.5px;
   }
   .card div {
     font-size: 14px;
@@ -3249,6 +3395,17 @@ display: none;
   select#selectAno, .vec-title{
     font-size: 18px;
   }
+
+  .accordion-vencimentos {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
 }
 
 /* De 1325px até 1472px */
@@ -3271,9 +3428,11 @@ display: none;
   }
   .calendario-grid .numero-dia {
   font-weight: bold;
-  font-size: 10px;
+  font-size: 15px;
   margin-bottom: 2px;
   display: block;
+  position: fixed;
+  background: white;
   }
   .tabela-atividades tbody {
     display: block;

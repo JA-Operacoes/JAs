@@ -170,16 +170,108 @@ router.get("/proximo-evento", async (req, res) => {
   }
 });
 
+// router.get("/eventos-calendario", async (req, res) => {
+//   try {
+//     const idempresa = req.headers.idempresa || req.query.idempresa;
+//     const ano = parseInt(req.query.ano);
+//     const mes = parseInt(req.query.mes);
+
+//     if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+//     if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+
+//     const { rows: eventos } = await pool.query(`
+//       SELECT 
+//         e.idevento,
+//         o.nomenclatura,
+//         e.nmevento AS evento_nome,
+//         o.dtiniinframontagem, o.dtfiminframontagem,
+//         o.dtinimarcacao, o.dtfimmarcacao,
+//         o.dtinimontagem, o.dtfimmontagem,
+//         o.dtinirealizacao, o.dtfimrealizacao,
+//         o.dtinidesmontagem, o.dtfimdesmontagem,
+//         o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+//       FROM orcamentos o
+//       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+//       JOIN eventos e ON e.idevento = o.idevento
+//       WHERE oe.idempresa = $1
+//       AND o.status != 'R'
+//       AND (
+//         -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
+//         EXISTS (
+//           SELECT 1 FROM unnest(ARRAY[
+//             o.dtiniinframontagem, o.dtfiminframontagem,
+//             o.dtinimarcacao, o.dtfimmarcacao,
+//             o.dtinimontagem, o.dtfimmontagem,
+//             o.dtinirealizacao, o.dtfimrealizacao,
+//             o.dtinidesmontagem, o.dtfimdesmontagem,
+//             o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+//           ]) AS d(data)
+//           WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
+//         )
+//       )
+//       ORDER BY o.dtinimarcacao ASC;
+//     `, [idempresa, ano, mes]);
+
+//     const resposta = [];
+
+//     // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
+//     const formatDate = (date) => {
+//       if (!date) return null;
+//       const d = new Date(date);
+//       return d.getFullYear() + "-" + 
+//              String(d.getMonth() + 1).padStart(2, '0') + "-" + 
+//              String(d.getDate()).padStart(2, '0');
+//     };
+
+//     eventos.forEach(ev => {
+//       const fasesConfig = [
+//         { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+//         { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
+//         { tipo: "Montagem", ini: ev.dtinimontagem, fim: ev.dtfimmontagem },
+//         { tipo: "Realização", ini: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+//         { tipo: "Desmontagem", ini: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+//         { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+//       ];
+
+//       fasesConfig.forEach(f => {
+//         if (f.ini) {
+//           resposta.push({
+//             idevento: ev.idevento,
+//             nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+//             inicio: formatDate(f.ini),
+//             fim: formatDate(f.fim || f.ini),
+//             tipo: f.tipo
+//           });
+//         }
+//       });
+//     });
+
+//     res.json({ eventos: resposta });
+
+//   } catch (err) {
+//     console.error("Erro em /eventos-calendario:", err);
+//     res.status(500).json({ error: "Erro interno do servidor" });
+//   }
+// });
 router.get("/eventos-calendario", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
-    const ano = parseInt(req.query.ano);
-    const mes = parseInt(req.query.mes);
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
 
-    if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
-    if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
 
-    const { rows: eventos } = await pool.query(`
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
       SELECT 
         e.idevento,
         o.nomenclatura,
@@ -194,36 +286,30 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
-      AND o.status != 'R'
-      AND (
-        -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
-        EXISTS (
-          SELECT 1 FROM unnest(ARRAY[
-            o.dtiniinframontagem, o.dtfiminframontagem,
-            o.dtinimarcacao, o.dtfimmarcacao,
-            o.dtinimontagem, o.dtfimmontagem,
-            o.dtinirealizacao, o.dtfimrealizacao,
-            o.dtinidesmontagem, o.dtfimdesmontagem,
-            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
-          ]) AS d(data)
-          WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
+        AND o.status != 'R'
+        AND (
+          (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
         )
-      )
-      ORDER BY o.dtinimarcacao ASC;
-    `, [idempresa, ano, mes]);
+      ORDER BY COALESCE(o.dtinimarcacao, o.dtinimontagem, o.dtinirealizacao, o.dtinidesmontagem, o.dtiniinframontagem, o.dtiniinfradesmontagem) ASC
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
 
-    const resposta = [];
-
-    // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
     const formatDate = (date) => {
       if (!date) return null;
       const d = new Date(date);
-      return d.getFullYear() + "-" + 
-             String(d.getMonth() + 1).padStart(2, '0') + "-" + 
-             String(d.getDate()).padStart(2, '0');
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     };
 
-    eventos.forEach(ev => {
+    const resposta = [];
+
+    eventos.forEach((ev) => {
       const fasesConfig = [
         { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
         { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
@@ -233,21 +319,114 @@ router.get("/eventos-calendario", async (req, res) => {
         { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
       ];
 
-      fasesConfig.forEach(f => {
-        if (f.ini) {
-          resposta.push({
-            idevento: ev.idevento,
-            nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
-            inicio: formatDate(f.ini),
-            fim: formatDate(f.fim || f.ini),
-            tipo: f.tipo
-          });
-        }
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
       });
     });
 
     res.json({ eventos: resposta });
+  } catch (err) {
+    console.error("Erro em /eventos-calendario:", err);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+router.get("/export-eventos-calendario", async (req, res) => {
+  try {
+    const idempresa = req.headers.idempresa || req.query.idempresa;
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
 
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
+
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
+      SELECT 
+            e.idevento,
+            e.nmevento AS evento_nome, -- Mantemos apenas o nome do evento
+            
+            -- Agregação das datas para consolidar o período total de todos os orçamentos do evento
+            MIN(o.dtiniinframontagem) AS dtiniinframontagem, MAX(o.dtfiminframontagem) AS dtfiminframontagem,
+            MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
+            MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
+            MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+            MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
+            MIN(o.dtiniinfradesmontagem) AS dtiniinfradesmontagem, MAX(o.dtfiminfradesmontagem) AS dtfiminfradesmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        JOIN eventos e ON e.idevento = o.idevento
+        WHERE oe.idempresa = $1
+        AND o.status != 'R'
+        AND (
+            (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
+        )
+        GROUP BY e.idevento, e.nmevento
+        ORDER BY COALESCE(
+            MIN(o.dtinimarcacao), 
+            MIN(o.dtinimontagem), 
+            MIN(o.dtinirealizacao), 
+            MIN(o.dtinidesmontagem), 
+            MIN(o.dtiniinframontagem), 
+            MIN(o.dtiniinfradesmontagem)
+        ) ASC;
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
+
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+
+    const resposta = [];
+
+    eventos.forEach((ev) => {
+      const fasesConfig = [
+        { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+        { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
+        { tipo: "Montagem", ini: ev.dtinimontagem, fim: ev.dtfimmontagem },
+        { tipo: "Realização", ini: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+        { tipo: "Desmontagem", ini: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+        { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+      ];
+
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
+      });
+    });
+
+    res.json({ eventos: resposta });
   } catch (err) {
     console.error("Erro em /eventos-calendario:", err);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -760,10 +939,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
           --    WHEN i.cachefechado = true THEN i.qtddias 
           --    ELSE i.qtditens                                     
           --END) AS qtd_orcamento,
-          CASE
-            WHEN bool_or(i.cachefechado = true) THEN SUM(i.qtddias)  -- cache: soma diárias
-            ELSE MAX(i.qtditens)                                       -- pessoas: max de vagas (não soma)
-          END AS qtd_orcamento,
+         -- CASE
+         --   WHEN bool_or(i.cachefechado = true) THEN SUM(i.qtddias)  -- cache: soma diárias
+         --   ELSE MAX(i.qtditens)                                       -- pessoas: max de vagas (não soma)
+         -- END AS qtd_orcamento,
+          MAX(i.qtditens) AS qtd_orcamento,
+          MAX(i.qtddias) AS qtddias_orcamento,
           MIN(i.periododiariasinicio) AS dtini_vaga,
           MAX(i.periododiariasfim) AS dtfim_vaga,
           -- Retornamos se QUALQUER item desse grupo é cache fechado
@@ -830,7 +1011,17 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
                 SUM(CASE 
                     WHEN se.statusstaff IN ('Ativo', 'Pendente') THEN jsonb_array_length(se.datasevento) 
                     ELSE 0 
-                END) AS diarias_consumidas
+                END)
+                    +
+                -- ✅ Soma as diárias dobradas com status Pendente ou Autorizado
+                COALESCE(SUM(CASE 
+                    WHEN se.statusstaff IN ('Ativo', 'Pendente') THEN (
+                        SELECT COUNT(*)
+                        FROM jsonb_array_elements(se.dtdiariadobrada) AS dd
+                        WHERE (dd->>'status') IN ('Pendente', 'Autorizado')
+                    )
+                    ELSE 0 
+                END), 0) AS diarias_consumidas
         FROM staffeventos se
         WHERE se.idevento = $1 
             AND se.idcliente = $2
@@ -880,20 +1071,30 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
       const cadastrado = staffCount.find(s => 
         String(s.idfuncao) === String(item.idfuncao) && 
-        String(s.localizacao).trim().toUpperCase() === setorNormalizado
+        String(s.localizacao).trim().toUpperCase() === setorNormalizado &&
+        Number(s.idorcamento) === Number(item.idorcamento)
       ); 
 
       // --- LÓGICA DE TRANSIÇÃO ---
       // Se for cache fechado, pegamos a soma de diárias, senão a contagem de pessoas
       let qtd_cadastrada = 0;
       let qtd_pendente = 0;
-      if (cadastrado) {
-        qtd_cadastrada = item.tem_cache_fechado 
-          ? Number(cadastrado.diarias_consumidas) 
-          : Number(cadastrado.qtd_cadastrada_pessoas);
+      let diarias_consumidas = 0;
+     
+    //   if (cadastrado) {
+    //     qtd_cadastrada = item.tem_cache_fechado 
+    //       ? Number(cadastrado.diarias_consumidas) 
+    //       : Number(cadastrado.qtd_cadastrada_pessoas);
 
-          qtd_pendente = Number(cadastrado.qtd_pendente) || 0;
-      }
+    //     diarias_consumidas = Number(cadastrado.diarias_consumidas) || 0;
+    //     qtd_pendente = Number(cadastrado.qtd_pendente) || 0;
+    //   }
+
+    if (cadastrado) {
+        qtd_cadastrada    = Number(cadastrado.qtd_cadastrada_pessoas) || 0;
+        diarias_consumidas = Number(cadastrado.diarias_consumidas) || 0;
+        qtd_pendente      = Number(cadastrado.qtd_pendente) || 0;
+    }
       // ---------------------------
 
       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
@@ -906,13 +1107,15 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
         setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
+        qtddias_orcamento: Number(item.qtddias_orcamento) || 1,
         qtd_cadastrada, // Agora reflete ou pessoas ou diárias
+        diarias_consumidas,
         qtd_pendente,
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
         datas_staff: datas_staff,
-        cache_fechado: item.tem_cache_fechado 
+        tem_cache_fechado: item.tem_cache_fechado 
       });
     }
 
@@ -927,6 +1130,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.get("/ListarFuncionarios", async (req, res) => {
   const idempresa = req.query.idempresa || req.idempresa;
@@ -1932,9 +2136,9 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 MIN(s.justificativa)   AS desccaixinha,
                 jsonb_agg(
                     jsonb_build_object('idsolicitacao', s.idsolicitacao,
-                                       'data', s.dtsolicitada, 
-                                       'status', s.status,
-                                       'justificativa', s.justificativa)
+                                    'data', s.dtsolicitada, 
+                                    'status', s.status,
+                                    'justificativa', s.justificativa)
                 ) AS dtsolicitada_agrupada,
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
                 s.idfuncionario        AS idusuarioalvo,
@@ -2417,7 +2621,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 //             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
                 //         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
                 //     `, [idpedido, idempresa]);
-                if (statusParaAtualizar === 'Autorizado') {
+                    if (statusParaAtualizar === 'Autorizado') {
                 
                     const { rows: rowsOrcamento } = await pool.query(`
                         SELECT 1 FROM orcamentoitens WHERE idsolicitacao = $1 LIMIT 1
@@ -2438,7 +2642,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                         WHERE (idstaffevento = $1 
                             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
                         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-                    `, [idpedido, idempresa]);                
+                    `, [idpedido, idempresa]);
 
                 } else if (statusParaAtualizar === 'Rejeitado') {
                     await pool.query(`

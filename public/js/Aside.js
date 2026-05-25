@@ -1,4 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { animarListaEventos, animarListaClientes, animarListaOrcamentos, animarListaOrcEdicao} from './API/ScrollReveal.js'
 
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
@@ -32,6 +33,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     
     // O carregamento inicial agora é para eventos
     carregarEventos();
+    
+    const inputBusca = document.getElementById("search-aside");
+    if (inputBusca) {
+        inputBusca.addEventListener("input", function () {
+            const termo = this.value.toLowerCase(); // Converte busca para minúsculo
+            const listaEventos = document.querySelectorAll("#lista-dados-eventos li");
+
+            listaEventos.forEach(li => {
+                const nomeEvento = li.textContent.toLowerCase();
+                // Se o nome do evento contiver o termo buscado, exibe; caso contrário, oculta
+                if (nomeEvento.includes(termo)) {
+                    li.style.display = "block";
+                } else {
+                    li.style.display = "none";
+                }
+            });
+        });
+    }
 
     const btn = document.getElementById("toggle-btn");
     if (btn) {
@@ -40,6 +59,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     alternarMenu();
 });
+
 
 // --- Funções Principais de Navegação e Carregamento ---
 
@@ -170,6 +190,9 @@ async function carregarEventos() {
 
             ul.appendChild(li);
         });
+
+      animarListaEventos();
+
     } catch (erro) {
         console.error("Erro ao carregar eventos:", erro);
         Swal.fire("Erro", "Não foi possível carregar os eventos.", "error");
@@ -217,92 +240,12 @@ async function carregarClientes(eventoId) {
             ul.appendChild(li);
         });
 
+        animarListaClientes();
+
     } catch (erro) {
         console.error("Erro ao carregar clientes:", erro);
     }
 }
-
-// async function carregarOrcamentos(clienteId, eventoId) {
-//     try {
-//         const orcamentos = await fetchComToken(`aside/orcamento?clienteId=${clienteId}&eventoId=${eventoId}`);
-
-//         const ul = document.getElementById('lista-dados-orcamento');
-//         ul.innerHTML = '';
-
-//         if (!Array.isArray(orcamentos) || orcamentos.length === 0) {
-//             ul.innerHTML = '<li>Nenhum orçamento encontrado</li>';
-//             return;
-//         }
-
-//         orcamentos.forEach(orc => {
-
-//             const li = document.createElement('li');
-//             li.innerHTML = `
-//                 Orçamento nº ${orc.nrorcamento}<br>
-//                 Status: ${orc.status}<br>
-//                 Nome: ${orc.nomenclatura}
-//             `;
-
-//             console.log("N° = ", orc.nrorcamento, "Status = ", orc.status, "nome = ", orc.nomenclatura);
-
-//             li.onclick = () => {
-//                 console.log("🟢 Clique no orçamento:", orc.nrorcamento);
-//                 sessionStorage.setItem("orcamentoSelecionado", JSON.stringify(orc));
-
-//                 const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
-//                 if (linkModal) {
-//                     console.log("🟡 Abrindo modal de orçamento...");
-//                     linkModal.click();
-
-//                     setTimeout(async () => {
-//                         console.log("🔵 Timeout disparado: tentando preencher o modal");
-//                         const input = document.getElementById("nrOrcamento");
-//                         if (input) {
-//                             console.log("🟣 Campo nrOrcamento encontrado. Preenchendo com:", orc.nrorcamento);
-//                             input.value = orc.nrorcamento;
-
-//                             // Início da atualização: Simula o evento de Enter
-//                             // Cria um evento de teclado para a tecla "Enter"
-//                             const enterEvent = new KeyboardEvent('keydown', {
-//                                 key: 'Enter',
-//                                 code: 'Enter',
-//                                 keyCode: 13,
-//                                 which: 13,
-//                                 bubbles: true,
-//                             });
-//                             // Dispara o evento no campo de input
-//                             input.dispatchEvent(enterEvent);
-//                             // Fim da atualização
-
-//                             try {
-//                                 console.log("🟤 Buscando orçamento detalhado via API...");
-//                                 const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
-//                                 const moduloOrcamento = await import('./Orcamentos.js');
-//                                 console.log("✅ Dados recebidos, preenchendo formulário. ");
-//                                 moduloOrcamento.preencherFormularioComOrcamento(orcamento);
-//                             } catch (error) {
-//                                 console.error("❌ Erro ao buscar orçamento:", error);
-//                                 const moduloOrcamento = await import('./Orcamentos.js');
-//                                 moduloOrcamento.limparFormularioOrcamento();
-//                                 Swal.fire("Erro", `Não foi possível buscar o orçamento ${orc.nrorcamento}.`, "error");
-//                             }
-//                         } else {
-//                             console.warn("⚠️ Campo #nrOrcamento NÃO encontrado dentro do modal.");
-//                         }
-//                     }, 500);
-//                 } else {
-//                     console.error("❌ Botão para abrir o modal não encontrado.");
-//                     Swal.fire("Erro", "Botão para abrir o modal não encontrado.", "error");
-//                 }
-//             };
-//             ul.appendChild(li);
-//         });
-//     } catch (erro) {
-//         console.error("❌ Erro ao carregar orçamentos:", erro);
-//         Swal.fire("Erro", "Não foi possível carregar os orçamentos.", "error");
-//     }
-// }
-
 
 async function carregarOrcamentos(clienteId, eventoId) {
     ultimoClienteIdAberto = clienteId;
@@ -330,6 +273,7 @@ async function carregarOrcamentos(clienteId, eventoId) {
         Object.keys(pastas).sort((a, b) => b - a).forEach(edicao => {
             
             const liPasta = document.createElement('li');
+            liPasta.classList.add('pasta-Edicao');
             liPasta.innerHTML = `<strong>📁${edicao}</strong>`;
             liPasta.style.cursor = 'pointer';
             liPasta.style.padding = '5px';
@@ -356,6 +300,8 @@ async function carregarOrcamentos(clienteId, eventoId) {
                     Status: ${orc.status}<br>
                     Nome: ${orc.nomenclatura}
                 `;
+
+                animarListaOrcEdicao();
 
                 // --- INÍCIO DA SUA LÓGICA ORIGINAL ---
                 li.onclick = (e) => {
@@ -417,6 +363,9 @@ async function carregarOrcamentos(clienteId, eventoId) {
             ul.appendChild(liPasta);
             ul.appendChild(ulSublista);
         });
+
+        animarListaOrcamentos();
+        animarListaOrcEdicao();
 
     } catch (erro) {
         console.error("❌ Erro ao carregar orçamentos:", erro);

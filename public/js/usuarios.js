@@ -26,7 +26,8 @@ const outrasPermissoes = [
     document.getElementById('Master'),
     document.getElementById('Financeiro'),
     document.getElementById('AdminSupremo'),
-    document.getElementById('Comercial')
+    document.getElementById('Comercial'),
+    document.getElementById('Devs')
 ];
 
 
@@ -1532,7 +1533,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     master:       document.getElementById("Master").checked,
     financeiro:   document.getElementById("Financeiro").checked,
     supremo:      document.getElementById("AdminSupremo").checked,
-    comercial:    document.getElementById("Comercial").checked
+    comercial:    document.getElementById("Comercial").checked,
+    devs:         document.getElementById("Devs").checked
   };
 
   // Verifica se há mudança nas permissões
@@ -1573,6 +1575,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     financeiro: atuais.financeiro,
     supremo: atuais.supremo,
     comercial: atuais.comercial,
+    devs: atuais.devs,
     ativo: empresaAtiva
   };
 
@@ -1687,7 +1690,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   const chkMaster    = document.getElementById("Master");
   const chkFinanceiro= document.getElementById("Financeiro");
   const chkSupremo   = document.getElementById("AdminSupremo");
-  const chkComercial  = document.getElementById("Comercial");
+  const chkComercial = document.getElementById("Comercial");
+  const chkDevs      = document.getElementById("Devs");
   
 
   try {
@@ -1727,7 +1731,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       chkFinanceiro.checked = Boolean(p.financeiro);      
       chkSupremo.checked    = Boolean(p.supremo);
       chkComercial.checked  = Boolean(p.comercial);
-
+      chkDevs.checked       = Boolean(p.devs);
       verificarE_HabilitarPermissoes();
 
       permissoesOriginais = {
@@ -1740,7 +1744,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         master: Boolean(p.master),
         financeiro: Boolean(p.financeiro),
         supremo: Boolean(p.supremo),
-        comercial: Boolean(p.comercial)
+        comercial: Boolean(p.comercial),
+        devs: Boolean(p.devs)
        
       };
     } else {
@@ -1755,7 +1760,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         master: false,
         financeiro: false,
         supremo: false,
-        comercial: false
+        comercial: false,
+        devs: false
       };
     }
     console.log("Permissões originais:", permissoesOriginais);

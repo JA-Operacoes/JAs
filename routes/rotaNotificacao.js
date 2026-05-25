@@ -450,8 +450,6 @@ router.get('/inclusao-orcamentos-notificacao', autenticarToken(), async (req, re
     return res.status(500).json({ erro: 'Erro interno ao buscar aditivos extras.' });
   }
 });
-
-// // Em rotaNotificacao.js
 router.get('/retorno-inclusao', autenticarToken(), async (req, res) => {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
@@ -516,6 +514,8 @@ router.get('/retorno-inclusao', autenticarToken(), async (req, res) => {
         return res.status(500).json({ erro: 'Erro interno.' });
     }
 });
+
+
 router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
   try {
     const idempresa = req.idempresa;
@@ -590,9 +590,29 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
       
       const dVenc = new Date(dataVenc + 'T00:00:00');
       const dias = Math.round((dVenc - hoje) / 86400000);
-      if (dias > 1) return null;
+      if (dias > 5) return null;
 
-      const estado = dias < 0 ? 'vencido' : (dias === 0 ? 'hoje' : 'amanha');
+      let   estado = '';
+      let mensagemData = '';
+
+      if (dias < 0) {
+        estado = 'vencido';
+        mensagemData = 'VENCIDA';
+        classeStatus = 'notif-vencidos';
+      } else if (dias === 0) {
+        estado = 'hoje';
+        mensagemData = 'VENCE HOJE';
+        classeStatus = 'notif-hoje';
+      }else if (dias === 1){
+        estado = 'amanha'
+        mensagemData = 'VENCE AMANHA'
+        classeStatus = 'notif-amanha';
+      } else {
+        estado = 'pendente'; // Novo estado para o contador
+        mensagemData = `VENCE EM ${dias} ${dias === 1 ? 'DIA' : 'DIAS'}`;
+        classeStatus = 'notif-a-vencer'
+      }
+
       const formatarReais = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
       const config = {
@@ -613,10 +633,12 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
         id: idBase,
         type,
         icon,
-        message: `${tipo} ${estado === 'vencido' ? 'vencido' : 'vence ' + estado}: ${titulo}`,
+        message: `${tipo} ${mensagemData}: ${titulo}`,
         subtext: `Valor: ${formatarReais(valor)} · ${meta.fornecedor || 'Staff'}`,
-        badge: estado.toUpperCase(),
+        badge: estado === 'amanha' ? 'AMANHÃ' : (estado === 'pendente' ? `FALTAM ${dias}D` : estado.toUpperCase()),
+        diasAteVencimento: dias, // Útil para ordenação precisa
         estado,
+        classeStatus,
         created_at: dataVenc,
         read:statusLido,
         iconRead,

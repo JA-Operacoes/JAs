@@ -146,7 +146,7 @@ function renderizarLista(notificacoes) {
   }
 
   lista.innerHTML = notificacoes.map(n => `
-      <li class="notif-item ${n.read ? 'notif-lida' : 'notif-nao-lida'}" 
+      <li class="notif-item ${n.read ? 'notif-lida' : 'notif-nao-lida'} ${n.classeStatus || ''}" 
           data-id="${n.id}" 
           data-lida="${n.read}" 
           style="${n.read ? 'opacity: 0.6; pointer-events: none;' : ''}">
