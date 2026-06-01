@@ -62,8 +62,9 @@ if (typeof window.funcionarioriginal === "undefined") {
         dataNascimento:"",
         nomeFamiliar:"",
         apelido:"",
-        pcd: false, // 🛠️ Ajustado para booleano
-        ativo: true // 🎯 ATUALIZADO: Padrão é true (ATIVO)
+        pcd: false, 
+        ativo: true,
+        bonificado: false 
     };
 }
 
@@ -154,6 +155,9 @@ botaoEnviar.addEventListener("click", async (event) => {
     
     const campoAtivo = document.getElementById("ativo"); // 🎯 ID é 'ativo'
     const ativo = campoAtivo?.checked === true; // true se marcado (ativo), false se desmarcado (inativo)
+
+    const campoBonificado = document.getElementById("bonificado");
+    const bonificado = campoBonificado?.checked === true;
      
 
         // Validação de campos obrigatórios
@@ -214,9 +218,11 @@ botaoEnviar.addEventListener("click", async (event) => {
     formData.append("apelido", apelido);
     formData.append("pcd", pcd); // <- envia como string "true" ou "false"
     formData.append("ativo", ativo); // 🎯 CAMPO ATIVO: Adicionado ao FormData
+    formData.append("bonificado", bonificado); // 🎯 CAMPO BONIFICADO: Adicionado ao FormData
 
         console.log("valor de pcd:", pcd);
         console.log("valor de ativo:", ativo); // 🎯 CAMPO ATIVO
+        console.log("valor de bonificado:", bonificado); // 🎯 CAMPO BONIFICADO
 
         // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
         const inputFileElement = document.getElementById('file');
@@ -230,7 +236,7 @@ botaoEnviar.addEventListener("click", async (event) => {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo // 🎯 CAMPO ATIVO
+            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo, bonificado // 🎯 CAMPOS
         });
         if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
@@ -249,12 +255,12 @@ botaoEnviar.addEventListener("click", async (event) => {
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd,
-                    ativo // 🎯 CAMPO ATIVO: Adicionado à comparação
+                    ativo, bonificado // 🎯 CAMPOS
                 };
 
                 for (const key in camposTextoParaComparar) {
                     // Trata PCD e ATIVO como booleanos
-                    if (key === 'pcd' || key === 'ativo') {
+                    if (key === 'pcd' || key === 'ativo' || key === 'bonificado') {
                         const originalBool = window.funcionarioOriginal[key] === true;
                         const atualBool = camposTextoParaComparar[key] === true;
                         if (originalBool !== atualBool) {
@@ -329,7 +335,8 @@ botaoEnviar.addEventListener("click", async (event) => {
                 numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
                 numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, 
                 pcd: pcd,
-                ativo: ativo // 🎯 ATUALIZADO AQUI
+                ativo: ativo, // 🎯 ATUALIZADO AQUI
+                bonificado: bonificado // 🎯 CAMPO BONIFICADO
             };
 
         } catch (error) {
@@ -896,6 +903,11 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 checkboxAtivo.checked = funcionario.ativo === true;
             }
 
+            const checkboxBonificado = document.getElementById("bonificado");
+            if (checkboxBonificado) {
+                checkboxBonificado.checked = funcionario.bonificado === true;
+            }
+
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
             radiosPerfil.forEach(radio => {
                 if (radio.value === funcionario.perfil) {
@@ -995,7 +1007,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             window.funcionarioOriginal = { 
                 ...funcionario, 
                 pcd: funcionario.pcd === true, // Garante que é booleano
-                ativo: funcionario.ativo === true // 🎯 NOVO: Garante que é booleano (true = ativo)
+                ativo: funcionario.ativo === true, // 🎯 NOVO: Garante que é booleano (true = ativo)
+                bonificado: funcionario.bonificado === true // 🎯 NOVO: Garante que é booleano (true = bonificado)
             };
            
             const selectLinguas = document.getElementById('Linguas'); 
@@ -1271,6 +1284,11 @@ function limparCamposFuncionarios(){
     const campoPcd = document.getElementById("pcd");
     if (campoPcd && campoPcd.type === "checkbox") {
         campoPcd.checked = false; 
+    }
+
+    const campoBonificado = document.getElementById("bonificado");
+    if (campoBonificado && campoBonificado.type === "checkbox") {
+        campoBonificado.checked = false; 
     }
     
     // 🎯 CAMPO ATIVO: Garante que o checkbox 'ativo' é MARCADO (true por padrão)
