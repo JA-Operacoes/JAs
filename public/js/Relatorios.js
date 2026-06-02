@@ -647,7 +647,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'VLR CACHÊ': 'text-right', 'VLR AJUDA': 'text-right', 'VLR ADICIONAL': 'text-right',
             'STATUS CX': 'text-center', 'QTD': 'text-center', 'QTD CACHÊ': 'text-center', 'QTD AJUDA': 'text-center',
             'TOT DIÁRIAS': 'text-right', 'TOT AJUDA': 'text-right', 'TOT GERAL': 'text-right',
-            'STATUS CACHÊ': 'text-center', 'STATUS AJUDA': 'text-center', 'STATUS PGTO': 'text-center', 'STATUS CX': 'text-center',
+            'STATUS CACHÊ': 'text-center', 'STATUS AJUDA': 'text-center', 'STATUS PGTO': 'text-center', 'VLR CAIXINHA': 'text-center',
             'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHÊ': 'text-center', 'COMP AJUDA': 'text-center', 'COMP CAIXINHA': 'text-center'
         };
 
