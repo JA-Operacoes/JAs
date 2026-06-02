@@ -715,21 +715,32 @@ async function mostrarCalendarioEventos() {
   const controles = document.createElement("div");
   controles.className = "calendario-controles";
   controles.innerHTML = `
-  <div><label>Ano: <select id="anoSelect"></select></label></div>
-  <label>Mês: <select id="mesSelect"></select></label>
-  <label>Visualização:
-  <select id="viewSelect">
-  <option value="semanal">Semanal</option>
-  <option value="mensal" selected>Mensal</option>
-  <option value="trimestral">Trimestral</option>
-  <option value="semestral">Semestral</option>
-  <option value="anual">Anual</option>
-  </select>
-  </label>
-  <label id="semanaWrapper" style="display:none;">
-  Semana:
-  <select id="semanaSelect"></select>
-  </label>
+  <div class="ano">Ano: <select id="anoSelect"></select></div>
+  
+  <div class="mes">Mês: <select id="mesSelect"></select></div>
+
+  <div class="view">
+    Visualização:
+        <select id="viewSelect">
+            <option value="semanal">Semanal</option>
+            <option value="mensal" selected>Mensal</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="semestral">Semestral</option>
+            <option value="anual">Anual</option>
+        </select>
+  </div>
+
+  <div class="semana-View" id="semanaWrapper" style="display:none;">
+     Semana:<select id="semanaSelect"></select>
+  </div>
+
+  <div class="filtro">
+    <button class="btn-filtro-eventos" id="btnFiltroEventos">🔍 Filtrar Eventos</button>
+  </div>
+
+  <div class="exportar">
+    <button id="btnExportar" class="btn-Exportar">📁 Exportar CSV</button>
+  </div>
   `;
 
   // ======= LEGENDA =======
@@ -738,7 +749,7 @@ async function mostrarCalendarioEventos() {
   legenda.innerHTML = `
   <h3><strong>Legenda</strong></h3>
   <div class="items">
-  <div class="legenda-item"><div class="legenda-cor" style="background:#FFC657"></div> Montagem infra</div>
+  <div class="legenda-item"><div class="legenda-cor" style="background:#f8a500ff"></div> Montagem infra</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#73757A"></div> Marcação</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#F5E801"></div> Montagem</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#F46251"></div> Realização</div>
@@ -767,6 +778,9 @@ async function mostrarCalendarioEventos() {
   const semanaWrapper = header.querySelector("#semanaWrapper");
   const semanaSelect = header.querySelector("#semanaSelect");
 
+  const filtrosAtivos = new Set();
+    let todosEventosDoMes = [];
+
     const anoAtual = new Date().getFullYear();
     for (let a = anoAtual - 2; a <= anoAtual + 2; a++) {
         const opt = document.createElement("option");
@@ -788,14 +802,15 @@ async function mostrarCalendarioEventos() {
 
   // ======= HELPERS =======
   function getCorPeriodo(tipo) {
-  switch (tipo) {
-  case "Montagem Infra": return "#f8a500ff";
-  case "Marcação": return "#73757A";
-  case "Montagem": return "#F5E801";
-  case "Realização": return "#F46251";
-  case "Desmontagem": return "#23821F";
-  case "Desmontagem Infra": return "#704300ff";
-  case "Feriado": return "#5B0F85";
+    const tipoNormalizado = (tipo || "").toLowerCase().trim();
+  switch (tipoNormalizado) {
+  case "montagem infra": return "#f8a500";
+  case "marcação": return "#73757A";
+  case "montagem": return "#F5E801";
+  case "realização": return "#F46251";
+  case "desmontagem": return "#23821F";
+  case "desmontagem infra": return "#704300";
+  case "feriado": return "#5B0F85";
   default: return "#ccc";
   }
   }
@@ -838,6 +853,148 @@ async function mostrarCalendarioEventos() {
   semanaSelect.appendChild(opt);
   });
   }
+  
+
+function aplicarFiltro() {
+  grid.querySelectorAll(".evento").forEach(evEl => {
+    if (filtrosAtivos.size === 0) {
+      evEl.style.opacity = "1";
+      evEl.style.filter = "none";
+    } else {
+      const nomeEl = evEl.textContent.trim();
+      const ativo = [...filtrosAtivos].some(f => nomeEl.includes(f));
+      evEl.style.opacity = ativo ? "1" : "0.15";
+      evEl.style.filter = ativo ? "none" : "grayscale(100%)";
+    }
+  });
+
+  // Destaca e scrolla as células que têm eventos filtrados
+  grid.querySelectorAll("div").forEach(cell => {
+    // Remove destaque anterior
+    cell.style.outline = "";
+    cell.style.outlineOffset = "";
+
+    if (filtrosAtivos.size === 0) return;
+
+    // Verifica se a célula tem algum evento ativo
+    const temEventoAtivo = [...cell.querySelectorAll(".evento")].some(evEl => {
+      const nomeEl = evEl.textContent.trim();
+      return [...filtrosAtivos].some(f => nomeEl.includes(f));
+    });
+
+    if (temEventoAtivo) {
+      // Destaca a célula
+      cell.style.outline = "2px solid var(--primary-color)";
+      cell.style.outlineOffset = "-2px";
+
+      // Rola a célula para mostrar o primeiro evento ativo
+      const primeiroAtivo = [...cell.querySelectorAll(".evento")].find(evEl => {
+        const nomeEl = evEl.textContent.trim();
+        return [...filtrosAtivos].some(f => nomeEl.includes(f));
+      });
+
+      if (primeiroAtivo) {
+        primeiroAtivo.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  });
+}
+
+function atualizarBadgeBotao() {
+  const btn = header.querySelector("#btnFiltroEventos");
+  if (!btn) return;
+  btn.innerHTML = filtrosAtivos.size > 0
+    ? `🔍 Filtrar <span class="badge-filtro">${filtrosAtivos.size}</span>`
+    : `🔍 Filtrar Eventos`;
+  btn.classList.toggle("btn-filtro-ativo", filtrosAtivos.size > 0);
+}
+
+function abrirFiltroSwal(eventos) {
+  const nomesUnicos = [...new Set(
+    eventos
+      .filter(ev => ev.tipo !== "Feriado")
+      .map(ev => ev.nome)
+  )].sort();
+
+  if (nomesUnicos.length === 0) {
+    Swal.fire({ icon: "info", title: "Sem eventos", text: "Nenhum evento encontrado neste período." });
+    return;
+  }
+
+  // Monta HTML dos chips
+  const chipsHTML = nomesUnicos.map(nome => {
+    const tiposPorNome = eventos.filter(ev => ev.nome === nome).map(ev => ev.tipo);
+    const tipoMaisComum = tiposPorNome.sort((a, b) =>
+      tiposPorNome.filter(t => t === b).length - tiposPorNome.filter(t => t === a).length
+    )[0];
+    const cor = getCorPeriodo(tipoMaisComum);
+    const ativo = filtrosAtivos.has(nome) ? "ativo" : "";
+
+    return `
+      <span class="chip ${ativo}" data-nome="${nome}">
+        <span class="chip-cor" style="background:${cor}"></span>
+        ${nome}
+      </span>`;
+  }).join("");
+
+  Swal.fire({
+    title: "Filtrar Eventos",
+    html: `
+      <div style="text-align:center; margin-bottom:8px; font-size:15px; color:black;">
+        Clique nos eventos para filtrar. Múltipla seleção permitida.
+      </div>
+      <div class="swal-chips-grid" id="swalChipsGrid">
+        ${chipsHTML}
+      </div>
+      <button id="swalBtnLimpar" class="chip-limpar" style="margin-top:12px; display:${filtrosAtivos.size > 0 ? 'inline-flex' : 'none'}">
+        ✕ Limpar todos
+      </button>
+    `,
+    showConfirmButton: true,
+    confirmButtonText: "Aplicar",
+    showCancelButton: true,
+    cancelButtonText: "Cancelar",
+    width: "600px",
+    didOpen: () => {
+      // Toggle chips dentro do Swal
+      document.querySelectorAll("#swalChipsGrid .chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          const nome = chip.dataset.nome;
+          if (chip.classList.contains("ativo")) {
+            chip.classList.remove("ativo");
+            filtrosAtivos.delete(nome);
+          } else {
+            chip.classList.add("ativo");
+            filtrosAtivos.add(nome);
+          }
+          // Mostra/oculta botão limpar
+          document.getElementById("swalBtnLimpar").style.display =
+            filtrosAtivos.size > 0 ? "inline-flex" : "none";
+          atualizarBadgeBotao();
+          aplicarFiltro();
+        });
+      });
+
+      // Botão limpar dentro do Swal
+      document.getElementById("swalBtnLimpar").addEventListener("click", () => {
+        filtrosAtivos.clear();
+        document.querySelectorAll("#swalChipsGrid .chip").forEach(c => c.classList.remove("ativo"));
+        document.getElementById("swalBtnLimpar").style.display = "none";
+        atualizarBadgeBotao();
+        aplicarFiltro();
+      });
+    },
+    preConfirm: () => {
+      // Sincroniza estado final antes de fechar
+      filtrosAtivos.clear();
+      document.querySelectorAll("#swalChipsGrid .chip.ativo").forEach(chip => {
+        filtrosAtivos.add(chip.dataset.nome);
+      });
+    }
+  });
+}
+
+
 
   // ======= RENDER MENSAL (mantendo comportamento) =======
   async function renderMensal(ano, mes) {
@@ -873,6 +1030,7 @@ async function mostrarCalendarioEventos() {
         const primeiroDia = new Date(ano, mes - 1, 1);
         const ultimoDia = new Date(ano, mes, 0).getDate();
         const diaSemanaInicio = primeiroDia.getDay();
+        todosEventosDoMes = eventos;
 
         const ultimoDiaMesAnterior = new Date(ano, mes - 1, 0).getDate();
         let mesAnterior = mes - 1;
@@ -921,16 +1079,425 @@ async function mostrarCalendarioEventos() {
         (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
         grid.appendChild(cell);
         }
-
+        if (filtrosAtivos.size > 0) aplicarFiltro();
     } catch (err) {
     console.error("Erro ao carregar eventos do calendário (mensal):", err);
     }
   }
 
+  async function exportarCalendario(ano, mes) {
+  if (todosEventosDoMes.length === 0) {
+    Swal.fire({ icon: "info", title: "Sem dados", text: "Nenhum evento para exportar." });
+    return;
+  }
+
+  const btnExportar = header.querySelector("#btnExportar");
+  btnExportar.disabled = true;
+  btnExportar.innerHTML = `⏳ Carregando...`;
+
+  try {
+    const idempresa = getIdEmpresa();
+    const mesAtual = mesSelect.options[mesSelect.selectedIndex].text;
+    const anoAtual = parseInt(anoSelect.value);
+    const mesAtualIdx = parseInt(mesSelect.value);
+
+    // ======= ETAPA 1: MAPA DE EVENTOS POR DIA =======
+    const mapaEventos = {};
+    todosEventosDoMes.forEach(ev => {
+      const inicio = new Date(ev.inicio);
+      const fim = new Date(ev.fim);
+      for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().split("T")[0];
+        if (!mapaEventos[key]) mapaEventos[key] = [];
+        // Evita duplicatas do mesmo evento no mesmo dia
+        if (!mapaEventos[key].find(e => (e.id || e.idevento) === (ev.id || ev.idevento) && e.tipo === ev.tipo)) {
+          mapaEventos[key].push(ev);
+        }
+      }
+    });
+
+    // ======= ETAPA 3: MONTAR HTML HORIZONTAL (ESTILO CRONOGRAMA) =======
+    const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const ultimoDia = new Date(anoAtual, mesAtualIdx, 0).getDate();
+
+    // 1. Identificar todos os eventos únicos do mês (cada um será uma linha)
+    const eventosUnicosNoMes = [];
+    const idsVistos = new Set();
+    
+    // Ordenar eventos por data de início para as linhas ficarem organizadas
+    const eventosOrdenados = [...todosEventosDoMes].sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+
+    eventosOrdenados.forEach(ev => {
+        const id = ev.id || ev.idevento;
+        if (!idsVistos.has(id)) {
+            idsVistos.add(id);
+            eventosUnicosNoMes.push(ev);
+        }
+    });
+
+    // 2. Criar o Cabeçalho com os Dias (Coluna 1, 2, 3... até 31)
+    let cabecalhoDias = `<th style="background:#8B0000;color:#fff;padding:6px;border:1px solid #aaa;min-width:180px;">Evento / Dia</th>`;
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        const dataObj = new Date(anoAtual, mesAtualIdx - 1, dia);
+        const diaSemanaIdx = dataObj.getDay();
+        const fimDeSemana = (diaSemanaIdx === 0 || diaSemanaIdx === 6);
+        const bgCabecalho = fimDeSemana ? "#555" : "#8B0000"; // Cinza escuro para fds no topo
+        
+        cabecalhoDias += `
+            <th style="background:${bgCabecalho};color:#fff;padding:4px;border:1px solid #aaa;min-width:35px;font-size:10px;text-align:center;">
+                ${dia}<br><span style="font-size:8px;">${diasSemana[diaSemanaIdx]}</span>
+            </th>`;
+    }
+
+    // 3. Criar as Linhas de Eventos
+    let htmlLinhas = "";
+    eventosUnicosNoMes.forEach(eventoPrincipal => {
+        const idEvento = eventoPrincipal.id || eventoPrincipal.idevento;
+        
+        htmlLinhas += `<tr>`;
+        // Primeira coluna fixa: Nome do Evento
+        htmlLinhas += `
+            <td style="background:#f9f9f9; font-weight:bold; padding:6px; border:1px solid #ddd; font-size:11px; white-space: nowrap;">
+                ${eventoPrincipal.nome}
+            </td>`;
+
+        // Gerar colunas para cada dia do mês para este evento
+        for (let dia = 1; dia <= ultimoDia; dia++) {
+            const dataStr = `${anoAtual}-${String(mesAtualIdx).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+            const dataObj = new Date(anoAtual, mesAtualIdx - 1, dia);
+            const fimDeSemana = (dataObj.getDay() === 0 || dataObj.getDay() === 6);
+            
+            // Verifica se este evento específico acontece neste dia
+            const eventosDoDia = mapaEventos[dataStr] || [];
+            const evNoDia = eventosDoDia.find(e => (e.id || e.idevento) === idEvento);
+
+            const mapaSiglas = {
+            "montagem infra": "M I",
+            "montagem": "M",
+            "realização": "R",
+            "desmontagem": "D",
+            "desmontagem infra": "D I",
+            "marcação": "MAR",
+            "feriado": "F"
+        };
+
+            if (evNoDia) {
+                const cor = getCorPeriodo(evNoDia.tipo); // Garanta 6 dígitos sem 'ff'
+                const corTexto = ["#23821F", "#704300", "#5B0F85", "#73757A"].includes(cor.toUpperCase()) ? "#ffffff" : "#000000";
+                
+                // Coloca a inicial do tipo (M, I, R, D) para não esticar a célula 
+                const tipoNormalizado = evNoDia.tipo.toLowerCase().trim();
+                const sigla = mapaSiglas[tipoNormalizado] || evNoDia.tipo.substring(0, 1).toUpperCase();
+
+                htmlLinhas += `
+                    <td style="
+                        background:${cor}; 
+                        color:${corTexto}; 
+                        border:1px solid #ddd; 
+                        text-align:center; 
+                        font-size:10px; 
+                        font-weight:bold;
+                        width:35px;
+                    ">
+                        ${sigla}
+                    </td>`;
+        
+            } else {
+                // Célula vazia (com fundo cinza se for fim de semana)
+                htmlLinhas += `<td style="border:1px solid #ddd; background:${fimDeSemana ? "#f0f0f0" : "#fff"}"></td>`;
+            }
+        }
+        htmlLinhas += `</tr>`;
+    });
+
+    // ======= ETAPA 4: HTML COMPLETO =======
+    const htmlCompleto = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Abel, sans-serif; }
+          table { border-collapse: collapse; }
+          td, th { border: 1px solid #aaa; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th colspan="${ultimoDia + 1}" style="background:#8B0000; color:#fff; font-size:16px; padding:10px; text-align:center;">
+                ${mesAtual.toUpperCase()} ${anoAtual}
+              </th>
+            </tr>
+            <tr>
+              <td colspan="${ultimoDia + 1}" style="background:#fefefe; padding:5px; border:1px solid #aaa;">
+                <table style="border-collapse: collapse;">
+                  <tr>
+                    <td style="font-size:11px; background:#8B0000; color:#fff; font-weight:bold; padding-right:10px; border:none;">LEGENDA:</td>
+                    <td class="td-legenda" style="background:#f8a500; color:#000;">(M I) Montagem Infra</td>
+                    <td class="td-legenda" style="background:#F5E801; color:#000;">(M) Montagem</td>
+                    <td class="td-legenda" style="background:#F46251; color:#000;">(R) Realização</td>
+                    <td class="td-legenda" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
+                    <td class="td-legenda" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
+                    <td class="td-legenda" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
+                    <td class="td-legenda" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              ${cabecalhoDias}
+            </tr>
+          </thead>
+          <tbody>
+            ${htmlLinhas}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    // ======= DOWNLOAD =======
+    const blob = new Blob([htmlCompleto], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `calendario_${mesAtual}_${anoAtual}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error("Erro ao exportar:", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível exportar." });
+  } finally {
+    btnExportar.disabled = false;
+    btnExportar.innerHTML = `📁 Exportar`;
+  }
+}
+
+function formatarDataSimples(data) {
+  const d = new Date(data);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function buscarEventosPorPeriodo(anoBase, mesInicio, totalMeses) {
+  const idempresa = getIdEmpresa();
+  const consultas = [];
+
+  for (let i = 0; i < totalMeses; i++) {
+    const dataRef = new Date(anoBase, (mesInicio - 1) + i, 1);
+    consultas.push(
+      fetchComToken(`/main/export-eventos-calendario?idempresa=${idempresa}&ano=${dataRef.getFullYear()}&mes=${dataRef.getMonth() + 1}`)
+    );
+  }
+
+  const respostas = await Promise.all(consultas);
+  const todosEventos = respostas.flatMap(r => r.eventos || []);
+
+  // EM VEZ DE MAPA DE ID, VAMOS CRIAR UM MAPA DE "NOME_DO_EVENTO" -> DIAS_E_TIPOS
+  // Isso garante que todas as fases do mesmo evento fiquem na mesma linha
+  const consolidado = {};
+
+  todosEventos.forEach(ev => {
+    const nomeKey = ev.nome; // Nome completo do evento
+    if (!consolidado[nomeKey]) {
+      consolidado[nomeKey] = {
+        nome: ev.nome,
+        idevento: ev.idevento,
+        datas: {} // Guardará cada dia e seu tipo { "2024-05-01": "Montagem" }
+      };
+    }
+
+    // Preencher o mapa de datas para este evento
+    let atual = new Date(ev.inicio + "T12:00:00");
+    const fim = new Date(ev.fim + "T12:00:00");
+
+    while (atual <= fim) {
+      const dataStr = formatarDataSimples(atual);
+      consolidado[nomeKey].datas[dataStr] = ev.tipo;
+      atual.setDate(atual.getDate() + 1);
+    }
+  });
+
+  return Object.values(consolidado);
+}
+
+async function exportarCalendarioMultimes(anoBase, mesInicio, totalMeses, tipoNome = "Periodico") {
+  const btnExportar = document.getElementById("btnExportar");
+  if (btnExportar) {
+    btnExportar.disabled = true;
+    btnExportar.innerHTML = `⏳ Mesclando Fases...`;
+  }
+
+  try {
+    const mapaSiglas = {
+      "montagem infra": "M I", "montagem": "M", "realização": "R",
+      "desmontagem": "D", "desmontagem infra": "D I", "marcação": "MAR", "feriado": "F"
+    };
+
+    const eventosParaExibir = await buscarEventosPorPeriodo(anoBase, mesInicio, totalMeses);
+    if (!eventosParaExibir.length) {
+      Swal.fire({ icon: "info", title: "Sem dados", text: "Nenhum evento encontrado." });
+      return;
+    }
+
+    let htmlFinal = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="UTF-8"><style>
+        table { border-collapse: collapse; }
+        td, th { border: 1px solid #aaa; text-align: center; font-family: Abel, sans serif; }
+        .title-topo { background:#8B0000; color:#fff; font-size:14px; font-weight:bold; height: 30px; text-transform: uppercase; }
+        .td-legenda-label { background: #8B0000; color: #fff; font-size: 10px; font-weight: bold; width: 250px; }
+        .td-legenda-item { font-size: 9px; padding: 2px 5px; border: 1px solid #000; }
+        .header-mes-label { background: #8B0000; color: #fff; font-weight: bold; width: 250px; }
+        .header-mes-nome { background: #fff; color: #000; font-weight: bold; border-bottom: 2px solid #000; }
+        .header-dias { background: #8B0000; color: #fff; font-size: 9px; font-weight: bold; height: 25px; }
+        .col-evento { text-align: left; font-weight: bold; font-size: 10px; width: 250px; background: #fff; }
+      </style></head><body>`;
+
+    const mesesPorBloco = 3;
+
+    for (let i = 0; i < totalMeses; i += mesesPorBloco) {
+      let blocoMeses = [];
+      let totalDiasBloco = 0;
+
+      for (let j = i; j < i + mesesPorBloco && j < totalMeses; j++) {
+        const d = new Date(anoBase, (mesInicio - 1) + j, 1);
+        const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        blocoMeses.push({
+          nome: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(d).toLowerCase() + "/" + String(d.getFullYear()).slice(-2),
+          ano: d.getFullYear(), mesIdx: d.getMonth() + 1, dias: ultimoDia
+        });
+        totalDiasBloco += ultimoDia;
+      }
+
+      htmlFinal += `
+        <table>
+          <thead>
+            <tr><th colspan="${totalDiasBloco + 1}" class="title-topo">CRONOGRAMA - ${blocoMeses[0].nome.split('/')[0].toUpperCase()} A ${blocoMeses[blocoMeses.length-1].nome.split('/')[0].toUpperCase()}</th></tr>
+            <tr>
+              <td class="td-legenda-label">LEGENDA:</td>
+              <td colspan="${totalDiasBloco}" style="text-align: left; background: #8B0000;">
+                <table style="border-collapse: collapse; margin-left: 5px; background: #8B0000;"><tr>
+                  <td class="td-legenda-item" style="background:#f8a500;">(M I) Montagem Infra</td>
+                  <td class="td-legenda-item" style="background:#F5E801;">(M) Montagem</td>
+                  <td class="td-legenda-item" style="background:#F46251;">(R) Realização</td>
+                  <td class="td-legenda-item" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
+                  <td class="td-legenda-item" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
+                  <td class="td-legenda-item" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
+                  <td class="td-legenda-item" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                </tr></table>
+              </td>
+            </tr>
+            <tr>
+              <td class="header-mes-label">MÊS</td>
+              ${blocoMeses.map(m => `<td colspan="${m.dias}" class="header-mes-nome" style="background: #8B0000; color: #fff; border-right: 2px solid #000;">${m.nome}</td>`).join("")}
+            </tr>
+            <tr class="header-dias">
+              <td style="border-right: 2px solid #000;">EVENTO / DIA</td>
+              ${blocoMeses.map(m => {
+                let dHtml = "";
+                for (let d = 1; d <= m.dias; d++) {
+                  const borderSide = (d === m.dias) ? "border-right: 2px solid #000;" : "";
+                  dHtml += `<td style="width:25px; ${borderSide}">${d}</td>`;
+                }
+                return dHtml;
+              }).join("")}
+            </tr>
+          </thead>
+          <tbody>`;
+
+      // --- LÓGICA DE MESCLAGEM DE CÉLULAS ---
+      eventosParaExibir.forEach(ev => {
+        let temAtividade = false;
+        let listaDatasBloco = [];
+
+        // Primeiro, criamos uma lista linear de todas as datas deste bloco
+        blocoMeses.forEach(m => {
+          for (let d = 1; d <= m.dias; d++) {
+            const dataKey = `${m.ano}-${String(m.mesIdx).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            listaDatasBloco.push({
+              data: dataKey,
+              tipo: ev.datas[dataKey] || null,
+              ultimoDiaMes: (d === m.dias),
+              ds: new Date(m.ano, m.mesIdx - 1, d).getDay()
+            });
+            if (ev.datas[dataKey]) temAtividade = true;
+          }
+        });
+
+        if (temAtividade) {
+          let linhaHtml = `<tr><td class="col-evento" style="border-right: 2px solid #000;">${ev.nome}</td>`;
+          
+          for (let k = 0; k < listaDatasBloco.length; k++) {
+            let info = listaDatasBloco[k];
+            
+            // Se a célula for vazia, não mesclamos (para manter os fins de semana visíveis)
+            if (!info.tipo) {
+              const borderSide = info.ultimoDiaMes ? "border-right: 2px solid #000;" : "";
+              const bg = (info.ds === 0 || info.ds === 6) ? "#f2f2f2" : "#fff";
+              linhaHtml += `<td style="background:${bg}; ${borderSide}"></td>`;
+              continue;
+            }
+
+            // Se tiver tipo, contamos quantos dias iguais existem à frente
+            let span = 1;
+            let mudoDeMes = info.ultimoDiaMes;
+            
+            while (
+              k + span < listaDatasBloco.length && 
+              listaDatasBloco[k + span].tipo === info.tipo &&
+              !mudoDeMes // Para a mesclagem se mudar o mês (mantém a linha grossa)
+            ) {
+              mudoDeMes = listaDatasBloco[k + span].ultimoDiaMes;
+              span++;
+            }
+
+            const cor = getCorPeriodo(info.tipo);
+            const sigla = mapaSiglas[info.tipo.toLowerCase().trim()] || "?";
+            const corTxt = ["#23821F", "#704300", "#5B0F85"].includes(cor.toUpperCase()) ? "#fff" : "#000";
+            const borderSide = listaDatasBloco[k + span - 1].ultimoDiaMes ? "border-right: 2px solid #000;" : "";
+
+            linhaHtml += `<td colspan="${span}" style="background:${cor}; color:${corTxt}; font-size:9px; font-weight:bold; ${borderSide}">${sigla}</td>`;
+            
+            k += (span - 1); // Pula as células que foram mescladas
+          }
+          htmlFinal += linhaHtml + "</tr>";
+        }
+      });
+
+      htmlFinal += `</tbody></table><br>`;
+    }
+
+    htmlFinal += `</body></html>`;
+
+    const blob = new Blob([htmlFinal], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Cronograma_Excel_${tipoNome}.xls`;
+    link.click();
+
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Erro", "Falha na exportação.", "error");
+  } finally {
+    if (btnExportar) {
+      btnExportar.disabled = false;
+      btnExportar.innerHTML = `📁 Exportar`;
+    }
+  }
+}
+header.querySelector("#btnExportar").addEventListener("click", () => {
+    exportarCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+});
+
   // ======= RENDER SEMANAL =======
   async function renderSemanal(ano, mes, semanaIdx = 0) {
   grid.innerHTML = "";
-  semanaWrapper.style.display = "inline-block";
+  semanaWrapper.style.display = "flex";
+  semanaWrapper.style.gap = "10px";
 
   // cabeçalho dias da semana
   ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
@@ -984,6 +1551,7 @@ async function mostrarCalendarioEventos() {
   }
 
   // ======= RENDER POPUP FULLSCREEN PARA PERIODICIDADES > MÊS (3 em 3 lado a lado) =======
+
 async function renderPopupPeriodico(ano, mes, tipoView) {
   // overlay
   const overlay = document.createElement("div");
@@ -1050,20 +1618,26 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
   });
   semestreSelect.style.display = (tipoView === "semestral") ? "inline-block" : "none";
 
+  const exportCalendario = document.createElement("button");
+    exportCalendario.id = "btnExportar";
+    exportCalendario.textContent = "📁 Exportar";
+    exportCalendario.classList.add("btn-Exportar");
+
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "Fechar";
   closeBtn.style.padding = "6px 10px";
   closeBtn.style.cursor = "pointer";
 
-  const leftControls = document.createElement("div");
-  leftControls.style.display = "flex";
-  leftControls.style.gap = "8px";
-  leftControls.appendChild(title);
-  leftControls.appendChild(tipoSelect);
-  leftControls.appendChild(trimestreSelect);
-  leftControls.appendChild(semestreSelect);
+  const leftss = document.createElement("div");
+  leftss.style.display = "flex";
+  leftss.style.gap = "8px";
+  leftss.appendChild(title);
+  leftss.appendChild(tipoSelect);
+  leftss.appendChild(trimestreSelect);
+  leftss.appendChild(semestreSelect);
+  leftss.appendChild(exportCalendario);
 
-  ph.appendChild(leftControls);
+  ph.appendChild(leftss);
   ph.appendChild(closeBtn);
   panel.appendChild(ph);
 
@@ -1080,42 +1654,66 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
 
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
+  
+async function renderContent(view, trimestreSel = null, semestreSel = null) {
+    body.innerHTML = "";
+    title.textContent = `${view.charAt(0).toUpperCase() + view.slice(1)} - ${ano}`;
+    let mesesParaMostrar = [];
+
+    if (view === "trimestral") {
+      const trimestreIdx = (trimestreSel !== null ? trimestreSel - 1 : Math.floor((mes - 1) / 3));
+      mesesParaMostrar = [trimestreIdx * 3 + 1, trimestreIdx * 3 + 2, trimestreIdx * 3 + 3];
+    } else if (view === "semestral") {
+      const semestreIdx = (semestreSel !== null ? semestreSel : (mes <= 6 ? 1 : 2));
+      mesesParaMostrar = (semestreIdx === 1) ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12];
+    } else if (view === "anual") {
+      mesesParaMostrar = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    } else {
+      mesesParaMostrar = [mes];
+    }
+
+    for (let m of mesesParaMostrar) {
+      const mini = document.createElement("div");
+      mini.className = "mini-calendario";
+      mini.style.flex = "0 0 calc(33.333% - 12px)";
+      mini.style.boxSizing = "border-box";
+      mini.style.border = "1px solid #eee";
+      mini.style.borderRadius = "6px";
+      mini.style.padding = "8px";
+      mini.style.background = "#fafafa";
+      mini.style.minWidth = "220px";
+      body.appendChild(mini);
+      await renderMiniCalendario(mini, ano, m);
+    }
+  }
+
+  exportCalendario.addEventListener("click", () => {
+    const view = tipoSelect.value;
+    let mesInicioExport;
+    let totalMesesExport;
+
+    if (view === "trimestral") {
+      const triIdx = parseInt(trimestreSelect.value) - 1;
+      mesInicioExport = (triIdx * 3) + 1;
+      totalMesesExport = 3;
+    } else if (view === "semestral") {
+      const semIdx = parseInt(semestreSelect.value);
+      mesInicioExport = (semIdx === 1) ? 1 : 7;
+      totalMesesExport = 6;
+    } else if (view === "anual") {
+      mesInicioExport = 1;
+      totalMesesExport = 12;
+    } else {
+      mesInicioExport = mes;
+      totalMesesExport = 1;
+    }
+
+    exportarCalendarioMultimes(ano, mesInicioExport, totalMesesExport, view);
+  });
 
   closeBtn.addEventListener("click", () => overlay.remove());
   overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
 
-  async function renderContent(view, trimestreSel = null, semestreSel = null) {
-  body.innerHTML = "";
-  title.textContent = `${view.charAt(0).toUpperCase() + view.slice(1)} - ${ano}`;
-  let mesesParaMostrar = [];
-
-  if (view === "trimestral") {
-  const trimestreIdx = (trimestreSel !== null ? trimestreSel - 1 : Math.floor((mes - 1) / 3));
-  mesesParaMostrar = [trimestreIdx*3 + 1, trimestreIdx*3 + 2, trimestreIdx*3 + 3];
-  } else if (view === "semestral") {
-  const semestreIdx = (semestreSel !== null ? semestreSel : (mes <= 6 ? 1 : 2));
-  mesesParaMostrar = (semestreIdx === 1) ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
-  } else if (view === "anual") {
-  mesesParaMostrar = [1,2,3,4,5,6,7,8,9,10,11,12];
-  } else { 
-  // Geral = mostra o mês atual
-  mesesParaMostrar = [mes];
-  }
-
-  for (let m of mesesParaMostrar) {
-  const mini = document.createElement("div");
-  mini.className = "mini-calendario";
-  mini.style.flex = "0 0 calc(33.333% - 12px)";
-  mini.style.boxSizing = "border-box";
-  mini.style.border = "1px solid #eee";
-  mini.style.borderRadius = "6px";
-  mini.style.padding = "8px";
-  mini.style.background = "#fafafa";
-  mini.style.minWidth = "220px";
-  body.appendChild(mini);
-  await renderMiniCalendario(mini, ano, m);
-  }
-  }
 
   // eventos dos selects
   tipoSelect.addEventListener("change", () => {
@@ -1242,6 +1840,7 @@ async function renderMiniCalendario(container, ano, mes) {
   container.appendChild(document.createTextNode("Erro ao carregar mês"));
   }
 }
+
   // ===== Render inicial =====
   preencherSemanas(parseInt(anoSelect.value), parseInt(mesSelect.value));
   renderMensal(parseInt(anoSelect.value), parseInt(mesSelect.value));
@@ -1253,6 +1852,10 @@ async function renderMiniCalendario(container, ano, mes) {
   if (view === "semanal") renderSemanal(parseInt(anoSelect.value), parseInt(mesSelect.value), parseInt(semanaSelect.value || 0));
   else if (view === "mensal") renderMensal(parseInt(anoSelect.value), parseInt(mesSelect.value));
   });
+
+  header.querySelector("#btnFiltroEventos").addEventListener("click", () => {
+  abrirFiltroSwal(todosEventosDoMes);
+});
 
   mesSelect.addEventListener("change", () => {
   preencherSemanas(parseInt(anoSelect.value), parseInt(mesSelect.value));
@@ -1346,6 +1949,9 @@ popup.innerHTML = `
   console.error("Erro ao carregar staff:", err);
   }
 }
+
+
+
 
 
 // =========================
@@ -1488,7 +2094,7 @@ async function mostrarEventosEmAberto() {
 //  header.textContent = "Painel Operacional";
  container.appendChild(header);
 
-// const FiltrosVencimentos = criarControlesDeFiltro();
+// const FiltrosVencimentos = criarsesDeFiltro();
 // container.appendChild(FiltrosVencimentos); 
 
 // ======= SUBSTITUIÇÃO DA SEÇÃO DE ABAS PELOS FILTROS =======
@@ -2350,7 +2956,14 @@ async function abrirTelaEquipesEvento(evento) {
   try {
     const idevento = evento.idevento || evento.id || evento.id_evento;
     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
 
+    if (!idevento || !idempresa) {
+        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+        return;
+    }
     if (!idevento || !idempresa) {
         console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
         corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
@@ -2358,7 +2971,20 @@ async function abrirTelaEquipesEvento(evento) {
     }
 
     const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
 
+    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+    let dados;
+    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+        dados = resp;
+    } else if (resp && typeof resp === "object" && "ok" in resp) {
+        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+        dados = await resp.json();
+    } else {
+        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+        return;
+    }
     // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
     let dados;
     if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
@@ -2374,7 +3000,11 @@ async function abrirTelaEquipesEvento(evento) {
 
     // normaliza array de equipes: suportar {equipes: [...] } ou array direto
     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
+    // Adiciona idorcamento ao evento
+    evento.idorcamento = dados.idorcamento;
     // Adiciona idorcamento ao evento
     evento.idorcamento = dados.idorcamento;
 
@@ -2383,7 +3013,16 @@ async function abrirTelaEquipesEvento(evento) {
     console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
     console.log(equipesRaw);
     console.log("=================================================");
+    // CONSOLE 1: Dados Brutos do Backend
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+    console.log(equipesRaw);
+    console.log("=================================================");
 
+    if (!equipesRaw.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+        return;
+    }
     if (!equipesRaw.length) {
         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
         return;
@@ -2470,6 +3109,7 @@ async function abrirTelaEquipesEvento(evento) {
     console.log("Mapeando e filtrando funções...", equipesRaw);
 
     // converte e normaliza cada item
+    // converte e normaliza cada item
     let equipes = equipesRaw.map(item => {
     const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
     const equipeId = item.idequipe;
@@ -2513,8 +3153,17 @@ async function abrirTelaEquipesEvento(evento) {
     console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
     console.log(equipes);
     console.log("=================================================");
+    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+    console.log(equipes);
+    console.log("=================================================");
 
 
+    if (!equipes.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+        return;
+    }
     if (!equipes.length) {
         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
         return;
@@ -2525,7 +3174,12 @@ async function abrirTelaEquipesEvento(evento) {
 
         const equipeBox = document.createElement("div");
         equipeBox.className = "equipe-box";
+        const equipeBox = document.createElement("div");
+        equipeBox.className = "equipe-box";
 
+        const totalFuncoes = eq.funcoes?.length || 0;
+        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
         const totalFuncoes = eq.funcoes?.length || 0;
         const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
         const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
@@ -2648,14 +3302,23 @@ async function abrirTelaEquipesEvento(evento) {
         <div class="equipe-header" role="button" tabindex="0">
             <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
             <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
         </div>
         <div class="barra-progresso">
+            <div class="progresso" style="width:${perc}%;"></div>
             <div class="progresso" style="width:${perc}%;"></div>
         </div>
         <div class="equipe-resumo" style="padding:4px 0;">
             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
         </div>
+        <div class="equipe-resumo" style="padding:4px 0;">
+            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+        </div>
         <div class="equipe-actions">
+            <button type="button" class="ver-funcionarios-btn">
+                <i class="fas fa-users"></i> Funcionários
+            </button>
             <button type="button" class="ver-funcionarios-btn">
                 <i class="fas fa-users"></i> Funcionários
             </button>
@@ -2677,6 +3340,8 @@ async function abrirTelaEquipesEvento(evento) {
                 });
             }
 
+            corpo.appendChild(equipeBox);
+        });
             corpo.appendChild(equipeBox);
         });
 
@@ -4509,6 +5174,7 @@ function abrirDetalhesEquipe(equipe, evento) {
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
   // ===== HEADER =====
+  // ===== HEADER =====
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>📍 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
@@ -4657,6 +5323,18 @@ function abrirDetalhesEquipe(equipe, evento) {
             </div>
         </div>
     `;
+    li.innerHTML = `
+        <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+            <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+                <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+                <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+            </div>
+            ${htmlEstado}
+            <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+                ${htmlBotao}
+            </div>
+        </div>
+    `;
 
     if (!concluido && !bloqueadoPorPendente) {
         const botao = li.querySelector(".btn-abrir-staff");
@@ -4765,6 +5443,7 @@ function abrirDetalhesEquipe(equipe, evento) {
   container.appendChild(lista);
 
   // ===== RODAPÉ =====
+  // ===== RODAPÉ =====
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
@@ -4856,10 +5535,10 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
         <label class="label-select">Período</label>
         <div class="wrapper" style="width: 300px;">
             <div class="option" style="width: 30px;"><input checked value="diario" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Diário</span></div></div>
-            <div class="option" style="width: 30px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
-            <div class="option" style="width: 30px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
-            <div class="option" style="width: 30px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
-            <div class="option" style="width: 30px;"><input value="semestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semestral</span></div></div>
+            <div class="option" style="width: 45px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
+            <div class="option" style="width: 35px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
+            <div class="option" style="width: 45px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
+            <div class="option" style="width: 45px;"><input value="semestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semestral</span></div></div>
             <div class="option" style="width: 30px;"><input value="anual" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Anual</span></div></div>
         </div>`;
 
@@ -6412,10 +7091,12 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
              console.log("🔍 Processando registro com ID:", pedidoOriginal );
 
       
+      
             const categoriaItem = pedidoOriginal.categoria_item || "geral";
             const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
 
             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
+            
             
             
             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
@@ -6456,6 +7137,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     temAlgumMatchNesteGrupo = true;
                 } 
  
+ 
             });            
 
         });
@@ -6471,6 +7153,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
         }
     });
+  
   
 
     if (gruposFiltrados.length === 0) {
@@ -6502,6 +7185,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
         console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+        console .log (`Debug Rendeiração`, pedidosDoGrupo);
         console .log (`Debug Rendeiração`, pedidosDoGrupo);
 
 
@@ -6536,6 +7220,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
 
                 itensParaRenderizar.forEach(infoItem => {
+                    let htmlBodyAditivoAgrupado = '';
+                    let datasProcessadas = [];
                     let htmlBodyAditivoAgrupado = '';
                     let datasProcessadas = [];
                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
@@ -6842,6 +7528,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     
                     let dataFormatada = '';
                    
+                   
                     let dataFormatadaSolictacao = '';
 
                     if (pedido.dtsolicitada) {
@@ -6916,6 +7603,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                     <div class="title">
                                     <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
                                     </div>
+                                    <br>                                   
+           
                                     <br>                                   
            
                     `;
@@ -7005,6 +7694,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += htmlBodyAditivoAgrupado;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
+                                        
                                         
                         
                         console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
@@ -7107,8 +7797,11 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     if (infoItem.descricao) {
                         
+                        
                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
+
+                    
 
                     
 
@@ -7123,12 +7816,25 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     //         return String(valor || '').trim();
                     //     };
 
+
+                    //     // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+                    //     const tratarData = (valor) => {
+                    //         if (Array.isArray(valor)) {
+                    //             return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+                    //         }
+                    //         return String(valor || '').trim();
+                    //     };
+
                     //     const dataParaAcao = isPedidoPrincipal 
+                    //         ? tratarData(pedido.dataEspecifica) 
+                    //         : (isDataUnica ? tratarData(infoItem.data) : '');
+
                     //         ? tratarData(pedido.dataEspecifica) 
                     //         : (isDataUnica ? tratarData(infoItem.data) : '');
 
                     //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                     //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
 
                     //     htmlBody += `<br>
                     //         <div class="AcoesPedido"
@@ -7453,6 +8159,27 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
+
+async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
+    const confirm = await Swal.fire({
+        title: 'Confirmar data única?',
+        text: `Deseja definir como ${novoStatus} apenas a data ${dataEspecifica}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirm.isConfirmed) {
+        // Aqui você chama seu backend passando o id_log e a data específica
+        // Exemplo: await atualizarStatusAditivoExtra(idLog, novoStatus, null, idLog, dataEspecifica);
+        console.log("Enviando para o banco:", { idLog, dataEspecifica, novoStatus });
+        
+        // Após o sucesso, você pode recarregar a lista ou remover a linha do HTML manualmente
+        Swal.fire('Sucesso!', 'Data atualizada.', 'success');
+        // window.recarregarSuaFuncao(); 
+    }
+}
 
 async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
     const confirm = await Swal.fire({
@@ -10626,30 +11353,29 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
            
 
             btnMestreEventos.innerHTML = `
-                <div class="evento-info-container-inline">
-                    <div class="evento-titulo-col">
-                        <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
-                        <div class="qtdTotal"><small>(${dados.length} eventos)</small></div>
-                    </div>
-                    <div class="evento-valores-col">
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria">PAGOS:</span>
-                            <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
-                        </div>
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria" style="color: #d9534f;">VENCIDOS:</span>
-                            <span class="ap" style="color: #d9534f; font-weight: bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
-                        </div>
-                        <div class="fin-resumo-item">
-                            <span class="label-categoria" style="color: #007bff;">A VENCER:</span>
-                            <span class="ap" style="color: #007bff; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
-                        </div>
-                        <div class="fin-resumo-item orcado">
-                            <span class="label-categoria">TOTAL:</span>
-                            <strong>${formatarMoeda(resumoStaffMestre.total)}</strong>
-                        </div>
-                    </div>
-                </div>`;
+               <div class="evento-info-container-inline">
+        <div class="evento-titulo-col">
+            <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
+            <div class="qtdTotal"><small>(${dados.length} eventos)</small></div>
+        </div>
+        <div class="evento-valores-col">
+            <div class="fin-resumo-item">
+                <span class="label-categoria">PAGOS:</span>
+                <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
+
+                <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span>
+                <span class="ap" style="color:#d9534f; font-weight:bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
+
+                <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span>
+                <span class="ap" style="color:#007bff; font-weight:bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
+
+                <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
+                    <span class="label-categoria" style="color:#333;">TOTAL:</span>
+                    <strong style="color:#333; font-size:16px;">${formatarMoeda(resumoStaffMestre.total)}</strong>
+                </span>
+            </div>
+        </div>
+    </div>`;
             
             const wrapperEventos = document.createElement('div');
             wrapperEventos.id = 'container-mestre-eventos';
@@ -14337,7 +15063,7 @@ async function inicializarCardVencimentos() {
 }
 
 
-function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
+function criarsesDeFiltro(conteudoGeral, valoresResumoElement) {
     const filtrosContainer = document.createElement("div");
     filtrosContainer.className = "filtros-vencimentos";
 
@@ -14604,7 +15330,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
+    const FiltrosVencimentos = criarsesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 
     container.appendChild(valoresResumoElement);

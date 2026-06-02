@@ -1,10 +1,30 @@
+version: '3.8'
 services:
-  jasystemteste:
-    image: jasystemteste
+  DB:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: Ja
+    NETWORKS:
+      - jasystem_network
+    ports:
+      - 5432:5432
+
+  jasystem:
+    image: jasystem
     build:
       context: .
       dockerfile: ./Dockerfile
     environment:
       NODE_ENV: production
+    networks:
+      - jasystem_network
     ports:
       - 3000:3000
+    depends_on:
+      - DB
+      
+networks:
+  jasystem_network:
+    driver: bridge

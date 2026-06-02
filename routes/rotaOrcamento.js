@@ -19,8 +19,7 @@ const multer = require("multer");
 // GET todas ou por id
 // C:\Users\JA\Ja System - Teste\ja\routes\rotaOrcamento.js
 
-router.get(
-  "/",
+router.get("/",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "pesquisar"), // Permissão para visualizar orçamentos
@@ -386,8 +385,7 @@ router.get("/obsfuncao", async (req, res) => {
 });
 
 
-router.post(
-  "/",
+router.post("/",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "cadastrar"),
@@ -811,8 +809,7 @@ function capitalizarPalavras(texto) {
   return texto.toLowerCase().replace(/\b\w/g, (letra) => letra.toUpperCase());
 }
 
-router.get(
-  "/:nrOrcamento/contrato",
+router.get("/:nrOrcamento/contrato",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "pesquisar"),
@@ -1138,8 +1135,7 @@ router.get(
 );
 
 // 🔽 Força o download do contrato
-router.get(
-  "/download/contrato/:fileName",
+router.get("/download/contrato/:fileName",
   autenticarToken(),
   async (req, res) => {
     try {
@@ -1805,8 +1801,7 @@ router.get("/download/proposta/:filename",
   }
 );
 
-router.post(
-  "/:nrOrcamento/proposta",
+router.post("/:nrOrcamento/proposta",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "pesquisar"),
@@ -2475,8 +2470,7 @@ router.put("/:id",
   }
 );
 
-router.put(
-  "/fechar/:id",
+router.put("/fechar/:id",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"), // Reutiliza a permissão de alterar
@@ -2546,8 +2540,7 @@ router.put(
   }
 );
 
-router.delete(
-  "/:idorcamento/itens/:idorcamentoitem",
+router.delete("/:idorcamento/itens/:idorcamentoitem",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "apagar"), // Crie/verifique essa permissão
@@ -2675,8 +2668,7 @@ router.delete(
   }
 );
 
-router.patch(
-  "/:idorcamento/update-status-espelho",
+router.patch("/:idorcamento/update-status-espelho",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"),
@@ -2823,9 +2815,7 @@ router.patch(
   }
 );
 
-router.patch(
-  // Novo endpoint: /orcamentos/:idorcamento/status
-  "/:idorcamento/status",
+router.patch("/:idorcamento/status",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"),

@@ -35,7 +35,7 @@ let tipoExcecaoAtual = null;
 let justificativaParaSalvar = "";
 let prefixoSolicitacao = "";
 
-window.addEventListener('prefill:registered', function (e) {
+window.addEventListener('prefill:registered', function (e) { 
     console.log("⚡ EVENTO RECEBIDO: prefill:registered. Tentando chamar a busca...");
     
     // 1. Sinalize que o evento foi capturado
@@ -427,7 +427,6 @@ function configurarFlatpickrs() {
             },
 
             onClose: function(selectedDates, dateStr, instance) {
-    
                 setTimeout(() => {
                     formatInputTextWithStatus(instance, datasDobrada);
                     if (window.meiaDiariaPicker) {
@@ -761,7 +760,7 @@ function configurarFlatpickrs() {
                 if (!instance.usuarioAbriu) {
                     window.datasEventoNoCalendarioCache = [...strAtuais];
                     atualizarContadorEDatas(selectedDates);
-                    //debouncedOnCriteriosChanged();
+                    debouncedOnCriteriosChanged();
                     return;
                 }
 
@@ -896,18 +895,6 @@ function configurarFlatpickrs() {
                 console.log("Datas selecionadas:", selectedDates); 
                 console.log("Fechando Datas Evento, datas selecionadas:", selectedDates);
                 atualizarContadorEDatas(selectedDates);
-
-                // 2. Só disparamos a busca se houver datas selecionadas
-                if (selectedDates.length > 0) {
-                    console.log("🚀 Forçando validação de orçamento (onClose)...");
-                    
-                    // O pequeno delay garante que o valor do input já foi processado pelo Flatpickr
-                    setTimeout(() => { 
-                        debouncedOnCriteriosChanged(ultimaAcaoCalendario); 
-                    }, 150); 
-                } else {
-                    console.log("⚠️ Nenhuma data selecionada no fechamento.");
-                }
 
                 setTimeout(() => { 
                     instance.usuarioAbriu = false; 
@@ -5035,16 +5022,14 @@ async function verificaStaff() {
             if (metodo === "POST" && !isFormLoadedFromDoubleClick) {
                 const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
                 const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
-                const datasConsolidadasParaOrcamento = [...datasSelecionadas, ...datasDobradas];
-               
+
                 const criteriosDeVerificacao = {
-                    nmEvento: getSelectedText(nmEventoSelect),
-                    nmCliente: getSelectedText(nmClienteSelect),
-                    nmlocalMontagem: getSelectedText(nmLocalMontagemSelect),
-                    nmFuncao: getSelectedText(descFuncaoSelect),
-                    pavilhao: getSelectedText(nmPavilhaoSelect),
-                    //datasEvento: datasSelecionadas,
-                    datasEvento: datasConsolidadasParaOrcamento,
+                    nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                    nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                    nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                    pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                    datasEvento: datasSelecionadas,
                     datasEventoDobradas: datasDobradas,
                     idFuncao: descFuncaoSelect?.value || ""
                 };
@@ -5533,26 +5518,21 @@ async function verificaStaff() {
                 const alterouDadosOrcamento = houveAlteracaoDatas || houveAlteracaoDiariaDobrada || logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao);
                 console.log("HOUVE ALTERAÇÃO:", houveAlteracao, "ALTEROU DATAS:", houveAlteracaoDatas, "ALTEROU FUNÇÃO:", alterouDadosOrcamento);
 
-                //if (alterouDadosOrcamento) {
-                    //const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
-                   // const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
-                   // const datasConsolidadasParaOrcamento = [...datasSelecionadas, ...datasDobradas];
+                if (alterouDadosOrcamento) {
+                    const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
+                    const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
 
-                //     datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
-                //     if (datasDobradas.length === 0) {
-                //         // Fallback para o período dobrado atual (considerando apenas as strings de data)
-                //         datasDobradas = periodoDobrado.map(item => typeof item === 'object' ? item.data : item) || [];
-                //     }
-
-
-                // // 1. Tenta pegar do Flatpickr, mas se estiver vazio, usa o que já está nas variáveis do sistema
-                //     let datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
-                //     if (datasSelecionadas.length === 0) {
-                //         datasSelecionadas = periodoDoEvento || []; // Fallback para a variável que alimenta o formulário
-                //     }
-
-   
-                    
+                    const criteriosDeVerificacao = {
+                        nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                        nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                        nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                        nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                        pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                        datasEvento: datasSelecionadas,
+                        datasEventoDobradas: datasDobradas,
+                        idFuncao: descFuncaoSelect.value,
+                        idStaff: currentEditingStaffEvent.idstaff // Importante no PUT para o back-end ignorar o próprio registro na contagem
+                    };
 
                 console.log("Critérios para verificação de limite de função EM PUT:", criteriosDeVerificacao);
                    // const resultadoFuncao = await verificarLimiteDeFuncao(criteriosDeVerificacao);
@@ -6711,14 +6691,7 @@ const debounce = (func, delay) => {
   };
 };
 
-const debouncedOnCriteriosChanged = debounce((acao = null) => {
-
-    const picker = window.datasEventoPicker; 
-    if (picker && picker.isOpen) {
-        console.log("⏳ Calendário aberto. Aguardando fechamento para validar orçamento...");
-        return;
-    }
-
+const debouncedOnCriteriosChanged = debounce(() => {
     const idEvento = nmEventoSelect.value;
     const idCliente = nmClienteSelect.value;
     const idLocalMontagem = nmLocalMontagemSelect.value;
@@ -8422,8 +8395,6 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             cancelButtonText: 'Corrigir dados',
             confirmButtonColor: '#28a745',
             denyButtonColor: '#17a2b8',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
             html: htmlDashboard
         };
 
@@ -8474,7 +8445,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             }
         }
 
-        const result = await Swal.fire(swalOptions);
+       const result = await Swal.fire(swalOptions);
 
         if (result.dismiss === Swal.DismissReason.cancel) {
             const inputData = document.getElementById('datasEvento'); 
@@ -8488,6 +8459,19 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
                 fp.setDate(datasCorrigidas, true);
                 console.log("✅ Calendário corrigido. Datas removidas:", datasForaDoPlanejado);
             }
+        }
+
+        let prosseguirSemSolicitacao = false;
+        // O listener do botão de footer precisa ser anexado via delegate ou checado após o clique se for disparado pelo Swal
+        // Mas a forma mais segura com SweetAlert2 é capturar o clique do elemento injetado:
+        if (podeProsseguirSem) {
+             const btnFooter = document.getElementById('btnProsseguirSem');
+             if (btnFooter) {
+                 btnFooter.onclick = () => {
+                     prosseguirSemSolicitacao = true;
+                     Swal.clickConfirm();
+                 };
+             }
         }
 
         if (prosseguirSemSolicitacao) {
@@ -8514,10 +8498,12 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             if (temDataFora) {
                 datasParaSolicitacao = datasForaDoPlanejado;
             } else if (ultrapassouDiarias || ultrapassouVagas) {
+                // Se o erro for apenas excesso de quantidade, mas as datas estão no orçamento,
+                // enviamos a última data selecionada como o "ponto de conflito" 
+                // ou o array completo, dependendo da sua preferência.
+                // Para mostrar apenas a excedente:
                 datasParaSolicitacao = [datasSolicitadasArray[datasSolicitadasArray.length - 1]];
-            } 
-
-            if (datasParaSolicitacao.length === 0) {
+            } else {
                 datasParaSolicitacao = datasSolicitadasArray;
             }
 
@@ -15856,8 +15842,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
    // if (dataReal.includes('T')) dataReal = dataReal.split('T')[0];
 
     // Se ainda assim não tiver data, avisa o usuário em vez de chutar "hoje"
-    //if (!dataReal) {
-    if (listaDatas.length === 0) {
+    if (!dataReal) {
         console.warn("⚠️ Nenhuma data selecionada no Flatpickr.");
         return Swal.fire({
             icon: 'error',
@@ -15876,7 +15861,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
         .join(', ');
     
     // ... segue para o seu Swal.fire usando a dataFormatada ...
-    console.log("📅 Data utilizada no formulário:", datasFormatadasExibicao);
+    console.log("📅 Data utilizada no formulário:", dataFormatada);
 
     // const { value: formValues, isConfirmed } = await Swal.fire({
     //     title: `Solicitar ${tipo}`,
@@ -15896,11 +15881,10 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     //         return { justificativa: justificativa };
     //     }
     // });
-
     const { value: formValues, isConfirmed } = await Swal.fire({
         title: `Solicitar ${tipo}`,
         html: `
-            <div style="margin-bottom: 10px;"><b>Data:</b> ${datasFormatadasExibicao}</div>
+            <div style="margin-bottom: 10px;"><b>Data:</b> ${dataFormatada}</div>
             <div style="margin-bottom: 10px;"><b>Função:</b> ${nmFuncao}</div>
             <textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa para esta data (obrigatório)"></textarea>`,
         showCancelButton: true,
@@ -15917,13 +15901,60 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     });
 
     if (isConfirmed && formValues) {
+        // const resultado = await salvarSolicitacaoAditivoExtra(
+        //     idOrcamentoAtual, 
+        //     idFuncao,             
+        //     1, // Qtd é sempre 1 por registro de data
+        //     tipoPadronizado, 
+        //     formValues.justificativa, 
+        //     idFuncionario,
+        //     dataReal // 🎯 NOVO PARÂMETRO
+        // );
+
         
+        // if (resultado.sucesso) {
+        //     // 🎯 TRATAMENTO ESPECÍFICO PARA DATAS FORA DO ORÇAMENTO
+        //     if (tipo.includes("Data fora do Orçamento")) {
+                
+        //         // 1. Removemos as datas excedentes do Flatpickr
+        //         if (window.datasEventoPicker) {
+        //             const todasDatas = window.datasEventoPicker.selectedDates.map(d => d.toISOString().split('T')[0]);
+                         
+        //             await Swal.fire({
+        //                 icon: 'success',
+        //                 title: 'Solicitação Enviada!',
+        //                 html: `Sua solicitação de <b>${tipoPadronizado}</b> foi registrada.<br><br>` +
+        //                       `<span style="color: #d33">Importante:</span> As datas fora do orçamento foram removidas da sua seleção atual e só poderão ser usadas após a aprovação.`,
+        //                 confirmButtonText: 'OK'
+        //             });
+        //         }
+        //     } else {
+        //         // Mensagem padrão para Vagas Excedidas ou outros tipos
+        //         await Swal.fire({
+        //             icon: 'success',
+        //             title: 'Solicitação Enviada!',
+        //             text: `Sua solicitação de ${tipoPadronizado} foi registrada com sucesso.`,
+        //             confirmButtonText: 'OK'
+        //         });
+        //     }
+        // }
+        // else {
+        //     await Swal.fire({
+        //         icon: 'error',
+        //         title: 'Falha na Solicitação',
+        //         text: resultado.erro || 'Ocorreu um erro ao salvar.',
+        //         confirmButtonText: 'Entendido'
+        //     });
+        // }
+
+        // return resultado; // Mantém o retorno original para quem chamou a função
+
         return { //para testar o salvar do staff com status inativo antes das solicitações de exceção
             confirmado: true, 
             solicitouAutorizacao: true,
             justificativa: formValues.justificativa,
             tipoPadronizado: tipoPadronizado,
-            dataConflito: listaDatas//dataReal 
+            dataConflito: dataReal 
         };
 
     }
@@ -15932,6 +15963,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
     return { confirmado: false, solicitouAutorizacao: false };
     
 }
+
 
 
 window.solicitarDadosExcecao = solicitarDadosExcecao;
@@ -17008,33 +17040,10 @@ function inicializarFlatpickrStaffComLimites() {
 
                 if (selectedDates.length > 0) {
                     console.log("✅ ONCHANGE MANUAL: Critérios atendidos. Chamando debouncedOnCriteriosChanged.");
-                   // debouncedOnCriteriosChanged(); 
+                    debouncedOnCriteriosChanged(); 
                 } else {
                     console.log(`❌ ONCHANGE MANUAL: Bloqueado (Datas: ${selectedDates.length}, Evento: ${!!idEvento}, Cliente: ${!!idCliente}).`);
                 }
-            },
-            // O onClose é o "Gatilho de Ouro": dispara a validação quando o usuário termina
-            onClose: function(selectedDates, dateStr, instance) {
-                console.log("🟢 [onClose] Usuário fechou o calendário.");
-
-                if (selectedDates.length > 0) {
-                    console.log("🚀 Disparando validação de orçamento completa...");
-                    
-                    // Usamos o setTimeout para garantir que o DOM e o input 
-                    // estejam 100% sincronizados antes da busca rodar
-                    setTimeout(() => {
-                        // Passamos 'true' para o force (caso você tenha implementado o parâmetro)
-                        // ou simplesmente chamamos a função agora que o picker está FECHADO.
-                        debouncedOnCriteriosChanged(true); 
-                    }, 100);
-                } else {
-                    console.log("⚠️ Nenhuma data selecionada no fechamento.");
-                }
-
-                // Reset da flag de controle (se você usar em outros lugares do sistema)
-                setTimeout(() => { 
-                    instance.usuarioAbriu = false; 
-                }, 500);
             },
         });        
         
