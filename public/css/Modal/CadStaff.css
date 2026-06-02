@@ -2298,3 +2298,7 @@ table.mostrar-inativos tr.row-inativo { display: table-row; }
 .badge-count-deletados { background: #cc0000; }
 .badge-count-inativos  { background: #555; }
 
+.badge-statusstaff--orcamento {
+    background-color: #1a6fc4;
+    color: #fff;
+}
