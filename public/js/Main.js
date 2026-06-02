@@ -2889,6 +2889,469 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
 //     }
 // }
 
+// async function abrirTelaEquipesEvento(evento) {
+
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+
+//   // ===== HEADER =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `
+//   <button class="btn-voltar" title="Voltar">←</button>
+//   <div class="info-evento">
+//     <h2>${evento.nmevento || "Evento sem nome"}</h2>
+//     <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+//     <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+//   </div>
+//   `;
+//   container.appendChild(header);
+
+//   // ===== CORPO (LISTA DE EQUIPES) =====
+//   const corpo = document.createElement("div");
+//   corpo.className = "corpo-equipes";
+//   corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
+//   container.appendChild(corpo);
+
+//   // rodapé / controles
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `
+//     <button class="btn-voltar-rodape"> ← Voltar</button>
+//     <button class="btn-relatorio">📄 Gerar Relatório</button>
+//   `;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   // eventos de navegação
+//   container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
+//   container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
+//     alert("Função de relatório ainda em desenvolvimento.");
+//   });
+
+//   // helper local
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   // utilitário simples para escapar texto antes de inserir no innerHTML
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   try {
+//     const idevento = evento.idevento || evento.id || evento.id_evento;
+//     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+//     const idevento = evento.idevento || evento.id || evento.id_evento;
+//     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+
+//     if (!idevento || !idempresa) {
+//         console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+//         corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+//         return;
+//     }
+//     if (!idevento || !idempresa) {
+//         console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+//         corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+//         return;
+//     }
+
+//     const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+//     const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+
+//     // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+//     let dados;
+//     if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+//         dados = resp;
+//     } else if (resp && typeof resp === "object" && "ok" in resp) {
+//         if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+//         dados = await resp.json();
+//     } else {
+//         console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+//         corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+//         return;
+//     }
+//     // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+//     let dados;
+//     if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+//         dados = resp;
+//     } else if (resp && typeof resp === "object" && "ok" in resp) {
+//         if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+//         dados = await resp.json();
+//     } else {
+//         console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+//         corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+//         return;
+//     }
+
+//     // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+//     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+//     // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+//     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+
+//     // Adiciona idorcamento ao evento
+//     evento.idorcamento = dados.idorcamento;
+//     // Adiciona idorcamento ao evento
+//     evento.idorcamento = dados.idorcamento;
+
+//     // CONSOLE 1: Dados Brutos do Backend
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+//     console.log(equipesRaw);
+//     console.log("=================================================");
+//     // CONSOLE 1: Dados Brutos do Backend
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+//     console.log(equipesRaw);
+//     console.log("=================================================");
+
+//     if (!equipesRaw.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+//         return;
+//     }
+//     if (!equipesRaw.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+//         return;
+//     }
+
+        
+//     // const mapFuncoes = (funcoesArray) => {
+//     //     if (!Array.isArray(funcoesArray)) return [];
+
+//     //     return funcoesArray.map(f => {
+//     //         const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
+//     //         const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
+//     //         const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+//     //         const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
+            
+//     //         // 🚀 CAPTURA DOS NOVOS CAMPOS DE DOBRAS DO BACKEND
+//     //         const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
+//     //         const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
+
+//     //         if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
+
+//     //         return {
+//     //             ...f, 
+//     //             nome: f.nome ?? f.descfuncao ?? "Função",
+//     //             qtd_orcamento,
+//     //             qtd_cadastrada,
+//     //             qtd_pendente,
+//     //             diarias_consumidas,
+//     //             dobras_pendentes,     // Injetado no objeto normalizado
+//     //             dobras_autorizadas,   // Injetado no objeto normalizado
+//     //             concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
+//     //         };
+//     //     }).filter(f => f !== null);
+//     // };
+
+//     const mapFuncoes = (funcoesArray) => {
+//         if (!Array.isArray(funcoesArray)) return [];
+
+//         return funcoesArray.map(f => {
+//             const qtd_orcamento = Number(f.qtd_orcamento ?? f.qtditens ?? f.total ?? 0);
+//             const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
+//             const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+//             const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);            
+//             const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
+//             const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
+
+//             if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
+
+//             // Identifica se o cache está fechado
+//             const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" || 
+//                                 f.cachefechado === true || f.cachefechado === "true" ||
+//                                 f.tem_cache_fechado === true || f.tem_cache_fechado === "true";
+
+//             // Obtém a quantidade de dias vinda do banco
+//             const qtdDiasOrcados = Number(f.qtddias ?? f.qtddias_orcamento ?? 1);
+            
+//             // 🚀 NOVA REGRA DE CÁLCULO:
+//             // Se cache fechado for true: assume qtddias.
+//             // Se cache fechado for false: multiplica qtditens (qtd_orcamento) * qtddias.
+//             const vagasOrcadas = isCacheFechado ? qtdDiasOrcados : (qtd_orcamento * qtdDiasOrcados);
+            
+//             console.log(`[Nova Regra -> Função: ${f.nome ?? f.nome_funcao}] | Itens: ${qtd_orcamento} | Dias: ${qtdDiasOrcados} | CacheFechado: ${isCacheFechado} | Total Diárias Meta: ${vagasOrcadas}`);
+
+//             // Disp desconta consumo normal, pendentes normais e dobras pendentes
+//             const disponiveis = Math.max(0, vagasOrcadas - (diarias_consumidas + qtd_pendente + dobras_pendentes));
+
+//             return {
+//                 ...f, 
+//                 nome: f.nome ?? f.descfuncao ?? f.nome_funcao ?? "Função",
+//                 qtd_orcamento,
+//                 qtd_cadastrada,
+//                 qtd_pendente,
+//                 diarias_consumidas,
+//                 dobras_pendentes,     
+//                 dobras_autorizadas,   
+//                 vagas_orcadas: vagasOrcadas,
+//                 qtddias_orcamento: qtdDiasOrcados,
+//                 is_cache_fechado: isCacheFechado,
+//                 concluido: vagasOrcadas > 0 && disponiveis === 0
+//             };
+//         }).filter(f => f !== null);
+//     };
+
+//     console.log("Mapeando e filtrando funções...", equipesRaw);
+
+//     // converte e normaliza cada item
+//     // converte e normaliza cada item
+//     let equipes = equipesRaw.map(item => {
+//     const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
+//     const equipeId = item.idequipe;
+//     let funcoesResult = [];
+
+//     if (item.funcoes && Array.isArray(item.funcoes)) {
+//         funcoesResult = mapFuncoes(item.funcoes);
+//     }
+//     else if (item.categorias && Array.isArray(item.categorias)) {
+//         funcoesResult = mapFuncoes(item.categorias);
+//     }
+//     else if (item.categoria) {
+//         const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+//         const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
+
+//         if (total > 0 || preenchidas > 0) { 
+//             funcoesResult = [{
+//                 idfuncao: item.idfuncao ?? null,
+//                 nome: item.categoria || "Função",
+//                 total,
+//                 preenchidas,
+//                 concluido: total > 0 && preenchidas >= total
+//             }];
+//         }
+//     }
+//     else if (Array.isArray(item.funcoes)) {
+//         funcoesResult = mapFuncoes(item.funcoes);
+//     }
+
+//     return {
+//         equipe: equipeNome,
+//         idequipe: equipeId,
+//         funcoes: funcoesResult
+//         };
+//     })
+//     .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+//     .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+
+//     // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+//     console.log(equipes);
+//     console.log("=================================================");
+//     // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+//     console.log(equipes);
+//     console.log("=================================================");
+
+
+//     if (!equipes.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+//         return;
+//     }
+//     if (!equipes.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+//         return;
+//     }
+
+//     corpo.innerHTML = "";
+//     equipes.forEach(eq => {
+
+//         const equipeBox = document.createElement("div");
+//         equipeBox.className = "equipe-box";
+//         const equipeBox = document.createElement("div");
+//         equipeBox.className = "equipe-box";
+
+//         const totalFuncoes = eq.funcoes?.length || 0;
+//         const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+//         const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
+//         const totalFuncoes = eq.funcoes?.length || 0;
+//         const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+//         const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
+
+//         const resumoItens = eq.funcoes?.map(f => {
+//         // const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
+//         //                     || f.cache_fechado === true || f.cache_fechado === "true";
+
+//         const isCacheFechado = f.is_cache_fechado === true;
+
+//         const qtdItensOrcados    = Number(f.qtd_orcamento ?? 0);
+//         const qtdDiasOrcados     = Number(f.qtddias_orcamento ?? 1);
+//         const pessoasCadastradas = Number(f.qtd_cadastrada ?? 0);
+//         const diariasConsumidas  = Number(f.diarias_consumidas ?? 0);
+//         const pendentes          = Number(f.qtd_pendente ?? 0);
+//         const dobrasPendentes    = Number(f.dobras_pendentes ?? 0);
+        
+ 
+//         // const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+//         // const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes));
+//         // const confirmados  = pessoasCadastradas - pendentes;
+
+//         // let cor = "#4caf50";
+//         // if (qtdItensOrcados === 0)             cor = "#aaa";
+//         // else if (confirmados === 0)            cor = "#e53935";
+//         // else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+
+//         // const sufixo = "diárias";
+        
+//         // let stringAlertasPendentes = "";
+//         // let mensagemTooltip = "";
+
+//         // if (pendentes > 0 && dobrasPendentes > 0) {
+//         //     // Caso 1: Ambos estão pendentes
+//         //     stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
+//         //     mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+//         // } else if (pendentes > 0) {
+//         //     // Caso 2: Apenas vagas normais pendentes
+//         //     stringAlertasPendentes = ` (+${pendentes} ⏳)`;
+//         //     mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
+//         // } else if (dobrasPendentes > 0) {
+//         //     // Caso 3: Apenas diárias dobradas pendentes
+//         //     stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
+//         //     mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+//         // }
+
+//         // const textoPendentes = stringAlertasPendentes !== "" 
+//         //     ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
+//         //     : "";
+
+//         //const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+
+//         const vagasOrcadas = f.vagas_orcadas;
+        
+//         // 🚀 EXIBIÇÃO PRINCIPAL: Soma o que já está fixo com o que está reservado por dobra pendente
+//         const exibicaoDiariasVisuais = diariasConsumidas + dobrasPendentes;
+
+//         // 🚀 CÁLCULO DO DISPONÍVEL: Deduz as diárias normais, as vagas pendentes e as dobras pendentes
+//         // Assim, o Disp: acompanha a reserva real da tela!
+//         const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes + dobrasPendentes));
+//         const confirmados  = pessoasCadastradas - pendentes;
+
+//         let cor = "#4caf50";
+//         if (qtdItensOrcados === 0)             cor = "#aaa";
+//         else if (confirmados === 0)            cor = "#e53935";
+//         else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+
+//         const sufixo = "diárias";
+        
+//         // 🚀 TOOLTIPS DINÂMICOS (Mostra o status de forma transparente)
+//         let stringAlertasPendentes = "";
+//         let mensagemTooltip = "";
+
+//         if (pendentes > 0 && dobrasPendentes > 0) {
+//             stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
+//             mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+//         } else if (pendentes > 0) {
+//             stringAlertasPendentes = ` (+${pendentes} ⏳)`;
+//             mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
+//         } else if (dobrasPendentes > 0) {
+//             stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
+//             mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+//         }
+
+//         const textoPendentes = stringAlertasPendentes !== "" 
+//             ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
+//             : "";
+//         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
+
+//         // return `
+//         //     <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+//         //         <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+//         //         <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+//         //         <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+//         //         <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
+//         //             ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} 
+//         //         </span>
+//         //         <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+//         //             Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+//         //         </span>
+                
+//         //     </div>`;
+
+//         return `
+//             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+//                 <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+//                 <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+//                 <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+//                 <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
+//                     ${exibicaoDiariasVisuais}${textoPendentes} / ${vagasOrcadas} 
+//                 </span>
+//                 <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+//                     Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+//                 </span>
+//             </div>`;
+//     }).join("");
+
+
+//     equipeBox.innerHTML = `
+//         <div class="equipe-header" role="button" tabindex="0">
+//             <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+//             <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+//             <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+//             <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+//         </div>
+//         <div class="barra-progresso">
+//             <div class="progresso" style="width:${perc}%;"></div>
+//             <div class="progresso" style="width:${perc}%;"></div>
+//         </div>
+//         <div class="equipe-resumo" style="padding:4px 0;">
+//             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+//         </div>
+//         <div class="equipe-resumo" style="padding:4px 0;">
+//             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+//         </div>
+//         <div class="equipe-actions">
+//             <button type="button" class="ver-funcionarios-btn">
+//                 <i class="fas fa-users"></i> Funcionários
+//             </button>
+//             <button type="button" class="ver-funcionarios-btn">
+//                 <i class="fas fa-users"></i> Funcionários
+//             </button>
+//         </div>
+//     `;
+
+//         const headerBtn = equipeBox.querySelector(".equipe-header");
+//             headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+//             headerBtn.addEventListener("keypress", (e) => {
+//             if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+//         });
+
+
+//         const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+//             if (funcionariosBtn) {
+//                 funcionariosBtn.addEventListener("click", (e) => {
+//                 e.stopPropagation(); 
+//                 abrirListaFuncionarios(eq, evento); 
+//                 });
+//             }
+
+//             corpo.appendChild(equipeBox);
+//         });
+//             corpo.appendChild(equipeBox);
+//         });
+
+//     } catch (err) {
+//         console.error("Erro ao buscar detalhes das equipes.", err);
+//         const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
+//         corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+//     }
+// }
+
 async function abrirTelaEquipesEvento(evento) {
 
   const painel = document.getElementById("painelDetalhes");
@@ -2898,458 +3361,253 @@ async function abrirTelaEquipesEvento(evento) {
   const container = document.createElement("div");
   container.className = "painel-equipes-evento";
 
-
   // ===== HEADER =====
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
   header.innerHTML = `
-  <button class="btn-voltar" title="Voltar">←</button>
-  <div class="info-evento">
-    <h2>${evento.nmevento || "Evento sem nome"}</h2>
-    <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
-    <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
-  </div>
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${evento.nmevento || "Evento sem nome"}</h2>
+      <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+      <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    </div>
   `;
   container.appendChild(header);
 
-  // ===== CORPO (LISTA DE EQUIPES) =====
+  // ===== CORPO =====
   const corpo = document.createElement("div");
   corpo.className = "corpo-equipes";
   corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
   container.appendChild(corpo);
 
-  // rodapé / controles
+  // ===== RODAPÉ =====
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
   rodape.innerHTML = `
-    <button class="btn-voltar-rodape"> ← Voltar</button>
+    <button class="btn-voltar-rodape">← Voltar</button>
     <button class="btn-relatorio">📄 Gerar Relatório</button>
   `;
   container.appendChild(rodape);
 
   painel.appendChild(container);
 
-  // eventos de navegação
   container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
   container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
     alert("Função de relatório ainda em desenvolvimento.");
   });
 
-  // helper local
   function formatarPeriodo(inicio, fim) {
     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // utilitário simples para escapar texto antes de inserir no innerHTML
   function escapeHtml(str) {
     if (!str && str !== 0) return "";
     return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
+  const mapFuncoes = (funcoesArray) => {
+    if (!Array.isArray(funcoesArray)) return [];
+    return funcoesArray.map(f => {
+      const qtd_orcamento      = Number(f.qtd_orcamento ?? f.qtditens ?? f.total ?? 0);
+      const qtd_cadastrada     = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
+      const qtd_pendente       = Number(f.qtd_pendente ?? f.pendente ?? 0);
+      const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
+      const dobras_pendentes   = Number(f.dobras_pendentes ?? 0);
+      const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
+
+      if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
+
+      const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" ||
+                             f.cachefechado === true || f.cachefechado === "true" ||
+                             f.tem_cache_fechado === true || f.tem_cache_fechado === "true";
+
+      const qtdDiasOrcados = Number(f.qtddias ?? f.qtddias_orcamento ?? 1);
+      const vagasOrcadas   = isCacheFechado ? qtdDiasOrcados : (qtd_orcamento * qtdDiasOrcados);
+      const disponiveis    = Math.max(0, vagasOrcadas - (diarias_consumidas + qtd_pendente + dobras_pendentes));
+
+      return {
+        ...f,
+        nome: f.nome ?? f.descfuncao ?? f.nome_funcao ?? "Função",
+        qtd_orcamento, qtd_cadastrada, qtd_pendente,
+        diarias_consumidas, dobras_pendentes, dobras_autorizadas,
+        vagas_orcadas: vagasOrcadas,
+        qtddias_orcamento: qtdDiasOrcados,
+        is_cache_fechado: isCacheFechado,
+        concluido: vagasOrcadas > 0 && disponiveis === 0
+      };
+    }).filter(f => f !== null);
+  };
+
   try {
-    const idevento = evento.idevento || evento.id || evento.id_evento;
-    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
-    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idevento  = evento.idevento || evento.id || evento.id_evento;
     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
 
     if (!idevento || !idempresa) {
-        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-        return;
-    }
-    if (!idevento || !idempresa) {
-        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-        return;
+      console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+      corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+      return;
     }
 
     const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
-    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
 
-    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
     let dados;
     if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-        dados = resp;
+      dados = resp;
     } else if (resp && typeof resp === "object" && "ok" in resp) {
-        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-        dados = await resp.json();
+      if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+      dados = await resp.json();
     } else {
-        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-        return;
-    }
-    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
-    let dados;
-    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-        dados = resp;
-    } else if (resp && typeof resp === "object" && "ok" in resp) {
-        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-        dados = await resp.json();
-    } else {
-        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-        return;
+      console.error("Resposta inválida:", resp);
+      corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+      return;
     }
 
-    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
-    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
-    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
-
-    // Adiciona idorcamento ao evento
-    evento.idorcamento = dados.idorcamento;
-    // Adiciona idorcamento ao evento
     evento.idorcamento = dados.idorcamento;
 
-    // CONSOLE 1: Dados Brutos do Backend
-    console.log("=================================================");
-    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
-    console.log(equipesRaw);
-    console.log("=================================================");
-    // CONSOLE 1: Dados Brutos do Backend
-    console.log("=================================================");
-    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
-    console.log(equipesRaw);
-    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw):`, equipesRaw);
 
     if (!equipesRaw.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-        return;
-    }
-    if (!equipesRaw.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-        return;
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+      return;
     }
 
-        
-    // const mapFuncoes = (funcoesArray) => {
-    //     if (!Array.isArray(funcoesArray)) return [];
-
-    //     return funcoesArray.map(f => {
-    //         const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
-    //         const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
-    //         const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
-    //         const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
-            
-    //         // 🚀 CAPTURA DOS NOVOS CAMPOS DE DOBRAS DO BACKEND
-    //         const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
-    //         const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
-
-    //         if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
-
-    //         return {
-    //             ...f, 
-    //             nome: f.nome ?? f.descfuncao ?? "Função",
-    //             qtd_orcamento,
-    //             qtd_cadastrada,
-    //             qtd_pendente,
-    //             diarias_consumidas,
-    //             dobras_pendentes,     // Injetado no objeto normalizado
-    //             dobras_autorizadas,   // Injetado no objeto normalizado
-    //             concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
-    //         };
-    //     }).filter(f => f !== null);
-    // };
-
-    const mapFuncoes = (funcoesArray) => {
-        if (!Array.isArray(funcoesArray)) return [];
-
-        return funcoesArray.map(f => {
-            const qtd_orcamento = Number(f.qtd_orcamento ?? f.qtditens ?? f.total ?? 0);
-            const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
-            const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
-            const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);            
-            const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
-            const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
-
-            if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
-
-            // Identifica se o cache está fechado
-            const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" || 
-                                f.cachefechado === true || f.cachefechado === "true" ||
-                                f.tem_cache_fechado === true || f.tem_cache_fechado === "true";
-
-            // Obtém a quantidade de dias vinda do banco
-            const qtdDiasOrcados = Number(f.qtddias ?? f.qtddias_orcamento ?? 1);
-            
-            // 🚀 NOVA REGRA DE CÁLCULO:
-            // Se cache fechado for true: assume qtddias.
-            // Se cache fechado for false: multiplica qtditens (qtd_orcamento) * qtddias.
-            const vagasOrcadas = isCacheFechado ? qtdDiasOrcados : (qtd_orcamento * qtdDiasOrcados);
-            
-            console.log(`[Nova Regra -> Função: ${f.nome ?? f.nome_funcao}] | Itens: ${qtd_orcamento} | Dias: ${qtdDiasOrcados} | CacheFechado: ${isCacheFechado} | Total Diárias Meta: ${vagasOrcadas}`);
-
-            // Disp desconta consumo normal, pendentes normais e dobras pendentes
-            const disponiveis = Math.max(0, vagasOrcadas - (diarias_consumidas + qtd_pendente + dobras_pendentes));
-
-            return {
-                ...f, 
-                nome: f.nome ?? f.descfuncao ?? f.nome_funcao ?? "Função",
-                qtd_orcamento,
-                qtd_cadastrada,
-                qtd_pendente,
-                diarias_consumidas,
-                dobras_pendentes,     
-                dobras_autorizadas,   
-                vagas_orcadas: vagasOrcadas,
-                qtddias_orcamento: qtdDiasOrcados,
-                is_cache_fechado: isCacheFechado,
-                concluido: vagasOrcadas > 0 && disponiveis === 0
-            };
-        }).filter(f => f !== null);
-    };
-
-    console.log("Mapeando e filtrando funções...", equipesRaw);
-
-    // converte e normaliza cada item
-    // converte e normaliza cada item
     let equipes = equipesRaw.map(item => {
-    const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
-    const equipeId = item.idequipe;
-    let funcoesResult = [];
+      const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || `Equipe ${item.idequipe ?? ""}`;
+      const equipeId   = item.idequipe;
+      let funcoesResult = [];
 
-    if (item.funcoes && Array.isArray(item.funcoes)) {
+      if (item.funcoes && Array.isArray(item.funcoes)) {
         funcoesResult = mapFuncoes(item.funcoes);
-    }
-    else if (item.categorias && Array.isArray(item.categorias)) {
+      } else if (item.categorias && Array.isArray(item.categorias)) {
         funcoesResult = mapFuncoes(item.categorias);
-    }
-    else if (item.categoria) {
-        const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+      } else if (item.categoria) {
+        const total      = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
         const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
-
-        if (total > 0 || preenchidas > 0) { 
-            funcoesResult = [{
-                idfuncao: item.idfuncao ?? null,
-                nome: item.categoria || "Função",
-                total,
-                preenchidas,
-                concluido: total > 0 && preenchidas >= total
-            }];
+        if (total > 0 || preenchidas > 0) {
+          funcoesResult = [{
+            idfuncao: item.idfuncao ?? null,
+            nome: item.categoria || "Função",
+            total, preenchidas,
+            concluido: total > 0 && preenchidas >= total
+          }];
         }
-    }
-    else if (Array.isArray(item.funcoes)) {
-        funcoesResult = mapFuncoes(item.funcoes);
-    }
+      }
 
-    return {
-        equipe: equipeNome,
-        idequipe: equipeId,
-        funcoes: funcoesResult
-        };
+      return { equipe: equipeNome, idequipe: equipeId, funcoes: funcoesResult };
     })
     .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
     .filter(eq => eq.funcoes && eq.funcoes.length > 0);
 
-    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
-    console.log("=================================================");
-    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
-    console.log(equipes);
-    console.log("=================================================");
-    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
-    console.log("=================================================");
-    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
-    console.log(equipes);
-    console.log("=================================================");
-
+    console.log(`[${evento.nmevento}] Dados normalizados (equipes):`, equipes);
 
     if (!equipes.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-        return;
-    }
-    if (!equipes.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-        return;
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+      return;
     }
 
     corpo.innerHTML = "";
+
     equipes.forEach(eq => {
+      const equipeBox = document.createElement("div");
+      equipeBox.className = "equipe-box";
 
-        const equipeBox = document.createElement("div");
-        equipeBox.className = "equipe-box";
-        const equipeBox = document.createElement("div");
-        equipeBox.className = "equipe-box";
+      const totalFuncoes = eq.funcoes?.length || 0;
+      const concluidas   = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+      const perc         = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
 
-        const totalFuncoes = eq.funcoes?.length || 0;
-        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
-        const totalFuncoes = eq.funcoes?.length || 0;
-        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
-
-        const resumoItens = eq.funcoes?.map(f => {
-        // const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
-        //                     || f.cache_fechado === true || f.cache_fechado === "true";
-
-        const isCacheFechado = f.is_cache_fechado === true;
-
+      const resumoItens = eq.funcoes?.map(f => {
+        const isCacheFechado     = f.is_cache_fechado === true;
         const qtdItensOrcados    = Number(f.qtd_orcamento ?? 0);
         const qtdDiasOrcados     = Number(f.qtddias_orcamento ?? 1);
         const pessoasCadastradas = Number(f.qtd_cadastrada ?? 0);
         const diariasConsumidas  = Number(f.diarias_consumidas ?? 0);
         const pendentes          = Number(f.qtd_pendente ?? 0);
         const dobrasPendentes    = Number(f.dobras_pendentes ?? 0);
-        
- 
-        // const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
-        // const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes));
-        // const confirmados  = pessoasCadastradas - pendentes;
-
-        // let cor = "#4caf50";
-        // if (qtdItensOrcados === 0)             cor = "#aaa";
-        // else if (confirmados === 0)            cor = "#e53935";
-        // else if (confirmados < qtdItensOrcados) cor = "#ff9800";
-
-        // const sufixo = "diárias";
-        
-        // let stringAlertasPendentes = "";
-        // let mensagemTooltip = "";
-
-        // if (pendentes > 0 && dobrasPendentes > 0) {
-        //     // Caso 1: Ambos estão pendentes
-        //     stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
-        //     mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
-        // } else if (pendentes > 0) {
-        //     // Caso 2: Apenas vagas normais pendentes
-        //     stringAlertasPendentes = ` (+${pendentes} ⏳)`;
-        //     mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
-        // } else if (dobrasPendentes > 0) {
-        //     // Caso 3: Apenas diárias dobradas pendentes
-        //     stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
-        //     mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
-        // }
-
-        // const textoPendentes = stringAlertasPendentes !== "" 
-        //     ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
-        //     : "";
-
-        //const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
-
-        const vagasOrcadas = f.vagas_orcadas;
-        
-        // 🚀 EXIBIÇÃO PRINCIPAL: Soma o que já está fixo com o que está reservado por dobra pendente
+        const vagasOrcadas       = f.vagas_orcadas;
         const exibicaoDiariasVisuais = diariasConsumidas + dobrasPendentes;
-
-        // 🚀 CÁLCULO DO DISPONÍVEL: Deduz as diárias normais, as vagas pendentes e as dobras pendentes
-        // Assim, o Disp: acompanha a reserva real da tela!
-        const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes + dobrasPendentes));
-        const confirmados  = pessoasCadastradas - pendentes;
+        const disponiveis        = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes + dobrasPendentes));
+        const confirmados        = pessoasCadastradas - pendentes;
 
         let cor = "#4caf50";
-        if (qtdItensOrcados === 0)             cor = "#aaa";
-        else if (confirmados === 0)            cor = "#e53935";
+        if (qtdItensOrcados === 0)              cor = "#aaa";
+        else if (confirmados === 0)             cor = "#e53935";
         else if (confirmados < qtdItensOrcados) cor = "#ff9800";
 
-        const sufixo = "diárias";
-        
-        // 🚀 TOOLTIPS DINÂMICOS (Mostra o status de forma transparente)
         let stringAlertasPendentes = "";
         let mensagemTooltip = "";
-
         if (pendentes > 0 && dobrasPendentes > 0) {
-            stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
-            mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+          stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
+          mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
         } else if (pendentes > 0) {
-            stringAlertasPendentes = ` (+${pendentes} ⏳)`;
-            mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
+          stringAlertasPendentes = ` (+${pendentes} ⏳)`;
+          mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
         } else if (dobrasPendentes > 0) {
-            stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
-            mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+          stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
+          mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
         }
 
-        const textoPendentes = stringAlertasPendentes !== "" 
-            ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
-            : "";
+        const textoPendentes = stringAlertasPendentes
+          ? ` <span style="color:#e67e22; font-weight:bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>`
+          : "";
+
         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
 
-        // return `
-        //     <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
-        //         <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
-        //         <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-        //         <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
-        //         <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
-        //             ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} 
-        //         </span>
-        //         <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-        //             Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
-        //         </span>
-                
-        //     </div>`;
-
         return `
-            <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
-                <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
-                <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-                <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
-                <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
-                    ${exibicaoDiariasVisuais}${textoPendentes} / ${vagasOrcadas} 
-                </span>
-                <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-                    Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
-                </span>
-            </div>`;
-    }).join("");
+          <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+            <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+            <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+            <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+            <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
+              ${exibicaoDiariasVisuais}${textoPendentes} / ${vagasOrcadas}
+            </span>
+            <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+              Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">diárias</small>
+            </span>
+          </div>`;
+      }).join("");
 
-
-    equipeBox.innerHTML = `
+      equipeBox.innerHTML = `
         <div class="equipe-header" role="button" tabindex="0">
-            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
-            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+          <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+          <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
         </div>
         <div class="barra-progresso">
-            <div class="progresso" style="width:${perc}%;"></div>
-            <div class="progresso" style="width:${perc}%;"></div>
+          <div class="progresso" style="width:${perc}%;"></div>
         </div>
         <div class="equipe-resumo" style="padding:4px 0;">
-            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
-        </div>
-        <div class="equipe-resumo" style="padding:4px 0;">
-            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+          ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
         </div>
         <div class="equipe-actions">
-            <button type="button" class="ver-funcionarios-btn">
-                <i class="fas fa-users"></i> Funcionários
-            </button>
-            <button type="button" class="ver-funcionarios-btn">
-                <i class="fas fa-users"></i> Funcionários
-            </button>
+          <button type="button" class="ver-funcionarios-btn">
+            <i class="fas fa-users"></i> Funcionários
+          </button>
         </div>
-    `;
+      `;
 
-        const headerBtn = equipeBox.querySelector(".equipe-header");
-            headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
-            headerBtn.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
-        });
+      equipeBox.querySelector(".equipe-header")?.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+      equipeBox.querySelector(".equipe-header")?.addEventListener("keypress", e => {
+        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+      });
+      equipeBox.querySelector(".ver-funcionarios-btn")?.addEventListener("click", e => {
+        e.stopPropagation();
+        abrirListaFuncionarios(eq, evento);
+      });
 
+      corpo.appendChild(equipeBox);
+    });
 
-        const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
-            if (funcionariosBtn) {
-                funcionariosBtn.addEventListener("click", (e) => {
-                e.stopPropagation(); 
-                abrirListaFuncionarios(eq, evento); 
-                });
-            }
-
-            corpo.appendChild(equipeBox);
-        });
-            corpo.appendChild(equipeBox);
-        });
-
-    } catch (err) {
-        console.error("Erro ao buscar detalhes das equipes.", err);
-        const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
-        corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
-    }
+  } catch (err) {
+    console.error("Erro ao buscar detalhes das equipes.", err);
+    corpo.innerHTML = `<p class="erro">${escapeHtml(err?.message || "Erro ao carregar detalhes das equipes.")}</p>`;
+  }
 }
 
 /**
@@ -7220,8 +7478,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
 
                 itensParaRenderizar.forEach(infoItem => {
-                    let htmlBodyAditivoAgrupado = '';
-                    let datasProcessadas = [];
+                    
                     let htmlBodyAditivoAgrupado = '';
                     let datasProcessadas = [];
                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
@@ -8181,26 +8438,7 @@ async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
     }
 }
 
-async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
-    const confirm = await Swal.fire({
-        title: 'Confirmar data única?',
-        text: `Deseja definir como ${novoStatus} apenas a data ${dataEspecifica}?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sim',
-        cancelButtonText: 'Cancelar'
-    });
 
-    if (confirm.isConfirmed) {
-        // Aqui você chama seu backend passando o id_log e a data específica
-        // Exemplo: await atualizarStatusAditivoExtra(idLog, novoStatus, null, idLog, dataEspecifica);
-        console.log("Enviando para o banco:", { idLog, dataEspecifica, novoStatus });
-        
-        // Após o sucesso, você pode recarregar a lista ou remover a linha do HTML manualmente
-        Swal.fire('Sucesso!', 'Data atualizada.', 'success');
-        // window.recarregarSuaFuncao(); 
-    }
-}
 
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {

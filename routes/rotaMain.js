@@ -2906,7 +2906,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
             if (!rows.length) return res.status(404).json({ error: 'Registro mestre não encontrado.' });
             
-            let registro = rows[0];
+            registro = rows[0];
 
             // 5. ATUALIZAÇÃO EM MEMÓRIA PARA O RECALCULO
             if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
