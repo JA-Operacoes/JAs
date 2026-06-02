@@ -1983,6 +1983,306 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
   }
 }
 
+// async function abrirTelaEquipesEvento(evento) {
+
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+
+//   // ===== HEADER =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `
+//   <button class="btn-voltar" title="Voltar">←</button>
+//   <div class="info-evento">
+//     <h2>${evento.nmevento || "Evento sem nome"}</h2>
+//     <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+//     <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+//   </div>
+//   `;
+//   container.appendChild(header);
+
+//   // ===== CORPO (LISTA DE EQUIPES) =====
+//   const corpo = document.createElement("div");
+//   corpo.className = "corpo-equipes";
+//   corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
+//   container.appendChild(corpo);
+
+//   // rodapé / controles
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `
+//     <button class="btn-voltar-rodape"> ← Voltar</button>
+//     <button class="btn-relatorio">📄 Gerar Relatório</button>
+//   `;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   // eventos de navegação
+//   container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
+//   container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
+//     alert("Função de relatório ainda em desenvolvimento.");
+//   });
+
+//   // helper local
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   // utilitário simples para escapar texto antes de inserir no innerHTML
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   try {
+//     const idevento = evento.idevento || evento.id || evento.id_evento;
+//     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+
+//     if (!idevento || !idempresa) {
+//         console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+//         corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+//         return;
+//     }
+
+//     const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+
+//     // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+//     let dados;
+//     if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+//         dados = resp;
+//     } else if (resp && typeof resp === "object" && "ok" in resp) {
+//         if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+//         dados = await resp.json();
+//     } else {
+//         console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+//         corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+//         return;
+//     }
+
+//     // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+//     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+
+//     // Adiciona idorcamento ao evento
+//     evento.idorcamento = dados.idorcamento;
+
+//     // CONSOLE 1: Dados Brutos do Backend
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+//     console.log(equipesRaw);
+//     console.log("=================================================");
+
+//     if (!equipesRaw.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+//         return;
+//     }
+
+        
+//     const mapFuncoes = (funcoesArray) => {
+//         if (!Array.isArray(funcoesArray)) return [];
+
+//         return funcoesArray.map(f => {
+//             // Mantemos os nomes originais do backend para não quebrar a função de detalhes
+//             const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
+//             const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
+//             const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+//             const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
+
+//             //const ativos    = qtd_cadastrada - qtd_pendente;
+//             //const pendentes = qtd_pendente;
+
+//             // Filtro de segurança: se não tem nada orçado nem nada cadastrado, ignora
+//             // if (qtd_orcamento === 0 && qtd_cadastrada === 0) {
+//             //     return null;
+//             // }
+
+//             //if (qtd_orcamento === 0 && ativos === 0 && pendentes === 0) return null;
+
+//             if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
+
+//             return {
+//                 ...f, // Mantém todas as propriedades originais (idfuncao, dtini, etc)
+//                 nome: f.nome ?? f.descfuncao ?? "Função",
+//                 qtd_orcamento,
+//                 qtd_cadastrada,
+//                 qtd_pendente,
+//                 diarias_consumidas,
+//                 // Calculamos o concluído real (Confirmados >= Orçado)
+//                 concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
+//             };
+//         }).filter(f => f !== null);
+//     };
+
+//     console.log("Mapeando e filtrando funções...", equipesRaw);
+
+//     // converte e normaliza cada item
+//     let equipes = equipesRaw.map(item => {
+//     // Obter nome e ID da equipe
+//     const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
+//     const equipeId = item.idequipe;
+//     let funcoesResult = [];
+
+//     // se veio com funcoes já montadas (compatível com rota atual)
+//     if (item.funcoes && Array.isArray(item.funcoes)) {
+//         funcoesResult = mapFuncoes(item.funcoes);
+//     }
+//     // se veio como categorias agregadas (campo 'categorias' do backend)
+//     else if (item.categorias && Array.isArray(item.categorias)) {
+//         funcoesResult = mapFuncoes(item.categorias);
+//     }
+//     // item vindo como categoria direta
+//     else if (item.categoria) {
+//         const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+//         const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
+
+//         // Cria função apenas se houver vagas/staff
+//         if (total > 0 || preenchidas > 0) { 
+//             funcoesResult = [{
+//                 idfuncao: item.idfuncao ?? null,
+//                 nome: item.categoria || "Função",
+//                 total,
+//                 preenchidas,
+//                 concluido: total > 0 && preenchidas >= total
+//             }];
+//         }
+//     }
+//     // fallback genérico (usando funcoes original, se houver)
+//     else if (Array.isArray(item.funcoes)) {
+//         funcoesResult = mapFuncoes(item.funcoes);
+//     }
+
+//     return {
+//         equipe: equipeNome,
+//         idequipe: equipeId,
+//         funcoes: funcoesResult
+//         };
+//     })
+//     // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
+//     .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+//     // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
+//     .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+
+//     // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+//     console.log("=================================================");
+//     console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+//     console.log(equipes);
+//     console.log("=================================================");
+
+
+//     if (!equipes.length) {
+//         corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+//         return;
+//     }
+
+//     // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
+//     corpo.innerHTML = "";
+//     equipes.forEach(eq => {
+
+//         const equipeBox = document.createElement("div");
+//         equipeBox.className = "equipe-box";
+
+//         const totalFuncoes = eq.funcoes?.length || 0;
+//         const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+//         const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
+
+//         const resumoItens = eq.funcoes?.map(f => {
+//         const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
+//                             || f.cache_fechado === true || f.cache_fechado === "true";
+
+//         const qtdItensOrcados    = Number(f.qtd_orcamento ?? 0);
+//         const qtdDiasOrcados     = Number(f.qtddias_orcamento ?? 1);
+//         const pessoasCadastradas = Number(f.qtd_cadastrada ?? 0);
+//         const diariasConsumidas  = Number(f.diarias_consumidas ?? 0);
+//         const pendentes          = Number(f.qtd_pendente ?? 0);
+
+//         const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+//         const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes));
+//         const confirmados  = pessoasCadastradas - pendentes;
+
+//         let cor = "#4caf50";
+//         if (qtdItensOrcados === 0)             cor = "#aaa";
+//         else if (confirmados === 0)            cor = "#e53935";
+//         else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+
+//         const sufixo = "diárias";
+//         const textoPendentes = pendentes > 0 ? ` <span style="color:#e67e22">(+${pendentes} ⏳)</span>` : "";
+//         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
+
+//         return `
+//             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+//                 <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+//                 <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+//                 <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+//                 <span style="color:#fff; font-weight:bold; min-width:60px; text-align:right;">
+//                     ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} 
+//                 </span>
+//                 <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+//                     Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+//                 </span>
+                
+//             </div>`;
+//     }).join("");
+
+
+//     equipeBox.innerHTML = `
+//         <div class="equipe-header" role="button" tabindex="0">
+//             <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+//             <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+//         </div>
+//         <div class="barra-progresso">
+//             <div class="progresso" style="width:${perc}%;"></div>
+//         </div>
+//         <div class="equipe-resumo" style="padding:4px 0;">
+//             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+//         </div>
+//         <div class="equipe-actions">
+//             <button type="button" class="ver-funcionarios-btn">
+//                 <i class="fas fa-users"></i> Funcionários
+//             </button>
+//         </div>
+//     `;
+
+//         // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
+//         const headerBtn = equipeBox.querySelector(".equipe-header");
+//             headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+//             headerBtn.addEventListener("keypress", (e) => {
+//             if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+//         });
+
+
+//         // 🛑 NOVO LISTENER: Botão 'Funcionários'
+//         const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+//             if (funcionariosBtn) {
+//                 // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
+//                 funcionariosBtn.addEventListener("click", (e) => {
+//                 e.stopPropagation(); // Evita que o clique no botão ative o clique do header
+//                 abrirListaFuncionarios(eq, evento); 
+//                 });
+//             }
+//             // 🛑 FIM NOVO LISTENER
+
+//             corpo.appendChild(equipeBox);
+//         });
+
+//     } catch (err) {
+//         console.error("Erro ao buscar detalhes das equipes.", err);
+//         const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
+//         corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+//     }
+// }
+
 async function abrirTelaEquipesEvento(evento) {
 
   const painel = document.getElementById("painelDetalhes");
@@ -2048,128 +2348,143 @@ async function abrirTelaEquipesEvento(evento) {
   }
 
   try {
-  const idevento = evento.idevento || evento.id || evento.id_evento;
-  const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
 
-  if (!idevento || !idempresa) {
-    console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-    corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-    return;
-  }
+    if (!idevento || !idempresa) {
+        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+        return;
+    }
 
-  const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
 
-  // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
-  let dados;
-  if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-    dados = resp;
-  } else if (resp && typeof resp === "object" && "ok" in resp) {
-    if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-    dados = await resp.json();
-  } else {
-    console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-    corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-    return;
-  }
+    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+    let dados;
+    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+        dados = resp;
+    } else if (resp && typeof resp === "object" && "ok" in resp) {
+        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+        dados = await resp.json();
+    } else {
+        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+        return;
+    }
 
-  // normaliza array de equipes: suportar {equipes: [...] } ou array direto
-  const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
-  // Adiciona idorcamento ao evento
-  evento.idorcamento = dados.idorcamento;
+    // Adiciona idorcamento ao evento
+    evento.idorcamento = dados.idorcamento;
 
-  // CONSOLE 1: Dados Brutos do Backend
-  console.log("=================================================");
-  console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
-  console.log(equipesRaw);
-  console.log("=================================================");
+    // CONSOLE 1: Dados Brutos do Backend
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+    console.log(equipesRaw);
+    console.log("=================================================");
 
-  if (!equipesRaw.length) {
-    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-    return;
-  }
+    if (!equipesRaw.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+        return;
+    }
 
-    // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
+        
     // const mapFuncoes = (funcoesArray) => {
     //     if (!Array.isArray(funcoesArray)) return [];
 
     //     return funcoesArray.map(f => {
-    //         // Mapeamento dos campos de Total e Preenchidas
-    //         const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
-    //         const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
-    //         const pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+    //         const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
+    //         const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
+    //         const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+    //         const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);
+            
+    //         // 🚀 CAPTURA DOS NOVOS CAMPOS DE DOBRAS DO BACKEND
+    //         const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
+    //         const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
 
-    //         // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
-    //         if (total === 0 && preenchidas === 0) {
-    //             return null;
-    //         }
+    //         if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
 
     //         return {
-    //             idfuncao: f.idfuncao ?? f.idFuncao ?? null,
-    //             nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
-    //             total,
-    //             preenchidas,
-    //             pendente,
-    //             concluido: total > 0 && preenchidas >= total,
-    //             dtini_vaga: f.dtini_vaga ?? null,
-    //             dtfim_vaga: f.dtfim_vaga ?? null,
-    //             datas_staff: f.datas_staff ?? [],
-    //             cache_fechado: f.cache_fechado ?? false
+    //             ...f, 
+    //             nome: f.nome ?? f.descfuncao ?? "Função",
+    //             qtd_orcamento,
+    //             qtd_cadastrada,
+    //             qtd_pendente,
+    //             diarias_consumidas,
+    //             dobras_pendentes,     // Injetado no objeto normalizado
+    //             dobras_autorizadas,   // Injetado no objeto normalizado
+    //             concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
     //         };
-    //     }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
+    //     }).filter(f => f !== null);
     // };
 
     const mapFuncoes = (funcoesArray) => {
         if (!Array.isArray(funcoesArray)) return [];
 
         return funcoesArray.map(f => {
-            // Mantemos os nomes originais do backend para não quebrar a função de detalhes
-            const qtd_orcamento = Number(f.qtd_orcamento ?? f.total ?? 0);
+            const qtd_orcamento = Number(f.qtd_orcamento ?? f.qtditens ?? f.total ?? 0);
             const qtd_cadastrada = Number(f.qtd_cadastrada ?? f.preenchidas ?? 0);
             const qtd_pendente = Number(f.qtd_pendente ?? f.pendente ?? 0);
+            const diarias_consumidas = Number(f.diarias_consumidas ?? f.diarias ?? 0);            
+            const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
+            const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
 
-            // Filtro de segurança: se não tem nada orçado nem nada cadastrado, ignora
-            // if (qtd_orcamento === 0 && qtd_cadastrada === 0) {
-            //     return null;
-            // }
+            if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
 
-            if (qtd_orcamento === 0 && ativos === 0 && pendentes === 0) return null;
+            // Identifica se o cache está fechado
+            const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" || 
+                                f.cachefechado === true || f.cachefechado === "true" ||
+                                f.tem_cache_fechado === true || f.tem_cache_fechado === "true";
+
+            // Obtém a quantidade de dias vinda do banco
+            const qtdDiasOrcados = Number(f.qtddias ?? f.qtddias_orcamento ?? 1);
+            
+            // 🚀 NOVA REGRA DE CÁLCULO:
+            // Se cache fechado for true: assume qtddias.
+            // Se cache fechado for false: multiplica qtditens (qtd_orcamento) * qtddias.
+            const vagasOrcadas = isCacheFechado ? qtdDiasOrcados : (qtd_orcamento * qtdDiasOrcados);
+            
+            console.log(`[Nova Regra -> Função: ${f.nome ?? f.nome_funcao}] | Itens: ${qtd_orcamento} | Dias: ${qtdDiasOrcados} | CacheFechado: ${isCacheFechado} | Total Diárias Meta: ${vagasOrcadas}`);
+
+            // Disp desconta consumo normal, pendentes normais e dobras pendentes
+            const disponiveis = Math.max(0, vagasOrcadas - (diarias_consumidas + qtd_pendente + dobras_pendentes));
 
             return {
-                ...f, // Mantém todas as propriedades originais (idfuncao, dtini, etc)
-                nome: f.nome ?? f.descfuncao ?? "Função",
+                ...f, 
+                nome: f.nome ?? f.descfuncao ?? f.nome_funcao ?? "Função",
                 qtd_orcamento,
                 qtd_cadastrada,
                 qtd_pendente,
-                // Calculamos o concluído real (Confirmados >= Orçado)
-                concluido: qtd_orcamento > 0 && (qtd_cadastrada - qtd_pendente) >= qtd_orcamento
+                diarias_consumidas,
+                dobras_pendentes,     
+                dobras_autorizadas,   
+                vagas_orcadas: vagasOrcadas,
+                qtddias_orcamento: qtdDiasOrcados,
+                is_cache_fechado: isCacheFechado,
+                concluido: vagasOrcadas > 0 && disponiveis === 0
             };
         }).filter(f => f !== null);
     };
 
     console.log("Mapeando e filtrando funções...", equipesRaw);
 
-  // converte e normaliza cada item
+    // converte e normaliza cada item
     let equipes = equipesRaw.map(item => {
-    // Obter nome e ID da equipe
     const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
     const equipeId = item.idequipe;
     let funcoesResult = [];
 
-    // se veio com funcoes já montadas (compatível com rota atual)
     if (item.funcoes && Array.isArray(item.funcoes)) {
         funcoesResult = mapFuncoes(item.funcoes);
     }
-    // se veio como categorias agregadas (campo 'categorias' do backend)
     else if (item.categorias && Array.isArray(item.categorias)) {
         funcoesResult = mapFuncoes(item.categorias);
     }
-    // item vindo como categoria direta
     else if (item.categoria) {
         const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
         const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
 
-        // Cria função apenas se houver vagas/staff
         if (total > 0 || preenchidas > 0) { 
             funcoesResult = [{
                 idfuncao: item.idfuncao ?? null,
@@ -2180,129 +2495,190 @@ async function abrirTelaEquipesEvento(evento) {
             }];
         }
     }
-    // fallback genérico (usando funcoes original, se houver)
     else if (Array.isArray(item.funcoes)) {
         funcoesResult = mapFuncoes(item.funcoes);
     }
 
-  return {
-    equipe: equipeNome,
-    idequipe: equipeId,
-    funcoes: funcoesResult
-    };
-  })
-  // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
-  .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
-  // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
-  .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+    return {
+        equipe: equipeNome,
+        idequipe: equipeId,
+        funcoes: funcoesResult
+        };
+    })
+    .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+    .filter(eq => eq.funcoes && eq.funcoes.length > 0);
 
-  // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
-  console.log("=================================================");
-  console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
-  console.log(equipes);
-  console.log("=================================================");
+    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+    console.log(equipes);
+    console.log("=================================================");
 
 
-  if (!equipes.length) {
-    corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-    return;
-  }
+    if (!equipes.length) {
+        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+        return;
+    }
 
-  // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
-  corpo.innerHTML = "";
-  equipes.forEach(eq => {
+    corpo.innerHTML = "";
+    equipes.forEach(eq => {
 
-    const equipeBox = document.createElement("div");
-    equipeBox.className = "equipe-box";
+        const equipeBox = document.createElement("div");
+        equipeBox.className = "equipe-box";
 
-    const totalFuncoes = eq.funcoes?.length || 0;
-    const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-    const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+        const totalFuncoes = eq.funcoes?.length || 0;
+        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
 
-    // resumo de vagas por função (compacto) usando total/preenchidas
-    // const resumo = eq.funcoes?.map(f => {
-    //     const preench = Number(f.preenchidas ?? 0);
-    //     const total = Number(f.total ?? 0);
-    //     let cor = "🟢";
-    //     if (total === 0) cor = "⚪";
-    //     else if (preench === 0) cor = "🔴";
-    //     else if (preench < total) cor = "🟡";
+        const resumoItens = eq.funcoes?.map(f => {
+        // const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
+        //                     || f.cache_fechado === true || f.cache_fechado === "true";
 
-    //     const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-    //     console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
+        const isCacheFechado = f.is_cache_fechado === true;
 
-    //     return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
-    // }).join(" | ");
-
-    // resumo de vagas por função (compacto) usando a lógica de confirmados
-    const resumo = eq.funcoes?.map(f => {
-        // 1. Extraímos os valores usando os novos nomes que definimos no mapFuncoes
-        const total = Number(f.qtd_orcamento ?? 0);
-        const bruto = Number(f.qtd_cadastrada ?? 0);
-        const pendentes = Number(f.qtd_pendente ?? 0);
+        const qtdItensOrcados    = Number(f.qtd_orcamento ?? 0);
+        const qtdDiasOrcados     = Number(f.qtddias_orcamento ?? 1);
+        const pessoasCadastradas = Number(f.qtd_cadastrada ?? 0);
+        const diariasConsumidas  = Number(f.diarias_consumidas ?? 0);
+        const pendentes          = Number(f.qtd_pendente ?? 0);
+        const dobrasPendentes    = Number(f.dobras_pendentes ?? 0);
         
-        // 2. O que realmente conta para a cor é o confirmado
-        const confirmados = bruto - pendentes;
+ 
+        // const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+        // const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes));
+        // const confirmados  = pessoasCadastradas - pendentes;
 
-        // 3. Lógica de Cores refinada
-        let cor = "🟢"; // Verde: Confirmados >= Total
-        if (total === 0) {
-            cor = "⚪"; // Cinza: Sem orçamento
-        } else if (confirmados === 0) {
-            cor = "🔴"; // Vermelho: Zero confirmados
-        } else if (confirmados < total) {
-            cor = "🟡"; // Amarelo: Tem gente, mas não atingiu o total
+        // let cor = "#4caf50";
+        // if (qtdItensOrcados === 0)             cor = "#aaa";
+        // else if (confirmados === 0)            cor = "#e53935";
+        // else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+
+        // const sufixo = "diárias";
+        
+        // let stringAlertasPendentes = "";
+        // let mensagemTooltip = "";
+
+        // if (pendentes > 0 && dobrasPendentes > 0) {
+        //     // Caso 1: Ambos estão pendentes
+        //     stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
+        //     mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+        // } else if (pendentes > 0) {
+        //     // Caso 2: Apenas vagas normais pendentes
+        //     stringAlertasPendentes = ` (+${pendentes} ⏳)`;
+        //     mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
+        // } else if (dobrasPendentes > 0) {
+        //     // Caso 3: Apenas diárias dobradas pendentes
+        //     stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
+        //     mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+        // }
+
+        // const textoPendentes = stringAlertasPendentes !== "" 
+        //     ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
+        //     : "";
+
+        //const vagasOrcadas = isCacheFechado ? qtdItensOrcados : qtdItensOrcados * qtdDiasOrcados;
+
+        const vagasOrcadas = f.vagas_orcadas;
+        
+        // 🚀 EXIBIÇÃO PRINCIPAL: Soma o que já está fixo com o que está reservado por dobra pendente
+        const exibicaoDiariasVisuais = diariasConsumidas + dobrasPendentes;
+
+        // 🚀 CÁLCULO DO DISPONÍVEL: Deduz as diárias normais, as vagas pendentes e as dobras pendentes
+        // Assim, o Disp: acompanha a reserva real da tela!
+        const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes + dobrasPendentes));
+        const confirmados  = pessoasCadastradas - pendentes;
+
+        let cor = "#4caf50";
+        if (qtdItensOrcados === 0)             cor = "#aaa";
+        else if (confirmados === 0)            cor = "#e53935";
+        else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+
+        const sufixo = "diárias";
+        
+        // 🚀 TOOLTIPS DINÂMICOS (Mostra o status de forma transparente)
+        let stringAlertasPendentes = "";
+        let mensagemTooltip = "";
+
+        if (pendentes > 0 && dobrasPendentes > 0) {
+            stringAlertasPendentes = ` (+${pendentes + dobrasPendentes} ⏳)`;
+            mensagemTooltip = `${pendentes} vaga(s) e ${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
+        } else if (pendentes > 0) {
+            stringAlertasPendentes = ` (+${pendentes} ⏳)`;
+            mensagemTooltip = `${pendentes} vaga(s) aguardando liberação`;
+        } else if (dobrasPendentes > 0) {
+            stringAlertasPendentes = ` (+${dobrasPendentes} ⏳)`;
+            mensagemTooltip = `${dobrasPendentes} diária(s) dobrada(s) aguardando liberação`;
         }
 
+        const textoPendentes = stringAlertasPendentes !== "" 
+            ? ` <span style="color:#e67e22; font-weight: bold;" title="${mensagemTooltip}">${stringAlertasPendentes}</span>` 
+            : "";
         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-        
-        // Retornamos a string formatada. 
-        // Dica: Se houver pendentes, incluímos o aviso (+1 ⏳) no resumo também.
-        const textoPendentes = pendentes > 0 ? ` (+${pendentes} ⏳)` : "";
-        
-        return `${f.nome}: ${cor} (${periodoVaga}) ${confirmados}${textoPendentes}/${total}`;
-    }).join(" | ");
 
-    // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+        // return `
+        //     <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+        //         <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+        //         <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+        //         <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+        //         <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
+        //             ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} 
+        //         </span>
+        //         <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+        //             Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+        //         </span>
+                
+        //     </div>`;
+
+        return `
+            <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
+                <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
+                <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
+                <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+                <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
+                    ${exibicaoDiariasVisuais}${textoPendentes} / ${vagasOrcadas} 
+                </span>
+                <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
+                    Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+                </span>
+            </div>`;
+    }).join("");
+
 
     equipeBox.innerHTML = `
         <div class="equipe-header" role="button" tabindex="0">
-        <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-        <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
         </div>
         <div class="barra-progresso">
-        <div class="progresso" style="width:${perc}%;"></div>
+            <div class="progresso" style="width:${perc}%;"></div>
         </div>
-
-        <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
+        <div class="equipe-resumo" style="padding:4px 0;">
+            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+        </div>
         <div class="equipe-actions">
-        <button type="button" class="ver-funcionarios-btn">
-        <i class="fas fa-users"></i> Funcionários
-        </button>
+            <button type="button" class="ver-funcionarios-btn">
+                <i class="fas fa-users"></i> Funcionários
+            </button>
         </div>
     `;
 
-    // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
-    const headerBtn = equipeBox.querySelector(".equipe-header");
-        headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
-        headerBtn.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
-    });
+        const headerBtn = equipeBox.querySelector(".equipe-header");
+            headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+            headerBtn.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+        });
 
 
-    // 🛑 NOVO LISTENER: Botão 'Funcionários'
-    const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
-        if (funcionariosBtn) {
-            // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
-            funcionariosBtn.addEventListener("click", (e) => {
-            e.stopPropagation(); // Evita que o clique no botão ative o clique do header
-            abrirListaFuncionarios(eq, evento); 
-            });
-        }
-        // 🛑 FIM NOVO LISTENER
+        const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+            if (funcionariosBtn) {
+                funcionariosBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); 
+                abrirListaFuncionarios(eq, evento); 
+                });
+            }
 
-        corpo.appendChild(equipeBox);
-    });
+            corpo.appendChild(equipeBox);
+        });
 
     } catch (err) {
         console.error("Erro ao buscar detalhes das equipes.", err);
@@ -2317,6 +2693,362 @@ async function abrirTelaEquipesEvento(evento) {
  * @param {object} equipe - Objeto da equipe com 'equipe' e 'idequipe'.
  * @param {object} evento - Objeto do evento com 'nmevento' e 'idevento'.
  */
+// async function abrirListaFuncionarios(equipe, evento) {
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-lista-funcionarios";
+
+//   // --- Helpers internos ---
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//       .replace(/&/g, "&amp;")
+//       .replace(/</g, "&lt;")
+//       .replace(/>/g, "&gt;")
+//       .replace(/"/g, "&quot;")
+//       .replace(/'/g, "&#39;");
+//   }
+
+// //   const agruparFuncionariosPorFuncao = (lista) => {
+// //     return lista.reduce((grupos, funcionario) => {
+// //       const funcao = funcionario.funcao || 'Não Classificado';
+// //       if (!grupos[funcao]) grupos[funcao] = [];
+// //       grupos[funcao].push(funcionario);
+// //       return grupos;
+// //     }, {});
+// //   };
+// const agruparFuncionariosPorFuncao = (lista) => {
+//     return lista.reduce((grupos, funcionario) => {
+//       // 1. Agrupa na função nativa normalmente
+//       const funcaoPrincipal = funcionario.funcao || 'Não Classificado';
+//       if (!grupos[funcaoPrincipal]) grupos[funcaoPrincipal] = [];
+//       grupos[funcaoPrincipal].push(funcionario);
+
+//       // 2. Descobre se há dobras autorizadas lendo DIRETAMENTE de dentro do JSON dtdiariadobrada
+//       let temDobraAutorizadaNoJson = false;
+//       let nomeFuncaoDobra = null;
+
+//       if (funcionario.dtdiariadobrada) {
+//         try {
+//           const dobrasJson = typeof funcionario.dtdiariadobrada === 'string' 
+//             ? JSON.parse(funcionario.dtdiariadobrada) 
+//             : funcionario.dtdiariadobrada;
+          
+//           if (Array.isArray(dobrasJson) && dobrasJson.length > 0) {
+//             // Procura no array se existe o status "Autorizado" internamente
+//             const dobraAtiva = dobrasJson.find(d => d.status === 'Autorizado');
+            
+//             if (dobraAtiva) {
+//               temDobraAutorizadaNoJson = true;
+              
+//               // Mapeia o ID da função alvo para o nome correto do grupo
+//               if (String(dobraAtiva.idfuncaodobra) === "48") {
+//                 nomeFuncaoDobra = "FISCAL DE MARCAÇÃO";
+//               } else if (String(dobraAtiva.idfuncaodobra) === "5") {
+//                 nomeFuncaoDobra = "FISCAL DIURNO";
+//               }
+//             }
+//           }
+//         } catch (e) {
+//           console.error("Erro ao processar dtdiariadobrada no agrupamento", e);
+//         }
+//       }
+
+//       // 3. Se houver dobra ativa no JSON e for para um grupo diferente, faz a clonagem
+//       if (temDobraAutorizadaNoJson && nomeFuncaoDobra && nomeFuncaoDobra !== funcaoPrincipal) {
+//         if (!grupos[nomeFuncaoDobra]) grupos[nomeFuncaoDobra] = [];
+        
+//         const jaExiste = grupos[nomeFuncaoDobra].some(f => f.idfuncionario === funcionario.idfuncionario);
+//         if (!jaExiste) {
+//           // Clona o objeto e força uma flag indicando que este é o clone ativo da dobra
+//           const funcionarioClonado = { ...funcionario, isItemDobraVisual: true, statusDobraForcado: 'Autorizado' };
+//           grupos[nomeFuncaoDobra].push(funcionarioClonado);
+//         }
+//       }
+
+//       return grupos;
+//     }, {});
+//   };
+
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   function cleanAndNormalize(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+//   }
+
+//   // --- Exportação CSV ---
+//   function exportarParaCSV(data, nomeEquipe, nomeEvento) {
+//     if (!data.length) return alert("Não há dados.");
+//     const DELIMITADOR = ';';
+//     const headers = ["Funcao", "Nome", "Setor", "Status Pagamento", "Valor Total", "Nivel Experiencia"];
+
+//     const csvRows = data.map(row => {
+//       const valor = row.vlrtotal ? String(row.vlrtotal).replace('.', ',') : '0';
+//       return [
+//         cleanAndNormalize(row.funcao),
+//         cleanAndNormalize(row.nome),
+//         cleanAndNormalize(row.setor),
+//         cleanAndNormalize(row.status_pagamento),
+//         valor,
+//         cleanAndNormalize(row.nivelexperiencia)
+//       ].join(DELIMITADOR);
+//     });
+
+//     const csvContent = "\uFEFF" + [headers.join(DELIMITADOR), ...csvRows].join('\n');
+//     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+//     const link = document.createElement("a");
+//     link.href = URL.createObjectURL(blob);
+//     link.download = `Lista_${cleanAndNormalize(nomeEquipe)}_${cleanAndNormalize(nomeEvento)}.csv`;
+//     link.click();
+//   }
+
+//   // --- Construção do Layout ---
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `
+//     <button class="btn-voltar-detalhe" title="Voltar">←</button>
+//     <div class="info-evento">
+//       <h2>${escapeHtml(equipe.equipe)}</h2>
+//       <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento)}</p>
+//       <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+//     </div>
+//   `;
+//   container.appendChild(header);
+
+//   const corpo = document.createElement("div");
+//   corpo.className = "corpo-funcionarios";
+//   corpo.innerHTML = `<div class="loading">Carregando funcionários...</div>`;
+//   container.appendChild(corpo);
+
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `
+//     <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
+//     <button class="btn-exportar-lista">📥 Exportar Lista</button>
+//   `;
+//   container.appendChild(rodape);
+//   painel.appendChild(container);
+
+//   // Eventos
+//   const voltar = () => abrirTelaEquipesEvento(evento);
+//   container.querySelector(".btn-voltar-detalhe").onclick = voltar;
+//   container.querySelector(".btn-voltar-rodape-detalhe").onclick = voltar;
+
+//   try {
+//     const idevento = evento.idevento || evento.id;
+//     const idequipe = equipe.idequipe;
+//     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+//     const ano = new Date(evento.inicio_realizacao || new Date()).getFullYear();
+
+//     const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
+//     const funcionarios = await fetchComToken(url);
+//     let listaFuncionariosCarregada = funcionarios;
+
+//     container.querySelector(".btn-exportar-lista").onclick = () => exportarParaCSV(listaFuncionariosCarregada, equipe.equipe, evento.nmevento);
+
+//     if (!funcionarios.length) {
+//       corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado.</p>`;
+//       return;
+//     }
+
+//     const grupos = agruparFuncionariosPorFuncao(funcionarios);
+//     let html = '';
+
+//     for (const funcao in grupos) {
+//       html += `
+//         <div class="funcionario-grupo-header">
+//           <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
+//           <span class="grupo-badge">${grupos[funcao].length} Pessoa(s)</span>
+//         </div>
+//         <div class="grupo-divisor"></div>
+//         <ul class="funcionario-lista">
+//       `;
+
+
+//     //   grupos[funcao].forEach(f => {
+//     //             const mapaStatus = {
+//     //         'Pago': 'status-pago',
+//     //         'Rejeitado': 'status-rejeitado',
+//     //         'Pendente': 'status-pendente'
+//     //     };
+
+//     //     const statusClass = mapaStatus[f.status_pagamento] || 'status-pendente';
+//     //     const exibicaoDatas = formatarListaDatas(f.datas);  
+        
+//     //     // ✅ AQUI ESTÁ A MUDANÇA: NOME (SETOR)
+//     //     const nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
+//     //     const isPendente = f.statusstaff === 'Pendente';
+
+//     //     const obterInfoStatus = (status) => {
+//     //         if (!status || status === 'Pendente') return { classe: 'status-pendente', label: 'Pendente' };
+//     //         if (status === 'Pago') return { classe: 'status-pago', label: 'Pago' };
+//     //         if (status === 'Pago50') return { classe: 'status-pago-parcial', label: '50%' };
+//     //         if (status === 'Suspenso') return { classe: 'status-suspenso', label: 'Suspenso' };
+//     //         if (status === 'Rejeitado') return { classe: 'status-rejeitado', label: 'Rejeitado' };
+//     //         return { classe: 'status-pendente', label: status };
+//     //     };
+
+//     //     const ajuda = obterInfoStatus(f.status_ajuda_custo);
+//     //     const cache = obterInfoStatus(f.status_cache);
+
+//     //     // Variáveis de estilo condicional
+//     //     const estiloItem = isPendente ? 'font-style: italic;' : '';
+//     //     const estiloTexto = isPendente ? 'text-decoration: line-through; opacity: 0.5;' : '';
+        
+//     //     const badgeAutorizacao = isPendente 
+//     //         ? `<span class="badge-aguardando">⏳ Aguardando Autorização</span>` 
+//     //         : '';
+
+//     //     html += `
+//     //         <li class="funcionario-item" style="${estiloItem}">
+//     //             <div class="funcionario-info-principal" style="margin: 0 0 10px 0;">
+//     //                 <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
+//     //                 <div style="font-size: 0.8rem; color: #666;">
+//     //                     📅 ${escapeHtml(exibicaoDatas)}
+//     //                 </div>                        
+//     //                 ${badgeAutorizacao}
+//     //             </div>
+                
+//     //             <div class="status-group-horizontal" style="${isPendente ? 'opacity: 0.5;' : ''}">
+//     //                 <div class="status-box" style="${estiloTexto}">
+//     //                     <small>Ajuda:</small>
+//     //                     <span class="funcionario-status-badge ${isPendente ? '' : ajuda.classe}">
+//     //                         ${isPendente ? '—' : ajuda.label}
+//     //                     </span>
+//     //                 </div>
+//     //                 <div class="status-box" style="${estiloTexto}">
+//     //                     <small>Cachê:</small>
+//     //                     <span class="funcionario-status-badge ${isPendente ? '' : cache.classe}">
+//     //                         ${isPendente ? '—' : cache.label}
+//     //                     </span>
+//     //                 </div>
+//     //             </div>                   
+//     //         </li>                
+//     //     `;
+//     //     });
+//    // 1. PRIMEIRAMENTE, AS ASSEGURAMOS AS VARIÁVEIS DE DOBRA LENDO O JSON DO FUNCIONÁRIO
+// grupos[funcao].forEach(f => {
+//     const mapaStatus = {
+//         'Pago': 'status-pago',
+//         'Rejeitado': 'status-rejeitado',
+//         'Pendente': 'status-pendente'
+//     };
+
+//     const statusClass = mapaStatus[f.status_pagamento] || 'status-pendente';
+//     const exibicaoDatas = formatarListaDatas(f.datas);  
+    
+//     // Verifica se esta linha atual é a linha clonada da dobra
+//     const ehLinhaDeDobra = f.isItemDobraVisual === true;
+//     let nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
+    
+//     if (ehLinhaDeDobra) {
+//         nomeComSetor += ` 🔃`; 
+//     }
+
+//     const isPendente = f.statusstaff === 'Pendente';
+
+//     // 🚀 CORREÇÃO: Descobre os status reais olhando para dentro do JSON dtdiariadobrada
+//     let temDobraAutorizada = false;
+//     let temDobraPendente = false;
+
+//     if (f.dtdiariadobrada) {
+//         try {
+//             const dobras = typeof f.dtdiariadobrada === 'string' 
+//                 ? JSON.parse(f.dtdiariadobrada) 
+//                 : f.dtdiariadobrada;
+
+//             if (Array.isArray(dobras) && dobras.length > 0) {
+//                 // Se houver qualquer uma autorizada no array, tratamos como ativa
+//                 if (dobras.some(d => d.status === 'Autorizado')) {
+//                     temDobraAutorizada = true;
+//                 } else if (dobras.some(d => d.status === 'Pendente')) {
+//                     temDobraPendente = true;
+//                 }
+//             }
+//         } catch (e) {
+//             console.error("Erro ao ler JSON de dobras no forEach:", e);
+//         }
+//     }
+
+//     const obterInfoStatus = (status) => {
+//         if (!status || status === 'Pendente') return { classe: 'status-pendente', label: 'Pendente' };
+//         if (status === 'Pago') return { classe: 'status-pago', label: 'Pago' };
+//         if (status === 'Pago50') return { classe: 'status-pago-parcial', label: '50%' };
+//         if (status === 'Suspenso') return { classe: 'status-suspenso', label: 'Suspenso' };
+//         if (status === 'Rejeitado') return { classe: 'status-rejeitado', label: 'Rejeitado' };
+//         return { classe: 'status-pendente', label: status };
+//     };
+
+//     const ajuda = obterInfoStatus(f.status_ajuda_custo);
+//     const cache = obterInfoStatus(f.status_cache);
+
+//     // Estilos para funcionários pendentes de aprovação geral
+//     const estiloItem = isPendente ? 'font-style: italic;' : '';
+//     const estiloTexto = isPendente ? 'text-decoration: line-through; opacity: 0.5;' : '';
+    
+//     // Badge 1: Vaga Pendente
+//     const badgeAutorizacao = isPendente 
+//         ? `<span class="badge-aguardando" style="display: inline-block; font-size: 0.75rem; background: rgba(230, 126, 34, 0.1); color: #e67e22; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">⏳ Vaga Aguardando Autorização</span>` 
+//         : '';
+
+//     // Badge 2: Contexto da Diária Dobrada
+//     let badgeDobra = '';
+//     if (ehLinhaDeDobra) {
+//         // Visual no grupo onde ele está cobrindo a dobra (Ex: FISCAL DE MARCAÇÃO)
+//         badgeDobra = `<span class="badge-dobra-local" style="display: inline-block; font-size: 0.75rem; background: rgba(76, 175, 80, 0.15); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">✅ Atuando por Diária Dobrada</span>`;
+//     } else if (temDobraAutorizada) {
+//         // Visual verde no grupo de origem (Ex: FISCAL DIURNO) -> Agora vai mudar para verde!
+//         badgeDobra = `<span class="badge-dobra-autorizada" style="display: inline-block; font-size: 0.75rem; background: rgba(76, 175, 80, 0.1); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">✅ Possui Diária Dobrada</span>`;
+//     } else if (temDobraPendente) {
+//         badgeDobra = `<span class="badge-dobra-pendente" style="display: inline-block; font-size: 0.75rem; background: rgba(230, 126, 34, 0.1); color: #e67e22; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">⏳ Dobra Aguardando Autorização</span>`;
+//     }
+
+//     html += `
+//         <li class="funcionario-item" style="${estiloItem}">
+//             <div class="funcionario-info-principal" style="margin: 0 0 10px 0; display: flex; flex-direction: column; align-items: flex-start;">
+//                 <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
+//                 <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">
+//                     📅 ${escapeHtml(exibicaoDatas)}
+//                 </div>                        
+//                 <div class="badges-wrapper" style="display: flex; flex-wrap: wrap; gap: 2px;">
+//                     ${badgeAutorizacao}
+//                     ${badgeDobra}
+//                 </div>
+//             </div>
+            
+//             <div class="status-group-horizontal" style="${isPendente ? 'opacity: 0.5;' : ''}">
+//                 <div class="status-box" style="${estiloTexto}">
+//                     <small>Ajuda:</small>
+//                     <span class="funcionario-status-badge ${isPendente ? '' : ajuda.classe}">
+//                         ${isPendente ? '—' : ajuda.label}
+//                     </span>
+//                 </div>
+//                 <div class="status-box" style="${estiloTexto}">
+//                     <small>Cachê:</small>
+//                     <span class="funcionario-status-badge ${isPendente ? '' : cache.classe}">
+//                         ${isPendente ? '—' : cache.label}
+//                     </span>
+//                 </div>
+//             </div>                   
+//         </li>                
+//     `;
+// });
+//         html += '</ul>';
+//     }
+//     corpo.innerHTML = html;
+
+//   } catch (err) {
+//     corpo.innerHTML = `<p class="erro">Erro ao carregar lista.</p>`;
+//   }
+// }
+
 async function abrirListaFuncionarios(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
@@ -2336,11 +3068,56 @@ async function abrirListaFuncionarios(equipe, evento) {
       .replace(/'/g, "&#39;");
   }
 
+  // 🚀 LOGICA DE AGRUPAMENTO DECLARADA ANTES DE QUALQUER EXECUÇÃO
   const agruparFuncionariosPorFuncao = (lista) => {
     return lista.reduce((grupos, funcionario) => {
-      const funcao = funcionario.funcao || 'Não Classificado';
-      if (!grupos[funcao]) grupos[funcao] = [];
-      grupos[funcao].push(funcionario);
+      // 1. Agrupa na função nativa normalmente
+      const funcaoPrincipal = funcionario.funcao || 'Não Classificado';
+      if (!grupos[funcaoPrincipal]) grupos[funcaoPrincipal] = [];
+      grupos[funcaoPrincipal].push(funcionario);
+
+      // 2. Descobre se há dobras autorizadas lendo DIRETAMENTE de dentro do JSON dtdiariadobrada
+      let temDobraAutorizadaNoJson = false;
+      let nomeFuncaoDobra = null;
+
+      if (funcionario.dtdiariadobrada) {
+        try {
+          const dobrasJson = typeof funcionario.dtdiariadobrada === 'string' 
+            ? JSON.parse(funcionario.dtdiariadobrada) 
+            : funcionario.dtdiariadobrada;
+          
+          if (Array.isArray(dobrasJson) && dobrasJson.length > 0) {
+            // Procura no array se existe o status "Autorizado" internamente
+            const dobraAtiva = dobrasJson.find(d => d.status === 'Autorizado');
+            
+            if (dobraAtiva) {
+              temDobraAutorizadaNoJson = true;
+              
+              // Mapeia o ID da função alvo para o nome correto do grupo
+              if (String(dobraAtiva.idfuncaodobra) === "48") {
+                nomeFuncaoDobra = "FISCAL DE MARCAÇÃO";
+              } else if (String(dobraAtiva.idfuncaodobra) === "5") {
+                nomeFuncaoDobra = "FISCAL DIURNO";
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao processar dtdiariadobrada no agrupamento", e);
+        }
+      }
+
+      // 3. Se houver dobra ativa no JSON e for para um grupo diferente, faz a clonagem
+      if (temDobraAutorizadaNoJson && nomeFuncaoDobra && nomeFuncaoDobra !== funcaoPrincipal) {
+        if (!grupos[nomeFuncaoDobra]) grupos[nomeFuncaoDobra] = [];
+        
+        const jaExiste = grupos[nomeFuncaoDobra].some(f => f.idfuncionario === funcionario.idfuncionario);
+        if (!jaExiste) {
+          // Clona o objeto e força uma flag indicando que este é o clone ativo da dobra
+          const funcionarioClonado = { ...funcionario, isItemDobraVisual: true, statusDobraForcado: 'Autorizado' };
+          grupos[nomeFuncaoDobra].push(funcionarioClonado);
+        }
+      }
+
       return grupos;
     }, {});
   };
@@ -2430,6 +3207,7 @@ async function abrirListaFuncionarios(equipe, evento) {
       return;
     }
 
+    // Agora sim! Executa com a função já mapeada na memória da aplicação
     const grupos = agruparFuncionariosPorFuncao(funcionarios);
     let html = '';
 
@@ -2443,73 +3221,188 @@ async function abrirListaFuncionarios(equipe, evento) {
         <ul class="funcionario-lista">
       `;
 
-
       grupos[funcao].forEach(f => {
-                const mapaStatus = {
+        const mapaStatus = {
             'Pago': 'status-pago',
             'Rejeitado': 'status-rejeitado',
             'Pendente': 'status-pendente'
         };
 
         const statusClass = mapaStatus[f.status_pagamento] || 'status-pendente';
-        const exibicaoDatas = formatarListaDatas(f.datas);  
+       // const exibicaoDatas = formatarListaDatas(f.datas);  
         
-        // ✅ AQUI ESTÁ A MUDANÇA: NOME (SETOR)
-        const nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
-         const isPendente = f.statusstaff === 'Pendente';
+        // Verifica se esta linha atual é a linha clonada da dobra
+        const ehLinhaDeDobra = f.isItemDobraVisual === true;
 
-            const obterInfoStatus = (status) => {
-                if (!status || status === 'Pendente') return { classe: 'status-pendente', label: 'Pendente' };
-                if (status === 'Pago') return { classe: 'status-pago', label: 'Pago' };
-                if (status === 'Pago50') return { classe: 'status-pago-parcial', label: '50%' };
-                if (status === 'Suspenso') return { classe: 'status-suspenso', label: 'Suspenso' };
-                if (status === 'Rejeitado') return { classe: 'status-rejeitado', label: 'Rejeitado' };
-                return { classe: 'status-pendente', label: status };
-            };
-
-            const ajuda = obterInfoStatus(f.status_ajuda_custo);
-            const cache = obterInfoStatus(f.status_cache);
-
-            // Variáveis de estilo condicional
-            const estiloItem = isPendente ? 'font-style: italic;' : '';
-            const estiloTexto = isPendente ? 'text-decoration: line-through; opacity: 0.5;' : '';
-            
-            const badgeAutorizacao = isPendente 
-                ? `<span class="badge-aguardando">⏳ Aguardando Autorização</span>` 
-                : '';
-
-            html += `
-                <li class="funcionario-item" style="${estiloItem}">
-                    <div class="funcionario-info-principal" style="margin: 0 0 10px 0;">
-                        <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
-                        <div style="font-size: 0.8rem; color: #666;">
-                            📅 ${escapeHtml(exibicaoDatas)}
-                        </div>                        
-                        ${badgeAutorizacao}
-                    </div>
+        let exibicaoDatas = '';
+        if (ehLinhaDeDobra && f.dtdiariadobrada) {
+            try {
+                const dobras = typeof f.dtdiariadobrada === 'string' 
+                    ? JSON.parse(f.dtdiariadobrada) 
+                    : f.dtdiariadobrada;
+                
+                if (Array.isArray(dobras) && dobras.length > 0) {
+                    // Pegamos apenas as datas do JSON que pertencem a esta função específica da dobra
+                    // Nota: Se no seu JSON a data estiver em um array (ex: d.datas), use d.datas. 
+                    // Se for um campo string único de data (ex: d.data), colocamos em um array [d.data]
+                    const datasDobra = dobras
+                        .filter(d => d.status === 'Autorizado')
+                        .flatMap(d => d.datas ? d.datas : (d.data ? [d.data] : []));
                     
-                    <div class="status-group-horizontal" style="${isPendente ? 'opacity: 0.5;' : ''}">
-                        <div class="status-box" style="${estiloTexto}">
-                            <small>Ajuda:</small>
-                            <span class="funcionario-status-badge ${isPendente ? '' : ajuda.classe}">
-                                ${isPendente ? '—' : ajuda.label}
-                            </span>
-                        </div>
-                        <div class="status-box" style="${estiloTexto}">
-                            <small>Cachê:</small>
-                            <span class="funcionario-status-badge ${isPendente ? '' : cache.classe}">
-                                ${isPendente ? '—' : cache.label}
-                            </span>
-                        </div>
-                    </div>                   
-                </li>                
-            `;
-        });
-        html += '</ul>';
+                    if (datasDobra.length > 0) {
+                        exibicaoDatas = formatarListaDatas(datasDobra);
+                    } else {
+                        exibicaoDatas = formatarListaDatas(f.datas); // Fallback caso não ache
+                    }
+                } else {
+                    exibicaoDatas = formatarListaDatas(f.datas);
+                }
+            } catch (e) {
+                console.error("Erro ao extrair datas específicas da dobra:", e);
+                exibicaoDatas = formatarListaDatas(f.datas);
+            }
+        } else {
+            // Se for a linha normal/nativa do funcionário, mostra todas as datas dele
+            exibicaoDatas = formatarListaDatas(f.datas);  
+        }
+        
+        let nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
+        
+        if (ehLinhaDeDobra) {
+            nomeComSetor += ` 🔃`; 
+        }        
+
+        const isPendente = f.statusstaff === 'Pendente';
+
+        // Descobre os status reais olhando para dentro do JSON dtdiariadobrada
+// --- PROCESSAMENTO DETALHADO DAS DOBRAS (CONTAGEM E DATAS) ---
+        // --- PROCESSAMENTO DETALHADO DAS DOBRAS (CONTAGEM E DATAS) ---
+        let temDobraAutorizada = false;
+        let temDobraPendente = false;
+        
+        let totalAutorizadas = 0;
+        let totalPendentes = 0;
+        let datasAutorizadasArray = [];
+        let datasPendentesArray = []; // ✅ GARANTIDO: Declarado aqui para não dar ReferenceError
+
+        if (f.dtdiariadobrada) {
+            try {
+                const dobras = typeof f.dtdiariadobrada === 'string' 
+                    ? JSON.parse(f.dtdiariadobrada) 
+                    : f.dtdiariadobrada;
+
+                if (Array.isArray(dobras) && dobras.length > 0) {
+                    dobras.forEach(d => {
+                        if (d.status === 'Autorizado') {
+                            temDobraAutorizada = true;
+                            totalAutorizadas++;
+                            // Captura as datas dessa dobra autorizada
+                            const de = d.datas ? d.datas : (d.data ? [d.data] : []);
+                            datasAutorizadasArray.push(...de);
+                        } else if (d.status === 'Pendente') {
+                            temDobraPendente = true;
+                            totalPendentes++;
+                            // Captura as datas dessa dobra que está pendente
+                            const dp = d.datas ? d.datas : (d.data ? [d.data] : []);
+                            datasPendentesArray.push(...dp);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Erro ao ler JSON de dobras para as badges:", e);
+            }
+        }
+
+        const obterInfoStatus = (status) => {
+            if (!status || status === 'Pendente') return { classe: 'status-pendente', label: 'Pendente' };
+            if (status === 'Pago') return { classe: 'status-pago', label: 'Pago' };
+            if (status === 'Pago50') return { classe: 'status-pago-parcial', label: '50%' };
+            if (status === 'Suspenso') return { classe: 'status-suspenso', label: 'Suspenso' };
+            if (status === 'Rejeitado') return { classe: 'status-rejeitado', label: 'Rejeitado' };
+            return { classe: 'status-pendente', label: status };
+        };
+
+        const ajuda = obterInfoStatus(f.status_ajuda_custo);
+        const cache = obterInfoStatus(f.status_cache);
+
+        // Estilos para funcionários pendentes de aprovação geral
+        const estiloItem = isPendente ? 'font-style: italic;' : '';
+        const estiloTexto = isPendente ? 'text-decoration: line-through; opacity: 0.5;' : '';
+        
+        // Badge 1: Vaga Pendente
+        const badgeAutorizacao = isPendente 
+            ? `<span class="badge-aguardando" style="display: inline-block; font-size: 0.75rem; background: rgba(230, 126, 34, 0.1); color: #e67e22; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">⏳ Vaga Aguardando Autorização</span>` 
+            : '';
+
+        // Badge 2: Contexto da Diária Dobrada com contadores e datas dinâmicas
+        let badgeDobra = '';
+        
+        if (ehLinhaDeDobra) {
+            // Na linha clonada onde ele atua, mantém o indicativo visual fixo do grupo alvo
+            badgeDobra = `<span class="badge-dobra-local" style="display: inline-block; font-size: 0.75rem; background: rgba(76, 175, 80, 0.15); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">✅ Atuando por Diária Dobrada</span>`;
+        } else {
+            // Na linha nativa/principal do funcionário, monta as informações acumuladas do JSON
+            let badgesAcumuladas = [];
+
+            if (temDobraAutorizada) {
+                // Formata as datas coletadas (ex: "12/05" ou "12/05, 13/05")
+                const textoDatasAut = datasAutorizadasArray.length > 0 ? ` ${formatarListaDatas(datasAutorizadasArray)}` : '';
+                
+                // Adiciona o contador se o funcionário tiver mais de uma dobra aprovada
+                const prefixoQtdAut = totalAutorizadas > 1 ? `(${totalAutorizadas}) ` : '';
+                
+                badgesAcumuladas.push(`<span class="badge-dobra-autorizada" style="display: inline-block; font-size: 0.75rem; background: rgba(76, 175, 80, 0.1); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">✅ ${prefixoQtdAut}Possui Diária Dobrada${textoDatasAut}</span>`);
+            }
+
+            if (temDobraPendente) {
+                // Formata e garante a exibição das datas pendentes aqui!
+                const textoDatasPen = datasPendentesArray.length > 0 ? ` ${formatarListaDatas(datasPendentesArray)}` : '';
+                
+                // Adiciona o contador apenas se houver mais de uma dobra aguardando
+                const prefixoQtdPen = totalPendentes > 1 ? `(${totalPendentes}) ` : '';
+                
+                badgesAcumuladas.push(`<span class="badge-dobra-pendente" style="display: inline-block; font-size: 0.75rem; background: rgba(230, 126, 34, 0.1); color: #e67e22; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-top: 4px; margin-right: 6px;">⏳ ${prefixoQtdPen}Dobra Aguardando Autorização${textoDatasPen}</span>`);
+            }
+
+            badgeDobra = badgesAcumuladas.join('');
+        }
+
+        html += `
+            <li class="funcionario-item" style="${estiloItem}">
+                <div class="funcionario-info-principal" style="margin: 0 0 10px 0; display: flex; flex-direction: column; align-items: flex-start;">
+                    <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
+                    <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">
+                        📅 ${escapeHtml(exibicaoDatas)}
+                    </div>                        
+                    <div class="badges-wrapper" style="display: flex; flex-wrap: wrap; gap: 2px;">
+                        ${badgeAutorizacao}
+                        ${badgeDobra}
+                    </div>
+                </div>
+                
+                <div class="status-group-horizontal" style="${isPendente ? 'opacity: 0.5;' : ''}">
+                    <div class="status-box" style="${estiloTexto}">
+                        <small>Ajuda:</small>
+                        <span class="funcionario-status-badge ${isPendente ? '' : ajuda.classe}">
+                            ${isPendente ? '—' : ajuda.label}
+                        </span>
+                    </div>
+                    <div class="status-box" style="${estiloTexto}">
+                        <small>Cachê:</small>
+                        <span class="funcionario-status-badge ${isPendente ? '' : cache.classe}">
+                            ${isPendente ? '—' : cache.label}
+                        </span>
+                    </div>
+                </div>                   
+            </li>                
+        `;
+      });
+      html += '</ul>';
     }
     corpo.innerHTML = html;
 
   } catch (err) {
+    console.error(err);
     corpo.innerHTML = `<p class="erro">Erro ao carregar lista.</p>`;
   }
 }
@@ -2533,6 +3426,1058 @@ function formatarPeriodo(inicio, fim) {
   return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
 }
 
+// function abrirDetalhesEquipe(equipe, evento) {
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+//   const totalFuncoes = equipe.funcoes?.length || 0;
+//   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+
+//   // Funções de utilidade
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   // helper local (assumindo que está definido globalmente ou em escopo superior)
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
+//   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
+
+//   // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+//   container.appendChild(header);
+
+//   // ===== LISTA DE FUNÇÕES =====
+//   const lista = document.createElement("ul");
+//   lista.className = "funcoes-lista";
+
+// //   (equipe.funcoes || []).forEach(func => {
+// //     const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
+// //     const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
+// //     const concluido = total > 0 && preenchidas >= total;
+
+// //     const li = document.createElement("li");
+// //     li.className = "funcao-item";
+// //     if (concluido) li.classList.add("concluido");
+// //     li.setAttribute("role", "button");
+// //     li.tabIndex = 0;
+
+// //     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+
+// //     // NÓS DE TEXTO criados por createElement geralmente não são um problema,
+// //     // mas vamos garantir que o HTML injetado seja compacto.
+
+// //     // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
+// //     li.innerHTML = `
+// //         <div class="func-wrapper">
+// //         <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
+// //         <div class="func-estado">${preenchidas}/${total}</div>
+// //         <div class="func-detalhes">
+// //         ${concluido 
+// //         ? '✅ Completa' 
+// //         : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
+// //         }
+// //         </div>
+// //         </div>
+// //     `;
+
+//     (equipe.funcoes || []).forEach(func => {
+//         console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`);
+//         const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
+//         const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
+//         const pendentes = Number(func.pendente ?? func.qtd_pendente ?? 0);
+        
+//          console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`, `=> Total: ${total}, Preenchidas: ${preenchidas}, Pendente: ${pendentes ?? 'N/A'}`);
+//         // Supondo que o backend envie quantos desses preenchidos estão pendentes
+//         // Se 'preenchidas' for o total geral, subtraímos os pendentes para saber os confirmados
+       
+//         const confirmados = preenchidas - pendentes;
+
+//         // A função só é considerada "Realmente Completa" se os CONFIRMADOS atingirem o total
+//         const concluido = total > 0 && confirmados >= total;
+
+//         const bloqueadoPorPendente = !concluido && (confirmados + pendentes) >= total && pendentes > 0;
+//     console.log(`DEBUG ${func.nome}: Total=${total}, Confirmados=${confirmados}, Pendentes=${pendentes}, Concluido=${concluido}, BloqueadoPorPendente=${bloqueadoPorPendente}`);
+
+//         const li = document.createElement("li");
+//         li.className = "funcao-item";
+//         if (concluido) li.classList.add("concluido");
+        
+//         const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+
+//         // Lógica do texto de estado
+//         let htmlEstado = `<div class="func-estado" style="font-weight: bold;">${confirmados}/${total}`;
+//         if (pendentes > 0) {
+//             htmlEstado += ` <span class="badge-pendentes-alerta" title="Aguardando Autorização">(+${pendentes} ⏳ Aguardando Autorização)</span>`;
+//         }
+//         htmlEstado += `</div>`;
+
+//         let htmlBotao;
+//         if (concluido) {
+//             htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+//         } else if (bloqueadoPorPendente) {
+//             htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Aguarde a autorização ou rejeição do(s) funcionário(s) pendente(s)">🔒 Vagas Ocupadas</span>';
+//         } else {
+//             htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+//         }
+
+//         li.innerHTML = `
+//             <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+//                 <div class="func-nome" style="flex: 1;">
+//                     ${escapeHtml(func.nome || func.nmfuncao || "Função")} 
+//                     <span class="func-data-vaga">(${periodoVaga})</span>
+//                 </div>
+//                 ${htmlEstado}
+//                 <div class="func-detalhes" style="margin-left: 15px; min-width: 100px; text-align: right;">
+//                     ${htmlBotao}
+//                 </div>
+//             </div>
+//         `;
+
+//     // Se não estiver concluído, precisamos adicionar o listener ao botão.
+//     if (!concluido && !bloqueadoPorPendente) {
+//         const botao = li.querySelector(".btn-abrir-staff");
+//         if (botao) {
+//             botao.addEventListener("click", (e) => {
+//                 e.stopPropagation();
+//                 abrirStaffModal();
+//             });
+//         }
+//     }
+
+//     function abrirStaffModal() {
+//         if (concluido || bloqueadoPorPendente) return;
+
+//         const params = new URLSearchParams();
+
+//         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+//         params.set("nmfuncao", func.nome ?? func.nmfuncao);
+//         params.set("idequipe", equipe.idequipe || "");
+//         params.set("nmequipe", equipe.equipe || "");
+//         params.set("idmontagem", evento.idmontagem || "");
+//         params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+//         params.set("idcliente", evento.idcliente || "");
+//         params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+//         params.set("idevento", evento.idevento || "");
+//         params.set("nmevento", evento.nmevento || "");
+//         params.set("idorcamento", evento.idorcamento || "");
+
+//         if (Array.isArray(evento.dataeventos)) {
+//             params.set("dataeventos", JSON.stringify(evento.dataeventos));
+//         } else if (evento.dataeventos) {
+//             params.set("dataeventos", evento.dataeventos);
+//         }
+
+//         params.set("dtini_vaga", func.dtini_vaga || null);
+//         params.set("dtfim_vaga", func.dtfim_vaga || null);
+//         params.set("cache_fechado", func.cache_fechado ?? false);
+
+//     // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
+//     // O código de fechar o modal deve chamar window.onStaffModalClosed()
+//         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
+//             console.log("🔥 onStaffModalClosed chamado!");
+            
+//             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
+//             console.log("dados:", resp);
+            
+//             const dados = Array.isArray(resp.equipes) ? resp.equipes : [];
+//             console.log("equipes encontradas:", dados);
+//             console.log("procurando idequipe:", equipe.idequipe);
+            
+//             const equipeAtualizada = dados
+//                 .flatMap(d => d.equipes || [d])
+//                 .find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+//             console.log("equipeAtualizada:", equipeAtualizada);
+//             console.log("chamando abrirDetalhesEquipe com:", equipeAtualizada);
+//             abrirDetalhesEquipe(equipeAtualizada, evento);
+//         };
+
+//         console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+
+//         window.__modalInitialParams = params.toString();
+//         window.moduloAtual = "Staff";
+
+//         const targetUrl = `CadStaff.html?${params.toString()}`;
+
+//         if (typeof abrirModalLocal === "function") {
+//             abrirModalLocal(targetUrl, "Staff");
+//         } else if (typeof abrirModal === "function") {
+//             abrirModal(targetUrl, "Staff");
+//         } else {
+//             console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+//         }
+//     }
+
+//     li.addEventListener("click", abrirStaffModal);
+//     li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+
+//     lista.appendChild(li);
+//   });
+
+//   container.appendChild(lista);
+
+//   // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   // Eventos de navegação
+//   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
+// }
+
+
+
+// =========================
+//    Pedidos Orçamentos 
+// =========================
+
+// function abrirDetalhesEquipe(equipe, evento) {
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+//   const totalFuncoes = equipe.funcoes?.length || 0;
+//   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+
+//   // Funções de utilidade
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
+
+//   // ===== HEADER =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+//   container.appendChild(header);
+
+//   // ===== LISTA DE FUNÇÕES =====
+//   const lista = document.createElement("ul");
+//   lista.className = "funcoes-lista";
+
+//   (equipe.funcoes || []).forEach(func => {
+//     // ----------------------------------------------------
+//     // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
+//     // ----------------------------------------------------
+//     const nomeFuncao = func.funcao || func.descfuncao || func.nome || func.nmfuncao || "Função";
+//     //const isCacheFechado = func.tem_cache_fechado === true || func.tem_cache_fechado === "true" || func.cachefechado === true;
+//     const isCacheFechado = func.cache_fechado === true || func.cache_fechado === "true"
+//                     || func.tem_cache_fechado === true || func.tem_cache_fechado === "true";
+
+//     // Seus novos campos direto do MAX() da query do orçamento
+//     const qtdItensOrcados = Number(func.qtd_orcamento ?? func.qtditens ?? 0); 
+//     const qtdDiasOrcados = Number(func.qtddias_orcamento ?? func.qtddias ?? 1); 
+
+//     console.log(`Processando função "${nomeFuncao}": isCacheFechado=${isCacheFechado}, qtdItensOrcados=${qtdItensOrcados}, qtdDiasOrcados=${qtdDiasOrcados}`);
+
+//     // Recupera os dados do Staff (Tratando possíveis variações para não zerar)
+//     const pessoasCadastradas = Number(func.qtd_cadastrada_pessoas ?? func.pessoas_cadastradas ?? func.qtd_cadastrada ?? func.total_pessoas ?? 0);
+//     const diariasConsumidas = Number(func.diarias_consumidas ?? func.vagas_consumidas ?? func.total_diarias ?? func.diarias ?? 0);
+//     const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
+
+//     // ----------------------------------------------------
+//     // 🎯 2. A MÁGICA DA MATEMÁTICA DAS METAS
+//     // ----------------------------------------------------
+//     let itensOrcados = 0;
+//     let vagasOrcadas = 0;
+
+//     if (isCacheFechado) {
+//         console.log(`Função "${nomeFuncao}" é Cache Fechado. Aplicando regra de vagas igual aos dias orçados.`);
+//         // 🚀 REGRA SOLICITADA PARA CACHE FECHADO (Ex: Orçamento 226):
+//         // Se qtd_orcamento no banco traz o limite físico total vendido (Ex: 14)
+//         vagasOrcadas = qtdDiasOrcados; 
+//         itensOrcados = qtdItensOrcados; // Para bater o 9/14 itens e 12/14 vagas perfeitamente
+//     } else {
+//         // REGRA PARA POSTO NORMAL (Postos × Dias)
+//         itensOrcados = qtdItensOrcados;
+//         vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+    
+//     }
+
+//     // ----------------------------------------------------
+//     // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL
+//     // ----------------------------------------------------
+//     // Desconta os pendentes apenas se a sua query de contagem já os incluir no total
+//     const confirmadosPessoas = Math.max(0, pessoasCadastradas - pendentes);
+//     const confirmadosVagas = Math.max(0, diariasConsumidas - pendentes);
+
+//     // O saldo disponível abate o que já está garantido e o que está travado na fila de espera
+//     const disponiveis = Math.max(0, vagasOrcadas - (confirmadosVagas + pendentes));
+
+    
+//     // Regras de conclusão para ativar as cores e o botão correto
+//     const concluido = vagasOrcadas > 0 && confirmadosVagas >= vagasOrcadas;
+//     const bloqueadoPorPendente = !concluido && (confirmadosVagas + pendentes) >= vagasOrcadas && pendentes > 0;
+    
+
+//     // ----------------------------------------------------
+//     // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
+//     // ----------------------------------------------------
+//     const li = document.createElement("li");
+//     li.className = "funcao-item";
+//     if (concluido) li.classList.add("concluido");
+    
+//     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    
+//     // Filtro para o setor não aparecer repetido se o nome da função já o contiver
+//     const setor = (func.setor_orcamento || func.localizacao || "").trim();
+//     let labelLocal = "";
+//     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
+//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//     }
+
+//     const textoUnidade =  "diárias";
+
+//     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+//     htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+//     htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diariasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
+//     htmlEstado += `  <div style="min-width: 65px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+//     if (pendentes > 0) {
+//         htmlEstado += ` <span class="badge-pendentes-alerta" style="font-size: 0.8em; color: #e67e22;" title="Aguardando Autorização">(+${pendentes} ⏳)</span>`;
+//     }
+//     htmlEstado += `</div>`;
+
+//     let htmlBotao;
+//     if (concluido) {
+//         htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+//     } else if (bloqueadoPorPendente) {
+//         htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
+//     } else {
+//         htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+//     }
+
+//     li.innerHTML = `
+//         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+//             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//             </div>
+//             ${htmlEstado}
+//             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+//                 ${htmlBotao}
+//             </div>
+//         </div>
+//     `;
+
+//     // ... o restante dos event listeners e modal permanecem intocados ...
+
+//     // ... manter os listeners abaixo e a função abrirStaffModal() iguais ...
+
+//     if (!concluido && !bloqueadoPorPendente) {
+//         const botao = li.querySelector(".btn-abrir-staff");
+//         if (botao) {
+//             botao.addEventListener("click", (e) => {
+//                 e.stopPropagation();
+//                 abrirStaffModal();
+//             });
+//         }
+//     }
+
+//     function abrirStaffModal() {
+//         if (concluido || bloqueadoPorPendente) return;
+
+//         const params = new URLSearchParams();
+//         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+//         params.set("nmfuncao", func.nome ?? func.nmfuncao);
+//         params.set("idequipe", equipe.idequipe || "");
+//         params.set("nmequipe", equipe.equipe || "");
+//         params.set("idmontagem", evento.idmontagem || "");
+//         params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+//         params.set("idcliente", evento.idcliente || "");
+//         params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+//         params.set("idevento", evento.idevento || "");
+//         params.set("nmevento", evento.nmevento || "");
+//         params.set("idorcamento", evento.idorcamento || "");
+
+//         if (Array.isArray(evento.dataeventos)) {
+//             params.set("dataeventos", JSON.stringify(evento.dataeventos));
+//         } else if (evento.dataeventos) {
+//             params.set("dataeventos", evento.dataeventos);
+//         }
+
+//         params.set("dtini_vaga", func.dtini_vaga || null);
+//         params.set("dtfim_vaga", func.dtfim_vaga || null);
+//         params.set("cache_fechado", func.cache_fechado ?? false);
+
+//         // RECARREGAMENTO NO CALLBACK
+//         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
+//             console.log("🔥 onStaffModalClosed chamado!");
+            
+//             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
+//             const dadosRaw = Array.isArray(resp.equipes) ? resp.equipes : [];
+            
+//             const equipesNormalizadas = dadosRaw.map(item => {
+//                 const mapFuncoes = (funcoesArray) => {
+//                     if (!Array.isArray(funcoesArray)) return [];
+//                     return funcoesArray.map(f => {
+//                         return {
+//                             ...f,
+//                             nome: f.nome ?? f.descfuncao ?? "Função",
+//                             concluido: Number(f.vagas_orcamento ?? f.total ?? 0) > 0 && Number(f.diarias_consumidas ?? f.preenchidas ?? 0) >= Number(f.vagas_orcamento ?? f.total ?? 0)
+//                         };
+//                     });
+//                 };
+
+//                 return {
+//                     equipe: item.equipe || item.nmequipe || (`Equipe ${item.idequipe ?? ""}`),
+//                     idequipe: item.idequipe,
+//                     funcoes: Array.isArray(item.funcoes) ? mapFuncoes(item.funcoes) : []
+//                 };
+//             });
+
+//             const equipeAtualizada = equipesNormalizadas.find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+//             if (equipeAtualizada) {
+//                 abrirDetalhesEquipe(equipeAtualizada, evento);
+//             } else {
+//                 voltarParaEquipes();
+//             }
+//         };
+
+//         window.__modalInitialParams = params.toString();
+//         window.moduloAtual = "Staff";
+
+//         const targetUrl = `CadStaff.html?${params.toString()}`;
+
+//         if (typeof abrirModalLocal === "function") {
+//             abrirModalLocal(targetUrl, "Staff");
+//         } else if (typeof abrirModal === "function") {
+//             abrirModal(targetUrl, "Staff");
+//         } else {
+//             console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+//         }
+//     }
+
+//     li.addEventListener("click", abrirStaffModal);
+//     li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+
+//     lista.appendChild(li);
+//   });
+
+//   container.appendChild(lista);
+
+//   // ===== RODAPÉ =====
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
+// }
+
+// function abrirDetalhesEquipe(equipe, evento) {
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+//   const totalFuncoes = equipe.funcoes?.length || 0;
+//   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+
+//   // Funções de utilidade
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
+
+//   // ===== HEADER =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+//   container.appendChild(header);
+
+//   // ===== LISTA DE FUNÇÕES =====
+//   const lista = document.createElement("ul");
+//   lista.className = "funcoes-lista";
+
+//   (equipe.funcoes || []).forEach(func => {
+//     // ----------------------------------------------------
+//     // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
+//     // ----------------------------------------------------
+//     const nomeFuncao = func.funcao || func.descfuncao || func.nome || func.nmfuncao || "Função";
+//     const isCacheFechado = func.cache_fechado === true || func.cache_fechado === "true"
+//                         || func.tem_cache_fechado === true || func.tem_cache_fechado === "true";
+
+//     const qtdItensOrcados = Number(func.qtd_orcamento ?? func.qtditens ?? 0); 
+//     const qtdDiasOrcados = Number(func.qtddias_orcamento ?? func.qtddias ?? 1); 
+
+//     console.log(`Processando função "${nomeFuncao}": isCacheFechado=${isCacheFechado}, qtdItensOrcados=${qtdItensOrcados}, qtdDiasOrcados=${qtdDiasOrcados}`);
+
+//     const pessoasCadastradas = Number(func.qtd_cadastrada_pessoas ?? func.pessoas_cadastradas ?? func.qtd_cadastrada ?? func.total_pessoas ?? 0);
+//     const diáriasConsumidas = Number(func.diarias_consumidas ?? func.vagas_consumidas ?? func.total_diarias ?? func.diarias ?? 0);
+//     const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
+
+//     // ----------------------------------------------------
+//     // 🎯 2. A MÁGICA DA MATEMÁTICA DAS METAS
+//     // ----------------------------------------------------
+//     let itensOrcados = 0;
+//     let vagasOrcadas = 0;
+
+//     if (isCacheFechado) {
+//         vagasOrcadas = qtdDiasOrcados; 
+//         itensOrcados = qtdItensOrcados; 
+//     } else {
+//         itensOrcados = qtdItensOrcados;
+//         vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+//     }
+
+//     // ----------------------------------------------------
+//     // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL (CORRIGIDO)
+//     // ----------------------------------------------------
+//     // ✅ Alteração: O banco já envia as diárias totais e o status calculado. 
+//     // Não subtraímos os pendentes manualmente para evitar erros no saldo físico de vagas.
+//     const disponiveis = Math.max(0, vagasOrcadas - diáriasConsumidas);
+    
+//     // ✅ Alteração: Respeita diretamente a flag mapeada do backend
+//     const concluido = func.concluido === true;
+//     const bloqueadoPorPendente = !concluido && diáriasConsumidas >= vagasOrcadas && pendentes > 0;
+
+//     // ----------------------------------------------------
+//     // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
+//     // ----------------------------------------------------
+//     const li = document.createElement("li");
+//     li.className = "funcao-item";
+//     if (concluido) li.classList.add("concluido");
+    
+//     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    
+//     const setor = (func.setor_orcamento || func.localizacao || "").trim();
+//     let labelLocal = "";
+//     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
+//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//     }
+
+//     const textoUnidade =  "diárias";
+
+//     //let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+//     // htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+//     // htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
+   
+//     // // 🚀 O texto agora nasce na linha de baixo de forma natural e sem quebrar o layout
+//     // if (typeof func !== 'undefined' && func.diarias_dobradas > 0) {
+//     //     htmlEstado += `     <span style="font-size: 10px; color: #888; font-weight: normal; font-style: italic; margin-left: 20px; white-space: nowrap;">(${func.diarias_dobradas} em diária dobrada)</span>`;
+//     // }
+//     // htmlEstado += `  </div>`; // Fechamento correto da caixinha vertical
+
+//     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+    
+//     // 1️⃣ Bloco de Itens (👥) - Mantido fixo em 95px
+//     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+    
+//     // 2️⃣ Bloco de Diárias (📅) - Travando o container em 120px e permitindo o texto transbordar visualmente sem empurrar os vizinhos
+//     htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; position: relative;">`;
+//     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
+//     htmlEstado += `        <tr>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></td>`;
+//     htmlEstado += `        </tr>`;
+    
+//     // LÓGICA CONDICIONAL DOS STATUS DAS DOBRAS (TUDO NA MESMA LINHA)
+//     let textosDobra = [];
+//     if (typeof func !== 'undefined') {
+//         if (func.dobras_pendentes > 0) {
+//             textosDobra.push(`${func.dobras_pendentes} Aguardando Autorização`);
+//         }
+//         if (func.dobras_autorizadas > 0) {
+//             const pluralAut = func.dobras_autorizadas > 1 ? 's' : '';
+//             textosDobra.push(`${func.dobras_autorizadas} Autorizado${pluralAut} para Diária Dobrada`);
+//         }
+//     }
+
+//     if (textosDobra.length > 0) {
+//         htmlEstado += `    <tr>`;
+//         // O segredo está aqui: position absolute faz com que o texto flutue na linha de baixo sem alterar a largura de 120px da coluna
+//         htmlEstado += `       <td style="padding: 2px 0 0 20px; margin: 0; font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; position: absolute; left: 0;">`;
+//         htmlEstado += `          (${textosDobra.join(' e ')})`;
+//         htmlEstado += `       </td>`;
+//         htmlEstado += `    </tr>`;
+//     }
+    
+//     htmlEstado += `     </table>`;
+//     htmlEstado += `  </div>`;
+   
+//     // 3️⃣ Bloco de Disponíveis (Disp:) - Travado com min-width e width idênticos para não dançar na tela
+//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+    
+//     // 4️⃣ Bloco de Pendentes (⏳)
+//     if (pendentes > 0) {
+//         htmlEstado += ` <span class="badge-pendentes-alerta" style="font-size: 0.8em; color: #e67e22;" title="Aguardando Autorização">(+${pendentes} ⏳)</span>`;
+//     }
+//     htmlEstado += `</div>`;
+   
+   
+
+//     let htmlBotao;
+//     if (concluido) {
+//         htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+//     } else if (bloqueadoPorPendente) {
+//         htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
+//     } else {
+//         htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+//     }
+
+//     li.innerHTML = `
+//         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+//             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//             </div>
+//             ${htmlEstado}
+//             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+//                 ${htmlBotao}
+//             </div>
+//         </div>
+//     `;
+
+//     if (!concluido && !bloqueadoPorPendente) {
+//         const botao = li.querySelector(".btn-abrir-staff");
+//         if (botao) {
+//             botao.addEventListener("click", (e) => {
+//                 e.stopPropagation();
+//                 abrirStaffModal();
+//             });
+//         }
+//     }
+
+//     function abrirStaffModal() {
+//         if (concluido || bloqueadoPorPendente) return;
+
+//         const params = new URLSearchParams();
+//         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+//         params.set("nmfuncao", func.nome ?? func.nmfuncao);
+//         params.set("idequipe", equipe.idequipe || "");
+//         params.set("nmequipe", equipe.equipe || "");
+//         params.set("idmontagem", evento.idmontagem || "");
+//         params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+//         params.set("idcliente", evento.idcliente || "");
+//         params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+//         params.set("idevento", evento.idevento || "");
+//         params.set("nmevento", evento.nmevento || "");
+//         params.set("idorcamento", evento.idorcamento || "");
+
+//         if (Array.isArray(evento.dataeventos)) {
+//             params.set("dataeventos", JSON.stringify(evento.dataeventos));
+//         } else if (evento.dataeventos) {
+//             params.set("dataeventos", evento.dataeventos);
+//         }
+
+//         params.set("dtini_vaga", func.dtini_vaga || null);
+//         params.set("dtfim_vaga", func.dtfim_vaga || null);
+//         params.set("cache_fechado", func.cache_fechado ?? false);
+
+//         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
+//             console.log("🔥 onStaffModalClosed chamado!");
+            
+//             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
+//             const dadosRaw = Array.isArray(resp.equipes) ? resp.equipes : [];
+            
+//             const equipesNormalizadas = dadosRaw.map(item => {
+//                 const mapFuncoesInterno = (funcoesArray) => {
+//                     if (!Array.isArray(funcoesArray)) return [];
+//                     return funcoesArray.map(f => {
+//                         return {
+//                             ...f,
+//                             nome: f.nome ?? f.descfuncao ?? "Função",
+//                             concluido: f.concluido ?? (Number(f.qtd_orcamento ?? 0) > 0 && Number(f.qtd_cadastrada ?? 0) >= Number(f.qtd_orcamento ?? 0))
+//                         };
+//                     });
+//                 };
+
+//                 return {
+//                     equipe: item.equipe || item.nmequipe || (`Equipe ${item.idequipe ?? ""}`),
+//                     idequipe: item.idequipe,
+//                     funcoes: Array.isArray(item.funcoes) ? mapFuncoesInterno(item.funcoes) : []
+//                 };
+//             });
+
+//             const equipeAtualizada = equipesNormalizadas.find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+//             if (equipeAtualizada) {
+//                 abrirDetalhesEquipe(equipeAtualizada, evento);
+//             } else {
+//                 voltarParaEquipes();
+//             }
+//         };
+
+//         window.__modalInitialParams = params.toString();
+//         window.moduloAtual = "Staff";
+
+//         const targetUrl = `CadStaff.html?${params.toString()}`;
+
+//         if (typeof abrirModalLocal === "function") {
+//             abrirModalLocal(targetUrl, "Staff");
+//         } else if (typeof abrirModal === "function") {
+//             abrirModal(targetUrl, "Staff");
+//         } else {
+//             console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+//         }
+//     }
+
+//     li.addEventListener("click", abrirStaffModal);
+//     li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+
+//     lista.appendChild(li);
+//   });
+
+//   container.appendChild(lista);
+
+//   // ===== RODAPÉ =====
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
+// }
+
+
+// function abrirDetalhesEquipe(equipe, evento) {
+//   const painel = document.getElementById("painelDetalhes");
+//   if (!painel) return;
+//   painel.innerHTML = "";
+
+//   const container = document.createElement("div");
+//   container.className = "painel-equipes-evento";
+
+//   const totalFuncoes = equipe.funcoes?.length || 0;
+//   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+
+//   // Funções de utilidade
+//   function escapeHtml(str) {
+//     if (!str && str !== 0) return "";
+//     return String(str)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;")
+//     .replace(/"/g, "&quot;")
+//     .replace(/'/g, "&#39;");
+//   }
+
+//   function formatarPeriodo(inicio, fim) {
+//     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+//     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+//   }
+
+//   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
+
+//   // ===== HEADER =====
+//   const header = document.createElement("div");
+//   header.className = "header-equipes-evento";
+//   header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>📍 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+//   container.appendChild(header);
+
+//   // ===== LISTA DE FUNÇÕES =====
+//   const lista = document.createElement("ul");
+//   lista.className = "funcoes-lista";
+
+//   (equipe.funcoes || []).forEach(func => {
+//     // ----------------------------------------------------
+//     // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
+//     // ----------------------------------------------------
+//     const nomeFuncao = func.funcao || func.descfuncao || func.nome || func.nmfuncao || "Função";
+//     const isCacheFechado = func.cache_fechado === true || func.cache_fechado === "true"
+//                         || func.tem_cache_fechado === true || func.tem_cache_fechado === "true";
+
+//     const qtdItensOrcados = Number(func.qtd_orcamento ?? func.qtditens ?? 0); 
+//     const qtdDiasOrcados = Number(func.qtddias_orcamento ?? func.qtddias ?? 1); 
+
+//     console.log(`Processando função "${nomeFuncao}": isCacheFechado=${isCacheFechado}, qtdItensOrcados=${qtdItensOrcados}, qtdDiasOrcados=${qtdDiasOrcados}`);
+
+//     const pessoasCadastradas = Number(func.qtd_cadastrada_pessoas ?? func.pessoas_cadastradas ?? func.qtd_cadastrada ?? func.total_pessoas ?? 0);
+//     const diáriasConsumidas = Number(func.diarias_consumidas ?? func.vagas_consumidas ?? func.total_diarias ?? func.diarias ?? 0);
+//     const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
+    
+//     // 🚀 Captura das dobras pendentes e autorizadas enviadas pelo backend
+//     const dobrasPendentes = Number(func.dobras_pendentes ?? 0);
+//     const dobrasAutorizadas = Number(func.dobras_autorizadas ?? 0);
+
+//     // ----------------------------------------------------
+//     // 🎯 2. A MÁGICA DA MATEMÁTICA DAS METAS
+//     // ----------------------------------------------------
+//     let itensOrcados = 0;
+//     let vagasOrcadas = 0;
+
+//     if (isCacheFechado) {
+//         vagasOrcadas = qtdDiasOrcados; 
+//         itensOrcados = qtdItensOrcados; 
+//     } else {
+//         itensOrcados = qtdItensOrcados;
+//         vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+//     }
+
+//     // ----------------------------------------------------
+//     // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL (ALINHADO COM O RESUMO)
+//     // ----------------------------------------------------
+//     // 🚀 EXIBIÇÃO PRINCIPAL: Mostra diárias consumidas + dobras pendentes para alertar a ocupação visual da vaga
+//     const exibicaoDiariasVisuais = diáriasConsumidas + dobrasPendentes;
+
+//     // 🚀 CÁLCULO DO DISPONÍVEL: Deduz as diárias normais, vagas pendentes normais e dobras pendentes da meta original
+//     const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + pendentes + dobrasPendentes));
+    
+//     const concluido = func.concluido === true;
+//     const bloqueadoPorPendente = !concluido && diáriasConsumidas >= vagasOrcadas && pendentes > 0;
+
+//     // ----------------------------------------------------
+//     // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
+//     // ----------------------------------------------------
+//     const li = document.createElement("li");
+//     li.className = "funcao-item";
+//     if (concluido) li.classList.add("concluido");
+    
+//     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    
+//     const setor = (func.setor_orcamento || func.localizacao || "").trim();
+//     let labelLocal = "";
+//     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
+//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//     }
+
+//     const textoUnidade = "diárias";
+
+//     // ----------------------------------------------------
+//     // 🎯 5. CONSTRUÇÃO DO CARD DE ESTADO (GRID ALINHADO)
+//     // ----------------------------------------------------
+//     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+    
+//     // 1️⃣ Bloco de Itens (👥)
+//    // htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+//     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left; position: relative;">`;
+//     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
+//     htmlEstado += `        <tr>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></td>`;
+//     htmlEstado += `        </tr>`;
+    
+//     // Se houver vagas pendentes na função, o alerta nasce aqui embaixo sem empurrar ninguém
+//     if (pendentes > 0) {
+//         htmlEstado += `    <tr>`;
+//         htmlEstado += `       <td style="padding: 2px 0 0 0; margin: 0; font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; position: absolute; left: 0;">`;
+//         htmlEstado += `          (${pendentes} Vaga${pendentes > 1 ? 's' : ''} Pendente${pendentes > 1 ? 'es' : ''} ⏳)`;
+//         htmlEstado += `       </td>`;
+//         htmlEstado += `    </tr>`;
+//     }
+    
+//     htmlEstado += `     </table>`;
+//     htmlEstado += `  </div>`; 
+
+//     // 2️⃣ Bloco de Diárias (📅)
+//     htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; position: relative;">`;
+//     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
+//     htmlEstado += `        <tr>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></td>`;
+//     htmlEstado += `        </tr>`;
+    
+//     // 🚀 LÓGICA CONDICIONAL DOS STATUS DAS DOBRAS (TEXTO ATUALIZADO COM ÍCONES)
+//     let textosDobra = [];
+//     if (func.dobras_pendentes > 0) {
+//         // Exemplo: 1 Aguardando Autorização ⏳
+//         textosDobra.push(`${func.dobras_pendentes} Aguardando Autorização ⏳`);
+//     }
+//     if (func.dobras_autorizadas > 0) {
+//         const pluralAut = func.dobras_autorizadas > 1 ? 's' : '';
+//         // Exemplo: 2 Autorizados ✅ em Diária Dobrada
+//         textosDobra.push(`${func.dobras_autorizadas} Autorizado${pluralAut} ✅ em Diária Dobrada`);
+//     }
+
+//     if (textosDobra.length > 0) {
+//         htmlEstado += `    <tr>`;
+//         // Mantém o estilo laranja, em itálico e flutuando perfeitamente na linha de baixo
+//         htmlEstado += `       <td style="padding: 2px 0 0 20px; margin: 0; font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; position: absolute; left: 0;">`;
+//         htmlEstado += `          (${textosDobra.join(' e ')})`;
+//         htmlEstado += `       </td>`;
+//         htmlEstado += `    </tr>`;
+//     }
+    
+//     htmlEstado += `     </table>`;
+//     htmlEstado += `  </div>`;
+   
+//     // 3️⃣ Bloco de Disponíveis (Disp:)
+//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+         
+//     htmlEstado += `</div>`;
+   
+//     // Configuração dos Botões de Ação
+//     let htmlBotao;
+//     if (concluido) {
+//         htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+//     } else if (bloqueadoPorPendente) {
+//         htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
+//     } else {
+//         htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+//     }
+
+//     li.innerHTML = `
+//         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+//             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//             </div>
+//             ${htmlEstado}
+//             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+//                 ${htmlBotao}
+//             </div>
+//         </div>
+//     `;
+
+//     if (!concluido && !bloqueadoPorPendente) {
+//         const botao = li.querySelector(".btn-abrir-staff");
+//         if (botao) {
+//             botao.addEventListener("click", (e) => {
+//                 e.stopPropagation();
+//                 abrirStaffModal();
+//             });
+//         }
+//     }
+
+//     function abrirStaffModal() {
+//         if (concluido || bloqueadoPorPendente) return;
+
+//         const params = new URLSearchParams();
+//         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+//         params.set("nmfuncao", func.nome ?? func.nmfuncao);
+//         params.set("idequipe", equipe.idequipe || "");
+//         params.set("nmequipe", equipe.equipe || "");
+//         params.set("idmontagem", evento.idmontagem || "");
+//         params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+//         params.set("idcliente", evento.idcliente || "");
+//         params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+//         params.set("idevento", evento.idevento || "");
+//         params.set("nmevento", evento.nmevento || "");
+//         params.set("idorcamento", evento.idorcamento || "");
+
+//         if (Array.isArray(evento.dataeventos)) {
+//             params.set("dataeventos", JSON.stringify(evento.dataeventos));
+//         } else if (evento.dataeventos) {
+//             params.set("dataeventos", evento.dataeventos);
+//         }
+
+//         params.set("dtini_vaga", func.dtini_vaga || null);
+//         params.set("dtfim_vaga", func.dtfim_vaga || null);
+//         params.set("cache_fechado", func.cache_fechado ?? false);
+
+//         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
+//             console.log("🔥 onStaffModalClosed chamado!");
+            
+//             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
+//             const dadosRaw = Array.isArray(resp.equipes) ? resp.equipes : [];
+            
+//             const equipesNormalizadas = dadosRaw.map(item => {
+//                 const mapFuncoesInterno = (funcoesArray) => {
+//                     if (!Array.isArray(funcoesArray)) return [];
+//                     return funcoesArray.map(f => {
+//                         return {
+//                             ...f,
+//                             nome: f.nome ?? f.descfuncao ?? "Função",
+//                             concluido: f.concluido ?? (Number(f.qtd_orcamento ?? 0) > 0 && Number(f.qtd_cadastrada ?? 0) >= Number(f.qtd_orcamento ?? 0))
+//                         };
+//                     });
+//                 };
+
+//                 return {
+//                     equipe: item.equipe || item.nmequipe || (`Equipe ${item.idequipe ?? ""}`),
+//                     idequipe: item.idequipe,
+//                     funcoes: Array.isArray(item.funcoes) ? mapFuncoesInterno(item.funcoes) : []
+//                 };
+//             });
+
+//             const equipeAtualizada = equipesNormalizadas.find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+//             if (equipeAtualizada) {
+//                 abrirDetalhesEquipe(equipeAtualizada, evento);
+//             } else {
+//                 voltarParaEquipes();
+//             }
+//         };
+
+//         window.__modalInitialParams = params.toString();
+//         window.moduloAtual = "Staff";
+
+//         const targetUrl = `CadStaff.html?${params.toString()}`;
+
+//         if (typeof abrirModalLocal === "function") {
+//             abrirModalLocal(targetUrl, "Staff");
+//         } else if (typeof abrirModal === "function") {
+//             abrirModal(targetUrl, "Staff");
+//         } else {
+//             console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+//         }
+//     }
+
+//     li.addEventListener("click", abrirStaffModal);
+//     li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+
+//     lista.appendChild(li);
+//   });
+
+//   container.appendChild(lista);
+
+//   // ===== RODAPÉ =====
+//   const rodape = document.createElement("div");
+//   rodape.className = "rodape-equipes";
+//   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
+//   container.appendChild(rodape);
+
+//   painel.appendChild(container);
+
+//   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
+//   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
+// }
+
+
 function abrirDetalhesEquipe(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
@@ -2542,7 +4487,8 @@ function abrirDetalhesEquipe(equipe, evento) {
   container.className = "painel-equipes-evento";
 
   const totalFuncoes = equipe.funcoes?.length || 0;
-  const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+  // Modificado temporariamente para refletir a nova checagem real abaixo
+  const concluidas = equipe.funcoes?.filter(f => f.concluido && !(Number(f.vagas_disponiveis ?? 1) > 0))?.length || 0;
 
   // Funções de utilidade
   function escapeHtml(str) {
@@ -2555,109 +4501,163 @@ function abrirDetalhesEquipe(equipe, evento) {
     .replace(/'/g, "&#39;");
   }
 
-  // helper local (assumindo que está definido globalmente ou em escopo superior)
   function formatarPeriodo(inicio, fim) {
     const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
-  // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+  // ===== HEADER =====
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
-  header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+  header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>📍 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
   container.appendChild(header);
 
   // ===== LISTA DE FUNÇÕES =====
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
-//   (equipe.funcoes || []).forEach(func => {
-//     const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-//     const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-//     const concluido = total > 0 && preenchidas >= total;
+  (equipe.funcoes || []).forEach(func => {
+    // ----------------------------------------------------
+    // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
+    // ----------------------------------------------------
+    const nomeFuncao = func.funcao || func.descfuncao || func.nome || func.nmfuncao || "Função";
+    const isCacheFechado = func.cache_fechado === true || func.cache_fechado === "true"
+                        || func.tem_cache_fechado === true || func.tem_cache_fechado === "true";
 
-//     const li = document.createElement("li");
-//     li.className = "funcao-item";
-//     if (concluido) li.classList.add("concluido");
-//     li.setAttribute("role", "button");
-//     li.tabIndex = 0;
+    const qtdItensOrcados = Number(func.qtd_orcamento ?? func.qtditens ?? 0); 
+    const qtdDiasOrcados = Number(func.qtddias_orcamento ?? func.qtddias ?? 1); 
 
-//     const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    console.log(`Processando função "${nomeFuncao}": isCacheFechado=${isCacheFechado}, qtdItensOrcados=${qtdItensOrcados}, qtdDiasOrcados=${qtdDiasOrcados}`);
 
-//     // NÓS DE TEXTO criados por createElement geralmente não são um problema,
-//     // mas vamos garantir que o HTML injetado seja compacto.
+    const pessoasCadastradas = Number(func.qtd_cadastrada_pessoas ?? func.pessoas_cadastradas ?? func.qtd_cadastrada ?? func.total_pessoas ?? 0);
+    const diáriasConsumidas = Number(func.diarias_consumidas ?? func.vagas_consumidas ?? func.total_diarias ?? func.diarias ?? 0);
+    const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
+    
+    // Captura as dobras pendentes e autorizadas enviadas pelo backend
+    const dobrasPendentes = Number(func.dobras_pendentes ?? 0);
+    const dobrasAutorizadas = Number(func.dobras_autorizadas ?? 0);
 
-//     // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
-//     li.innerHTML = `
-//         <div class="func-wrapper">
-//         <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
-//         <div class="func-estado">${preenchidas}/${total}</div>
-//         <div class="func-detalhes">
-//         ${concluido 
-//         ? '✅ Completa' 
-//         : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-//         }
-//         </div>
-//         </div>
-//     `;
+    // ----------------------------------------------------
+    // 🎯 2. A MÁGICA DA MATEMÁTICA DAS METAS
+    // ----------------------------------------------------
+    let itensOrcados = 0;
+    let vagasOrcadas = 0;
 
-    (equipe.funcoes || []).forEach(func => {
-        console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`);
-        const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-        const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-        const pendentes = Number(func.pendente ?? func.qtd_pendente ?? 0);
-        
-         console.log(`Função: ${func.nome}, Cadastrada: ${func.qtd_cadastrada}, Pendente: ${func.qtd_pendente}`, `=> Total: ${total}, Preenchidas: ${preenchidas}, Pendente: ${pendentes ?? 'N/A'}`);
-        // Supondo que o backend envie quantos desses preenchidos estão pendentes
-        // Se 'preenchidas' for o total geral, subtraímos os pendentes para saber os confirmados
-       
-        const confirmados = preenchidas - pendentes;
+    if (isCacheFechado) {
+        vagasOrcadas = qtdDiasOrcados; 
+        itensOrcados = qtdItensOrcados; 
+    } else {
+        itensOrcados = qtdItensOrcados;
+        vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+    }
 
-        // A função só é considerada "Realmente Completa" se os CONFIRMADOS atingirem o total
-        const concluido = total > 0 && confirmados >= total;
+    // ----------------------------------------------------
+    // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL
+    // ----------------------------------------------------
+    const exibicaoDiariasVisuais = diáriasConsumidas + dobrasPendentes;
+    const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + pendentes + dobrasPendentes));
+    
+    // 🚀 CORREÇÃO PRINCIPAL: Mesmo que venha true do banco, se houver diárias disponíveis, não está concluído!
+    const concluido = (func.concluido === true) && (disponiveis === 0);
+    const bloqueadoPorPendente = !concluido && diáriasConsumidas >= vagasOrcadas && pendentes > 0;
 
-        const bloqueadoPorPendente = !concluido && (confirmados + pendentes) >= total && pendentes > 0;
-    console.log(`DEBUG ${func.nome}: Total=${total}, Confirmados=${confirmados}, Pendentes=${pendentes}, Concluido=${concluido}, BloqueadoPorPendente=${bloqueadoPorPendente}`);
+    // ----------------------------------------------------
+    // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
+    // ----------------------------------------------------
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
+    
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    
+    const setor = (func.setor_orcamento || func.localizacao || "").trim();
+    let labelLocal = "";
+    if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
+        labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+    }
 
-        const li = document.createElement("li");
-        li.className = "funcao-item";
-        if (concluido) li.classList.add("concluido");
-        
-        const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    const textoUnidade = "diárias";
 
-        // Lógica do texto de estado
-        let htmlEstado = `<div class="func-estado" style="font-weight: bold;">${confirmados}/${total}`;
-        if (pendentes > 0) {
-            htmlEstado += ` <span class="badge-pendentes-alerta" title="Aguardando Autorização">(+${pendentes} ⏳ Aguardando Autorização)</span>`;
-        }
-        htmlEstado += `</div>`;
+    // ----------------------------------------------------
+    // 🎯 5. CONSTRUÇÃO DO CARD DE ESTADO (GRID ALINHADO)
+    // ----------------------------------------------------
+    let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
+    
+    // 1️⃣ Bloco de Itens (👥)
+    htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left; position: relative;">`;
+    htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
+    htmlEstado += `        <tr>`;
+    htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></td>`;
+    htmlEstado += `        </tr>`;
+    
+    if (pendentes > 0) {
+        htmlEstado += `    <tr>`;
+        htmlEstado += `       <td style="padding: 2px 0 0 0; margin: 0; font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; position: absolute; left: 0;">`;
+        htmlEstado += `          (${pendentes} Vaga${pendentes > 1 ? 's' : ''} Pendente${pendentes > 1 ? 'es' : ''} ⏳)`;
+        htmlEstado += `       </td>`;
+        htmlEstado += `    </tr>`;
+    }
+    
+    htmlEstado += `     </table>`;
+    htmlEstado += `  </div>`; 
 
-        let htmlBotao;
-        if (concluido) {
-            htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
-        } else if (bloqueadoPorPendente) {
-            htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Aguarde a autorização ou rejeição do(s) funcionário(s) pendente(s)">🔒 Vagas Ocupadas</span>';
-        } else {
-            htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
-        }
+    // 2️⃣ Bloco de Diárias (📅)
+    htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; position: relative;">`;
+    htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
+    htmlEstado += `        <tr>`;
+    htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></td>`;
+    htmlEstado += `        </tr>`;
+    
+    let textosDobra = [];
+    if (func.dobras_pendentes > 0) {
+        textosDobra.push(`${func.dobras_pendentes} Aguardando Autorização ⏳`);
+    }
+    if (func.dobras_autorizadas > 0) {
+        const pluralAut = func.dobras_autorizadas > 1 ? 's' : '';
+        textosDobra.push(`${func.dobras_autorizadas} Autorizado${pluralAut} ✅ em Diária Dobrada`);
+    }
 
-        li.innerHTML = `
-            <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div class="func-nome" style="flex: 1;">
-                    ${escapeHtml(func.nome || func.nmfuncao || "Função")} 
-                    <span class="func-data-vaga">(${periodoVaga})</span>
-                </div>
-                ${htmlEstado}
-                <div class="func-detalhes" style="margin-left: 15px; min-width: 100px; text-align: right;">
-                    ${htmlBotao}
-                </div>
+    if (textosDobra.length > 0) {
+        htmlEstado += `    <tr>`;
+        htmlEstado += `       <td style="padding: 2px 0 0 20px; margin: 0; font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; position: absolute; left: 0;">`;
+        htmlEstado += `          (${textosDobra.join(' e ')})`;
+        htmlEstado += `       </td>`;
+        htmlEstado += `    </tr>`;
+    }
+    
+    htmlEstado += `     </table>`;
+    htmlEstado += `  </div>`;
+   
+    // 3️⃣ Bloco de Disponíveis (Disp:)
+    htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+         
+    htmlEstado += `</div>`;
+   
+    // Configuração dos Botões de Ação
+    let htmlBotao;
+    if (concluido) {
+        htmlBotao = '<span style="color: green; font-weight: bold;">✅ Completa</span>';
+    } else if (bloqueadoPorPendente) {
+        htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
+    } else {
+        htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
+    }
+
+    li.innerHTML = `
+        <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
+            <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
+                <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+                <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
             </div>
-        `;
+            ${htmlEstado}
+            <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
+                ${htmlBotao}
+            </div>
+        </div>
+    `;
 
-    // Se não estiver concluído, precisamos adicionar o listener ao botão.
     if (!concluido && !bloqueadoPorPendente) {
         const botao = li.querySelector(".btn-abrir-staff");
         if (botao) {
@@ -2672,7 +4672,6 @@ function abrirDetalhesEquipe(equipe, evento) {
         if (concluido || bloqueadoPorPendente) return;
 
         const params = new URLSearchParams();
-
         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
         params.set("nmfuncao", func.nome ?? func.nmfuncao);
         params.set("idequipe", equipe.idequipe || "");
@@ -2695,28 +4694,53 @@ function abrirDetalhesEquipe(equipe, evento) {
         params.set("dtfim_vaga", func.dtfim_vaga || null);
         params.set("cache_fechado", func.cache_fechado ?? false);
 
-    // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
-    // O código de fechar o modal deve chamar window.onStaffModalClosed()
         window.onStaffModalClosed = async function(modalClosedSuccessfully) {
             console.log("🔥 onStaffModalClosed chamado!");
             
             const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${evento.idevento}&idempresa=${localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa")}`);
-            console.log("dados:", resp);
+            const dadosRaw = Array.isArray(resp.equipes) ? resp.equipes : [];
             
-            const dados = Array.isArray(resp.equipes) ? resp.equipes : [];
-            console.log("equipes encontradas:", dados);
-            console.log("procurando idequipe:", equipe.idequipe);
-            
-            const equipeAtualizada = dados
-                .flatMap(d => d.equipes || [d])
-                .find(e => String(e.idequipe) === String(equipe.idequipe));
-            
-            console.log("equipeAtualizada:", equipeAtualizada);
-            console.log("chamando abrirDetalhesEquipe com:", equipeAtualizada);
-            abrirDetalhesEquipe(equipeAtualizada, evento);
-        };
+            const equipesNormalizadas = dadosRaw.map(item => {
+                const mapFuncoesInterno = (funcoesArray) => {
+                    if (!Array.isArray(funcoesArray)) return [];
+                    return funcoesArray.map(f => {
+                        // Recalcula o saldo temporariamente para evitar o bug na atualização do modal
+                        const dConsumidas = Number(f.diarias_consumidas ?? f.vagas_consumidas ?? f.total_diarias ?? f.diarias ?? 0);
+                        const dPendentes = Number(f.qtd_pendente ?? f.pendentes ?? 0);
+                        const dobPendentes = Number(f.dobras_pendentes ?? 0);
+                        const qOrcamento = Number(f.qtd_orcamento ?? f.qtditens ?? 0);
+                        const dOrcamento = Number(f.qtddias_orcamento ?? f.qtddias ?? 1);
+                        
+                        const vOrcadas = (f.cache_fechado === true || f.cache_fechado === "true" || f.tem_cache_fechado === true || f.tem_cache_fechado === "true") 
+                            ? dOrcamento 
+                            : (qOrcamento * dOrcamento);
+                        
+                        const sDisponivel = Math.max(0, vOrcadas - (dConsumidas + dPendentes + dobPendentes));
 
-        console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+                        return {
+                            ...f,
+                            nome: f.nome ?? f.descfuncao ?? "Função",
+                            // 🚀 Alinhado com a nova regra de segurança: Só fecha se o saldo for de fato 0
+                            concluido: (f.concluido ?? false) && (sDisponivel === 0)
+                        };
+                    });
+                };
+
+                return {
+                    equipe: item.equipe || item.nmequipe || (`Equipe ${item.idequipe ?? ""}`),
+                    idequipe: item.idequipe,
+                    funcoes: Array.isArray(item.funcoes) ? mapFuncoesInterno(item.funcoes) : []
+                };
+            });
+
+            const equipeAtualizada = equipesNormalizadas.find(e => String(e.idequipe) === String(equipe.idequipe));
+            
+            if (equipeAtualizada) {
+                abrirDetalhesEquipe(equipeAtualizada, evento);
+            } else {
+                backToEquipes();
+            }
+        };
 
         window.__modalInitialParams = params.toString();
         window.moduloAtual = "Staff";
@@ -2740,7 +4764,7 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   container.appendChild(lista);
 
-  // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
+  // ===== RODAPÉ =====
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
   rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
@@ -2748,16 +4772,9 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   painel.appendChild(container);
 
-  // Eventos de navegação
   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
-
-
-
-// =========================
-//    Pedidos Orçamentos 
-// =========================
 
 function montarOpcoesOrc(titulo, valores, conteudoGeral) {
     return `
@@ -3661,69 +5678,15 @@ async function mostrarPedidosUsuario() {
         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
-        // const [pedidosPadrao, aditivosExtras] = await Promise.all([
-        //     buscarPedidosUsuario(),
-        //     buscarAditivoExtraCompleto()
-        // ]);
+      
         const pedidosPadrao = await buscarPedidosUsuario(); // Já vem agrupado do novo Backend
-        // const aditivosExtras = await buscarAditivoExtraCompleto();
-
-        // window.pedidosCompletosGlobais = pedidosPadrao;
-       
-        // // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
-        // let pedidosUnificados = pedidosPadrao;
-
-        // let pedidosUnificados = [...pedidosPadrao, ...aditivosExtras];
-        // window.pedidosCompletosGlobais = pedidosUnificados;
+      
         let pedidosUnificados = [...pedidosPadrao];
         window.pedidosCompletosGlobais = pedidosUnificados;
         
         const aditivosMapeados = [];
 
         console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
-
-        // aditivosExtras.forEach(ae => {
-        //     const nomeFuncionarioAjustado = ae.nomefuncionario; 
-        //     const solicitanteAjustado = ae.nomesolicitante;
-        //     const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
-            
-        //     const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
-        //     const corStatus = (function(status) {
-        //         if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
-        //         if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
-        //         return '#facc15'; // Amarelo (Pendente)
-        //     })(statusLower);
-
-        //     const pedidoAditivo = {
-        //         funcionario: nomeFuncionarioAjustado, 
-        //         nomeSolicitante: solicitanteAjustado,
-        //         evento: ae.evento,
-        //         nmfuncao: ae.funcao || null,
-        //         idpedido: ae.idaditivoextra, 
-        //         idaditivoextra: ae.idaditivoextra, 
-        //         ehMasterStaff: ae.ehMasterStaff,
-        //         podeVerTodos: ae.podeVerTodos, 
-        //         solicitante: ae.idusuariosolicitante, 
-        //         dtCriacao: ae.criado_em, 
-        //         status_aprovacao: statusLower,
-        //         categoria_item: CAMPO_ADITIVO_EXTRA,
-        //         status: statusLower,
-        //         cor: corStatus,
-        //         dataSolicitacao: ae.criado_em,
-        //         dataSolicitada: Array.isArray(ae.dtsolicitada) ? ae.dtsolicitada : safeParse(ae.dtsolicitada), 
-        //         dataDecisao: ae.datadecisao || null, 
-        //         nomeAprovador: ae.nomeaprovador || null,     
-        //         [CAMPO_ADITIVO_EXTRA]: [{
-        //             idfuncionario: ae.idfuncionario,
-        //             status: statusLower,
-        //             tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
-        //             descricao: ae.justificativa, 
-        //             quantidade: ae.qtdsolicitada,
-                                        
-        //         }]
-        //     };
-        //     aditivosMapeados.push(pedidoAditivo);
-        // });
 
         pedidosUnificados.push(...aditivosMapeados);
        
@@ -3735,18 +5698,18 @@ async function mostrarPedidosUsuario() {
         pedidosUnificados.forEach(pedidoOriginal => {
            
             const categoriasPresentes = camposTodos.filter(c => {
-            const valor = pedidoOriginal[c];
-            
-            // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
-            if (c === 'statusvagaexcedida') {
-                return valor && valor.toString().trim() !== '' && valor !== 'null';
-            }
-            if (c === CAMPO_ADITIVO_EXTRA) {
-                return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
-            }
-            if (Array.isArray(valor)) return valor.length > 0;
-            return valor && valor.toString().trim() !== ''; 
-        });
+                const valor = pedidoOriginal[c];
+                
+                // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
+                if (c === 'statusvagaexcedida') {
+                    return valor && valor.toString().trim() !== '' && valor !== 'null';
+                }
+                if (c === CAMPO_ADITIVO_EXTRA) {
+                    return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+                }
+                if (Array.isArray(valor)) return valor.length > 0;
+                return valor && valor.toString().trim() !== ''; 
+            });
 
             console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
 
@@ -4448,37 +6411,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
              console.log("🔍 Processando registro com ID:", pedidoOriginal );
 
-            // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
-
-            // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
-            
-
-            // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
-
-            // if (!pedidoConsolidado) {
-            //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-            //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
-            // }
-
+      
             const categoriaItem = pedidoOriginal.categoria_item || "geral";
             const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
 
             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
             
-            // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
-            // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
-            //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
-
-            //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
-
-            // let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
-
-            // if (!pedidoConsolidado) {
-            //     // Criamos um novo objeto no mapa para cada ID de Log diferente
-            //     pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
-            //     pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
-            // }
-
+            
             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
 
             if (!pedidoConsolidado) {
@@ -4516,8 +6455,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     pedidoConsolidado[campo] = itensFiltrados; 
                     temAlgumMatchNesteGrupo = true;
                 } 
-                // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
-                // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
+ 
             });            
 
         });
@@ -4533,14 +6471,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
         }
     });
-    
-    // FIM DA SEÇÃO 1: Consolidação.
-
-    // Ordenação... (inalterada)
-    // gruposFiltrados.sort((a, b) =>
-    //     new Date(b.dtCriacao || '1970-01-01').getTime() -
-    //     new Date(a.dtCriacao || '1970-01-01').getTime()
-    // );
+  
 
     if (gruposFiltrados.length === 0) {
         const msg = document.createElement("p");
@@ -4571,7 +6502,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
         console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
-        console .log (`Debug`, pedidosDoGrupo);
+        console .log (`Debug Rendeiração`, pedidosDoGrupo);
 
 
         const divGrupo = document.createElement("div");
@@ -4605,6 +6536,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
 
                 itensParaRenderizar.forEach(infoItem => {
+                    let htmlBodyAditivoAgrupado = '';
+                    let datasProcessadas = [];
                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
 
@@ -4632,14 +6565,185 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             tituloCard += ` (R$ ${valorFmt})`;                            
                         }
                         console.log(`Formatando título para pedido principal: ${tituloCard} (Campo: ${campo})`);
-                    } else if (isAditivoExtra) {
-                        const tipo = infoItem.tipoSolicitacao;
-                        tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
-                            ? "Limite Diário Excedido por Função/Evento"
-                            : tipo;
+                    //} else if (isAditivoExtra) {
+                        // const tipo = infoItem.tipoSolicitacao;
+                        // if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
+                        //     tituloCard = "Aditivo - Vaga Excedida";
+                        // } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO')) {
+                        //     tituloCard = "Aditivo - Datas fora do Orçamento";
+                        // } else {
+                        //     tituloCard = tipo || "Aditivo/Extra";
+                        // }
+
+                        } else if (isAditivoExtra) {
+                            const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
+
+                            if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
+                                tituloCard = "Aditivo - Vaga Excedida";
+                            } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
+                                tituloCard = "Aditivo - Datas fora do Orçamento";
+                            } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
+                                tituloCard = "Extra Bonificado";
+                            } else {
+                                tituloCard = infoItem.tipoSolicitacao || "Aditivo/Extra";
+                            }
+
+                            // ✅ Usa solicitacoes_individuais vindas do backend
+                            const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+                            const temIndividuais = solicitacoesIndividuais.length > 0;
+
+                            // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                            //     const idsLote = temIndividuais
+                            //         ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
+                            //         : String(pedido.id_log);
+
+                            //     const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
+
+                            //     htmlBodyAditivoAgrupado = `
+                            //         <div style="margin:8px 0;">
+                            //             <div style="display:flex;gap:8px;margin-bottom:8px;">
+                            //                 <button class="aprovar-lote-aditivo"
+                            //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Autorizado', this, '${pedido.id_log}')"
+                            //                     style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                            //                     ✅ Autorizar Todas (${totalDatas})
+                            //                 </button>
+                            //                 <button class="rejeitar-lote-aditivo"
+                            //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Rejeitado', this, '${pedido.id_log}')"
+                            //                     style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                            //                     ❌ Rejeitar Todas (${totalDatas})
+                            //                 </button>
+                            //             </div>
+                            //             <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+                            //                 <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                            //                     <strong>DETALHAMENTO POR DATA</strong>
+                            //                     <span style="color:#666;">${totalDatas} data(s)</span>
+                            //                 </div>
+                            //         `;
+
+                            //     if (temIndividuais) {
+                            //         solicitacoesIndividuais.forEach((sol, idx) => {
+                            //             // Formata as datas desta solicitação individual
+                            //             let datasRaw = sol.data;
+                            //             if (typeof datasRaw === 'string') {
+                            //                 // Vem do postgres como "{2026-05-15}" — limpa as chaves
+                            //                 datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+                            //             }
+                            //             const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+                            //                 .map(d => {
+                            //                     const dt = String(d).trim();
+                            //                     return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+                            //                 }).join(', ');
+
+                            //             const isLast = idx === solicitacoesIndividuais.length - 1;
+
+                            //             htmlBodyAditivoAgrupado += `
+                            //                 <div class="linha-data-aditivo"
+                            //                     data-idsolicitacao="${sol.idsolicitacao}"
+                            //                     style="display:flex;justify-content:space-between;align-items:center;
+                            //                             padding:6px 10px;
+                            //                             border-bottom:${isLast ? 'none' : '1px solid #eee'};
+                            //                             transition:opacity 0.3s;">
+                            //                     <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+                            //                     <div style="display:flex;gap:6px;">
+                            //                         <button class="aprovar-individual-aditivo"
+                            //                             data-id="${sol.idsolicitacao}"
+                            //                             data-logid="${pedido.id_log}"
+                            //                             style="background:none;border:1px solid #16a34a;border-radius:3px;
+                            //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
+                            //                             title="Autorizar apenas esta data">✅</button>
+                            //                         <button class="rejeitar-individual-aditivo"
+                            //                             data-id="${sol.idsolicitacao}"
+                            //                             data-logid="${pedido.id_log}"
+                            //                             style="background:none;border:1px solid #dc2626;border-radius:3px;
+                            //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
+                            //                             title="Rejeitar apenas esta data">❌</button>
+                            //                     </div>
+                            //                 </div>
+                            //             `;
+                            //         });
+                            //     }
+
+                            //     htmlBodyAditivoAgrupado += `</div></div>`;
+                            // }
+
+                            if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                                const idsLote = temIndividuais
+                                    ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
+                                    : String(pedido.id_log);
+
+                                const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
+
+                                htmlBodyAditivoAgrupado = `
+                                    <div style="margin:8px 0;">
+                                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                            <button class="aprovar-lote-aditivo"
+                                                data-ids="${idsLote}"
+                                                data-logid="${pedido.id_log}"
+                                                style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                                ✅ Autorizar Todas (${totalDatas})
+                                            </button>
+                                            <button class="rejeitar-lote-aditivo"
+                                                data-ids="${idsLote}"
+                                                data-logid="${pedido.id_log}"
+                                                style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                                ❌ Rejeitar Todas (${totalDatas})
+                                            </button>
+                                        </div>
+                                        <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+                                            <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                                                <strong>DETALHAMENTO POR DATA</strong>
+                                                <span style="color:#666;">${totalDatas} data(s)</span>
+                                            </div>
+                                    `;
+
+                                if (temIndividuais) {
+                                    solicitacoesIndividuais.forEach((sol, idx) => {
+                                        let datasRaw = sol.data;
+                                        if (typeof datasRaw === 'string') {
+                                            datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+                                        }
+                                        const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+                                            .map(d => {
+                                                const dt = String(d).trim();
+                                                return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+                                            }).join(', ');
+
+                                        const isLast = idx === solicitacoesIndividuais.length - 1;
+
+                                        htmlBodyAditivoAgrupado += `
+                                            <div class="linha-data-aditivo"
+                                                data-idsolicitacao="${sol.idsolicitacao}"
+                                                style="display:flex;justify-content:space-between;align-items:center;
+                                                        padding:6px 10px;
+                                                        border-bottom:${isLast ? 'none' : '1px solid #eee'};
+                                                        transition:opacity 0.3s;">
+                                                <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+                                                <div style="display:flex;gap:6px;">
+                                                    <button class="aprovar-individual-aditivo"
+                                                        data-id="${sol.idsolicitacao}"
+                                                        data-logid="${pedido.id_log}"
+                                                        style="background:none;border:1px solid #16a34a;border-radius:3px;
+                                                            cursor:pointer;font-size:13px;padding:2px 6px;"
+                                                        title="Autorizar apenas esta data">✅</button>
+                                                    <button class="rejeitar-individual-aditivo"
+                                                        data-id="${sol.idsolicitacao}"
+                                                        data-logid="${pedido.id_log}"
+                                                        style="background:none;border:1px solid #dc2626;border-radius:3px;
+                                                            cursor:pointer;font-size:13px;padding:2px 6px;"
+                                                        title="Rejeitar apenas esta data">❌</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                    });
+                                }
+
+                                htmlBodyAditivoAgrupado += `</div></div>`;
+                            }
+
+                            console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
 
                            
-                            console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
+                            
                     } else {
                         //tituloCard = formatarNomeSolicitacao(campo);
                         const categoriaParaFormatar = infoItem.categoria || campo;
@@ -4667,39 +6771,31 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                    
                     
 
+                    // let dataQfezSolicitacaoFormatada = '';
+                    // if (pedido.dataSolicitacao) {
+                    //     const dataObj = new Date(pedido.dataSolicitacao);
+                    //     // Verifica se a data é válida antes de formatar
+                    //     dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+                    // }
+
                     let dataQfezSolicitacaoFormatada = '';
-                    if (pedido.dataSolicitacao) {
-                        const dataObj = new Date(pedido.dataSolicitacao);
-                        // Verifica se a data é válida antes de formatar
-                        dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+
+                    // 💡 Tenta pegar a data de solicitação ou a data de criação (dtCriacao) que veio no log
+                    const dataRaw = pedido.dataSolicitacao || pedido.dtCriacao;
+
+                    if (dataRaw) {
+                        const dataObj = new Date(dataRaw);
+                        // Verifica se a conversão para objeto de data foi válida antes de formatar
+                        if (!isNaN(dataObj.getTime())) {
+                            dataQfezSolicitacaoFormatada = dataObj.toLocaleDateString('pt-BR');
+                        } else {
+                            dataQfezSolicitacaoFormatada = dataRaw; // Se não for data válida, exibe o texto bruto
+                        }
+                    } else {
+                        dataQfezSolicitacaoFormatada = 'Data indefinida';
                     }
 
-                    // let dataSolicitadaFormatada = '';
-
-                    // if (pedido.dataSolicitada) {
-                    //     // 1. Garante que temos um array (se vier string com vírgula, vira array)
-                    //     const datasArray = Array.isArray(pedido.dataSolicitada) 
-                    //         ? pedido.dataSolicitada 
-                    //         : pedido.dataSolicitada.toString().split(',');
-
-                    //     // 2. Mapeia cada data formatando para pt-BR
-                    //     const datasFormatadas = datasArray.map(dataStr => {
-                    //         if (dataStr == null) return '';
-                    //         const dataObj = new Date(dataStr);
-                            
-                    //         // Se a data for válida, formata. Se não, retorna o texto original.
-                    //         if (!isNaN(dataObj.getTime())) {
-                    //             // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
-                    //             return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
-                    //                 (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
-                    //                 dataObj.getUTCFullYear();
-                    //         }
-                    //         return dataStr;
-                    //     });
-
-                    //     // 3. Junta tudo com vírgula e espaço para exibir na tela
-                    //     dataSolicitadaFormatada = datasFormatadas.join(', ');
-                    // }
+                    
                    
                     let dataSolicitadaFormatada = '';
 
@@ -4745,21 +6841,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                     
                     let dataFormatada = '';
-                    // let dataFormatadaSolictacao = '';
-
-                    // if(pedido.dtsolicitada){
-                    //     const dataObj = new Date(pedido.dtsolicitada);
-                        
-                    //     dataFormatadaSolictacao = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dtsolicitada;
-                    //     console.log(`Formatando data de solicitação: ${pedido.dtsolicitada} -> Data Obj: ${dataObj}, Data Formatada: ${dataFormatadaSolictacao}`);
-                        
-                    // }
-                    // if (pedido.dataDecisao) {
-                    //     const dataObj = new Date(pedido.dataDecisao);
-                    //     // Verifica se a data é válida antes de formatar
-                    //     dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
-                    // }
-
+                   
                     let dataFormatadaSolictacao = '';
 
                     if (pedido.dtsolicitada) {
@@ -4823,22 +6905,43 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
                                 : '';
 
+                    let htmlAditivoSection = '';
+                    if (isAditivoExtra) {
+                        htmlAditivoSection = htmlBodyAditivoAgrupado; 
+                    }
+
                     htmlBody += `
                         <div class="pedido-card">
                             <div class="infoPedido">
                                     <div class="title">
                                     <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
                                     </div>
-                                    <br>
+                                    <br>                                   
+           
                     `;
                     
 
                     if (pedido.evento) {
                         if (categoria === 'funcionario') {
-                            htmlBody += `<div class="event-info">
-                                        <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>
-                                        <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;
+                           // const funcaoAtualTxt = pedido.descFuncao ? ` <span class="text-xs text-gray-500 font-normal">${pedido.descFuncao}</span>` : '';
+                           const funcaoPrincipal = pedido.descFuncaoOriginal || pedido.descFuncao || '';
+                           const funcaoAtualTxt = funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : '';
+
+                            // // Se usou a original E existir uma função de dobra diferente, podemos mostrar a de dobra como um "subtexto" sutil
+                            // const temDobraDiferente = pedido.descFuncaoOriginal && pedido.descFuncao && (pedido.descFuncaoOriginal !== pedido.descFuncao);
+                            // const funcaoAtualTxt = temDobraDiferente 
+                            //     ? ` <span class="text-xs text-gray-500 font-normal">(${funcaoPrincipal} ocupando vaga de ${pedido.descFuncao} na diária dobrada)</span>`
+                            //     : (funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : ''); 
+                           
+                           htmlBody += `<div class="event-info">
+                                        <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir} -  ${funcaoAtualTxt}<br>
+                                        <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;                                        
                         } else {
+                            // 💡 Procure onde você renderiza o nome do funcionário e ajuste para incluir o pedido.descFuncao:
+                           
+
+                            // Exemplo se for um cabeçalho de Card:
+                           // htmlBody += `<strong>Funcionário</strong>: ${pedido.nomefuncionario}${funcaoAtualTxt}<br>`;
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
                         }
                     }
@@ -4846,22 +6949,63 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
+                        // const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+                        // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
+                        //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
+                        // } else {
+                        //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+                        // }
+
+                        // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+    
+                        // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {                            
+                        //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
+                        // } else {
+                        //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+                        // }
+
                         if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
-                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
+    
+                            // ✅ Pega todas as datas das solicitações individuais
+                            const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+                            
+                            let todasAsDatas = '';
+                            if (solicitacoesIndividuais.length > 0) {
+                                // ✅ Filtra pelo status da aba atual (pendente, autorizado ou rejeitado)
+                                const solsFiltradas = solicitacoesIndividuais.filter(sol => 
+                                    (sol.status || '').toLowerCase().trim() === statusDesejado
+                                );
+
+                                const solsParaExibir = solsFiltradas.length > 0 ? solsFiltradas : solicitacoesIndividuais;
+
+                                todasAsDatas = solsParaExibir.map(sol => {
+                                    let datasRaw = sol.data;
+                                    if (typeof datasRaw === 'string') {
+                                        datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+                                    }
+                                    return (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+                                        .map(d => String(d).trim().split('-').reverse().join('/'))
+                                        .join(', ');
+                                }).join(', ');
+                            } else {
+                                todasAsDatas = dataFormatadaSolictacao;
+                            }
+
+                            htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
+
                         } else {
                             htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
                         }
 
+                        // 1. Adiciona o status e o aprovador
                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
+                        
+                        // 2. AQUI VOCÊ INCLUI O SEU BLOCO DE BOTÕES (O htmlBodyAditivoAgrupado que criamos)
+                        htmlBody += htmlBodyAditivoAgrupado;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0; 
-                        // if (valor !== 0) {
-                        //     const valorFmt = valor.toFixed(2).replace('.', ',');
-                        //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-                        // } else {
-                        //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-                        // }                       
+                                        
                         
                         console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
                         
@@ -4882,6 +7026,24 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
 
+                    // } else if (isDataUnica) {
+                    //     const dataBruta = String(infoItem.data || '').trim();
+                    //     let dataFmt = 'Data indefinida';
+                    //     if (dataBruta !== '') {
+                    //         const dataObj = parseDateLocal(dataBruta);
+                    //         dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+                    //     }
+                    //     htmlBody += `<strong>Data(s) Solicitada(s)</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;if (infoItem.justificativa) 
+                    //     htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${infoItem.justificativa}</span>`;
+    
+                    // } else if (infoItem.datas) {
+                    //     const datasFmt = infoItem.datas
+                    //         .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+                    //         .filter(d => d)
+                    //         .join(', ');
+                    //     htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                    // }
+
                     } else if (isDataUnica) {
                         const dataBruta = String(infoItem.data || '').trim();
                         let dataFmt = 'Data indefinida';
@@ -4889,8 +7051,51 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const dataObj = parseDateLocal(dataBruta);
                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
                         }
-                        htmlBody += `<strong>Data(s) Solicitada(s)</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        
+                        // 1. Captura inicial da justificativa padrão do item
+                        let justificativaDoCard = infoItem.justificativa || '';
+
+                        // ➔ LENDO DA DTDIARIADOBRADA: Busca no array de solicitações a propriedade correta do dia
+                        if (p.categoria_item === 'statusdiariadobrada' && pedido.dtsolicitada && Array.isArray(pedido.dtsolicitada)) {
+                            const itemDobraDestaData = pedido.dtsolicitada.find(d => {
+                                let dataDobraRaw = d.data;
+                                if (Array.isArray(dataDobraRaw)) dataDobraRaw = dataDobraRaw[0];
+                                return String(dataDobraRaw).trim() === dataBruta;
+                            });
+
+                            if (itemDobraDestaData && itemDobraDestaData.justificativa) {
+                                justificativaDoCard = itemDobraDestaData.justificativa;
+                            }
+                        }
+
+                        // 🌟 TRATAMENTO CIRÚRGICO ANTI-MISTURA: 
+                        // Se a justificativa do dtdiariadobrada contiver "|", separa as strings e pega só a que pertence a este card
+                        if (p.categoria_item === 'statusdiariadobrada' && justificativaDoCard.includes('|')) {
+                            console.log(`⚠️ Tratando justificativa combinada para o dia ${dataFmt}`);
+                            
+                            // Divide o textão pelas barras "|"
+                            const partesJustificativa = justificativaDoCard.split('|').map(parte => parte.trim());
+                            
+                            // Procura a frase que cita exatamente a data deste card (Ex: "16/05/2026")
+                            const parteExclusivaDestaData = partesJustificativa.find(parte => parte.includes(dataFmt));
+
+                            if (parteExclusivaDestaData) {
+                                justificativaDoCard = parteExclusivaDestaData;
+                            } else {
+                                // Se não achar a data explícita por algum motivo, pega o último pedaço (mais recente)
+                                justificativaDoCard = partesJustificativa[partesJustificativa.length - 1];
+                            }
+                        }
+
+                        // 2. Renderização final no HTML do card
+                        htmlBody += `<strong>Data Solicitada</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        
+                        if (justificativaDoCard) {
+                            htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${justificativaDoCard}</span>`;
+                        }
+    
                     } else if (infoItem.datas) {
+                        // Mantém o bloco antigo exatamente igual para os outros fluxos
                         const datasFmt = infoItem.datas
                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
                             .filter(d => d)
@@ -4898,19 +7103,33 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     }
 
+                    
+
                     if (infoItem.descricao) {
-                        // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
-                        // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
+                        
                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
                     }
 
+                    
+
                     // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
                     //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+                    //     // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+                    //     const tratarData = (valor) => {
+                    //         if (Array.isArray(valor)) {
+                    //             return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+                    //         }
+                    //         return String(valor || '').trim();
+                    //     };
+
                     //     const dataParaAcao = isPedidoPrincipal 
-                    //         ? (pedido.dataEspecifica || '') 
-                    //         : (isDataUnica ? (infoItem.data || '').trim() : '');
+                    //         ? tratarData(pedido.dataEspecifica) 
+                    //         : (isDataUnica ? tratarData(infoItem.data) : '');
+
                     //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
                     //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
                     //     htmlBody += `<br>
                     //         <div class="AcoesPedido"
                     //             data-id="${idParaAcao}"
@@ -4925,30 +7144,23 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     // }
 
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                        const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+                        // ✅ Para aditivos, os botões já estão dentro do htmlBodyAditivoAgrupado — não duplica
+                        if (isAditivoExtra) return; // pula a geração do AcoesPedido genérico
 
-                        // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
-                        const tratarData = (valor) => {
-                            if (Array.isArray(valor)) {
-                                return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
-                            }
-                            return String(valor || '').trim();
-                        };
-
-                        const dataParaAcao = isPedidoPrincipal 
-                            ? tratarData(pedido.dataEspecifica) 
-                            : (isDataUnica ? tratarData(infoItem.data) : '');
-
-                        const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                        const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo;
+                        const tratarData = (valor) => Array.isArray(valor) ? valor.join(',') : String(valor || '').trim();
+                        const dataParaAcao = isPedidoPrincipal ? tratarData(pedido.dataEspecifica) : (isDataUnica ? tratarData(infoItem.data) : '');
+                        const idParaAcao = pedido.idpedido;
                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
 
-                        htmlBody += `<br>
+                        htmlBody += `
+                            <br>
                             <div class="AcoesPedido"
                                 data-id="${idParaAcao}"
                                 data-campo="${campoParaAcao}"
                                 data-data="${dataParaAcao}"
                                 data-logid="${idLogParaAcao}"
-                                data-aditivo="${isAditivoExtra}">
+                                data-aditivo="false">
                                 <button class="aprovar">Autorizar</button>
                                 <button class="negar">Rejeitar</button>
                             </div>
@@ -5000,6 +7212,147 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
     container.addEventListener('click', async function(event) {
         const target = event.target;
+
+            // ── INDIVIDUAL ───────────────────────────────────────────
+    if (target.classList.contains('aprovar-individual-aditivo') ||
+        target.classList.contains('rejeitar-individual-aditivo')) {
+        event.stopPropagation();
+
+        const isAprovar   = target.classList.contains('aprovar-individual-aditivo');
+        const idSol       = target.getAttribute('data-id');
+        const idLogOrigem = target.getAttribute('data-logid');
+        const linhaDom    = target.closest('.linha-data-aditivo');
+
+        const result = await Swal.fire({
+            title: isAprovar ? 'Autorizar esta data?' : 'Rejeitar esta data?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!result.isConfirmed) return;
+
+        const sucesso = await atualizarStatusAditivoExtra(
+            idSol, 
+            isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER,
+            null, idLogOrigem, true // skipConfirm=true
+        );
+
+        // if (sucesso && linhaDom) {
+        //     linhaDom.style.opacity = '0';
+        //     setTimeout(() => { linhaDom.remove(); atualizarContadoresGlobais(); }, 300);
+        // }
+
+        if (sucesso && linhaDom) {
+            linhaDom.style.opacity = '0';
+            setTimeout(() => { 
+                // Em vez de remover, atualiza a linha com o status
+                const isAutorizado = isAprovar;
+                const corStatus = isAutorizado ? '#16a34a' : '#dc2626';
+                const iconeStatus = isAutorizado ? '✅' : '❌';
+                const textoStatus = isAutorizado ? 'Autorizado' : 'Rejeitado';
+
+                // Substitui os botões pelo badge de status
+                const divBotoes = linhaDom.querySelector('div'); // div com os botões
+                if (divBotoes) {
+                    divBotoes.innerHTML = `
+                        <span style="
+                            background: ${corStatus}15; 
+                            border: 1px solid ${corStatus}; 
+                            color: ${corStatus}; 
+                            border-radius: 4px; 
+                            padding: 2px 8px; 
+                            font-size: 11px; 
+                            font-weight: bold;">
+                            ${iconeStatus} ${textoStatus}
+                        </span>
+                    `;
+                }
+
+                linhaDom.style.opacity = '1'; // Restaura a opacidade
+
+                // Após o linhaDom.style.opacity = '1' e antes do atualizarContadoresGlobais()
+
+                // ✅ Atualiza a contagem nos botões de lote
+                const listaContainer = linhaDom.closest('.lista-datas-aditivo');
+                const linhasPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo');
+                const totalPendentes = linhasPendentes?.length || 0;
+
+                // Atualiza texto dos botões de lote com a nova contagem
+                const wrapperAditivo = listaContainer?.parentElement;
+                const btnAutorizarLote = wrapperAditivo?.querySelector('.aprovar-lote-aditivo');
+                const btnRejeitarLote = wrapperAditivo?.querySelector('.rejeitar-lote-aditivo');
+
+                if (totalPendentes === 0) {
+                    // Remove os botões de lote se não houver mais pendentes
+                    const botoesDeLote = btnAutorizarLote?.closest('div');
+                    if (botoesDeLote) {
+                        botoesDeLote.style.transition = '0.3s';
+                        botoesDeLote.style.opacity = '0';
+                        setTimeout(() => botoesDeLote.remove(), 300);
+                    }
+                } else {
+                    // Atualiza a contagem
+                    if (btnAutorizarLote) btnAutorizarLote.textContent = `✅ Autorizar Todas (${totalPendentes})`;
+                    if (btnRejeitarLote) btnRejeitarLote.textContent = `❌ Rejeitar Todas (${totalPendentes})`;
+                }
+
+                atualizarContadoresGlobais(); 
+            }, 300);
+        }
+        return;
+    }
+
+    // ── LOTE ─────────────────────────────────────────────────
+    if (target.classList.contains('aprovar-lote-aditivo') ||
+        target.classList.contains('rejeitar-lote-aditivo')) {
+        event.stopPropagation();
+
+        const isAprovar   = target.classList.contains('aprovar-lote-aditivo');
+        const ids         = target.getAttribute('data-ids').split(',').map(id => id.trim()).filter(Boolean);
+        const idLogOrigem = target.getAttribute('data-logid');
+        const cardElement = target.closest('.pedido-card');
+
+        const result = await Swal.fire({
+            title: isAprovar ? `Autorizar todas (${ids.length})?` : `Rejeitar todas (${ids.length})?`,
+            text: 'Esta ação será aplicada a todas as datas desta solicitação.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!result.isConfirmed) return;
+
+        const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+        let todosOk = true;
+
+        for (const idSol of ids) {
+            const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
+            if (!ok) { todosOk = false; break; }
+        }
+
+        if (todosOk) {
+            if (cardElement) {
+                cardElement.style.transition = '0.3s';
+                cardElement.style.opacity = '0';
+                setTimeout(() => {
+                    const corpo = cardElement.closest('.funcionario-body');
+                    const grupo = cardElement.closest('.funcionario');
+                    cardElement.remove();
+                    if (corpo?.querySelectorAll('.pedido-card').length === 0) {
+                        if (grupo) { grupo.style.opacity = '0'; setTimeout(() => grupo.remove(), 300); }
+                    }
+                    atualizarContadoresGlobais();
+                }, 300);
+            }
+            Swal.fire({ icon: 'success', title: 'Todas atualizadas!', timer: 800, showConfirmButton: false });
+        } else {
+            Swal.fire('Erro', 'Falha ao processar uma ou mais datas.', 'error');
+        }
+        return;
+    }
         // Verifica se clicou nos botões
         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
 
@@ -5100,517 +7453,27 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 } 
 
-// function renderizarPedidosAntesDoSolicitacoes(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
-//     window.pedidosCompletosGlobais = pedidosCompletos;
-//     const container = document.getElementById(containerId);
-//     if (!container) return;
 
-//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
-//     container.style.display = 'flex';
-//     container.style.flexDirection = 'column';
-//     container.style.flexWrap = 'nowrap';
-//     container.style.gap = '10px';
+async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
+    const confirm = await Swal.fire({
+        title: 'Confirmar data única?',
+        text: `Deseja definir como ${novoStatus} apenas a data ${dataEspecifica}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim',
+        cancelButtonText: 'Cancelar'
+    });
 
-//     container.innerHTML = '';
-
-//     const camposTodos = [
-//         "statusajustecusto",
-//         "statuscaixinha",
-//         "statusmeiadiaria",
-//         "statusdiariadobrada",
-//         "statuscustofechado",
-//         "statuscacheliberado",
-//         "statusvagaexcedida",
-//         CAMPO_ADITIVO_EXTRA
-//     ];
-//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
-//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
-
-//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
-//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
-//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
-
-//     let totalItensRenderizados = 0;
-//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
-//     const gruposFiltrados = [];
-
-//         pedidosCompletos.forEach(grupoConsolidado => {
-//         let chaveRenderizacao;
-//         if (categoria === 'funcionario') {
-//             chaveRenderizacao = grupoConsolidado.funcionario;
-//         } else {
-//             // Tenta pegar nmfuncao, senão busca dentro dos registros
-//             chaveRenderizacao = grupoConsolidado.nmfuncao;
-            
-//             if (!chaveRenderizacao) {
-//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
-//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
-//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
-                
-//                 if (primeiroAditivo) {
-//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
-//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-//                 } else {
-//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
-//                 }
-//             }
-//         }
-
-//         if (!chaveRenderizacao) return;
-
-//         const registros = grupoConsolidado.registrosOriginais || [];
-//         const pedidosConsolidadosPorId = new Map();
-//         let temAlgumMatchNesteGrupo = false;
-
-//         registros.forEach(pedidoOriginal => {
-//             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
-//              console.log("🔍 Processando registro com ID:", pedidoOriginal );
-
-//             // console.log(`Processando pedido ID: ${id} - Evento: ${pedidoOriginal.evento} - Funcionário: ${pedidoOriginal.funcionario}`);
-
-//             // // 🛑 MUDANÇA AQUI: A categoria agora vem do banco ou é "geral"
-            
-
-//             // let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
-
-//             // if (!pedidoConsolidado) {
-//             //     pedidoConsolidado = { ...pedidoOriginal, idpedido: id, temMatch: false };
-//             //     pedidosConsolidadosPorId.set(id, pedidoConsolidado);
-//             // }
-
-//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
-//             const idLog = pedidoOriginal.id_log || 'sem-log';
-
-//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);
-            
-//             // 2. Criamos uma CHAVE ÚNICA real (ID do Evento + Categoria + ID do Log)
-//             // Isso garante que Marcia, Gledyson e as duas do Gustavo sejam tratadas como itens diferentes
-//             //const idUnicoParaMapa = `${pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido}_${idLog}`;
-
-//             //console.log(`🔍 Processando item único: ${idUnicoParaMapa}`);
-
-//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
-
-//             if (!pedidoConsolidado) {
-//                 // Criamos um novo objeto no mapa para cada ID de Log diferente
-//                 pedidoConsolidado = { ...pedidoOriginal, idpedido: pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido, temMatch: false };
-//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
-//             }
-
-//             // Verifica status principal
-//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
-//             if (statusPrincipal === statusDesejado) {
-//                 pedidoConsolidado.temMatch = true;
-//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
-//                 temAlgumMatchNesteGrupo = true;
-//             }
-
-//             // Verifica sub-itens (Meia diária, caixinha, etc)
-//             camposTodos.forEach(campo => {
-//                 const itens = safeParse(pedidoOriginal[campo]);
-//                 const itensFiltrados = itens.filter(it => {
-//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
-//                     return String(s).toLowerCase().trim() === statusDesejado;
-//                 });
-
-//                 if (itensFiltrados.length > 0) {
-//                     pedidoConsolidado.temMatch = true;
-//                     // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
-//                     pedidoConsolidado[campo] = itensFiltrados; 
-//                     temAlgumMatchNesteGrupo = true;
-//                 } 
-//                 // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
-//                 // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
-//             });
-//         });
-
-//         if (temAlgumMatchNesteGrupo) {
-//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
-
-//             if (registrosValidos.length > 0) {
-//                 gruposFiltrados.push({
-//                     ...grupoConsolidado,
-//                     registrosOriginais: registrosValidos
-//                 });
-//             }
-//         }
-//     });
-    
-//     // FIM DA SEÇÃO 1: Consolidação.
-
-//     // Ordenação... (inalterada)
-//     // gruposFiltrados.sort((a, b) =>
-//     //     new Date(b.dtCriacao || '1970-01-01').getTime() -
-//     //     new Date(a.dtCriacao || '1970-01-01').getTime()
-//     // );
-
-//     if (gruposFiltrados.length === 0) {
-//         const msg = document.createElement("p");
-//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
-//         container.appendChild(msg);
+    if (confirm.isConfirmed) {
+        // Aqui você chama seu backend passando o id_log e a data específica
+        // Exemplo: await atualizarStatusAditivoExtra(idLog, novoStatus, null, idLog, dataEspecifica);
+        console.log("Enviando para o banco:", { idLog, dataEspecifica, novoStatus });
         
-//         // 🛑 V97.0: Atualiza a contagem para 0
-//         if (typeof atualizarBadgeDeStatus === 'function') {
-//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
-//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
-//         }
-//         return;
-//     }
-
-//     // --- 2. RENDERIZAÇÃO ---
-//     const listaGrupos = document.createElement("div");
-//     listaGrupos.className = "lista-funcionarios";
-
-//     gruposFiltrados.forEach(grupo => {
-//         const pedidosDoGrupo = grupo.registrosOriginais;
-//         if (!pedidosDoGrupo?.length) return;
-
-//         const chaveNome = categoria === 'funcionario'
-//             ? grupo.funcionario
-//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
-
-//         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
-//         const p = pedidosDoGrupo[0];
-//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
-//         console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
-//         console .log (`Debug`, pedidosDoGrupo);
-
-
-//         const divGrupo = document.createElement("div");
-//         divGrupo.className = "funcionario";
-
-//         const header = document.createElement("div");
-//         header.className = "funcionario-header";
-
-//         const body = document.createElement("div");
-//         body.className = "funcionario-body hidden";
-
-//         let htmlBody = '';
-//         let itensGrupo = 0;
-
-//         // Itera sobre os pedidos consolidados
-//         pedidosDoGrupo.forEach(pedido => {
-//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
-//             camposRenderizaveis.forEach(campo => { 
-//                 const itensFiltrados = pedido[campo];
-//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
-
-//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
-
-//                 itensParaRenderizar.forEach(infoItem => {
-//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
-//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
-
-//                     itensGrupo++;
-//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
-
-//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
-//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
-//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
-
-//                     let tituloCard;
-//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
-//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
-
-//                     if (isPedidoPrincipal) {
-//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
-//                         if (pedido.dataPrincipal) {
-//                             tituloCard += ` (${pedido.dataPrincipal})`;
-//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
-//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
-//                             tituloCard += ` (R$ ${valorFmt})`;
-//                         }
-//                     } else if (isAditivoExtra) {
-//                         const tipo = infoItem.tipoSolicitacao;
-//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
-//                             ? "Limite Diário Excedido por Função/Evento"
-//                             : tipo;
-//                     } else {
-//                         tituloCard = formatarNomeSolicitacao(campo);
-//                         if (isDataUnica) { 
-//                             const dataBruta = String(infoItem.data || '').trim();
-//                             let dataFmt = '';
-//                             if (dataBruta !== '') {
-//                                 const dataObj = parseDateLocal(dataBruta); 
-//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
-//                             }
-//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
-//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                             const valor = parseFloat(infoItem.valor) || 0;
-//                             if (valor !== 0) {
-//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
-//                                 tituloCard += ` (R$ ${valorFmt})`;
-//                             }
-//                         }
-//                     }
-
-//                     let dataSolicFormatada = '';
-//                     if (pedido.dataSolicitacao) {
-//                         const dataObj = new Date(pedido.dataSolicitacao);
-//                         // Verifica se a data é válida antes de formatar
-//                         dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
-//                     }
-                   
-//                     let dataFormatada = '';
-//                     if (pedido.dataDecisao) {
-//                         const dataObj = new Date(pedido.dataDecisao);
-//                         // Verifica se a data é válida antes de formatar
-//                         dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
-//                     }
-
-//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
-
-//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
-//                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
-//                                 : '';
-
-//                     htmlBody += `
-//                         <div class="pedido-card">
-//                             <div>
-//                                 <strong>${tituloCard}</strong> Solicitado em: <strong>${dataSolicFormatada}</strong> por <strong> ${nomeSolic}</strong><br>
-//                     `;
-                    
-
-//                     if (pedido.evento) {
-//                         if (categoria === 'funcionario' && pedido.funcionario) {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//                         } else {
-//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//                         }
-//                     }
-
-//                     if (isPedidoPrincipal) {
-//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (isAditivoExtra) {
-//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
-//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
-//                         const valor = parseFloat(infoItem.valor) || 0; 
-//                         // if (valor !== 0) {
-//                         //     const valorFmt = valor.toFixed(2).replace('.', ',');
-//                         //     htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         // } else {
-//                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
-//                         // }
-
-                        
-                        
-
-//                         if (valor !== 0) {
-//                             const valorFmt = valor.toFixed(2).replace('.', ',');
-//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                         } else {
-//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                         }
-
-//                     } else if (isDataUnica) {
-//                         const dataBruta = String(infoItem.data || '').trim();
-//                         let dataFmt = 'Data indefinida';
-//                         if (dataBruta !== '') {
-//                             const dataObj = parseDateLocal(dataBruta);
-//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
-//                         }
-//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                     } else if (infoItem.datas) {
-//                         const datasFmt = infoItem.datas
-//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
-//                             .filter(d => d)
-//                             .join(', ');
-//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-//                     }
-
-//                     if (infoItem.descricao) {
-//                         // Usamos 'white-space: pre-wrap' para respeitar quebras de linha manuais
-//                         // e 'overflow-wrap: break-word' para garantir que ele quebre preferencialmente nos espaços.
-//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
-//                     }
-
-//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
-//                         const dataParaAcao = isPedidoPrincipal 
-//                             ? (pedido.dataEspecifica || '') 
-//                             : (isDataUnica ? (infoItem.data || '').trim() : '');
-//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
-//                         htmlBody += `
-//                             <div class="flex gap-2 mt-2"
-//                                 data-id="${idParaAcao}"
-//                                 data-campo="${campoParaAcao}"
-//                                 data-data="${dataParaAcao}"
-//                                 data-logid="${idLogParaAcao}"
-//                                 data-aditivo="${isAditivoExtra}">
-//                                 <button class="aprovar">Autorizar</button>
-//                                 <button class="negar">Rejeitar</button>
-//                             </div>
-//                         `;
-//                     }
-
-//                     htmlBody += `
-//                             </div>
-//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
-//                         </div>
-//                     `;
-//                 });
-//             });
-//         });
-
-//         // 🛑 AQUI ESTÁ O PULO DO GATO:
-//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
-//         if (itensGrupo === 0) return;
-
-//         body.innerHTML = htmlBody;
-
-//         header.innerHTML = `
-//             <div>
-//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
-//                 <strong>${chaveNome}</strong><br>
-//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
-//             </div>
-//             <div class="flex items-center gap-2">
-//                 <span>${itensGrupo}</span>
-//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-//             </div>
-//         `;
-
-//         header.addEventListener("click", () => {
-//             body.classList.toggle("hidden");
-//             header.querySelector('i').classList.toggle('rotate-180');
-//         });
-
-//         divGrupo.appendChild(header);
-//         divGrupo.appendChild(body);
-//         listaGrupos.appendChild(divGrupo);
-//     });
-
-//     container.appendChild(listaGrupos);
-
-//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
-//     container.onclick = null; 
-
-//     container.addEventListener('click', async function(event) {
-//         const target = event.target;
-//         // Verifica se clicou nos botões
-//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
-
-//         const actionDiv = target.closest('[data-id]');
-//         if (!actionDiv) return;
-
-//         const isAprovar = target.classList.contains('aprovar');
-//         const idReferencia = actionDiv.getAttribute('data-id'); 
-//         const campoParaBackend = actionDiv.getAttribute('data-campo');
-//         const dataParaUpdate = actionDiv.getAttribute('data-data');
-//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
-
-//         // Determina qual função chamar e qual o status alvo
-//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
-//         const cardElement = target.closest('.pedido-card');
-
-//         // Modal de Confirmação
-//         const result = await Swal.fire({
-//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
-//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
-//             icon: 'warning',
-//             showCancelButton: true,
-//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-//             confirmButtonText: 'Confirmar'
-//         });
-
-//         if (result.isConfirmed) {
-//             try {
-//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
-//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
-                
-//                 let sucesso = false;
-//                 if (isAditivoExtra) {
-//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
-//                 } else {
-//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
-//                 }
-
-                
-//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
-//                 if (sucesso) {
-//                     console.log("✅ Sucesso confirmado! Atualizando para ID:", idReferencia);
-
-//                     // O status que queremos gravar na memória (ex: 'autorizado')
-//                     // Ajustado para pegar da variável que você está usando no seu escopo
-//                     const novoStatus = (typeof statusTarget !== 'undefined') ? statusTarget : 'autorizado';
-
-//                     // 1. ATUALIZAR STATUS NA MEMÓRIA
-//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais].filter(l => l);
-//                     listas.forEach(lista => {
-//                         lista.forEach(grupo => {
-//                             grupo.registrosOriginais?.forEach(p => {
-//                                 if (String(p.idpedido || p.idstaffevento) === String(idReferencia)) {
-//                                     // Atualiza o campo que a sua função de contagem "Original" usa
-//                                     p.status_aprovacao = novoStatus.toLowerCase().trim();
-//                                     console.log(`🧠 Memória sincronizada: Pedido ${idReferencia} agora é ${p.status_aprovacao}`);
-//                                 }
-//                             });
-//                         });
-//                     });
-
-//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
-//                     // ... (dentro do if (sucesso), após a remoção do card)
-
-//                     if (cardElement) {
-//                         // 1. Antes de remover, vamos identificar quem é o "container do grupo"
-//                         // Ajuste as classes '.funcionario' ou '.funcao-group' para as que você usa no HTML
-//                         const grupoContainer = cardElement.closest('.funcionario') || cardElement.closest('.funcao-group');
-//                         const corpoGrupo = cardElement.closest('.funcionario-body') || cardElement.closest('.funcao-body');
-
-//                         // 2. Remove o card com um pequeno efeito
-//                         cardElement.style.transition = '0.3s';
-//                         cardElement.style.opacity = '0';
-                        
-//                         setTimeout(() => {
-//                             cardElement.remove();
-//                             console.log("🗑️ Card removido.");
-
-//                             // 3. VERIFICAÇÃO DE GRUPO VAZIO
-//                             if (corpoGrupo) {
-//                                 const cardsRestantes = corpoGrupo.querySelectorAll('.pedido-card').length;
-                                
-//                                 if (cardsRestantes === 0 && grupoContainer) {
-//                                     console.log("📦 Último pedido removido. Excluindo container do grupo...");
-                                    
-//                                     grupoContainer.style.transition = '0.3s';
-//                                     grupoContainer.style.opacity = '0';
-                                    
-//                                     setTimeout(() => {
-//                                         grupoContainer.remove();
-//                                     }, 300);
-//                                 }
-//                             }
-                            
-//                             // 4. CHAMA A SUA ATUALIZAÇÃO DE CONTADORES (que já está funcionando!)
-//                             atualizarContadoresGlobais();
-                            
-//                         }, 300);
-//                     }
-
-//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
-//                 }
-    
-//             } catch (err) {
-//                 console.error("❌ Erro na execução:", err);
-//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
-//             }
-//         }
-//     });
-
-//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
-//     if (typeof atualizarBadgeDeStatus === 'function') {
-//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
-//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
-//     }
-
-//     if (typeof atualizarContadoresGlobais === 'function') {
-//         atualizarContadoresGlobais();
-//     }
-// } 
+        // Após o sucesso, você pode recarregar a lista ou remover a linha do HTML manualmente
+        Swal.fire('Sucesso!', 'Data atualizada.', 'success');
+        // window.recarregarSuaFuncao(); 
+    }
+}
 
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
     try {
@@ -5649,42 +7512,93 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 }
 
 
-async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem) {
+// async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem, dataEspecifica = null) {
+//     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
+
+//     // ... (seu código de confirmação com Swal.fire continua igual) ...
+//     const confirmacao = await Swal.fire({
+//         title: 'Confirmar Ação',
+//         html: `Tem certeza que deseja aplicar esta ação à solicitação de <strong>Aditivo / Extra</strong>?`,
+//         icon: 'warning',
+//         showCancelButton: true,
+//         confirmButtonColor: novoStatus.toLowerCase() === 'autorizado' ? '#16a34a' : '#dc2626',
+//         confirmButtonText: 'Confirmar'
+//     });
+
+//     if (!confirmacao.isConfirmed) return false;
+
+//     try {
+
+//         if (cardElement && typeof cardElement.querySelector === 'function') {
+//             mostrarLoader(cardElement);
+//         } 
+        
+//        // Tente encontrar o card principal (o pai do botão clicado)
+//         const cardElement = btnElement.closest('.pedido-card');
+
+//         if (!cardElement) {
+//             console.error("❌ Erro: Não foi possível encontrar o .pedido-card pai.");
+//             return false;
+//         }
+
+//         // Busca o container de botões dentro deste card específico
+//         const containerBotoes = cardElement.querySelector('.botoes-aditivo-container');
+//         // Desabilita os botões visualmente e funcionalmente
+//         if (containerBotoes) {
+//             containerBotoes.style.opacity = '0.5';
+//             containerBotoes.style.pointerEvents = 'none'; // Impede novos cliques
+//             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
+//         }
+
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem, skipConfirm = false) {
     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
 
-    // ... (seu código de confirmação com Swal.fire continua igual) ...
-    const confirmacao = await Swal.fire({
-        title: 'Confirmar Ação',
-        html: `Tem certeza que deseja aplicar esta ação à solicitação de <strong>Aditivo / Extra</strong>?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: novoStatus.toLowerCase() === 'autorizado' ? '#16a34a' : '#dc2626',
-        confirmButtonText: 'Confirmar'
-    });
-
-    if (!confirmacao.isConfirmed) return false;
+    if (!skipConfirm) {
+        const confirmacao = await Swal.fire({
+            title: 'Confirmar Ação',
+            html: `Tem certeza que deseja aplicar esta ação à solicitação de <strong>Aditivo / Extra</strong>?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: novoStatus.toLowerCase() === 'autorizado' ? '#16a34a' : '#dc2626',
+            confirmButtonText: 'Confirmar'
+        });
+        if (!confirmacao.isConfirmed) return false;
+    }
 
     try {
-
         if (cardElement && typeof cardElement.querySelector === 'function') {
             mostrarLoader(cardElement);
-        }        
+        }
+
+        const containerBotoes = cardElement?.querySelector('.botoes-aditivo-container');
+        if (containerBotoes) {
+            containerBotoes.style.opacity = '0.5';
+            containerBotoes.style.pointerEvents = 'none';
+            containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
+        }
 
         const url = '/main/notificacoes-financeiras/atualizar-status';
 
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
        
+        const payload = { 
+            idpedido: idAditivoExtra,
+            categoria: 'statusaditivoextra',
+            acao: novoStatusCapitalizado,
+            idlog_origem: idlog_origem
+        };
+
+        // 2. Adicione a data se ela existir
+        // if (dataEspecifica) {
+        //     payload.data = dataEspecifica;
+        // }
+
+        // 3. Use o payload no fetch
         const response = await fetchComToken(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                idpedido: idAditivoExtra,        // ID da solicitação ou registro
-                categoria: 'statusaditivoextra', // Define a categoria explicitamente
-                acao: novoStatusCapitalizado,    // 'Autorizado' ou 'Rejeitado'
-                idlog_origem: idlog_origem       // ID do log para controle
-            })
+            body: JSON.stringify(payload) // <--- Use a variável declarada acima
         });
-
         //ocultarLoader(cardElement);
 
         if (cardElement && typeof cardElement.querySelector === 'function') {
@@ -5695,6 +7609,18 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
             console.log("✅ Aditivo atualizado no banco. Sincronizando memória...");
 
             const statusFormatado = novoStatus.toLowerCase().trim();
+
+            if (containerBotoes) {
+                containerBotoes.innerHTML = `
+                    <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                        ${statusFormatado} pelo sistema
+                    </div>
+                `;
+            }
+
+            // Atualiza memória e contadores como você já faz...
+            Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 800, showConfirmButton: false });
+            return true;
 
             // 1. ATUALIZAÇÃO DA MEMÓRIA GLOBAL (CRUCIAL PARA TROCA DE ABAS)
             // Varremos as listas que o Main.js usa para renderizar as telas
@@ -5756,6 +7682,12 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
         if (typeof ocultarLoader === 'function') ocultarLoader(cardElement);
         console.error("❌ Erro ao atualizar aditivo:", err);
         return false;
+
+        if (containerBotoes) {
+            containerBotoes.style.opacity = '1';
+            containerBotoes.style.pointerEvents = 'auto';
+            containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = false);
+        }
     }
 }
 
