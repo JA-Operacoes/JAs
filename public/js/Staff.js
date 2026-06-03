@@ -14665,7 +14665,9 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     if (!dadosOrcamento) {
         dadosOrcamento = { quantidadeOrcada: 0, quantidadeEscalada: 0, datasOrcadas: [] };
     }
-
+    
+        const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
+        const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
     // ==========================================================
     // --- LÓGICA CRÍTICA 1: VERIFICAÇÃO DE DATAS OUT-OF-BUDGET ---
     // ==========================================================
@@ -14807,16 +14809,17 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                     datasParaSolicitar
                 );
 
-                if (dadosExcecao && dadosExcecao.confirmado) {
+                if (dadosExcecao?.confirmado) {
                     window.tipoExcecaoAtual = tipoEscolhido;
                     window.justificativaParaSalvar = dadosExcecao.justificativa;
                     window.bSalvarComoInativo = true;
-                    
-                    return { 
-                        allowed: false, 
-                        solicitouAutorizacao: true, 
-                        justificativa: dadosExcecao.justificativa, 
-                        tipoSolicitacao: tipoEscolhido 
+                    window.datasParaSalvarNoBanco = datasParaSolicitar; // ✅ ADICIONE ESTA LINHA
+                    return {
+                        allowed: false,
+                        solicitouAutorizacao: true,
+                        justificativa: dadosExcecao.justificativa,
+                        tipoSolicitacao: tipoEscolhido,
+                        datasExcecao: datasParaSolicitar // ✅ E ESTA
                     };
                 }
                 return { allowed: false };
@@ -14880,8 +14883,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
             }
         });
 
-        const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
-        const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+        
 
         const qttDiariasNormais = datasSelecionadas.length;
         const impactoDestaAcao = qttDiariasNormais + countDobras;
