@@ -176,8 +176,8 @@ router.get("/funcionarios",  async (req, res) => {
       // Busca TODOS os funcionários associados à empresa do usuário logado
       const result = await pool.query(
       `SELECT func.*, s.avaliacao FROM funcionarios func
-      LEFT JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-      LEFT JOIN staff s ON s.idfuncionario = func.idfuncionario
+      INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
+      INNER JOIN staff s ON s.idfuncionario = func.idfuncionario
       WHERE funce.idempresa = $1 AND func.ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
