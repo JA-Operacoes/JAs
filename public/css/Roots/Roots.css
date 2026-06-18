@@ -26,7 +26,21 @@
 
     --TSD-color:#303030;
     --TSD-dark:#000000;
+
+ /* ─────────────────────────────────────────────
+            COLORACÃO DE STATUS
+ ───────────────────────────────────────────── */
+
+    --Aproved:       #046800;
+    --Aproved-color: #ffffff;
+
+    --Reject:        #B50000;
+    --Reject-color:  #000000;
+
+    --Pending:       #FFBD29;
+    --Pending-color: #000000;
 }
+
 
 .tema-JA-OPER{
     --primary-color: #942123;
@@ -37,6 +51,7 @@
     --background-color: #942123;
     --font-color: #ffffff;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --font-weight: none;
 }
 .tema-ES{
@@ -48,6 +63,7 @@
     --font-color: #000000;
     --font-weight: bold;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --border-color:#4ece03;
 }
 .tema-EA{
@@ -59,6 +75,7 @@
     --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --border-color:#2e3192;
 }
 .tema-EP{
@@ -70,6 +87,7 @@
     --font-color: #000000;
     --font-weight: none;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --border-color:#696969;
 }
 .tema-SN-FOODS{
@@ -81,6 +99,7 @@
     --font-color: #000000;
     --font-weight: none;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --border-color:#b34918;
 }
 .tema-TSD{
@@ -92,6 +111,7 @@
     --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
+    --grey-color: #7e7e7e;
     --border-color:#2c2a2a;
 }
 
