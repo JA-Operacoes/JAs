@@ -151,46 +151,6 @@ if (selectSuprimento) {
   });
 }
 
-// function atualizarOuCriarCampoTexto(nmFantasia, texto) {
-//     const campo = document.getElementById(nmFantasia);
-//     if (campo) {
-//         campo.textContent = texto || "";
-//     } else {
-//         console.warn(`Elemento com NomeFantasia '${nmFantasia}' não encontrado.`);
-//     }
-// }
-
-// // Busca por nome fantasia
-// async function buscarEExibirDadosClientePorNome(nmFantasia) {
-//     try {
-//         const dadosCliente = await fetchComToken(`orcamentos/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-
-//         // if (!dadosCliente.ok) {
-//         //     throw new Error(`Erro ao buscar dados do cliente: ${dadosCliente.status}`);
-//         // }
-
-//        // const dadosCliente = await response.json();
-
-//         console.log("Cliente selecionado! Dados:", {
-//             nome: dadosCliente.nmcontato,
-//             celular: dadosCliente.celcontato,
-//             email: dadosCliente.emailcontato
-//         });
-
-//         // atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
-//         // atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
-//         // atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
-
-//     } catch (error) {
-//         console.error("Erro ao buscar dados do cliente:", error);
-//         Swal.fire("Erro", "Erro ao buscar dados do cliente", "error");
-
-//         atualizarOuCriarCampoTexto("nmContato", "");
-//         atualizarOuCriarCampoTexto("celContato", "");
-//         atualizarOuCriarCampoTexto("emailContato", "");
-//     }
-// }
-
 async function carregarClientesOrc() {
   try {
     const clientes = await fetchComToken("orcamentos/clientes");
@@ -1761,9 +1721,7 @@ function adicionarLinhaOrc() {
     });
   }
 
-  novaLinha
-    .querySelector(".idFuncao")
-    .addEventListener("change", async function (event) {
+  novaLinha.querySelector(".idFuncao").addEventListener("change", async function (event) {
       const linha = this.closest("tr");
       if (linha) {
         atualizaProdutoOrc(event, linha);
@@ -1772,20 +1730,14 @@ function adicionarLinhaOrc() {
         const idOrcamento = document.getElementById("idOrcamento")?.value;
         const idFuncao    = this.value;
 
-            if (idOrcamento && idFuncao) {
-                const solicitacao = await verificarSolicitacaoPendente(
-                    idOrcamento, idFuncao, null, null
-                );
+        if (idOrcamento && idFuncao) {
+            const solicitacao = await verificarSolicitacaoPendente(
+                idOrcamento, idFuncao, null, null,
+                linha  // ✅ passa a linha aqui
+            );
 
-                // Guarda o idsolicitacao no dataset da linha para usar no save
-                if (solicitacao) {
-                    linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-                }
-            }
-      } else {
-        console.error(
-          "Erro: Não foi possível encontrar a linha (<tr>) pai para o select recém-adicionado."
-        );
+            // carregarSolicitacao já define dataset.idsolicitacao corretamente
+        }
       }
     });
 
@@ -2268,46 +2220,56 @@ async function adicionarLinhaAdicional(isBonificado = false) {
           console.log('🔍 [idFuncao change] idOrcamento:', idOrcamento, '| idFuncaoVal:', idFuncaoVal);
 
           if (idOrcamento && idFuncaoVal) {
-              const solicitacao = await verificarSolicitacaoPendente(idOrcamento, idFuncaoVal, null, null);
-              if (solicitacao) {
-                  novaLinha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-              }
+              // carregarSolicitacao já define dataset.idsolicitacao corretamente
+              await verificarSolicitacaoPendente(idOrcamento, idFuncaoVal, null, null, novaLinha);
           }
       });
     }
 
 
-async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento) {
+// ─────────────────────────────────────────────
+// Funções de verificação de solicitação pendente
+// Arquivo: verificarSolicitacao.js (ou inclua no seu JS de orçamentos)
+// ─────────────────────────────────────────────
+
+
+async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento, linha) {
     if (!idOrcamento) return null;
 
     try {
         const params = new URLSearchParams({ idorcamento: idOrcamento });
-        if (idFuncao)      params.append('idfuncao', idFuncao);
+        if (idFuncao)      params.append('idfuncao',      idFuncao);
         if (idEquipamento) params.append('idequipamento', idEquipamento);
-        if (idSuprimento)  params.append('idsuprimento', idSuprimento);
+        if (idSuprimento)  params.append('idsuprimento',  idSuprimento);
 
         const data = await fetchComToken(`/orcamentos/solicitacoes/verificar?${params.toString()}`);
 
-        if (!data.encontrou || data.solicitacoes.length === 0) {
-            return null; // ✅ Sem solicitação — sem ruído, fluxo normal
+        if (!data.encontrou || data.solicitacoes.length === 0) return null;
+
+        // ✅ Se houver mais de uma, abre seleção primeiro
+        let sol;
+        if (data.solicitacoes.length > 1) {
+            sol = await escolherSolicitacao(data.solicitacoes);
+            if (!sol) return null; // usuário cancelou
+        } else {
+            sol = data.solicitacoes[0];
+            carregarSolicitacao(sol, linha);
         }
 
-        const sol = data.solicitacoes[0];
-        const tipoLabel   = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
-        const dtSolicita  = new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR');
-        const dtResposta  = new Date(sol.dtresposta).toLocaleDateString('pt-BR');
+        const tipoLabel  = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
+        const dtSolicita = sol.dtsolicitacao ? new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR') : '—';
+        const dtResposta = sol.dtresposta    ? new Date(sol.dtresposta).toLocaleDateString('pt-BR')    : '—';
 
-        // ✅ Apenas informa — não bloqueia o fluxo
-        await Swal.fire({
+        const {isConfirmed} = await Swal.fire({
             title: `${tipoLabel} — Solicitação Encontrada`,
             html: `
                 <div class="body-sol">
-                    <p>📌 <b>Solicitação #${sol.idsolicitacao}</b></p>
+                    <p>📌 <b>Solicitação #${sol.ids_solicitacoes}</b></p>
                     <p>👤 Solicitante: <b>${sol.nomesolicitante || '—'}</b> em ${dtSolicita}</p>
                     <p>✅ Autorizado por: <b>${sol.nomeresponsavel || '—'}</b> em ${dtResposta}</p>
                     <p>📦 Qtd solicitada: <b>${sol.qtdsolicitada}</b></p>
                     <p>🧭 Setor: <b>${sol.setor || '—'}</b></p>
-                    <p>📅 Data Solicitada: <b>${sol.dtsolicitada ? new Date(sol.dtsolicitada).toLocaleDateString('pt-BR') : '—'}</b></p>
+                    <p>📅 Período Solicitado: <b>${sol.periodoStr}</b></p>
                     ${sol.justificativa ? `<p>📝 Justificativa: <i>${sol.justificativa}</i></p>` : ''}
                     <hr style="margin:8px 0">
                     <p style="color:#28a745; font-weight:bold;">
@@ -2318,7 +2280,21 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
             icon: 'info',
             confirmButtonText: 'Entendido',
             confirmButtonColor: '#3085d6',
+            showCancelButton: true,        // ✅ botão cancelar
+            cancelButtonText: 'Cancelar',
         });
+
+        if (!isConfirmed) {
+            if (typeof removerLinha === 'function') {
+                removerLinha(linha);
+            } else {
+                linha.remove(); // Fallback caso não tenha a função mapeada
+            }
+            return null;
+        }
+
+        // ✅ CARREGA OS DADOS APENAS APÓS A CONFIRMAÇÃO DO USUÁRIO
+        carregarSolicitacao(sol, linha);
 
         return sol;
 
@@ -2326,6 +2302,118 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
         console.error('Erro ao verificar solicitação:', err);
         return null;
     }
+}
+
+async function escolherSolicitacao(solicitacoes, linha) {
+    const opcoes = solicitacoes.map((sol, i) => `
+        <label for="sol_${i}" style="display:flex; align-items:flex-start; gap:8px; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; margin-bottom:8px; user-select:none;">
+            <input type="radio" id="sol_${i}" name="sol_escolhida" value="${i}" style="margin-top:3px; cursor:pointer; flex-shrink:0;">
+            <div style="text-align:left; pointer-events:auto;">
+                <b>#${sol.ids_solicitacoes}</b> — ${sol.tiposolicitacao}<br>
+                <small>👤 <b>${sol.nomesolicitante || '—'}</b> em ${new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR')}</small><br>
+                <small>Setor: ${sol.setor}</small><br>
+                <small>📅 <b>${sol.periodoStr}</b> — Qtd: <b>${sol.qtdsolicitada}</b></small>
+                ${sol.justificativa ? `<br><small>📝 ${sol.justificativa}</small>` : ''}
+            </div>
+        </label>
+    `).join('');
+
+    const { value: indice, isConfirmed } = await Swal.fire({
+        title: `${solicitacoes.length} Solicitações Encontradas`,
+        html: `
+            <p style="margin-bottom:12px; color:#555;">Selecione qual deseja vincular ao item:</p>
+            <div>${opcoes}</div>
+        `,
+        confirmButtonText: 'Vincular Selecionada',
+        confirmButtonColor: '#3085d6',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const selecionado = document.querySelector('input[name="sol_escolhida"]:checked');
+            if (!selecionado) {
+                Swal.showValidationMessage('Selecione uma solicitação para continuar.');
+                return false;
+            }
+            return selecionado.value;
+        }
+    });
+
+    if (isConfirmed) {
+        // Pega o objeto específico que o usuário escolheu na lista
+        const solicitacaoSelecionada = solicitacoes[Number(indice)];
+        
+        // Passa o objeto específico e a linha para a função de carregar
+        carregarSolicitacao(solicitacaoSelecionada, linha);
+        
+        return solicitacaoSelecionada;
+    } else {
+        console.log('%cEntrou no Else', 'background-color:red; color:white; padding:2px;');
+        
+        // Agora a 'linha' existe aqui pois veio pelo parâmetro da função!
+        removerLinha(linha);
+        return null;
+    }
+}
+
+// 2. AJUSTEI OS PARÂMETROS PARA RECEBER O OBJETO ÚNICO E A LINHA
+function carregarSolicitacao(sol, linha) {
+    if (!sol || !linha) return;
+
+    console.log("📥 [carregarSolicitacao] Preenchendo linha com a solicitação:", sol);
+
+    // 1. Vincula os IDs das solicitações (como string separada por vírgula se for array) no dataset da linha
+    linha.dataset.idsolicitacao = Array.isArray(sol.ids_solicitacoes)
+        ? sol.ids_solicitacoes.join(',')
+        : (sol.idsolicitacao || "");
+
+    // 2. Preenche a Categoria (Aditivo / Extra Bonificado)
+    const inputCategoria = linha.querySelector(".categoria-input");
+    if (inputCategoria) {
+        inputCategoria.value = sol.tiposolicitacao || "";
+    }
+
+    // 3. Preenche o Produto/Função (Sua rota traz o alias f.nome como 'nome')
+    const inputProduto = linha.querySelector(".produto-input");
+    if (inputProduto && sol.nome) {
+        inputProduto.value = sol.nome;
+    }
+
+    // 4. Preenche o Setor vindo do banco
+    const inputSetor = linha.querySelector(".setor-input");
+    if (inputSetor) {
+        inputSetor.value = sol.setor || "";
+    }
+
+    // 5. Preenche a quantidade solicitada
+    const inputQtd = linha.querySelector(".qtdProduto input[type='number']");
+    if (inputQtd) {
+        inputQtd.value = sol.qtdsolicitada || 1;
+    }
+
+    // 6. Preenche o período / datas usando a instância do flatpickr ou texto cru
+    const inputData = linha.querySelector(".datas-item");
+    if (inputData) {
+        const fpInstance = inputData._flatpickr;
+        
+        // Se houver instância ativa do flatpickr e as datas brutas em array
+        if (fpInstance && Array.isArray(sol.datas_solicitadas) && sol.datas_solicitadas.length > 0) {
+            // Converte as strings de data 'YYYY-MM-DD' em objetos Date seguros evitando fuso horário
+            const datasJS = sol.datas_solicitadas.map(d => {
+                const strData = typeof d === 'string' ? d.split('T')[0] : new Date(d).toISOString().split('T')[0];
+                return new Date(strData + 'T00:00:00');
+            });
+            fpInstance.setDate([datasJS[0], datasJS[datasJS.length - 1]], true);
+            fpInstance.close();
+            atualizarQtdDias(inputData, fpInstance.selectedDates);
+        } else {
+            // Fallback visual caso não tenha flatpickr anexado
+            inputData.value = sol.periodoStr || "";
+        }
+    }
+
+    // 7. Dispara os gatilhos nativos de recálculo da sua planilha
+    if (typeof recalcularLinha === 'function') recalcularLinha(linha);
+    if (typeof recalcularTotaisGerais === 'function') recalcularTotaisGerais();
 }
 
 function removerLinhaOrc(botao) {
@@ -2412,7 +2500,6 @@ function initializeAllFlatpickrsInModal() {
     "✅ Todos os Flatpickrs no modal de orçamento inicializados/reinicializados."
   );
 
-  // // 1. Inicializa os campos globais com a função já existente
   // inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
 
   // // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
@@ -2885,13 +2972,8 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
         // ✅ Verificação de solicitação — momento certo, idFuncao acabou de ser preenchido
         const idOrcamento = document.getElementById("idOrcamento")?.value;
         if (idOrcamento && valorSelecionado) {
-            verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null)
-                .then(solicitacao => {
-                    if (solicitacao) {
-                        linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-                        console.log('✅ [atualizaProduto] Solicitação vinculada:', solicitacao.idsolicitacao);
-                    }
-                });
+            // carregarSolicitacao já define dataset.idsolicitacao corretamente
+            verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null, linha);
         }
     if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
     if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
@@ -3877,7 +3959,9 @@ async function verificaOrcamento() {
             
             // 3. ATRIBUTO EXTRA BONIFICADO:
             extrabonificado: linha.dataset?.extrabonificado === "true" || false,
-            idsolicitacao: linha.dataset?.idsolicitacao ? parseInt(linha.dataset.idsolicitacao) : null,
+            ids_solicitacoes: linha.dataset?.idsolicitacao
+                ? linha.dataset.idsolicitacao.split(',').map(Number)
+                : null,
         };
 
         // 🎯 Aqui vem o tratamento correto dos períodos:
@@ -5294,511 +5378,6 @@ function atualizarEstadoLiberaStaff(status) {
   // ========================================================
 }
 
-// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
-//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//   const tabelaBody = document.querySelector("#tabela tbody");
-
-//   if (!tabelaBody) {
-//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
-//     return;
-//   }
-
-//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
-
-//   if (!itens || itens.length === 0) {
-//     const emptyRow = tabelaBody.insertRow();
-//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//     return;
-//   }
-
-//   // --- LÓGICA DE REAJUSTE ---
-//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
-  
-//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
-//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-
-//   // =======================================================
-//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
-//   // =======================================================
-//   const PRIORIDADE_CATEGORIAS = {
-//     "PRODUTOS": 1,
-//     "EQUIPAMENTOS": 2,
-//     "SUPRIMENTOS": 3
-//   };
-
-//   itens.sort((a, b) => {
-//     const catA = (a.categoria || "OUTROS").toUpperCase();
-//     const catB = (b.categoria || "OUTROS").toUpperCase();
-
-//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
-//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
-
-//     // 1º Passo: Comparar o peso da Categoria
-//     if (pesoA !== pesoB) {
-//       return pesoA - pesoB;
-//     }
-
-//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
-//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
-//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
-//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
-//     return nomeA.localeCompare(nomeB);
-//   });
-//   // =======================================================
-
-//   itens.forEach((item) => {
-//     let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-//     let ctoDiaria = parseFloat(item.ctodiaria || 0);
-//     let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-//     let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-//     let vlrHospedagem = parseFloat(item.hospedagem || 0);
-//     let vlrTransporte = parseFloat(item.transporte || 0);
-
-//     let itemOrcamentoID = item.idorcamentoitem;
-//     const qtdItens = item.qtditens || 0;
-//     const qtdDias = item.qtddias || 0;
-
-//     let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-//     let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-//     let totAjuda = parseFloat(item.totajdctoitem || 0);
-//     let totGeralItem = parseFloat(item.totgeralitem || 0);
-//     let descontoItem = parseFloat(item.descontoitem || 0);
-//     let acrescimoItem = parseFloat(item.acrescimoitem || 0);
-
-//     if (aplicarReajuste) {
-//       vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
-//       ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
-//       vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
-//       vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
-//       vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
-//       vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
-
-//       itemOrcamentoID = ""; // Novo ID para reajuste
-
-//       totVdaDiaria = vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
-//       totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
-//       totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
-//       totGeralItem = totAjuda + totCtoDiaria;
-//     }
-
-//     // Fallback Ajuda de Custo
-//     if (!aplicarReajuste && (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) && parseFloat(item.totajdctoitem || 0) > 0) {
-//       const multiplicador = (qtdItens * qtdDias) || 1;
-//       vlrAjdAlimentacao = parseFloat(item.totajdctoitem) / multiplicador;
-//       totAjuda = parseFloat(item.totajdctoitem);
-//       totGeralItem = totAjuda + totCtoDiaria;
-//     }
-
-//     const vlrBaseItemRaw = parseFloat(item.vlrbase);
-//     const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0 ? vlrBaseItemRaw : (vlrDiaria + descontoItem - acrescimoItem);
-
-//     // Nome unificado do produto
-//     const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
-
-//     const newRow = tabelaBody.insertRow();
-//     newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-//     newRow.dataset.idfuncao = item.idfuncao || "";
-//     newRow.dataset.idequipamento = item.idequipamento || "";
-//     newRow.dataset.idsuprimento = item.idsuprimento || "";
-//     newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
-//     newRow.dataset.adicional = item.adicional ? "true" : "false";
-//     newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-
-//     if (item.extrabonificado) {
-//         newRow.style.backgroundColor = "#f0fff4";
-//         newRow.style.borderLeft = "4px solid #48bb78";
-//     }
-
-//     newRow.innerHTML = `
-//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
-//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
-//                     </label>
-//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
-//                 </div>
-//             </td>
-//             <td class="cacheFechado">
-//             <div class="checkbox-wrapper-33">
-//                 <label class="checkbox">
-//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
-//                     <span class="checkbox__symbol">
-//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                             <path d="M4 14l8 7L24 7"></path>
-//                         </svg>
-//                     </span>
-//                     <p class="checkbox__textwrapper"></p>
-//                 </label>
-//             </div>
-//         </td>
-//             <td class="Categoria">${item.categoria || ""}</td>
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="produto">${nomeProduto}</td>
-//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
-//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
-//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
-//             <td class="descontoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="acrescimoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>            
-//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
-//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
-//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
-//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
-//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
-//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
-//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-//         `;
-
-//     // --- EVENTOS ---
-//     const setupAcresDesc = (sel, type) => {
-//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
-//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
-//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
-//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
-//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
-//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
-//     };
-
-//     setupAcresDesc(".descontoItem", "desconto");
-//     setupAcresDesc(".acrescimoItem", "acrescimo");
-
-//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
-//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
-//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
-
-//     const itemDateInput = newRow.querySelector(".datas-item");
-//     if (itemDateInput) {
-//       const dates = [];
-//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
-//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
-//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
-//         // Garante que o campo de datas seja sempre preenchido visualmente
-//         if (item.datas && item.datas.length > 0) {
-//           let fpInstance = itemDateInput._flatpickr;
-//           if (!fpInstance) {
-//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
-//           }
-//           fpInstance.setDate(item.datas, true);
-//         }
-//     }
-
-//     const delBtn = newRow.querySelector(".btnApagar");
-//     if (delBtn) {
-//       delBtn.addEventListener("click", async (e) => {
-//         e.preventDefault();
-//         const id = newRow.dataset.idorcamentoitem;
-//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
-//         else {
-//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
-//           if (isConfirmed) {
-//             try {
-//               const principalId = document.getElementById("idOrcamento").value;
-//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
-//               newRow.remove();
-//               recalcularTotaisGerais();
-//               Swal.fire("Deletado!", "", "success");
-//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
-//           }
-//         }
-//       });
-//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
-//     }
-//       if (item.cachefechado === true || item.cachefechado === "true") {
-//         const chkCache = newRow.querySelector(".chk-cache-fechado");
-//         if (chkCache) {
-//             // Chamamos a função passando o elemento para que ela trave os botões
-//             window.toggleEditavel(chkCache); 
-//         }
-//     }
-//   });
-
-
-//   if (aplicarReajuste) {
-//     const aviso = document.getElementById("avisoReajusteMensagem");
-//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
-//     recalcularTotaisGerais();
-//     aplicarDescontoEAcrescimo("Desconto"); 
-//   }
-
-//   aplicarMascaraMoeda();
-// }
-// =============================
-// VERIFICA LINHAS PELO PERÍODO
-// =============================
-
-
-// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
-//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//   const tabelaBody = document.querySelector("#tabela tbody");
-
-//   if (!tabelaBody) {
-//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
-//     return;
-//   }
-
-//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
-
-//   if (!itens || itens.length === 0) {
-//     const emptyRow = tabelaBody.insertRow();
-//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//     return;
-//   }
-
-//   // --- LÓGICA DE REAJUSTE ---
-//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
-  
-//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
-//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-
-//   // =======================================================
-//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
-//   // =======================================================
-//   const PRIORIDADE_CATEGORIAS = {
-//     "PRODUTOS": 1,
-//     "EQUIPAMENTOS": 2,
-//     "SUPRIMENTOS": 3
-//   };
-
-//   itens.sort((a, b) => {
-//     const catA = (a.categoria || "OUTROS").toUpperCase();
-//     const catB = (b.categoria || "OUTROS").toUpperCase();
-
-//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
-//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
-
-//     // 1º Passo: Comparar o peso da Categoria
-//     if (pesoA !== pesoB) {
-//       return pesoA - pesoB;
-//     }
-
-//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
-//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
-//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
-//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
-//     return nomeA.localeCompare(nomeB);
-//   });
-//   // =======================================================
-
-// itens.forEach((item) => {
-//   // VALORES ORIGINAIS (NÃO mexer!)
-//   let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-//   let ctoDiaria = parseFloat(item.ctodiaria || 0);
-//   let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-//   let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-//   let vlrHospedagem = parseFloat(item.hospedagem || 0);
-//   let vlrTransporte = parseFloat(item.transporte || 0);
-
-//   let itemOrcamentoID = item.idorcamentoitem;
-//   const qtdItens = item.qtditens || 0;
-//   const qtdDias = item.qtddias || 0;
-
-//   // TOTAIS ORIGINAIS do banco
-//   let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-//   let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-//   let totAjuda = parseFloat(item.totajdctoitem || 0);
-//   let totGeralItem = parseFloat(item.totgeralitem || 0);
-//   let descontoItem = parseFloat(item.descontoitem || 0);
-//   let acrescimoItem = parseFloat(item.acrescimoitem || 0);
-
-//   // ✅ REAJUSTA SÓ OS TOTAIS FINAIS (+8% exato)
-//   if (aplicarReajuste) {
-//     totVdaDiaria = ceilToTenCents(totVdaDiaria, fatorGeral);
-//     totCtoDiaria = ceilToTenCents(totCtoDiaria, fatorGeral);
-//     totAjuda = ceilToTenCents(totAjuda, fatorAjuda);
-//     totGeralItem = totCtoDiaria + totAjuda;
-
-//     itemOrcamentoID = ""; // Novo orçamento
-//   }
-
-//   const vlrBaseItem = vlrDiaria; // Unitário ORIGINAL
-
-//   const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
-
-//   const newRow = tabelaBody.insertRow();
-//   newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-//   newRow.dataset.idfuncao = item.idfuncao || "";
-//   newRow.dataset.idequipamento = item.idequipamento || "";
-//   newRow.dataset.idsuprimento = item.idsuprimento || "";
-//   newRow.dataset.vlrbase = vlrBaseItem.toString(); // ORIGINAL
-//   newRow.dataset.reajustadoTotal = aplicarReajuste ? 'true' : 'false'; // Flag
-//   newRow.dataset.adicional = item.adicional ? "true" : "false";
-//   newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-
-//   if (item.extrabonificado) {
-//     newRow.style.backgroundColor = "#f0fff4";
-//     newRow.style.borderLeft = "4px solid #48bb78";
-//   }
-
-//     newRow.innerHTML = `
-//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
-//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
-//                     </label>
-//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
-//                 </div>
-//             </td>
-//             <td class="cacheFechado">
-//             <div class="checkbox-wrapper-33">
-//                 <label class="checkbox">
-//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
-//                     <span class="checkbox__symbol">
-//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                             <path d="M4 14l8 7L24 7"></path>
-//                         </svg>
-//                     </span>
-//                     <p class="checkbox__textwrapper"></p>
-//                 </label>
-//             </div>
-//         </td>
-//             <td class="Categoria">${item.categoria || ""}</td>
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="produto">${nomeProduto}</td>
-//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
-//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
-//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
-//             <td class="descontoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="acrescimoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>            
-//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
-//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
-//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
-//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
-//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
-//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
-//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-//         `;
-
-//     // --- EVENTOS ---
-//     const setupAcresDesc = (sel, type) => {
-//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
-//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
-//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
-//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
-//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
-//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
-//     };
-
-//     setupAcresDesc(".descontoItem", "desconto");
-//     setupAcresDesc(".acrescimoItem", "acrescimo");
-
-//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
-//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
-//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
-
-//     const itemDateInput = newRow.querySelector(".datas-item");
-//     if (itemDateInput) {
-//       const dates = [];
-//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
-//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
-//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
-//         // Garante que o campo de datas seja sempre preenchido visualmente
-//         if (item.datas && item.datas.length > 0) {
-//           let fpInstance = itemDateInput._flatpickr;
-//           if (!fpInstance) {
-//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
-//           }
-//           fpInstance.setDate(item.datas, true);
-//         }
-//     }
-
-//     const delBtn = newRow.querySelector(".btnApagar");
-//     if (delBtn) {
-//       delBtn.addEventListener("click", async (e) => {
-//         e.preventDefault();
-//         const id = newRow.dataset.idorcamentoitem;
-//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
-//         else {
-//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
-//           if (isConfirmed) {
-//             try {
-//               const principalId = document.getElementById("idOrcamento").value;
-//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
-//               newRow.remove();
-//               recalcularTotaisGerais();
-//               Swal.fire("Deletado!", "", "success");
-//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
-//           }
-//         }
-//       });
-//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
-//     }
-//       if (item.cachefechado === true || item.cachefechado === "true") {
-//         const chkCache = newRow.querySelector(".chk-cache-fechado");
-//         if (chkCache) {
-//             // Chamamos a função passando o elemento para que ela trave os botões
-//             window.toggleEditavel(chkCache); 
-//         }
-//     }
-//   });
-
-
-//   if (aplicarReajuste) {
-//     const aviso = document.getElementById("avisoReajusteMensagem");
-//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
-//     recalcularTotaisGerais();
-//     aplicarDescontoEAcrescimo("Desconto"); 
-//   }
-
-//   aplicarMascaraMoeda();
-// }
-
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
@@ -6709,14 +6288,6 @@ function removerMascaraMoedaInputs() {
 // Chame após o cálculo ou inserção de valores
 aplicarMascaraMoeda();
 
-/**
- * Bloqueia ou desbloqueia campos de formulário e botões
- * com base no status do orçamento ('F' para Fechado).
- */
-/**
- * Bloqueia ou desbloqueia campos de formulário e botões
- * com base no status do orçamento ('F' para Fechado).
- */
 function bloquearCamposSeFechado() {
     const statusInput = document.getElementById('Status');
     const fechado = statusInput?.value === 'F';
@@ -6738,8 +6309,7 @@ function bloquearCamposSeFechado() {
             const id = campo.id;
             const dentroDeAdicional = campo.closest('.linhaAdicional');
 
-            // 🛑 EXCEÇÃO: NÃO bloquear se for linha adicional ou campo permitido
-            if (         
+            if (
                 idsPermitidos.includes(id) ||
                 dentroDeAdicional
             ) return;
@@ -6766,16 +6336,35 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-
-            const deveContinuarAtivo =
-                id === 'Enviar' ||
-                id === 'Close' ||
-                id === 'Limpar' ||
-                classes.contains('Close') ||
-                classes.contains('pesquisar') ||
-                classes.contains('Adicional') || 
-                classes.contains('Excel') ||
-                classes.contains('Contrato') ;
+            let deveContinuarAtivo = false; 
+            
+            // 🔑 CORREÇÃO 2: Busca a linha pai (tr) do botão e verifica se ela possui as suas classes de adicional
+            const linhaPai = botao.closest('tr');
+            const dentroDeAdicional = linhaPai?.classList.contains('linhaAdicional') || 
+                                      linhaPai?.classList.contains('adicional') || 
+                                      linhaPai?.classList.contains('liberada');
+            if (dentroDeAdicional) {
+              deveContinuarAtivo =
+                    id === 'Enviar' ||
+                    id === 'Close' ||
+                    id === 'Limpar' ||
+                    classes.contains('Close') ||
+                    classes.contains('btnApagar') || // 🔥 Liberado aqui!
+                    classes.contains('pesquisar') ||
+                    classes.contains('Adicional') || 
+                    classes.contains('Excel') ||
+                    classes.contains('Contrato') ;
+            } else {
+              deveContinuarAtivo =
+                  id === 'Enviar' ||
+                  id === 'Close' ||
+                  id === 'Limpar' ||
+                  classes.contains('Close') ||
+                  classes.contains('pesquisar') ||
+                  classes.contains('Adicional') || 
+                  classes.contains('Excel') ||
+                  classes.contains('Contrato') ;
+             }
 
             if (id === 'GerarProximoAno') {
                 botao.style.display = 'inline-block'; 
@@ -6857,6 +6446,7 @@ function bloquearCamposSeFechado() {
         }
     }
 }
+
 
 
 /**

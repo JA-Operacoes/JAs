@@ -29,6 +29,44 @@
     z-index: 1000; /* Fica acima do overlay */
   }
 
+    /* body.modal-open .notif-wrapper,
+    body.modal-open .notif-dropdown,
+    body.modal-open .notif-sino,
+    body.modal-open .notif-badge {
+      pointer-events: auto !important;
+    }
+
+    /* 2. Garante que o menu do sino fique visualmente ACIMA do seu modal (que usa z-index: 9999) *
+    body.modal-open .notif-dropdown {
+      z-index: 100002 !important;
+    } */
+
+
+body.modal-open .top-bar,
+body.modal-open .notif-wrapper {
+  z-index: 100001 !important; /* Maior que os 9999 do modal */
+  position: relative !important; /* Necessário para o z-index funcionar */
+  pointer-events: auto !important; /* Permite interagir com a barra do sino */
+}
+
+/* 2. ELEVA O DROPDOWN: Garante que a lista flutuante venha para a frente de tudo */
+body.modal-open .notif-dropdown {
+    z-index: 100001 !important; /* Maior que os 9999 do modal */
+  position: relative !important; /* Necessário para o z-index funcionar */
+}
+
+/* 3. LIBERA OS CLIQUES: Reativa o ponteiro do mouse em todos os elementos internos do sino */
+body.modal-open .notif-wrapper,
+body.modal-open .notif-dropdown,
+body.modal-open .notif-sino,
+body.modal-open .notif-badge,
+body.modal-open .notif-item,
+body.modal-open .aba-btn,
+body.modal-open .notif-conteudo {
+  pointer-events: auto !important;
+}
+
+
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
   #cadModalOrcamentos.modal {
     position: fixed;

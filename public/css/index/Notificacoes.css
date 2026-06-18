@@ -16,13 +16,18 @@
 }
 
 .notif-dropdown {
-  display: none; position: absolute; right: 0; top: calc(100% + 10px);
-  width: 320px; background: var(--cor-fundo-card, #fff);
-  border: 1px solid #e2e8f0; border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999;
+  display: none;
+  position: absolute;
+  right: 0; top: calc(100% + 10px);
+  width: 520px;
+  background: var(--cor-fundo-card, #fff);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 9999;
   overflow: hidden;
 }
-.notif-dropdown.aberto { display: block; }
+.notif-dropdown.aberto { display: grid; grid-template-columns: repeat(2, 1fr); }
 
 .notif-header {
   display: flex;
@@ -44,14 +49,21 @@
 }
 .notif-marcar-todas:hover { text-decoration: underline; }
 
+.notif-icone-read.danger{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .notif-lista { 
   display: flex;
   flex-direction: column;
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 360px;
+  max-height: var(--lista-height, 460px); /* altura definida via JS */
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
 }
 
@@ -74,26 +86,29 @@
 
 .notif-icone { font-size: 16px; margin-top: 2px; }
 .notif-icone.success { color: #38a169; }
+.notif-icone.success-finished { color: #ffffff; }
 .notif-icone.warning { color: #d69e2e; }
 .notif-icone.danger  { color: #e53e3e; }
 .notif-icone.info    { color: #313131; }
 
 .notif-nao-lida:hover .notif-icone.success { color: #38a169; }
+.notif-nao-lida:hover .notif-icone.notif-icone.success-finished { color: #38a169; }
 .notif-nao-lida:hover .notif-icone.warning { color: #d69e2e; }
 .notif-nao-lida:hover .notif-icone.danger  { color: #e53e3e; }
 .notif-nao-lida:hover .notif-icone.info { color: #ffffff; }
 .notif-nao-lida:hover .notif-data { color: #ffffff; }
 
 .notif-mensagem { margin: 0 0 4px; font-size: 13px; line-height: 1.4; }
-.notif-data { font-size: 11px; color: #aaa; }
-.notif-vazia { padding: 28px 16px; text-align: center; color: #aaa; font-size: 13px; }
+.notif-data { font-size: 11px; color: #000000; }
+.notif-vazia { padding: 28px 16px; text-align: center; color: #000000; font-size: 13px; }
+
+.notif-item.success-finished .notif-mensagem { margin: 0 0 4px; font-size: 13px; line-height: 1.4; }
+.notif-item.success-finished .notif-data { font-size: 11px; color: #ffffff; }
+.notif-item.success-finished .notif-vazia { padding: 28px 16px; text-align: center; color: #ffffff; font-size: 13px; }
+
 
 .notif-conteudo {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: row;
-    width: 100%;
+    width: 400px;
 }
 
 .notif-info{
@@ -107,7 +122,7 @@
   animation: pulsar-suave 1s infinite;
 }
 
-.notif-vencidos, .notif-hoje, .notif-amanha{
+.notif-vencidos, .notif-hoje, .notif-amanha,#Vencidos.aba-btn{
   background-color: var(--primary-color);
   color: var(--font-color);
   animation: pulsar-suave 2s infinite;
@@ -115,6 +130,20 @@
 .notif-vencidos, .notif-hoje, .notif-amanha, .notif-a-vencer{
   border-bottom: #000000;
 }
+
+.notif-finalizado, .notif-aprovada{
+  background-color: var(--Aproved);
+  color: var(--Aproved-color);
+}
+
+.notif-recusado{
+  background-color: var(--Reject);
+  color: var(--Reject-color);
+}
+
+
+
+
 
 @keyframes pulsar-suave {
     0% {
@@ -129,6 +158,34 @@
         transform: scale(1);
         box-shadow: 0 0 0 0 rgb(255, 0, 25);
     }
+}
+
+.aba-btn{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--background-base-color);
+  color: var(--black-color);
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 0 0 0 0;
+  width: 100%;
+  height: 100px;
+  font-size: 10px;
+  z-index: 9999;
+}
+
+.aba-btn.ativa {
+  background: var(--primary-color);
+  color: var(--font-color);
+  font-weight: bold;
+}
+
+.aba-btn:not(.active):hover {
+  background: var(--hover-color);
+  color: var(--font-color);
 }
 
 

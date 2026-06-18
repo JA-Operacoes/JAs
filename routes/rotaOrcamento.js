@@ -2035,58 +2035,514 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
         console.log('📋 [verificar] Params da query:', params);
 
 
+        // const result = await pool.query(`
+        //     SELECT 
+        //         s.idsolicitacao,
+        //         s.tiposolicitacao,
+        //         s.qtdsolicitada,
+        //         s.status,
+        //         (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
+        //         s.dtsolicitada,
+        //         s.justificativa,
+        //         s.dtsolicitacao,
+        //         s.dtresposta,
+        //         s.idusuariosolicitante,
+        //         s.idusuarioresponsavel,
+        //         u1.nome AS nomesolicitante,
+        //         u2.nome AS nomeresponsavel
+        //     FROM solicitacoes s
+        //     LEFT JOIN usuarios u1 ON u1.idusuario = s.idusuariosolicitante
+        //     LEFT JOIN usuarios u2 ON u2.idusuario = s.idusuarioresponsavel
+        //     LEFT JOIN orcamentoitens oi ON oi.idsolicitacao = s.idsolicitacao
+        //     LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
+        //     WHERE s.idorcamento = $1
+        //       ${filtroItem}
+        //       AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida')
+        //       AND s.status = 'Autorizado'
+        //       AND s.idsolicitacao NOT IN (
+        //           SELECT idsolicitacao FROM orcamentoitens WHERE idsolicitacao IS NOT NULL
+        //       )
+        //     ORDER BY s.dtresposta DESC
+        // `, params);
+
         const result = await pool.query(`
-            SELECT 
-                s.idsolicitacao,
-                s.tiposolicitacao,
-                s.qtdsolicitada,
-                s.status,
-                (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
-                s.dtsolicitada,
-                s.justificativa,
-                s.dtsolicitacao,
-                s.dtresposta,
-                s.idusuariosolicitante,
-                s.idusuarioresponsavel,
-                u1.nome AS nomesolicitante,
-                u2.nome AS nomeresponsavel
-            FROM solicitacoes s
-            LEFT JOIN usuarios u1 ON u1.idusuario = s.idusuariosolicitante
-            LEFT JOIN usuarios u2 ON u2.idusuario = s.idusuarioresponsavel
-            LEFT JOIN orcamentoitens oi ON oi.idsolicitacao = s.idsolicitacao
-            LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
-            WHERE s.idorcamento = $1
-              ${filtroItem}
-              AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida')
-              AND s.status = 'Autorizado'
-              AND s.idsolicitacao NOT IN (
-                  SELECT idsolicitacao FROM orcamentoitens WHERE idsolicitacao IS NOT NULL
-              )
-            ORDER BY s.dtresposta DESC
-        `, params);
+          SELECT 
+              MIN(s.idsolicitacao)                                    AS idsolicitacao,
+              s.tiposolicitacao,
+              f.nome,
+              se.setor                                                AS setor,
+              s.idusuariosolicitante,
+              s.idusuarioresponsavel,
+              s.idregistroalterado, 
+              array_agg(s.idsolicitacao ORDER BY s.dtsolicitada[1] ASC) AS ids_solicitacoes,
+              MIN(s.qtdsolicitada)                                    AS qtdsolicitada,
+              MIN(s.justificativa)                                    AS justificativa,
+              MIN(s.dtsolicitacao)                                    AS dtsolicitacao,
+              MAX(s.dtresposta)                                       AS dtresposta,
+              u1.nome                                                 AS nomesolicitante,
+              u2.nome                                                 AS nomeresponsavel,
+              -- Todas as datas agrupadas num array ordenado
+              array_agg(s.dtsolicitada[1]::date ORDER BY s.dtsolicitada[1] ASC) AS datas_solicitadas
+          FROM solicitacoes s
+          LEFT JOIN funcionarios f ON f.idfuncionario = s.idfuncionario
+          LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
+          LEFT JOIN usuarios u1 ON u1.idusuario = s.idusuariosolicitante
+          LEFT JOIN usuarios u2 ON u2.idusuario = s.idusuarioresponsavel
+          LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
+          WHERE s.idorcamento = $1
+            ${filtroItem}
+            AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Vaga Excedida', 'Extra Bonificado - Datas fora do Orçamento')
+            AND s.status = 'Autorizado'
+            AND NOT EXISTS (
+                SELECT 1 FROM orcamentoitens oi 
+                WHERE s.idsolicitacao = ANY(oi.idsolicitacao)
+                AND oi.idsolicitacao IS NOT NULL
+            )
+          GROUP BY
+              s.idregistroalterado,
+              f.nome,
+              se.setor,
+              s.tiposolicitacao,
+              s.idusuariosolicitante,
+              s.idusuarioresponsavel,
+              o.idorcamento,
+              u1.nome,
+              u2.nome
+          ORDER BY MAX(s.dtresposta) DESC
+      `, params);
 
         console.log(`✅ [verificar] Resultado: ${result.rows.length} solicitação(ões) encontrada(s)`);
         if (result.rows.length > 0) {
             console.log('📌 [verificar] Solicitações:', result.rows.map(r => ({
-                id: r.idsolicitacao,
+                id: r.ids_solicitacoes,
                 tipo: r.tiposolicitacao,
                 status: r.status,
                 setor: r.setor,
                 solicitante: r.nomesolicitante,
-                dtsolicitada: r.dtsolicitada
+                dtsolicitada: r.datas_solicitadas
             })));
         }
 
         res.json({ 
-            encontrou: result.rows.length > 0,
-            solicitacoes: result.rows 
-        });
+          encontrou: result.rows.length > 0,
+          solicitacoes: result.rows.map(sol => {
+            const datas = Array.isArray(sol.datas_solicitadas)
+              ? [...sol.datas_solicitadas].map(d => typeof d === 'string' ? d : d.toISOString().split('T')[0]).sort()
+              : [sol.datas_solicitadas];
+
+            const fmt = d => {
+                const str = typeof d === 'string' ? d : d.toISOString().split('T')[0];
+                return new Date(str + 'T00:00:00').toLocaleDateString('pt-BR');
+            };
+
+            let consecutivas = true;
+            for (let i = 1; i < datas.length; i++) {
+                const diff = (new Date(datas[i]) - new Date(datas[i - 1])) / 86400000;
+                if (diff !== 1) { consecutivas = false; break; }
+            }
+
+            const periodoStr = datas.length === 1
+                ? fmt(datas[0])
+                : consecutivas
+                    ? `${fmt(datas[0])} até ${fmt(datas[datas.length - 1])}`
+                    : datas.map(fmt).join(', ');
+
+            return { ...sol, periodoStr };
+        })
+      });
 
     } catch (err) {
         console.error('Erro ao verificar solicitação:', err);
         res.status(500).json({ erro: 'Erro ao verificar solicitações.' });
     }
 });
+
+// router.put("/:id",
+//   autenticarToken(), contextoEmpresa,
+//   verificarPermissao("Orcamentos", "alterar"),
+//   logMiddleware("Orcamentos", {
+//     buscarDadosAnteriores: async (req) => {
+//       const idOrcamento = req.params.id;
+//       const client = await pool.connect();
+//       try {
+//         const result = await client.query(`SELECT
+//                         o.*,
+//                         oe.idempresa,
+//                         json_agg(oi.*) AS itens
+//                  FROM orcamentos o
+//                  JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//                  LEFT JOIN orcamentoitens oi ON o.idorcamento = oi.idorcamento
+//                  WHERE o.idorcamento = $1
+//                  GROUP BY o.idorcamento, oe.idempresa;
+//              `, [idOrcamento]);
+//         return {
+//           dadosanteriores: result.rows[0] || null,
+//           idregistroalterado: idOrcamento
+//         };
+//       } catch (error) {
+//         console.error("Erro ao buscar dados anteriores para log:", error);
+//         return { dadosanteriores: null, idregistroalterado: idOrcamento };
+//       } finally {
+//         client.release();
+//       }
+//     },
+//   }),
+
+//   async (req, res) => {
+//     const client = await pool.connect();
+//     const idOrcamento = req.params.id;
+//     const { 
+//       status, idCliente, idEvento, idMontagem,
+//       infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
+//       dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
+//       dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
+//       dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
+//       totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
+//       desconto, percentDesconto, acrescimo, percentAcrescimo,
+//       lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura,
+//       formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento,
+//       dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff 
+//     } = req.body;
+
+//     const idempresa = req.idempresa;
+
+//     try {
+//       await client.query("BEGIN");
+
+//       // 1. Atualizar a tabela 'orcamentos'
+//       const updateOrcamentoQuery = `UPDATE orcamentos SET
+//                         "status" = $1, idcliente = $2, idevento = $3, idmontagem = $4,
+//                         inframontagem = $5, dtiniinframontagem = $6, dtfiminframontagem = $7,
+//                         dtinimontagem = $8, dtfimmontagem = $9, dtinimarcacao = $10, dtfimmarcacao = $11,
+//                         dtinirealizacao = $12, dtfimrealizacao = $13, dtinidesmontagem = $14, dtfimdesmontagem = $15,
+//                         dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
+//                         totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
+//                         desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
+//                         lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, 
+//                         nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
+//                         dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42, vlrctofixo = $43,
+//                         percentctofixo = $44, contratarstaff = $45
+//                  WHERE idorcamento = $46  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $46) =$47 ;`;
+
+//       const orcamentoValues = [
+//         status, idCliente, idEvento, idMontagem,
+//         infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
+//         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
+//         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
+//         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
+//         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
+//         desconto, percentDesconto, acrescimo, percentAcrescimo,
+//         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
+//         formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
+//         avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, contratarstaff,
+//         idOrcamento, idempresa
+//       ];
+
+//       await client.query(updateOrcamentoQuery, orcamentoValues);
+
+//       // 2. Lidar com Pavilhões
+//       const currentPavilhoesResult = await client.query(
+//         `SELECT idpavilhao FROM orcamentopavilhoes WHERE idorcamento = $1;`,
+//         [idOrcamento]
+//       );
+//       const currentPavilhaoIds = new Set(currentPavilhoesResult.rows.map(row => row.idpavilhao));
+//       const newPavilhaoIds = new Set(idsPavilhoes && Array.isArray(idsPavilhoes) ? idsPavilhoes : []);
+
+//       const pavilhoesToRemove = [...currentPavilhaoIds].filter(id => !newPavilhaoIds.has(id));
+//       for (const idPavilhao of pavilhoesToRemove) {
+//         await client.query(`DELETE FROM orcamentopavilhoes WHERE idorcamento = $1 AND idpavilhao = $2;`, [idOrcamento, idPavilhao]);
+//       }
+
+//       const pavilhoesToAdd = [...newPavilhaoIds].filter(id => !currentPavilhaoIds.has(id));
+//       for (const idPavilhao of pavilhoesToAdd) {
+//         await client.query(`INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao) VALUES ($1, $2);`, [idOrcamento, idPavilhao]);
+//       }
+
+//       // 3. Lidar com os ITENS do orçamento (orcamentoitens)
+//       const existingItemsResult = await client.query(
+//         `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
+//         [idOrcamento]
+//       );
+//       const existingItemIds = new Set(existingItemsResult.rows.map(r => Number(r.idorcamentoitem)));
+//       const receivedItemIds = new Set(itens.filter(item => item.id).map(item => Number(item.id)));
+
+//       const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
+//       if (itemsToDelete.length > 0) {
+//         await client.query(
+//           `DELETE FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = ANY($2)`,
+//           [idOrcamento, itemsToDelete]
+//         );
+//       }
+
+//       for (const item of itens) {
+//         const isAdicional = item.adicional === true;
+//         // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
+//         const valorBase = item.vlrbase ?? item.vlrdiaria; 
+//         const setorItem = (item.setor || '').trim();
+
+
+//         // Se for um item NOVO (sem item.id) e o frontend não enviou a flag 'ignorarDuplicata'
+//         if (!item.id && !req.body.ignorarDuplicata) {
+//             const checkDuplicidade = await client.query(`
+//                 SELECT idorcamentoitem 
+//                 FROM orcamentoitens 
+//                 WHERE idorcamento = $1 
+//                   AND idfuncao = $2 
+//                   AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+//                 LIMIT 1
+//             `, [idOrcamento, item.idfuncao, setorItem]);
+
+//             if (checkDuplicidade.rows.length > 0) {
+//                 await client.query("ROLLBACK");
+//                 return res.status(409).json({ // 409 = Conflict
+//                     status: "duplicado",
+//                     isDuplicado: true,
+//                     idFuncao: item.idfuncao,
+//                     produto: item.produto,
+//                     setor: setorItem || "Geral",
+//                     message: `Já existe um item "${item.produto}" para o setor "${setorItem || 'Geral'}" neste orçamento.`
+//                 });
+//             }
+//         }
+
+//         console.log(`Processando item: ${item.idfuncao}, orçamento: ${idOrcamento} -  (Adicional: ${isAdicional})`);        
+      
+//         if (isAdicional) {
+//           // 1. Tenta buscar a solicitação autorizada que bata exatamente com o setor enviado (ou Geral)
+//           const itensSemSetorPermitidos = req.body.itensSemSetorPermitidos ?? [];
+//           const ignorarValidacaoSetor = itensSemSetorPermitidos.includes(item.idfuncao);
+
+//           if (!ignorarValidacaoSetor) {
+//             const checkSolicitacao = await client.query(`
+//                 SELECT 
+//                     se.statusstaff, 
+//                     sol.status as status_solicitacao,
+//                     se.setor,
+//                     se.pavilhao,
+//                     se.idstaffevento
+//                 FROM staffeventos se
+//                 INNER JOIN solicitacoes sol ON (
+//                     sol.idregistroalterado = se.idstaffevento
+//                     AND sol.idorcamento = se.idorcamento
+//                 )
+//                 WHERE se.idorcamento = $1 
+//                   AND se.idfuncao = $2 
+//                   AND (se.setor = $3 OR (se.setor IS NULL AND $3 = ''))
+//                   AND se.statusstaff != 'Deletado'
+//                   AND sol.status != 'Deletado'
+//                 LIMIT 1
+//             `, [idOrcamento, item.idfuncao, setorItem]);
+
+//             if (checkSolicitacao.rows.length > 0) {
+//                 const { status_solicitacao, idstaffevento, statusstaff } = checkSolicitacao.rows[0];
+
+//                 if (status_solicitacao === 'Autorizado') {
+//                     if (statusstaff === 'Pendente') {
+//                         await client.query(`UPDATE staffeventos SET statusstaff = 'Ativo' WHERE idstaffevento = $1`, [idstaffevento]);
+//                     }
+//                     // Segue o fluxo de salvamento normal
+//                 } 
+//                 else if (status_solicitacao === 'Pendente') {
+//                     await client.query("ROLLBACK");
+//                     return res.status(400).json({ 
+//                         isSwal: true, icon: 'info', title: 'Processo em Análise',
+//                         message: `A função "${item.produto}" ainda aguarda aprovação financeira.`,
+//                         suprimirErroDefault: true
+//                     });
+//                 }
+//             } else {
+//                 // --- CASO O SETOR ESTEJA VAZIO NO ORÇAMENTO MAS PREENCHIDO NO STAFF ---
+//                 // Se o setorItem for vazio, procuramos se existe qualquer aditivo autorizado para essa função
+//                 const buscaQualquerSetor = await client.query(`
+//                     SELECT se.setor, se.pavilhao
+//                     FROM staffeventos se
+//                     INNER JOIN solicitacoes sol ON (sol.idregistroalterado = se.idstaffevento)
+//                     WHERE se.idorcamento = $1 
+//                       AND se.idfuncao = $2 
+//                       AND sol.status = 'Autorizado'
+//                       AND se.setor IS NOT NULL 
+//                       AND se.setor != ''
+//                     LIMIT 1
+//                 `, [idOrcamento, item.idfuncao]);
+
+ 
+//                 if (buscaQualquerSetor.rows.length > 0 && (!setorItem || setorItem === '')) {
+//                     await client.query("ROLLBACK");
+//                     const sug = buscaQualquerSetor.rows[0];
+
+//                     // IMPORTANTE: Use .json() em vez de .send() ou retornar apenas a string
+//                     return res.status(400).json({ 
+//                         isConfirmarSetor: true, 
+//                         idFuncao: item.idfuncao,
+//                         produto: item.produto,
+//                         setorSugerido: sug.setor,
+//                         message: `O item "${item.produto}" está sem setor no orçamento, mas existe um aditivo aprovado para o setor "<strong>${sug.setor}</strong>".`
+//                     });
+//                 }
+//                 // Se realmente não houver nada
+//                 // await client.query("ROLLBACK");
+//                 // return res.status(400).json({ 
+//                 //     isSwal: true, icon: 'warning', title: 'Divergência',
+//                 //     message: `Não existe aditivo aprovado para "${item.produto}".`,
+//                 //     suprimirErroDefault: true
+//                 // });
+//             }
+//           }
+//         }
+      
+
+//         if (item.id && existingItemIds.has(Number(item.id))) {
+//           // UPDATE DO ITEM EXISTENTE
+//           const updateItemQuery = `
+//             UPDATE orcamentoitens SET
+//                 enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
+//                 idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
+//                 periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
+//                 percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
+//                 tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
+//                 totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
+//                 adicional = $28, 
+//                 vlrbase = $29, cachefechado = $30, idsolicitacao = $31
+//             WHERE idorcamentoitem = $32 AND idorcamento = $33;
+//           `;
+
+//           const itemValues = [
+//             item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
+//             item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
+//             item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
+//             item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
+//             item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
+//             item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
+//             item.tpajdctotransporte, item.vlrajdctotransporte,
+//             item.totajdctoitem, item.hospedagem, item.transporte,
+//             item.totgeralitem, item.setor ?? '', isAdicional,
+//             valorBase, // $29
+//             item.cachefechado, // $30
+//             item.idsolicitacao, // $31
+//             item.id,   // $32
+//             idOrcamento // $33
+//           ];
+
+//           await client.query(updateItemQuery, itemValues);
+
+//         } else {
+//           // INSERT DE NOVO ITEM
+//           const insertItemQuery = `
+//             INSERT INTO orcamentoitens (
+//                 idorcamento, enviarnaproposta, categoria, qtditens,
+//                 idfuncao, idequipamento, idsuprimento, produto,
+//                 qtddias, periododiariasinicio, periododiariasfim,
+//                 descontoitem, percentdescontoitem, acrescimoitem,
+//                 percentacrescimoitem, vlrdiaria, totvdadiaria,
+//                 ctodiaria, totctodiaria, tpajdctoalimentacao,
+//                 vlrajdctoalimentacao, tpajdctotransporte,
+//                 vlrajdctotransporte, totajdctoitem,
+//                 hospedagem, transporte, totgeralitem,
+//                 setor, adicional, 
+//                 vlrbase, cachefechado, idsolicitacao
+//             ) VALUES (
+//                 $1, $2, $3, $4,
+//                 $5, $6, $7, $8,
+//                 $9, $10, $11,
+//                 $12, $13, $14,
+//                 $15, $16, $17,
+//                 $18, $19, $20,
+//                 $21, $22, $23,
+//                 $24, $25, $26,
+//                 $27, $28, $29,
+//                 $30, $31, $32
+//             )
+//           `;
+
+//           const itemValues = [
+//             idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
+//             item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
+//             item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
+//             item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
+//             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
+//             item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
+//             item.vlrajdctoalimentacao, item.tpajdctotransporte,
+//             item.vlrajdctotransporte, item.totajdctoitem,
+//             item.hospedagem, item.transporte, item.totgeralitem,
+//             item.setor ?? '', isAdicional,
+//             valorBase, // $30
+//             item.cachefechado, // $31
+//             item.idsolicitacao // $32
+//           ];
+
+//           await client.query(insertItemQuery, itemValues);
+//         }
+//         // ✅ APÓS INSERT OU UPDATE DO ITEM — ativa staffevento se solicitação aditivo foi incluída no orçamento
+//         if (item.idsolicitacao) {
+//             const solicitacaoResult = await client.query(`
+//                 SELECT idregistroalterado, status, categoria_log 
+//                 FROM solicitacoes 
+//                 WHERE idsolicitacao = $1 
+//                 AND categoria_log = 'aditivoextra'
+//                 AND status = 'Autorizado'
+//                 LIMIT 1
+//             `, [item.idsolicitacao]);
+
+//             if (solicitacaoResult.rows.length > 0) {
+//                 const { idregistroalterado } = solicitacaoResult.rows[0];
+
+//                 await client.query(`
+//                     UPDATE staffeventos 
+//                     SET statusstaff = 'Ativo'
+//                     WHERE idstaffevento = $1
+//                     AND statusstaff = 'Pendente'
+//                     AND EXISTS (
+//                         SELECT 1 FROM staffempresas sem 
+//                         WHERE sem.idstaff = staffeventos.idstaff 
+//                         AND sem.idempresa = $2
+//                     )
+//                 `, [idregistroalterado, idempresa]);
+
+//                 console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitação ${item.idsolicitacao})`);
+//             }
+//         }
+//       }
+
+//       await client.query("COMMIT");
+
+//       res.locals.acao = 'atualizou';
+//       res.locals.idregistroalterado = idOrcamento;
+//       res.locals.dadosNovos = {
+//         idorcamento: idOrcamento,
+//         status,
+//         idCliente,
+//         idEvento,
+//         idMontagem,
+//         edicao,
+//         totGeralVda,
+//         totGeralCto,
+//         vlrCliente,
+//         desconto,
+//         acrescimo,
+//         lucroBruto,
+//         percentLucro,
+//         lucroReal,
+//         percentLucroReal,
+//         vlrImposto,
+//         percentImposto,
+//         nomenclatura,
+//         formaPagamento,
+//         contratarstaff,
+//         qtdItens: itens?.length ?? 0,
+//       };
+
+
+
+//       res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
+//     } catch (error) {
+//       await client.query("ROLLBACK");
+//       console.error("Erro ao atualizar orçamento e seus itens:", error);
+//       res.status(500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
+//     } finally {
+//       client.release();
+//     }
+//   }
+// );
 
 router.put("/:id",
   autenticarToken(), contextoEmpresa,
@@ -2337,6 +2793,9 @@ router.put("/:id",
             WHERE idorcamentoitem = $32 AND idorcamento = $33;
           `;
 
+          // Usa ids_solicitacoes (array agrupado do GET) ou wrapa idsolicitacao singular
+          const idsArray = item.ids_solicitacoes ?? (item.idsolicitacao ? [item.idsolicitacao] : null);
+
           const itemValues = [
             item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
             item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
@@ -2349,7 +2808,7 @@ router.put("/:id",
             item.totgeralitem, item.setor ?? '', isAdicional,
             valorBase, // $29
             item.cachefechado, // $30
-            item.idsolicitacao, // $31
+            idsArray, // ✅ MUDOU AQUI - Antes era item.idsolicitacao
             item.id,   // $32
             idOrcamento // $33
           ];
@@ -2385,6 +2844,9 @@ router.put("/:id",
             )
           `;
 
+          // Usa ids_solicitacoes (array agrupado do GET) ou wrapa idsolicitacao singular
+          const idsArray = item.ids_solicitacoes ?? (item.idsolicitacao ? [item.idsolicitacao] : null);
+
           const itemValues = [
             idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
             item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
@@ -2398,21 +2860,25 @@ router.put("/:id",
             item.setor ?? '', isAdicional,
             valorBase, // $30
             item.cachefechado, // $31
-            item.idsolicitacao // $32
+            idsArray // ✅ MUDOU AQUI - Antes era item.idsolicitacao
           ];
 
           await client.query(insertItemQuery, itemValues);
         }
-        // ✅ APÓS INSERT OU UPDATE DO ITEM — ativa staffevento se solicitação aditivo foi incluída no orçamento
-        if (item.idsolicitacao) {
+
+        // Ativar staffevento com suporte a array de solicitacoes
+        const _idsAtivacao = item.ids_solicitacoes ?? (item.idsolicitacao ? [item.idsolicitacao] : null);
+        if (_idsAtivacao) {
+            const idsArray = _idsAtivacao;
+
             const solicitacaoResult = await client.query(`
                 SELECT idregistroalterado, status, categoria_log 
                 FROM solicitacoes 
-                WHERE idsolicitacao = $1 
+                WHERE idsolicitacao = ANY($1) 
                 AND categoria_log = 'aditivoextra'
                 AND status = 'Autorizado'
                 LIMIT 1
-            `, [item.idsolicitacao]);
+            `, [idsArray]);  // ✅ MUDOU - Passar array
 
             if (solicitacaoResult.rows.length > 0) {
                 const { idregistroalterado } = solicitacaoResult.rows[0];
@@ -2429,7 +2895,7 @@ router.put("/:id",
                     )
                 `, [idregistroalterado, idempresa]);
 
-                console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitação ${item.idsolicitacao})`);
+                console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitações: ${idsArray.join(', ')})`);
             }
         }
       }
