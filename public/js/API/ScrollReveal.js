@@ -6,7 +6,7 @@ export function animarListaEventos() {
     SR({
         origin: 'left',
         distance: '30px',
-        duration: 100,
+        duration: 1000,
         easing: 'ease-out',
         reset: true,
         viewFactor: 0,
@@ -18,7 +18,7 @@ export function animarListaClientes() {
     SR({
         origin: 'right',
         distance: '30px',
-        duration: 2000,
+        duration: 1000,
         easing: 'ease-out',
         reset: false,
         viewFactor: 0,
@@ -28,9 +28,9 @@ export function animarListaClientes() {
 
 export function animarListaOrcamentos() {
     SR({
-        origin: 'bottom',
+        origin: 'right',
         distance: '20px',
-        duration: 3000,
+        duration: 1000,
         easing: 'ease-out',
         reset: false,
         viewFactor: 0,
