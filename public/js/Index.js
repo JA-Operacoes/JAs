@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Função utilitária para verificar permissão
-  window.temPermissao = function (modulo, acao) {
+window.temPermissao = function (modulo, acao) {
       if (!modulo) return false;
       // Use window.permissoes diretamente aqui
       // Adicione uma verificação defensiva caso window.permissoes não seja um array
