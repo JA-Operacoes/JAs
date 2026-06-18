@@ -190,6 +190,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             ${whereStatus} 
                             ${wherePeriodoFinal} 
                             AND tse.statusstaff = 'Ativo'
+                            AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                             AND jsonb_array_length(
                                 (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                                 WHERE ${phaseFilterSql})
@@ -432,6 +433,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         WHERE semp.idempresa = $1 
                             ${whereStatus} 
                             ${wherePeriodoFinal} 
+                            AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                             AND jsonb_array_length(
                                 (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                                 WHERE ${phaseFilterSql})
@@ -562,6 +564,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     WHERE semp.idempresa = $1
                         ${whereStatus} 
                         ${wherePeriodoFinal} 
+                        AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                         AND jsonb_array_length(
                             (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                             WHERE ${phaseFilterSql})
@@ -763,6 +766,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
                             LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                             WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
+                            AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                             AND jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql})) > 0
                         ) AS sub
                         ORDER BY sub."nomeEvento", sub."NOME";

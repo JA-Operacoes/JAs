@@ -1273,6 +1273,7 @@ router.get("/ListarFuncionarios", async (req, res) => {
       WHERE se.idevento = $1
         AND se.idequipe = $2
         AND oe.idempresa = $3
+        AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
         AND EXISTS (
             SELECT 1 
             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)

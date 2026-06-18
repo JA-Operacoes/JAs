@@ -85,7 +85,10 @@ router.get("/", verificarPermissao('Funcao', 'pesquisar'), async (req, res) => {
         : res.status(404).json({ message: "Funcao não encontrada" });
     } else {
       const result = await pool.query(`
-        SELECT f.*, cf.*, e.*
+        SELECT f.idfuncao, f.descfuncao, f.vdafuncao, f.obsfuncao, f.obsproposta, f.ativo, f.idcategoriafuncao, f.idequipe,
+         e.nmequipe,
+         cf.idcategoriafuncao, cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior,
+         cf.transporte, cf.transpsenior, cf.alimentacao
         FROM funcao f
         INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
         INNER JOIN funcaoempresas fe ON f.idfuncao = fe.idfuncao
