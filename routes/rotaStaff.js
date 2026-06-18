@@ -333,11 +333,212 @@ router.get('/pavilhao', async (req, res) => {
 });
 
 
+// router.post("/orcamento/consultar",
+//   async (req, res) => {
+//   console.log("Dados recebidos no backend:", req.body);
+//   const client = await pool.connect();
+//   try {
+//         const {
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             idFuncao,
+//             setor,
+//             datasEvento = [],
+//             ignorarFiltroData = false
+//         } = req.body;
+
+//         const idempresa = req.idempresa;
+
+//         console.log("ORCAMENTO/CONSULTAR", req.body);
+
+//         if (!ignorarFiltroData && (!Array.isArray(datasEvento) || datasEvento.length === 0)) {
+//             return res.status(400).json({ error: "O array de datas é obrigatório." });
+//         }
+
+//           if (!idEvento || !idLocalMontagem || !idFuncao) {
+//         return res.status(400).json({ 
+//             error: "Evento, Local e Função são obrigatórios." 
+//         });
+//     }
+
+//         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
+//             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
+//         }        
+
+//         const query = `WITH datas_orcamento AS (
+//                     SELECT
+//                         oi.idorcamentoitem,
+//                         ARRAY(
+//                             SELECT * FROM gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)
+//                         ) AS periodos_disponiveis
+//                     FROM orcamentoitens oi
+//                     WHERE oi.idorcamentoitem IS NOT NULL
+//                 ),
+//                 diarias_por_funcao AS (
+//                     SELECT
+//                         se.idorcamento,
+//                         se.idfuncao,
+//                         -- ✅ Soma datasevento + diárias dobradas Pendentes ou Autorizadas
+//                         SUM(jsonb_array_length(se.datasevento)) AS total
+//                         --+ 
+//                         --COALESCE(SUM((
+//                         --    SELECT COUNT(*)
+//                         --    FROM jsonb_array_elements(se.dtdiariadobrada) AS dd
+//                        --     WHERE (dd->>'status') IN ('Pendente', 'Autorizado')
+//                         --)), 0) AS total
+//                     FROM staffeventos se
+//                     WHERE se.ativo = true
+//                     AND se.statusstaff != 'Inativo'
+//                     GROUP BY se.idorcamento, se.idfuncao
+//                 ),
+//                 total_orcado_por_funcao AS (
+//                     SELECT
+//                         oi2.idorcamento,
+//                         oi2.idfuncao,
+//                         SUM(oi2.qtditens * oi2.qtddias) AS total
+//                     FROM orcamentoitens oi2
+//                     GROUP BY oi2.idorcamento, oi2.idfuncao
+//                 )
+//                 SELECT
+//                     o.status,
+//                     o.idorcamento,
+//                     o.contratarstaff,
+//                     dto.periodos_disponiveis AS datas_totais_orcadas,  -- front usa .datas_totais_orcadas.length
+//                     tof.total AS quantidade_orcada,                   -- d_escaladas no front (total orçado real)    
+//                     COALESCE(dpf.total, 0) AS quantidade_escalada,    -- pessoas distintas (mantém front)
+//                     COALESCE(dpf.total, 0) AS diarias_escaladas,      -- total de diárias já usadas
+                                
+//                     oi.idfuncao,
+//                     oi.ctodiaria,
+//                     f.descfuncao,
+//                     e.nmevento,
+//                     c.nmfantasia AS nmcliente,
+//                     lm.descmontagem AS nmlocalmontagem,
+//                     oi.setor
+//                 FROM orcamentoitens oi
+//                 JOIN orcamentos o ON oi.idorcamento = o.idorcamento
+//                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+//                 LEFT JOIN eventos e ON o.idevento = e.idevento
+//                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+//                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+//                 JOIN datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+//                 LEFT JOIN diarias_por_funcao dpf ON
+//                     dpf.idorcamento = o.idorcamento
+//                     AND dpf.idfuncao = oi.idfuncao
+//                 LEFT JOIN total_orcado_por_funcao tof ON
+//                     tof.idorcamento = o.idorcamento
+//                     AND tof.idfuncao = oi.idfuncao
+//                 WHERE
+//                     oe.idempresa = $1
+//                     AND o.idevento = $2
+//                     AND o.idcliente = $3
+//                     AND o.idmontagem = $4
+//                     AND o.status != 'R'
+//                     AND oi.idfuncao = $6
+//                     AND (oi.setor = $7 OR $7 IS NULL)
+//                     AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
+//                 GROUP BY
+//                     oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia,
+//                     lm.descmontagem, oi.setor, o.idevento, o.idcliente,
+//                     o.idmontagem, oi.idfuncao, o.status, o.idorcamento,
+//                     o.contratarstaff, dto.periodos_disponiveis,
+//                     dpf.total, tof.total
+//                 ORDER BY oi.idorcamentoitem;`;
+
+//         console.log("QUERY", query);
+//         const values = [
+//             idempresa,
+//             idEvento,
+//             idCliente,
+//             idLocalMontagem,
+//             datasEvento,
+//             idFuncao,
+//             setor || null,
+//             ignorarFiltroData
+//         ];
+
+//         const result = await client.query(query, values);
+//         const orcamentoItems = result.rows;
+//         console.log("📊 LINHAS ENCONTRADAS PELO BANCO:", orcamentoItems);
+
+//         // =========================================================================
+//         // 🔀 MONTAGEM DO OBJETO INTELIGENTE PARA O FRONT-END
+//         // =========================================================================
+//         // Pegamos a primeira linha como base para os dados macro (id, nome do evento, etc.)
+//         const base = orcamentoItems[0];
+
+//         // Criamos arrays para mapear detalhadamente os setores e períodos disponíveis
+//         let itensOrcamentoDetail = [];
+//         let todasAsDatasOrcadas = [];
+
+//         orcamentoItems.forEach(item => {
+//             // Calcula o total orçado específico desta linha/setor
+//             // Como sua query já faz SUM(oi2.qtditens * oi2.qtddias) agrupado no tof, usamos a proporção real daqui:
+//             const qtdOrcadaItem = Number(item.quantidade_orcada || 0); 
+
+//             itensOrcamentoDetail.push({
+//                 setor: item.setor || '',//'Geral', //
+//                 quantidade_orcada: qtdOrcadaItem,
+//                 periodos_disponiveis: item.datas_totais_orcadas || []
+//             });
+
+//             // Une todas as datas para manter o funcionamento do front antigo
+//             if (Array.isArray(item.datas_totais_orcadas)) {
+//                 todasAsDatasOrcadas = todasAsDatasOrcadas.concat(item.datas_totais_orcadas);
+//             }
+//         });
+
+//         // Remove duplicatas das datas acumuladas
+//         todasAsDatasOrcadas = [...new Set(todasAsDatasOrcadas)];
+
+//         // Monta o objeto final idêntico ao que o front espera, mas turbinado com os detalhes!
+//         const respostaFormatada = {
+//             status: base.status,
+//             idorcamento: base.idorcamento,
+//             contratarstaff: base.contratarstaff,
+//             idfuncao: base.idfuncao,
+//             descfuncao: base.descfuncao,
+//             nmevento: base.nmevento,
+//             nmcliente: base.nmcliente,
+//             nmlocalmontagem: base.nmlocalmontagem,
+            
+//             // Totais consolidados (soma de todas as linhas encontradas para a função)
+//             //quantidade_orcada: orcamentoItems.reduce((acc, curr) => acc + Number(curr.quantidade_orcada || 0), 0),
+//             // CORRETO — usa apenas o valor da primeira linha (já é o total consolidado)
+//             quantidade_orcada: Number(orcamentoItems[0]?.quantidade_orcada || 0),
+//             quantidade_escalada: base.quantidade_escalada, // Mantém o total já escalado vindo do count do banco
+//             diarias_escaladas: base.diarias_escaladas,     // Mantém o total de diárias usadas
+//             datas_totais_orcadas: todasAsDatasOrcadas,
+//             ctodiaria: Number(orcamentoItems[0]?.ctodiaria || 0),
+//             // 🔥 AQUI ESTÁ A CHAVE DE OURO: O detalhamento por setor para o Swal usar!
+//             itensOrcamentoDetail: itensOrcamentoDetail 
+//         };
+
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null; 
+
+//         //res.status(200).json(orcamentoItems);
+//         res.status(200).json(respostaFormatada);
+//        } catch (error) {
+//         console.error("Erro ao buscar itens de orçamento por critérios:", error);
+//         res.status(500).json({
+//             error: "Erro ao buscar orçamento por critérios.",
+//             detail: error.message,
+//         });
+//        } finally {
+//         client.release();
+//       }
+//     }
+// );
+
+
 router.post("/orcamento/consultar",
   async (req, res) => {
-  console.log("Dados recebidos no backend:", req.body);
-  const client = await pool.connect();
-  try {
+    console.log("Dados recebidos no backend:", req.body);
+    const client = await pool.connect();
+    try {
         const {
             idEvento,
             idCliente,
@@ -356,11 +557,11 @@ router.post("/orcamento/consultar",
             return res.status(400).json({ error: "O array de datas é obrigatório." });
         }
 
-          if (!idEvento || !idLocalMontagem || !idFuncao) {
-        return res.status(400).json({ 
-            error: "Evento, Local e Função são obrigatórios." 
-        });
-    }
+        if (!idEvento || !idLocalMontagem || !idFuncao) {
+            return res.status(400).json({ 
+                error: "Evento, Local e Função são obrigatórios." 
+            });
+        }
 
         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
@@ -375,41 +576,57 @@ router.post("/orcamento/consultar",
                     FROM orcamentoitens oi
                     WHERE oi.idorcamentoitem IS NOT NULL
                 ),
-                diarias_por_funcao AS (
+                -- 1. Contabiliza as diárias normais da função atual (onde o staff mantém a função original)
+                diarias_normais_funcao AS (
                     SELECT
                         se.idorcamento,
                         se.idfuncao,
-                        -- ✅ Soma datasevento + diárias dobradas Pendentes ou Autorizadas
-                        SUM(jsonb_array_length(se.datasevento)) AS total
-                        --+ 
-                        --COALESCE(SUM((
-                        --    SELECT COUNT(*)
-                        --    FROM jsonb_array_elements(se.dtdiariadobrada) AS dd
-                       --     WHERE (dd->>'status') IN ('Pendente', 'Autorizado')
-                        --)), 0) AS total
+                        se.setor,
+                        SUM(CASE WHEN se.statusstaff != 'Inativo' THEN jsonb_array_length(se.datasevento) ELSE 0 END) AS total_normais
                     FROM staffeventos se
                     WHERE se.ativo = true
-                    AND se.statusstaff != 'Inativo'
-                    GROUP BY se.idorcamento, se.idfuncao
+                    GROUP BY se.idorcamento, se.idfuncao, se.setor
+                ),
+                -- 2. 🔥 NOVA CTE INTELIGENTE: Varre todos os JSONs para achar diárias que pertenciam à função de origem!
+                diarias_reaproveitadas_origem AS (
+                    SELECT
+                        se.idorcamento,
+                        (vaga->>'idfuncao_origem')::int AS idfuncao_origem,
+                        vaga->>'setor_origem' AS setor_origem,
+                        COUNT(*) AS total_reaproveitado
+                    FROM staffeventos se
+                    CROSS JOIN LATERAL jsonb_array_elements(
+                        CASE 
+                            WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' THEN se.vagasreaproveitadas 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) AS vaga
+                    WHERE se.ativo = true
+                    GROUP BY se.idorcamento, (vaga->>'idfuncao_origem')::int, vaga->>'setor_origem'
                 ),
                 total_orcado_por_funcao AS (
                     SELECT
                         oi2.idorcamento,
                         oi2.idfuncao,
+                        oi2.setor,
                         SUM(oi2.qtditens * oi2.qtddias) AS total
                     FROM orcamentoitens oi2
-                    GROUP BY oi2.idorcamento, oi2.idfuncao
+                    GROUP BY oi2.idorcamento, oi2.idfuncao, oi2.setor
                 )
                 SELECT
                     o.status,
                     o.idorcamento,
                     o.contratarstaff,
-                    dto.periodos_disponiveis AS datas_totais_orcadas,  -- front usa .datas_totais_orcadas.length
-                    tof.total AS quantidade_orcada,                   -- d_escaladas no front (total orçado real)    
-                    COALESCE(dpf.total, 0) AS quantidade_escalada,    -- pessoas distintas (mantém front)
-                    COALESCE(dpf.total, 0) AS diarias_escaladas,      -- total de diárias já usadas
+                    dto.periodos_disponiveis AS datas_totais_orcadas,
+                    
+                    COALESCE(tof.total, 0) AS quantidade_orcada,
+                    
+                    -- ✅ SOMA PERFEITA: Normais da função atual + Reaproveitadas cuja origem era essa função!
+                    (COALESCE(dnf.total_normais, 0) + COALESCE(dro.total_reaproveitado, 0)) AS quantidade_escalada,
+                    (COALESCE(dnf.total_normais, 0) + COALESCE(dro.total_reaproveitado, 0)) AS diarias_escaladas,
                                 
                     oi.idfuncao,
+                    oi.ctodiaria,
                     f.descfuncao,
                     e.nmevento,
                     c.nmfantasia AS nmcliente,
@@ -423,12 +640,20 @@ router.post("/orcamento/consultar",
                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
                 JOIN datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
-                LEFT JOIN diarias_por_funcao dpf ON
-                    dpf.idorcamento = o.idorcamento
-                    AND dpf.idfuncao = oi.idfuncao
+                -- Join para as diárias normais da função
+                LEFT JOIN diarias_normais_funcao dnf ON
+                    dnf.idorcamento = o.idorcamento
+                    AND dnf.idfuncao = oi.idfuncao
+                    AND (dnf.setor = oi.setor OR (oi.setor IS NULL AND dnf.setor IS NULL))
+                -- 🔥 Join focado no ID da Função de Origem que cedeu a vaga!
+                LEFT JOIN diarias_reaproveitadas_origem dro ON
+                    dro.idorcamento = o.idorcamento
+                    AND dro.idfuncao_origem = oi.idfuncao
+                    AND (dro.setor_origem = oi.setor OR (oi.setor IS NULL AND (dro.setor_origem IS NULL OR dro.setor_origem = '')))
                 LEFT JOIN total_orcado_por_funcao tof ON
                     tof.idorcamento = o.idorcamento
                     AND tof.idfuncao = oi.idfuncao
+                    AND (tof.setor = oi.setor OR (oi.setor IS NULL AND tof.setor IS NULL))
                 WHERE
                     oe.idempresa = $1
                     AND o.idevento = $2
@@ -443,7 +668,7 @@ router.post("/orcamento/consultar",
                     lm.descmontagem, oi.setor, o.idevento, o.idcliente,
                     o.idmontagem, oi.idfuncao, o.status, o.idorcamento,
                     o.contratarstaff, dto.periodos_disponiveis,
-                    dpf.total, tof.total
+                    dnf.total_normais, dro.total_reaproveitado, tof.total
                 ORDER BY oi.idorcamentoitem;`;
 
         console.log("QUERY", query);
@@ -462,37 +687,30 @@ router.post("/orcamento/consultar",
         const orcamentoItems = result.rows;
         console.log("📊 LINHAS ENCONTRADAS PELO BANCO:", orcamentoItems);
 
-        // =========================================================================
-        // 🔀 MONTAGEM DO OBJETO INTELIGENTE PARA O FRONT-END
-        // =========================================================================
-        // Pegamos a primeira linha como base para os dados macro (id, nome do evento, etc.)
-        const base = orcamentoItems[0];
+        if (orcamentoItems.length === 0) {
+            return res.status(404).json({ error: "Nenhum orçamento encontrado para os critérios fornecidos." });
+        }
 
-        // Criamos arrays para mapear detalhadamente os setores e períodos disponíveis
+        const base = orcamentoItems[0];
         let itensOrcamentoDetail = [];
         let todasAsDatasOrcadas = [];
 
         orcamentoItems.forEach(item => {
-            // Calcula o total orçado específico desta linha/setor
-            // Como sua query já faz SUM(oi2.qtditens * oi2.qtddias) agrupado no tof, usamos a proporção real daqui:
             const qtdOrcadaItem = Number(item.quantidade_orcada || 0); 
 
             itensOrcamentoDetail.push({
-                setor: item.setor || 'Geral',
+                setor: item.setor || '',
                 quantidade_orcada: qtdOrcadaItem,
                 periodos_disponiveis: item.datas_totais_orcadas || []
             });
 
-            // Une todas as datas para manter o funcionamento do front antigo
             if (Array.isArray(item.datas_totais_orcadas)) {
                 todasAsDatasOrcadas = todasAsDatasOrcadas.concat(item.datas_totais_orcadas);
             }
         });
 
-        // Remove duplicatas das datas acumuladas
         todasAsDatasOrcadas = [...new Set(todasAsDatasOrcadas)];
 
-        // Monta o objeto final idêntico ao que o front espera, mas turbinado com os detalhes!
         const respostaFormatada = {
             status: base.status,
             idorcamento: base.idorcamento,
@@ -503,20 +721,18 @@ router.post("/orcamento/consultar",
             nmcliente: base.nmcliente,
             nmlocalmontagem: base.nmlocalmontagem,
             
-            // Totais consolidados (soma de todas as linhas encontradas para a função)
             quantidade_orcada: orcamentoItems.reduce((acc, curr) => acc + Number(curr.quantidade_orcada || 0), 0),
-            quantidade_escalada: base.quantidade_escalada, // Mantém o total já escalado vindo do count do banco
-            diarias_escaladas: base.diarias_escaladas,     // Mantém o total de diárias usadas
-            datas_totais_orcadas: todasAsDatasOrcadas,
+            quantidade_escalada: orcamentoItems.reduce((acc, curr) => acc + Number(curr.quantidade_escalada || 0), 0),
+            diarias_escaladas: orcamentoItems.reduce((acc, curr) => acc + Number(curr.diarias_escaladas || 0), 0),
             
-            // 🔥 AQUI ESTÁ A CHAVE DE OURO: O detalhamento por setor para o Swal usar!
+            datas_totais_orcadas: todasAsDatasOrcadas,
+            ctodiaria: Number(base.ctodiaria || 0),
             itensOrcamentoDetail: itensOrcamentoDetail 
         };
 
         res.locals.acao = 'cadastrou';
-        res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null; 
+        res.locals.idregistroalterado = base.idorcamento; 
 
-        //res.status(200).json(orcamentoItems);
         res.status(200).json(respostaFormatada);
        } catch (error) {
         console.error("Erro ao buscar itens de orçamento por critérios:", error);
@@ -529,8 +745,6 @@ router.post("/orcamento/consultar",
       }
     }
 );
-
-
 
 // router.post("/orcamento/vagas-disponiveis",
 //     async (req, res) => {
@@ -721,10 +935,10 @@ router.post("/orcamento/vagas-disponiveis",
                         oi.idorcamento,
                         oi.idfuncao,
                         COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '') AS setor_normalizado,
-                        MAX(COALESCE(NULLIF(TRIM(oi.setor), ''), 'Geral / Sem Setor')) AS setor_original,
+                        MAX(COALESCE(NULLIF(TRIM(oi.setor), ''),'')) AS setor_original, --'Geral / Sem Setor')) AS setor_original,
                         -- Período informativo consolidado
                         MAX(COALESCE(TO_CHAR(oi.periododiariasinicio, 'DD/MM') || ' a ' || TO_CHAR(oi.periododiariasfim, 'DD/MM'), 'Período não definido')) AS periodo_item,
-                        
+                        MAX(oi.ctodiaria) AS ctodiaria,
                         -- 🌟 CORREÇÃO 1: Calcula o teto absoluto de diárias contratadas para o evento
                         CASE
                             WHEN bool_or(oi.cachefechado = true) THEN SUM(oi.qtddias)
@@ -747,7 +961,7 @@ router.post("/orcamento/vagas-disponiveis",
                         COALESCE(SUM(jsonb_array_length(se.datasevento)), 0) AS qtd_diarias
                     FROM staffeventos se
                     WHERE se.ativo = true
-                      AND se.statusstaff != 'Inativo'
+                      AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                       AND se.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
                     GROUP BY se.idorcamento, se.idfuncao, COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')
 
@@ -768,7 +982,7 @@ router.post("/orcamento/vagas-disponiveis",
                     END
                 ) AS dd
                 WHERE se.ativo = true
-                AND se.statusstaff != 'Inativo'
+                AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                 AND se.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
                 AND (dd->>'status') IN ('Pendente', 'Autorizado') 
                 AND (dd->>'idfuncaodobra') IS NOT NULL 
@@ -776,8 +990,35 @@ router.post("/orcamento/vagas-disponiveis",
                 GROUP BY 
                     COALESCE((dd->>'idorcamento')::int, se.idorcamento), 
                     (dd->>'idfuncaodobra')::int, 
-                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')
-                    ),
+                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), ''))
+                    
+
+                    UNION ALL
+
+                    -- 3. 🔥 NOVO: Diárias que foram REAPROVEITADAS/RETIRADAS desta função de origem
+                    SELECT 
+                        (vr->>'idorcamento_origem')::int AS idorcamento,
+                        (vr->>'idfuncao_origem')::int AS idfuncao,
+                        COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '') AS setor_normalizado,
+                        COUNT(*) AS qtd_diarias
+                    FROM staffeventos se,
+                    jsonb_array_elements(
+                        CASE 
+                            WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' THEN se.vagasreaproveitadas 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) AS vr
+                    WHERE se.ativo = true
+                    AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+                    -- Garante que estamos olhando apenas registros ligados ao escopo global do evento/orçamento válido
+                    AND se.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
+                    AND (vr->>'idfuncao_origem') IS NOT NULL
+                    AND (vr->>'idfuncao_origem') <> 'null'
+                    GROUP BY 
+                        (vr->>'idorcamento_origem')::int,
+                        (vr->>'idfuncao_origem')::int,
+                        COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')
+               ),
                 escalado_por_funcao AS (
                     SELECT 
                         cc.idorcamento,
@@ -799,6 +1040,68 @@ router.post("/orcamento/vagas-disponiveis",
                     o.tem_cache_fechado, 
                     COALESCE(e.total_consumido, 0) AS quantidade_escalada,
                     (o.total_orcado - COALESCE(e.total_consumido, 0)) AS saldo_disponivel,
+                   
+                    COALESCE(o.ctodiaria, 0) AS ctodiaria,
+
+                    -- 🔥 SUBQUERY 1 MULTI-ORÇAMENTO: Soma o totgeralitem de TODOS os orçamentos válidos combinados
+                    (SELECT COALESCE(SUM(oi_sub.totgeralitem), 0)
+                     FROM orcamentoitens oi_sub
+                     JOIN funcao f_sub ON oi_sub.idfuncao = f_sub.idfuncao
+                     WHERE oi_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                       AND f_sub.idequipe = f.idequipe 
+                       AND oi_sub.categoria = 'Produto(s)') AS vlr_total_orcado_equipe,
+
+                    -- 🔥 SUBQUERY 2 MULTI-ORÇAMENTO: Soma o gasto real acumulado de TODOS os orçamentos válidos combinados
+                    (
+                        SELECT COALESCE(
+                            (
+                                -- Parte A: Diárias Normais + Benefícios de todos os orçamentos válidos da equipe
+                                SELECT COALESCE(SUM(
+                                    se_sub.vlrtotcache 
+                                    + COALESCE(se_sub.vlrtotajdcusto, 0) 
+                                    + COALESCE(se_sub.vlrajustecusto, 0)
+                                ), 0)
+                                FROM staffeventos se_sub
+                                JOIN funcao f_sub2 ON se_sub.idfuncao = f_sub2.idfuncao
+                                WHERE se_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                                  AND f_sub2.idequipe = f.idequipe 
+                                  AND se_sub.ativo = true 
+                                  AND se_sub.statusstaff NOT IN ('Inativo', 'Deletado')
+                            )
+                            +
+                            (
+                                -- Parte B: Diárias Dobradas autorizadas/pendentes ligadas a esses orçamentos
+                                SELECT COALESCE(SUM(
+                                    COALESCE(oi_sub2.ctodiaria, 0) 
+                                    + COALESCE(oi_sub2.vlrajdctoalimentacao, 0) 
+                                    + COALESCE(oi_sub2.vlrajdctotransporte, 0)
+                                ), 0)
+                                FROM staffeventos se_sub
+                                CROSS JOIN LATERAL jsonb_array_elements(
+                                    CASE 
+                                        WHEN jsonb_typeof(se_sub.dtdiariadobrada) = 'array' THEN se_sub.dtdiariadobrada 
+                                        ELSE '[]'::jsonb 
+                                    END
+                                ) AS dd
+                                JOIN funcao f_sub3 ON CASE 
+                                    WHEN (dd->>'idfuncaodobra') IS NOT NULL AND (dd->>'idfuncaodobra') <> 'null' 
+                                    THEN (dd->>'idfuncaodobra')::int 
+                                    ELSE -1 
+                                END = f_sub3.idfuncao
+                                LEFT JOIN orcamentoitens oi_sub2 ON COALESCE((dd->>'idorcamento')::int, se_sub.idorcamento) = oi_sub2.idorcamento 
+                                                                 AND CASE 
+                                                                     WHEN (dd->>'idfuncaodobra') IS NOT NULL AND (dd->>'idfuncaodobra') <> 'null' 
+                                                                     THEN (dd->>'idfuncaodobra')::int 
+                                                                     ELSE -1 
+                                                                 END = oi_sub2.idfuncao
+                                WHERE se_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                                  AND f_sub3.idequipe = f.idequipe 
+                                  AND se_sub.ativo = true 
+                                  AND se_sub.statusstaff NOT IN ('Inativo', 'Deletado')
+                                  AND (dd->>'status') IN ('Pendente', 'Autorizado')
+                            )
+                        , 0)
+                    ) AS vlr_total_gasto_equipe,
                    
                     COALESCE(cf.ctofuncaobase, 0) AS valor_base,
                     COALESCE(cf.ctofuncaojunior, 0) AS valor_junior,
@@ -1405,6 +1708,29 @@ router.put("/:idStaffEvento",
             const totalAjdCusto = parseFloat(String(body.vlrtotajdcusto || 0).replace(',', '.')) || 0;
             const total = parseFloat(String(body.vlrtotal || 0).replace(',', '.')) || 0;
 
+            // Log obspospgto para diárias dobradas recém-autorizadas com ajuda de custo paga
+            const isAjudaCustoPaga = (old.statuspgtoajdcto || '').trim().toLowerCase() === 'pago';
+            let obsDobraLogStaff = '';
+            if (isAjudaCustoPaga) {
+                const oldDtDobrada = Array.isArray(old.dtdiariadobrada)
+                    ? old.dtdiariadobrada
+                    : (old.dtdiariadobrada ? JSON.parse(old.dtdiariadobrada) : []);
+                for (const novaEntrada of dtdiariadobrada) {
+                    if ((novaEntrada.status || '').trim() !== 'Autorizado') continue;
+                    const entradaAnterior = oldDtDobrada.find(d => d.data === novaEntrada.data);
+                    if (entradaAnterior && (entradaAnterior.status || '').trim() === 'Autorizado') continue;
+                    const vlrItemCache = novaEntrada.vlr_cache != null ? parseFloat(novaEntrada.vlr_cache) : 0;
+                    const vlrItemAlim  = novaEntrada.vlr_alimentacao != null ? parseFloat(novaEntrada.vlr_alimentacao) : 0;
+                    const dataFormatada = novaEntrada.data ? novaEntrada.data.split('-').reverse().join('/') : '';
+                    const dataHora = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    const logEntry = `[${dataHora}] Diária Dobrada ${dataFormatada} Autorizada Valores ${vlrItemCache.toFixed(2)} (cachê) + ${vlrItemAlim.toFixed(2)} (alimentação) refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
+                    obsDobraLogStaff = obsDobraLogStaff ? obsDobraLogStaff + '\n' + logEntry : logEntry;
+                }
+            }
+            const obsPosPosPgtoFinal = obsDobraLogStaff
+                ? ((body.obspospgto ? body.obspospgto.trimEnd() + '\n' : '') + obsDobraLogStaff)
+                : (body.obspospgto || null);
+
             // 3. UPDATE PRINCIPAL STAFFEVENTOS
             await client.query(`
                 UPDATE staffeventos SET
@@ -1433,7 +1759,7 @@ router.put("/:idStaffEvento",
                     paths.cache, paths.ajd, paths.ajd50, paths.cx,
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
-                    body.statuscustofechado, body.desccustofechado, body.obspospgto, idStaffEvento, idempresa, body.statusstaff || null,
+                    body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
                     paths.contgastos
                 ]
             );
@@ -1471,15 +1797,23 @@ router.put("/:idStaffEvento",
 
                         // CORREÇÃO: Usando o operador ANY para comparar data com array de datas (date[])
                         const updateRes = await client.query(
-                            `UPDATE public.solicitacoes 
-                             SET status = $1::varchar, 
+                            `UPDATE public.solicitacoes
+                             SET status = $1::varchar,
                                  idorcamento = $2::integer,
-                                 dtresposta = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END, 
-                                 idusuarioresponsavel = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE $3::integer END
-                             WHERE idregistroalterado = $4::integer 
-                               AND categoria_log = $5::varchar 
-                               AND idempresa = $6::integer 
-                               AND $7::date = ANY(dtsolicitada)`, 
+                                 dtresposta = CASE
+                                     WHEN $1::varchar = 'Pendente' THEN NULL
+                                     WHEN status IS DISTINCT FROM $1::varchar THEN CURRENT_TIMESTAMP
+                                     ELSE dtresposta
+                                 END,
+                                 idusuarioresponsavel = CASE
+                                     WHEN $1::varchar = 'Pendente' THEN NULL
+                                     WHEN status IS DISTINCT FROM $1::varchar THEN $3::integer
+                                     ELSE idusuarioresponsavel
+                                 END
+                             WHERE idregistroalterado = $4::integer
+                               AND categoria_log = $5::varchar
+                               AND idempresa = $6::integer
+                               AND $7::date = ANY(dtsolicitada)`,
                             [statusDec, idOrcamentoRegistro, idUsuarioLogado, idStaffEvento, item.campo, idempresa, entrada.data]
                         );
 
@@ -2184,7 +2518,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento, statusstaff,
         vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto, obsgeral, 
-        tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao
+        tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao, vagasreaproveitadas
     } = req.body;
 
     //const statusStaff = statusstaff || (justificativaAditivo ? 'Pendente' : 'Ativo');
@@ -2193,12 +2527,13 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         'ALOCACAO_NORMAL'
     ];
 
-    const statusStaff = statusstaff || (
-        justificativaAditivo && tipoSolicitacaoAditivo &&
-        !tiposQuePermitemAtivo.includes(tipoSolicitacaoAditivo)
-            ? 'Pendente'
-            : 'Ativo'
-    );
+    const nivelExperienciaUpper = (nivelexperiencia || '').trim().toUpperCase();
+    const precisaAutorizacao =
+        (justificativaAditivo && tipoSolicitacaoAditivo && !tiposQuePermitemAtivo.includes(tipoSolicitacaoAditivo)) ||
+        nivelExperienciaUpper === 'FECHADO' ||
+        nivelExperienciaUpper === 'LIBERADO';
+
+    const statusStaff = statusstaff || (precisaAutorizacao ? 'Pendente' : 'Ativo');
    
     
     let descDiariaDobradaFinalText = '';
@@ -2215,6 +2550,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
     }
 
     let client;
+    let jsonVagasReaproveitadas = null;
 
     try {
         client = await pool.connect();
@@ -2228,6 +2564,21 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         const datasArray = parseJSON(datasevento);
         const dtmeiadiaria = parseJSON(datameiadiaria);
+
+        // 🌟 Alimenta a variável que já foi declarada lá fora
+        if (vagasreaproveitadas) {
+            try {
+                const parsedVagas = typeof vagasreaproveitadas === 'object' 
+                    ? vagasreaproveitadas 
+                    : JSON.parse(vagasreaproveitadas);
+                
+                if (Array.isArray(parsedVagas) && parsedVagas.length > 0) {
+                    jsonVagasReaproveitadas = JSON.stringify(parsedVagas);
+                }
+            } catch (errJson) {
+                console.error("❌ Erro ao parsear campo vagasreaproveitadas no POST:", errJson);
+            }
+        }
 
         let dtdiariadobrada = [];
         try {
@@ -2335,11 +2686,11 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
                 statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, 
-                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos
+                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos, vagasreaproveitadas
             ) VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
                 $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,
-                $49,$50,$51,$52
+                $49,$50,$51,$52, $53
             ) RETURNING idstaffevento;
         `;
 
@@ -2358,7 +2709,8 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             JSON.stringify(dtmeiadiaria), desccaixinha, descDiariaDobradaFinalText, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral, 
-            statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null
+            statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null,
+            jsonVagasReaproveitadas
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -2461,6 +2813,13 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
             }
 
+            console.log("🎯 [ADITIVO CHECK]:", {
+                statusStaff,
+                tipoSolicitacaoAditivo,
+                justificativaAditivo,
+                datasExcecao
+            });
+
             for (const dataUnica of datasSolicitadasArray) {
                 const queryAditivo = `
                     INSERT INTO public.solicitacoes (
@@ -2486,13 +2845,16 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
 
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = novoIdStaffEvento;
-        res.locals.dadosnovos = { ...req.body, idstaffevento: novoIdStaffEvento, datasevento: datasArray };
+        res.locals.dadosnovos = { ...req.body, idstaffevento: novoIdStaffEvento, datasevento: datasArray,
+           vagasreaproveitadas: jsonVagasReaproveitadas ? JSON.parse(jsonVagasReaproveitadas) : null
+         };
 
         res.status(201).json({ sucesso: true, message: "Sucesso", idstaffevento: novoIdStaffEvento });
 
     } catch (e) {
         if (client) await client.query('ROLLBACK');
         console.error("\n❌ Erro Crítico ao salvar staff (Transação Revertida):", e);
+        console.error("📋 Estado da variável jsonVagasReaproveitadas no erro:", jsonVagasReaproveitadas);
         res.status(500).json({ sucesso: false, error: e.message });
     } finally { 
         if (client) client.release(); 

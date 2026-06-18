@@ -715,21 +715,32 @@ async function mostrarCalendarioEventos() {
   const controles = document.createElement("div");
   controles.className = "calendario-controles";
   controles.innerHTML = `
-  <div><label>Ano: <select id="anoSelect"></select></label></div>
-  <label>Mês: <select id="mesSelect"></select></label>
-  <label>Visualização:
-  <select id="viewSelect">
-  <option value="semanal">Semanal</option>
-  <option value="mensal" selected>Mensal</option>
-  <option value="trimestral">Trimestral</option>
-  <option value="semestral">Semestral</option>
-  <option value="anual">Anual</option>
-  </select>
-  </label>
-  <label id="semanaWrapper" style="display:none;">
-  Semana:
-  <select id="semanaSelect"></select>
-  </label>
+<div class="ano">Ano: <select id="anoSelect"></select></div>
+  
+  <div class="mes">Mês: <select id="mesSelect"></select></div>
+
+  <div class="view">
+    Visualização:
+        <select id="viewSelect">
+            <option value="semanal">Semanal</option>
+            <option value="mensal" selected>Mensal</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="semestral">Semestral</option>
+            <option value="anual">Anual</option>
+        </select>
+  </div>
+
+  <div class="semana-View" id="semanaWrapper" style="display:none;">
+     Semana:<select id="semanaSelect"></select>
+  </div>
+
+  <div class="filtro">
+    <button class="btn-filtro-eventos" id="btnFiltroEventos">🔍 Filtrar Eventos</button>
+  </div>
+
+  <div class="exportar">
+    <button id="btnExportar" class="btn-Exportar">📁 Exportar CSV</button>
+  </div>
   `;
 
   // ======= LEGENDA =======
@@ -738,6 +749,7 @@ async function mostrarCalendarioEventos() {
   legenda.innerHTML = `
   <h3><strong>Legenda</strong></h3>
   <div class="items">
+ <div class="legenda-item"><div class="legenda-cor" style="background:#f8a500ff"></div> Montagem infra</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#FFC657"></div> Montagem infra</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#73757A"></div> Marcação</div>
   <div class="legenda-item"><div class="legenda-cor" style="background:#F5E801"></div> Montagem</div>
@@ -767,6 +779,9 @@ async function mostrarCalendarioEventos() {
   const semanaWrapper = header.querySelector("#semanaWrapper");
   const semanaSelect = header.querySelector("#semanaSelect");
 
+    const filtrosAtivos = new Set();
+    let todosEventosDoMes = [];
+
     const anoAtual = new Date().getFullYear();
     for (let a = anoAtual - 2; a <= anoAtual + 2; a++) {
         const opt = document.createElement("option");
@@ -788,14 +803,15 @@ async function mostrarCalendarioEventos() {
 
   // ======= HELPERS =======
   function getCorPeriodo(tipo) {
-  switch (tipo) {
-  case "Montagem Infra": return "#f8a500ff";
-  case "Marcação": return "#73757A";
-  case "Montagem": return "#F5E801";
-  case "Realização": return "#F46251";
-  case "Desmontagem": return "#23821F";
-  case "Desmontagem Infra": return "#704300ff";
-  case "Feriado": return "#5B0F85";
+    const tipoNormalizado = (tipo || "").toLowerCase().trim();
+  switch (tipoNormalizado) {
+  case "montagem infra": return "#f8a500";
+  case "marcação": return "#73757A";
+  case "montagem": return "#F5E801";
+  case "realização": return "#F46251";
+  case "desmontagem": return "#23821F";
+  case "desmontagem infra": return "#704300";
+  case "feriado": return "#5B0F85";
   default: return "#ccc";
   }
   }
@@ -839,6 +855,146 @@ async function mostrarCalendarioEventos() {
   });
   }
 
+  function aplicarFiltro() {
+  grid.querySelectorAll(".evento").forEach(evEl => {
+    if (filtrosAtivos.size === 0) {
+      evEl.style.opacity = "1";
+      evEl.style.filter = "none";
+    } else {
+      const nomeEl = evEl.textContent.trim();
+      const ativo = [...filtrosAtivos].some(f => nomeEl.includes(f));
+      evEl.style.opacity = ativo ? "1" : "0.15";
+      evEl.style.filter = ativo ? "none" : "grayscale(100%)";
+    }
+  });
+
+  // Destaca e scrolla as células que têm eventos filtrados
+  grid.querySelectorAll("div").forEach(cell => {
+    // Remove destaque anterior
+    cell.style.outline = "";
+    cell.style.outlineOffset = "";
+
+    if (filtrosAtivos.size === 0) return;
+
+    // Verifica se a célula tem algum evento ativo
+    const temEventoAtivo = [...cell.querySelectorAll(".evento")].some(evEl => {
+      const nomeEl = evEl.textContent.trim();
+      return [...filtrosAtivos].some(f => nomeEl.includes(f));
+    });
+
+    if (temEventoAtivo) {
+      // Destaca a célula
+      cell.style.outline = "2px solid var(--primary-color)";
+      cell.style.outlineOffset = "-2px";
+
+      // Rola a célula para mostrar o primeiro evento ativo
+      const primeiroAtivo = [...cell.querySelectorAll(".evento")].find(evEl => {
+        const nomeEl = evEl.textContent.trim();
+        return [...filtrosAtivos].some(f => nomeEl.includes(f));
+      });
+
+      if (primeiroAtivo) {
+        primeiroAtivo.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  });
+}
+
+function atualizarBadgeBotao() {
+  const btn = header.querySelector("#btnFiltroEventos");
+  if (!btn) return;
+  btn.innerHTML = filtrosAtivos.size > 0
+    ? `🔍 Filtrar <span class="badge-filtro">${filtrosAtivos.size}</span>`
+    : `🔍 Filtrar Eventos`;
+  btn.classList.toggle("btn-filtro-ativo", filtrosAtivos.size > 0);
+}
+
+function abrirFiltroSwal(eventos) {
+  const nomesUnicos = [...new Set(
+    eventos
+      .filter(ev => ev.tipo !== "Feriado")
+      .map(ev => ev.nome)
+  )].sort();
+
+  if (nomesUnicos.length === 0) {
+    Swal.fire({ icon: "info", title: "Sem eventos", text: "Nenhum evento encontrado neste período." });
+    return;
+  }
+
+  // Monta HTML dos chips
+  const chipsHTML = nomesUnicos.map(nome => {
+    const tiposPorNome = eventos.filter(ev => ev.nome === nome).map(ev => ev.tipo);
+    const tipoMaisComum = tiposPorNome.sort((a, b) =>
+      tiposPorNome.filter(t => t === b).length - tiposPorNome.filter(t => t === a).length
+    )[0];
+    const cor = getCorPeriodo(tipoMaisComum);
+    const ativo = filtrosAtivos.has(nome) ? "ativo" : "";
+
+    return `
+      <span class="chip ${ativo}" data-nome="${nome}">
+        <span class="chip-cor" style="background:${cor}"></span>
+        ${nome}
+      </span>`;
+  }).join("");
+
+  Swal.fire({
+    title: "Filtrar Eventos",
+    html: `
+      <div style="text-align:center; margin-bottom:8px; font-size:15px; color:black;">
+        Clique nos eventos para filtrar. Múltipla seleção permitida.
+      </div>
+      <div class="swal-chips-grid" id="swalChipsGrid">
+        ${chipsHTML}
+      </div>
+      <button id="swalBtnLimpar" class="chip-limpar" style="margin-top:12px; display:${filtrosAtivos.size > 0 ? 'inline-flex' : 'none'}">
+        ✕ Limpar todos
+      </button>
+    `,
+    showConfirmButton: true,
+    confirmButtonText: "Aplicar",
+    showCancelButton: true,
+    cancelButtonText: "Cancelar",
+    width: "600px",
+    didOpen: () => {
+      // Toggle chips dentro do Swal
+      document.querySelectorAll("#swalChipsGrid .chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          const nome = chip.dataset.nome;
+          if (chip.classList.contains("ativo")) {
+            chip.classList.remove("ativo");
+            filtrosAtivos.delete(nome);
+          } else {
+            chip.classList.add("ativo");
+            filtrosAtivos.add(nome);
+          }
+          // Mostra/oculta botão limpar
+          document.getElementById("swalBtnLimpar").style.display =
+            filtrosAtivos.size > 0 ? "inline-flex" : "none";
+          atualizarBadgeBotao();
+          aplicarFiltro();
+        });
+      });
+
+      // Botão limpar dentro do Swal
+      document.getElementById("swalBtnLimpar").addEventListener("click", () => {
+        filtrosAtivos.clear();
+        document.querySelectorAll("#swalChipsGrid .chip").forEach(c => c.classList.remove("ativo"));
+        document.getElementById("swalBtnLimpar").style.display = "none";
+        atualizarBadgeBotao();
+        aplicarFiltro();
+      });
+    },
+    preConfirm: () => {
+      // Sincroniza estado final antes de fechar
+      filtrosAtivos.clear();
+      document.querySelectorAll("#swalChipsGrid .chip.ativo").forEach(chip => {
+        filtrosAtivos.add(chip.dataset.nome);
+      });
+    }
+  });
+}
+
+
   // ======= RENDER MENSAL (mantendo comportamento) =======
   async function renderMensal(ano, mes) {
     grid.innerHTML = "";
@@ -873,6 +1029,7 @@ async function mostrarCalendarioEventos() {
         const primeiroDia = new Date(ano, mes - 1, 1);
         const ultimoDia = new Date(ano, mes, 0).getDate();
         const diaSemanaInicio = primeiroDia.getDay();
+        todosEventosDoMes = eventos;
 
         const ultimoDiaMesAnterior = new Date(ano, mes - 1, 0).getDate();
         let mesAnterior = mes - 1;
@@ -922,15 +1079,425 @@ async function mostrarCalendarioEventos() {
         grid.appendChild(cell);
         }
 
+        if (filtrosAtivos.size > 0) aplicarFiltro();
     } catch (err) {
     console.error("Erro ao carregar eventos do calendário (mensal):", err);
     }
   }
 
+  async function exportarCalendario(ano, mes) {
+  if (todosEventosDoMes.length === 0) {
+    Swal.fire({ icon: "info", title: "Sem dados", text: "Nenhum evento para exportar." });
+    return;
+  }
+
+  const btnExportar = header.querySelector("#btnExportar");
+  btnExportar.disabled = true;
+  btnExportar.innerHTML = `⏳ Carregando...`;
+
+  try {
+    const idempresa = getIdEmpresa();
+    const mesAtual = mesSelect.options[mesSelect.selectedIndex].text;
+    const anoAtual = parseInt(anoSelect.value);
+    const mesAtualIdx = parseInt(mesSelect.value);
+
+    // ======= ETAPA 1: MAPA DE EVENTOS POR DIA =======
+    const mapaEventos = {};
+    todosEventosDoMes.forEach(ev => {
+      const inicio = new Date(ev.inicio);
+      const fim = new Date(ev.fim);
+      for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().split("T")[0];
+        if (!mapaEventos[key]) mapaEventos[key] = [];
+        // Evita duplicatas do mesmo evento no mesmo dia
+        if (!mapaEventos[key].find(e => (e.id || e.idevento) === (ev.id || ev.idevento) && e.tipo === ev.tipo)) {
+          mapaEventos[key].push(ev);
+        }
+      }
+    });
+
+    // ======= ETAPA 3: MONTAR HTML HORIZONTAL (ESTILO CRONOGRAMA) =======
+    const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const ultimoDia = new Date(anoAtual, mesAtualIdx, 0).getDate();
+
+    // 1. Identificar todos os eventos únicos do mês (cada um será uma linha)
+    const eventosUnicosNoMes = [];
+    const idsVistos = new Set();
+    
+    // Ordenar eventos por data de início para as linhas ficarem organizadas
+    const eventosOrdenados = [...todosEventosDoMes].sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+
+    eventosOrdenados.forEach(ev => {
+        const id = ev.id || ev.idevento;
+        if (!idsVistos.has(id)) {
+            idsVistos.add(id);
+            eventosUnicosNoMes.push(ev);
+        }
+    });
+
+    // 2. Criar o Cabeçalho com os Dias (Coluna 1, 2, 3... até 31)
+    let cabecalhoDias = `<th style="background:#8B0000;color:#fff;padding:6px;border:1px solid #aaa;min-width:180px;">Evento / Dia</th>`;
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        const dataObj = new Date(anoAtual, mesAtualIdx - 1, dia);
+        const diaSemanaIdx = dataObj.getDay();
+        const fimDeSemana = (diaSemanaIdx === 0 || diaSemanaIdx === 6);
+        const bgCabecalho = fimDeSemana ? "#555" : "#8B0000"; // Cinza escuro para fds no topo
+        
+        cabecalhoDias += `
+            <th style="background:${bgCabecalho};color:#fff;padding:4px;border:1px solid #aaa;min-width:35px;font-size:10px;text-align:center;">
+                ${dia}<br><span style="font-size:8px;">${diasSemana[diaSemanaIdx]}</span>
+            </th>`;
+    }
+
+    // 3. Criar as Linhas de Eventos
+    let htmlLinhas = "";
+    eventosUnicosNoMes.forEach(eventoPrincipal => {
+        const idEvento = eventoPrincipal.id || eventoPrincipal.idevento;
+        
+        htmlLinhas += `<tr>`;
+        // Primeira coluna fixa: Nome do Evento
+        htmlLinhas += `
+            <td style="background:#f9f9f9; font-weight:bold; padding:6px; border:1px solid #ddd; font-size:11px; white-space: nowrap;">
+                ${eventoPrincipal.nome}
+            </td>`;
+
+        // Gerar colunas para cada dia do mês para este evento
+        for (let dia = 1; dia <= ultimoDia; dia++) {
+            const dataStr = `${anoAtual}-${String(mesAtualIdx).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+            const dataObj = new Date(anoAtual, mesAtualIdx - 1, dia);
+            const fimDeSemana = (dataObj.getDay() === 0 || dataObj.getDay() === 6);
+            
+            // Verifica se este evento específico acontece neste dia
+            const eventosDoDia = mapaEventos[dataStr] || [];
+            const evNoDia = eventosDoDia.find(e => (e.id || e.idevento) === idEvento);
+
+            const mapaSiglas = {
+            "montagem infra": "M I",
+            "montagem": "M",
+            "realização": "R",
+            "desmontagem": "D",
+            "desmontagem infra": "D I",
+            "marcação": "MAR",
+            "feriado": "F"
+        };
+
+            if (evNoDia) {
+                const cor = getCorPeriodo(evNoDia.tipo); // Garanta 6 dígitos sem 'ff'
+                const corTexto = ["#23821F", "#704300", "#5B0F85", "#73757A"].includes(cor.toUpperCase()) ? "#ffffff" : "#000000";
+                
+                // Coloca a inicial do tipo (M, I, R, D) para não esticar a célula 
+                const tipoNormalizado = evNoDia.tipo.toLowerCase().trim();
+                const sigla = mapaSiglas[tipoNormalizado] || evNoDia.tipo.substring(0, 1).toUpperCase();
+
+                htmlLinhas += `
+                    <td style="
+                        background:${cor}; 
+                        color:${corTexto}; 
+                        border:1px solid #ddd; 
+                        text-align:center; 
+                        font-size:10px; 
+                        font-weight:bold;
+                        width:35px;
+                    ">
+                        ${sigla}
+                    </td>`;
+        
+            } else {
+                // Célula vazia (com fundo cinza se for fim de semana)
+                htmlLinhas += `<td style="border:1px solid #ddd; background:${fimDeSemana ? "#f0f0f0" : "#fff"}"></td>`;
+            }
+        }
+        htmlLinhas += `</tr>`;
+    });
+
+    // ======= ETAPA 4: HTML COMPLETO =======
+    const htmlCompleto = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Abel, sans-serif; }
+          table { border-collapse: collapse; }
+          td, th { border: 1px solid #aaa; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th colspan="${ultimoDia + 1}" style="background:#8B0000; color:#fff; font-size:16px; padding:10px; text-align:center;">
+                ${mesAtual.toUpperCase()} ${anoAtual}
+              </th>
+            </tr>
+            <tr>
+              <td colspan="${ultimoDia + 1}" style="background:#fefefe; padding:5px; border:1px solid #aaa;">
+                <table style="border-collapse: collapse;">
+                  <tr>
+                    <td style="font-size:11px; background:#8B0000; color:#fff; font-weight:bold; padding-right:10px; border:none;">LEGENDA:</td>
+                    <td class="td-legenda" style="background:#f8a500; color:#000;">(M I) Montagem Infra</td>
+                    <td class="td-legenda" style="background:#F5E801; color:#000;">(M) Montagem</td>
+                    <td class="td-legenda" style="background:#F46251; color:#000;">(R) Realização</td>
+                    <td class="td-legenda" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
+                    <td class="td-legenda" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
+                    <td class="td-legenda" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
+                    <td class="td-legenda" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              ${cabecalhoDias}
+            </tr>
+          </thead>
+          <tbody>
+            ${htmlLinhas}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    // ======= DOWNLOAD =======
+    const blob = new Blob([htmlCompleto], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `calendario_${mesAtual}_${anoAtual}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error("Erro ao exportar:", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível exportar." });
+  } finally {
+    btnExportar.disabled = false;
+    btnExportar.innerHTML = `📁 Exportar`;
+  }
+}
+
+function formatarDataSimples(data) {
+  const d = new Date(data);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function buscarEventosPorPeriodo(anoBase, mesInicio, totalMeses) {
+  const idempresa = getIdEmpresa();
+  const consultas = [];
+
+  for (let i = 0; i < totalMeses; i++) {
+    const dataRef = new Date(anoBase, (mesInicio - 1) + i, 1);
+    consultas.push(
+      fetchComToken(`/main/export-eventos-calendario?idempresa=${idempresa}&ano=${dataRef.getFullYear()}&mes=${dataRef.getMonth() + 1}`)
+    );
+  }
+
+  const respostas = await Promise.all(consultas);
+  const todosEventos = respostas.flatMap(r => r.eventos || []);
+
+  // EM VEZ DE MAPA DE ID, VAMOS CRIAR UM MAPA DE "NOME_DO_EVENTO" -> DIAS_E_TIPOS
+  // Isso garante que todas as fases do mesmo evento fiquem na mesma linha
+  const consolidado = {};
+
+  todosEventos.forEach(ev => {
+    const nomeKey = ev.nome; // Nome completo do evento
+    if (!consolidado[nomeKey]) {
+      consolidado[nomeKey] = {
+        nome: ev.nome,
+        idevento: ev.idevento,
+        datas: {} // Guardará cada dia e seu tipo { "2024-05-01": "Montagem" }
+      };
+    }
+
+    // Preencher o mapa de datas para este evento
+    let atual = new Date(ev.inicio + "T12:00:00");
+    const fim = new Date(ev.fim + "T12:00:00");
+
+    while (atual <= fim) {
+      const dataStr = formatarDataSimples(atual);
+      consolidado[nomeKey].datas[dataStr] = ev.tipo;
+      atual.setDate(atual.getDate() + 1);
+    }
+  });
+
+  return Object.values(consolidado);
+}
+
+async function exportarCalendarioMultimes(anoBase, mesInicio, totalMeses, tipoNome = "Periodico") {
+  const btnExportar = document.getElementById("btnExportar");
+  if (btnExportar) {
+    btnExportar.disabled = true;
+    btnExportar.innerHTML = `⏳ Mesclando Fases...`;
+  }
+
+  try {
+    const mapaSiglas = {
+      "montagem infra": "M I", "montagem": "M", "realização": "R",
+      "desmontagem": "D", "desmontagem infra": "D I", "marcação": "MAR", "feriado": "F"
+    };
+
+    const eventosParaExibir = await buscarEventosPorPeriodo(anoBase, mesInicio, totalMeses);
+    if (!eventosParaExibir.length) {
+      Swal.fire({ icon: "info", title: "Sem dados", text: "Nenhum evento encontrado." });
+      return;
+    }
+
+    let htmlFinal = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="UTF-8"><style>
+        table { border-collapse: collapse; }
+        td, th { border: 1px solid #aaa; text-align: center; font-family: Abel, sans serif; }
+        .title-topo { background:#8B0000; color:#fff; font-size:14px; font-weight:bold; height: 30px; text-transform: uppercase; }
+        .td-legenda-label { background: #8B0000; color: #fff; font-size: 10px; font-weight: bold; width: 250px; }
+        .td-legenda-item { font-size: 9px; padding: 2px 5px; border: 1px solid #000; }
+        .header-mes-label { background: #8B0000; color: #fff; font-weight: bold; width: 250px; }
+        .header-mes-nome { background: #fff; color: #000; font-weight: bold; border-bottom: 2px solid #000; }
+        .header-dias { background: #8B0000; color: #fff; font-size: 9px; font-weight: bold; height: 25px; }
+        .col-evento { text-align: left; font-weight: bold; font-size: 10px; width: 250px; background: #fff; }
+      </style></head><body>`;
+
+    const mesesPorBloco = 3;
+
+    for (let i = 0; i < totalMeses; i += mesesPorBloco) {
+      let blocoMeses = [];
+      let totalDiasBloco = 0;
+
+      for (let j = i; j < i + mesesPorBloco && j < totalMeses; j++) {
+        const d = new Date(anoBase, (mesInicio - 1) + j, 1);
+        const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        blocoMeses.push({
+          nome: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(d).toLowerCase() + "/" + String(d.getFullYear()).slice(-2),
+          ano: d.getFullYear(), mesIdx: d.getMonth() + 1, dias: ultimoDia
+        });
+        totalDiasBloco += ultimoDia;
+      }
+
+      htmlFinal += `
+        <table>
+          <thead>
+            <tr><th colspan="${totalDiasBloco + 1}" class="title-topo">CRONOGRAMA - ${blocoMeses[0].nome.split('/')[0].toUpperCase()} A ${blocoMeses[blocoMeses.length-1].nome.split('/')[0].toUpperCase()}</th></tr>
+            <tr>
+              <td class="td-legenda-label">LEGENDA:</td>
+              <td colspan="${totalDiasBloco}" style="text-align: left; background: #8B0000;">
+                <table style="border-collapse: collapse; margin-left: 5px; background: #8B0000;"><tr>
+                  <td class="td-legenda-item" style="background:#f8a500;">(M I) Montagem Infra</td>
+                  <td class="td-legenda-item" style="background:#F5E801;">(M) Montagem</td>
+                  <td class="td-legenda-item" style="background:#F46251;">(R) Realização</td>
+                  <td class="td-legenda-item" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
+                  <td class="td-legenda-item" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
+                  <td class="td-legenda-item" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
+                  <td class="td-legenda-item" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                </tr></table>
+              </td>
+            </tr>
+            <tr>
+              <td class="header-mes-label">MÊS</td>
+              ${blocoMeses.map(m => `<td colspan="${m.dias}" class="header-mes-nome" style="background: #8B0000; color: #fff; border-right: 2px solid #000;">${m.nome}</td>`).join("")}
+            </tr>
+            <tr class="header-dias">
+              <td style="border-right: 2px solid #000;">EVENTO / DIA</td>
+              ${blocoMeses.map(m => {
+                let dHtml = "";
+                for (let d = 1; d <= m.dias; d++) {
+                  const borderSide = (d === m.dias) ? "border-right: 2px solid #000;" : "";
+                  dHtml += `<td style="width:25px; ${borderSide}">${d}</td>`;
+                }
+                return dHtml;
+              }).join("")}
+            </tr>
+          </thead>
+          <tbody>`;
+
+      // --- LÓGICA DE MESCLAGEM DE CÉLULAS ---
+      eventosParaExibir.forEach(ev => {
+        let temAtividade = false;
+        let listaDatasBloco = [];
+
+        // Primeiro, criamos uma lista linear de todas as datas deste bloco
+        blocoMeses.forEach(m => {
+          for (let d = 1; d <= m.dias; d++) {
+            const dataKey = `${m.ano}-${String(m.mesIdx).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            listaDatasBloco.push({
+              data: dataKey,
+              tipo: ev.datas[dataKey] || null,
+              ultimoDiaMes: (d === m.dias),
+              ds: new Date(m.ano, m.mesIdx - 1, d).getDay()
+            });
+            if (ev.datas[dataKey]) temAtividade = true;
+          }
+        });
+
+        if (temAtividade) {
+          let linhaHtml = `<tr><td class="col-evento" style="border-right: 2px solid #000;">${ev.nome}</td>`;
+          
+          for (let k = 0; k < listaDatasBloco.length; k++) {
+            let info = listaDatasBloco[k];
+            
+            // Se a célula for vazia, não mesclamos (para manter os fins de semana visíveis)
+            if (!info.tipo) {
+              const borderSide = info.ultimoDiaMes ? "border-right: 2px solid #000;" : "";
+              const bg = (info.ds === 0 || info.ds === 6) ? "#f2f2f2" : "#fff";
+              linhaHtml += `<td style="background:${bg}; ${borderSide}"></td>`;
+              continue;
+            }
+
+            // Se tiver tipo, contamos quantos dias iguais existem à frente
+            let span = 1;
+            let mudoDeMes = info.ultimoDiaMes;
+            
+            while (
+              k + span < listaDatasBloco.length && 
+              listaDatasBloco[k + span].tipo === info.tipo &&
+              !mudoDeMes // Para a mesclagem se mudar o mês (mantém a linha grossa)
+            ) {
+              mudoDeMes = listaDatasBloco[k + span].ultimoDiaMes;
+              span++;
+            }
+
+            const cor = getCorPeriodo(info.tipo);
+            const sigla = mapaSiglas[info.tipo.toLowerCase().trim()] || "?";
+            const corTxt = ["#23821F", "#704300", "#5B0F85"].includes(cor.toUpperCase()) ? "#fff" : "#000";
+            const borderSide = listaDatasBloco[k + span - 1].ultimoDiaMes ? "border-right: 2px solid #000;" : "";
+
+            linhaHtml += `<td colspan="${span}" style="background:${cor}; color:${corTxt}; font-size:9px; font-weight:bold; ${borderSide}">${sigla}</td>`;
+            
+            k += (span - 1); // Pula as células que foram mescladas
+          }
+          htmlFinal += linhaHtml + "</tr>";
+        }
+      });
+
+      htmlFinal += `</tbody></table><br>`;
+    }
+
+    htmlFinal += `</body></html>`;
+
+    const blob = new Blob([htmlFinal], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Cronograma_Excel_${tipoNome}.xls`;
+    link.click();
+
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Erro", "Falha na exportação.", "error");
+  } finally {
+    if (btnExportar) {
+      btnExportar.disabled = false;
+      btnExportar.innerHTML = `📁 Exportar`;
+    }
+  }
+}
+header.querySelector("#btnExportar").addEventListener("click", () => {
+    exportarCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+});
+
   // ======= RENDER SEMANAL =======
   async function renderSemanal(ano, mes, semanaIdx = 0) {
   grid.innerHTML = "";
-  semanaWrapper.style.display = "inline-block";
+  semanaWrapper.style.display = "flex";
+  semanaWrapper.style.gap = "10px";
 
   // cabeçalho dias da semana
   ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
@@ -1050,20 +1617,26 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
   });
   semestreSelect.style.display = (tipoView === "semestral") ? "inline-block" : "none";
 
+   const exportCalendario = document.createElement("button");
+    exportCalendario.id = "btnExportar";
+    exportCalendario.textContent = "📁 Exportar";
+    exportCalendario.classList.add("btn-Exportar");
+
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "Fechar";
   closeBtn.style.padding = "6px 10px";
   closeBtn.style.cursor = "pointer";
 
-  const leftControls = document.createElement("div");
-  leftControls.style.display = "flex";
-  leftControls.style.gap = "8px";
-  leftControls.appendChild(title);
-  leftControls.appendChild(tipoSelect);
-  leftControls.appendChild(trimestreSelect);
-  leftControls.appendChild(semestreSelect);
+const leftss = document.createElement("div");
+  leftss.style.display = "flex";
+  leftss.style.gap = "8px";
+  leftss.appendChild(title);
+  leftss.appendChild(tipoSelect);
+  leftss.appendChild(trimestreSelect);
+  leftss.appendChild(semestreSelect);
+  leftss.appendChild(exportCalendario);
 
-  ph.appendChild(leftControls);
+  ph.appendChild(leftss);
   ph.appendChild(closeBtn);
   panel.appendChild(ph);
 
@@ -1081,8 +1654,8 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
 
-  closeBtn.addEventListener("click", () => overlay.remove());
-  overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
+//   closeBtn.addEventListener("click", () => overlay.remove());
+//   overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
 
   async function renderContent(view, trimestreSel = null, semestreSel = null) {
   body.innerHTML = "";
@@ -1091,12 +1664,12 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
 
   if (view === "trimestral") {
   const trimestreIdx = (trimestreSel !== null ? trimestreSel - 1 : Math.floor((mes - 1) / 3));
-  mesesParaMostrar = [trimestreIdx*3 + 1, trimestreIdx*3 + 2, trimestreIdx*3 + 3];
+  mesesParaMostrar = [trimestreIdx * 3 + 1, trimestreIdx * 3 + 2, trimestreIdx * 3 + 3];
   } else if (view === "semestral") {
   const semestreIdx = (semestreSel !== null ? semestreSel : (mes <= 6 ? 1 : 2));
-  mesesParaMostrar = (semestreIdx === 1) ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
+  mesesParaMostrar = (semestreIdx === 1) ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12];
   } else if (view === "anual") {
-  mesesParaMostrar = [1,2,3,4,5,6,7,8,9,10,11,12];
+  mesesParaMostrar = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   } else { 
   // Geral = mostra o mês atual
   mesesParaMostrar = [mes];
@@ -1116,6 +1689,33 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
   await renderMiniCalendario(mini, ano, m);
   }
   }
+
+  exportCalendario.addEventListener("click", () => {
+    const view = tipoSelect.value;
+    let mesInicioExport;
+    let totalMesesExport;
+
+    if (view === "trimestral") {
+      const triIdx = parseInt(trimestreSelect.value) - 1;
+      mesInicioExport = (triIdx * 3) + 1;
+      totalMesesExport = 3;
+    } else if (view === "semestral") {
+      const semIdx = parseInt(semestreSelect.value);
+      mesInicioExport = (semIdx === 1) ? 1 : 7;
+      totalMesesExport = 6;
+    } else if (view === "anual") {
+      mesInicioExport = 1;
+      totalMesesExport = 12;
+    } else {
+      mesInicioExport = mes;
+      totalMesesExport = 1;
+    }
+
+    exportarCalendarioMultimes(ano, mesInicioExport, totalMesesExport, view);
+  });
+
+  closeBtn.addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
 
   // eventos dos selects
   tipoSelect.addEventListener("change", () => {
@@ -1253,6 +1853,11 @@ async function renderMiniCalendario(container, ano, mes) {
   if (view === "semanal") renderSemanal(parseInt(anoSelect.value), parseInt(mesSelect.value), parseInt(semanaSelect.value || 0));
   else if (view === "mensal") renderMensal(parseInt(anoSelect.value), parseInt(mesSelect.value));
   });
+
+    header.querySelector("#btnFiltroEventos").addEventListener("click", () => {
+  abrirFiltroSwal(todosEventosDoMes);
+});
+
 
   mesSelect.addEventListener("change", () => {
   preencherSemanas(parseInt(anoSelect.value), parseInt(mesSelect.value));
@@ -2583,9 +3188,10 @@ async function abrirTelaEquipesEvento(evento) {
         // 🚀 EXIBIÇÃO PRINCIPAL: Soma o que já está fixo com o que está reservado por dobra pendente
         const exibicaoDiariasVisuais = diariasConsumidas + dobrasPendentes;
 
-        // 🚀 CÁLCULO DO DISPONÍVEL: Deduz as diárias normais, as vagas pendentes e as dobras pendentes
-        // Assim, o Disp: acompanha a reserva real da tela!
-        const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + pendentes + dobrasPendentes));
+        // Pendente staffeventos já são contados em diariasConsumidas (CTE inclui statusstaff='Pendente').
+        // Somar pendentes aqui causaria double-counting. Apenas dobrasPendentes precisam ser somadas
+        // porque dobras pendentes são excluídas do diariasConsumidas (só dobras Autorizadas entram lá).
+        const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + dobrasPendentes));
         const confirmados  = pessoasCadastradas - pendentes;
 
         let cor = "#4caf50";
@@ -4560,8 +5166,10 @@ function abrirDetalhesEquipe(equipe, evento) {
     const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + pendentes + dobrasPendentes));
     
     // 🚀 CORREÇÃO PRINCIPAL: Mesmo que venha true do banco, se houver diárias disponíveis, não está concluído!
-    const concluido = (func.concluido === true) && (disponiveis === 0);
-    const bloqueadoPorPendente = !concluido && diáriasConsumidas >= vagasOrcadas && pendentes > 0;
+    // const concluido = (func.concluido === true) && (disponiveis === 0);
+    //const bloqueadoPorPendente = !concluido && diáriasConsumidas >= vagasOrcadas && pendentes > 0;
+    const concluido = (func.concluido === true) && (disponiveis === 0) && (pendentes === 0) && (dobrasPendentes === 0);
+    const bloqueadoPorPendente = !concluido && pendentes > 0 && disponiveis === 0;
 
     // ----------------------------------------------------
     // 🎯 4. MONTAGEM E EVITAR DUPLICIDADE VISUAL DO SETOR
@@ -5636,29 +6244,559 @@ async function buscarAditivoExtraCompleto() {
     }
 }
 
+// async function mostrarPedidosUsuario() {
+//     const lista = document.getElementById("painelDetalhes");
+//     if (!lista) return;
+
+//     let pedidos = []; // Array final de grupos    
+
+//     const ehMaster = usuarioTemPermissao();
+//     const ehSupremo = usuarioTemPermissaoSupremo();
+
+//     // REGRA: Apenas o Supremo pode aprovar. O Master pode ver (na busca), mas não agir.
+//     const podeAprovar = ehSupremo;
+
+//     // 🛑 NOVA CONFIGURAÇÃO: Mapeamento do campo de status para o campo de dados que é um JSON String de array
+//     const dataFieldMapping = {
+//         "statusdiariadobrada": "dtdiariadobrada",
+//         "statusmeiadiaria": "dtmeiadiaria",
+//         "statuscustofechado": "vlrcache",
+//         "statuscacheliberado": "vlrcache",
+//         "statusvagaexcedida": "statusvagaexcedida", // Mapeia para o campo do banco
+//         "statusaditivoextra": "statusaditivoextra" // Mapeia para o campo do banco
+//        // "aditivoextra": "statusvagaexcedida"
+
+//         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
+//     };
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         "statuscustofechado",
+//         "statuscacheliberado",
+//         "statusvagaexcedida", 
+//         "statusaditivoextra",
+//        // "aditivoextra",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+
+//     try {
+//         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
+    
+//         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
+      
+//         const pedidosPadrao = await buscarPedidosUsuario(); // Já vem agrupado do novo Backend
+      
+//         let pedidosUnificados = [...pedidosPadrao];
+//         window.pedidosCompletosGlobais = pedidosUnificados;
+        
+//         const aditivosMapeados = [];
+
+//         console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
+
+//         pedidosUnificados.push(...aditivosMapeados);
+       
+//         window.pedidosCompletosGlobais = pedidosUnificados;
+        
+//         // 🛑 PASSO 3: DESMEMBRAMENTO COM VARREDURA DE STATUS 🛑
+//         const pedidosDesmembrados = [];       
+
+//         pedidosUnificados.forEach(pedidoOriginal => {
+           
+//             const categoriasPresentes = camposTodos.filter(c => {
+//                 const valor = pedidoOriginal[c];
+                
+//                 // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
+//                 if (c === 'statusvagaexcedida') {
+//                     return valor && valor.toString().trim() !== '' && valor !== 'null';
+//                 }
+//                 if (c === CAMPO_ADITIVO_EXTRA) {
+//                     return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+//                 }
+//                 if (Array.isArray(valor)) return valor.length > 0;
+//                 return valor && valor.toString().trim() !== ''; 
+//             });
+
+//             console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
+
+            
+//             if (categoriasPresentes.length > 0) {
+                
+//                 categoriasPresentes.forEach(categoria => {                    
+//                     const dataField = dataFieldMapping[categoria];
+//                     let statusIdentificado = 'pendente';                    
+                    
+//                     let parsedData = null;
+                    
+//                     //1. Tenta extrair do JSON interno (ex: dtdiariadobrada)
+//                     if (dataField && pedidoOriginal[dataField]) {
+//                         parsedData = safeParse(pedidoOriginal[dataField]);
+//                         if (Array.isArray(parsedData) && parsedData.length > 0) {
+//                             // Pega o status do primeiro item do array JSON
+//                             statusIdentificado = parsedData[0].status || parsedData[0].Status || statusIdentificado;
+//                         }
+//                     }
+
+//                     // 2. Se continuar pendente, verifica se a própria coluna de categoria tem o status
+//                     // Ex: pedidoOriginal["statusdiariadobrada"] pode conter "autorizado"
+//                     if (statusIdentificado === 'pendente' && pedidoOriginal[categoria]) {
+//                         const valorColuna = pedidoOriginal[categoria].toString().toLowerCase();
+//                         if (valorColuna.includes('autoriz') || valorColuna.includes('aprov') || valorColuna.includes('rejeit')) {
+//                             statusIdentificado = valorColuna;
+//                         }
+//                     }
+
+//                     // 3. Fallback para o status global do pedido
+//                     if (statusIdentificado === 'pendente') {
+//                         statusIdentificado = pedidoOriginal.status_aprovacao || pedidoOriginal.status || 'pendente';
+//                     }
+
+//                     // Normalização final para as chaves do seu contador
+//                     let statusFinal = statusIdentificado.toString().toLowerCase().trim();
+//                     if (statusFinal.includes('autoriz') || statusFinal.includes('aprov')) statusFinal = STATUS_AUTORIZADO;
+//                     else if (statusFinal.includes('rejeit') || statusFinal.includes('recus')) statusFinal = STATUS_REJEITADO;
+//                     else statusFinal = STATUS_PENDENTE;
+                    
+                    
+//                     const pedidoDesmembrado = { 
+//                         ...pedidoOriginal,
+//                         categoria_item: categoria,
+//                         status: statusFinal,
+//                         status_aprovacao: statusFinal // Garante que a função contarStatus leia este valor
+//                     };
+                    
+//                     // if (categoria === CAMPO_ADITIVO_EXTRA && Array.isArray(pedidoOriginal.dataSolicitada)) {
+//                     //     // Definimos uma nova propriedade ou sobrescrevemos a dataSolicitacao 
+//                     //     // para que o front use a data do evento e não a data de criação (09/03)
+//                     //     pedidoDesmembrado.dataSolicitacao = pedidoOriginal.dataSolicitada[0];
+//                     //     pedidoDesmembrado.dataExibicao = pedidoOriginal.dataSolicitada[0]; 
+//                     // }
+
+//                     if (Array.isArray(parsedData)) {
+//                         pedidoDesmembrado[dataField] = parsedData;
+//                     }
+
+//                     camposTodos.forEach(c => { if (c !== categoria) delete pedidoDesmembrado[c]; });
+//                     pedidosDesmembrados.push(pedidoDesmembrado);
+//                 });
+//             } else if (pedidoOriginal.categoria_item) {
+//                 pedidosDesmembrados.push(pedidoOriginal);
+//             }
+//         });
+
+
+
+//         // 4. AGRUPAMENTO COM CONTROLE DE DUPLICATAS POR ITEM (REFINADO)
+//         const pedidosAgrupados = {};
+//         const chavesDosItensAdicionados = new Set(); 
+
+        
+//         // 🛑 ITERAR AGORA SOBRE pedidosDesmembrados 🛑
+//         pedidosDesmembrados.forEach(p => {
+
+//             console.log("OBJETO COMPLETO DO BANCO:", p);
+//             // Variáveis de Agrupamento
+//             const evento = p.evento || 'Sem Evento';
+//             const funcionario = p.funcionario || null; 
+//             let nmfuncao = p.nmfuncao || null;
+//             if (!funcionario && (p.categoria_item === 'statusvagaexcedida' || p.categoria_item === 'statusaditivoextra' || p.categoria === 'aditivoextra')) {
+//                 const rawJson = p.statusvagaexcedida || p.statusaditivoextra || p.statusajustecusto || '[]';
+//                 const arr = safeParse(rawJson);
+//                 nmfuncao = arr[0]?.tipoSolicitacao || p.tiposolicitacao || 'Solicitação de Função';
+//             }
+           
+//             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
+//             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+            
+
+//             console.log(`DEBUG AGRUPAMENTO - Funcionario: ${funcionarioOuFuncao}, ID_Log: ${p.id_log}, Solicitante: ${p.nomeSolicitante}`);
+//             const chaveAgrupamento = funcionarioOuFuncao; //em comentario para teste da nova query
+//            //const chaveAgrupamento = `${funcionarioOuFuncao}|${p.idlog || p.id_log || idGrupo}`;//novo para teste na nova query, para evitar agrupamento de itens diferentes com mesmo nome de funcionario ou funcao
+//             //const chaveAgrupamento = `${funcionarioOuFuncao}|${idGrupo}`;
+//             console.log(`CHAVE GERADA: "${chaveAgrupamento}"`);
+//             const solicitanteAtual = p.nomeSolicitante || "N/D"; 
+            
+//             // const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
+            
+//             // const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+
+//             // const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
+
+//             const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+           
+//             if (p.categoria === 'statuscacheliberado') {
+//                 p.categoria_item = 'statuscacheliberado';
+//             }
+          
+//             const categoria = p.categoria_item || "geral";
+//             const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
+
+//             console.log(`CHAVE ITEM: ${chaveItemUnico} | id_log: ${p.id_log} | idpedido: ${p.idpedido} | idaditivoextra: ${p.idaditivoextra}`);
+
+//              if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+//                  console.warn(`🛑 DUPLICAÇÃO REAL IGNORADA: ${chaveItemUnico}`);
+//                  return; 
+//              }
+
+//             //Verifica e Adiciona a Chave
+//             // if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+//             //     console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
+//             //     return; // Pula este item se ele já foi visto
+//             // }
+//             if (categoria === CAMPO_ADITIVO_EXTRA) {
+//                 console.log(`✅ Aditivo Extra ADICIONADO: Chave: ${chaveItemUnico}. ID Pedido: ${p.idpedido}, ID Aditivo Extra: ${p.idaditivoextra}`);
+//             }
+//             chavesDosItensAdicionados.add(chaveItemUnico);
+            
+//             // LÓGICA DE CRIAÇÃO DO GRUPO
+//             if (!pedidosAgrupados[chaveAgrupamento]) {
+//                 pedidosAgrupados[chaveAgrupamento] = {
+//                     evento: evento,
+//                     funcionario: funcionario, 
+//                     nmfuncao: nmfuncao,
+//                     idpedido: p.idpedido,
+//                     dtCriacao: p.dtCriacao, 
+//                     todosSolicitantes: new Set(), 
+//                     registrosOriginais: [] 
+//                 };
+//             }
+
+
+//             if (solicitanteAtual) {
+//                 pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
+//             }
+            
+//             // Adiciona o item (único) ao grupo
+//             pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
+//         });       
+
+
+//         const pedidosParaClassificar = Object.values(pedidosAgrupados);
+//         console.log(`[CLASSIFICAÇÃO] Iniciando classificação de ${pedidosParaClassificar.length} pedidos agrupados.`);
+
+//         // 4. CONVERTE DE VOLTA PARA ARRAY E POPULA 'pedidos'
+//         pedidos = Object.values(pedidosAgrupados).map(p => { 
+//             const listaSolicitantes = Array.from(p.todosSolicitantes).join(', ');
+//             p.nomeSolicitante = listaSolicitantes;
+//             delete p.todosSolicitantes;
+//             return p;
+//         });
+
+//         console.log(`DEBUG V70: Total de itens após agrupamento final: ${pedidos.length}.`);
+
+//         // ORDENAÇÃO (Inalterado)
+//         pedidos.sort((a, b) => {
+//             const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+//             const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+            
+//             if (nomeA < nomeB) return -1;
+//             if (nomeA > nomeB) return 1;
+
+//             const eventoA = (a.evento || '').toLowerCase();
+//             const eventoB = (b.evento || '').toLowerCase();
+            
+//             if (eventoA < eventoB) return -1;
+//             if (eventoA > eventoB) return 1;
+
+//             return 0;
+//         });
+        
+//         // Verifica se há pedidos após a unificação/agrupamento
+//         if (!pedidos.length) { 
+//             lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+//             return;
+//         }
+
+            
+//         // Primeiro, filtramos os grupos
+       
+//         // window.gruposFuncoesGlobais = pedidos.filter(p => {
+//         //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+//         //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+//         //     // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
+//         //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+//         //         return true; 
+//         //     }
+
+//         //     return !p.funcionario; // Regra padrão para o restante
+//         // });
+
+//         // // Filtro para a aba Funcionários
+//         // window.gruposFuncionariosGlobais = pedidos.filter(p => {
+//         //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+//         //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+//         //     // Se for vaga excedida, NÃO entra aqui
+//         //     if (tipoSolicitacao.includes("Vaga Excedida")) {
+//         //         return false;
+//         //     }
+
+//         //     return !!p.funcionario;
+//         // });
+
+//         // // Agora, contamos quantos registros individuais existem dentro de cada grupo
+        
+//         //aqui esta certo
+
+//         // window.gruposFuncoesGlobais = pedidos.filter(p => {
+//         //     // Verifica em todos os registros do grupo
+//         //     const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+//         //         // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+//         //         const tipo = (r.tiposolicitacao || '').toUpperCase();
+//         //         return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+//         //     });
+
+//         //     if (temVagaExcedida) return true;
+//         //     return !p.funcionario; // regra padrão: sem funcionário vai para Funções
+//         // });
+
+//         // // Filtro para a aba Funcionários
+//         // window.gruposFuncionariosGlobais = pedidos.filter(p => {
+//         //     const temVagaExcedida = (p.registrosOriginais || []).some(r => {
+//         //         // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
+//         //         const tipo = (r.tiposolicitacao || '').toUpperCase();
+//         //         return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
+//         //     });
+
+//         //     if (temVagaExcedida) return false;
+//         //     return !!p.funcionario;
+//         // });
+
+
+//         window.gruposFuncionariosGlobais = pedidos.map(p => {
+//             // Remove dos registros tudo que é aditivoextra do tipo NÃO-FUNCEXCEDIDO
+//             const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
+//                 if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return true;
+//                 const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
+//                 const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
+//                 return tipo === 'FUNCEXCEDIDO'; // só mantém FUNCEXCEDIDO em Funcionários
+//             });
+//             return { ...p, registrosOriginais: registrosFiltrados };
+//         }).filter(p => !!p.funcionario && p.registrosOriginais.length > 0);
+
+//         window.gruposFuncoesGlobais = pedidos.map(p => {
+//             // Mantém apenas os registros aditivoextra do tipo NÃO-FUNCEXCEDIDO
+//             const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
+//                 if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return false;
+//                 const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
+//                 const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
+//                 return tipo !== 'FUNCEXCEDIDO';
+//             });
+//             return { ...p, registrosOriginais: registrosFiltrados };
+//         }).filter(p => p.registrosOriginais.length > 0);
+        
+
+//         const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
+//             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
+
+//         const totalPedidosFuncoes = window.gruposFuncoesGlobais.reduce((acc, grupo) => 
+//             acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
+
+//         console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
+
+//         // // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
+        
+//         const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//         const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//         const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+        
+//         const statusCountsFinal = {
+//             funcionario: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 },
+//             funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
+//         };
+
+//         //console.log(`[CONTAGEM V92.1 INICIAL] Status por Categoria:`, statusCountsFinal, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER, STATUS_PENDENTE_LOWER);
+        
+//         function contarStatus(listaDeGrupos, categoriaDestino) {
+//             // Reinicia para não acumular lixo de cliques anteriores
+//             statusCountsFinal[categoriaDestino] = { 
+//                 [STATUS_PENDENTE]: 0, 
+//                 [STATUS_AUTORIZADO]: 0, 
+//                 [STATUS_REJEITADO]: 0 
+//             };
+
+//             listaDeGrupos.forEach(grupo => {
+//                 (grupo.registrosOriginais || []).forEach(item => {
+//                     // Usa o status_aprovacao que acabamos de normalizar no desmembramento
+//                     const st = item.status_aprovacao; 
+//                     if (statusCountsFinal[categoriaDestino][st] !== undefined) {
+//                         statusCountsFinal[categoriaDestino][st]++;
+//                     }
+//                 });
+//             });
+//         }
+
+
+
+
+//         contarStatus(window.gruposFuncionariosGlobais, 'funcionario');
+//         contarStatus(window.gruposFuncoesGlobais, 'funcao');
+
+//         //console.log(`[CONTAGEM V92.1] Status por Categoria:`, statusCountsFinal);
+        
+//         const totalPendente = statusCountsFinal.funcionario[STATUS_PENDENTE_LOWER] + statusCountsFinal.funcao[STATUS_PENDENTE_LOWER];
+//         const totalAutorizado = statusCountsFinal.funcionario[STATUS_AUTORIZADO_LOWER] + statusCountsFinal.funcao[STATUS_AUTORIZADO_LOWER];
+//         const totalRejeitado = statusCountsFinal.funcionario[STATUS_REJEITADO_LOWER] + statusCountsFinal.funcao[STATUS_REJEITADO_LOWER];
+        
+//         //console.log(`[CONTAGEM V92.1 TOTAL] Pendentes: ${totalPendente}, Autorizados: ${totalAutorizado}, Rejeitados: ${totalRejeitado}`);
+
+//         //--- 7. ESTRUTURA DE TABS (Renderização e Listeners) ---
+//         const tabsHTML = `
+//             <div class="titulo-pedidos">Pedidos e Solicitações</div>
+//             <div class="tabs-container-wrapper">
+//                 <div class="abas-principais">
+//                     <button class="aba main-tab-btn ativa" 
+//                         data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
+//                         Funcionários (${totalPedidosFuncionarios})
+//                     </button>
+//                     <button class="aba main-tab-btn" 
+//                         data-tab-content="tab-content-funcoes" data-categoria="funcao">
+//                         Funções (${totalPedidosFuncoes})
+//                     </button>
+//                 </div>
+//                 <div id="tab-content-funcionarios" class="painel-tabs ativo">
+//                     <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+//                 </div>
+//                 <div id="tab-content-funcoes" class="painel-tabs desativado">
+//                     <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+//                 </div>
+//             </div>
+//         `;
+
+//         lista.innerHTML = tabsHTML; 
+
+//         // Listeners (Inalterados)
+//         document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+//             button.addEventListener('click', function() {
+//                 // ... (Lógica do clique da aba principal) ...
+//                 const clickedButton = this;
+//                 const targetId = clickedButton.getAttribute('data-tab-content');
+//                 const categoria = clickedButton.getAttribute('data-categoria');
+//                 const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
+                
+//                 document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
+//                     if (btn) { 
+//                         btn.classList.remove('ativa');
+//                         btn.classList.remove('desativada'); 
+//                     }
+//                 }); 
+                
+//                 clickedButton.classList.add('ativa');
+
+//                 if (abasPrincipaisContainer) {
+//                     abasPrincipaisContainer.style.display = 'none';
+//                 }
+
+//                 document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
+//                 document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
+
+//                 const targetContent = document.getElementById(targetId);
+//                 targetContent.classList.add('ativo');
+//                 targetContent.classList.remove('desativado'); 
+
+//                 const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+//                 const contagemCategoria = categoria === 'funcionario' ? statusCountsFinal.funcionario : statusCountsFinal.funcao;
+
+//                 carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
+//             });
+//         });
+
+        
+//         // Delegação de Eventos para as sub-abas (Inalterado)
+//         lista.addEventListener('click', function(event) {
+//             const button = event.target.closest('.sub-tab-btn');
+//             if (button) {
+//                 // ... (Lógica do clique da sub-aba) ...
+//                 const status = button.getAttribute('data-status');
+//                 const categoria = button.getAttribute('data-categoria');
+//                 const listContainerId = button.getAttribute('data-list-id');
+
+//                 document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
+//                     btn.classList.remove('ativa');
+//                 });
+//                 button.classList.add('ativa');
+
+//                 lista.querySelectorAll('.pedidos-list-container').forEach(container => {
+//                     container.classList.add('hidden'); 
+//                     container.style.display = 'none'; 
+//                     container.style.visibility = 'hidden'; 
+//                     container.style.height = '0'; 
+//                 });
+                
+//                 const targetContainer = document.getElementById(listContainerId);
+//                 if (targetContainer) {
+//                     targetContainer.classList.remove('hidden');
+//                     targetContainer.style.visibility = 'visible';
+//                     targetContainer.style.height = 'auto'; 
+//                     targetContainer.style.display = 'flex'; 
+//                 }
+
+//                 //const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+//                 const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+//                 renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
+//             }
+//         });
+
+//         // Delegação de Eventos para o botão "Voltar" (Inalterado)
+//         lista.addEventListener('click', function(event) {
+//             const backButton = event.target.closest('.btn-voltar-main-tabs');
+//             if (backButton) {
+//                 // ... (Lógica do botão voltar) ...
+//                 const abasPrincipaisContainer = document.querySelector('.abas-principais');
+            
+//                 const activeTabContent = backButton.closest('.painel-tabs.ativo');
+            
+//                 if(activeTabContent) {
+//                     const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
+//                     activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
+                    
+//                     activeTabContent.classList.remove('ativo');
+//                     activeTabContent.classList.add('desativado');
+//                 }
+
+//                 if (abasPrincipaisContainer) {
+//                     abasPrincipaisContainer.style.display = 'flex'; 
+//                 }
+
+//                 const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
+//                 if (activeMainTabButton) {
+//                     const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
+//                     if (targetContent) {
+//                         targetContent.classList.add('ativo');
+//                         targetContent.classList.remove('desativado');
+//                     }
+//                 }
+//             }
+//         });
+
+//     } catch (err) {
+//         console.error("Erro CRÍTICO ao mostrar pedidos:", err);
+//         lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Verifique se as funções de busca e utilidade estão implementadas corretamente.'}</p>`;
+//     }
+// }
+
+// 🔄 Criamos uma variável global para guardar a referência do recarregamento
+window.recarregarPainelPedidosGlobais = null;
+
 async function mostrarPedidosUsuario() {
     const lista = document.getElementById("painelDetalhes");
     if (!lista) return;
 
-    let pedidos = []; // Array final de grupos    
-
     const ehMaster = usuarioTemPermissao();
     const ehSupremo = usuarioTemPermissaoSupremo();
-
-    // REGRA: Apenas o Supremo pode aprovar. O Master pode ver (na busca), mas não agir.
     const podeAprovar = ehSupremo;
 
-    // 🛑 NOVA CONFIGURAÇÃO: Mapeamento do campo de status para o campo de dados que é um JSON String de array
     const dataFieldMapping = {
         "statusdiariadobrada": "dtdiariadobrada",
         "statusmeiadiaria": "dtmeiadiaria",
         "statuscustofechado": "vlrcache",
         "statuscacheliberado": "vlrcache",
-        "statusvagaexcedida": "statusvagaexcedida", // Mapeia para o campo do banco
-        "statusaditivoextra": "statusaditivoextra" // Mapeia para o campo do banco
-       // "aditivoextra": "statusvagaexcedida"
-
-        // Outros campos de status que contêm JSON Array devem ser adicionados aqui
+        "statusvagaexcedida": "statusvagaexcedida", 
+        "statusaditivoextra": "statusaditivoextra"
     };
 
     const camposTodos = [
@@ -5670,505 +6808,350 @@ async function mostrarPedidosUsuario() {
         "statuscacheliberado",
         "statusvagaexcedida", 
         "statusaditivoextra",
-       // "aditivoextra",
         CAMPO_ADITIVO_EXTRA
     ];
 
-    try {
-        lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
-    
-        // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
-      
-        const pedidosPadrao = await buscarPedidosUsuario(); // Já vem agrupado do novo Backend
-      
-        let pedidosUnificados = [...pedidosPadrao];
-        window.pedidosCompletosGlobais = pedidosUnificados;
+    // 🌟 DEFINIÇÃO DO FLUXO PRINCIPAL REUTILIZÁVEL 🌟
+    window.recarregarPainelPedidosGlobais = async function() {
+        try {
+            lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
         
-        const aditivosMapeados = [];
-
-        console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
-
-        pedidosUnificados.push(...aditivosMapeados);
-       
-        window.pedidosCompletosGlobais = pedidosUnificados;
-        
-        // 🛑 PASSO 3: DESMEMBRAMENTO COM VARREDURA DE STATUS 🛑
-        const pedidosDesmembrados = [];       
-
-        pedidosUnificados.forEach(pedidoOriginal => {
+            // 1. Busca os dados atualizados diretamente do Back-End
+            const pedidosPadrao = await buscarPedidosUsuario(); 
+            let pedidosUnificados = [...pedidosPadrao];
+            const aditivosMapeados = [];
+            pedidosUnificados.push(...aditivosMapeados);
            
-            const categoriasPresentes = camposTodos.filter(c => {
-                const valor = pedidoOriginal[c];
-                
-                // ✅ Trata statusvagaexcedida igual ao CAMPO_ADITIVO_EXTRA
-                if (c === 'statusvagaexcedida') {
-                    return valor && valor.toString().trim() !== '' && valor !== 'null';
+            window.pedidosCompletosGlobais = pedidosUnificados;
+            
+            // 2. Desmembramento com varredura de status
+            const pedidosDesmembrados = [];       
+
+            pedidosUnificados.forEach(pedidoOriginal => {
+                const categoriasPresentes = camposTodos.filter(c => {
+                    const valor = pedidoOriginal[c];
+                    if (c === 'statusvagaexcedida') {
+                        return valor && valor.toString().trim() !== '' && valor !== 'null';
+                    }
+                    if (c === CAMPO_ADITIVO_EXTRA) {
+                        return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+                    }
+                    if (Array.isArray(valor)) return valor.length > 0;
+                    return valor && valor.toString().trim() !== ''; 
+                });
+
+                if (categoriasPresentes.length > 0) {
+    categoriasPresentes.forEach(categoria => {                    
+        const dataField = dataFieldMapping[categoria];
+        
+        // 🚨 DEBUG 1: Como o objeto chega do banco de dados antes de qualquer alteração?
+        if (pedidoOriginal.idsolicitacao == 867 || pedidoOriginal.idpedido == 867 || pedidoOriginal.id_log == 609) {
+            console.log("🚨 [DEBUG REGISTRO] Achamos o item problemático!", {
+                id_solicitacao_raiz: pedidoOriginal.idsolicitacao,
+                id_pedido: pedidoOriginal.idpedido,
+                status_raiz: pedidoOriginal.status,
+                status_aprovacao: pedidoOriginal.status_aprovacao,
+                categoria_log: pedidoOriginal.categoria_log,
+                conteudo_json_bruto: pedidoOriginal[dataField]
+            });
+        }
+
+        let statusSolicitacaoMae = pedidoOriginal.status_aprovacao || pedidoOriginal.status || 'pendente';
+        let statusIdentificado = statusSolicitacaoMae;                    
+        let parsedData = null;
+        
+        if (dataField && pedidoOriginal[dataField]) {
+            parsedData = safeParse(pedidoOriginal[dataField]);
+            
+            if (statusSolicitacaoMae.toString().toLowerCase().trim() === 'pendente') {
+                if (Array.isArray(parsedData) && parsedData.length > 0) {
+                    statusIdentificado = parsedData[0].status || parsedData[0].Status || statusIdentificado;
                 }
-                if (c === CAMPO_ADITIVO_EXTRA) {
-                    return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
-                }
-                if (Array.isArray(valor)) return valor.length > 0;
-                return valor && valor.toString().trim() !== ''; 
+            } else {
+                statusIdentificado = statusSolicitacaoMae;
+            }
+        }
+
+        if (statusIdentificado === 'pendente' && pedidoOriginal[categoria]) {
+            const valorColuna = pedidoOriginal[categoria].toString().toLowerCase();
+            if (valorColuna.includes('autoriz') || valorColuna.includes('aprov') || valorColuna.includes('rejeit')) {
+                statusIdentificado = valorColuna;
+            }
+        }
+
+        let statusFinal = statusIdentificado.toString().toLowerCase().trim();
+        if (statusFinal.includes('autoriz') || statusFinal.includes('aprov')) statusFinal = STATUS_AUTORIZADO;
+        else if (statusFinal.includes('rejeit') || statusFinal.includes('recus')) statusFinal = STATUS_REJEITADO;
+        else statusFinal = STATUS_PENDENTE;
+        
+        // 🚨 DEBUG 2: Qual status final esse loop calculou para o card?
+        if (pedidoOriginal.idsolicitacao == 867 || pedidoOriginal.idpedido == 867 || pedidoOriginal.id_log == 609) {
+            console.log(`🚨 [DEBUG STATUS CALCULADO] Para a categoria [${categoria}], o status final gerado foi: [${statusFinal}]`);
+        }
+
+        const pedidoDesmembrado = { 
+            ...pedidoOriginal,
+            categoria_item: categoria,
+            status: statusFinal,
+            status_aprovacao: statusFinal 
+        };
+
+        if (Array.isArray(parsedData)) {
+            pedidoDesmembrado[dataField] = parsedData.map(dat => ({
+                ...dat,
+                status: statusSolicitacaoMae.toString().toLowerCase().trim() === 'pendente' ? (dat.status || statusFinal) : statusSolicitacaoMae
+            }));
+        }
+
+        camposTodos.forEach(c => { if (c !== categoria) delete pedidoDesmembrado[c]; });
+        pedidosDesmembrados.push(pedidoDesmembrado);
+    });
+} else if (pedidoOriginal.categoria_item) {
+    pedidosDesmembrados.push(pedidoOriginal);
+}
             });
 
-            console.log("Categorias encontradas para desmembramento:", categoriasPresentes, "no pedido:", pedidoOriginal);
+            // 3. Agrupamento e controle de duplicatas
+            const pedidosAgrupados = {};
+            const chavesDosItensAdicionados = new Set(); 
 
-            
-            if (categoriasPresentes.length > 0) {
+            pedidosDesmembrados.forEach(p => {
+                const evento = p.evento || 'Sem Evento';
+                const funcionario = p.funcionario || null; 
+                let nmfuncao = p.nmfuncao || null;
+                if (!funcionario && (p.categoria_item === 'statusvagaexcedida' || p.categoria_item === 'statusaditivoextra' || p.categoria === 'aditivoextra')) {
+                    const rawJson = p.statusvagaexcedida || p.statusaditivoextra || p.statusajustecusto || '[]';
+                    const arr = safeParse(rawJson);
+                    nmfuncao = arr[0]?.tipoSolicitacao || p.tiposolicitacao || 'Solicitação de Função';
+                }
+               
+                const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
+                const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+                const chaveAgrupamento = funcionarioOuFuncao; 
+                const solicitanteAtual = p.nomeSolicitante || "N/D"; 
+
+                const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+               
+                if (p.categoria === 'statuscacheliberado') {
+                    p.categoria_item = 'statuscacheliberado';
+                }
+              
+                const categoria = p.categoria_item || "geral";
+                const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
+
+                if (chavesDosItensAdicionados.has(chaveItemUnico)) return; 
+                chavesDosItensAdicionados.add(chaveItemUnico);
                 
-                categoriasPresentes.forEach(categoria => {                    
-                    const dataField = dataFieldMapping[categoria];
-                    let statusIdentificado = 'pendente';                    
-                    
-                    let parsedData = null;
-                    
-                    //1. Tenta extrair do JSON interno (ex: dtdiariadobrada)
-                    if (dataField && pedidoOriginal[dataField]) {
-                        parsedData = safeParse(pedidoOriginal[dataField]);
-                        if (Array.isArray(parsedData) && parsedData.length > 0) {
-                            // Pega o status do primeiro item do array JSON
-                            statusIdentificado = parsedData[0].status || parsedData[0].Status || statusIdentificado;
-                        }
-                    }
-
-                    // 2. Se continuar pendente, verifica se a própria coluna de categoria tem o status
-                    // Ex: pedidoOriginal["statusdiariadobrada"] pode conter "autorizado"
-                    if (statusIdentificado === 'pendente' && pedidoOriginal[categoria]) {
-                        const valorColuna = pedidoOriginal[categoria].toString().toLowerCase();
-                        if (valorColuna.includes('autoriz') || valorColuna.includes('aprov') || valorColuna.includes('rejeit')) {
-                            statusIdentificado = valorColuna;
-                        }
-                    }
-
-                    // 3. Fallback para o status global do pedido
-                    if (statusIdentificado === 'pendente') {
-                        statusIdentificado = pedidoOriginal.status_aprovacao || pedidoOriginal.status || 'pendente';
-                    }
-
-                    // Normalização final para as chaves do seu contador
-                    let statusFinal = statusIdentificado.toString().toLowerCase().trim();
-                    if (statusFinal.includes('autoriz') || statusFinal.includes('aprov')) statusFinal = STATUS_AUTORIZADO;
-                    else if (statusFinal.includes('rejeit') || statusFinal.includes('recus')) statusFinal = STATUS_REJEITADO;
-                    else statusFinal = STATUS_PENDENTE;
-                    
-                    
-                    const pedidoDesmembrado = { 
-                        ...pedidoOriginal,
-                        categoria_item: categoria,
-                        status: statusFinal,
-                        status_aprovacao: statusFinal // Garante que a função contarStatus leia este valor
+                if (!pedidosAgrupados[chaveAgrupamento]) {
+                    pedidosAgrupados[chaveAgrupamento] = {
+                        evento: evento,
+                        funcionario: funcionario, 
+                        nmfuncao: nmfuncao,
+                        idpedido: p.idpedido,
+                        dtCriacao: p.dtCriacao, 
+                        todosSolicitantes: new Set(), 
+                        registrosOriginais: [] 
                     };
-                    
-                    // if (categoria === CAMPO_ADITIVO_EXTRA && Array.isArray(pedidoOriginal.dataSolicitada)) {
-                    //     // Definimos uma nova propriedade ou sobrescrevemos a dataSolicitacao 
-                    //     // para que o front use a data do evento e não a data de criação (09/03)
-                    //     pedidoDesmembrado.dataSolicitacao = pedidoOriginal.dataSolicitada[0];
-                    //     pedidoDesmembrado.dataExibicao = pedidoOriginal.dataSolicitada[0]; 
-                    // }
+                }
 
-                    if (Array.isArray(parsedData)) {
-                        pedidoDesmembrado[dataField] = parsedData;
+                if (solicitanteAtual) {
+                    pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
+                }
+                
+                pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
+            });       
+
+            let pedidosFinal = Object.values(pedidosAgrupados).map(p => { 
+                const listaSolicitantes = Array.from(p.todosSolicitantes).join(', ');
+                p.nomeSolicitante = listaSolicitantes;
+                delete p.todosSolicitantes;
+                return p;
+            });
+
+            pedidosFinal.sort((a, b) => {
+                const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+                const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+                if (nomeA < nomeB) return -1;
+                if (nomeA > nomeB) return 1;
+                return 0;
+            });
+            
+            if (!pedidosFinal.length) { 
+                lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+                return;
+            }
+
+            // População das Abas Globais Atualizadas
+            window.gruposFuncionariosGlobais = pedidosFinal.map(p => {
+                const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
+                    if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return true;
+                    const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
+                    const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
+                    return tipo === 'FUNCEXCEDIDO';
+                });
+                return { ...p, registrosOriginais: registrosFiltrados };
+            }).filter(p => !!p.funcionario && p.registrosOriginais.length > 0);
+
+            window.gruposFuncoesGlobais = pedidosFinal.map(p => {
+                const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
+                    if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return false;
+                    const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
+                    const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
+                    return tipo !== 'FUNCEXCEDIDO';
+                });
+                return { ...p, registrosOriginais: registrosFiltrados };
+            }).filter(p => p.registrosOriginais.length > 0);
+            
+            const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
+            const totalPedidosFuncoes = window.gruposFuncoesGlobais.reduce((acc, grupo) => acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
+
+            const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+            const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+            const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+            const statusCountsFinal = {
+                funcionario: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 },
+                funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
+            };
+
+            function contarStatus(listaDeGrupos, categoriaDestino) {
+                statusCountsFinal[categoriaDestino] = { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 };
+                listaDeGrupos.forEach(grupo => {
+                    (grupo.registrosOriginais || []).forEach(item => {
+                        const st = item.status_aprovacao?.toLowerCase(); 
+                        if (statusCountsFinal[categoriaDestino][st] !== undefined) {
+                            statusCountsFinal[categoriaDestino][st]++;
+                        }
+                    });
+                });
+            }
+
+            contarStatus(window.gruposFuncionariosGlobais, 'funcionario');
+            contarStatus(window.gruposFuncoesGlobais, 'funcao');
+
+            // 4. Renderiza a Estrutura Base de Abas com Contadores novos
+            lista.innerHTML = `
+                <div class="titulo-pedidos">Pedidos e Solicitações</div>
+                <div class="tabs-container-wrapper">
+                    <div class="abas-principais">
+                        <button class="aba main-tab-btn ativa" data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
+                            Funcionários (${totalPedidosFuncionarios})
+                        </button>
+                        <button class="aba main-tab-btn" data-tab-content="tab-content-funcoes" data-categoria="funcao">
+                            Funções (${totalPedidosFuncoes})
+                        </button>
+                    </div>
+                    <div id="tab-content-funcionarios" class="painel-tabs ativo">
+                        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+                    </div>
+                    <div id="tab-content-funcoes" class="painel-tabs desativado">
+                        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+                    </div>
+                </div>
+            `;
+
+            // Configuração dos Listeners dinâmicos
+           
+            document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-tab-content');
+                    const categoria = this.getAttribute('data-categoria');
+                    const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
+
+                    console.log("========================================");
+                    console.log(`🔘 ABA PRINCIPAL CLICADA: [${categoria.toUpperCase()}]`);
+                    console.log(`🔹 Target ID do Painel: ${targetId}`);
+                    console.log("========================================");
+                    
+                    document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
+                        btn.classList.remove('ativa');
+                    }); 
+                    
+                    //  CORREÇÃO AQUI: adicionando classList antes do .add()
+                    this.classList.add('ativa'); 
+                    
+                    if (abasPrincipaisContainer) abasPrincipaisContainer.style.display = 'none';
+
+                    document.querySelectorAll('.painel-tabs').forEach(content => {
+                        content.classList.remove('ativo'); 
+                        content.classList.add('desativado');
+                    });
+
+                    const targetContent = document.getElementById(targetId);
+                    if (targetContent) {
+                        targetContent.classList.add('ativo'); 
+                        targetContent.classList.remove('desativado'); 
                     }
 
-                    camposTodos.forEach(c => { if (c !== categoria) delete pedidoDesmembrado[c]; });
-                    pedidosDesmembrados.push(pedidoDesmembrado);
+                    const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+                    const contagemCategoria = categoria === 'funcionario' ? statusCountsFinal.funcionario : statusCountsFinal.funcao;
+
+                    // 📝 CONSOLES DE RASTREAMENTO DE DADOS
+                    console.log(`📦 Dados recuperados para a aba [${categoria}]:`);
+                    console.log(`   🔸 Total de Grupos na Lista:`, listaPedidos ? listaPedidos.length : 0);
+                    console.log(`   🔸 Array completo enviado:`, listaPedidos);
+                    console.log(`   🔸 Objeto de Contagem enviado:`, contagemCategoria);
+
+                    //carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
+
+                    if (typeof carregarSubAbasInicial === 'function') {
+                        console.log(`🚀 Invocando carregarSubAbasInicial()...`);
+                        carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
+                    } else {
+                        console.error(`❌ Erro: A função 'carregarSubAbasInicial' não foi encontrada no escopo global.`);
+                    }
+                    console.log("========================================");
                 });
-            } else if (pedidoOriginal.categoria_item) {
-                pedidosDesmembrados.push(pedidoOriginal);
-            }
-        });
+            });
 
+        } catch (err) {
+            console.error("Erro ao processar/atualizar listagem:", err);
+            lista.innerHTML = `<p class="erro">Erro ao carregar dados: ${err.message}</p>`;
+        }
+    };
 
+    // Executa a primeira carga ao abrir a tela
+    await window.recarregarPainelPedidosGlobais();
 
-        // 4. AGRUPAMENTO COM CONTROLE DE DUPLICATAS POR ITEM (REFINADO)
-        const pedidosAgrupados = {};
-        const chavesDosItensAdicionados = new Set(); 
+    // 🛑 DELEGAÇÃO DE CLIQUES PARA AS SUB-ABAS E VOLTAR (Configurados apenas uma vez)
+    lista.onclick = null; 
+    lista.addEventListener('click', function(event) {
+        const subTabBtn = event.target.closest('.sub-tab-btn');
+        if (subTabBtn) {
+            const status = subTabBtn.getAttribute('data-status');
+            const categoria = subTabBtn.getAttribute('data-categoria');
+            const listContainerId = subTabBtn.getAttribute('data-list-id');
 
-        
-        // 🛑 ITERAR AGORA SOBRE pedidosDesmembrados 🛑
-        pedidosDesmembrados.forEach(p => {
+            document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => btn.classList.remove('ativa'));
+            subTabBtn.classList.add('ativa');
 
-            console.log("OBJETO COMPLETO DO BANCO:", p);
-            // Variáveis de Agrupamento
-            const evento = p.evento || 'Sem Evento';
-            const funcionario = p.funcionario || null; 
-            let nmfuncao = p.nmfuncao || null;
-            if (!funcionario && (p.categoria_item === 'statusvagaexcedida' || p.categoria_item === 'statusaditivoextra' || p.categoria === 'aditivoextra')) {
-                const rawJson = p.statusvagaexcedida || p.statusaditivoextra || p.statusajustecusto || '[]';
-                const arr = safeParse(rawJson);
-                nmfuncao = arr[0]?.tipoSolicitacao || p.tiposolicitacao || 'Solicitação de Função';
-            }
-           
-            const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
-            const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+            lista.querySelectorAll('.pedidos-list-container').forEach(c => {
+                c.classList.add('hidden'); c.style.display = 'none';
+            });
             
-
-            console.log(`DEBUG AGRUPAMENTO - Funcionario: ${funcionarioOuFuncao}, ID_Log: ${p.id_log}, Solicitante: ${p.nomeSolicitante}`);
-            const chaveAgrupamento = funcionarioOuFuncao; //em comentario para teste da nova query
-           //const chaveAgrupamento = `${funcionarioOuFuncao}|${p.idlog || p.id_log || idGrupo}`;//novo para teste na nova query, para evitar agrupamento de itens diferentes com mesmo nome de funcionario ou funcao
-            //const chaveAgrupamento = `${funcionarioOuFuncao}|${idGrupo}`;
-            console.log(`CHAVE GERADA: "${chaveAgrupamento}"`);
-            const solicitanteAtual = p.nomeSolicitante || "N/D"; 
-            
-            // const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
-            
-            // const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
-
-            // const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
-
-            const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
-           
-            if (p.categoria === 'statuscacheliberado') {
-                p.categoria_item = 'statuscacheliberado';
-            }
-          
-            const categoria = p.categoria_item || "geral";
-            const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
-
-            console.log(`CHAVE ITEM: ${chaveItemUnico} | id_log: ${p.id_log} | idpedido: ${p.idpedido} | idaditivoextra: ${p.idaditivoextra}`);
-
-             if (chavesDosItensAdicionados.has(chaveItemUnico)) {
-                 console.warn(`🛑 DUPLICAÇÃO REAL IGNORADA: ${chaveItemUnico}`);
-                 return; 
-             }
-
-            //Verifica e Adiciona a Chave
-            // if (chavesDosItensAdicionados.has(chaveItemUnico)) {
-            //     console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
-            //     return; // Pula este item se ele já foi visto
-            // }
-            if (categoria === CAMPO_ADITIVO_EXTRA) {
-                console.log(`✅ Aditivo Extra ADICIONADO: Chave: ${chaveItemUnico}. ID Pedido: ${p.idpedido}, ID Aditivo Extra: ${p.idaditivoextra}`);
-            }
-            chavesDosItensAdicionados.add(chaveItemUnico);
-            
-            // LÓGICA DE CRIAÇÃO DO GRUPO
-            if (!pedidosAgrupados[chaveAgrupamento]) {
-                pedidosAgrupados[chaveAgrupamento] = {
-                    evento: evento,
-                    funcionario: funcionario, 
-                    nmfuncao: nmfuncao,
-                    idpedido: p.idpedido,
-                    dtCriacao: p.dtCriacao, 
-                    todosSolicitantes: new Set(), 
-                    registrosOriginais: [] 
-                };
+            const targetContainer = document.getElementById(listContainerId);
+            if (targetContainer) {
+                targetContainer.classList.remove('hidden'); targetContainer.style.display = 'flex';
+                targetContainer.style.visibility = 'visible'; targetContainer.style.height = 'auto';
             }
 
-
-            if (solicitanteAtual) {
-                pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
-            }
-            
-            // Adiciona o item (único) ao grupo
-            pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
-        });       
-
-
-        const pedidosParaClassificar = Object.values(pedidosAgrupados);
-        console.log(`[CLASSIFICAÇÃO] Iniciando classificação de ${pedidosParaClassificar.length} pedidos agrupados.`);
-
-        // 4. CONVERTE DE VOLTA PARA ARRAY E POPULA 'pedidos'
-        pedidos = Object.values(pedidosAgrupados).map(p => { 
-            const listaSolicitantes = Array.from(p.todosSolicitantes).join(', ');
-            p.nomeSolicitante = listaSolicitantes;
-            delete p.todosSolicitantes;
-            return p;
-        });
-
-        console.log(`DEBUG V70: Total de itens após agrupamento final: ${pedidos.length}.`);
-
-        // ORDENAÇÃO (Inalterado)
-        pedidos.sort((a, b) => {
-            const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
-            const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
-            
-            if (nomeA < nomeB) return -1;
-            if (nomeA > nomeB) return 1;
-
-            const eventoA = (a.evento || '').toLowerCase();
-            const eventoB = (b.evento || '').toLowerCase();
-            
-            if (eventoA < eventoB) return -1;
-            if (eventoA > eventoB) return 1;
-
-            return 0;
-        });
-        
-        // Verifica se há pedidos após a unificação/agrupamento
-        if (!pedidos.length) { 
-            lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+            const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+            renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
             return;
         }
 
-            
-        // Primeiro, filtramos os grupos
-       
-        // window.gruposFuncoesGlobais = pedidos.filter(p => {
-        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
-
-        //     // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
-        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
-        //         return true; 
-        //     }
-
-        //     return !p.funcionario; // Regra padrão para o restante
-        // });
-
-        // // Filtro para a aba Funcionários
-        // window.gruposFuncionariosGlobais = pedidos.filter(p => {
-        //     const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
-        //     const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
-
-        //     // Se for vaga excedida, NÃO entra aqui
-        //     if (tipoSolicitacao.includes("Vaga Excedida")) {
-        //         return false;
-        //     }
-
-        //     return !!p.funcionario;
-        // });
-
-        // // Agora, contamos quantos registros individuais existem dentro de cada grupo
-        
-        //aqui esta certo
-
-        // window.gruposFuncoesGlobais = pedidos.filter(p => {
-        //     // Verifica em todos os registros do grupo
-        //     const temVagaExcedida = (p.registrosOriginais || []).some(r => {
-        //         // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
-        //         const tipo = (r.tiposolicitacao || '').toUpperCase();
-        //         return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
-        //     });
-
-        //     if (temVagaExcedida) return true;
-        //     return !p.funcionario; // regra padrão: sem funcionário vai para Funções
-        // });
-
-        // // Filtro para a aba Funcionários
-        // window.gruposFuncionariosGlobais = pedidos.filter(p => {
-        //     const temVagaExcedida = (p.registrosOriginais || []).some(r => {
-        //         // Verifica se no campo tiposolicitacao (que vem do banco) contém as palavras-chave
-        //         const tipo = (r.tiposolicitacao || '').toUpperCase();
-        //         return tipo.includes("VAGA EXCEDIDA") || tipo === 'FUNCEXCEDIDO';
-        //     });
-
-        //     if (temVagaExcedida) return false;
-        //     return !!p.funcionario;
-        // });
-
-
-        window.gruposFuncionariosGlobais = pedidos.map(p => {
-            // Remove dos registros tudo que é aditivoextra do tipo NÃO-FUNCEXCEDIDO
-            const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
-                if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return true;
-                const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
-                const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
-                return tipo === 'FUNCEXCEDIDO'; // só mantém FUNCEXCEDIDO em Funcionários
-            });
-            return { ...p, registrosOriginais: registrosFiltrados };
-        }).filter(p => !!p.funcionario && p.registrosOriginais.length > 0);
-
-        window.gruposFuncoesGlobais = pedidos.map(p => {
-            // Mantém apenas os registros aditivoextra do tipo NÃO-FUNCEXCEDIDO
-            const registrosFiltrados = (p.registrosOriginais || []).filter(r => {
-                if (r.categoria_item !== CAMPO_ADITIVO_EXTRA && r.categoria_item !== 'statusaditivoextra') return false;
-                const arr = safeParse(r[CAMPO_ADITIVO_EXTRA] || '[]');
-                const tipo = (arr[0]?.tipoSolicitacao || '').toUpperCase();
-                return tipo !== 'FUNCEXCEDIDO';
-            });
-            return { ...p, registrosOriginais: registrosFiltrados };
-        }).filter(p => p.registrosOriginais.length > 0);
-        
-
-        const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
-            acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
-
-        const totalPedidosFuncoes = window.gruposFuncoesGlobais.reduce((acc, grupo) => 
-            acc + (grupo.registrosOriginais ? grupo.registrosOriginais.length : 0), 0);
-
-        console.log(`Contagem Real - Pedidos de Funcionários: ${totalPedidosFuncionarios}, Pedidos de Funções: ${totalPedidosFuncoes}`);
-
-        // // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
-        
-        const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
-        const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
-        const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
-
-        
-        const statusCountsFinal = {
-            funcionario: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 },
-            funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
-        };
-
-        //console.log(`[CONTAGEM V92.1 INICIAL] Status por Categoria:`, statusCountsFinal, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER, STATUS_PENDENTE_LOWER);
-        
-        function contarStatus(listaDeGrupos, categoriaDestino) {
-            // Reinicia para não acumular lixo de cliques anteriores
-            statusCountsFinal[categoriaDestino] = { 
-                [STATUS_PENDENTE]: 0, 
-                [STATUS_AUTORIZADO]: 0, 
-                [STATUS_REJEITADO]: 0 
-            };
-
-            listaDeGrupos.forEach(grupo => {
-                (grupo.registrosOriginais || []).forEach(item => {
-                    // Usa o status_aprovacao que acabamos de normalizar no desmembramento
-                    const st = item.status_aprovacao; 
-                    if (statusCountsFinal[categoriaDestino][st] !== undefined) {
-                        statusCountsFinal[categoriaDestino][st]++;
-                    }
-                });
-            });
+        const backButton = event.target.closest('.btn-voltar-main-tabs');
+        if (backButton) {
+            const abasPrincipaisContainer = document.querySelector('.abas-principais');
+            const activeTabContent = backButton.closest('.painel-tabs.ativo');
+            if(activeTabContent) {
+                const catTxt = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
+                activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${catTxt}' para ver os pedidos.</p>`;
+                activeTabContent.classList.remove('ativo'); activeTabContent.classList.add('desativado');
+            }
+            if (abasPrincipaisContainer) abasPrincipaisContainer.style.display = 'flex';
         }
-
-
-
-
-        contarStatus(window.gruposFuncionariosGlobais, 'funcionario');
-        contarStatus(window.gruposFuncoesGlobais, 'funcao');
-
-        //console.log(`[CONTAGEM V92.1] Status por Categoria:`, statusCountsFinal);
-        
-        const totalPendente = statusCountsFinal.funcionario[STATUS_PENDENTE_LOWER] + statusCountsFinal.funcao[STATUS_PENDENTE_LOWER];
-        const totalAutorizado = statusCountsFinal.funcionario[STATUS_AUTORIZADO_LOWER] + statusCountsFinal.funcao[STATUS_AUTORIZADO_LOWER];
-        const totalRejeitado = statusCountsFinal.funcionario[STATUS_REJEITADO_LOWER] + statusCountsFinal.funcao[STATUS_REJEITADO_LOWER];
-        
-        //console.log(`[CONTAGEM V92.1 TOTAL] Pendentes: ${totalPendente}, Autorizados: ${totalAutorizado}, Rejeitados: ${totalRejeitado}`);
-
-        //--- 7. ESTRUTURA DE TABS (Renderização e Listeners) ---
-        const tabsHTML = `
-            <div class="titulo-pedidos">Pedidos e Solicitações</div>
-            <div class="tabs-container-wrapper">
-                <div class="abas-principais">
-                    <button class="aba main-tab-btn ativa" 
-                        data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
-                        Funcionários (${totalPedidosFuncionarios})
-                    </button>
-                    <button class="aba main-tab-btn" 
-                        data-tab-content="tab-content-funcoes" data-categoria="funcao">
-                        Funções (${totalPedidosFuncoes})
-                    </button>
-                </div>
-                <div id="tab-content-funcionarios" class="painel-tabs ativo">
-                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-                </div>
-                <div id="tab-content-funcoes" class="painel-tabs desativado">
-                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-                </div>
-            </div>
-        `;
-
-        lista.innerHTML = tabsHTML; 
-
-        // Listeners (Inalterados)
-        document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                // ... (Lógica do clique da aba principal) ...
-                const clickedButton = this;
-                const targetId = clickedButton.getAttribute('data-tab-content');
-                const categoria = clickedButton.getAttribute('data-categoria');
-                const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
-                
-                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
-                    if (btn) { 
-                        btn.classList.remove('ativa');
-                        btn.classList.remove('desativada'); 
-                    }
-                }); 
-                
-                clickedButton.classList.add('ativa');
-
-                if (abasPrincipaisContainer) {
-                    abasPrincipaisContainer.style.display = 'none';
-                }
-
-                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
-                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
-
-                const targetContent = document.getElementById(targetId);
-                targetContent.classList.add('ativo');
-                targetContent.classList.remove('desativado'); 
-
-                const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
-                const contagemCategoria = categoria === 'funcionario' ? statusCountsFinal.funcionario : statusCountsFinal.funcao;
-
-                carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
-            });
-        });
-
-        
-        // Delegação de Eventos para as sub-abas (Inalterado)
-        lista.addEventListener('click', function(event) {
-            const button = event.target.closest('.sub-tab-btn');
-            if (button) {
-                // ... (Lógica do clique da sub-aba) ...
-                const status = button.getAttribute('data-status');
-                const categoria = button.getAttribute('data-categoria');
-                const listContainerId = button.getAttribute('data-list-id');
-
-                document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
-                    btn.classList.remove('ativa');
-                });
-                button.classList.add('ativa');
-
-                lista.querySelectorAll('.pedidos-list-container').forEach(container => {
-                    container.classList.add('hidden'); 
-                    container.style.display = 'none'; 
-                    container.style.visibility = 'hidden'; 
-                    container.style.height = '0'; 
-                });
-                
-                const targetContainer = document.getElementById(listContainerId);
-                if (targetContainer) {
-                    targetContainer.classList.remove('hidden');
-                    targetContainer.style.visibility = 'visible';
-                    targetContainer.style.height = 'auto'; 
-                    targetContainer.style.display = 'flex'; 
-                }
-
-                //const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-                const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
-                renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
-            }
-        });
-
-        // Delegação de Eventos para o botão "Voltar" (Inalterado)
-        lista.addEventListener('click', function(event) {
-            const backButton = event.target.closest('.btn-voltar-main-tabs');
-            if (backButton) {
-                // ... (Lógica do botão voltar) ...
-                const abasPrincipaisContainer = document.querySelector('.abas-principais');
-            
-                const activeTabContent = backButton.closest('.painel-tabs.ativo');
-            
-                if(activeTabContent) {
-                    const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
-                    activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
-                    
-                    activeTabContent.classList.remove('ativo');
-                    activeTabContent.classList.add('desativado');
-                }
-
-                if (abasPrincipaisContainer) {
-                    abasPrincipaisContainer.style.display = 'flex'; 
-                }
-
-                const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
-                if (activeMainTabButton) {
-                    const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
-                    if (targetContent) {
-                        targetContent.classList.add('ativo');
-                        targetContent.classList.remove('desativado');
-                    }
-                }
-            }
-        });
-
-    } catch (err) {
-        console.error("Erro CRÍTICO ao mostrar pedidos:", err);
-        lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Verifique se as funções de busca e utilidade estão implementadas corretamente.'}</p>`;
-    }
+    });
 }
 
 function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
@@ -6342,6 +7325,1980 @@ function safeParse(input) {
     }
 }
 
+//ORIGINAL
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     window.pedidosCompletosGlobais = pedidosCompletos;
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         "statuscustofechado",
+//         "statuscacheliberado",
+//         "statusvagasreaproveitadas",
+//     //    "statusvagaexcedida", 
+//     //    "statusaditivoextra",
+//     //    "aditivoextra",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     let totalItensRenderizados = 0;
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
+//     const gruposFiltrados = [];
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao;
+//         if (categoria === 'funcionario') {
+//             chaveRenderizacao = grupoConsolidado.funcionario;
+//         } else {
+//             // Tenta pegar nmfuncao, senão busca dentro dos registros
+//             chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+//             if (!chaveRenderizacao) {
+//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+//                 if (primeiroAditivo) {
+//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+//                 } else {
+//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+//                 }
+//             }
+//         }
+
+//         if (!chaveRenderizacao) return;
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+//         const pedidosConsolidadosPorId = new Map();
+//         let temAlgumMatchNesteGrupo = false;
+
+//         registros.forEach(pedidoOriginal => {
+//             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
+//              console.log("🔍 Processando registro com ID:", pedidoOriginal );
+
+      
+//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
+//             const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
+
+//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
+            
+            
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
+
+//             if (!pedidoConsolidado) {
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     idpedido: idLog, // Padroniza o ID
+//                     temMatch: false,
+//                     camposEncontrados: new Set() // Para rastrear o que já foi processado
+//                 };
+//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
+//             }
+
+//             // Verifica status principal
+//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
+//                 temAlgumMatchNesteGrupo = true;
+//             }
+
+//             // Verifica sub-itens (Meia diária, caixinha, etc)
+//             camposTodos.forEach(campo => {
+//                 console.log(`🔍 Verificando campo "${campo}" para o item ID: ${idLog} - Categoria: ${categoriaItem}`);
+//                 const itens = safeParse(pedidoOriginal[campo]);
+                
+                
+//                 const itensFiltrados = itens.filter(it => {
+//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+//                     return String(s).toLowerCase().trim() === statusDesejado;
+//                 });
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
+//                     pedidoConsolidado[campo] = itensFiltrados; 
+//                     temAlgumMatchNesteGrupo = true;
+//                 } 
+ 
+//             });            
+
+//         });
+
+//         if (temAlgumMatchNesteGrupo) {
+//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
+
+//             if (registrosValidos.length > 0) {
+//                 gruposFiltrados.push({
+//                     ...grupoConsolidado,
+//                     registrosOriginais: registrosValidos
+//                 });
+//             }
+//         }
+//     });
+  
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+        
+//         // 🛑 V97.0: Atualiza a contagem para 0
+//         if (typeof atualizarBadgeDeStatus === 'function') {
+//              // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
+//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
+//         }
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : ((pedidosDoGrupo[0]?.descFuncao) || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
+//         const p = pedidosDoGrupo[0];
+//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+//         console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+//         console .log (`Debug Rendeiração`, pedidosDoGrupo);
+
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosDoGrupo.forEach(pedido => {
+//             console.log("📦 PEDIDO COMPLETO:", {
+//                 id_log: pedido.id_log,
+//                 categoria_item: pedido.categoria_item,
+//                 funcionario: pedido.funcionario,
+//                 nomefuncionario: pedido.nomefuncionario,  // ← ver se existe
+//                 nomeSolicitante: pedido.nomeSolicitante,
+//                 dtsolicitada: pedido.dtsolicitada,
+//                 chaves: Object.keys(pedido)
+//             });
+//             // Itera sobre camposTodos e o placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     let htmlBodyAditivoAgrupado = '';
+//                     let datasProcessadas = [];
+//                     // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
+//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
+
+//                     itensGrupo++;
+//                     totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                    // const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra' || campo === 'statusaditivoextra'; // ← adicionar
+//                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' 
+//                     || campo === 'aditivoextra' || campo === 'statusaditivoextra';
+//                    const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal';  
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+                            
+//                             tituloCard += ` (R$ ${valorFmt})`;                            
+//                         }
+//                         console.log(`Formatando título para pedido principal: ${tituloCard} (Campo: ${campo})`);
+//                     //} else if (isAditivoExtra) {
+//                         // const tipo = infoItem.tipoSolicitacao;
+//                         // if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
+//                         //     tituloCard = "Aditivo - Vaga Excedida";
+//                         // } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO')) {
+//                         //     tituloCard = "Aditivo - Datas fora do Orçamento";
+//                         // } else {
+//                         //     tituloCard = tipo || "Aditivo/Extra";
+//                         // }
+
+//                         } else if (isAditivoExtra) {
+//                             const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
+
+//                             if (tipo.includes('REAPROVEITADA') || tipo.includes('OUTRA FUNÇÃO') || tipo.includes('OUTRA FUNCAO')) {
+//                                 tituloCard = "Vaga Reaproveitada - Diária de Outra Função";
+//                             } else if ((tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) || tipo === 'FUNCEXCEDIDO') {
+//                                 // 🌟 Proteção extra: Só entra aqui se tiver "VAGA" E NÃO tiver "REAPROVEITADA"
+//                                 tituloCard = "Aditivo - Vaga Excedida";
+//                             } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
+//                                 tituloCard = "Aditivo - Datas fora do Orçamento";
+//                             } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
+//                                 tituloCard = "Extra Bonificado";
+//                             } else {
+//                                 tituloCard = infoItem.tipoSolicitacao || "Aditivo/Extra";
+//                             }
+
+//                             // ✅ Usa solicitacoes_individuais vindas do backend
+//                             const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+//                             const temIndividuais = solicitacoesIndividuais.length > 0;
+
+//                             // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                             //     const idsLote = temIndividuais
+//                             //         ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
+//                             //         : String(pedido.id_log);
+
+//                             //     const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
+
+//                             //     htmlBodyAditivoAgrupado = `
+//                             //         <div style="margin:8px 0;">
+//                             //             <div style="display:flex;gap:8px;margin-bottom:8px;">
+//                             //                 <button class="aprovar-lote-aditivo"
+//                             //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Autorizado', this, '${pedido.id_log}')"
+//                             //                     style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                             //                     ✅ Autorizar Todas (${totalDatas})
+//                             //                 </button>
+//                             //                 <button class="rejeitar-lote-aditivo"
+//                             //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Rejeitado', this, '${pedido.id_log}')"
+//                             //                     style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                             //                     ❌ Rejeitar Todas (${totalDatas})
+//                             //                 </button>
+//                             //             </div>
+//                             //             <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+//                             //                 <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                             //                     <strong>DETALHAMENTO POR DATA</strong>
+//                             //                     <span style="color:#666;">${totalDatas} data(s)</span>
+//                             //                 </div>
+//                             //         `;
+
+//                             //     if (temIndividuais) {
+//                             //         solicitacoesIndividuais.forEach((sol, idx) => {
+//                             //             // Formata as datas desta solicitação individual
+//                             //             let datasRaw = sol.data;
+//                             //             if (typeof datasRaw === 'string') {
+//                             //                 // Vem do postgres como "{2026-05-15}" — limpa as chaves
+//                             //                 datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                             //             }
+//                             //             const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+//                             //                 .map(d => {
+//                             //                     const dt = String(d).trim();
+//                             //                     return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+//                             //                 }).join(', ');
+
+//                             //             const isLast = idx === solicitacoesIndividuais.length - 1;
+
+//                             //             htmlBodyAditivoAgrupado += `
+//                             //                 <div class="linha-data-aditivo"
+//                             //                     data-idsolicitacao="${sol.idsolicitacao}"
+//                             //                     style="display:flex;justify-content:space-between;align-items:center;
+//                             //                             padding:6px 10px;
+//                             //                             border-bottom:${isLast ? 'none' : '1px solid #eee'};
+//                             //                             transition:opacity 0.3s;">
+//                             //                     <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+//                             //                     <div style="display:flex;gap:6px;">
+//                             //                         <button class="aprovar-individual-aditivo"
+//                             //                             data-id="${sol.idsolicitacao}"
+//                             //                             data-logid="${pedido.id_log}"
+//                             //                             style="background:none;border:1px solid #16a34a;border-radius:3px;
+//                             //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
+//                             //                             title="Autorizar apenas esta data">✅</button>
+//                             //                         <button class="rejeitar-individual-aditivo"
+//                             //                             data-id="${sol.idsolicitacao}"
+//                             //                             data-logid="${pedido.id_log}"
+//                             //                             style="background:none;border:1px solid #dc2626;border-radius:3px;
+//                             //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
+//                             //                             title="Rejeitar apenas esta data">❌</button>
+//                             //                     </div>
+//                             //                 </div>
+//                             //             `;
+//                             //         });
+//                             //     }
+
+//                             //     htmlBodyAditivoAgrupado += `</div></div>`;
+//                             // }
+
+//                             if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                                 const idsLote = temIndividuais
+//                                     ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
+//                                     : String(pedido.id_log);
+
+//                                 const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
+
+//                                 htmlBodyAditivoAgrupado = `
+//                                     <div style="margin:8px 0;">
+//                                         <div style="display:flex;gap:8px;margin-bottom:8px;">
+//                                             <button class="aprovar-lote-aditivo"
+//                                                 data-ids="${idsLote}"
+//                                                 data-logid="${pedido.id_log}"
+//                                                 style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                                 ✅ Autorizar Todas (${totalDatas})
+//                                             </button>
+//                                             <button class="rejeitar-lote-aditivo"
+//                                                 data-ids="${idsLote}"
+//                                                 data-logid="${pedido.id_log}"
+//                                                 style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                                 ❌ Rejeitar Todas (${totalDatas})
+//                                             </button>
+//                                         </div>
+//                                         <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+//                                             <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                                                 <strong>DETALHAMENTO POR DATA</strong>
+//                                                 <span style="color:#666;">${totalDatas} data(s)</span>
+//                                             </div>
+//                                     `;
+
+//                                 // if (temIndividuais) {
+
+//                                 //     let categoriaCard = "statusaditivoextra";
+//                                 //     if (tituloCard.includes("Vaga Excedida")) {
+//                                 //         categoriaCard = "statusvagaexcedida";
+//                                 //     } else if (tituloCard.includes("Reaproveitada")) {
+//                                 //         categoriaCard = "statusvagasreaproveitadas";
+//                                 //     }
+                                    
+//                                 //     solicitacoesIndividuais.forEach((sol, idx) => {                                        
+
+                                       
+//                                 //         let datasRaw = sol.data;
+//                                 //         if (typeof datasRaw === 'string') {
+//                                 //             datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                                 //         }
+
+//                                 //         const dataBrutaOriginal = Array.isArray(datasRaw) ? datasRaw[0] : datasRaw;
+//                                 //         const dataLimpaParaAtributo = String(dataBrutaOriginal || '').trim();
+
+//                                 //         const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+//                                 //             .map(d => {
+//                                 //                 const dt = String(d).trim();
+//                                 //                 return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+//                                 //             }).join(', ');
+
+//                                 //         const isLast = idx === solicitacoesIndividuais.length - 1;
+
+//                                 //         htmlBodyAditivoAgrupado += `
+//                                 //             <div class="linha-data-aditivo"
+//                                 //                 data-idsolicitacao="${sol.idsolicitacao}"
+//                                 //                 style="display:flex;justify-content:space-between;align-items:center;
+//                                 //                         padding:6px 10px;
+//                                 //                         border-bottom:${isLast ? 'none' : '1px solid #eee'};
+//                                 //                         transition:opacity 0.3s;">
+//                                 //                 <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+//                                 //                 <div style="display:flex;gap:6px;">
+//                                 //                     <button class="aprovar-individual-aditivo"
+//                                 //                         data-id="${sol.idsolicitacao}"
+//                                 //                         data-logid="${pedido.id_log}"
+//                                 //                         data-data="${dataLimpaParaAtributo}"
+//                                 //                         data-categoria="${categoriaCard}"
+//                                 //                         style="background:none;border:1px solid #16a34a;border-radius:3px;
+//                                 //                             cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                 //                         title="Autorizar apenas esta data">✅</button>
+//                                 //                     <button class="rejeitar-individual-aditivo"
+//                                 //                         data-id="${sol.idsolicitacao}"
+//                                 //                         data-logid="${pedido.id_log}"
+//                                 //                         data-data="${dataLimpaParaAtributo}"
+//                                 //                         data-categoria="${categoriaCard}"
+//                                 //                         style="background:none;border:1px solid #dc2626;border-radius:3px;
+//                                 //                             cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                 //                         title="Rejeitar apenas esta data">❌</button>
+//                                 //                 </div>
+//                                 //             </div>
+//                                 //         `;
+//                                 //     });
+//                                 // }
+
+//                                 if (temIndividuais) {
+
+//                                     let categoriaCard = "statusaditivoextra";
+//                                     if (tituloCard.includes("Vaga Excedida")) {
+//                                         categoriaCard = "statusvagaexcedida";
+//                                     } else if (tituloCard.includes("Reaproveitada")) {
+//                                         categoriaCard = "statusvagasreaproveitadas";
+//                                     }
+                                    
+//                                     solicitacoesIndividuais.forEach((sol, idx) => {                                        
+
+                                       
+//                                         let datasRaw = sol.data;
+//                                         if (typeof datasRaw === 'string') {
+//                                             datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                                         }
+
+//                                         const dataBrutaOriginal = Array.isArray(datasRaw) ? datasRaw[0] : datasRaw;
+//                                         const dataLimpaParaAtributo = String(dataBrutaOriginal || '').trim();
+
+//                                         const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+//                                             .map(d => {
+//                                                 const dt = String(d).trim();
+//                                                 return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+//                                             }).join(', ');
+
+//                                         const isLast = idx === solicitacoesIndividuais.length - 1;
+
+//                                         const statusItemIndividual = (sol.status || statusDesejado).toLowerCase().trim();
+//                                         let elementoAcaoOuStatus = '';
+
+//                                         htmlBodyAditivoAgrupado += `
+//                                             <div class="linha-data-aditivo"
+//                                                 data-idsolicitacao="${sol.idsolicitacao}"
+//                                                 style="display:flex;justify-content:space-between;align-items:center;
+//                                                         padding:6px 10px;
+//                                                         border-bottom:${isLast ? 'none' : '1px solid #eee'};
+//                                                         transition:opacity 0.3s;">
+//                                                 <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+//                                                 <div style="display:flex;gap:6px;">
+//                                                     <button class="aprovar-individual-aditivo"
+//                                                         data-id="${sol.idsolicitacao}"
+//                                                         data-logid="${pedido.id_log}"
+//                                                         data-data="${dataLimpaParaAtributo}"
+//                                                         data-categoria="${categoriaCard}"
+//                                                         style="background:none;border:1px solid #16a34a;border-radius:3px;
+//                                                             cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                                         title="Autorizar apenas esta data">✅</button>
+//                                                     <button class="rejeitar-individual-aditivo"
+//                                                         data-id="${sol.idsolicitacao}"
+//                                                         data-logid="${pedido.id_log}"
+//                                                         data-data="${dataLimpaParaAtributo}"
+//                                                         data-categoria="${categoriaCard}"
+//                                                         style="background:none;border:1px solid #dc2626;border-radius:3px;
+//                                                             cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                                         title="Rejeitar apenas esta data">❌</button>
+//                                                 </div>
+//                                             </div>
+//                                         `;
+//                                     });
+//                                 }
+
+//                                 htmlBodyAditivoAgrupado += `</div></div>`;
+//                             }
+
+//                             console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
+
+                           
+                            
+//                     } else {
+//                         //tituloCard = formatarNomeSolicitacao(campo);
+//                         const categoriaParaFormatar = infoItem.categoria || campo;
+//                         const categoriaDoBanco = pedido.categoria;
+
+//                         console.log(`Formatando título para categoria: ${categoriaParaFormatar} (Campo: ${campo})`);
+
+//                         tituloCard = formatarNomeSolicitacao(categoriaParaFormatar, categoriaDoBanco);
+//                         if (isDataUnica) { 
+//                             const dataBruta = String(infoItem.data || '').trim();
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                             const valor = parseFloat(infoItem.valor) || 0;
+//                             if (valor !== 0) {
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+                   
+                    
+
+//                     // let dataQfezSolicitacaoFormatada = '';
+//                     // if (pedido.dataSolicitacao) {
+//                     //     const dataObj = new Date(pedido.dataSolicitacao);
+//                     //     // Verifica se a data é válida antes de formatar
+//                     //     dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
+//                     // }
+
+//                     let dataQfezSolicitacaoFormatada = '';
+
+//                     // 💡 Tenta pegar a data de solicitação ou a data de criação (dtCriacao) que veio no log
+//                     const dataRaw = pedido.dataSolicitacao || pedido.dtCriacao;
+
+//                     if (dataRaw) {
+//                         const dataObj = new Date(dataRaw);
+//                         // Verifica se a conversão para objeto de data foi válida antes de formatar
+//                         if (!isNaN(dataObj.getTime())) {
+//                             dataQfezSolicitacaoFormatada = dataObj.toLocaleDateString('pt-BR');
+//                         } else {
+//                             dataQfezSolicitacaoFormatada = dataRaw; // Se não for data válida, exibe o texto bruto
+//                         }
+//                     } else {
+//                         dataQfezSolicitacaoFormatada = 'Data indefinida';
+//                     }
+
+                    
+                   
+//                     let dataSolicitadaFormatada = '';
+
+//                     if (pedido.dataSolicitada) {
+//                         // 1. Garante que temos um array (se vier string com vírgula, vira array)
+//                         const datasArray = Array.isArray(pedido.dataSolicitada) 
+//                             ? pedido.dataSolicitada 
+//                             : pedido.dataSolicitada.toString().split(',');
+
+//                         // 2. Mapeia cada data formatando para pt-BR
+//                         const datasFormatadas = datasArray.map(item => {
+//                             if (item == null) return '';
+                            
+//                             let dataStr = '';
+                            
+//                             // Se o item for um objeto e tiver a chave 'status' (como no seu log)
+//                             if (typeof item === 'object' && item.status) {
+//                                 dataStr = item.status;
+//                             } 
+//                             // Se for um objeto mas por acaso vier com outra estrutura
+//                             else if (typeof item === 'object') {
+//                                 dataStr = JSON.stringify(item); 
+//                             }
+//                             // Se já for uma string direta
+//                             else {
+//                                 dataStr = item;
+//                             }
+
+//                             const dataObj = new Date(dataStr);
+                            
+//                             // Se a data for válida, formata. Se não, retorna o texto original.
+//                             if (!isNaN(dataObj.getTime())) {
+//                                 // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
+//                                 return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
+//                                     (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
+//                                     dataObj.getUTCFullYear();
+//                             }
+//                             return dataStr;
+//                         });
+
+//                         // 3. Junta tudo com vírgula e espaço para exibir na tela
+//                         dataSolicitadaFormatada = datasFormatadas.join(', ');
+//                     }
+                    
+//                     let dataFormatada = '';
+                   
+//                     let dataFormatadaSolictacao = '';
+
+//                     if (pedido.dtsolicitada) {
+//                         let datasParaExibir = [];
+
+//                         // 1. Identifica se é a estrutura aninhada do banco: [ { data: [2026-04-01...], status: "Pendente" } ]
+//                         if (Array.isArray(pedido.dtsolicitada) && pedido.dtsolicitada.length > 0 && typeof pedido.dtsolicitada[0] === 'object' && pedido.dtsolicitada[0].data) {
+//                             datasParaExibir = Array.isArray(pedido.dtsolicitada[0].data) ? pedido.dtsolicitada[0].data : [pedido.dtsolicitada[0].data];
+//                         } 
+//                         // 2. Se for um array simples de strings ["2026-04-01", "2026-04-02"]
+//                         else if (Array.isArray(pedido.dtsolicitada)) {
+//                             datasParaExibir = pedido.dtsolicitada;
+//                         } 
+//                         // 3. Se for uma string única ou separada por vírgula
+//                         else {
+//                             datasParaExibir = pedido.dtsolicitada.toString().split(',');
+//                         }
+
+//                         // Agora formatamos cada data encontrada
+//                         const datasMapeadas = datasParaExibir.map(item => {
+//                             if (!item) return '';
+                            
+//                             // Limpa a string e força meio-dia para evitar erro de fuso horário
+//                             const dataLimpa = String(item).trim();
+//                             const dataObj = new Date(dataLimpa + 'T12:00:00');
+                            
+//                             if (!isNaN(dataObj.getTime())) {
+//                                 return dataObj.toLocaleDateString('pt-BR');
+//                             }
+//                             return item; // Se falhar, mostra o original
+//                         });
+
+//                         // Junta tudo com vírgula para o card
+//                         dataFormatadaSolictacao = datasMapeadas.join(', ');
+                        
+//                         console.log(`Formatado com sucesso:`, dataFormatadaSolictacao);
+//                     }
+
+//                     let dataEventoFormatada = '';
+
+//                     if (pedido.datasevento) {
+//                         // 1. Garantimos que temos um array (se vier string com vírgula, transformamos em array)
+//                         const listaDatas = Array.isArray(pedido.datasevento) 
+//                             ? pedido.datasevento 
+//                             : pedido.datasevento.split(',');
+
+//                         // 2. Formatamos cada data individualmente
+//                         const datasMapeadas = listaDatas.map(dStr => {
+//                             const d = new Date(dStr.trim() + 'T12:00:00'); // T12:00 evita problemas de fuso horário
+//                             return !isNaN(d) ? d.toLocaleDateString('pt-BR') : dStr;
+//                         });
+
+//                         // 3. Juntamos novamente com vírgula e espaço para exibir no card
+//                         dataEventoFormatada = datasMapeadas.join(', ');
+//                     }
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+//                     const nomeFuncionarioExibir = pedido.funcionario || pedido.nomefuncionario || null;
+
+//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
+//                                 ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
+//                                 : '';
+
+//                     let htmlAditivoSection = '';
+//                     if (isAditivoExtra) {
+//                         htmlAditivoSection = htmlBodyAditivoAgrupado; 
+//                     }
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div class="infoPedido">
+//                                     <div class="title">
+//                                     <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
+//                                     </div>
+//                                     <br>                                   
+           
+//                     `;
+                    
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario') {
+//                            // const funcaoAtualTxt = pedido.descFuncao ? ` <span class="text-xs text-gray-500 font-normal">${pedido.descFuncao}</span>` : '';
+//                            const funcaoPrincipal = pedido.descFuncaoOriginal || pedido.descFuncao || '';
+//                            const funcaoAtualTxt = funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : '';
+
+//                             // // Se usou a original E existir uma função de dobra diferente, podemos mostrar a de dobra como um "subtexto" sutil
+//                             // const temDobraDiferente = pedido.descFuncaoOriginal && pedido.descFuncao && (pedido.descFuncaoOriginal !== pedido.descFuncao);
+//                             // const funcaoAtualTxt = temDobraDiferente 
+//                             //     ? ` <span class="text-xs text-gray-500 font-normal">(${funcaoPrincipal} ocupando vaga de ${pedido.descFuncao} na diária dobrada)</span>`
+//                             //     : (funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : ''); 
+                           
+//                            htmlBody += `<div class="event-info">
+//                                         <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir} -  ${funcaoAtualTxt}<br>
+//                                         <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;                                        
+//                         } else {
+//                             // 💡 Procure onde você renderiza o nome do funcionário e ajuste para incluir o pedido.descFuncao:
+                           
+
+//                             // Exemplo se for um cabeçalho de Card:
+//                            // htmlBody += `<strong>Funcionário</strong>: ${pedido.nomefuncionario}${funcaoAtualTxt}<br>`;
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         // const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+//                         // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
+//                         //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
+//                         // } else {
+//                         //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+//                         // }
+
+//                         // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
+//                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+    
+//                         // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {                            
+//                         //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
+//                         // } else {
+//                         //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+//                         // }
+
+//                         console.log(`Analisando tipo de solicitação para aditivo/extra: "${infoItem.tipoSolicitacao}" (Campo: ${campo}) - Tipo em maiúsculas: "${tipoUpper}"`);
+
+//                         if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
+    
+//                             // ✅ Pega todas as datas das solicitações individuais
+//                             const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+                            
+//                             let todasAsDatas = '';
+//                             if (solicitacoesIndividuais.length > 0) {
+//                                 // ✅ Filtra pelo status da aba atual (pendente, autorizado ou rejeitado)
+//                                 const solsFiltradas = solicitacoesIndividuais.filter(sol => 
+//                                     (sol.status || '').toLowerCase().trim() === statusDesejado
+//                                 );
+
+//                                 const solsParaExibir = solsFiltradas.length > 0 ? solsFiltradas : solicitacoesIndividuais;
+
+//                                 todasAsDatas = solsParaExibir.map(sol => {
+//                                     let datasRaw = sol.data;
+//                                     if (typeof datasRaw === 'string') {
+//                                         datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                                     }
+//                                     return (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+//                                         .map(d => String(d).trim().split('-').reverse().join('/'))
+//                                         .join(', ');
+//                                 }).join(', ');
+//                             } else {
+//                                 todasAsDatas = dataFormatadaSolictacao;
+//                             }
+
+//                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
+
+//                         } else {
+//                             htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+//                         }
+
+//                         // 1. Adiciona o status e o aprovador
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
+                        
+//                         // 2. AQUI VOCÊ INCLUI O SEU BLOCO DE BOTÕES (O htmlBodyAditivoAgrupado que criamos)
+//                         htmlBody += htmlBodyAditivoAgrupado;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+                                        
+                        
+//                         console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
+                        
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             if (p.categoria === 'statuscustofechado' || p.categoria === 'statuscacheliberado') {
+//                                 const valorAlimentFmt = infoItem.vlralimentacao?.toFixed(2).replace('.', ',') || '0,00';
+//                                 const valorTranspFmt = infoItem.vlrtransporte?.toFixed(2).replace('.', ',') || '0,00';
+//                                 htmlBody += `<strong>Valor Cachê:</strong> R$ ${valorFmt} - <strong>Valor Alimentação:</strong> R$ ${valorAlimentFmt} - <strong>Valor Transporte:</strong> R$ ${valorTranspFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                            
+//                             }
+//                             else{
+//                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                             }
+                           
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         }
+
+//                     // } else if (isDataUnica) {
+//                     //     const dataBruta = String(infoItem.data || '').trim();
+//                     //     let dataFmt = 'Data indefinida';
+//                     //     if (dataBruta !== '') {
+//                     //         const dataObj = parseDateLocal(dataBruta);
+//                     //         dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                     //     }
+//                     //     htmlBody += `<strong>Data(s) Solicitada(s)</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;if (infoItem.justificativa) 
+//                     //     htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${infoItem.justificativa}</span>`;
+    
+//                     // } else if (infoItem.datas) {
+//                     //     const datasFmt = infoItem.datas
+//                     //         .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                     //         .filter(d => d)
+//                     //         .join(', ');
+//                     //     htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     // }
+
+//                     } else if (isDataUnica) {
+//                         const dataBruta = String(infoItem.data || '').trim();
+//                         let dataFmt = 'Data indefinida';
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+                        
+//                         // 1. Captura inicial da justificativa padrão do item
+//                         let justificativaDoCard = infoItem.justificativa || '';
+
+//                         // ➔ LENDO DA DTDIARIADOBRADA: Busca no array de solicitações a propriedade correta do dia
+//                         if (p.categoria_item === 'statusdiariadobrada' && pedido.dtsolicitada && Array.isArray(pedido.dtsolicitada)) {
+//                             const itemDobraDestaData = pedido.dtsolicitada.find(d => {
+//                                 let dataDobraRaw = d.data;
+//                                 if (Array.isArray(dataDobraRaw)) dataDobraRaw = dataDobraRaw[0];
+//                                 return String(dataDobraRaw).trim() === dataBruta;
+//                             });
+
+//                             if (itemDobraDestaData && itemDobraDestaData.justificativa) {
+//                                 justificativaDoCard = itemDobraDestaData.justificativa;
+//                             }
+//                         }
+
+//                         // 🌟 TRATAMENTO CIRÚRGICO ANTI-MISTURA: 
+//                         // Se a justificativa do dtdiariadobrada contiver "|", separa as strings e pega só a que pertence a este card
+//                         if (p.categoria_item === 'statusdiariadobrada' && justificativaDoCard.includes('|')) {
+//                             console.log(`⚠️ Tratando justificativa combinada para o dia ${dataFmt}`);
+                            
+//                             // Divide o textão pelas barras "|"
+//                             const partesJustificativa = justificativaDoCard.split('|').map(parte => parte.trim());
+                            
+//                             // Procura a frase que cita exatamente a data deste card (Ex: "16/05/2026")
+//                             const parteExclusivaDestaData = partesJustificativa.find(parte => parte.includes(dataFmt));
+
+//                             if (parteExclusivaDestaData) {
+//                                 justificativaDoCard = parteExclusivaDestaData;
+//                             } else {
+//                                 // Se não achar a data explícita por algum motivo, pega o último pedaço (mais recente)
+//                                 justificativaDoCard = partesJustificativa[partesJustificativa.length - 1];
+//                             }
+//                         }
+
+//                         // 2. Renderização final no HTML do card
+//                         htmlBody += `<strong>Data Solicitada</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        
+//                         if (justificativaDoCard) {
+//                             htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${justificativaDoCard}</span>`;
+//                         }
+    
+//                     } else if (infoItem.datas) {
+//                         // Mantém o bloco antigo exatamente igual para os outros fluxos
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d)
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     }
+
+                    
+
+//                     if (infoItem.descricao) {
+                        
+//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
+//                     }
+
+                    
+
+//                     // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                     //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+//                     //     // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
+//                     //     const tratarData = (valor) => {
+//                     //         if (Array.isArray(valor)) {
+//                     //             return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
+//                     //         }
+//                     //         return String(valor || '').trim();
+//                     //     };
+
+//                     //     const dataParaAcao = isPedidoPrincipal 
+//                     //         ? tratarData(pedido.dataEspecifica) 
+//                     //         : (isDataUnica ? tratarData(infoItem.data) : '');
+
+//                     //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+//                     //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
+
+//                     //     htmlBody += `<br>
+//                     //         <div class="AcoesPedido"
+//                     //             data-id="${idParaAcao}"
+//                     //             data-campo="${campoParaAcao}"
+//                     //             data-data="${dataParaAcao}"
+//                     //             data-logid="${idLogParaAcao}"
+//                     //             data-aditivo="${isAditivoExtra}">
+//                     //             <button class="aprovar">Autorizar</button>
+//                     //             <button class="negar">Rejeitar</button>
+//                     //         </div>
+//                     //     `;
+//                     // }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         // ✅ Para aditivos, os botões já estão dentro do htmlBodyAditivoAgrupado — não duplica
+//                         if (isAditivoExtra) return; // pula a geração do AcoesPedido genérico
+
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo;
+//                         const tratarData = (valor) => Array.isArray(valor) ? valor.join(',') : String(valor || '').trim();
+//                         const dataParaAcao = isPedidoPrincipal ? tratarData(pedido.dataEspecifica) : (isDataUnica ? tratarData(infoItem.data) : '');
+//                         const idParaAcao = pedido.idpedido;
+//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';                       
+                        
+//                         htmlBody += `
+//                             <br>
+//                             <div class="AcoesPedido"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-logid="${idLogParaAcao}"
+//                                 data-aditivo="false">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+
+//                     `;
+//                 });
+//             });
+//         });
+
+//         // 🛑 AQUI ESTÁ O PULO DO GATO:
+//         // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
+//         if (itensGrupo === 0) return;
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) 
+//     container.onclick = null; 
+
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+
+//         //── INDIVIDUAL ───────────────────────────────────────────
+//         if (target.classList.contains('aprovar-individual-aditivo') ||
+//             target.classList.contains('rejeitar-individual-aditivo')) {
+//             event.stopPropagation();
+
+//             const isAprovar   = target.classList.contains('aprovar-individual-aditivo');
+//             const idSol       = target.getAttribute('data-id');
+//             const idLogOrigem = target.getAttribute('data-logid');
+//             const linhaDom    = target.closest('.linha-data-aditivo');
+
+//             const dataEspecifica = target.getAttribute('data-data');
+
+
+//             const result = await Swal.fire({
+//                 title: isAprovar ? 'Autorizar esta data?' : 'Rejeitar esta data?',
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//                 confirmButtonText: 'Confirmar',
+//                 cancelButtonText: 'Cancelar'
+//             });
+//             if (!result.isConfirmed) return;
+
+//             const sucesso = await atualizarStatusAditivoExtra(
+//                 idSol, 
+//                 isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER,
+//                 dataEspecifica, // 🚀 Agora a data específica vai preenchida aqui!
+//                 idLogOrigem, 
+//                 true,
+//                 'statusaditivoextra' // skipConfirm=true
+//             );
+
+
+
+//             // if (sucesso && linhaDom) {
+//             //     linhaDom.style.opacity = '0';
+//             //     setTimeout(() => { linhaDom.remove(); atualizarContadoresGlobais(); }, 300);
+//             // }
+
+//             if (sucesso && linhaDom) {
+//                 linhaDom.style.opacity = '0';
+//                 setTimeout(() => { 
+//                     // Em vez de remover, atualiza a linha com o status
+//                     const isAutorizado = isAprovar;
+//                     const corStatus = isAutorizado ? '#16a34a' : '#dc2626';
+//                     const iconeStatus = isAutorizado ? '✅' : '❌';
+//                     const textoStatus = isAutorizado ? 'Autorizado' : 'Rejeitado';
+
+//                     // Substitui os botões pelo badge de status
+//                     const divBotoes = linhaDom.querySelector('div'); // div com os botões
+//                     if (divBotoes) {
+//                         divBotoes.innerHTML = `
+//                             <span style="
+//                                 background: ${corStatus}15; 
+//                                 border: 1px solid ${corStatus}; 
+//                                 color: ${corStatus}; 
+//                                 border-radius: 4px; 
+//                                 padding: 2px 8px; 
+//                                 font-size: 11px; 
+//                                 font-weight: bold;">
+//                                 ${iconeStatus} ${textoStatus}
+//                             </span>
+//                         `;
+//                     }
+                
+
+//                     linhaDom.style.opacity = '1'; // Restaura a opacidade
+
+//                     const novoStatus = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
+//                     listas.forEach(lista => {
+//                         if (!lista) return;
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.id_log) === String(idLogOrigem)) {
+//                                     p.status_aprovacao = novoStatus;
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     // Após o linhaDom.style.opacity = '1' e antes do atualizarContadoresGlobais()
+
+//                     // ✅ Atualiza a contagem nos botões de lote
+//                     const listaContainer = linhaDom.closest('.lista-datas-aditivo');
+//                 // const linhasPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo');
+//                 // const totalPendentes = linhasPendentes?.length || 0;
+
+//                     const totalPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo').length || 0;
+
+//                     // Atualiza texto dos botões de lote com a nova contagem
+//                     const wrapperAditivo = listaContainer?.parentElement;
+//                     const btnAutorizarLote = wrapperAditivo?.querySelector('.aprovar-lote-aditivo');
+//                     const btnRejeitarLote = wrapperAditivo?.querySelector('.rejeitar-lote-aditivo');
+
+//                     if (totalPendentes === 0) {
+//                         // Remove os botões de lote se não houver mais pendentes
+//                         const botoesDeLote = btnAutorizarLote?.closest('div');
+//                         if (botoesDeLote) {
+//                             botoesDeLote.style.transition = '0.3s';
+//                             botoesDeLote.style.opacity = '0';
+//                             setTimeout(() => botoesDeLote.remove(), 300);
+//                         }
+//                     } else {
+//                         // Atualiza a contagem
+//                         if (btnAutorizarLote) btnAutorizarLote.textContent = `✅ Autorizar Todas (${totalPendentes})`;
+//                         if (btnRejeitarLote) btnRejeitarLote.textContent = `❌ Rejeitar Todas (${totalPendentes})`;
+//                     }
+
+//                     atualizarContadoresGlobais(); 
+//                 }, 300);
+//             }
+//             return;
+//         }
+
+//         // ── LOTE ─────────────────────────────────────────────────
+//         if (target.classList.contains('aprovar-lote-aditivo') ||
+//             target.classList.contains('rejeitar-lote-aditivo')) {
+//             event.stopPropagation();
+
+//             const isAprovar   = target.classList.contains('aprovar-lote-aditivo');
+//             const ids         = target.getAttribute('data-ids').split(',').map(id => id.trim()).filter(Boolean);
+//             const idLogOrigem = target.getAttribute('data-logid');
+//             const cardElement = target.closest('.pedido-card');
+
+//             const result = await Swal.fire({
+//                 title: isAprovar ? `Autorizar todas (${ids.length})?` : `Rejeitar todas (${ids.length})?`,
+//                 text: 'Esta ação será aplicada a todas as datas desta solicitação.',
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//                 confirmButtonText: 'Confirmar',
+//                 cancelButtonText: 'Cancelar'
+//             });
+//             if (!result.isConfirmed) return;
+
+//             const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//             let todosOk = true;
+
+//             for (const idSol of ids) {
+//                 const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
+//                 if (!ok) { todosOk = false; break; }
+//             }
+
+//             if (todosOk) {
+//                 if (cardElement) {
+//                     cardElement.style.transition = '0.3s';
+//                     cardElement.style.opacity = '0';
+//                     setTimeout(() => {
+//                         const corpo = cardElement.closest('.funcionario-body');
+//                         const grupo = cardElement.closest('.funcionario');
+//                         cardElement.remove();
+//                         if (corpo?.querySelectorAll('.pedido-card').length === 0) {
+//                             if (grupo) { grupo.style.opacity = '0'; setTimeout(() => grupo.remove(), 300); }
+//                         }
+//                         atualizarContadoresGlobais();
+//                     }, 300);
+//                 }
+//                 Swal.fire({ icon: 'success', title: 'Todas atualizadas!', timer: 800, showConfirmButton: false });
+//             } else {
+//                 Swal.fire('Erro', 'Falha ao processar uma ou mais datas.', 'error');
+//             }
+//             return;
+//         }
+//             // Verifica se clicou nos botões
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('[data-id]');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         // Determina qual função chamar e qual o status alvo
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//         const cardElement = target.closest('.pedido-card');
+
+//         // Modal de Confirmação
+//         const result = await Swal.fire({
+//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
+//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+
+//         if (result.isConfirmed) {
+//             try {
+//                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
+//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+//                 const novoStatus = statusTarget;
+                
+//                 let sucesso = false;
+//                 if (isAditivoExtra) {
+//                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+//                     //sucesso = await statusUpdateFn(idReferencia, 'aditivoextra', statusTarget, cardElement, null, idLogOriginal);
+//                 } else {
+//                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
+//                 }
+
+                
+//                 // ... dentro da sua função de atualizar status, no bloco de sucesso:
+//                 if (sucesso) {
+//                     // Atualiza status_aprovacao na memória
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
+//                     listas.forEach(lista => {
+//                         if (!lista) return;
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.id_log) === String(idLogOriginal)) {
+//                                     p.status_aprovacao = novoStatus;
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     // 2. REMOÇÃO VISUAL (Seu código de remover card)
+//                     // ... (dentro do if (sucesso), após a remoção do card)
+
+//                     if (cardElement) {
+//                         cardElement.style.transition = '0.3s';
+//                         cardElement.style.opacity = '0';
+//                         setTimeout(() => {
+//                             const corpoGrupo = cardElement.closest('.funcionario-body');
+//                             const grupoContainer = cardElement.closest('.funcionario');
+//                             cardElement.remove();
+
+//                             if (corpoGrupo && corpoGrupo.querySelectorAll('.pedido-card').length === 0) {
+//                                 if (grupoContainer) {
+//                                     grupoContainer.style.transition = '0.3s';
+//                                     grupoContainer.style.opacity = '0';
+//                                     setTimeout(() => grupoContainer.remove(), 300);
+//                                 }
+//                             }
+
+//                             atualizarContadoresGlobais();
+//                         }, 300);
+//                     }
+
+//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
+//                 }
+//             } catch (err) {
+//                 console.error("❌ Erro na execução:", err);
+//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
+//             }
+//         }
+//     });
+
+//     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
+//     if (typeof atualizarBadgeDeStatus === 'function') {
+//          // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
+//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
+//     }
+
+//     if (typeof atualizarContadoresGlobais === 'function') {
+//         atualizarContadoresGlobais();
+//     }
+// } 
+
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     window.pedidosCompletosGlobais = pedidosCompletos;
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         "statuscustofechado",
+//         "statuscacheliberado",
+//         "statusvagasreaproveitadas",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     let totalItensRenderizados = 0;
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
+//     const gruposFiltrados = [];
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao;
+//         if (categoria === 'funcionario') {
+//             chaveRenderizacao = grupoConsolidado.funcionario;
+//         } else {
+//             // Tenta pegar nmfuncao, senão busca dentro dos registros
+//             chaveRenderizacao = grupoConsolidado.nmfuncao;
+            
+//             if (!chaveRenderizacao) {
+//                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
+//                 const primeiroAditivo = (grupoConsolidado.registrosOriginais || [])
+//                     .find(r => r.categoria_item === 'statusvagaexcedida' || r.categoria_item === 'statusaditivoextra');
+                
+//                 if (primeiroAditivo) {
+//                     const arr = safeParse(primeiroAditivo[CAMPO_ADITIVO_EXTRA] || '[]');
+//                     chaveRenderizacao = arr[0]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+//                 } else {
+//                     chaveRenderizacao = 'SOLICITAÇÃO DE FUNÇÃO';
+//                 }
+//             }
+//         }
+
+//         // 🛡️ CORREÇÃO: Fallback caso chaveRenderizacao ainda seja nula/vazia, impedindo que o loop aborte o registro
+//         if (!chaveRenderizacao) {
+//             chaveRenderizacao = categoria === 'funcionario' ? 'FUNCIONÁRIO NÃO IDENTIFICADO' : 'SOLICITAÇÃO';
+//         }
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+//         const pedidosConsolidadosPorId = new Map();
+//         let temAlgumMatchNesteGrupo = false;
+
+//         registros.forEach(pedidoOriginal => {
+//             console.log("🔍 Processando registro com ID:", pedidoOriginal );
+
+//             const categoriaItem = pedidoOriginal.categoria_item || "geral";
+//             const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log';
+
+//             console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
+            
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
+
+//             if (!pedidoConsolidado) {
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     idpedido: idLog, // Padroniza o ID
+//                     temMatch: false,
+//                     camposEncontrados: new Set() // Para rastrear o que já foi processado
+//                 };
+//                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
+//             }
+
+//             // Verifica status principal
+//             const statusPrincipal = (pedidoOriginal.statuspgto || pedidoOriginal.status_aprovacao || '').toLowerCase().trim();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true;
+//                 temAlgumMatchNesteGrupo = true;
+//             }
+
+//             // Verifica sub-itens (Meia diária, caixinha, etc)
+//             camposTodos.forEach(campo => {
+//                 console.log(`🔍 Verificando campo "${campo}" para o item ID: ${idLog} - Categoria: ${categoriaItem}`);
+//                 const itens = safeParse(pedidoOriginal[campo]);
+                
+//                 const itensFiltrados = itens.filter(it => {
+//                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+//                     return String(s).toLowerCase().trim() === statusDesejado;
+//                 });
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     pedidoConsolidado[campo] = itensFiltrados; 
+//                     temAlgumMatchNesteGrupo = true;
+//                 } 
+//             });            
+//         });
+
+//         if (temAlgumMatchNesteGrupo) {
+//             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
+
+//             if (registrosValidos.length > 0) {
+//                 gruposFiltrados.push({
+//                     ...grupoConsolidado,
+//                     chaveRenderizacaoComputada: chaveRenderizacao, // Salva a chave correta
+//                     registrosOriginais: registrosValidos
+//                 });
+//             }
+//         }
+//     });
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+        
+//         if (typeof atualizarBadgeDeStatus === 'function') {
+//              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
+//         }
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         // Usa a chave computada com segurança na etapa anterior
+//         const chaveNome = grupo.chaveRenderizacaoComputada;
+
+//         const p = pedidosDoGrupo[0];
+//         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+//         console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         pedidosDoGrupo.forEach(pedido => {
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     let htmlBodyAditivoAgrupado = '';
+//                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
+
+//                     itensGrupo++;
+//                     totalItensRenderizados++;
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo === 'aditivoextra' || campo === 'statusaditivoextra';
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal';  
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;                            
+//                         }
+//                     } else if (isAditivoExtra) {
+//                         const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
+
+//                         if (tipo.includes('REAPROVEITADA') || tipo.includes('OUTRA FUNÇÃO') || tipo.includes('OUTRA FUNCAO')) {
+//                             tituloCard = "Vaga Reaproveitada - Diária de Outra Função";
+//                         } else if ((tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) || tipo === 'FUNCEXCEDIDO') {
+//                             tituloCard = "Aditivo - Vaga Excedida";
+//                         } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
+//                             tituloCard = "Aditivo - Datas fora do Orçamento";
+//                         } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
+//                             tituloCard = "Extra Bonificado";
+//                         } else {
+//                             tituloCard = infoItem.tipoSolicitacao || "Aditivo/Extra";
+//                         }
+
+//                         const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+//                         const temIndividuais = solicitacoesIndividuais.length > 0;
+
+//                         if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                             const idsLote = temIndividuais ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',') : String(pedido.id_log);
+//                             const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
+
+//                             htmlBodyAditivoAgrupado = `
+//                                 <div style="margin:8px 0;">
+//                                     <div style="display:flex;gap:8px;margin-bottom:8px;">
+//                                         <button class="aprovar-lote-aditivo"
+//                                             data-ids="${idsLote}"
+//                                             data-logid="${pedido.id_log}"
+//                                             style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                             ✅ Autorizar Todas (${totalDatas})
+//                                         </button>
+//                                         <button class="rejeitar-lote-aditivo"
+//                                             data-ids="${idsLote}"
+//                                             data-logid="${pedido.id_log}"
+//                                             style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                             ❌ Rejeitar Todas (${totalDatas})
+//                                         </button>
+//                                     </div>
+//                                     <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+//                                         <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                                             <strong>DETALHAMENTO POR DATA</strong>
+//                                             <span style="color:#666;">${totalDatas} data(s)</span>
+//                                         </div>
+//                             `;
+
+//                             if (temIndividuais) {
+//                                 let categoriaCard = "statusaditivoextra";
+//                                 if (tituloCard.includes("Vaga Excedida")) {
+//                                     categoriaCard = "statusvagaexcedida";
+//                                } else if (tituloCard.includes("Reaproveitada")) {
+//                                     categoriaCard = "statusvagasreaproveitadas";
+//                                 }
+                                
+//                                 solicitacoesIndividuais.forEach((sol, idx) => {                                        
+//                                     let datasRaw = sol.data;
+//                                     if (typeof datasRaw === 'string') {
+//                                         datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                                     }
+
+//                                     const dataBrutaOriginal = Array.isArray(datasRaw) ? datasRaw[0] : datasRaw;
+//                                     const dataLimpaParaAtributo = String(dataBrutaOriginal || '').trim();
+
+//                                     const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+//                                         .map(d => {
+//                                             const dt = String(d).trim();
+//                                             return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+//                                         }).join(', ');
+
+//                                     const isLast = idx === solicitacoesIndividuais.length - 1;
+
+//                                     htmlBodyAditivoAgrupado += `
+//                                         <div class="linha-data-aditivo"
+//                                             data-idsolicitacao="${sol.idsolicitacao}"
+//                                             style="display:flex;justify-content:space-between;align-items:center;
+//                                                     padding:6px 10px;
+//                                                     border-bottom:${isLast ? 'none' : '1px solid #eee'};
+//                                                     transition:opacity 0.3s;">
+//                                             <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+//                                             <div style="display:flex;gap:6px;">
+//                                                 <button class="aprovar-individual-aditivo"
+//                                                     data-id="${sol.idsolicitacao}"
+//                                                     data-logid="${pedido.id_log}"
+//                                                     data-data="${dataLimpaParaAtributo}"
+//                                                     data-categoria="${categoriaCard}"
+//                                                     style="background:none;border:1px solid #16a34a;border-radius:3px;
+//                                                         cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                                     title="Autorizar apenas esta data">✅</button>
+//                                                 <button class="rejeitar-individual-aditivo"
+//                                                     data-id="${sol.idsolicitacao}"
+//                                                     data-logid="${pedido.id_log}"
+//                                                     data-data="${dataLimpaParaAtributo}"
+//                                                     data-categoria="${categoriaCard}"
+//                                                     style="background:none;border:1px solid #dc2626;border-radius:3px;
+//                                                         cursor:pointer;font-size:13px;padding:2px 6px;"
+//                                                     title="Rejeitar apenas esta data">❌</button>
+//                                             </div>
+//                                         </div>
+//                                     `;
+//                                 });
+//                             }
+//                             htmlBodyAditivoAgrupado += `</div></div>`;
+//                         }
+//                     } else {
+//                         const categoriaParaFormatar = infoItem.categoria || campo;
+//                         const categoriaDoBanco = pedido.categoria;
+
+//                         tituloCard = formatarNomeSolicitacao(categoriaParaFormatar, categoriaDoBanco);
+//                         if (isDataUnica) { 
+//                             const dataBruta = String(infoItem.data || '').trim();
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                             const valor = parseFloat(infoItem.valor) || 0;
+//                             if (valor !== 0) {
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+                   
+//                     let dataQfezSolicitacaoFormatada = '';
+//                     const dataRaw = pedido.dataSolicitacao || pedido.dtCriacao;
+
+//                     if (dataRaw) {
+//                         const dataObj = new Date(dataRaw);
+//                         if (!isNaN(dataObj.getTime())) {
+//                             dataQfezSolicitacaoFormatada = dataObj.toLocaleDateString('pt-BR');
+//                         } else {
+//                             dataQfezSolicitacaoFormatada = dataRaw;
+//                         }
+//                     } else {
+//                         dataQfezSolicitacaoFormatada = 'Data indefinida';
+//                     }
+
+//                     let dataFormatadaSolictacao = '';
+//                     if (pedido.dtsolicitada) {
+//                         let datasParaExibir = [];
+//                         if (Array.isArray(pedido.dtsolicitada) && pedido.dtsolicitada.length > 0 && typeof pedido.dtsolicitada[0] === 'object' && pedido.dtsolicitada[0].data) {
+//                             datasParaExibir = Array.isArray(pedido.dtsolicitada[0].data) ? pedido.dtsolicitada[0].data : [pedido.dtsolicitada[0].data];
+//                         } else if (Array.isArray(pedido.dtsolicitada)) {
+//                             datasParaExibir = pedido.dtsolicitada;
+//                         } else {
+//                             datasParaExibir = pedido.dtsolicitada.toString().split(',');
+//                         }
+
+//                         const datasMapeadas = datasParaExibir.map(item => {
+//                             if (!item) return '';
+//                             const dataLimpa = String(item).trim();
+//                             const dataObj = new Date(dataLimpa + 'T12:00:00');
+//                             if (!isNaN(dataObj.getTime())) {
+//                                 return dataObj.toLocaleDateString('pt-BR');
+//                             }
+//                             return item;
+//                         });
+//                         dataFormatadaSolictacao = datasMapeadas.join(', ');
+//                     }
+
+//                     let dataEventoFormatada = '';
+//                     if (pedido.datasevento) {
+//                         const listaDatas = Array.isArray(pedido.datasevento) ? pedido.datasevento : pedido.datasevento.split(',');
+//                         const datasMapeadas = listaDatas.map(dStr => {
+//                             const d = new Date(dStr.trim() + 'T12:00:00');
+//                             return !isNaN(d) ? d.toLocaleDateString('pt-BR') : dStr;
+//                         });
+//                         dataEventoFormatada = datasMapeadas.join(', ');
+//                     }
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+//                     const nomeFuncionarioExibir = pedido.funcionario || pedido.nomefuncionario || null;
+//                     const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) ? ` por <strong>${pedido.nomeAprovador}</strong>` : '';
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div class="infoPedido">
+//                                 <div class="title">
+//                                 <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
+//                                 </div>
+//                                 <br>                                   
+//                     `;
+                    
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario') {
+//                            const funcaoPrincipal = pedido.descFuncaoOriginal || pedido.descFuncao || '';
+//                            const funcaoAtualTxt = funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : '';
+                           
+//                            htmlBody += `<div class="event-info">
+//                                         <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir} -  ${funcaoAtualTxt}<br>
+//                                         <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;                                        
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
+//                         if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
+//                             const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+//                             let todasAsDatas = '';
+//                             if (solicitacoesIndividuais.length > 0) {
+//                                 const solsFiltradas = solicitacoesIndividuais.filter(sol => (sol.status || '').toLowerCase().trim() === statusDesejado);
+//                                 const solsParaExibir = solsFiltradas.length > 0 ? solsFiltradas : solicitacoesIndividuais;
+
+//                                 todasAsDatas = solsParaExibir.map(sol => {
+//                                     let datasRaw = sol.data;
+//                                     if (typeof datasRaw === 'string') datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+//                                     return (Array.isArray(datasRaw) ? datasRaw : [datasRaw]).map(d => String(d).trim().split('-').reverse().join('/')).join(', ');
+//                                 }).join(', ');
+//                             } else {
+//                                 todasAsDatas = dataFormatadaSolictacao;
+//                             }
+//                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
+//                         } else {
+//                             htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
+//                         }
+
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
+//                         htmlBody += htmlBodyAditivoAgrupado;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             if (pedido.categoria === 'statuscustofechado' || pedido.categoria === 'statuscacheliberado') {
+//                                 const valorAlimentFmt = infoItem.vlralimentacao?.toFixed(2).replace('.', ',') || '0,00';
+//                                 const valorTranspFmt = infoItem.vlrtransporte?.toFixed(2).replace('.', ',') || '0,00';
+//                                 htmlBody += `<strong>Valor Cachê:</strong> R$ ${valorFmt} - <strong>Valor Alimentação:</strong> R$ ${valorAlimentFmt} - <strong>Valor Transporte:</strong> R$ ${valorTranspFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                             } else {
+//                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                             }
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         }
+//                     } else if (isDataUnica) {
+//                         const dataBruta = String(infoItem.data || '').trim();
+//                         let dataFmt = 'Data indefinida';
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+                        
+//                         let justificativaDoCard = infoItem.justificativa || '';
+//                         if (pedido.categoria_item === 'statusdiariadobrada' && pedido.dtsolicitada && Array.isArray(pedido.dtsolicitada)) {
+//                             const itemDobraDestaData = pedido.dtsolicitada.find(d => {
+//                                 let dataDobraRaw = d.data;
+//                                 if (Array.isArray(dataDobraRaw)) dataDobraRaw = dataDobraRaw[0];
+//                                 return String(dataDobraRaw).trim() === dataBruta;
+//                             });
+//                             if (itemDobraDestaData && itemDobraDestaData.justificativa) {
+//                                 justificativaDoCard = itemDobraDestaData.justificativa;
+//                             }
+//                         }
+
+//                         if (pedido.categoria_item === 'statusdiariadobrada' && justificativaDoCard.includes('|')) {
+//                             const partesJustificativa = justificativaDoCard.split('|').map(parte => parte.trim());
+//                             const parteExclusivaDestaData = partesJustificativa.find(parte => parte.includes(dataFmt));
+//                             justificativaDoCard = parteExclusivaDestaData || partesJustificativa[partesJustificativa.length - 1];
+//                         }
+
+//                         htmlBody += `<strong>Data Solicitada</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                         if (justificativaDoCard) {
+//                             htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${justificativaDoCard}</span>`;
+//                         }
+//                     } else if (infoItem.datas) {
+//                         const datasFmt = infoItem.datas.map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR')).filter(d => d).join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         if (isAditivoExtra) return; 
+
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo;
+//                         const tratarData = (valor) => Array.isArray(valor) ? valor.join(',') : String(valor || '').trim();
+//                         const dataParaAcao = isPedidoPrincipal ? tratarData(pedido.dataEspecifica) : (isDataUnica ? tratarData(infoItem.data) : '');
+//                         const idParaAcao = pedido.idpedido;
+//                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';                       
+                        
+//                         htmlBody += `
+//                             <br>
+//                             <div class="AcoesPedido"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-logid="${idLogParaAcao}"
+//                                 data-aditivo="false">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         if (itensGrupo === 0) return;
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO ---
+//     container.onclick = null; 
+
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+
+//         if (target.classList.contains('aprovar-individual-aditivo') || target.classList.contains('rejeitar-individual-aditivo')) {
+//             event.stopPropagation();
+
+//             const isAprovar   = target.classList.contains('aprovar-individual-aditivo');
+//             const idSol       = target.getAttribute('data-id');
+//             const idLogOrigem = target.getAttribute('data-logid');
+//             const linhaDom    = target.closest('.linha-data-aditivo');
+//             const dataEspecifica = target.getAttribute('data-data');
+
+//             const result = await Swal.fire({
+//                 title: isAprovar ? 'Autorizar esta data?' : 'Rejeitar esta data?',
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//                 confirmButtonText: 'Confirmar',
+//                 cancelButtonText: 'Cancelar'
+//             });
+//             if (!result.isConfirmed) return;
+
+//             const sucesso = await atualizarStatusAditivoExtra(
+//                 idSol, 
+//                 isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER,
+//                 dataEspecifica, 
+//                 idLogOrigem, 
+//                 true,
+//                 'statusaditivoextra'
+//             );
+
+//             if (sucesso && linhaDom) {
+//                 linhaDom.style.opacity = '0';
+//                 setTimeout(() => { 
+//                     const isAutorizado = isAprovar;
+//                     const corStatus = isAutorizado ? '#16a34a' : '#dc2626';
+//                     const iconeStatus = isAutorizado ? '✅' : '❌';
+//                     const textoStatus = isAutorizado ? 'Autorizado' : 'Rejeitado';
+
+//                     const divBotoes = linhaDom.querySelector('div');
+//                     if (divBotoes) {
+//                         divBotoes.innerHTML = `
+//                             <span style="
+//                                 background: ${corStatus}15; 
+//                                 border: 1px solid ${corStatus}; 
+//                                 color: ${corStatus}; 
+//                                 border-radius: 4px; 
+//                                 padding: 2px 8px; 
+//                                 font-size: 11px; 
+//                                 font-weight: bold;">
+//                                 ${iconeStatus} ${textoStatus}
+//                             </span>
+//                         `;
+//                     }
+                
+//                     linhaDom.style.opacity = '1'; 
+
+//                     const novoStatus = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
+//                     listas.forEach(lista => {
+//                         if (!lista) return;
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.id_log) === String(idLogOrigem)) {
+//                                     p.status_aprovacao = novoStatus;
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     const listaContainer = linhaDom.closest('.lista-datas-aditivo');
+//                     const totalPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo').length || 0;
+
+//                     const wrapperAditivo = listaContainer?.parentElement;
+//                     const btnAutorizarLote = wrapperAditivo?.querySelector('.aprovar-lote-aditivo');
+//                     const btnRejeitarLote = wrapperAditivo?.querySelector('.rejeitar-lote-aditivo');
+
+//                     if (totalPendentes === 0) {
+//                         const botoesDeLote = btnAutorizarLote?.closest('div');
+//                         if (botoesDeLote) {
+//                             botoesDeLote.style.transition = '0.3s';
+//                             botoesDeLote.style.opacity = '0';
+//                             setTimeout(() => botoesDeLote.remove(), 300);
+//                         }
+//                     } else {
+//                         if (btnAutorizarLote) btnAutorizarLote.textContent = `✅ Autorizar Todas (${totalPendentes})`;
+//                         if (btnRejeitarLote) btnRejeitarLote.textContent = `❌ Rejeitar Todas (${totalPendentes})`;
+//                     }
+
+//                     atualizarContadoresGlobais(); 
+//                 }, 300);
+//             }
+//             return;
+//         }
+
+//         if (target.classList.contains('aprovar-lote-aditivo') || target.classList.contains('rejeitar-lote-aditivo')) {
+//             event.stopPropagation();
+
+//             const isAprovar   = target.classList.contains('aprovar-lote-aditivo');
+//             const ids         = target.getAttribute('data-ids').split(',').map(id => id.trim()).filter(Boolean);
+//             const idLogOrigem = target.getAttribute('data-logid');
+//             const cardElement = target.closest('.pedido-card');
+
+//             const result = await Swal.fire({
+//                 title: isAprovar ? `Autorizar todas (${ids.length})?` : `Rejeitar todas (${ids.length})?`,
+//                 text: 'Esta ação será aplicada a todas as datas desta solicitação.',
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//                 confirmButtonText: 'Confirmar',
+//                 cancelButtonText: 'Cancelar'
+//             });
+//             if (!result.isConfirmed) return;
+
+//             const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//             let todosOk = true;
+
+//             for (const idSol of ids) {
+//                 const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
+//                 if (!ok) { todosOk = false; break; }
+//             }
+
+//             if (todosOk) {
+//                 if (cardElement) {
+//                     cardElement.style.transition = '0.3s';
+//                     cardElement.style.opacity = '0';
+//                     setTimeout(() => {
+//                         const corpo = cardElement.closest('.funcionario-body');
+//                         const grupo = cardElement.closest('.funcionario');
+//                         cardElement.remove();
+//                         if (corpo?.querySelectorAll('.pedido-card').length === 0) {
+//                             if (grupo) { grupo.style.opacity = '0'; setTimeout(() => grupo.remove(), 300); }
+//                         }
+//                         atualizarContadoresGlobais();
+//                     }, 300);
+//                 }
+//                 Swal.fire({ icon: 'success', title: 'Todas updated!', timer: 800, showConfirmButton: false });
+//             } else {
+//                 Swal.fire('Erro', 'Falha ao processar uma ou mais datas.', 'error');
+//             }
+//             return;
+//         }
+
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('[data-id]');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+//         const cardElement = target.closest('.pedido-card');
+
+//         const result = await Swal.fire({
+//             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
+//             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+
+//         if (result.isConfirmed) {
+//             try {
+//                 const idLogOriginal = actionDiv.getAttribute('data-logid');
+//                 const novoStatus = statusTarget;
+                
+//                 let sucesso = await atualizarStatusPedido(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
+
+//                 if (sucesso) {
+//                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
+//                     listas.forEach(lista => {
+//                         if (!lista) return;
+//                         lista.forEach(grupo => {
+//                             grupo.registrosOriginais?.forEach(p => {
+//                                 if (String(p.id_log) === String(idLogOriginal)) {
+//                                     p.status_aprovacao = novoStatus;
+//                                 }
+//                             });
+//                         });
+//                     });
+
+//                     if (cardElement) {
+//                         cardElement.style.transition = '0.3s';
+//                         cardElement.style.opacity = '0';
+//                         setTimeout(() => {
+//                             const corpoGrupo = cardElement.closest('.funcionario-body');
+//                             const grupoContainer = cardElement.closest('.funcionario');
+//                             cardElement.remove();
+
+//                             if (corpoGrupo && corpoGrupo.querySelectorAll('.pedido-card').length === 0) {
+//                                 if (grupoContainer) {
+//                                     grupoContainer.style.transition = '0.3s';
+//                                     grupoContainer.style.opacity = '0';
+//                                     setTimeout(() => grupoContainer.remove(), 300);
+//                                 }
+//                             }
+//                             atualizarContadoresGlobais();
+//                         }, 300);
+//                     }
+//                     Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 800, showConfirmButton: false });
+//                 }
+//             } catch (err) {
+//                 console.error("❌ Erro na execução:", err);
+//                 Swal.fire('Erro', 'Falha ao processar solicitação.', 'error');
+//             }
+//         }
+//     });
+
+//     if (typeof atualizarBadgeDeStatus === 'function') {
+//          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
+//     }
+
+//     if (typeof atualizarContadoresGlobais === 'function') {
+//         atualizarContadoresGlobais();
+//     }
+// }
+
 
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     window.pedidosCompletosGlobais = pedidosCompletos;
@@ -6353,7 +9310,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     container.style.flexDirection = 'column';
     container.style.flexWrap = 'nowrap';
     container.style.gap = '10px';
-
     container.innerHTML = '';
 
     const camposTodos = [
@@ -6363,11 +9319,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statusdiariadobrada",
         "statuscustofechado",
         "statuscacheliberado",
-    //    "statusvagaexcedida", 
-    //    "statusaditivoextra",
-    //    "aditivoextra",
+        "statusvagasreaproveitadas",
         CAMPO_ADITIVO_EXTRA
     ];
+
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
 
@@ -6376,16 +9331,18 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
 
     let totalItensRenderizados = 0;
+
     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
     const gruposFiltrados = [];
 
+    // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
     pedidosCompletos.forEach(grupoConsolidado => {
         let chaveRenderizacao;
         if (categoria === 'funcionario') {
             chaveRenderizacao = grupoConsolidado.funcionario;
         } else {
             // Tenta pegar nmfuncao, senão busca dentro dos registros
-            chaveRenderizacao = grupoConsolidado.nmfuncao;
+            chaveRenderizacao = grupoConsolidado.nmfuncao; // <--- 1º Ponto de falha
             
             if (!chaveRenderizacao) {
                 // Fallback: pega tipoSolicitacao do primeiro registro de vaga excedida
@@ -6401,33 +9358,52 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
         }
 
-        if (!chaveRenderizacao) return;
+        if (!chaveRenderizacao) return; // <--- Se por algum motivo for null/undefined, ele dá 'return' e ignora o card todo!
 
         const registros = grupoConsolidado.registrosOriginais || [];
         const pedidosConsolidadosPorId = new Map();
         let temAlgumMatchNesteGrupo = false;
 
         registros.forEach(pedidoOriginal => {
-            // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
-             console.log("🔍 Processando registro com ID:", pedidoOriginal );
-
-      
             const categoriaItem = pedidoOriginal.categoria_item || "geral";
-            const idLog = pedidoOriginal.id_log || pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || 'sem-log'; // antes só tinha o pedidoOriginal.id_log
+            
+            // 🚨 CORREÇÃO V99.0: GERAÇÃO DE ID ÚNICO COMBINADO PARA EVITAR CONFLITOS
+            let idLog = 'sem-id';
+            if (pedidoOriginal.id_log) {
+                idLog = `log-${pedidoOriginal.id_log}`;
+            } else {
+                const idBase = pedidoOriginal.idaditivoextra || pedidoOriginal.idpedido || pedidoOriginal.idsolicitacao || pedidoOriginal.id || 'vaga';
+                idLog = `sol-${idBase}-${categoriaItem}`; 
+            }
 
-            console.log(`🔍 ID para consolidação: ${idLog} (Categoria: ${categoriaItem})`);            
-            
-            
             let pedidoConsolidado = pedidosConsolidadosPorId.get(idLog);
-
             if (!pedidoConsolidado) {
                 pedidoConsolidado = { 
                     ...pedidoOriginal, 
-                    idpedido: idLog, // Padroniza o ID
+                    idpedido: idLog, 
                     temMatch: false,
-                    camposEncontrados: new Set() // Para rastrear o que já foi processado
+                    camposEncontrados: new Set()
                 };
                 pedidosConsolidadosPorId.set(idLog, pedidoConsolidado);
+            }
+            
+            // 💥 TRAVA DE CORTE RE-ALINHADA (Checa se este item específico mudou)
+            const statusMaeReal = (pedidoOriginal.status_aprovacao || pedidoOriginal.status || '').toLowerCase().trim();
+            if (statusMaeReal === 'autorizado' || statusMaeReal === 'rejeitado') {
+                pedidoOriginal.status = statusMaeReal;
+                pedidoOriginal.status_aprovacao = statusMaeReal;
+
+                // 🔑 Só sobrescreve campos JSON se NÃO forem arrays de datas individuais
+                const camposJson = ['statusaditivoextra', 'statusvagaexcedida', 'statusvagasreaproveitadas'];
+                camposJson.forEach(c => {
+                    const v = pedidoOriginal[c];
+                    const isArr = Array.isArray(v) || (typeof v === 'string' && v.trim().startsWith('['));
+                    if (!isArr) pedidoOriginal[c] = statusMaeReal;
+                });
+
+                if (pedidoOriginal.solicitacoes_individuais && Array.isArray(pedidoOriginal.solicitacoes_individuais)) {
+                    pedidoOriginal.solicitacoes_individuais.forEach(s => s.status = statusMaeReal);
+                }
             }
 
             // Verifica status principal
@@ -6439,30 +9415,63 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
 
             // Verifica sub-itens (Meia diária, caixinha, etc)
+            // Verifica sub-itens (Meia diária, caixinha, etc)
             camposTodos.forEach(campo => {
-                console.log(`🔍 Verificando campo "${campo}" para o item ID: ${idLog} - Categoria: ${categoriaItem}`);
-                const itens = safeParse(pedidoOriginal[campo]);
-                
-                
+                const itens = safeParse(pedidoOriginal[campo]).filter(it => it !== null && it !== undefined);
+
+                // 🔑 Para campos com array de datas individuais, inclui o card se houver ao menos
+                // uma data pendente e passa TODAS as datas para o render.
+                const camposComDatas = [CAMPO_ADITIVO_EXTRA, 'statusaditivoextra', 'statusvagasreaproveitadas', 'statusvagaexcedida'];
+                const isArrayDatas = camposComDatas.includes(campo)
+                    && Array.isArray(itens) && itens.length > 0 && typeof itens[0] === 'object';
+
+                if (isArrayDatas) {
+                    if (statusDesejado === 'pendente') {
+                        const temPendente = itens.some(it =>
+                            (it.status || 'pendente').toLowerCase().trim() === 'pendente'
+                        );
+                        if (temPendente) {
+                            pedidoConsolidado.temMatch = true;
+                            pedidoConsolidado[campo] = itens; // todas as datas
+                            temAlgumMatchNesteGrupo = true;
+                        } else {
+                            pedidoConsolidado[campo] = [];
+                        }
+                    } else {
+                        const filtrados = itens.filter(it =>
+                            (it.status || 'pendente').toLowerCase().trim() === statusDesejado
+                        );
+                        if (filtrados.length > 0) {
+                            pedidoConsolidado.temMatch = true;
+                            pedidoConsolidado[campo] = filtrados;
+                            temAlgumMatchNesteGrupo = true;
+                        } else {
+                            pedidoConsolidado[campo] = [];
+                        }
+                    }
+                    return;
+                }
+
                 const itensFiltrados = itens.filter(it => {
+                    if (statusMaeReal === 'autorizado' || statusMaeReal === 'rejeitado') {
+                        return statusMaeReal === statusDesejado;
+                    }
                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
                     return String(s).toLowerCase().trim() === statusDesejado;
                 });
 
                 if (itensFiltrados.length > 0) {
                     pedidoConsolidado.temMatch = true;
-                    // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
                     pedidoConsolidado[campo] = itensFiltrados; 
                     temAlgumMatchNesteGrupo = true;
-                } 
- 
-            });            
-
+                } else {
+                    pedidoConsolidado[campo] = [];
+                }
+            });
         });
 
         if (temAlgumMatchNesteGrupo) {
             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
-
             if (registrosValidos.length > 0) {
                 gruposFiltrados.push({
                     ...grupoConsolidado,
@@ -6471,16 +9480,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             }
         }
     });
-  
 
     if (gruposFiltrados.length === 0) {
         const msg = document.createElement("p");
         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
         container.appendChild(msg);
         
-        // 🛑 V97.0: Atualiza a contagem para 0
         if (typeof atualizarBadgeDeStatus === 'function') {
-             // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
              atualizarBadgeDeStatus(statusDesejado, 0, categoria);
         }
         return;
@@ -6489,8 +9495,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     // --- 2. RENDERIZAÇÃO ---
     const listaGrupos = document.createElement("div");
     listaGrupos.className = "lista-funcionarios";
+    container.appendChild(listaGrupos);
 
     gruposFiltrados.forEach(grupo => {
+        // CORRIGIDO: alterado de 'group' para 'grupo'
         const pedidosDoGrupo = grupo.registrosOriginais;
         if (!pedidosDoGrupo?.length) return;
 
@@ -6498,18 +9506,16 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             ? grupo.funcionario
             : ((pedidosDoGrupo[0]?.descFuncao) || 'SOLICITAÇÃO DE FUNÇÃO');
 
-        // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
         const p = pedidosDoGrupo[0];
         const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
-        console.log(`Renderizando grupo:${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
-        console .log (`Debug Rendeiração`, pedidosDoGrupo);
-
 
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario";
 
         const header = document.createElement("div");
         header.className = "funcionario-header";
+        header.innerHTML = `<strong>${chaveNome}</strong> <span class="text-sm text-gray-500">(Solicitado por: ${solicitantesGrupo})</span>`;
+        divGrupo.appendChild(header);
 
         const body = document.createElement("div");
         body.className = "funcionario-body hidden";
@@ -6517,18 +9523,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         let htmlBody = '';
         let itensGrupo = 0;
 
-        // Itera sobre os pedidos consolidados
         pedidosDoGrupo.forEach(pedido => {
-            console.log("📦 PEDIDO COMPLETO:", {
-                id_log: pedido.id_log,
-                categoria_item: pedido.categoria_item,
-                funcionario: pedido.funcionario,
-                nomefuncionario: pedido.nomefuncionario,  // ← ver se existe
-                nomeSolicitante: pedido.nomeSolicitante,
-                dtsolicitada: pedido.dtsolicitada,
-                chaves: Object.keys(pedido)
-            });
-            // Itera sobre camposTodos e o placeholder 'pedido_principal'
+            const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
+            const temIndividuais = solicitacoesIndividuais.length > 0;
+
             camposRenderizaveis.forEach(campo => { 
                 const itensFiltrados = pedido[campo];
                 if (!itensFiltrados || (Array.isArray(itensFiltrados) && itensFiltrados.length === 0)) return;
@@ -6537,22 +9535,18 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                 itensParaRenderizar.forEach(infoItem => {
                     let htmlBodyAditivoAgrupado = '';
-                    let datasProcessadas = [];
-                    // 🛑 Validação extra: se for o principal mas não for o status da aba, pula
                     if (campo === 'pedido_principal' && !pedido.renderizarComoPedidoPrincipal) return;
-
+                    
                     itensGrupo++;
-                    totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
+                    totalItensRenderizados++; 
 
                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
 
                     let tituloCard;
-                   // const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo ==='aditivoextra' || campo === 'statusaditivoextra'; // ← adicionar
-                   const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' 
-                    || campo === 'aditivoextra' || campo === 'statusaditivoextra';
-                   const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA || campo === 'statusvagaexcedida' || campo === 'aditivoextra' || campo === 'statusaditivoextra';
+                    const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
                     const isPedidoPrincipal = campo === 'pedido_principal';  
 
                     if (isPedidoPrincipal) {
@@ -6561,202 +9555,100 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             tituloCard += ` (${pedido.dataPrincipal})`;
                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
-                            
                             tituloCard += ` (R$ ${valorFmt})`;                            
                         }
-                        console.log(`Formatando título para pedido principal: ${tituloCard} (Campo: ${campo})`);
-                    //} else if (isAditivoExtra) {
-                        // const tipo = infoItem.tipoSolicitacao;
-                        // if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
-                        //     tituloCard = "Aditivo - Vaga Excedida";
-                        // } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO')) {
-                        //     tituloCard = "Aditivo - Datas fora do Orçamento";
-                        // } else {
-                        //     tituloCard = tipo || "Aditivo/Extra";
-                        // }
+                    } else if (isAditivoExtra) {
+                        const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
+                        if (tipo.includes('REAPROVEITADA') || tipo.includes('OUTRA FUNÇÃO') || tipo.includes('OUTRA FUNCAO')) {
+                            tituloCard = "Vaga Reaproveitada - Diária de Outra Função";
+                        } else if ((tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) || tipo === 'FUNCEXCEDIDO') {
+                            tituloCard = "Aditivo - Vaga Excedida";
+                        } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
+                            tituloCard = "Aditivo - Datas fora do Orçamento";
+                        } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
+                            tituloCard = "Extra Bonificado";
+                        } else {
+                            tituloCard = infoItem.tipoSolicitacao || "Aditivo/Extra";
+                        }
 
-                        } else if (isAditivoExtra) {
-                            const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
+                        if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                            const idsLote = temIndividuais ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',') : String(pedido.id_log);
+                            const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
 
-                            if (tipo.includes('VAGA') || tipo === 'FUNCEXCEDIDO') {
-                                tituloCard = "Aditivo - Vaga Excedida";
-                            } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
-                                tituloCard = "Aditivo - Datas fora do Orçamento";
-                            } else if (tipo.includes('EXTRA') || tipo.includes('BONIFICADO')) {
-                                tituloCard = "Extra Bonificado";
-                            } else {
-                                tituloCard = infoItem.tipoSolicitacao || "Aditivo/Extra";
-                            }
-
-                            // ✅ Usa solicitacoes_individuais vindas do backend
-                            const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
-                            const temIndividuais = solicitacoesIndividuais.length > 0;
-
-                            // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                            //     const idsLote = temIndividuais
-                            //         ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
-                            //         : String(pedido.id_log);
-
-                            //     const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
-
-                            //     htmlBodyAditivoAgrupado = `
-                            //         <div style="margin:8px 0;">
-                            //             <div style="display:flex;gap:8px;margin-bottom:8px;">
-                            //                 <button class="aprovar-lote-aditivo"
-                            //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Autorizado', this, '${pedido.id_log}')"
-                            //                     style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
-                            //                     ✅ Autorizar Todas (${totalDatas})
-                            //                 </button>
-                            //                 <button class="rejeitar-lote-aditivo"
-                            //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Rejeitado', this, '${pedido.id_log}')"
-                            //                     style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
-                            //                     ❌ Rejeitar Todas (${totalDatas})
-                            //                 </button>
-                            //             </div>
-                            //             <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
-                            //                 <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
-                            //                     <strong>DETALHAMENTO POR DATA</strong>
-                            //                     <span style="color:#666;">${totalDatas} data(s)</span>
-                            //                 </div>
-                            //         `;
-
-                            //     if (temIndividuais) {
-                            //         solicitacoesIndividuais.forEach((sol, idx) => {
-                            //             // Formata as datas desta solicitação individual
-                            //             let datasRaw = sol.data;
-                            //             if (typeof datasRaw === 'string') {
-                            //                 // Vem do postgres como "{2026-05-15}" — limpa as chaves
-                            //                 datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
-                            //             }
-                            //             const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
-                            //                 .map(d => {
-                            //                     const dt = String(d).trim();
-                            //                     return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
-                            //                 }).join(', ');
-
-                            //             const isLast = idx === solicitacoesIndividuais.length - 1;
-
-                            //             htmlBodyAditivoAgrupado += `
-                            //                 <div class="linha-data-aditivo"
-                            //                     data-idsolicitacao="${sol.idsolicitacao}"
-                            //                     style="display:flex;justify-content:space-between;align-items:center;
-                            //                             padding:6px 10px;
-                            //                             border-bottom:${isLast ? 'none' : '1px solid #eee'};
-                            //                             transition:opacity 0.3s;">
-                            //                     <span style="font-size:13px;">📅 ${datasFormatadas}</span>
-                            //                     <div style="display:flex;gap:6px;">
-                            //                         <button class="aprovar-individual-aditivo"
-                            //                             data-id="${sol.idsolicitacao}"
-                            //                             data-logid="${pedido.id_log}"
-                            //                             style="background:none;border:1px solid #16a34a;border-radius:3px;
-                            //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
-                            //                             title="Autorizar apenas esta data">✅</button>
-                            //                         <button class="rejeitar-individual-aditivo"
-                            //                             data-id="${sol.idsolicitacao}"
-                            //                             data-logid="${pedido.id_log}"
-                            //                             style="background:none;border:1px solid #dc2626;border-radius:3px;
-                            //                                 cursor:pointer;font-size:13px;padding:2px 6px;"
-                            //                             title="Rejeitar apenas esta data">❌</button>
-                            //                     </div>
-                            //                 </div>
-                            //             `;
-                            //         });
-                            //     }
-
-                            //     htmlBodyAditivoAgrupado += `</div></div>`;
-                            // }
-
-                            if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                                const idsLote = temIndividuais
-                                    ? solicitacoesIndividuais.map(s => s.idsolicitacao).join(',')
-                                    : String(pedido.id_log);
-
-                                const totalDatas = temIndividuais ? solicitacoesIndividuais.length : 1;
-
-                                htmlBodyAditivoAgrupado = `
-                                    <div style="margin:8px 0;">
-                                        <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                            <button class="aprovar-lote-aditivo"
-                                                data-ids="${idsLote}"
-                                                data-logid="${pedido.id_log}"
-                                                style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
-                                                ✅ Autorizar Todas (${totalDatas})
-                                            </button>
-                                            <button class="rejeitar-lote-aditivo"
-                                                data-ids="${idsLote}"
-                                                data-logid="${pedido.id_log}"
-                                                style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
-                                                ❌ Rejeitar Todas (${totalDatas})
-                                            </button>
+                            htmlBodyAditivoAgrupado = `
+                                <div style="margin:8px 0;">
+                                    <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                        <button class="aprovar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                            ✅ Autorizar Todas (${totalDatas})
+                                        </button>
+                                        <button class="rejeitar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                            ❌ Rejeitar Todas (${totalDatas})
+                                        </button>
+                                    </div>
+                                    <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
+                                        <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                                            <strong>DETALHAMENTO POR DATA</strong>
+                                            <span style="color:#666;">${totalDatas} data(s)</span>
                                         </div>
-                                        <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
-                                            <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
-                                                <strong>DETALHAMENTO POR DATA</strong>
-                                                <span style="color:#666;">${totalDatas} data(s)</span>
-                                            </div>
-                                    `;
+                            `;
 
-                                if (temIndividuais) {
-                                    solicitacoesIndividuais.forEach((sol, idx) => {
-                                        let datasRaw = sol.data;
-                                        if (typeof datasRaw === 'string') {
-                                            datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
-                                        }
-                                        const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
-                                            .map(d => {
-                                                const dt = String(d).trim();
-                                                return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
-                                            }).join(', ');
-
-                                        const isLast = idx === solicitacoesIndividuais.length - 1;
-
-                                        htmlBodyAditivoAgrupado += `
-                                            <div class="linha-data-aditivo"
-                                                data-idsolicitacao="${sol.idsolicitacao}"
-                                                style="display:flex;justify-content:space-between;align-items:center;
-                                                        padding:6px 10px;
-                                                        border-bottom:${isLast ? 'none' : '1px solid #eee'};
-                                                        transition:opacity 0.3s;">
-                                                <span style="font-size:13px;">📅 ${datasFormatadas}</span>
-                                                <div style="display:flex;gap:6px;">
-                                                    <button class="aprovar-individual-aditivo"
-                                                        data-id="${sol.idsolicitacao}"
-                                                        data-logid="${pedido.id_log}"
-                                                        style="background:none;border:1px solid #16a34a;border-radius:3px;
-                                                            cursor:pointer;font-size:13px;padding:2px 6px;"
-                                                        title="Autorizar apenas esta data">✅</button>
-                                                    <button class="rejeitar-individual-aditivo"
-                                                        data-id="${sol.idsolicitacao}"
-                                                        data-logid="${pedido.id_log}"
-                                                        style="background:none;border:1px solid #dc2626;border-radius:3px;
-                                                            cursor:pointer;font-size:13px;padding:2px 6px;"
-                                                        title="Rejeitar apenas esta data">❌</button>
-                                                </div>
-                                            </div>
-                                        `;
-                                    });
+                            if (temIndividuais) {
+                                let categoriaCard = "statusaditivoextra";
+                                if (tituloCard.includes("Vaga Excedida")) {
+                                    categoriaCard = "statusvagaexcedida";
+                                } else if (tituloCard.includes("Reaproveitada")) {
+                                    categoriaCard = "statusvagasreaproveitadas";
                                 }
+                                
+                                solicitacoesIndividuais.forEach((sol, idx) => { 
+                                    console.log('🎨 [RENDER SOL]', { id: sol.idsolicitacao, status: sol.status, data: sol.data });                                       
+                                    let datasRaw = sol.data;
+                                    if (typeof datasRaw === 'string') {
+                                        datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+                                    }
 
-                                htmlBodyAditivoAgrupado += `</div></div>`;
+                                    const dataBrutaOriginal = Array.isArray(datasRaw) ? datasRaw[0] : datasRaw;
+                                    const dataLimpaParaAtributo = String(dataBrutaOriginal || '').trim();
+
+                                    const datasFormatadas = (Array.isArray(datasRaw) ? datasRaw : [datasRaw])
+                                        .map(d => {
+                                            const dt = String(d).trim();
+                                            return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+                                        }).join(', ');
+
+                                    const isLast = idx === solicitacoesIndividuais.length - 1;
+
+                                    const solStatus = (sol.status || 'pendente').toLowerCase();
+                                    const solJaResolvida = solStatus === 'autorizado' || solStatus === 'rejeitado';
+                                    const corStatus = solStatus === 'autorizado' ? '#16a34a' : solStatus === 'rejeitado' ? '#dc2626' : '#facc15';
+                                    const labelStatus = solStatus.charAt(0).toUpperCase() + solStatus.slice(1);
+
+                                    htmlBodyAditivoAgrupado += `
+                                        <div class="linha-data-aditivo" data-idsolicitacao="${sol.idsolicitacao}" style="display:flex;justify-content:space-between;align-items:center; padding:6px 10px; border-bottom:${isLast ? 'none' : '1px solid #eee'}; transition:opacity 0.3s;">
+                                            <span style="font-size:13px;">📅 ${datasFormatadas}</span>
+                                            <div style="display:flex;gap:6px;">
+                                                ${solJaResolvida
+                                                    ? `<span style="font-size:12px;font-weight:bold;color:${corStatus};border:1px solid ${corStatus};border-radius:3px;padding:2px 8px;">${labelStatus}</span>`
+                                                    : `<button class="aprovar-individual-aditivo" data-id="${sol.idsolicitacao}" data-logid="${pedido.id_log}" data-data="${dataLimpaParaAtributo}" data-categoria="${categoriaCard}" style="background:none;border:1px solid #16a34a;border-radius:3px; cursor:pointer;font-size:13px;padding:2px 6px;" title="Autorizar apenas esta data">✅</button>
+                                                    <button class="rejeitar-individual-aditivo" data-id="${sol.idsolicitacao}" data-logid="${pedido.id_log}" data-data="${dataLimpaParaAtributo}" data-categoria="${categoriaCard}" style="background:none;border:1px solid #dc2626;border-radius:3px; cursor:pointer;font-size:13px;padding:2px 6px;" title="Rejeitar apenas esta data">❌</button>`
+                                                }
+                                            </div>
+                                        </div>
+                                    `;
+                                });
                             }
-
-                            console.log(`Formatando título para aditivo extra: ${tituloCard} (Campo: ${campo})`);
-
-                           
-                            
+                            htmlBodyAditivoAgrupado += `</div></div>`;
+                        }
                     } else {
-                        //tituloCard = formatarNomeSolicitacao(campo);
                         const categoriaParaFormatar = infoItem.categoria || campo;
                         const categoriaDoBanco = pedido.categoria;
-
-                        console.log(`Formatando título para categoria: ${categoriaParaFormatar} (Campo: ${campo})`);
-
                         tituloCard = formatarNomeSolicitacao(categoriaParaFormatar, categoriaDoBanco);
+
                         if (isDataUnica) { 
                             const dataBruta = String(infoItem.data || '').trim();
                             let dataFmt = '';
                             if (dataBruta !== '') {
-                                const dataObj = parseDateLocal(dataBruta); 
+                                const dataObj = parseDateLocal(dataBruta);
                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
                             }
                             if (dataFmt) tituloCard += ` (${dataFmt})`;
@@ -6768,217 +9660,101 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             }
                         }
                     }
-                   
-                    
 
-                    // let dataQfezSolicitacaoFormatada = '';
-                    // if (pedido.dataSolicitacao) {
-                    //     const dataObj = new Date(pedido.dataSolicitacao);
-                    //     // Verifica se a data é válida antes de formatar
-                    //     dataQfezSolicitacaoFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
-                    // }
-
+                    // --- Formatação das datas de Log/Solicitação ---
                     let dataQfezSolicitacaoFormatada = '';
-
-                    // 💡 Tenta pegar a data de solicitação ou a data de criação (dtCriacao) que veio no log
-                    const dataRaw = pedido.dataSolicitacao || pedido.dtCriacao;
-
-                    if (dataRaw) {
-                        const dataObj = new Date(dataRaw);
-                        // Verifica se a conversão para objeto de data foi válida antes de formatar
+                    const dataRawLog = pedido.dataSolicitacao || pedido.dtCriacao;
+                    if (dataRawLog) {
+                        const dataObj = new Date(dataRawLog);
                         if (!isNaN(dataObj.getTime())) {
                             dataQfezSolicitacaoFormatada = dataObj.toLocaleDateString('pt-BR');
                         } else {
-                            dataQfezSolicitacaoFormatada = dataRaw; // Se não for data válida, exibe o texto bruto
+                            dataQfezSolicitacaoFormatada = dataRawLog;
                         }
                     } else {
                         dataQfezSolicitacaoFormatada = 'Data indefinida';
                     }
 
-                    
-                   
-                    let dataSolicitadaFormatada = '';
-
-                    if (pedido.dataSolicitada) {
-                        // 1. Garante que temos um array (se vier string com vírgula, vira array)
-                        const datasArray = Array.isArray(pedido.dataSolicitada) 
-                            ? pedido.dataSolicitada 
-                            : pedido.dataSolicitada.toString().split(',');
-
-                        // 2. Mapeia cada data formatando para pt-BR
-                        const datasFormatadas = datasArray.map(item => {
-                            if (item == null) return '';
-                            
-                            let dataStr = '';
-                            
-                            // Se o item for um objeto e tiver a chave 'status' (como no seu log)
-                            if (typeof item === 'object' && item.status) {
-                                dataStr = item.status;
-                            } 
-                            // Se for um objeto mas por acaso vier com outra estrutura
-                            else if (typeof item === 'object') {
-                                dataStr = JSON.stringify(item); 
-                            }
-                            // Se já for uma string direta
-                            else {
-                                dataStr = item;
-                            }
-
-                            const dataObj = new Date(dataStr);
-                            
-                            // Se a data for válida, formata. Se não, retorna o texto original.
-                            if (!isNaN(dataObj.getTime())) {
-                                // Usamos UTC para evitar que o fuso horário mude o dia (ex: 02 vira 01)
-                                return dataObj.getUTCDate().toString().padStart(2, '0') + '/' +
-                                    (dataObj.getUTCMonth() + 1).toString().padStart(2, '0') + '/' +
-                                    dataObj.getUTCFullYear();
-                            }
-                            return dataStr;
-                        });
-
-                        // 3. Junta tudo com vírgula e espaço para exibir na tela
-                        dataSolicitadaFormatada = datasFormatadas.join(', ');
-                    }
-                    
-                    let dataFormatada = '';
-                   
                     let dataFormatadaSolictacao = '';
-
                     if (pedido.dtsolicitada) {
                         let datasParaExibir = [];
-
-                        // 1. Identifica se é a estrutura aninhada do banco: [ { data: [2026-04-01...], status: "Pendente" } ]
                         if (Array.isArray(pedido.dtsolicitada) && pedido.dtsolicitada.length > 0 && typeof pedido.dtsolicitada[0] === 'object' && pedido.dtsolicitada[0].data) {
                             datasParaExibir = Array.isArray(pedido.dtsolicitada[0].data) ? pedido.dtsolicitada[0].data : [pedido.dtsolicitada[0].data];
-                        } 
-                        // 2. Se for um array simples de strings ["2026-04-01", "2026-04-02"]
-                        else if (Array.isArray(pedido.dtsolicitada)) {
+                        } else if (Array.isArray(pedido.dtsolicitada)) {
                             datasParaExibir = pedido.dtsolicitada;
-                        } 
-                        // 3. Se for uma string única ou separada por vírgula
-                        else {
+                        } else {
                             datasParaExibir = pedido.dtsolicitada.toString().split(',');
                         }
 
-                        // Agora formatamos cada data encontrada
                         const datasMapeadas = datasParaExibir.map(item => {
                             if (!item) return '';
-                            
-                            // Limpa a string e força meio-dia para evitar erro de fuso horário
                             const dataLimpa = String(item).trim();
                             const dataObj = new Date(dataLimpa + 'T12:00:00');
-                            
                             if (!isNaN(dataObj.getTime())) {
                                 return dataObj.toLocaleDateString('pt-BR');
                             }
-                            return item; // Se falhar, mostra o original
+                            return item;
                         });
-
-                        // Junta tudo com vírgula para o card
                         dataFormatadaSolictacao = datasMapeadas.join(', ');
-                        
-                        console.log(`Formatado com sucesso:`, dataFormatadaSolictacao);
                     }
 
                     let dataEventoFormatada = '';
-
                     if (pedido.datasevento) {
-                        // 1. Garantimos que temos um array (se vier string com vírgula, transformamos em array)
-                        const listaDatas = Array.isArray(pedido.datasevento) 
-                            ? pedido.datasevento 
-                            : pedido.datasevento.split(',');
-
-                        // 2. Formatamos cada data individualmente
+                        const listaDatas = Array.isArray(pedido.datasevento) ? pedido.datasevento : pedido.datasevento.split(',');
                         const datasMapeadas = listaDatas.map(dStr => {
-                            const d = new Date(dStr.trim() + 'T12:00:00'); // T12:00 evita problemas de fuso horário
+                            const d = new Date(dStr.trim() + 'T12:00:00');
                             return !isNaN(d) ? d.toLocaleDateString('pt-BR') : dStr;
                         });
-
-                        // 3. Juntamos novamente com vírgula e espaço para exibir no card
                         dataEventoFormatada = datasMapeadas.join(', ');
                     }
 
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
                     const nomeFuncionarioExibir = pedido.funcionario || pedido.nomefuncionario || null;
+                    const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataQfezSolicitacaoFormatada}</strong>` : '';
 
-                    const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
-                                ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
-                                : '';
-
-                    let htmlAditivoSection = '';
-                    if (isAditivoExtra) {
-                        htmlAditivoSection = htmlBodyAditivoAgrupado; 
-                    }
-
+                    // Montagem estruturada do HTML do Card
                     htmlBody += `
                         <div class="pedido-card">
                             <div class="infoPedido">
-                                    <div class="title">
-                                    <strong>${tituloCard}</strong> Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong> ${nomeSolic}</strong>
-                                    </div>
-                                    <br>                                   
-           
+                                <div class="title">
+                                    <span style="display:inline-block; width:12px; height:12px; background-color:${corQuadrado}; margin-right:6px; border-radius:2px;"></span>
+                                    <strong>${tituloCard}</strong> - Solicitado em: <strong>${dataQfezSolicitacaoFormatada}</strong> por <strong>${nomeSolic}</strong>
+                                </div>
+                                <br>
                     `;
-                    
 
                     if (pedido.evento) {
                         if (categoria === 'funcionario') {
-                           // const funcaoAtualTxt = pedido.descFuncao ? ` <span class="text-xs text-gray-500 font-normal">${pedido.descFuncao}</span>` : '';
-                           const funcaoPrincipal = pedido.descFuncaoOriginal || pedido.descFuncao || '';
-                           const funcaoAtualTxt = funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : '';
-
-                            // // Se usou a original E existir uma função de dobra diferente, podemos mostrar a de dobra como um "subtexto" sutil
-                            // const temDobraDiferente = pedido.descFuncaoOriginal && pedido.descFuncao && (pedido.descFuncaoOriginal !== pedido.descFuncao);
-                            // const funcaoAtualTxt = temDobraDiferente 
-                            //     ? ` <span class="text-xs text-gray-500 font-normal">(${funcaoPrincipal} ocupando vaga de ${pedido.descFuncao} na diária dobrada)</span>`
-                            //     : (funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">${funcaoPrincipal}</span>` : ''); 
-                           
-                           htmlBody += `<div class="event-info">
-                                        <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir} -  ${funcaoAtualTxt}<br>
-                                        <strong>Datas Contratadas:</strong> ${dataEventoFormatada}</div><br> `;                                        
+                            const funcaoPrincipal = pedido.descFuncaoOriginal || pedido.descFuncao || '';
+                            const funcaoAtualTxt = funcaoPrincipal ? ` <span class="text-xs text-gray-500 font-normal">(${funcaoPrincipal})</span>` : '';
+                            htmlBody += `
+                                <div class="event-info">
+                                    <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir} ${funcaoAtualTxt}<br>
+                                    <strong>Datas Contratadas:</strong> ${dataEventoFormatada}
+                                </div><br>
+                            `;
                         } else {
-                            // 💡 Procure onde você renderiza o nome do funcionário e ajuste para incluir o pedido.descFuncao:
-                           
-
-                            // Exemplo se for um cabeçalho de Card:
-                           // htmlBody += `<strong>Funcionário</strong>: ${pedido.nomefuncionario}${funcaoAtualTxt}<br>`;
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}<br>`;
+                            const isReaproveitada = tituloCard.includes('Reaproveitada');
+                            const funcOrigemDestino = (isReaproveitada && pedido.nmfuncaoOrigem)
+                                ? `<br>Aproveitando vagas da Função de <strong>${pedido.nmfuncaoOrigem}</strong>`
+                                : '';
+                            htmlBody += `
+                                <div class="event-info">
+                                    <strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${nomeFuncionarioExibir}${funcOrigemDestino}
+                                </div><br>
+                            `;
                         }
                     }
 
                     if (isPedidoPrincipal) {
                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                     } else if (isAditivoExtra) {
-                        // const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
-                        // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
-                        //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
-                        // } else {
-                        //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
-                        // }
-
-                        // htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
                         const tipoUpper = (infoItem.tipoSolicitacao || '').toUpperCase();
-    
-                        // if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {                            
-                        //     htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${dataFormatadaSolictacao} - `;
-                        // } else {
-                        //     htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
-                        // }
-
                         if (tipoUpper.includes('VAGA EXCEDIDA') || tipoUpper.includes('FUNCEXCEDIDO')) {
-    
-                            // ✅ Pega todas as datas das solicitações individuais
-                            const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
-                            
                             let todasAsDatas = '';
                             if (solicitacoesIndividuais.length > 0) {
-                                // ✅ Filtra pelo status da aba atual (pendente, autorizado ou rejeitado)
-                                const solsFiltradas = solicitacoesIndividuais.filter(sol => 
-                                    (sol.status || '').toLowerCase().trim() === statusDesejado
-                                );
-
+                                const solsFiltradas = solicitacoesIndividuais.filter(sol => (sol.status || '').toLowerCase().trim() === statusDesejado);
                                 const solsParaExibir = solsFiltradas.length > 0 ? solsFiltradas : solicitacoesIndividuais;
-
                                 todasAsDatas = solsParaExibir.map(sol => {
                                     let datasRaw = sol.data;
                                     if (typeof datasRaw === 'string') {
@@ -6991,59 +9767,36 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             } else {
                                 todasAsDatas = dataFormatadaSolictacao;
                             }
-
                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
-
+                        } else if (tipoUpper.includes('REAPROVEITADA') || tipoUpper.includes('OUTRA FUNÇÃO') || tipoUpper.includes('OUTRA FUNCAO')) {
+                            // Mostra datas fora do orçamento (contexto 1) + justificativa (contexto 2)
+                            if (dataFormatadaSolictacao) {
+                                htmlBody += `<strong>Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao}<br>`;
+                            }
+                            const justif = pedido.justificativaSolicitacao || infoItem.descricao || '';
+                            if (justif) {
+                                htmlBody += `<strong>Justificativa:</strong> ${justif}<br>`;
+                            }
                         } else {
                             htmlBody += `<strong> Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao} - `;
                         }
 
-                        // 1. Adiciona o status e o aprovador
-                        htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}</span><br>`;
-                        
-                        // 2. AQUI VOCÊ INCLUI O SEU BLOCO DE BOTÕES (O htmlBodyAditivoAgrupado que criamos)
+                        htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         htmlBody += htmlBodyAditivoAgrupado;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
-                        const valor = parseFloat(infoItem.valor) || 0; 
-                                        
-                        
-                        console.log("CATEGORIA QUE CHEGA AQUI", p.categoria, infoItem);
-                        
-
+                        const valor = parseFloat(infoItem.valor) || 0;
                         if (valor !== 0) {
                             const valorFmt = valor.toFixed(2).replace('.', ',');
-                            if (p.categoria === 'statuscustofechado' || p.categoria === 'statuscacheliberado') {
+                            if (pedido.categoria === 'statuscustofechado' || pedido.categoria === 'statuscacheliberado') {
                                 const valorAlimentFmt = infoItem.vlralimentacao?.toFixed(2).replace('.', ',') || '0,00';
                                 const valorTranspFmt = infoItem.vlrtransporte?.toFixed(2).replace('.', ',') || '0,00';
                                 htmlBody += `<strong>Valor Cachê:</strong> R$ ${valorFmt} - <strong>Valor Alimentação:</strong> R$ ${valorAlimentFmt} - <strong>Valor Transporte:</strong> R$ ${valorTranspFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-                            
-                            }
-                            else{
+                            } else {
                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                             }
-                           
                         } else {
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
-
-                    // } else if (isDataUnica) {
-                    //     const dataBruta = String(infoItem.data || '').trim();
-                    //     let dataFmt = 'Data indefinida';
-                    //     if (dataBruta !== '') {
-                    //         const dataObj = parseDateLocal(dataBruta);
-                    //         dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
-                    //     }
-                    //     htmlBody += `<strong>Data(s) Solicitada(s)</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;if (infoItem.justificativa) 
-                    //     htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${infoItem.justificativa}</span>`;
-    
-                    // } else if (infoItem.datas) {
-                    //     const datasFmt = infoItem.datas
-                    //         .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
-                    //         .filter(d => d)
-                    //         .join(', ');
-                    //     htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-                    // }
-
                     } else if (isDataUnica) {
                         const dataBruta = String(infoItem.data || '').trim();
                         let dataFmt = 'Data indefinida';
@@ -7051,106 +9804,40 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const dataObj = parseDateLocal(dataBruta);
                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
                         }
-                        
-                        // 1. Captura inicial da justificativa padrão do item
-                        let justificativaDoCard = infoItem.justificativa || '';
 
-                        // ➔ LENDO DA DTDIARIADOBRADA: Busca no array de solicitações a propriedade correta do dia
-                        if (p.categoria_item === 'statusdiariadobrada' && pedido.dtsolicitada && Array.isArray(pedido.dtsolicitada)) {
+                        let justificativaDoCard = infoItem.justificativa || '';
+                        if (pedido.categoria_item === 'statusdiariadobrada' && pedido.dtsolicitada && Array.isArray(pedido.dtsolicitada)) {
                             const itemDobraDestaData = pedido.dtsolicitada.find(d => {
                                 let dataDobraRaw = d.data;
                                 if (Array.isArray(dataDobraRaw)) dataDobraRaw = dataDobraRaw[0];
                                 return String(dataDobraRaw).trim() === dataBruta;
                             });
-
                             if (itemDobraDestaData && itemDobraDestaData.justificativa) {
                                 justificativaDoCard = itemDobraDestaData.justificativa;
                             }
                         }
 
-                        // 🌟 TRATAMENTO CIRÚRGICO ANTI-MISTURA: 
-                        // Se a justificativa do dtdiariadobrada contiver "|", separa as strings e pega só a que pertence a este card
-                        if (p.categoria_item === 'statusdiariadobrada' && justificativaDoCard.includes('|')) {
-                            console.log(`⚠️ Tratando justificativa combinada para o dia ${dataFmt}`);
-                            
-                            // Divide o textão pelas barras "|"
+                        if (pedido.categoria_item === 'statusdiariadobrada' && justificativaDoCard.includes('|')) {
                             const partesJustificativa = justificativaDoCard.split('|').map(parte => parte.trim());
-                            
-                            // Procura a frase que cita exatamente a data deste card (Ex: "16/05/2026")
                             const parteExclusivaDestaData = partesJustificativa.find(parte => parte.includes(dataFmt));
-
                             if (parteExclusivaDestaData) {
                                 justificativaDoCard = parteExclusivaDestaData;
-                            } else {
-                                // Se não achar a data explícita por algum motivo, pega o último pedaço (mais recente)
-                                justificativaDoCard = partesJustificativa[partesJustificativa.length - 1];
                             }
                         }
 
-                        // 2. Renderização final no HTML do card
-                        htmlBody += `<strong>Data Solicitada</strong>: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-                        
+                        htmlBody += `<strong>Data Solicitada:</strong> ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         if (justificativaDoCard) {
-                            htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa</strong>: ${justificativaDoCard}</span>`;
+                            htmlBody += `<span class="text-xs text-gray-600" style="display: block; margin-top: 2px; margin-bottom: 6px;"><strong>Justificativa:</strong> ${justificativaDoCard}</span>`;
                         }
-    
-                    } else if (infoItem.datas) {
-                        // Mantém o bloco antigo exatamente igual para os outros fluxos
-                        const datasFmt = infoItem.datas
-                            .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
-                            .filter(d => d)
-                            .join(', ');
-                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     }
-
-                    
-
-                    if (infoItem.descricao) {
-                        
-                        htmlBody += `Descrição: <span style="display: inline-block; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; vertical-align: top;">${infoItem.descricao}</span><br>`;
-                    }
-
-                    
-
-                    // if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                    //     const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
-
-                    //     // CORREÇÃO AQUI: Tratando se data é Array ou String antes de usar o trim
-                    //     const tratarData = (valor) => {
-                    //         if (Array.isArray(valor)) {
-                    //             return valor.join(','); // Transforma ['2026-04-01', '2026-04-02'] em "2026-04-01,2026-04-02"
-                    //         }
-                    //         return String(valor || '').trim();
-                    //     };
-
-                    //     const dataParaAcao = isPedidoPrincipal 
-                    //         ? tratarData(pedido.dataEspecifica) 
-                    //         : (isDataUnica ? tratarData(infoItem.data) : '');
-
-                    //     const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
-                    //     const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
-
-                    //     htmlBody += `<br>
-                    //         <div class="AcoesPedido"
-                    //             data-id="${idParaAcao}"
-                    //             data-campo="${campoParaAcao}"
-                    //             data-data="${dataParaAcao}"
-                    //             data-logid="${idLogParaAcao}"
-                    //             data-aditivo="${isAditivoExtra}">
-                    //             <button class="aprovar">Autorizar</button>
-                    //             <button class="negar">Rejeitar</button>
-                    //         </div>
-                    //     `;
-                    // }
 
                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
-                        // ✅ Para aditivos, os botões já estão dentro do htmlBodyAditivoAgrupado — não duplica
-                        if (isAditivoExtra) return; // pula a geração do AcoesPedido genérico
+                        if (isAditivoExtra) return; 
 
                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo;
                         const tratarData = (valor) => Array.isArray(valor) ? valor.join(',') : String(valor || '').trim();
                         const dataParaAcao = isPedidoPrincipal ? tratarData(pedido.dataEspecifica) : (isDataUnica ? tratarData(infoItem.data) : '');
-                        const idParaAcao = pedido.idpedido;
+                        const idParaAcao = infoItem.idsolicitacao || pedido.id_log;
                         const idLogParaAcao = infoItem.id_log || pedido.id_log || '';
 
                         htmlBody += `
@@ -7169,191 +9856,175 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     htmlBody += `
                             </div>
-                            <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
                         </div>
-
                     `;
                 });
             });
         });
 
-        // 🛑 AQUI ESTÁ O PULO DO GATO:
-        // Se após varrer tudo o itensGrupo for 0, não adicionamos o divGrupo ao container.
-        if (itensGrupo === 0) return;
-
         body.innerHTML = htmlBody;
+        divGrupo.appendChild(body);
 
-        header.innerHTML = `
-            <div>
-                ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
-                <strong>${chaveNome}</strong><br>
-                <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
-            </div>
-            <div class="flex items-center gap-2">
-                <span>${itensGrupo}</span>
-                <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-            </div>
-        `;
-
-        header.addEventListener("click", () => {
-            body.classList.toggle("hidden");
-            header.querySelector('i').classList.toggle('rotate-180');
+        header.addEventListener('click', () => {
+            body.classList.toggle('hidden');
         });
 
-        divGrupo.appendChild(header);
-        divGrupo.appendChild(body);
-        listaGrupos.appendChild(divGrupo);
+        if (itensGrupo > 0) {
+            listaGrupos.appendChild(divGrupo);
+        }
     });
 
-    container.appendChild(listaGrupos);
-
-    // --- 3. LISTENERS DE AÇÃO (SWAL) 
+    // --- 3. LISTENERS DE AÇÃO (SWAL) ---
     container.onclick = null; 
 
     container.addEventListener('click', async function(event) {
         const target = event.target;
 
-            // ── INDIVIDUAL ───────────────────────────────────────────
-    if (target.classList.contains('aprovar-individual-aditivo') ||
-        target.classList.contains('rejeitar-individual-aditivo')) {
-        event.stopPropagation();
+        //── INDIVIDUAL ───────────────────────────────────────────
+        if (target.classList.contains('aprovar-individual-aditivo') ||
+            target.classList.contains('rejeitar-individual-aditivo')) {
+            event.stopPropagation();
 
-        const isAprovar   = target.classList.contains('aprovar-individual-aditivo');
-        const idSol       = target.getAttribute('data-id');
-        const idLogOrigem = target.getAttribute('data-logid');
-        const linhaDom    = target.closest('.linha-data-aditivo');
+            const isAprovar   = target.classList.contains('aprovar-individual-aditivo');
+            const idSol       = target.getAttribute('data-id');
+            const idLogOrigem = target.getAttribute('data-logid');
+            const linhaDom    = target.closest('.linha-data-aditivo');
 
-        const result = await Swal.fire({
-            title: isAprovar ? 'Autorizar esta data?' : 'Rejeitar esta data?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-            confirmButtonText: 'Confirmar',
-            cancelButtonText: 'Cancelar'
-        });
-        if (!result.isConfirmed) return;
+            const dataEspecifica = target.getAttribute('data-data');
 
-        const sucesso = await atualizarStatusAditivoExtra(
-            idSol, 
-            isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER,
-            null, idLogOrigem, true // skipConfirm=true
-        );
+            const result = await Swal.fire({
+                title: isAprovar ? 'Autorizar esta data?' : 'Rejeitar esta data?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!result.isConfirmed) return;
 
-        // if (sucesso && linhaDom) {
-        //     linhaDom.style.opacity = '0';
-        //     setTimeout(() => { linhaDom.remove(); atualizarContadoresGlobais(); }, 300);
-        // }
+            const sucesso = await atualizarStatusAditivoExtra(
+                idSol, 
+                isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER,
+                dataEspecifica, 
+                idLogOrigem, 
+                true,
+                'statusaditivoextra' 
+            );
 
-        if (sucesso && linhaDom) {
-            linhaDom.style.opacity = '0';
-            setTimeout(() => { 
-                // Em vez de remover, atualiza a linha com o status
-                const isAutorizado = isAprovar;
-                const corStatus = isAutorizado ? '#16a34a' : '#dc2626';
-                const iconeStatus = isAutorizado ? '✅' : '❌';
-                const textoStatus = isAutorizado ? 'Autorizado' : 'Rejeitado';
+            if (sucesso && linhaDom) {
+                linhaDom.style.opacity = '0';
+                setTimeout(() => { 
+                    const isAutorizado = isAprovar;
+                    const corStatus = isAutorizado ? '#16a34a' : '#dc2626';
+                    const iconeStatus = isAutorizado ? '✅' : '❌';
+                    const textoStatus = isAutorizado ? 'Autorizado' : 'Rejeitado';
 
-                // Substitui os botões pelo badge de status
-                const divBotoes = linhaDom.querySelector('div'); // div com os botões
-                if (divBotoes) {
-                    divBotoes.innerHTML = `
-                        <span style="
-                            background: ${corStatus}15; 
-                            border: 1px solid ${corStatus}; 
-                            color: ${corStatus}; 
-                            border-radius: 4px; 
-                            padding: 2px 8px; 
-                            font-size: 11px; 
-                            font-weight: bold;">
-                            ${iconeStatus} ${textoStatus}
-                        </span>
-                    `;
-                }
-
-                linhaDom.style.opacity = '1'; // Restaura a opacidade
-
-                // Após o linhaDom.style.opacity = '1' e antes do atualizarContadoresGlobais()
-
-                // ✅ Atualiza a contagem nos botões de lote
-                const listaContainer = linhaDom.closest('.lista-datas-aditivo');
-                const linhasPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo');
-                const totalPendentes = linhasPendentes?.length || 0;
-
-                // Atualiza texto dos botões de lote com a nova contagem
-                const wrapperAditivo = listaContainer?.parentElement;
-                const btnAutorizarLote = wrapperAditivo?.querySelector('.aprovar-lote-aditivo');
-                const btnRejeitarLote = wrapperAditivo?.querySelector('.rejeitar-lote-aditivo');
-
-                if (totalPendentes === 0) {
-                    // Remove os botões de lote se não houver mais pendentes
-                    const botoesDeLote = btnAutorizarLote?.closest('div');
-                    if (botoesDeLote) {
-                        botoesDeLote.style.transition = '0.3s';
-                        botoesDeLote.style.opacity = '0';
-                        setTimeout(() => botoesDeLote.remove(), 300);
+                    const divBotoes = linhaDom.querySelector('div'); 
+                    if (divBotoes) {
+                        divBotoes.innerHTML = `
+                            <span style="
+                                background: ${corStatus}15; 
+                                border: 1px solid ${corStatus}; 
+                                color: ${corStatus}; 
+                                border-radius: 4px; 
+                                padding: 2px 8px; 
+                                font-size: 11px; 
+                                font-weight: bold;">
+                                ${iconeStatus} ${textoStatus}
+                            </span>
+                        `;
                     }
-                } else {
-                    // Atualiza a contagem
-                    if (btnAutorizarLote) btnAutorizarLote.textContent = `✅ Autorizar Todas (${totalPendentes})`;
-                    if (btnRejeitarLote) btnRejeitarLote.textContent = `❌ Rejeitar Todas (${totalPendentes})`;
-                }
+                
+                    linhaDom.style.opacity = '1'; 
 
-                atualizarContadoresGlobais(); 
-            }, 300);
-        }
-        return;
-    }
+                    const novoStatus = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+                    const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
+                    listas.forEach(lista => {
+                        if (!lista) return;
+                        lista.forEach(grupo => {
+                            grupo.registrosOriginais?.forEach(p => {
+                                if (String(p.id_log) === String(idLogOrigem)) {
+                                    p.status_aprovacao = novoStatus;
+                                }
+                            });
+                        });
+                    });
 
-    // ── LOTE ─────────────────────────────────────────────────
-    if (target.classList.contains('aprovar-lote-aditivo') ||
-        target.classList.contains('rejeitar-lote-aditivo')) {
-        event.stopPropagation();
+                    const listaContainer = linhaDom.closest('.lista-datas-aditivo');
+                    const totalPendentes = listaContainer?.querySelectorAll('.aprovar-individual-aditivo').length || 0;
 
-        const isAprovar   = target.classList.contains('aprovar-lote-aditivo');
-        const ids         = target.getAttribute('data-ids').split(',').map(id => id.trim()).filter(Boolean);
-        const idLogOrigem = target.getAttribute('data-logid');
-        const cardElement = target.closest('.pedido-card');
+                    const wrapperAditivo = listaContainer?.parentElement;
+                    const btnAutorizarLote = wrapperAditivo?.querySelector('.aprovar-lote-aditivo');
+                    const btnRejeitarLote = wrapperAditivo?.querySelector('.rejeitar-lote-aditivo');
 
-        const result = await Swal.fire({
-            title: isAprovar ? `Autorizar todas (${ids.length})?` : `Rejeitar todas (${ids.length})?`,
-            text: 'Esta ação será aplicada a todas as datas desta solicitação.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-            confirmButtonText: 'Confirmar',
-            cancelButtonText: 'Cancelar'
-        });
-        if (!result.isConfirmed) return;
-
-        const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
-        let todosOk = true;
-
-        for (const idSol of ids) {
-            const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
-            if (!ok) { todosOk = false; break; }
-        }
-
-        if (todosOk) {
-            if (cardElement) {
-                cardElement.style.transition = '0.3s';
-                cardElement.style.opacity = '0';
-                setTimeout(() => {
-                    const corpo = cardElement.closest('.funcionario-body');
-                    const grupo = cardElement.closest('.funcionario');
-                    cardElement.remove();
-                    if (corpo?.querySelectorAll('.pedido-card').length === 0) {
-                        if (grupo) { grupo.style.opacity = '0'; setTimeout(() => grupo.remove(), 300); }
+                    if (totalPendentes === 0) {
+                        const botoesDeLote = btnAutorizarLote?.closest('div');
+                        if (botoesDeLote) {
+                            botoesDeLote.style.transition = '0.3s';
+                            botoesDeLote.style.opacity = '0';
+                            setTimeout(() => botoesDeLote.remove(), 300);
+                        }
+                    } else {
+                        if (btnAutorizarLote) btnAutorizarLote.textContent = `✅ Autorizar Todas (${totalPendentes})`;
+                        if (btnRejeitarLote) btnRejeitarLote.textContent = `❌ Rejeitar Todas (${totalPendentes})`;
                     }
-                    atualizarContadoresGlobais();
+
+                    atualizarContadoresGlobais(); 
                 }, 300);
             }
-            Swal.fire({ icon: 'success', title: 'Todas atualizadas!', timer: 800, showConfirmButton: false });
-        } else {
-            Swal.fire('Erro', 'Falha ao processar uma ou mais datas.', 'error');
+            return;
         }
-        return;
-    }
-        // Verifica se clicou nos botões
+
+        // ── LOTE ─────────────────────────────────────────────────
+        if (target.classList.contains('aprovar-lote-aditivo') ||
+            target.classList.contains('rejeitar-lote-aditivo')) {
+            event.stopPropagation();
+
+            const isAprovar   = target.classList.contains('aprovar-lote-aditivo');
+            const ids         = target.getAttribute('data-ids').split(',').map(id => id.trim()).filter(Boolean);
+            const idLogOrigem = target.getAttribute('data-logid');
+            const cardElement = target.closest('.pedido-card');
+
+            const result = await Swal.fire({
+                title: isAprovar ? `Autorizar todas (${ids.length})?` : `Rejeitar todas (${ids.length})?`,
+                text: 'Esta ação será aplicada a todas as datas desta solicitação.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!result.isConfirmed) return;
+
+            const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+            let todosOk = true;
+
+            for (const idSol of ids) {
+                const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
+                if (!ok) { todosOk = false; break; }
+            }
+
+            if (todosOk) {
+                if (cardElement) {
+                    cardElement.style.transition = '0.3s';
+                    cardElement.style.opacity = '0';
+                    setTimeout(() => {
+                        const corpo = cardElement.closest('.funcionario-body');
+                        const grupo = cardElement.closest('.funcionario');
+                        cardElement.remove();
+                        if (corpo?.querySelectorAll('.pedido-card').length === 0) {
+                            if (grupo) { grupo.style.opacity = '0'; setTimeout(() => grupo.remove(), 300); }
+                        }
+                        atualizarContadoresGlobais();
+                    }, 300);
+                }
+                Swal.fire({ icon: 'success', title: 'Todas atualizadas!', timer: 800, showConfirmButton: false });
+            } else {
+                Swal.fire('Erro', 'Falha ao processar uma ou mais datas.', 'error');
+            }
+            return;
+        }
+
         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
 
         const actionDiv = target.closest('[data-id]');
@@ -7365,12 +10036,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const dataParaUpdate = actionDiv.getAttribute('data-data');
         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
 
-        // Determina qual função chamar e qual o status alvo
         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
         const cardElement = target.closest('.pedido-card');
 
-        // Modal de Confirmação
         const result = await Swal.fire({
             title: isAprovar ? 'Autorizar?' : 'Rejeitar?',
             text: "Tem certeza que deseja " + (isAprovar ? "AUTORIZAR" : "REJEITAR") + " esta solicitação?",
@@ -7389,15 +10058,11 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 let sucesso = false;
                 if (isAditivoExtra) {
                     sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
-                    //sucesso = await statusUpdateFn(idReferencia, 'aditivoextra', statusTarget, cardElement, null, idLogOriginal);
                 } else {
                     sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
                 }
 
-                
-                // ... dentro da sua função de atualizar status, no bloco de sucesso:
                 if (sucesso) {
-                    // Atualiza status_aprovacao na memória
                     const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais];
                     listas.forEach(lista => {
                         if (!lista) return;
@@ -7409,9 +10074,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             });
                         });
                     });
-
-                    // 2. REMOÇÃO VISUAL (Seu código de remover card)
-                    // ... (dentro do if (sucesso), após a remoção do card)
 
                     if (cardElement) {
                         cardElement.style.transition = '0.3s';
@@ -7444,15 +10106,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
     // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
     if (typeof atualizarBadgeDeStatus === 'function') {
-         // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
          atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
     }
 
     if (typeof atualizarContadoresGlobais === 'function') {
         atualizarContadoresGlobais();
     }
-} 
-
+}
 
 async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
     const confirm = await Swal.fire({
@@ -7550,8 +10210,238 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 //             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
 //         }
 
-async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem, skipConfirm = false) {
-    console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
+// async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement, idlog_origem, skipConfirm = false) {
+//     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
+
+//     if (!skipConfirm) {
+//         const confirmacao = await Swal.fire({
+//             title: 'Confirmar Ação',
+//             html: `Tem certeza que deseja aplicar esta ação à solicitação de <strong>Aditivo / Extra</strong>?`,
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: novoStatus.toLowerCase() === 'autorizado' ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+//         if (!confirmacao.isConfirmed) return false;
+//     }
+
+//     try {
+//         if (cardElement && typeof cardElement.querySelector === 'function') {
+//             mostrarLoader(cardElement);
+//         }
+
+//         const containerBotoes = cardElement?.querySelector('.botoes-aditivo-container');
+//         if (containerBotoes) {
+//             containerBotoes.style.opacity = '0.5';
+//             containerBotoes.style.pointerEvents = 'none';
+//             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
+//         }
+
+//         const url = '/main/notificacoes-financeiras/atualizar-status';
+
+//         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
+       
+//         const payload = { 
+//             idpedido: idAditivoExtra,
+//             categoria: 'statusaditivoextra',
+//             acao: novoStatusCapitalizado,
+//             idlog_origem: idlog_origem
+//         };
+
+//         // 2. Adicione a data se ela existir
+//         // if (dataEspecifica) {
+//         //     payload.data = dataEspecifica;
+//         // }
+
+//         // 3. Use o payload no fetch
+//         const response = await fetchComToken(url, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify(payload) // <--- Use a variável declarada acima
+//         });
+//         //ocultarLoader(cardElement);
+
+//         if (cardElement && typeof cardElement.querySelector === 'function') {
+//             ocultarLoader(cardElement);
+//         }
+
+//         if (response && response.sucesso) {
+//             console.log("✅ Aditivo atualizado no banco. Sincronizando memória...");
+
+//             const statusFormatado = novoStatus.toLowerCase().trim();
+
+//             if (containerBotoes) {
+//                 containerBotoes.innerHTML = `
+//                     <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+//                         ${statusFormatado} pelo sistema
+//                     </div>
+//                 `;
+//             }
+
+//             // Atualiza memória e contadores como você já faz...
+//             Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 800, showConfirmButton: false });
+//             return true;
+
+//             // 1. ATUALIZAÇÃO DA MEMÓRIA GLOBAL (CRUCIAL PARA TROCA DE ABAS)
+//             // Varremos as listas que o Main.js usa para renderizar as telas
+//             const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais, window.pedidosCompletosGlobais];
+            
+//             listas.forEach(lista => {
+//                 if (!lista) return;
+//                 lista.forEach(grupo => {
+//                     grupo.registrosOriginais?.forEach(p => {
+//                         // No seu Main.js, Aditivos Extras ficam no campo 'statusaditivoextra'
+//                         if (p.statusaditivoextra && Array.isArray(p.statusaditivoextra)) {
+//                             p.statusaditivoextra.forEach(ad => {
+//                                 if (String(ad.idAditivoExtra) === String(idAditivoExtra)) {
+//                                     console.log("🎯 Aditivo encontrado na memória e atualizado!");
+//                                     ad.status = statusFormatado;
+//                                     // Ativamos a flag para o renderizador encontrar este item na aba de destino
+//                                     p.temMatch = true; 
+//                                 }
+//                             });
+//                         }
+//                     });
+//                 });
+//             });
+
+//             // 2. REMOÇÃO VISUAL
+//             if (cardElement) {
+//                 cardElement.style.transition = 'all 0.4s ease';
+//                 cardElement.style.opacity = '0';
+//                 //cardElement.style.transform = 'scale(0.8)';
+//                 cardElement.style.transform = 'translateX(100px)';
+//                 setTimeout(() => {
+//                     const containerPai = cardElement.parentElement;
+//                     const secaoFuncionario = cardElement.closest('.funcionario-card') || cardElement.closest('.funcionario');
+//                     cardElement.remove();
+//                         if (containerPai && containerPai.children.length === 0) {
+//                         secaoFuncionario?.remove();
+//                     }
+//                     // Limpa o cabeçalho do grupo se não houver mais cards
+//                     // const corpo = document.querySelector('.funcionario-body:has(.pedido-card)'); // Exemplo de seletor
+//                     // if (corpo && corpo.querySelectorAll('.pedido-card').length === 0) {
+//                     //      corpo.closest('.funcionario')?.remove();
+//                     // }
+//                 }, 400);
+//             }
+
+//             // 3. ATUALIZA OS CONTADORES (BADGES)
+//             if (typeof atualizarContadoresGlobais === 'function') {
+//                 atualizarContadoresGlobais();
+//             }
+
+//             Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 1000, showConfirmButton: false });
+//             return true;
+//         } else {
+//             Swal.fire('Erro', response.erro || 'Falha na atualização', 'error');
+//             return false;
+//         }
+
+//     } catch (err) {
+//         if (typeof ocultarLoader === 'function') ocultarLoader(cardElement);
+//         console.error("❌ Erro ao atualizar aditivo:", err);
+//         return false;
+
+//         if (containerBotoes) {
+//             containerBotoes.style.opacity = '1';
+//             containerBotoes.style.pointerEvents = 'auto';
+//             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = false);
+//         }
+//     }
+// }
+
+// 🌟 AJUSTADO: Adicionamos 'dataEspecifica' e 'categoriaDinamica' como parâmetros oficiais da função
+
+
+
+// async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspecifica = null, idlog_origem = null, skipConfirm = false, categoriaDinamica = 'statusaditivoextra') {
+//     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus} | Data Especifica: ${dataEspecifica} | Categoria: ${categoriaDinamica}`);
+
+//     if (!skipConfirm) {
+//         const confirmacao = await Swal.fire({
+//             title: 'Confirmar Ação',
+//             html: `Tem certeza que deseja aplicar esta ação à solicitação de <strong>Aditivo / Extra</strong>?`,
+//             icon: 'warning',
+//             showCancelButton: true,
+//             confirmButtonColor: novoStatus.toLowerCase() === 'autorizado' ? '#16a34a' : '#dc2626',
+//             confirmButtonText: 'Confirmar'
+//         });
+//         if (!confirmacao.isConfirmed) return false;
+//     }
+
+//     // Buscamos o elemento DOM com base no idsolicitacao para aplicar loaders e efeitos visuais
+//     const cardElement = document.querySelector(`[data-idsolicitacao="${idAditivoExtra}"]`) || document.querySelector(`[data-id="${idAditivoExtra}"]`)?.closest('.pedido-card');
+
+//     try {
+//         if (cardElement && typeof cardElement.querySelector === 'function') {
+//             mostrarLoader(cardElement);
+//         }
+
+//         const containerBotoes = cardElement?.querySelector('.botoes-aditivo-container') || cardElement?.querySelector('div');
+//         if (containerBotoes && typeof containerBotoes.querySelectorAll === 'function') {
+//             containerBotoes.style.opacity = '0.5';
+//             containerBotoes.style.pointerEvents = 'none';
+//             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
+//         }
+
+//         const url = '/main/notificacoes-financeiras/atualizar-status';
+
+//         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
+       
+//         // 🌟 CONFIGURAÇÃO DO PAYLOAD CONFORME AS VARIÁVEIS RECEBIDAS
+//         const payload = { 
+//             idpedido: idAditivoExtra,
+//             categoria: categoriaDinamica, // 🚀 Usa a categoria dinâmica identificada (ex: statusvagasreaproveitadas)
+//             acao: novoStatusCapitalizado,
+//             idlog_origem: idlog_origem
+//         };
+
+//         // 🌟 SE EXISTIR DATA ESPECÍFICA, ADICIONA NO PAYLOAD CONFORME REQUISITADO PELO SEU BACKEND
+//         if (dataEspecifica && dataEspecifica !== 'null') {
+//             payload.data = dataEspecifica;
+//         }
+
+//         // 3. Use o payload no fetch
+//         const response = await fetchComToken(url, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify(payload)
+//         });
+
+//         if (cardElement && typeof cardElement.querySelector === 'function') {
+//             ocultarLoader(cardElement);
+//         }
+
+//         if (response && response.sucesso) {
+//             console.log("✅ Aditivo atualizado no banco. Sincronizando memória...");
+
+//             const statusFormatado = novoStatus.toLowerCase().trim();
+
+//             if (containerBotoes) {
+//                 containerBotoes.innerHTML = `
+//                     <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+//                         ${statusFormatado} pelo sistema
+//                     </div>
+//                 `;
+//             }
+
+//             Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 800, showConfirmButton: false });
+//             return true;
+//         } else {
+//             Swal.fire('Erro', response.erro || 'Falha na atualização', 'error');
+//             return false;
+//         }
+
+//     } catch (err) {
+//         if (cardElement && typeof ocultarLoader === 'function') ocultarLoader(cardElement);
+//         console.error("❌ Erro ao atualizar aditivo:", err);
+//         return false;
+//     }
+// }
+
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspecifica = null, idlog_origem = null, skipConfirm = false, categoriaDinamica = 'statusaditivoextra') {
+    console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus} | Data Especifica: ${dataEspecifica} | Categoria: ${categoriaDinamica}`);
 
     if (!skipConfirm) {
         const confirmacao = await Swal.fire({
@@ -7565,41 +10455,39 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
         if (!confirmacao.isConfirmed) return false;
     }
 
+    const cardElement = document.querySelector(`[data-idsolicitacao="${idAditivoExtra}"]`) || document.querySelector(`[data-id="${idAditivoExtra}"]`)?.closest('.pedido-card');
+
     try {
         if (cardElement && typeof cardElement.querySelector === 'function') {
             mostrarLoader(cardElement);
         }
 
-        const containerBotoes = cardElement?.querySelector('.botoes-aditivo-container');
-        if (containerBotoes) {
+        const containerBotoes = cardElement?.querySelector('.botoes-aditivo-container') || cardElement?.querySelector('div');
+        if (containerBotoes && typeof containerBotoes.querySelectorAll === 'function') {
             containerBotoes.style.opacity = '0.5';
             containerBotoes.style.pointerEvents = 'none';
             containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = true);
         }
 
         const url = '/main/notificacoes-financeiras/atualizar-status';
-
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
        
         const payload = { 
             idpedido: idAditivoExtra,
-            categoria: 'statusaditivoextra',
+            categoria: categoriaDinamica, 
             acao: novoStatusCapitalizado,
             idlog_origem: idlog_origem
         };
 
-        // 2. Adicione a data se ela existir
-        // if (dataEspecifica) {
-        //     payload.data = dataEspecifica;
-        // }
+        if (dataEspecifica && dataEspecifica !== 'null') {
+            payload.data = dataEspecifica;
+        }
 
-        // 3. Use o payload no fetch
         const response = await fetchComToken(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload) // <--- Use a variável declarada acima
+            body: JSON.stringify(payload)
         });
-        //ocultarLoader(cardElement);
 
         if (cardElement && typeof cardElement.querySelector === 'function') {
             ocultarLoader(cardElement);
@@ -7618,60 +10506,164 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
                 `;
             }
 
-            // Atualiza memória e contadores como você já faz...
-            Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 800, showConfirmButton: false });
-            return true;
+            // ==================================================================
+            // 🚨 NOVO CACHE CIRÚRGICO: ATUALIZAÇÃO BLINDADA ANTI-SUMIÇO DE CARDS
+            // ==================================================================
+            const ehAtualizacaoIndividual = dataEspecifica && dataEspecifica !== 'null';
+            try {
+                const idsAlterados = String(idAditivoExtra).split(',').map(id => parseInt(id.trim())).filter(Boolean);
+                const statusDestino = statusFormatado === 'autorizado' ? 'Autorizado' : 'Rejeitado';
 
-            // 1. ATUALIZAÇÃO DA MEMÓRIA GLOBAL (CRUCIAL PARA TROCA DE ABAS)
-            // Varremos as listas que o Main.js usa para renderizar as telas
-            const listas = [window.gruposFuncionariosGlobais, window.gruposFuncoesGlobais, window.pedidosCompletosGlobais];
-            
-            listas.forEach(lista => {
-                if (!lista) return;
-                lista.forEach(grupo => {
-                    grupo.registrosOriginais?.forEach(p => {
-                        // No seu Main.js, Aditivos Extras ficam no campo 'statusaditivoextra'
-                        if (p.statusaditivoextra && Array.isArray(p.statusaditivoextra)) {
-                            p.statusaditivoextra.forEach(ad => {
-                                if (String(ad.idAditivoExtra) === String(idAditivoExtra)) {
-                                    console.log("🎯 Aditivo encontrado na memória e atualizado!");
-                                    ad.status = statusFormatado;
-                                    // Ativamos a flag para o renderizador encontrar este item na aba de destino
-                                    p.temMatch = true; 
+                console.log("🧠 [CACHE]IDs alvos da ação do botão:", idsAlterados);
+
+                // Todos os campos que podem conter JSON de datas individuais
+                const camposDatas = [CAMPO_ADITIVO_EXTRA, 'statusaditivoextra', 'statusvagasreaproveitadas', 'statusvagaexcedida'];
+
+                const varrerEAtualizarCacheGeral = (listaDeGrupos) => {
+                    if (!listaDeGrupos || !Array.isArray(listaDeGrupos)) return;
+
+                    listaDeGrupos.forEach(grupo => {
+                        const registros = grupo.registrosOriginais;
+                        if (!registros || !Array.isArray(registros)) return;
+
+                        registros.forEach(pedido => {
+                            const matchPorLog = idsAlterados.includes(parseInt(pedido.id_log)) || idsAlterados.includes(parseInt(pedido.idlog));
+                            const matchPorSolicitacao = idsAlterados.includes(parseInt(pedido.idsolicitacao)) ||
+                                                        idsAlterados.includes(parseInt(pedido.idpedido)) ||
+                                                        idsAlterados.includes(parseInt(pedido.id));
+
+                            let matchNasIndividuais = false;
+                            if (pedido.solicitacoes_individuais && Array.isArray(pedido.solicitacoes_individuais)) {
+                                matchNasIndividuais = pedido.solicitacoes_individuais.some(sol =>
+                                    idsAlterados.includes(parseInt(sol.idsolicitacao))
+                                );
+                            }
+
+                            // Checa em TODOS os campos candidatos, não só statusaditivoextra
+                            // Checa em TODOS os campos candidatos, não só statusaditivoextra
+                            let matchNoJson = false;
+                            camposDatas.forEach(campo => {
+                                const raw = pedido[campo];
+                                if (!raw || typeof raw !== 'string' && !Array.isArray(raw)) return;
+                                const arr = safeParse(raw);
+                                if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
+                                    if (arr.some(it => idsAlterados.includes(parseInt(it.idsolicitacao)))) {
+                                        matchNoJson = true;
+                                    }
                                 }
                             });
-                        }
+
+                            if (matchPorLog || matchPorSolicitacao || matchNasIndividuais || matchNoJson) {
+                                console.warn(`🎯 [CACHE MATCH]`, { id_log: pedido.id_log, ehIndividual: ehAtualizacaoIndividual });
+                                console.log('🔍 [CACHE DEBUG]', {
+                                    id_log: pedido.id_log,
+                                    idsolicitacao: pedido.idsolicitacao,
+                                    categoria_item: pedido.categoria_item,
+                                    ehAtualizacaoIndividual,
+                                    dataEspecifica,
+                                    idsAlterados,
+                                    statusvagasreaproveitadas: pedido.statusvagasreaproveitadas,
+                                    statusaditivoextra: pedido.statusaditivoextra,
+                                    solicitacoes_individuais: pedido.solicitacoes_individuais
+                                });
+                                
+                                if (ehAtualizacaoIndividual) {
+                                    // Atualiza APENAS a data específica — NÃO muda status_aprovacao do pai
+
+                                    if (pedido.solicitacoes_individuais && Array.isArray(pedido.solicitacoes_individuais)) {
+                                        pedido.solicitacoes_individuais.forEach(sol => {
+                                            console.log('🔎 [SOL]', {
+                                                idsolicitacao: sol.idsolicitacao,
+                                                data: sol.data,
+                                                status: sol.status,
+                                                incluiDataEspecifica: String(sol.data).includes(dataEspecifica),
+                                                idMatch: idsAlterados.includes(parseInt(sol.idsolicitacao))
+                                            });
+                                            if (idsAlterados.includes(parseInt(sol.idsolicitacao)) ||
+                                                String(sol.data).includes(dataEspecifica)) {
+                                                sol.status = statusDestino;
+                                            }
+                                        });
+                                         console.log('✅ [SOL APÓS UPDATE]', 
+                                            pedido.solicitacoes_individuais.map(s => ({ id: s.idsolicitacao, status: s.status }))
+                                        );
+                                    }
+
+                                    // Atualiza em TODOS os campos candidatos
+                                    // Atualiza em TODOS os campos candidatos
+                                    let aindaPendente = false;
+                                    camposDatas.forEach(campo => {
+                                        const raw = pedido[campo];
+                                        if (!raw || typeof raw !== 'string' && !Array.isArray(raw)) return;
+                                        const arr = safeParse(raw);
+                                        if (!Array.isArray(arr) || arr.length === 0 || typeof arr[0] !== 'object' || arr[0] === null) return;
+                                        let mudou = false;
+                                        arr.forEach(it => {
+                                            if (idsAlterados.includes(parseInt(it.idsolicitacao)) ||
+                                                String(it.data || '').includes(dataEspecifica)) {
+                                                it.status = statusDestino;
+                                                mudou = true;
+                                            }
+                                            if ((it.status || 'pendente').toLowerCase() === 'pendente') {
+                                                aindaPendente = true;
+                                            }
+                                        });
+                                        if (mudou) pedido[campo] = arr;
+                                    });
+
+                                    // Só sobe o pai se TODAS as datas foram resolvidas
+                                    if (!aindaPendente) {
+                                        pedido.status = statusDestino;
+                                        pedido.status_aprovacao = statusDestino;
+                                    }
+                                } else {
+                                    // Lote: atualiza o registro inteiro
+                                    pedido.status = statusDestino;
+                                    pedido.status_aprovacao = statusDestino;
+                                    camposDatas.forEach(campo => {
+                                        if (pedido[campo]) pedido[campo] = statusDestino;
+                                    });
+                                    if (pedido.solicitacoes_individuais && Array.isArray(pedido.solicitacoes_individuais)) {
+                                        pedido.solicitacoes_individuais.forEach(sol => { sol.status = statusDestino; });
+                                    }
+                                }
+                            }
+                        });
                     });
-                });
-            });
+                };
 
-            // 2. REMOÇÃO VISUAL
-            if (cardElement) {
-                cardElement.style.transition = 'all 0.4s ease';
-                cardElement.style.opacity = '0';
-                //cardElement.style.transform = 'scale(0.8)';
-                cardElement.style.transform = 'translateX(100px)';
-                setTimeout(() => {
-                    const containerPai = cardElement.parentElement;
-                    const secaoFuncionario = cardElement.closest('.funcionario-card') || cardElement.closest('.funcionario');
-                    cardElement.remove();
-                        if (containerPai && containerPai.children.length === 0) {
-                        secaoFuncionario?.remove();
-                    }
-                    // Limpa o cabeçalho do grupo se não houver mais cards
-                    // const corpo = document.querySelector('.funcionario-body:has(.pedido-card)'); // Exemplo de seletor
-                    // if (corpo && corpo.querySelectorAll('.pedido-card').length === 0) {
-                    //      corpo.closest('.funcionario')?.remove();
-                    // }
-                }, 400);
+                varrerEAtualizarCacheGeral(window.gruposFuncionariosGlobais);
+                varrerEAtualizarCacheGeral(window.gruposFuncoesGlobais);
+
+            } catch (errCache) {
+                console.error("⚠️ Erro ao alinhar memória cache:", errCache);
             }
+            // ==================================================================
 
-            // 3. ATUALIZA OS CONTADORES (BADGES)
-            if (typeof atualizarContadoresGlobais === 'function') {
-                atualizarContadoresGlobais();
+            // ==================================================================
+            // 🎬 RE-RENDERIZAR IMEDIATAMENTE A TELA ATUALIZADA
+            // ==================================================================
+            if (typeof sincronizarContadoresOriginais === 'function') sincronizarContadoresOriginais();
+            else if (typeof sincronizarContadores === 'function') sincronizarContadores();
+
+            const abaPrincipalAtiva = document.querySelector('.abas-principais .main-tab-btn.ativa');
+            const categoriaAtiva = abaPrincipalAtiva ? abaPrincipalAtiva.getAttribute('data-categoria') : 'funcionario';
+            const idContainer = categoriaAtiva === 'funcionario' ? 'container-funcionarios' : 'container-funcoes';
+            const listaDadosFresh = categoriaAtiva === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+
+            // Para aprovação individual, recarrega do backend para garantir dados corretos
+            if (ehAtualizacaoIndividual) {
+                if (typeof window.recarregarPainelPedidosGlobais === 'function') {
+                    await window.recarregarPainelPedidosGlobais();
+                }
+            } else {
+                if (typeof renderizarPedidos === 'function' && listaDadosFresh) {
+                    renderizarPedidos(listaDadosFresh, idContainer, categoriaAtiva, 'pendente', true);
+                }
             }
+            // ==================================================================
 
-            Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 1000, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'Aditivo Atualizado!', timer: 800, showConfirmButton: false });
             return true;
         } else {
             Swal.fire('Erro', response.erro || 'Falha na atualização', 'error');
@@ -7679,15 +10671,9 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
         }
 
     } catch (err) {
-        if (typeof ocultarLoader === 'function') ocultarLoader(cardElement);
+        if (cardElement && typeof ocultarLoader === 'function') ocultarLoader(cardElement);
         console.error("❌ Erro ao atualizar aditivo:", err);
         return false;
-
-        if (containerBotoes) {
-            containerBotoes.style.opacity = '1';
-            containerBotoes.style.pointerEvents = 'auto';
-            containerBotoes.querySelectorAll('button').forEach(btn => btn.disabled = false);
-        }
     }
 }
 
@@ -14604,7 +17590,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
+    const FiltrosVencimentos = criarsesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 
     container.appendChild(valoresResumoElement);

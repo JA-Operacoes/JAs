@@ -173,13 +173,22 @@ router.get("/proximo-evento", async (req, res) => {
 router.get("/eventos-calendario", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
-    const ano = parseInt(req.query.ano);
-    const mes = parseInt(req.query.mes);
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
 
-    if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
-    if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
 
-    const { rows: eventos } = await pool.query(`
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
       SELECT 
         e.idevento,
         o.nomenclatura,
@@ -194,36 +203,30 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
-      AND o.status != 'R'
-      AND (
-        -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
-        EXISTS (
-          SELECT 1 FROM unnest(ARRAY[
-            o.dtiniinframontagem, o.dtfiminframontagem,
-            o.dtinimarcacao, o.dtfimmarcacao,
-            o.dtinimontagem, o.dtfimmontagem,
-            o.dtinirealizacao, o.dtfimrealizacao,
-            o.dtinidesmontagem, o.dtfimdesmontagem,
-            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
-          ]) AS d(data)
-          WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
+        AND o.status != 'R'
+        AND (
+          (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+          OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+          OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
         )
-      )
-      ORDER BY o.dtinimarcacao ASC;
-    `, [idempresa, ano, mes]);
+      ORDER BY COALESCE(o.dtinimarcacao, o.dtinimontagem, o.dtinirealizacao, o.dtinidesmontagem, o.dtiniinframontagem, o.dtiniinfradesmontagem) ASC
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
 
-    const resposta = [];
-
-    // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
     const formatDate = (date) => {
       if (!date) return null;
       const d = new Date(date);
-      return d.getFullYear() + "-" + 
-             String(d.getMonth() + 1).padStart(2, '0') + "-" + 
-             String(d.getDate()).padStart(2, '0');
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     };
 
-    eventos.forEach(ev => {
+    const resposta = [];
+
+    eventos.forEach((ev) => {
       const fasesConfig = [
         { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
         { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
@@ -233,21 +236,115 @@ router.get("/eventos-calendario", async (req, res) => {
         { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
       ];
 
-      fasesConfig.forEach(f => {
-        if (f.ini) {
-          resposta.push({
-            idevento: ev.idevento,
-            nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
-            inicio: formatDate(f.ini),
-            fim: formatDate(f.fim || f.ini),
-            tipo: f.tipo
-          });
-        }
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
       });
     });
 
     res.json({ eventos: resposta });
+  } catch (err) {
+    console.error("Erro em /eventos-calendario:", err);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
 
+router.get("/export-eventos-calendario", async (req, res) => {
+  try {
+    const idempresa = req.headers.idempresa || req.query.idempresa;
+    const ano = parseInt(req.query.ano, 10);
+    const mes = parseInt(req.query.mes, 10);
+
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
+
+    if (!ano || !mes) {
+      return res.status(400).json({ error: "ano e mes são obrigatórios" });
+    }
+
+    const inicioMes = new Date(ano, mes - 1, 1);
+    const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
+
+    const { rows: eventos } = await pool.query(
+      `
+      SELECT 
+            e.idevento,
+            e.nmevento AS evento_nome, -- Mantemos apenas o nome do evento
+            
+            -- Agregação das datas para consolidar o período total de todos os orçamentos do evento
+            MIN(o.dtiniinframontagem) AS dtiniinframontagem, MAX(o.dtfiminframontagem) AS dtfiminframontagem,
+            MIN(o.dtinimarcacao) AS dtinimarcacao, MAX(o.dtfimmarcacao) AS dtfimmarcacao,
+            MIN(o.dtinimontagem) AS dtinimontagem, MAX(o.dtfimmontagem) AS dtfimmontagem,
+            MIN(o.dtinirealizacao) AS dtinirealizacao, MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+            MIN(o.dtinidesmontagem) AS dtinidesmontagem, MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
+            MIN(o.dtiniinfradesmontagem) AS dtiniinfradesmontagem, MAX(o.dtfiminfradesmontagem) AS dtfiminfradesmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        JOIN eventos e ON e.idevento = o.idevento
+        WHERE oe.idempresa = $1
+        AND o.status != 'R'
+        AND (
+            (o.dtiniinframontagem, o.dtfiminframontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimarcacao, o.dtfimmarcacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinimontagem, o.dtfimmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinirealizacao, o.dtfimrealizacao) OVERLAPS ($2::date, $3::date)
+            OR (o.dtinidesmontagem, o.dtfimdesmontagem) OVERLAPS ($2::date, $3::date)
+            OR (o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) OVERLAPS ($2::date, $3::date)
+        )
+        GROUP BY e.idevento, e.nmevento
+        ORDER BY COALESCE(
+            MIN(o.dtinimarcacao), 
+            MIN(o.dtinimontagem), 
+            MIN(o.dtinirealizacao), 
+            MIN(o.dtinidesmontagem), 
+            MIN(o.dtiniinframontagem), 
+            MIN(o.dtiniinfradesmontagem)
+        ) ASC;
+      `,
+      [idempresa, inicioMes, fimMes]
+    );
+
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+
+    const resposta = [];
+
+    eventos.forEach((ev) => {
+      const fasesConfig = [
+        { tipo: "Montagem Infra", ini: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+        { tipo: "Marcação", ini: ev.dtinimarcacao, fim: ev.dtfimmarcacao },
+        { tipo: "Montagem", ini: ev.dtinimontagem, fim: ev.dtfimmontagem },
+        { tipo: "Realização", ini: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+        { tipo: "Desmontagem", ini: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+        { tipo: "Desmontagem Infra", ini: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+      ];
+
+      fasesConfig.forEach((f) => {
+        if (!f.ini) return;
+
+        resposta.push({
+          idevento: ev.idevento,
+          nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+          inicio: formatDate(f.ini),
+          fim: formatDate(f.fim || f.ini),
+          tipo: f.tipo
+        });
+      });
+    });
+
+    res.json({ eventos: resposta });
   } catch (err) {
     console.error("Erro em /eventos-calendario:", err);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -900,6 +997,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
             WHERE se.idevento = $1 
             AND se.idcliente = $2
             AND se.statusstaff IN ('Ativo', 'Pendente')
+            AND NOT EXISTS (
+                SELECT 1 FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' 
+                        THEN se.vagasreaproveitadas ELSE '[]'::jsonb END
+                ) AS vr
+                WHERE (vr->>'data') = d.dt
+            )
 
             UNION ALL
 
@@ -936,6 +1040,30 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
                 jsonb_typeof(dd.item) <> 'object' 
                 OR (dd.item->>'status') IN ('Pendente', 'Autorizado')
             )
+
+            UNION ALL
+
+            -- Subquery C: Vagas Reaproveitadas — credita no orçamento/função de origem
+            SELECT 
+                (vr->>'idfuncao_origem')::int AS idfuncao,
+                (vr->>'idorcamento_origem')::int AS idorcamento,
+                COALESCE(NULLIF(TRIM(vr->>'setor_origem'), ''), '') AS localizacao,
+                se.idstaff,
+                se.statusstaff,
+                (vr->>'data')::date AS data_trabalho,
+                'REAPROVEITADA' AS tipo_registro,
+                NULL::text AS status_dobra
+            FROM staffeventos se
+            CROSS JOIN LATERAL jsonb_array_elements(
+                CASE 
+                    WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' THEN se.vagasreaproveitadas
+                    ELSE '[]'::jsonb
+                END
+            ) AS vr
+            WHERE se.idevento = $1
+            AND se.idcliente = $2
+            AND se.statusstaff IN ('Ativo', 'Pendente')
+            AND (vr->>'idfuncao_origem') IS NOT NULL
         ),
         pico_por_dia AS (
             -- Descobre quantas pessoas/vagas estão ocupadas em cada dia do evento
@@ -956,9 +1084,10 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
             d_oc.localizacao,
             COUNT(DISTINCT d_oc.idstaff) AS qtd_cadastrada_pessoas,
             COALESCE(MAX(p_dia.total_pendente_no_dia), 0) AS qtd_pendente,
-            COUNT(*) FILTER (
+           COUNT(*) FILTER (
                 WHERE d_oc.tipo_registro = 'NORMAL' 
                 OR (d_oc.tipo_registro = 'DOBRA' AND d_oc.status_dobra = 'Autorizado')
+                OR d_oc.tipo_registro = 'REAPROVEITADA'
             ) AS diarias_consumidas,
             
             -- Conta as dobras pendentes
@@ -1404,7 +1533,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 MIN(s.justificativa)   AS desccaixinha,
                 jsonb_agg(
                     jsonb_build_object('idsolicitacao', s.idsolicitacao,
-                                       'data', s.dtsolicitada, 
+                                       'data', s.dtsolicitada,
                                        'status', s.status,
                                        'justificativa', s.justificativa)
                 ) AS dtsolicitada_agrupada,
@@ -1413,7 +1542,9 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 se.vlralimentacao,
                 se.vlrtransporte,
                 se.dtdiariadobrada::text AS dtdiariadobrada,
-                se.dtmeiadiaria::text    AS dtmeiadiaria
+                se.dtmeiadiaria::text    AS dtmeiadiaria,
+                MIN(se.nmfuncao)        AS nmfuncao_destino,
+                MIN(se.vagasreaproveitadas::text) AS vagasreaproveitadas_raw
             FROM public.solicitacoes s
             LEFT JOIN public.staffeventos se ON s.idregistroalterado = se.idstaffevento
             LEFT JOIN public.usuarios u      ON u.idusuario = s.idusuariosolicitante
@@ -1466,6 +1597,17 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
 
             const getDiaria = () => r.dtsolicitada_agrupada ? JSON.stringify(r.dtsolicitada_agrupada) : null;
 
+            // Extrai nome da função de origem do JSON vagasreaproveitadas
+            let nmfuncaoOrigem = '';
+            if (r.vagasreaproveitadas_raw) {
+                try {
+                    const parsedVagas = JSON.parse(r.vagasreaproveitadas_raw);
+                    if (Array.isArray(parsedVagas) && parsedVagas.length > 0) {
+                        nmfuncaoOrigem = parsedVagas[0].nmfuncao_origem || '';
+                    }
+                } catch(e) {}
+            }
+
             // 4. Retorno do objeto limpo
             return {
                 id_log: r.id_log,
@@ -1475,6 +1617,9 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 nomeSolicitante: r.nomesolicitante || '',
                 descFuncao: r.descfuncao || '',
                 descFuncaoOriginal: r.descfuncao_original || '',
+                nmfuncaoOrigem,
+                nmfuncaoDestino: r.nmfuncao_destino || r.descfuncao_original || '',
+                justificativaSolicitacao: r.desccaixinha || '',
                 nomeAprovador: r.nomeaprovador || '',
                 dataDecisao: r.datadecisao,
                 funcionario: categoriaReal === 'statusvagaexcedida' ? null : (r.nomefuncionario || '-'),
@@ -1498,6 +1643,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 statusmeiadiaria: r.categoria === 'statusmeiadiaria' ? getDiaria() : null,
                 statusaditivoextra: categoriaReal === 'statusaditivoextra' ? valorFormatado : null,
                 statusvagaexcedida: categoriaReal === 'statusvagaexcedida' ? valorFormatado : null,
+                statusvagasreaproveitadas: r.categoria === 'statusvagasreaproveitadas' ? getDiaria() : null,
 
                 solicitacoes_individuais: (r.dtsolicitada_agrupada || []).map(sol => ({
                     idsolicitacao: sol.idsolicitacao,
@@ -1538,9 +1684,6 @@ const obterTituloFormatado = (r) => {
     return natureza && motivo ? `${natureza} - ${motivo}` : "Solicitação Financeira";
 };
 
-
-
-//correto antes de criarmos a tabela solicitacoes
 // router.post('/notificacoes-financeiras/atualizar-status',
 //     autenticarToken(),
 //     contextoEmpresa,
@@ -1548,78 +1691,113 @@ const obterTituloFormatado = (r) => {
 //         buscarDadosAnteriores: async (req) => {
 //             const { idpedido } = req.body;
 //             if (!idpedido) return null;
-//             const { rows } = await pool.query(`SELECT * FROM staffeventos WHERE idstaffevento = $1`, [idpedido]);
-//             return rows[0] ? { dadosanteriores: rows[0], idregistroalterado: idpedido } : null;
+//             const { rows } = await pool.query(`
+//                 SELECT * FROM staffeventos 
+//                 WHERE idstaffevento = $1 
+//                 OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
+//             `, [idpedido]);
+//             return rows[0] ? { dadosanteriores: rows[0], idregistroalterado: rows[0].idstaffevento } : null;
 //         }
 //     }),
 //     async (req, res) => {
 //         try {
-//             const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
+//             let { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
 //             const idempresa = req.idempresa;
 //             const idUsuarioResponsavel = req.usuario?.idusuario;
 
 //             if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
 
-//             const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-
-//             // 1. ATUALIZA A TABELA SOLICITACOES
-//             let querySolicitacoes;
-//             let paramsSolicitacoes;
-
-//             // if (dataEspecifica && (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria')) {
-//             //     // Agora que dtsolicitada é DATE, o update é direto na linha específica daquela data
-//             //     querySolicitacoes = `
-//             //         UPDATE public.solicitacoes 
-//             //         SET 
-//             //             status = $1::character varying, 
-//             //             idusuarioresponsavel = $2::integer, 
-//             //             dtresposta = NOW()
-//             //         WHERE idregistroalterado = $3 
-//             //         AND categoria_log = $4::character varying 
-//             //         AND idempresa = $5
-//             //         AND dtsolicitada = $6::date`; // Filtro direto por data
-                
-//             //     paramsSolicitacoes = [
-//             //         statusParaAtualizar, 
-//             //         idUsuarioResponsavel, 
-//             //         idpedido, 
-//             //         categoria, 
-//             //         idempresa, 
-//             //         dataEspecifica // $6
-//             //     ];
-//             // } else {
-//             //     // UPDATE COMUM: Para categorias simples (caixinha, ajuste, etc)
-//             //     querySolicitacoes = `
-//             //         UPDATE public.solicitacoes 
-//             //         SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-//             //         WHERE idregistroalterado = $3 
-//             //         AND categoria_log = $4 
-//             //         AND idempresa = $5
-//             //     `;
-//             //     paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, categoria, idempresa];
-//             // }
-
-//             if (dataEspecifica && (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria')) {
-//                 querySolicitacoes = `
-//                     UPDATE public.solicitacoes 
-//                     SET status = $1::character varying, idusuarioresponsavel = $2::integer, dtresposta = NOW()
-//                     WHERE idregistroalterado = $3 AND categoria_log = $4::character varying 
-//                     AND idempresa = $5 AND dtsolicitada = $6::date`;
-//                 paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, categoria, idempresa, dataEspecifica];
-//             } else {
-//                 querySolicitacoes = `
-//                     UPDATE public.solicitacoes 
-//                     SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-//                     WHERE (idregistroalterado = $3 OR idsolicitacao = $3)
-//                     AND (categoria_log = $4 OR 'status'||categoria_log = $4)
-//                     AND idempresa = $5`;
-//                 paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, categoria, idempresa];
+//             if (dataEspecifica === 'undefined' || !dataEspecifica) {
+//                 dataEspecifica = null;
 //             }
 
+//             const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
 
-//             await pool.query(querySolicitacoes, paramsSolicitacoes);
+//             console.log("========================================================");
+//             console.log("📥 DETECTADO CLIQUE DE ATUALIZAÇÃO FINANCEIRA");
+//             console.log(`> Categoria recebida: "${categoria}"`);
+//             console.log(`> Ação / Status: "${statusParaAtualizar}"`);
+//             console.log(`> ID Pedido/Solicitação enviado: ${idpedido}`);
+//             console.log(`> Data específica informada:`, dataEspecifica);
+//             console.log("========================================================");
 
-//             // 2. MAPEAMENTO DE CATEGORIAS (Segue o seu código...)
+//             // 1. RECUPERA AS DATAS SOLICITADAS CASO NÃO VENHA DO FRONT
+//             let datasDaSolicitacao = [];
+//             const { rows: dadosSol } = await pool.query(`
+//                 SELECT dtsolicitada, tiposolicitacao FROM public.solicitacoes 
+//                 WHERE idsolicitacao = $1 AND idempresa = $2
+//             `, [idpedido, idempresa]);
+
+//             if (dadosSol.length > 0 && dadosSol[0].dtsolicitada) {
+//                 const rawDts = dadosSol[0].dtsolicitada;
+                
+//                 const formatarParaISO = (v) => {
+//                     if (!v) return null;
+//                     const d = new Date(v);
+//                     if (isNaN(d.getTime())) return String(v).trim();
+//                     return d.toISOString().split('T')[0];
+//                 };
+
+//                 if (Array.isArray(rawDts)) {
+//                     datasDaSolicitacao = rawDts.map(d => formatarParaISO(d)).filter(Boolean);
+//                 } else if (typeof rawDts === 'string') {
+//                     datasDaSolicitacao = rawDts.replace(/[{}]/g, '').split(',').map(d => formatarParaISO(d.trim())).filter(Boolean);
+//                 }
+//             }
+
+//             // 2. 🎯 ATUALIZA EXCLUSIVAMENTE A SOLICITAÇÃO ESPECÍFICA (Ex: ID 672)
+//             let querySolicitacoes = `
+//                 UPDATE public.solicitacoes 
+//                 SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
+//                 WHERE idsolicitacao = $3 
+//                 AND idempresa = $4 
+//                 AND status = 'Pendente'
+//             `;
+//             const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa];
+
+//             if (dataEspecifica) {
+//                 querySolicitacoes += " AND ($5::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $5 || '%'))";
+//                 paramsSolicitacoes.push(dataEspecifica);
+//             }
+            
+//             const resUpSolicitacoes = await pool.query(querySolicitacoes, paramsSolicitacoes);
+//             console.log(`[SOLICITAÇÃO ESPECÍFICA] Linhas atualizadas com o ID ${idpedido}: ${resUpSolicitacoes.rowCount}`);
+
+//             // 3. BUSCA O REGISTRO MESTRE DO STAFF (Ex: ID 3028)
+//             const { rows: rowsMestre } = await pool.query(`
+//                 SELECT se.*, f.perfil
+//                 FROM staffeventos se
+//                 INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
+//                 WHERE se.idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
+//                 AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
+//             `, [idpedido, idempresa]);
+
+//             if (!rowsMestre.length) {
+//                 console.log("❌ ERRO: Registro mestre de staffeventos não foi encontrado para esta solicitação!");
+//                 return res.status(404).json({ error: 'Registro mestre não encontrado.' });
+//             }
+
+//             let registro = rowsMestre[0];
+//             const idStaffAlvo = registro.idstaffevento; // Ex: 3028
+            
+//             console.log(`[REGISTRO MESTRE ANCORADO] Encontrado Staff ID: ${idStaffAlvo}`);
+
+//             // const mapCategorias = {
+//             //     'statuscaixinha': 'statuscaixinha',
+//             //     'statusajustecusto': 'statusajustecusto',
+//             //     'statusdiariadobrada': 'dtdiariadobrada', 
+//             //     'statusmeiadiaria': 'dtmeiadiaria',
+//             //     'statuscustofechado': 'statuscustofechado', 
+//             //     'statuscacheliberado': 'statuscustofechado',
+//             //     'statusvagasreaproveitadas': 'vagasreaproveitadas'   
+//             // };
+
+//             // const colunaDB = mapCategorias[categoria];
+//             // const isAditivoOuExtra = categoria.toLowerCase().includes('aditivo') || 
+//             //                          categoria.toLowerCase().includes('vaga') || 
+//             //                          categoria.toLowerCase().includes('extra') ||
+//             //                          categoria.toLowerCase().includes('excedido');
+
 //             const mapCategorias = {
 //                 'statuscaixinha': 'statuscaixinha',
 //                 'statusajustecusto': 'statusajustecusto',
@@ -1627,886 +1805,224 @@ const obterTituloFormatado = (r) => {
 //                 'statusmeiadiaria': 'dtmeiadiaria',
 //                 'statuscustofechado': 'statuscustofechado', 
 //                 'statuscacheliberado': 'statuscustofechado',
-//                 'statusaditivoextra': 'statusaditivoextra', 
-//                 'aditivoextra': 'statusaditivoextra',
-//                 'statusvagaexcedida': 'statusvagaexcedida',
-//                 'Aditivo - Datas fora do Orçamento': 'statusaditivoextra',
-//                 'Aditivo - Vaga Excedida': 'statusvagaexcedida',
-//                 'Extra Bonificado - Datas fora do Orçamento': 'statusaditivoextra',
-//                 'Extra Bonificado - Vaga Excedida': 'statusvagaexcedida'
+//                 'statusvagasreaproveitadas': 'vagasreaproveitadas'
 //             };
 
-//             const colunaDB = mapCategorias[categoria];
-//             const isAditivo = categoria.toLowerCase().includes('aditivo') || categoria.toLowerCase().includes('vaga');
-//             if (!colunaDB && !categoria.includes('aditivo')) {
-//                 return res.status(400).json({ error: "Categoria inválida" });
-//             }
-//             if (!colunaDB) return res.status(400).json({ error: "Categoria inválida" });
-
-//             // 3. BUSCA REGISTRO COM PERFIL DO FUNCIONÁRIO
-//             const queryBusca = `
-//                 SELECT se.*, f.perfil 
-//                 FROM staffeventos se
-//                 INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-//                 WHERE se.idstaffevento = $1 
-//                 AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
-//             `;
-//             const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
-//             if (!rows.length) {
-//                 // Se for aditivo, podemos retornar sucesso apenas com o update da tabela solicitacoes
-//                 if (isAditivo) {
-//                     return res.json({ sucesso: true, mensagem: "Status da solicitação de aditivo atualizado." });
-//                 }
-//                 return res.status(404).json({ error: 'Registro de staff não encontrado.' });
-//             }
+//             // 🚀 INTERCEPTAÇÃO INTELIGENTE: Se a categoria vier genérica (ex: statusaditivoextra ou aditivoextra),
+//             // mas o tipo da solicitação original indicar "Vaga Reaproveitada", nós forçamos a rota certa!
+//             let categoriaEfetiva = categoria;
             
-//             let registro = rows[0];
+//             // Busca o tipo de solicitação direto do dadosSol que você já buscou no começo da rota
+//             const tipoSolicitacaoOriginal = dadosSol[0]?.tiposolicitacao || '';
 
-//             // 4. ATUALIZAÇÃO EM MEMÓRIA / LÓGICA DE ADITIVO
-//             if (isAditivo) {
-//                 // Aditivos geralmente não alteram colunas diretas de status no staffeventos (exceto logs)
-//                 return res.json({ sucesso: true, atualizado: registro, categoria });
+//             if (tipoSolicitacaoOriginal.toLowerCase().includes('vaga reaproveitada') || 
+//                 tipoSolicitacaoOriginal.toLowerCase().includes('reaproveitada')) {
+//                 categoriaEfetiva = 'statusvagasreaproveitadas';
 //             }
 
-//             // Atualização de Diárias (Meia/Dobra) ou Status Fixo            
-//             if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-//                 const arrayDiarias = Array.isArray(registro[colunaDB]) ? registro[colunaDB] : [];
-//                 registro[colunaDB] = arrayDiarias.map(item => {
-//                     if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
-//                     return item;
-//                 });
-//             } else {
-//                 registro[colunaDB] = statusParaAtualizar;
-//             }       
+//             // Agora definimos a coluna do banco usando a categoria que corrigimos acima
+//             const colunaDB = mapCategorias[categoriaEfetiva];
 
-//             // 5. VARIÁVEIS DE CÁLCULO
-//             let total = 0;
-//             let totalCache = 0;
-//             let totalAjdCusto = 0;
-
-//             const vlrCusto = parseFloat(registro.vlrcache) || 0;
-//             const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
-//             const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
-//             const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
-//             const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
-//             const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
-//             const qtdp = parseInt(registro.qtdpessoaslote) || 1;
-//             const perfil = (registro.perfil || '').toLowerCase();
-//             const pgtoAjdPago = (registro.statuspgtoajdcusto || '').toLowerCase() === 'pago';
-
-//             // --- CÁLCULO DA BASE ---
-//             if (registro.statuscustofechado === 'Autorizado') {
-//                 if (registro.nivelexperiencia === 'Fechado') {
-//                     total = vlrCusto + vlrTransp + vlrAlim;
-//                     totalCache = vlrCusto;
-//                     totalAjdCusto = vlrTransp + vlrAlim;
-//                 } else if (registro.nivelexperiencia === 'Liberado') {
-//                     const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
-//                     datas.forEach(dStr => {
-//                         const d = new Date(dStr + 'T12:00:00');
-//                         const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
-//                         if (perfil === 'lote') {
-//                             total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
-//                             totalCache += vlrCusto * qtdp;
-//                             totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
-//                         } else if (perfil === 'interno' || perfil === 'externo') {
-//                             total += vlrTransp + vlrAlim; totalAjdCusto += vlrTransp + vlrAlim;
-//                             if (isFDS) { total += vlrCusto; totalCache += vlrCusto; }
-//                         } else {
-//                             total += vlrCusto + vlrTransp + vlrAlim; totalCache += vlrCusto; totalAjdCusto += vlrTransp + vlrAlim;
-//                         }
-//                     });
-//                 }
-//             } else {
-//                 const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
-//                 datas.forEach(dStr => {
-//                     const d = new Date(dStr + 'T12:00:00');
-//                     const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
-//                     if (perfil === 'lote') {
-//                         total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
-//                         totalCache += vlrCusto * qtdp;
-//                         totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
-//                     } else if (perfil === 'freelancer') {
-//                         total += vlrCusto + vlrTransp + vlrAlim;
-//                         totalCache += vlrCusto; 
-//                         totalAjdCusto += vlrTransp + vlrAlim;
-//                     } else {
-//                         total += vlrTransp + vlrAlim; 
-//                         totalAjdCusto += vlrTransp + vlrAlim;
-//                         if (isFDS) { 
-//                             total += vlrCusto; 
-//                             totalCache += vlrCusto; 
-//                         }
-//                     }
-//                 });
-//             }
-
-//             // --- ADICIONAIS ---
-            
-//             // Ajuste de Custo: Soma no Total e no Cache
-//             if (registro.statusajustecusto === 'Autorizado') { 
-//                 total += vlrAjuste; 
-//                 totalCache += vlrAjuste; 
-//             }
-
-//             // CAIXINHA: Soma APENAS no total geral
-//             if (registro.statuscaixinha === 'Autorizado') { 
-//                 total += vlrCaixinha; 
-//             }
-
-//             // Diárias Dobradas e Meias: Soma no Total e no Cache
-//             const processarExtras = (array, divisor = 1) => {
-//                 (array || []).forEach(i => {
-//                     if ((i.status || '').toLowerCase() === 'autorizado') {
-//                         const d = new Date(i.data + 'T12:00:00');
-//                         const isFDS = d.getDay() === 0 || d.getDay() === 6 || isFeriado(d);
-//                         const vlrBaseExtra = (vlrCusto / divisor);
-                        
-//                         if ((perfil === 'interno' || perfil === 'externo') && !isFDS) {
-//                             total += vlrAlimDobra; 
-//                            // totalCache += vlrAlimDobra;
-//                            if (pgtoAjdPago) {
-//                                 totalCache += vlrAlimDobra;
-//                             } else {
-//                                 totalAjdCusto += vlrAlimDobra;
-//                             }
-//                         } else {
-//                             total += vlrBaseExtra + vlrAlimDobra; 
-//                             //totalCache += vlrBaseExtra + vlrAlimDobra;
-//                             if (pgtoAjdPago) {
-//                                 totalCache += vlrBaseExtra + vlrAlimDobra;
-//                             } else {
-//                                 totalCache += vlrBaseExtra;
-//                                 totalAjdCusto += vlrAlimDobra;
-//                             }
-//                         }
-//                     }
-//                 });
-//             };
-
-//             processarExtras(registro.dtdiariadobrada, 1);
-//             processarExtras(registro.dtmeiadiaria, 2);
-
-//             // 6. UPDATE FINAL
-//             const valorFinalColuna = (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') 
-//                 ? JSON.stringify(registro[colunaDB]) 
-//                 : statusParaAtualizar;
-
-//             const queryUpdate = `
-//                 UPDATE staffeventos se
-//                 SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
-//                 FROM staffempresas sem
-//                 WHERE se.idstaffevento = $5 AND sem.idstaff = se.idstaff AND sem.idempresa = $6
-//                 RETURNING se.*;
-//             `;
-
-//             const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, idpedido, idempresa]);
-
-//             res.locals.idlog_origem = idlog_origem;
-//             res.locals.acao = 'atualizou';
-//             res.locals.idregistroalterado = idpedido;
-//             res.locals.dadosnovos = finalResult.rows[0];
-
-//             res.json({ sucesso: true, atualizado: finalResult.rows[0], idlog_origem, categoria });
-
-//         } catch (err) {
-//             console.error('Erro:', err);
-//             res.status(500).json({ error: 'Erro interno' });
-//         }
-//     }
-// );
-
-// Helper rápido se não tiver no arquivo
-
-// router.post('/notificacoes-financeiras/atualizar-status',
-//     autenticarToken(),
-//     contextoEmpresa,
-//     logMiddleware('staffeventos', {
-//         buscarDadosAnteriores: async (req) => {
-//             const { idpedido } = req.body;
-//             if (!idpedido) return null;
-//             const { rows } = await pool.query(`
-//                 SELECT * FROM staffeventos 
-//                 WHERE idstaffevento = $1 
-//                 OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
-//             `, [idpedido]);
-//             return rows[0] ? { dadosanteriores: rows[0], idregistroalterado: rows[0].idstaffevento } : null;
-//         }
-//     }),
-//     async (req, res) => {
-//         try {
-//             const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
-//             const idempresa = req.idempresa;
-//             const idUsuarioResponsavel = req.usuario?.idusuario;
-
-//             if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
-
-//             // Garante que o status seja sempre 'Autorizado' ou 'Rejeitado' (Capitalizado corretamente)
-//             const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-
-//             console.log(`Iniciando atualização de status financeiro...`, statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, categoria );
-
-//             // 1. ATUALIZA A TABELA SOLICITACOES
-//             let querySolicitacoes = `
-//                 UPDATE public.solicitacoes 
-//                 SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-//                 WHERE (idregistroalterado = $3 OR idsolicitacao = $3) 
-//                 AND idempresa = $4 
-//                 AND (categoria_log = $5 OR 'status'||categoria_log = $5 OR categoria_log = 'aditivoextra' OR categoria_log = 'vagaexcedida')
-//             `;
-//             const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, categoria];
-
-//             // Ajuste para evitar erro de operador em colunas de data (date[])
-//             if (dataEspecifica) {
-//                 querySolicitacoes += " AND ($6::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $6 || '%'))";
-//                 paramsSolicitacoes.push(dataEspecifica);
-//             }
-//             await pool.query(querySolicitacoes, paramsSolicitacoes);
-
-//             // 2. MAPEAMENTO DE CATEGORIAS FINANCEIRAS QUE AFETAM STAFFEVENTOS
-//             const mapCategorias = {
-//                 'statuscaixinha': 'statuscaixinha',
-//                 'statusajustecusto': 'statusajustecusto',
-//                 'statusdiariadobrada': 'dtdiariadobrada', 
-//                 'statusmeiadiaria': 'dtmeiadiaria',
-//                 'statuscustofechado': 'statuscustofechado', 
-//                 'statuscacheliberado': 'statuscustofechado'   
-//             };
-
-//             const colunaDB = mapCategorias[categoria];
-            
-//             // Verifica se é um aditivo/vaga excedida
-//             const isAditivoOuExtra = categoria.toLowerCase().includes('aditivo') || 
-//                                      categoria.toLowerCase().includes('vaga') || 
-//                                      categoria.toLowerCase().includes('extra');
-
-//             // 3. TRATAMENTO PARA ADITIVOS
-//             if (isAditivoOuExtra && !colunaDB) {               
-
-//                 // if (statusParaAtualizar === 'Autorizado') {
-//                 //     await pool.query(`
-//                 //         UPDATE staffeventos
-//                 //         SET statusstaff = 'Ativo'
-//                 //         WHERE (idstaffevento = $1 
-//                 //             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-//                 //         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-//                 //     `, [idpedido, idempresa]);
-//                 if (statusParaAtualizar === 'Autorizado') {
-                
-//                     const { rows: rowsOrcamento } = await pool.query(`
-//                         SELECT 1 FROM orcamentoitens WHERE idsolicitacao = $1 LIMIT 1
-//                     `, [idpedido]);
-
-//                     if (!rowsOrcamento.length) {
-//                         // Não foi incluído no orçamento — não altera staffeventos
-//                         return res.json({ 
-//                             sucesso: true, 
-//                             mensagem: `Solicitação autorizada, mas staffevento não foi ativado pois não há inclusão no orçamento.`,
-//                             aguardandoOrcamento: true
-//                         });
-//                     }
-
-//                     await pool.query(`
-//                         UPDATE staffeventos
-//                         SET statusstaff = 'Ativo'
-//                         WHERE (idstaffevento = $1 
-//                             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-//                         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-//                     `, [idpedido, idempresa]);                
-
-//                 } else if (statusParaAtualizar === 'Rejeitado') {
-//                     await pool.query(`
-//                         WITH dados AS (
-//                             SELECT 
-//                                 se.idstaffevento,
-//                                 se.datasevento,
-//                                 se.obsgeral,
-//                                 (
-//                                     SELECT jsonb_agg(elem)
-//                                     FROM jsonb_array_elements(se.datasevento) AS elem
-//                                     WHERE elem #>> '{}' NOT IN (
-//                                         SELECT TO_CHAR(d, 'YYYY-MM-DD')
-//                                         FROM unnest(
-//                                             (SELECT dtsolicitada FROM solicitacoes WHERE idsolicitacao = $1)
-//                                         ) AS d
-//                                     )
-//                                 ) AS novas_datas
-//                             FROM staffeventos se
-//                             WHERE se.idstaffevento = (
-//                                 SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1
-//                             )
-//                         )
-//                         UPDATE staffeventos se
-//                         SET
-//                             datasevento = CASE 
-//                                 WHEN dados.novas_datas IS NULL THEN dados.datasevento
-//                                 ELSE dados.novas_datas
-//                             END,
-//                             statusstaff = CASE 
-//                                 WHEN dados.novas_datas IS NULL THEN 'Deletado'
-//                                 ELSE 'Ativo'
-//                             END,
-//                             obsgeral = CASE 
-//                                 WHEN dados.novas_datas IS NULL 
-//                                     THEN COALESCE(dados.obsgeral, '') || ' | Deletado por solicitação REJEITADA (data única).'
-//                                 ELSE dados.obsgeral
-//                             END
-//                         FROM dados
-//                         WHERE se.idstaffevento = dados.idstaffevento
-//                         AND EXISTS (
-//                             SELECT 1 FROM staffempresas sem 
-//                             WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2
-//                         )
-//                     `, [idpedido, idempresa]);
-//                 }
-
-//                 return res.json({ 
-//                     sucesso: true, 
-//                     mensagem: `Aditivo ${statusParaAtualizar} com sucesso.` 
-//                 });
-
-   
-//             }
-
-//             // Se não for aditivo e não estiver no mapa, é um erro de categoria
-//             if (!colunaDB) return res.status(400).json({ error: "Categoria inválida para atualização financeira" });
-
-//             // 4. BUSCA REGISTRO PARA RECALCULO (Itens Financeiros: Caixinha, Diária, etc)
-//             // const queryBusca = `
-//             //     SELECT se.*, f.perfil 
-//             //     FROM staffeventos se
-//             //     INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-//             //     WHERE (se.idstaffevento = $1 OR se.idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-//             //     AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
-//             // `;
-//             const queryBusca = `
-//     SELECT se.*, f.perfil 
-//     FROM staffeventos se
-//     INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-//     WHERE se.idstaffevento = (
-//         SELECT idregistroalterado 
-//         FROM solicitacoes 
-//         WHERE idsolicitacao = $1 
-//         LIMIT 1
-//     )
-//     AND EXISTS (
-//         SELECT 1 FROM staffempresas sem 
-//         WHERE sem.idstaff = se.idstaff 
-//         AND sem.idempresa = $2
-//     )
-// `;
-//             const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
-//             if (!rows.length) return res.status(404).json({ error: 'Registro mestre não encontrado.' });
-            
-//             let registro = rows[0];
-
-//             // // 5. ATUALIZAÇÃO EM MEMÓRIA PARA O RECALCULO
-//             // if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-//             //     const arrayDiarias = Array.isArray(registro[colunaDB]) ? registro[colunaDB] : [];
-//             //     registro[colunaDB] = arrayDiarias.map(item => {
-//             //         if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
-//             //         return item;
-//             //     });
-//             //      console.log("🔍 dataEspecifica:", dataEspecifica);
-//             // console.log("🔍 arrayDiarias:", JSON.stringify(arrayDiarias));
-//             // console.log("🔍 colunaDB:", colunaDB);
-//             // console.log("🔍 valorFinalColuna:", valorFinalColuna);
-//             // } else {
-//             //     registro[colunaDB] = statusParaAtualizar;
-//             // }  
-
-//             console.log("🔍 Chaves do registro:", Object.keys(registro));
-            
-//  // 5. ATUALIZAÇÃO EM MEMÓRIA PARA O RECALCULO
-// if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-    
-//     // ✅ Parse seguro — o PostgreSQL pode retornar string JSON ou array
-//     let rawColuna = registro[colunaDB];
-// console.log("🔍 registro[colunaDB] RAW:", registro[colunaDB]);
-// console.log("🔍 typeof registro[colunaDB]:", typeof registro[colunaDB]);
-// console.log("🔍 registro.idstaffevento:", registro.idstaffevento);
-
-//     if (typeof rawColuna === 'string') {
-//         try { rawColuna = JSON.parse(rawColuna); } catch(e) { rawColuna = []; }
-//     }
-//     const arrayDiarias = Array.isArray(rawColuna) ? rawColuna : [];
-    
-//     console.log("🔍 dataEspecifica:", dataEspecifica);
-//     console.log("🔍 arrayDiarias:", JSON.stringify(arrayDiarias));
-//     console.log("🔍 colunaDB:", colunaDB);
-
-//     registro[colunaDB] = arrayDiarias.map(item => {
-//         if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
-//         return item;
-//     });
-
-// } else {
-//     registro[colunaDB] = statusParaAtualizar;
-// }
-
-// // ✅ Declarado UMA vez, APÓS o if/else
-// const valorFinalColuna = (typeof registro[colunaDB] === 'object') 
-//     ? JSON.stringify(registro[colunaDB]) 
-//     : statusParaAtualizar;
-
-// console.log("🔍 valorFinalColuna:", valorFinalColuna);         
+//             // Define se deve ir para o fluxo genérico de Aditivo de Datas (Fluxo A)
+//             // 🌟 Só vai para o Fluxo A se NÃO for uma vaga reaproveitada mapeada no Fluxo B
+//             const isAditivoOuExtra = (categoriaEfetiva.toLowerCase().includes('aditivo') || 
+//                                      categoriaEfetiva.toLowerCase().includes('vaga') || 
+//                                      categoriaEfetiva.toLowerCase().includes('extra') ||
+//                                      categoriaEfetiva.toLowerCase().includes('excedido')) && 
+//                                      categoriaEfetiva !== 'statusvagasreaproveitadas';
 
 //             const isAjudaCustoPaga = (registro.statuspgtoajdcto || '').toLowerCase() === 'pago';
 
+//             // ==========================================
+//             // 🔥 FLUXO A: TRATAMENTO CASO SEJA ADITIVO OU VAGA EXCEDIDA
+//             // ==========================================
+//             if (isAditivoOuExtra && !colunaDB) { 
+//                 console.log("🚀 ENTRANDO NO FLUXO A (ADITIVOS / EXCEDIDOS)");
 
-//             // 6. VARIÁVEIS DE CÁLCULO
-//             //let total = 0, totalCache = 0, totalAjdCusto = 0;
+//                 const converterParaISO = (v) => {
+//                     if (!v) return null;
+//                     const d = new Date(v);
+//                     if (isNaN(d.getTime())) {
+//                         if (String(v).includes('/')) {
+//                             const partes = String(v).split('/');
+//                             if (partes.length === 3) return `${partes[2]}-${partes[1]}-${partes[0]}`;
+//                         }
+//                         return String(v).trim();
+//                     }
+//                     return d.toISOString().split('T')[0];
+//                 };
 
-//             let total = 0, totalCache = 0;
-//             let totalAjdCusto = isAjudaCustoPaga 
-//                 ? (parseFloat(registro.vlrtotajdcusto) || 0)  // ← mantém o valor do banco
-//                 : 0;
-
-
-//             const vlrCusto = parseFloat(registro.vlrcache) || 0;
-//             const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
-//             const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
-//             const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
-//             const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
-//             const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
-//             const qtdp = parseInt(registro.qtdpessoaslote) || 1;
-//             const perfil = (registro.perfil || '').toLowerCase();
-
-//             // // Cálculo da Base
-//             // const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
-//             // datas.forEach(dStr => {
-//             //     const d = new Date(dStr + 'T12:00:00');
-//             //     const isFDS = d.getDay() === 0 || d.getDay() === 6;
+//                 // Limpa o array atual do banco contra sujeiras de strings completas
+//                 let datasAtuaisRaw = Array.isArray(registro.datasevento) ? registro.datasevento : [];
+//                 let datasAtuais = datasAtuaisRaw.map(d => converterParaISO(d)).filter(Boolean);
                 
-//             //     if (registro.statuscustofechado === 'Autorizado' && registro.nivelexperiencia === 'Fechado') {
-//             //         total = vlrCusto + vlrTransp + vlrAlim; 
-//             //         totalCache = vlrCusto; 
-//             //         totalAjdCusto = vlrTransp + vlrAlim;
-//             //     } else {
-//             //         if (perfil === 'lote') {
-//             //             total += (vlrCusto + vlrTransp + vlrAlim) * qtdp;
-//             //             totalCache += vlrCusto * qtdp;
-//             //             totalAjdCusto += (vlrTransp + vlrAlim) * qtdp;
-//             //         } else if (perfil === 'freelancer') {
-//             //             total += vlrCusto + vlrTransp + vlrAlim; totalCache += vlrCusto; totalAjdCusto += vlrTransp + vlrAlim;
-//             //         } else {
-//             //             total += vlrTransp + vlrAlim; totalAjdCusto += vlrTransp + vlrAlim;
-//             //             if (isFDS) { total += vlrCusto; totalCache += vlrCusto; }
-//             //         }
-//             //     }
-//             // });
+//                 let datasParaProcessar = dataEspecifica ? [dataEspecifica] : datasDaSolicitacao;
+//                 datasParaProcessar = datasParaProcessar.map(d => converterParaISO(d)).filter(Boolean);
 
-//             // ==========================================
-//             // 🔥 CÁLCULO DA BASE CONFORME AS REGRAS DE NEGÓCIO + TRAVA DE AJUDA JÁ PAGA
-//             // ==========================================
-//             const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
-
-//             // Se a ajuda já estiver paga, o balde totalAjdCusto inicia fixo com o valor atual do banco
-//             let totalAjdCusto = isAjudaCustoPaga 
-//                 ? (parseFloat(registro.vlrtotajdcusto) || 0) 
-//                 : 0;
-
-//             let totalCache = 0;
-//             let total = 0;
-
-//             if (registro.nivelexperiencia === 'Fechado') {
-//                 // 🛑 CONTRATO FECHADO: Valor fixo pelo PERÍODO (independe do número de diárias)
-//                 const vlrBaseAjdCusto = vlrTransp + vlrAlim;
-
-//                 totalCache = vlrCusto;
-
-//                 if (isAjudaCustoPaga) {
-//                     // Ajuda já paga: O valor da ajuda deste período entra somando no cachê
-//                     totalCache += vlrBaseAjdCusto;
-//                     // totalAjdCusto já foi inicializado com o valor fixo do banco, não mexe!
-//                 } else {
-//                     // Ajuda não paga: Popula o balde de ajuda de custo normalmente
-//                     totalAjdCusto = vlrBaseAjdCusto;
+//                 let dataRespostaBR = dataEspecifica || (datasDaSolicitacao[0] || '');
+//                 if (dataRespostaBR && dataRespostaBR.includes('-')) {
+//                     dataRespostaBR = dataRespostaBR.split('-').reverse().join('/');
 //                 }
 
-//                 // O total geral do registro é sempre a soma final dos dois baldes
-//                 total = totalCache + totalAjdCusto;
+//                 const dataFormatadaTexto = dataRespostaBR || new Date().toLocaleDateString('pt-BR');
+//                 const stringRespostaNova = `${dataFormatadaTexto} - ${statusParaAtualizar}`;
 
-//             } else {
-//                 // 🚀 CONTRATO LIBERADO OU OUTROS: Calcula por diária (entra no loop)
-//                 datas.forEach(dStr => {
+//                 if (statusParaAtualizar === 'Autorizado') {
+//                     datasParaProcessar.forEach(dStr => {
+//                         if (dStr && !datasAtuais.includes(dStr)) {
+//                             datasAtuais.push(dStr);
+//                         }
+//                     });
+//                 } else if (statusParaAtualizar === 'Rejeitado') {
+//                     datasParaProcessar.forEach(dStr => {
+//                         datasAtuais = datasAtuais.filter(d => d !== dStr);
+//                     });
+//                 }
+
+//                 datasAtuais = [...new Set(datasAtuais)].sort();
+
+//                 // Montagem limpa do histórico em obsgeral
+//                 let obsModificada = registro.obsgeral || ''; 
+//                 obsModificada = obsModificada.trim();
+//                 if (obsModificada.startsWith('.')) obsModificada = obsModificada.replace(/^\.+/, '').trim();
+//                 if (obsModificada.endsWith('.')) obsModificada = obsModificada.slice(0, -1).trim();
+
+//                 if (!obsModificada.includes(stringRespostaNova)) {
+//                     if (obsModificada.includes('Resposta da Solicitação:')) {
+//                         obsModificada = `${obsModificada}, ${stringRespostaNova}`;
+//                     } else if (obsModificada.length > 0) {
+//                         obsModificada = `${obsModificada}. Resposta da Solicitação: ${stringRespostaNova}`;
+//                     } else {
+//                         obsModificada = `Resposta da Solicitação: ${stringRespostaNova}`;
+//                     }
+//                 }
+//                 if (!obsModificada.endsWith('.')) obsModificada += '.';
+
+//                 // 🔍 VERIFICAÇÃO VERDADEIRA DE OUTRAS SOLICITAÇÕES: Usa o ID do Staff (3028)
+//                 const { rows: pendenciasReais } = await pool.query(`
+//                     SELECT 1 FROM public.solicitacoes 
+//                     WHERE idregistroalterado = $1
+//                     AND status = 'Pendente'
+//                     LIMIT 1
+//                 `, [idStaffAlvo]);
+
+//                 const statusFinalStaff = (datasAtuais.length === 0) ? 'Deletado' : ((pendenciasReais.length > 0) ? 'Pendente' : 'Ativo');
+                
+//                 console.log(`> Lista final de datas para salvar:`, datasAtuais);
+//                 console.log(`> Status calculado para o staff: "${statusFinalStaff}" (Possui outras pendências? ${pendenciasReais.length > 0 ? 'SIM' : 'NÃO'})`);
+
+//                 // Recálculo Financeiro Linear Totalizador
+//                 let totalCache = 0;
+//                 let totalAjdCusto = isAjudaCustoPaga ? (parseFloat(registro.vlrtotajdcusto) || 0) : 0;
+
+//                 const vlrCusto = parseFloat(registro.vlrcache) || 0;
+//                 const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
+//                 const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
+//                 const qtdp = parseInt(registro.qtdpessoaslote) || 1;
+//                 const perfil = (registro.perfil || '').toLowerCase();
+
+//                 datasAtuais.forEach(dStr => {
 //                     const d = new Date(dStr + 'T12:00:00');
-//                     const isFDS = d.getDay() === 0 || d.getDay() === 6; // Sábado ou Domingo
-                    
+//                     const isFDS = d.getDay() === 0 || d.getDay() === 6; 
 //                     let vlrDiariaCache = 0;
 //                     let vlrDiariaAjdCusto = 0;
 
-//                     // 1. Define o que cada perfil geraria teoricamente nesta diária
 //                     if (perfil === 'lote') {
 //                         vlrDiariaCache = vlrCusto * qtdp;
 //                         vlrDiariaAjdCusto = (vlrTransp + vlrAlim) * qtdp;
-
 //                     } else if (perfil === 'freelancer') {
 //                         vlrDiariaCache = vlrCusto;
 //                         vlrDiariaAjdCusto = vlrTransp + vlrAlim;
-
 //                     } else if (perfil === 'interno') {
 //                         vlrDiariaAjdCusto = vlrTransp + vlrAlim;
-//                         if (isFDS) { 
-//                             vlrDiariaCache = vlrCusto; 
-//                         }
-
+//                         if (isFDS) vlrDiariaCache = vlrCusto;
 //                     } else if (perfil === 'externo') {
 //                         vlrDiariaAjdCusto = vlrTransp + vlrAlim;
-//                         // vlrDiariaCache permanece 0 (Externo nunca ganha cachê)
-                    
 //                     } else {
-//                         // Fallback genérico para outros perfis (Ex: funcionário)
 //                         vlrDiariaAjdCusto = vlrTransp + vlrAlim;
 //                         if (isFDS) vlrDiariaCache = vlrCusto;
 //                     }
 
-//                     // 2. Aplica a regra de desvio caso a Ajuda de Custo já esteja paga
-//                     totalCache += vlrDiariaCache; // Acumula o cachê base normal do perfil
+//                     totalCache += vlrDiariaCache;
+//                     if (!isAjudaCustoPaga) totalAjdCusto += vlrDiariaAjdCusto;
+//                 });
 
-//                     if (isAjudaCustoPaga) {
-//                         // Se a ajuda está paga, a ajuda gerada nesta diária desvia e vira Cachê!
-//                         totalCache += vlrDiariaAjdCusto;
-//                         // Não mexe no totalAjdCusto (ele continua intacto com o valor inicializado do banco)
-//                     } else {
-//                         // Se não está paga, acumula a ajuda normalmente no balde de ajuda de custo
-//                         totalAjdCusto += vlrDiariaAjdCusto;
+//                 let extrasDobra = registro.dtdiariadobrada;
+//                 if (typeof extrasDobra === 'string') { try { extrasDobra = JSON.parse(extrasDobra); } catch(e){ extrasDobra = []; } }
+//                 (Array.isArray(extrasDobra) ? extrasDobra : []).forEach(item => {
+//                     if (item.status === 'Autorizado') {
+//                         const customCache = item.vlr_cache != null ? item.vlr_cache : (item.vlrcache != null ? item.vlrcache : null);
+//                         totalCache += customCache != null ? parseFloat(customCache) : vlrCusto;
+//                         if (isAjudaCustoPaga) totalCache += (parseFloat(registro.vlralimentacaodobra) || vlrAlim);
+//                         else totalAjdCusto += (parseFloat(registro.vlralimentacaodobra) || vlrAlim);
 //                     }
 //                 });
 
-//                 // O total geral é o resultado final acumulado das diárias
-//                 total = totalCache + totalAjdCusto;
+//                 let totalFinal = totalCache + totalAjdCusto;
+
+//                 // Executa o UPDATE mestre no funcionário correto (3028)
+//                 const finalUpAditivo = await pool.query(`
+//                     UPDATE staffeventos
+//                     SET datasevento = $1::jsonb,
+//                         vlrtotcache = $2,
+//                         vlrtotajdcusto = $3,
+//                         vlrtotal = $4,
+//                         statusstaff = $5,
+//                         obsgeral = $6
+//                     WHERE idstaffevento = $7
+//                     RETURNING *;
+//                 `, [JSON.stringify(datasAtuais), totalCache, totalAjdCusto, totalFinal, statusFinalStaff, obsModificada, idStaffAlvo]);
+
+//                 console.log(`✅ [FLUXO A] Linhas alteradas com sucesso no staffeventos: ${finalUpAditivo.rowCount}`);
+
+//                 res.locals.idlog_origem = idlog_origem;
+//                 res.locals.acao = 'atualizou';
+//                 res.locals.idregistroalterado = idStaffAlvo;
+//                 res.locals.dadosnovos = finalUpAditivo.rows[0];
+
+//                 return res.json({ sucesso: true, updated: finalUpAditivo.rows[0], idlog_origem, category: categoria });
 //             }
-
-//             if (registro.statusajustecusto === 'Autorizado') { total += vlrAjuste; totalCache += vlrAjuste; }
-//             if (registro.statuscaixinha === 'Autorizado') { total += vlrCaixinha; }
-
-//             // const processarExtras = (array, divisor = 1) => {
-//             //     (array || []).forEach(i => {
-//             //         if ((i.status || '').toLowerCase() === 'autorizado') {
-//             //             const vlrBaseExtra = (vlrCusto / divisor);
-//             //             const isFDS = new Date(i.data + 'T12:00:00').getDay() % 6 === 0;
-                        
-//             //             if ((perfil === 'interno' || perfil === 'externo') && !isFDS) {
-//             //                 total += vlrAlimDobra; totalCache += vlrAlimDobra;
-//             //             } else {
-//             //                 total += vlrBaseExtra + vlrAlimDobra; totalCache += vlrBaseExtra + vlrAlimDobra;
-//             //             }
-//             //         }
-//             //     });
-//             // };
-
             
-//             // const processarExtras = (array, divisor = 1) => {
-//             //     (array || []).forEach(i => {
-//             //         if ((i.status || '').toLowerCase() === 'autorizado') {
-//             //             const vlrBaseExtra = i.vlr_cache != null ? parseFloat(i.vlr_cache) : (vlrCusto / divisor);
-//             //             const vlrAlimExtra = i.vlr_alimentacao != null ? parseFloat(i.vlr_alimentacao) : vlrAlimDobra;
-                        
-//             //             total += vlrBaseExtra + vlrAlimExtra;
-//             //             totalCache += vlrBaseExtra; // cachê sempre vai para totalCache
-
-//             //             if (isAjudaCustoPaga) {
-//             //                 // Ajuda já está paga — alimentação da dobra vai para o cachê
-//             //                 totalCache += vlrAlimExtra;
-//             //             } else {
-//             //                 // Ajuda não está paga — alimentação vai para totalAjdCusto
-//             //                 totalAjdCusto += vlrAlimExtra;
-//             //             }
-//             //         }
-//             //     });
-//             // };
-
-//             const processarExtras = (array, divisor = 1) => {
-//                 (array || []).forEach(i => {
-//                     if ((i.status || '').toLowerCase() === 'autorizado') {
-                        
-//                         // 1. Tenta pegar o cache do item da diária (aceita vlr_cache ou vlrcache). 
-//                         // Se não existir, faz o fallback dinâmico proporcional (vlrCusto / divisor)
-//                         const itemCache = i.vlr_cache != null ? i.vlr_cache : (i.vlrcache != null ? i.vlrcache : null);
-//                         const vlrBaseExtra = itemCache != null ? parseFloat(itemCache) : (vlrCusto / divisor);
-                        
-//                         // 2. Tenta pegar a alimentação do item da diária (aceita vlr_alimentacao ou vlralimentacao).
-//                         // Se não existir, faz o fallback para o vlrAlimDobra padrão
-//                         const itemAlim = i.vlr_alimentacao != null ? i.vlr_alimentacao : (i.vlralimentacao != null ? i.vlralimentacao : null);
-//                         const vlrAlimExtra = itemAlim != null ? parseFloat(itemAlim) : vlrAlimDobra;
-                        
-//                         // Soma os dois componentes ao total geral do registro
-//                         total += vlrBaseExtra + vlrAlimExtra;
-//                         totalCache += vlrBaseExtra; // Cachê base sempre compõe o total do cachê
-
-//                         if (isAjudaCustoPaga) {
-//                             // Se a Ajuda de Custo do evento mestre já foi paga, 
-//                             // a alimentação da dobra é convertida/paga junto ao Cachê
-//                             totalCache += vlrAlimExtra;
-//                         } else {
-//                             // Se não foi paga, soma o valor da alimentação ao balde de ajuda de custo
-//                             totalAjdCusto += vlrAlimExtra;
-//                         }
-//                     }
-//                 });
-//             };
-//             processarExtras(registro.dtdiariadobrada, 1);
-//             processarExtras(registro.dtmeiadiaria, 2);
-
-//             // 7. UPDATE FINAL NO STAFFEVENTOS
-//           //  const valorFinalColuna = (typeof registro[colunaDB] === 'object') ? JSON.stringify(registro[colunaDB]) : statusParaAtualizar;
-
-//             // // ==========================================
-//             // // 🔥 CORREÇÃO: SE FOR DIÁRIA DOBRADA, MEIA DIÁRIA, CAIXINHA ETC., ATUALIZA A TABELA SOLICITACOES
-//             // // ==========================================
-//             // if (registro.id_log || idlog_origem) {
-//             //     const idSolicitacaoParaAtualizar = registro.id_log || idlog_origem;
-                
-//             //     const queryUpdateSolicitacao = `
-//             //         UPDATE solicitacoes 
-//             //         SET 
-//             //             status = $1, 
-//             //             dtresposta = NOW(), 
-//             //             idusuarioresponsavel = $2
-//             //         WHERE idsolicitacao = $3;
-//             //     `;
-                
-//             //     // idUsuarioLogado deve ser o ID do usuário que está aprovando (vindo da sua sessão/token)
-//             //     const idUsuarioLogado = req.usuario?.idusuario || 1; 
-
-//             //     await pool.query(queryUpdateSolicitacao, [
-//             //         statusParaAtualizar, // Ex: 'Autorizado' ou 'Rejeitado'
-//             //         idUsuarioLogado, 
-//             //         idSolicitacaoParaAtualizar
-//             //     ]);
-//             //     console.log(`✅ Tabela solicitacoes atualizada para o ID: ${idSolicitacaoParaAtualizar}`);
-//             // }
-
-//             const isJsonColumn = ['dtdiariadobrada', 'dtmeiadiaria'].includes(colunaDB);
-
-//             const queryUpdate = `
-//                 UPDATE staffeventos se
-//                 SET ${colunaDB} = $1${isJsonColumn ? '::jsonb' : '::varchar'}, 
-//                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
-//                 WHERE se.idstaffevento = $5
-//                 RETURNING se.*;
-//             `;
-
-//             // const queryUpdate = `
-//             //     UPDATE staffeventos se
-//             //     SET ${colunaDB} = $1, vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
-//             //     WHERE se.idstaffevento = $5
-//             //     RETURNING se.*;
-//             // `;
-
-//             const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, registro.idstaffevento]);
-
-//             res.locals.idlog_origem = idlog_origem;
-//             res.locals.acao = 'atualizou';
-//             res.locals.idregistroalterado = registro.idstaffevento;
-//             res.locals.dadosnovos = finalResult.rows[0];
-
-//             res.json({ sucesso: true, atualizado: finalResult.rows[0], idlog_origem, categoria });
-
-//         // } catch (err) {
-//         //     console.error('Erro:', err);
-//         //     res.status(500).json({ error: 'Erro interno' });
-//         // }
-//         } catch (dbError) {
-//             console.error('ERRO NO BANCO DE DADOS:', dbError.message);
-//             return res.status(500).json({ error: 'Erro ao processar atualização no banco de dados', detalhe: dbError.message });
-//         }
-//     }
-// );
-
-// router.post('/notificacoes-financeiras/atualizar-status',
-//     autenticarToken(),
-//     contextoEmpresa,
-//     logMiddleware('staffeventos', {
-//         buscarDadosAnteriores: async (req) => {
-//             const { idpedido } = req.body;
-//             if (!idpedido) return null;
-//             const { rows } = await pool.query(`
-//                 SELECT * FROM staffeventos 
-//                 WHERE idstaffevento = $1 
-//                 OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
-//             `, [idpedido]);
-//             return rows[0] ? { dadosanteriores: rows[0], idregistroalterado: rows[0].idstaffevento } : null;
-//         }
-//     }),
-//     async (req, res) => {
-//         try {
-//             const { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
-//             const idempresa = req.idempresa;
-//             const idUsuarioResponsavel = req.usuario?.idusuario;
-
-//             if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
-
-//             // Garante que o status seja sempre 'Autorizado' ou 'Rejeitado'
-//             const statusParaAtualizar = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase(); 
-
-//             console.log(`Iniciando atualização de status financeiro...`, statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, categoria );
-
-//             // 1. ATUALIZA A TABELA SOLICITACOES
-//             let querySolicitacoes = `
-//                 UPDATE public.solicitacoes 
-//                 SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-//                 WHERE (idregistroalterado = $3 OR idsolicitacao = $3) 
-//                 AND idempresa = $4 
-//                 AND (categoria_log = $5 OR 'status'||categoria_log = $5 OR categoria_log = 'aditivoextra' OR categoria_log = 'vagaexcedida')
-//             `;
-//             const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, categoria];
-
-//             if (dataEspecifica) {
-//                 querySolicitacoes += " AND ($6::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $6 || '%'))";
-//                 paramsSolicitacoes.push(dataEspecifica);
-//             }
-//             await pool.query(querySolicitacoes, paramsSolicitacoes);
-
-//             // 2. MAPEAMENTO DE CATEGORIAS FINANCEIRAS QUE AFETAM STAFFEVENTOS
-//             const mapCategorias = {
-//                 'statuscaixinha': 'statuscaixinha',
-//                 'statusajustecusto': 'statusajustecusto',
-//                 'statusdiariadobrada': 'dtdiariadobrada', 
-//                 'statusmeiadiaria': 'dtmeiadiaria',
-//                 'statuscustofechado': 'statuscustofechado', 
-//                 'statuscacheliberado': 'statuscustofechado'   
-//             };
-
-//             const colunaDB = mapCategorias[categoria];
-            
-//             const isAditivoOuExtra = categoria.toLowerCase().includes('aditivo') || 
-//                                      categoria.toLowerCase().includes('vaga') || 
-//                                      categoria.toLowerCase().includes('extra');
-
-//             // 3. TRATAMENTO PARA ADITIVOS
-//             if (isAditivoOuExtra && !colunaDB) {               
-//                 if (statusParaAtualizar === 'Autorizado') {
-                
-//                     const { rows: rowsOrcamento } = await pool.query(`
-//                         SELECT 1 FROM orcamentoitens WHERE idsolicitacao = $1 LIMIT 1
-//                     `, [idpedido]);
-
-//                     if (!rowsOrcamento.length) {
-//                         return res.json({ 
-//                             sucesso: true, 
-//                             mensagem: `Solicitação autorizada, mas staffevento não foi ativado pois não há inclusão no orçamento.`,
-//                             aguardandoOrcamento: true
-//                         });
-//                     }
-
-//                     await pool.query(`
-//                         UPDATE staffeventos
-//                         SET statusstaff = 'Ativo'
-//                         WHERE (idstaffevento = $1 
-//                             OR idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1))
-//                         AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = idstaff AND sem.idempresa = $2)
-//                     `, [idpedido, idempresa]);                
-
-//                 } else if (statusParaAtualizar === 'Rejeitado') {
-//                     await pool.query(`
-//                         WITH dados AS (
-//                             SELECT 
-//                                 se.idstaffevento,
-//                                 se.datasevento,
-//                                 se.obsgeral,
-//                                 (
-//                                     SELECT jsonb_agg(elem)
-//                                     FROM jsonb_array_elements(se.datasevento) AS elem
-//                                     WHERE elem #>> '{}' NOT IN (
-//                                         SELECT TO_CHAR(d, 'YYYY-MM-DD')
-//                                         FROM unnest(
-//                                             (SELECT dtsolicitada FROM solicitacoes WHERE idsolicitacao = $1)
-//                                         ) AS d
-//                                     )
-//                                 ) AS novas_datas
-//                             FROM staffeventos se
-//                             WHERE se.idstaffevento = (
-//                                 SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1
-//                             )
-//                         )
-//                         UPDATE staffeventos se
-//                         SET
-//                             datasevento = CASE 
-//                                 WHEN dados.novas_datas IS NULL THEN dados.datasevento
-//                                 ELSE dados.novas_datas
-//                             END,
-//                             statusstaff = CASE 
-//                                 WHEN dados.novas_datas IS NULL THEN 'Deletado'
-//                                 ELSE 'Ativo'
-//                             END,
-//                             obsgeral = CASE 
-//                                 WHEN dados.novas_datas IS NULL 
-//                                     THEN COALESCE(dados.obsgeral, '') || ' | Deletado por solicitação REJEITADA (data única).'
-//                                 ELSE dados.obsgeral
-//                             END
-//                         FROM dados
-//                         WHERE se.idstaffevento = dados.idstaffevento
-//                         AND EXISTS (
-//                             SELECT 1 FROM staffempresas sem 
-//                             WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2
-//                         )
-//                     `, [idpedido, idempresa]);
-//                 }
-
-//                 return res.json({ 
-//                     sucesso: true, 
-//                     mensagem: `Aditivo ${statusParaAtualizar} com sucesso.` 
-//                 });
-//             }
-
+//             // ==========================================
+//             // 🔥 FLUXO B: TRATAMENTO DAS OUTRAS CATEGORIAS
+//             // ==========================================
+//             console.log("➡️ ADITIVO FALSE: ENTRANDO NO FLUXO B");
 //             if (!colunaDB) return res.status(400).json({ error: "Categoria inválida para atualização financeira" });
 
-//             // 4. BUSCA REGISTRO PARA RECALCULO
-//             const queryBusca = `
-//                 SELECT se.*, f.perfil 
-//                 FROM staffeventos se
-//                 INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-//                 WHERE se.idstaffevento = (
-//                     SELECT idregistroalterado 
-//                     FROM solicitacoes 
-//                     WHERE idsolicitacao = $1 
-//                     LIMIT 1
-//                 )
-//                 AND EXISTS (
-//                     SELECT 1 FROM staffempresas sem 
-//                     WHERE sem.idstaff = se.idstaff 
-//                     AND sem.idempresa = $2
-//                 )
-//             `;
-//             const { rows } = await pool.query(queryBusca, [idpedido, idempresa]);
-//             if (!rows.length) return res.status(404).json({ error: 'Registro mestre não encontrado.' });
-            
-//             let registro = rows[0];
-
-//             console.log("🔍 Chaves do registro:", Object.keys(registro));
-            
-//             // 5. ATUALIZAÇÃO EM MEMÓRIA PARA O RECALCULO
 //             if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
 //                 let rawColuna = registro[colunaDB];
-//                 console.log("🔍 registro[colunaDB] RAW:", registro[colunaDB]);
-
 //                 if (typeof rawColuna === 'string') {
 //                     try { rawColuna = JSON.parse(rawColuna); } catch(e) { rawColuna = []; }
 //                 }
 //                 const arrayDiarias = Array.isArray(rawColuna) ? rawColuna : [];
-                
 //                 registro[colunaDB] = arrayDiarias.map(item => {
 //                     if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
+//                     return item;
+//                 });
+//             } else if (categoria === 'statusvagasreaproveitadas') {
+//                 let rawVagas = registro.vagasreaproveitadas;
+//                 if (typeof rawVagas === 'string') {
+//                     try { rawVagas = JSON.parse(rawVagas); } catch(e) { rawVagas = []; }
+//                 }
+//                 const arrayVagas = Array.isArray(rawVagas) ? rawVagas : [];
+                
+//                 // Cria uma lista padronizada de datas da solicitação para comparação em lote
+//                 const listaDatasProc = (datasDaSolicitacao || []).map(d => d.split('T')[0]);
+
+//                 registro.vagasreaproveitadas = arrayVagas.map(item => {
+//                     // 🌟 CORREÇÃO: se dataEspecifica for null, ele verifica se a data do item pertence ao lote enviado
+//                     const deveAtualizar = dataEspecifica ? (item.data === dataEspecifica) : listaDatasProc.includes(item.data);
+//                     if (deveAtualizar) {
+//                         return { ...item, status: statusParaAtualizar }; 
+//                     }
 //                     return item;
 //                 });
 //             } else {
 //                 registro[colunaDB] = statusParaAtualizar;
 //             }
 
-//             const valorFinalColuna = (typeof registro[colunaDB] === 'object') 
-//                 ? JSON.stringify(registro[colunaDB]) 
-//                 : statusParaAtualizar;
+//             const valorFinalColuna = (typeof registro[colunaDB] === 'object') ? JSON.stringify(registro[colunaDB]) : statusParaAtualizar;
 
-//             console.log("🔍 valorFinalColuna:", valorFinalColuna);         
-
-//             // ==========================================
-//             // 🔥 CÁLCULO CIRÚRGICO SEM RECÁLCULOS SE FOR DOBRA/MEIA
-//             // ==========================================
-//             const isAjudaCustoPaga = (registro.statuspgtoajdcto || '').toLowerCase() === 'pago';
-
-//             // Ponto de partida imutável baseado estritamente no que já está no banco de dados
 //             let totalCache = parseFloat(registro.vlrtotcache) || 0;
 //             let totalAjdCusto = parseFloat(registro.vlrtotajdcusto) || 0;
 //             let total = 0;
@@ -2518,37 +2034,68 @@ const obterTituloFormatado = (r) => {
 //             const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
 //             const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
 
-//             // Caso A: Se for alteração cirúrgica de dobra ou meia diária
 //             if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-                
 //                 let arrayExtras = (categoria === 'statusdiariadobrada') ? registro.dtdiariadobrada : registro.dtmeiadiaria;
-//                 if (typeof arrayExtras === 'string') {
-//                     try { arrayExtras = JSON.parse(arrayExtras); } catch(e) { arrayExtras = []; }
-//                 }
+//                 if (typeof arrayExtras === 'string') { try { arrayExtras = JSON.parse(arrayExtras); } catch(e) { arrayExtras = []; } }
                 
 //                 const itemModificado = (arrayExtras || []).find(item => item.data === dataEspecifica);
-
 //                 if (itemModificado && statusParaAtualizar === 'Autorizado') {
 //                     const customCache = itemModificado.vlr_cache != null ? itemModificado.vlr_cache : (itemModificado.vlrcache != null ? itemModificado.vlrcache : null);
 //                     const vlrBaseExtra = customCache != null ? parseFloat(customCache) : (vlrCusto / (categoria === 'statusmeiadiaria' ? 2 : 1));
-                    
 //                     const customAlim = itemModificado.vlr_alimentacao != null ? itemModificado.vlr_alimentacao : (itemModificado.vlralimentacao != null ? itemModificado.vlralimentacao : null);
 //                     const vlrAlimExtra = customAlim != null ? parseFloat(customAlim) : vlrAlimDobra;
 
 //                     totalCache += vlrBaseExtra;
-
-//                     if (isAjudaCustoPaga) {
-//                         // Desvia alimentação para o Cachê se o balde mestre de ajuda estiver Pago
-//                         totalCache += vlrAlimExtra;
-//                     } else {
-//                         totalAjdCusto += vlrAlimExtra;
-//                     }
+//                     if (isAjudaCustoPaga) totalCache += vlrAlimExtra;
+//                     else totalAjdCusto += vlrAlimExtra;
 //                 }
 //                 total = totalCache + totalAjdCusto;
 
-//             // Caso B: Se for aprovação do contrato mestre (Fechado ou Liberado)
-//             } else if (categoria === 'statuscustofechado' || categoria === 'statuscacheliberado') {
+//             } else if (categoriaEfetiva === 'statusvagasreaproveitadas') {
+//                 // 🌟 TRATAMENTO FINANCEIRO DA VAGA REAPROVEITADA
+//                 let rawVagas = registro.vagasreaproveitadas;
+//                 let arrayVagas = [];
+
+//                 if (typeof rawVagas === 'string' && rawVagas.trim().length > 0) {
+//                     try {
+//                         // Limpa possíveis aspas duplicadas vindas do banco ("" -> ")
+//                         let stringLimpa = rawVagas.replace(/""/g, '"');
+//                         // Remove aspas que sobram no início/fim caso venha encapsulado como string literal
+//                         if (stringLimpa.startsWith('"') && stringLimpa.endsWith('"')) {
+//                             stringLimpa = stringLimpa.slice(1, -1);
+//                         }
+//                         arrayVagas = JSON.parse(stringLimpa);
+//                     } catch(e) { 
+//                         console.error("⚠️ Falha ao processar string de vagasreaproveitadas, tentando fallback:", e.message);
+//                         try { arrayVagas = JSON.parse(rawVagas); } catch(err) { arrayVagas = []; }
+//                     }
+//                 } else if (Array.isArray(rawVagas)) {
+//                     arrayVagas = rawVagas;
+//                 }
                 
+//                 const arrayVagasTratado = Array.isArray(arrayVagas) ? arrayVagas : [];
+//                 const listaDatasProc = (datasDaSolicitacao || []).map(d => d.split('T')[0]);
+
+//                 // Atualiza o status do item correspondente à data específica
+//                 registro.vagasreaproveitadas = arrayVagasTratado.map(item => {
+//                     const deveAtualizar = dataEspecifica ? (item.data === dataEspecifica) : listaDatasProc.includes(item.data);
+//                     if (deveAtualizar) {
+//                         return { ...item, status: statusParaAtualizar }; 
+//                     }
+//                     return item;
+//                 });
+                
+//                 // Reaplica a diferença financeira se for Autorizado
+//                 const vagaModificada = arrayVagasTratado.find(item => item.data === dataEspecifica);
+//                 if (vagaModificada && statusParaAtualizar === 'Autorizado') {
+//                     const difFinanceira = parseFloat(vagaModificada.diferenca_financeira) || 0;
+//                     totalCache += difFinanceira;
+//                 }
+                
+//                 total = totalCache + totalAjdCusto;
+            
+
+//             } else if (categoria === 'statuscustofechado' || categoria === 'statuscacheliberado') {
 //                 if (registro.nivelexperiencia === 'Fechado') {
 //                     totalCache = vlrCusto;
 //                     if (isAjudaCustoPaga) {
@@ -2558,7 +2105,6 @@ const obterTituloFormatado = (r) => {
 //                         totalAjdCusto = vlrTransp + vlrAlim;
 //                     }
 //                 } else {
-//                     // 🚀 CASO SEJA LIBERADO: Recalcula a malha de datas ativa linearmente
 //                     totalCache = 0;
 //                     totalAjdCusto = isAjudaCustoPaga ? (parseFloat(registro.vlrtotajdcusto) || 0) : 0;
 //                     const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
@@ -2593,41 +2139,66 @@ const obterTituloFormatado = (r) => {
 //                 }
 //                 total = totalCache + totalAjdCusto;
 
-//             // Caso C: Outras alterações pontuais globais (Ajuste ou Caixinha)
 //             } else {
 //                 if (categoria === 'statusajustecusto' && statusParaAtualizar === 'Autorizado') { totalCache += vlrAjuste; }
-                
 //                 total = totalCache + totalAjdCusto;
 //                 if (categoria === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinha; }
 //             }
 
-//             // 7. UPDATE FINAL NO STAFFEVENTOS
-//             const isJsonColumn = ['dtdiariadobrada', 'dtmeiadiaria'].includes(colunaDB);
+//             // 🔍 RE-VERIFICAÇÃO DE OUTRAS PENDÊNCIAS PARA O FLUXO B
+//             const { rows: pendenciasFluxoB } = await pool.query(`
+//                 SELECT 1 FROM public.solicitacoes 
+//                 WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
+//             `, [idStaffAlvo]);
+
+//             const statusStaffCalculado = (pendenciasFluxoB.length > 0) ? 'Pendente' : 'Ativo';
+
+//             let colunaDestinoBanco = colunaDB;
+//             if (categoriaEfetiva === 'statusvagasreaproveitadas') {
+//                 colunaDestinoBanco = 'vagasreaproveitadas';
+//             }
+
+//             const isJsonColumn = ['dtdiariadobrada', 'dtmeiadiaria', 'vagasreaproveitadas'].includes(colunaDB);
+            
+//             if (isJsonColumn) {
+//                 // Se por algum motivo o mapeamento falhou e virou string comum, evita salvar string inválida
+//                 if (typeof registro[colunaDestinoBanco] === 'string' && !registro[colunaDestinoBanco].startsWith('[')) {
+//                     console.error(`🚨 ALERTA: O conteúdo de ${colunaDestinoBanco} era inválido. Enviando array tratado.`);
+//                     valorFinalColuna = JSON.stringify(registro[colunaDestinoBanco]);
+//                 } else {
+//                     valorFinalColuna = (typeof registro[colunaDestinoBanco] === 'object') 
+//                         ? JSON.stringify(registro[colunaDestinoBanco]) 
+//                         : registro[colunaDestinoBanco];
+//                 }
+//             } else {
+//                 valorFinalColuna = statusParaAtualizar;
+//             }
 
 //             const queryUpdate = `
 //                 UPDATE staffeventos se
 //                 SET ${colunaDB} = $1${isJsonColumn ? '::jsonb' : '::varchar'}, 
-//                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4
-//                 WHERE se.idstaffevento = $5
+//                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4,
+//                     statusstaff = $5
+//                 WHERE se.idstaffevento = $6
 //                 RETURNING se.*;
 //             `;
 
-//             const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, registro.idstaffevento]);
+//             const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, statusStaffCalculado, idStaffAlvo]);
+//             console.log(`✅ [FLUXO B] Linhas alteradas com sucesso no staffeventos: ${finalResult.rowCount}`);
 
 //             res.locals.idlog_origem = idlog_origem;
 //             res.locals.acao = 'atualizou';
-//             res.locals.idregistroalterado = registro.idstaffevento;
+//             res.locals.idregistroalterado = idStaffAlvo;
 //             res.locals.dadosnovos = finalResult.rows[0];
 
-//             return res.json({ sucesso: true, updated: finalResult.rows[0], idlog_origem, categoria });
+//             return res.json({ sucesso: true, updated: finalResult.rows[0], idlog_origem, category: categoria });
 
 //         } catch (dbError) {
-//             console.error('ERRO NO BANCO DE DADOS:', dbError.message);
+//             console.error('❌ ERRO CRÍTICO NO BANCO DE DADOS:', dbError.message);
 //             return res.status(500).json({ error: 'Erro ao processar atualização no banco de dados', detalhe: dbError.message });
 //         }
 //     }
 // );
-
 
 router.post('/notificacoes-financeiras/atualizar-status',
     autenticarToken(),
@@ -2666,10 +2237,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
             console.log(`> Data específica informada:`, dataEspecifica);
             console.log("========================================================");
 
-            // 1. RECUPERA AS DATAS SOLICITADAS CASO NÃO VENHA DO FRONT
+            // 1. RECUPERA AS DATAS E O TIPO DA SOLICITAÇÃO
             let datasDaSolicitacao = [];
             const { rows: dadosSol } = await pool.query(`
-                SELECT dtsolicitada FROM public.solicitacoes 
+                SELECT dtsolicitada, tiposolicitacao FROM public.solicitacoes 
                 WHERE idsolicitacao = $1 AND idempresa = $2
             `, [idpedido, idempresa]);
 
@@ -2723,7 +2294,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             }
 
             let registro = rowsMestre[0];
-            const idStaffAlvo = registro.idstaffevento; // Ex: 3028
+            const idStaffAlvo = registro.idstaffevento; 
             
             console.log(`[REGISTRO MESTRE ANCORADO] Encontrado Staff ID: ${idStaffAlvo}`);
 
@@ -2733,16 +2304,32 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 'statusdiariadobrada': 'dtdiariadobrada', 
                 'statusmeiadiaria': 'dtmeiadiaria',
                 'statuscustofechado': 'statuscustofechado', 
-                'statuscacheliberado': 'statuscustofechado'   
+                'statuscacheliberado': 'statuscustofechado',
+                'statusvagasreaproveitadas': 'vagasreaproveitadas'
             };
 
-            const colunaDB = mapCategorias[categoria];
-            const isAditivoOuExtra = categoria.toLowerCase().includes('aditivo') || 
-                                     categoria.toLowerCase().includes('vaga') || 
-                                     categoria.toLowerCase().includes('extra') ||
-                                     categoria.toLowerCase().includes('excedido');
+            // 🚀 INTERCEPTAÇÃO INTELIGENTE: Se vier genérico de aditivos, mas for Vaga Reaproveitada, corrige a rota!
+            let categoriaEfetiva = categoria;
+            const tipoSolicitacaoOriginal = dadosSol[0]?.tiposolicitacao || '';
+
+            if (tipoSolicitacaoOriginal.toLowerCase().includes('vaga reaproveitada') || 
+                tipoSolicitacaoOriginal.toLowerCase().includes('reaproveitada')) {
+                categoriaEfetiva = 'statusvagasreaproveitadas';
+            }
+
+            const colunaDB = mapCategorias[categoriaEfetiva];
+
+            // Define se deve ir para o fluxo genérico de Aditivo de Datas (Fluxo A)
+            const isAditivoOuExtra = (categoriaEfetiva.toLowerCase().includes('aditivo') || 
+                                     categoriaEfetiva.toLowerCase().includes('vaga') || 
+                                     categoriaEfetiva.toLowerCase().includes('extra') ||
+                                     categoriaEfetiva.toLowerCase().includes('excedido')) && 
+                                     categoriaEfetiva !== 'statusvagasreaproveitadas';
 
             const isAjudaCustoPaga = (registro.statuspgtoajdcto || '').toLowerCase() === 'pago';
+
+            // Variável local para acumular strings JSON processadas sem sofrer mutação ou quebra de const
+            let varObjetoJsonFinal = null;
 
             // ==========================================
             // 🔥 FLUXO A: TRATAMENTO CASO SEJA ADITIVO OU VAGA EXCEDIDA
@@ -2763,7 +2350,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     return d.toISOString().split('T')[0];
                 };
 
-                // Limpa o array atual do banco contra sujeiras de strings completas
                 let datasAtuaisRaw = Array.isArray(registro.datasevento) ? registro.datasevento : [];
                 let datasAtuais = datasAtuaisRaw.map(d => converterParaISO(d)).filter(Boolean);
                 
@@ -2792,7 +2378,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 datasAtuais = [...new Set(datasAtuais)].sort();
 
-                // Montagem limpa do histórico em obsgeral
                 let obsModificada = registro.obsgeral || ''; 
                 obsModificada = obsModificada.trim();
                 if (obsModificada.startsWith('.')) obsModificada = obsModificada.replace(/^\.+/, '').trim();
@@ -2809,20 +2394,15 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 }
                 if (!obsModificada.endsWith('.')) obsModificada += '.';
 
-                // 🔍 VERIFICAÇÃO VERDADEIRA DE OUTRAS SOLICITAÇÕES: Usa o ID do Staff (3028)
                 const { rows: pendenciasReais } = await pool.query(`
                     SELECT 1 FROM public.solicitacoes 
-                    WHERE idregistroalterado = $1
-                    AND status = 'Pendente'
-                    LIMIT 1
+                    WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
                 `, [idStaffAlvo]);
 
                 const statusFinalStaff = (datasAtuais.length === 0) ? 'Deletado' : ((pendenciasReais.length > 0) ? 'Pendente' : 'Ativo');
                 
                 console.log(`> Lista final de datas para salvar:`, datasAtuais);
-                console.log(`> Status calculado para o staff: "${statusFinalStaff}" (Possui outras pendências? ${pendenciasReais.length > 0 ? 'SIM' : 'NÃO'})`);
 
-                // Recálculo Financeiro Linear Totalizador
                 let totalCache = 0;
                 let totalAjdCusto = isAjudaCustoPaga ? (parseFloat(registro.vlrtotajdcusto) || 0) : 0;
 
@@ -2871,7 +2451,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 let totalFinal = totalCache + totalAjdCusto;
 
-                // Executa o UPDATE mestre no funcionário correto (3028)
                 const finalUpAditivo = await pool.query(`
                     UPDATE staffeventos
                     SET datasevento = $1::jsonb,
@@ -2900,25 +2479,54 @@ router.post('/notificacoes-financeiras/atualizar-status',
             console.log("➡️ ADITIVO FALSE: ENTRANDO NO FLUXO B");
             if (!colunaDB) return res.status(400).json({ error: "Categoria inválida para atualização financeira" });
 
-            if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
+            if (categoriaEfetiva === 'statusdiariadobrada' || categoriaEfetiva === 'statusmeiadiaria') {
                 let rawColuna = registro[colunaDB];
                 if (typeof rawColuna === 'string') {
                     try { rawColuna = JSON.parse(rawColuna); } catch(e) { rawColuna = []; }
                 }
                 const arrayDiarias = Array.isArray(rawColuna) ? rawColuna : [];
-                registro[colunaDB] = arrayDiarias.map(item => {
+                const novasDiarias = arrayDiarias.map(item => {
                     if (item.data === dataEspecifica) return { ...item, status: statusParaAtualizar };
                     return item;
                 });
-            } else {
-                registro[colunaDB] = statusParaAtualizar;
-            }
+                varObjetoJsonFinal = JSON.stringify(novasDiarias);
 
-            const valorFinalColuna = (typeof registro[colunaDB] === 'object') ? JSON.stringify(registro[colunaDB]) : statusParaAtualizar;
+            } else if (categoriaEfetiva === 'statusvagasreaproveitadas') {
+                let rawVagas = registro.vagasreaproveitadas;
+                let arrayVagas = [];
+
+                if (typeof rawVagas === 'string' && rawVagas.trim().length > 0) {
+                    try {
+                        let stringLimpa = rawVagas.replace(/""/g, '"');
+                        if (stringLimpa.startsWith('"') && stringLimpa.endsWith('"')) {
+                            stringLimpa = stringLimpa.slice(1, -1);
+                        }
+                        arrayVagas = JSON.parse(stringLimpa);
+                    } catch(e) { 
+                        console.error("⚠️ Falha ao processar string de vagasreaproveitadas, tentando fallback:", e.message);
+                        try { arrayVagas = JSON.parse(rawVagas); } catch(err) { arrayVagas = []; }
+                    }
+                } else if (Array.isArray(rawVagas)) {
+                    arrayVagas = rawVagas;
+                }
+                
+                const arrayVagasTratado = Array.isArray(arrayVagas) ? arrayVagas : [];
+                const listaDatasProc = (datasDaSolicitacao || []).map(d => d.split('T')[0]);
+
+                const novoArrayVagas = arrayVagasTratado.map(item => {
+                    const deveAtualizar = dataEspecifica ? (item.data === dataEspecifica) : listaDatasProc.includes(item.data);
+                    if (deveAtualizar) {
+                        return { ...item, status: statusParaAtualizar }; 
+                    }
+                    return item;
+                });
+                varObjetoJsonFinal = JSON.stringify(novoArrayVagas);
+            }
 
             let totalCache = parseFloat(registro.vlrtotcache) || 0;
             let totalAjdCusto = parseFloat(registro.vlrtotajdcusto) || 0;
             let total = 0;
+            let obsDobraLog = null;
 
             const vlrCusto = parseFloat(registro.vlrcache) || 0;
             const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
@@ -2927,24 +2535,55 @@ router.post('/notificacoes-financeiras/atualizar-status',
             const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
             const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
 
-            if (categoria === 'statusdiariadobrada' || categoria === 'statusmeiadiaria') {
-                let arrayExtras = (categoria === 'statusdiariadobrada') ? registro.dtdiariadobrada : registro.dtmeiadiaria;
+            if (categoriaEfetiva === 'statusdiariadobrada' || categoriaEfetiva === 'statusmeiadiaria') {
+                let arrayExtras = (categoriaEfetiva === 'statusdiariadobrada') ? registro.dtdiariadobrada : registro.dtmeiadiaria;
                 if (typeof arrayExtras === 'string') { try { arrayExtras = JSON.parse(arrayExtras); } catch(e) { arrayExtras = []; } }
                 
                 const itemModificado = (arrayExtras || []).find(item => item.data === dataEspecifica);
-                if (itemModificado && statusParaAtualizar === 'Autorizado') {
-                    const customCache = itemModificado.vlr_cache != null ? itemModificado.vlr_cache : (itemModificado.vlrcache != null ? itemModificado.vlrcache : null);
-                    const vlrBaseExtra = customCache != null ? parseFloat(customCache) : (vlrCusto / (categoria === 'statusmeiadiaria' ? 2 : 1));
-                    const customAlim = itemModificado.vlr_alimentacao != null ? itemModificado.vlr_alimentacao : (itemModificado.vlralimentacao != null ? itemModificado.vlralimentacao : null);
-                    const vlrAlimExtra = customAlim != null ? parseFloat(customAlim) : vlrAlimDobra;
+                // if (itemModificado && statusParaAtualizar === 'Autorizado') {
+                //     const customCache = itemModificado.vlr_cache != null ? itemModificado.vlr_cache : (itemModificado.vlrcache != null ? itemModificado.vlrcache : null);
+                //     const vlrBaseExtra = customCache != null ? parseFloat(customCache) : (vlrCusto / (categoriaEfetiva === 'statusmeiadiaria' ? 2 : 1));
+                //     const customAlim = itemModificado.vlr_alimentacao != null ? itemModificado.vlr_alimentacao : (itemModificado.vlralimentacao != null ? itemModificado.vlralimentacao : null);
+                //     const vlrAlimExtra = customAlim != null ? parseFloat(customAlim) : vlrAlimDobra;
 
-                    totalCache += vlrBaseExtra;
-                    if (isAjudaCustoPaga) totalCache += vlrAlimExtra;
-                    else totalAjdCusto += vlrAlimExtra;
+                //     totalCache += vlrBaseExtra;
+                //     if (isAjudaCustoPaga) totalCache += vlrAlimExtra;
+                //     else totalAjdCusto += vlrAlimExtra;
+                // }
+                if (itemModificado && statusParaAtualizar === 'Autorizado') {
+                    const vlrItemCache = itemModificado.vlr_cache != null ? parseFloat(itemModificado.vlr_cache)
+                                      : itemModificado.vlrcache != null ? parseFloat(itemModificado.vlrcache) : 0;
+                    const vlrItemAlim  = itemModificado.vlr_alimentacao != null ? parseFloat(itemModificado.vlr_alimentacao)
+                                      : itemModificado.vlralimentacao  != null ? parseFloat(itemModificado.vlralimentacao) : 0;
+
+                    totalCache += vlrItemCache;
+                    if (isAjudaCustoPaga) totalCache    += vlrItemAlim;
+                    else                  totalAjdCusto += vlrItemAlim;
+
+                    if (isAjudaCustoPaga && categoriaEfetiva === 'statusdiariadobrada') {
+                        const dataFormatada = dataEspecifica ? dataEspecifica.split('-').reverse().join('/') : '';
+                        const dataHora = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        obsDobraLog = `[${dataHora}] Diária Dobrada ${dataFormatada} Autorizada Valores ${vlrItemCache.toFixed(2)} (cachê) + ${vlrItemAlim.toFixed(2)} (alimentação) refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
+                    }
                 }
                 total = totalCache + totalAjdCusto;
 
-            } else if (categoria === 'statuscustofechado' || categoria === 'statuscacheliberado') {
+            } else if (categoriaEfetiva === 'statusvagasreaproveitadas') {
+                let arrayVagasTemp = [];
+                try {
+                    let sLimpa = (registro.vagasreaproveitadas || '[]').replace(/""/g, '"');
+                    if (sLimpa.startsWith('"') && sLimpa.endsWith('"')) sLimpa = sLimpa.slice(1, -1);
+                    arrayVagasTemp = JSON.parse(sLimpa);
+                } catch(e) { arrayVagasTemp = []; }
+
+                const vagaModificada = (arrayVagasTemp || []).find(item => item.data === dataEspecifica);
+                if (vagaModificada && statusParaAtualizar === 'Autorizado') {
+                    const difFinanceira = parseFloat(vagaModificada.diferenca_financeira) || 0;
+                    totalCache += difFinanceira;
+                }
+                total = totalCache + totalAjdCusto;
+
+            } else if (categoriaEfetiva === 'statuscustofechado' || categoriaEfetiva === 'statuscacheliberado') {
                 if (registro.nivelexperiencia === 'Fechado') {
                     totalCache = vlrCusto;
                     if (isAjudaCustoPaga) {
@@ -2989,12 +2628,26 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 total = totalCache + totalAjdCusto;
 
             } else {
-                if (categoria === 'statusajustecusto' && statusParaAtualizar === 'Autorizado') { totalCache += vlrAjuste; }
+                if (categoriaEfetiva === 'statusajustecusto' && statusParaAtualizar === 'Autorizado') { totalCache += vlrAjuste; }
                 total = totalCache + totalAjdCusto;
-                if (categoria === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinha; }
+                if (categoriaEfetiva === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinha; }
             }
 
-            // 🔍 RE-VERIFICAÇÃO DE OUTRAS PENDÊNCIAS PARA O FLUXO B
+            // ==========================================
+            // 🛠️ MONTAGEM E DEFESA DO UPDATE FINAL (FLUXO B)
+            // ==========================================
+            let colunaDestinoBanco = colunaDB;
+            if (categoriaEfetiva === 'statusvagasreaproveitadas') {
+                colunaDestinoBanco = 'vagasreaproveitadas';
+            }
+
+            let valorFinalColuna;
+            if (['dtdiariadobrada', 'dtmeiadiaria', 'vagasreaproveitadas'].includes(colunaDestinoBanco)) {
+                valorFinalColuna = varObjetoJsonFinal; 
+            } else {
+                valorFinalColuna = statusParaAtualizar;
+            }
+
             const { rows: pendenciasFluxoB } = await pool.query(`
                 SELECT 1 FROM public.solicitacoes 
                 WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
@@ -3002,18 +2655,31 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             const statusStaffCalculado = (pendenciasFluxoB.length > 0) ? 'Pendente' : 'Ativo';
 
-            const isJsonColumn = ['dtdiariadobrada', 'dtmeiadiaria'].includes(colunaDB);
+            const novaObsPosPgto = obsDobraLog
+                ? ((registro.obspospgto ? registro.obspospgto + '\n' : '') + obsDobraLog)
+                : (registro.obspospgto || null);
 
             const queryUpdate = `
                 UPDATE staffeventos se
-                SET ${colunaDB} = $1${isJsonColumn ? '::jsonb' : '::varchar'}, 
+                SET ${colunaDestinoBanco} = $1,
                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4,
-                    statusstaff = $5
+                    statusstaff = $5, obspospgto = $7
                 WHERE se.idstaffevento = $6
                 RETURNING se.*;
             `;
 
-            const finalResult = await pool.query(queryUpdate, [valorFinalColuna, total, totalCache, totalAjdCusto, statusStaffCalculado, idStaffAlvo]);
+            console.log(`💾 [FLUXO B] Gravando com sucesso na coluna [${colunaDestinoBanco}]`);
+
+            const finalResult = await pool.query(queryUpdate, [
+                valorFinalColuna,
+                total,
+                totalCache,
+                totalAjdCusto,
+                statusStaffCalculado,
+                idStaffAlvo,
+                novaObsPosPgto
+            ]);
+            
             console.log(`✅ [FLUXO B] Linhas alteradas com sucesso no staffeventos: ${finalResult.rowCount}`);
 
             res.locals.idlog_origem = idlog_origem;
@@ -3029,7 +2695,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
         }
     }
 );
-
 
 function parseValor(v) {
     if (!v) return 0;
