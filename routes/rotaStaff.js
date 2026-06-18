@@ -410,6 +410,7 @@ router.post("/orcamento/consultar",
                     COALESCE(dpf.total, 0) AS diarias_escaladas,      -- total de diárias já usadas
                                 
                     oi.idfuncao,
+                    oi.ctodiaria,
                     f.descfuncao,
                     e.nmevento,
                     c.nmfantasia AS nmcliente,
@@ -478,7 +479,7 @@ router.post("/orcamento/consultar",
             const qtdOrcadaItem = Number(item.quantidade_orcada || 0); 
 
             itensOrcamentoDetail.push({
-                setor: item.setor || 'Geral',
+                setor: item.setor || '',//'Geral', //
                 quantidade_orcada: qtdOrcadaItem,
                 periodos_disponiveis: item.datas_totais_orcadas || []
             });
@@ -504,11 +505,13 @@ router.post("/orcamento/consultar",
             nmlocalmontagem: base.nmlocalmontagem,
             
             // Totais consolidados (soma de todas as linhas encontradas para a função)
-            quantidade_orcada: orcamentoItems.reduce((acc, curr) => acc + Number(curr.quantidade_orcada || 0), 0),
+            //quantidade_orcada: orcamentoItems.reduce((acc, curr) => acc + Number(curr.quantidade_orcada || 0), 0),
+            // CORRETO — usa apenas o valor da primeira linha (já é o total consolidado)
+            quantidade_orcada: Number(orcamentoItems[0]?.quantidade_orcada || 0),
             quantidade_escalada: base.quantidade_escalada, // Mantém o total já escalado vindo do count do banco
             diarias_escaladas: base.diarias_escaladas,     // Mantém o total de diárias usadas
             datas_totais_orcadas: todasAsDatasOrcadas,
-            
+            ctodiaria: Number(orcamentoItems[0]?.ctodiaria || 0),
             // 🔥 AQUI ESTÁ A CHAVE DE OURO: O detalhamento por setor para o Swal usar!
             itensOrcamentoDetail: itensOrcamentoDetail 
         };
@@ -721,10 +724,10 @@ router.post("/orcamento/vagas-disponiveis",
                         oi.idorcamento,
                         oi.idfuncao,
                         COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '') AS setor_normalizado,
-                        MAX(COALESCE(NULLIF(TRIM(oi.setor), ''), 'Geral / Sem Setor')) AS setor_original,
+                        MAX(COALESCE(NULLIF(TRIM(oi.setor), ''),'')) AS setor_original, --'Geral / Sem Setor')) AS setor_original,
                         -- Período informativo consolidado
                         MAX(COALESCE(TO_CHAR(oi.periododiariasinicio, 'DD/MM') || ' a ' || TO_CHAR(oi.periododiariasfim, 'DD/MM'), 'Período não definido')) AS periodo_item,
-                        
+                        MAX(oi.ctodiaria) AS ctodiaria,
                         -- 🌟 CORREÇÃO 1: Calcula o teto absoluto de diárias contratadas para o evento
                         CASE
                             WHEN bool_or(oi.cachefechado = true) THEN SUM(oi.qtddias)
@@ -776,7 +779,7 @@ router.post("/orcamento/vagas-disponiveis",
                 GROUP BY 
                     COALESCE((dd->>'idorcamento')::int, se.idorcamento), 
                     (dd->>'idfuncaodobra')::int, 
-                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')
+                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), ''))
                     ),
                 escalado_por_funcao AS (
                     SELECT 
@@ -799,6 +802,68 @@ router.post("/orcamento/vagas-disponiveis",
                     o.tem_cache_fechado, 
                     COALESCE(e.total_consumido, 0) AS quantidade_escalada,
                     (o.total_orcado - COALESCE(e.total_consumido, 0)) AS saldo_disponivel,
+                   
+                    COALESCE(o.ctodiaria, 0) AS ctodiaria,
+
+                    -- 🔥 SUBQUERY 1 MULTI-ORÇAMENTO: Soma o totgeralitem de TODOS os orçamentos válidos combinados
+                    (SELECT COALESCE(SUM(oi_sub.totgeralitem), 0)
+                     FROM orcamentoitens oi_sub
+                     JOIN funcao f_sub ON oi_sub.idfuncao = f_sub.idfuncao
+                     WHERE oi_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                       AND f_sub.idequipe = f.idequipe 
+                       AND oi_sub.categoria = 'Produto(s)') AS vlr_total_orcado_equipe,
+
+                    -- 🔥 SUBQUERY 2 MULTI-ORÇAMENTO: Soma o gasto real acumulado de TODOS os orçamentos válidos combinados
+                    (
+                        SELECT COALESCE(
+                            (
+                                -- Parte A: Diárias Normais + Benefícios de todos os orçamentos válidos da equipe
+                                SELECT COALESCE(SUM(
+                                    se_sub.vlrtotcache 
+                                    + COALESCE(se_sub.vlrtotajdcusto, 0) 
+                                    + COALESCE(se_sub.vlrajustecusto, 0)
+                                ), 0)
+                                FROM staffeventos se_sub
+                                JOIN funcao f_sub2 ON se_sub.idfuncao = f_sub2.idfuncao
+                                WHERE se_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                                  AND f_sub2.idequipe = f.idequipe 
+                                  AND se_sub.ativo = true 
+                                  AND se_sub.statusstaff != 'Inativo'
+                            )
+                            +
+                            (
+                                -- Parte B: Diárias Dobradas autorizadas/pendentes ligadas a esses orçamentos
+                                SELECT COALESCE(SUM(
+                                    COALESCE(oi_sub2.ctodiaria, 0) 
+                                    + COALESCE(oi_sub2.vlrajdctoalimentacao, 0) 
+                                    + COALESCE(oi_sub2.vlrajdctotransporte, 0)
+                                ), 0)
+                                FROM staffeventos se_sub
+                                CROSS JOIN LATERAL jsonb_array_elements(
+                                    CASE 
+                                        WHEN jsonb_typeof(se_sub.dtdiariadobrada) = 'array' THEN se_sub.dtdiariadobrada 
+                                        ELSE '[]'::jsonb 
+                                    END
+                                ) AS dd
+                                JOIN funcao f_sub3 ON CASE 
+                                    WHEN (dd->>'idfuncaodobra') IS NOT NULL AND (dd->>'idfuncaodobra') <> 'null' 
+                                    THEN (dd->>'idfuncaodobra')::int 
+                                    ELSE -1 
+                                END = f_sub3.idfuncao
+                                LEFT JOIN orcamentoitens oi_sub2 ON COALESCE((dd->>'idorcamento')::int, se_sub.idorcamento) = oi_sub2.idorcamento 
+                                                                 AND CASE 
+                                                                     WHEN (dd->>'idfuncaodobra') IS NOT NULL AND (dd->>'idfuncaodobra') <> 'null' 
+                                                                     THEN (dd->>'idfuncaodobra')::int 
+                                                                     ELSE -1 
+                                                                 END = oi_sub2.idfuncao
+                                WHERE se_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
+                                  AND f_sub3.idequipe = f.idequipe 
+                                  AND se_sub.ativo = true 
+                                  AND se_sub.statusstaff != 'Inativo'
+                                  AND (dd->>'status') IN ('Pendente', 'Autorizado')
+                            )
+                        , 0)
+                    ) AS vlr_total_gasto_equipe,
                    
                     COALESCE(cf.ctofuncaobase, 0) AS valor_base,
                     COALESCE(cf.ctofuncaojunior, 0) AS valor_junior,
@@ -2460,6 +2525,13 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             } catch (e) { 
                 datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
             }
+
+            console.log("🎯 [ADITIVO CHECK]:", {
+                statusStaff,
+                tipoSolicitacaoAditivo,
+                justificativaAditivo,
+                datasExcecao
+            });
 
             for (const dataUnica of datasSolicitadasArray) {
                 const queryAditivo = `

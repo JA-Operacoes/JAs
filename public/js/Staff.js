@@ -5046,7 +5046,10 @@ async function verificaStaff() {
                     //datasEvento: datasSelecionadas,
                     datasEvento: datasConsolidadasParaOrcamento,
                     datasEventoDobradas: datasDobradas,
-                    idFuncao: descFuncaoSelect?.value || ""
+                    idFuncao: descFuncaoSelect?.value || "",
+                    idEvento:        nmEventoSelect?.value        || null,
+                    idCliente:       nmClienteSelect?.value       || null,
+                    idLocalMontagem: nmLocalMontagemSelect?.value || null
                 };
 
                 console.log("Critérios para verificação de limite de função EM POST:", criteriosDeVerificacao);
@@ -5366,8 +5369,8 @@ async function verificaStaff() {
                 // }
 
                 // 🌟 VALIDAÇÃO DA DIÁRIA DOBRADA COM RECONSTRUÇÃO DE INJEÇÃO AUTOMÁTICA
-                // --- 7. VALIDAÇÃO CORRIGIDA DA DIÁRIA DOBRADA (COM RECONSTRUÇÃO AUTOMÁTICA) ---
-                if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
+    // --- 7. VALIDAÇÃO CORRIGIDA DA DIÁRIA DOBRADA (COM RECONSTRUÇÃO AUTOMÁTICA) ---
+    if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
                     if (!datasDobradas || datasDobradas.length === 0) {
                         return Swal.fire("Atenção!", "Você ativou a Diária Dobrada, mas não selecionou nenhuma data no calendário.", "warning");
                     }
@@ -6289,6 +6292,13 @@ listaObjetosOriginais.forEach(itemOrig => {
             try {
                 estaSalvando = true;
 
+                Swal.fire({
+                    title: "Salvando Staff...",
+                    html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div><p class="text-gray-500 text-sm mt-2">Aguarde enquanto salvamos seu Staff.</p>`,
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                });
+
                 console.log("Entrou no try. Método:", metodo, "URL:", url, window.tipoExcecaoAtual ? "Tipo de Exceção: " + window.tipoExcecaoAtual : "Sem tipo de exceção");
 
                 const deveSerInativo = window.bSalvarComoInativo === true || 
@@ -6373,109 +6383,6 @@ listaObjetosOriginais.forEach(itemOrig => {
                     if (idFuncionarioParaRecarregar) await carregarTabelaStaff(idFuncionarioParaRecarregar);
                     
                     window.StaffOriginal = null;
-
-                //     // --- MODAL DE DECISÃO PÓS-SALVAMENTO ---
-                //     const result = await Swal.fire({
-                //         title: "Deseja continuar?",
-                //         text: "O cadastro foi concluído. Quer cadastrar mais um ou finalizar?",
-                //         icon: "question", 
-                //         showCancelButton: true, 
-                //         showDenyButton: true,
-                //         confirmButtonText: "Cadastrar mais um (Manter dados)",
-                //         cancelButtonText: "Finalizar e Sair",
-                //         denyButtonText: "Cadastrar novo staff (Limpar tudo)",
-                //         reverseButtons: true, 
-                //         focusCancel: true
-                //     });
-
-                //     if (result.isConfirmed) {
-                //         // OPÇÃO: CADASTRAR MAIS UM (MANTER DADOS)
-                //         console.group("🔍 DEBUG: Revalidação Pós-Cadastro (Manter Dados)");
-
-                //         // 1. CAPTURA DAS IDs (Antes de limpar campos específicos de funcionário)
-                //         const idEv   = document.getElementById('nmEvento').value;
-                //         const idCli  = document.getElementById('nmCliente').value;
-                //         const idLoc  = document.getElementById('nmLocalMontagem').value;
-                //         const idFunc = document.getElementById('descFuncao').value;
-                //         const setor  = document.getElementById('setor')?.value;
-
-                //         // Captura das datas do Picker
-                //         const elDatas = document.getElementById('datasEvento') || document.getElementById('periodoEvento');
-                //         const picker = elDatas?._flatpickr || window.flatpickrInstances?.['datasEvento'];
-                        
-                //         let datasParaValidar = [];
-                //         if (picker && picker.selectedDates.length > 0) {
-                //             datasParaValidar = picker.selectedDates.map(date => {
-                //                 const d = new Date(date);
-                //                 d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-                //                 return d.toISOString().split('T')[0];
-                //             });
-                //         }
-
-                //         // 2. LIMPEZA PARCIAL (Remove o funcionário mas mantém o evento/função/datas)
-                //         if (typeof limparCamposStaffParcial === "function") {
-                //             limparCamposStaffParcial();
-                //         } else {
-                //             // Fallback manual se não houver a função parcial
-                //             document.getElementById('idFuncionario').value = '';
-                //             document.getElementById('nmFuncionario').value = '';
-                //             if(document.getElementById('imgFuncionario')) document.getElementById('imgFuncionario').src = 'img/sem-foto.png';
-                //         }
-
-                //         // 3. REVALIDAÇÃO AUTOMÁTICA DO ORÇAMENTO E LIMITES
-                //         // Aqui chamamos a função que agora possui a regra de 1 mês de margem
-                //         if (idEv && idLoc && idFunc && datasParaValidar.length > 0) {
-                //             console.log("🛡️ Revalidando orçamento para a próxima inserção...");
-                            
-                //             // buscarEPopularOrcamento já abrirá o modal de Aditivo/Extra/1 Mês se necessário
-                //             await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, datasParaValidar);
-                            
-                //             // Também revalidamos o limite de vagas (se ultrapassou a quantidade orçada)
-                //             const criterios = {
-                //                 idEvento: idEv,
-                //                 idLocalMontagem: idLoc,
-                //                 idFuncao: idFunc,
-                //                 setor: setor,
-                //                 datasEvento: datasParaValidar
-                //             };
-                            
-                //             if (typeof verificarLimiteDeFuncao === "function") {
-                //                 await verificarLimiteDeFuncao(criterios);
-                //             }
-                //         }
-
-                //         console.groupEnd();
-
-                //     } else if (result.isDenied) {
-                //         // OPÇÃO: CADASTRAR NOVO (LIMPAR TUDO)
-                //         window.currentEditingStaffEvent = null;
-                //         window.temOrcamento = false;
-                //         window.decisaoUsuarioDataFora = null;
-                //         limparCamposStaff(); // Limpa tudo, inclusive evento e datas
-                        
-                //     } else if (result.dismiss === Swal.DismissReason.cancel) {
-                //         // OPÇÃO: FINALIZAR E SAIR
-                //         console.log("Usuário escolheu: Finalizar e Sair");
-                //         window.currentEditingStaffEvent = null;
-                //         currentEditingStaffEvent = null;
-                //         window.temOrcamento = false;
-                //         window.decisaoUsuarioDataFora = null;
-                //         limparCamposStaff(); // Limpeza completa antes de fechar
-
-                //         if (typeof fecharModal === "function") {
-                //             fecharModal();
-                //         } else {
-                //             document.getElementById("modal-container").innerHTML = "";
-                //             document.getElementById("modal-overlay").style.display = "none";
-                //             document.body.classList.remove("modal-open");
-                //             if (typeof window.onStaffModalClosed === 'function') {
-                //                 const callback = window.onStaffModalClosed;
-                //                 window.onStaffModalClosed = null;
-                //                 callback(true); 
-                //             }
-                //         }
-                //     }
-                // }
                     // ====================================================================
                     // 🛡️ CONFIGURAÇÃO DINÂMICA DO MODAL DE DECISÃO PÓS-SALVAMENTO
                     // ====================================================================
@@ -6645,7 +6552,7 @@ listaObjetosOriginais.forEach(itemOrig => {
                     }
                 }
             } finally {
-                setTimeout(() => { estaSalvando = false; }, 1000);
+                setTimeout(() => { estaSalvando = false; Swal.close(); }, 1000);
             }
         });
     }
@@ -10280,8 +10187,12 @@ async function carregarLocalMontStaff() {
                    
                } else {   
                     console.log("Local de montagem selecionado:", selectedOption.textContent);                
-                   if ((selectedOption.getAttribute("data-ufmontagem") !== "SP") || (selectedOption.getAttribute("data-cidademontagem") !== "SÃO PAULO")) {
+                   //if ((selectedOption.getAttribute("data-ufmontagem") !== "SP") || (selectedOption.getAttribute("data-cidademontagem") !== "SÃO PAULO")) {
                         //Swal.fire("Atenção", "O local de montagem selecionado está fora do estado de SP. Verifique os custos adicionais de deslocamento.", "warning");
+                    const ufMontagem = selectedOption.getAttribute("data-ufmontagem").trim();
+                    const cidadeMontagem = selectedOption.getAttribute("data-cidademontagem").trim()
+                                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase(); // Remove acentos
+                    if (ufMontagem !== "SP" || cidadeMontagem !== "SAO PAULO") {
                         bForaSP = true;
                         if (containerViagens) {
                             containerViagens.style.display = 'block'; // Mostra o container
@@ -14555,14 +14466,1446 @@ document.addEventListener('click', function(e) {
 //     return { allowed: true, solicitouAutorizacao: false };
 // }
 
+// async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
+//     console.log("Iniciando verificação de limite de função com critérios:", criterios, "e dados de erro do backend:", dadosErroBackend);
+
+//     let nmEvento = (criterios.nmEvento || criterios.nmevento || '').trim().toUpperCase();
+//     let nmFuncao = (criterios.nmFuncao || criterios.nmfuncao || '').trim().toUpperCase();
+//     const idFuncionario = criterios.idFuncionario || document.getElementById('idFuncionario')?.value || null;
+//     const selectFunc = document.getElementById('nmFuncionario');       
+//     const nmFuncionario = criterios.nmFuncionario || selectFunc?.options[selectFunc.selectedIndex]?.text;
+
+//     // ==========================================================
+//     // 1. Coleta de datas de forma robusta e blindada
+//     // ==========================================================
+//     let datasSelecionadas = [];
+
+//     if (criterios.datasEvento && Array.isArray(criterios.datasEvento) && criterios.datasEvento.length > 0) {
+//         datasSelecionadas = criterios.datasEvento;
+//     } else if (criterios.datasevento && Array.isArray(criterios.datasevento) && criterios.datasevento.length > 0) {
+//         datasSelecionadas = criterios.datasevento;
+//     } else {
+//         const campoData = document.getElementById('periodoEvento') || document.getElementById('datasEvento');
+//         if (campoData && campoData.value) {
+//             datasSelecionadas = campoData.value.split(',')
+//                 .map(d => d.trim())
+//                 .filter(d => d.length > 0);
+//         } else if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+//             datasSelecionadas = campoData._flatpickr.selectedDates.map(d => d.toLocaleDateString('en-CA'));
+//         }
+//     }
+
+//     datasSelecionadas = datasSelecionadas.map(d => String(d).substring(0, 10));
+//     console.log("Datas selecionadas para verificação:", datasSelecionadas);
+
+//     const dataUnicaParaBanco = datasSelecionadas[0] || null;
+
+//     // Garante a leitura segura das dobras para evitar quebra de código
+//     let arrayDobras = criterios.datasEventoDobradas || (typeof datasEventoDobradas !== 'undefined' ? datasEventoDobradas : []);
+//     let countDobras = Array.isArray(arrayDobras) ? arrayDobras.length : 0;
+//     let ehDiariaDobrada = (countDobras > 0 || criterios.isDiariaDobrada === true || (typeof isDiariaDobrada !== 'undefined' && isDiariaDobrada === true));
+    
+//     if (ehDiariaDobrada) {
+//         console.log("🔄 [verificarLimiteDeFuncao] É Diária Dobrada detectada no início. Ignorando validações para seguir fluxo sequencial.");
+//         return { allowed: true }; 
+//     }
+
+//     if (typeof orcamentoPorFuncao === 'undefined' || !orcamentoPorFuncao) {
+//         window.orcamentoPorFuncao = {}; 
+//     }
+
+//     // ==========================================================
+//     // 2. Busca do Orçamento na Memória / Cache
+//     // ==========================================================
+//     let chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+//     let dadosOrcamento = window.orcamentoPorFuncao ? window.orcamentoPorFuncao[chaveSimples] : undefined;
+
+//     const idFuncaoProcurado = criterios.idFuncao || criterios.idfuncao;
+
+//     if (!dadosOrcamento && window.orcamentoPorFuncao) {
+//         const todasAsChaves = Object.keys(window.orcamentoPorFuncao);
+//         const chaveEncontrada = todasAsChaves.find(c => c.includes(nmEvento) && c.includes(nmFuncao));
+//         if (chaveEncontrada) dadosOrcamento = window.orcamentoPorFuncao[chaveEncontrada];
+//     }
+
+//     if (!dadosOrcamento && window.orcamentoPorFuncao && idFuncaoProcurado) {
+//         dadosOrcamento = Object.values(window.orcamentoPorFuncao).find(o => {
+//             if (!o) return false;
+//             return String(o.idfuncao) === String(idFuncaoProcurado) || 
+//                    String(o.idFuncao) === String(idFuncaoProcurado) ||
+//                    String(o.id_funcao) === String(idFuncaoProcurado);
+//         });
+        
+//         if (dadosOrcamento) {
+//             nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
+//             nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
+//             chaveSimples = `${nmEvento}-${nmFuncao}`;
+//             console.log(`💡 [verificarLimiteDeFuncao] Cache localizado via ID da Função: [${chaveSimples}]`);
+//         }
+//     }
+
+//     console.log("DADOS BRUTOS NO INÍCIO:", dadosOrcamento);
+
+//     // 3. Se não encontrar ou estiver incompleto, força recarga via API
+//     if (!dadosOrcamento || (!dadosOrcamento.quantidade_orcada && !dadosOrcamento.quantidadeOrcada)) {
+//         console.warn(`⚠️ Cache incompleto para '${chaveSimples}'. Forçando busca no banco...`);
+//         const idClienteDefinido = criterios.idCliente || criterios.idcliente || document.getElementById('nmCliente')?.value || null;
+
+//         let retornoApi = await buscarEPopularOrcamento(
+//             criterios.idEvento || criterios.idevento,
+//             idClienteDefinido,
+//             criterios.idLocalMontagem || criterios.idlocalmontagem, 
+//             criterios.idFuncao || criterios.idfuncao,
+//             datasSelecionadas,
+//             false,
+//             true
+//         );
+        
+//         if (retornoApi) {
+//             dadosOrcamento = Array.isArray(retornoApi) ? retornoApi[0] : retornoApi;
+//         }
+
+//         if (dadosOrcamento) {
+//             nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
+//             nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
+//             chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+//         }
+//     }
+
+//     // Fallback de segurança para não quebrar objetos
+//     if (!dadosOrcamento) {
+//         dadosOrcamento = { quantidadeOrcada: 0, quantidadeEscalada: 0, datasOrcadas: [] };
+//     }
+
+//     const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
+//     const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+
+//     // ==========================================================
+//     // --- LÓGICA CRÍTICA 1: VERIFICAÇÃO DE DATAS OUT-OF-BUDGET ---
+//     // ==========================================================
+//     // if (datasSelecionadas.length > 0) {
+//     //     let ehExcecaoDeData = false;
+//     //     let datasPermitidas = [];
+//     //     const datasSelNormalizadas = [...new Set(datasSelecionadas.map(d => String(d).trim().substring(0, 10)))];
+
+//     //     if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
+//     //         datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas) 
+//     //             ? dadosOrcamento.datasOrcadas 
+//     //             : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
+
+//     //         ehExcecaoDeData = datasSelNormalizadas.some(dataSel => !datasPermitidas.includes(dataSel));
+//     //     } else {
+//     //         ehExcecaoDeData = true; 
+//     //     }
+
+//     //     console.log("ehExcecaoDeData:", ehExcecaoDeData);
+//     // console.log("datasPermitidas:", datasPermitidas);
+//     // console.log("datasSelNormalizadas:", datasSelNormalizadas);
+//     // console.log("window.estaSalvando:", window.estaSalvando);
+
+//     //     if (ehExcecaoDeData) {
+//     //         if (window.justificativaParaSalvar && window.tipoExcecaoAtual) {
+//     //             return { allowed: false, solicitouAutorizacao: true, justificativa: window.justificativaParaSalvar, tipoSolicitacao: window.tipoExcecaoAtual };
+//     //         }
+
+//     //         // 🌟 EM VEZ DE RECALCULAR, HERDA O DIAGNÓSTICO DO BACKEND/API
+//     //         // Se a API não trouxe a propriedade, assume true por segurança (fallback)
+//     //         const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
+            
+//     //         // ✅ NOVO: filtra apenas as datas que estão fora
+//     //         const datasForaDoPeriodo = datasSelNormalizadas.filter(d => !datasPermitidas.includes(d));
+//     //         const datasForaDoPeriodoBR = datasForaDoPeriodo.map(d => d.split('-').reverse().join('/')).join(', ');
+
+//     //         // ✅ NOVO: verifica se há saldo disponível para a função
+//     //         const saldoAtual = limiteTotal - totalJaEscalado;
+//     //         const temSaldoDisponivel = saldoAtual > 0;
+
+//     //         // ============================================================
+//     //         // 🆕 FLUXO SEM VAGA: Swal com select de vagas disponíveis
+//     //         // ============================================================
+//     //         if (!temSaldoDisponivel) {
+//     //             // Busca vagas disponíveis de outras funções no orçamento
+//     //             const idEvento = criterios.idEvento || criterios.idevento;
+//     //             const idCliente = criterios.idCliente || criterios.idcliente || document.getElementById('nmCliente')?.value;
+//     //             const idLocalMontagem = criterios.idLocalMontagem || criterios.idlocalmontagem;
+//     //             const idEquipe = currentEditingStaffEvent?.idequipe || null;
+
+//     //             let vagasDisponiveis = [];
+//     //             try {
+//     //                 vagasDisponiveis = await fetchComToken('/staff/orcamento/vagas-disponiveis', {
+//     //                     method: 'POST',
+//     //                     headers: { 'Content-Type': 'application/json' },
+//     //                     body: JSON.stringify({
+//     //                         idOrcamento: null,
+//     //                         idEvento: parseInt(idEvento),
+//     //                         idCliente: parseInt(idCliente),
+//     //                         idLocalMontagem: parseInt(idLocalMontagem),
+//     //                         setor: '',
+//     //                         idEquipe: idEquipe ? parseInt(idEquipe) : null
+//     //                     })
+//     //                 });
+//     //             } catch (e) {
+//     //                 console.error("Erro ao buscar vagas disponíveis:", e);
+//     //             }
+
+//     //             let optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
+//     //             if (Array.isArray(vagasDisponiveis) && vagasDisponiveis.length > 0) {
+//     //                 vagasDisponiveis.forEach(vaga => {
+//     //                     const labelSetor = vaga.setor && vaga.setor !== 'Geral / Sem Setor' ? ` | Setor: ${vaga.setor}` : ' | Sem Setor';
+//     //                     const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
+//     //                     optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Saldo: ${vaga.saldo_disponivel})</option>`;
+//     //                 });
+//     //             } else {
+//     //                 optionsHtml = '<option value="">Nenhuma vaga disponível encontrada</option>';
+//     //             }
+
+//     //             let escolhaSemVaga = null;
+//     //             await Swal.fire({
+//     //                 icon: 'warning',
+//     //                 title: 'Sem Vagas — Período fora do Planejado',
+//     //                 html: `
+//     //                     <p style="font-size:14px; color:#666; margin-bottom:12px;">
+//     //                         A data <b>${datasForaDoPeriodoBR}</b> está fora do orçamento e <b>não há saldo disponível</b> para a função <b>${nmFuncao}</b>.<br><br>
+//     //                         Selecione uma vaga disponível de outra função ou solicite uma exceção:
+//     //                     </p>
+//     //                     <select id="swal-select-vaga-excecao" class="form-control" style="width:100%; height:40px; font-size:13px; border-radius:6px; padding:6px 12px; margin-bottom:10px;">
+//     //                         ${optionsHtml}
+//     //                     </select>
+//     //                 `,
+//     //                 showConfirmButton: false,
+//     //                 showCancelButton: false,
+//     //                 allowOutsideClick: false,
+//     //                 width: '520px',
+//     //                 footer: `
+//     //                     <div style="display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap;">
+//     //                         <button id="btn-excecao-aditivo" class="btn" style="padding:8px 16px; background:#8B0000; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                             <i class="fa fa-plus"></i> Solicitar Aditivo
+//     //                         </button>
+//     //                         <button id="btn-excecao-extra" class="btn" style="padding:8px 16px; background:#DC3545; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                             <i class="fa fa-star"></i> Extra Bonificado
+//     //                         </button>
+//     //                         <button id="btn-excecao-corrigir" class="btn" style="padding:8px 16px; background:#6C757D; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                             Corrigir Datas
+//     //                         </button>
+//     //                     </div>
+//     //                 `,
+//     //                 didOpen: () => {
+//     //                     document.getElementById('btn-excecao-aditivo').addEventListener('click', () => {
+//     //                         escolhaSemVaga = 'ADITIVO';
+//     //                         Swal.close();
+//     //                     });
+//     //                     document.getElementById('btn-excecao-extra').addEventListener('click', () => {
+//     //                         escolhaSemVaga = 'EXTRA_BONIFICADO';
+//     //                         Swal.close();
+//     //                     });
+//     //                     document.getElementById('btn-excecao-corrigir').addEventListener('click', () => {
+//     //                         escolhaSemVaga = 'CORRIGIR';
+//     //                         Swal.close();
+//     //                     });
+//     //                 }
+//     //             });
+
+//     //             if (!escolhaSemVaga || escolhaSemVaga === 'CORRIGIR') {
+//     //                 return { allowed: false, preventDefault: true };
+//     //             }
+
+//     //             const tipoEscolhido = escolhaSemVaga === 'ADITIVO'
+//     //                 ? 'Aditivo - Datas fora do Orçamento'
+//     //                 : 'Extra Bonificado - Datas fora do Orçamento';
+
+//     //             const dadosExcecao = await solicitarDadosExcecao(
+//     //                 tipoEscolhido,
+//     //                 dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//     //                 nmFuncao,
+//     //                 idFuncaoProcurado,
+//     //                 idFuncionario,
+//     //                 datasForaDoPeriodo
+//     //             );
+
+//     //             if (dadosExcecao?.confirmado) {
+//     //                 window.tipoExcecaoAtual = tipoEscolhido;
+//     //                 window.justificativaParaSalvar = dadosExcecao.justificativa;
+//     //                 window.bSalvarComoInativo = true;
+//     //                 return { allowed: false, solicitouAutorizacao: true, justificativa: dadosExcecao.justificativa, tipoSolicitacao: tipoEscolhido };
+//     //             }
+
+//     //             return { allowed: false };
+//     //         }
+
+//     //         // ============================================================
+//     //         // FLUXO ORIGINAL — COM VAGA DISPONÍVEL (mantido como está)
+//     //         // ============================================================
+
+//     //         // 📥 SWAL 1: Alerta preventivo (Info) baseado no diagnóstico herdado
+//     //         if (!dadosErroBackend && !window.estaSalvando) {
+//     //             let htmlMensagemInfo = `As datas <b>${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado.<br><br>`;
+                
+//     //             if (dentroDaMargem) {
+//     //                 htmlMensagemInfo += `<div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//     //                     ℹ️ <b>Informativo:</b> Este período está <b>dentro da margem permitida de 30 dias</b> do planejamento original.
+//     //                 </div>`;
+//     //             } else {
+//     //                 htmlMensagemInfo += `<div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//     //                     🛑 <b>Atenção:</b> O período selecionado está <b>fora da margem permitida</b> de tolerância.
+//     //                 </div>`;
+//     //             }
+//     //             htmlMensagemInfo += `<p style="margin-top:15px;">Deseja prosseguir para classificar a exceção ou corrigir as datas?</p>`;
+
+//     //             const { isConfirmed } = await Swal.fire({
+//     //                 icon: dentroDaMargem ? 'info' : 'warning',
+//     //                 title: 'Período fora do planejado',
+//     //                 html: htmlMensagemInfo,
+//     //                 showCancelButton: true,
+//     //                 confirmButtonText: 'Prosseguir',
+//     //                 cancelButtonText: 'Corrigir Datas',
+//     //                 confirmButtonColor: '#28a745'
+//     //             });
+
+//     //             if (!isConfirmed) return { allowed: false, preventDefault: true };
+//     //         }
+
+//     //         // 📥 SWAL 2: Alerta de Envio (Warning com opções de Aditivo/Extra)
+//     //         let decisaoManual = null;
+//     //         let htmlExcecaoComOpcoes = `As datas selecionadas não constam no orçamento aprovado.<br><br>`;
+            
+//     //         if (dentroDaMargem) {
+//     //             htmlExcecaoComOpcoes += `<div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//     //                 As datas <b>${datasForaDoPeriodoBR}</b> não estão no orçamento, mas estão dentro da margem permitida de 30 dias.
+//     //             </div>
+//     //             <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>`;
+//     //         } else {
+//     //             htmlExcecaoComOpcoes += `<div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
+//     //                 🛑 <b>Bloqueio:</b> Período totalmente fora da margem planejada. Uma autorização de aditivo é obrigatória.
+//     //             </div>`;
+//     //         }
+
+//     //         const resultDatas = await Swal.fire({
+//     //             icon: 'warning',
+//     //             title: 'Data fora do Orçamento',
+//     //             html: htmlExcecaoComOpcoes,
+//     //             showCancelButton: true,
+//     //             showDenyButton: true,
+//     //             confirmButtonText: 'Solicitar Aditivo',
+//     //             denyButtonText: 'Extra Bonificado',
+//     //             cancelButtonText: 'Cancelar',
+//     //             footer: dentroDaMargem ? `
+//     //                 <button id="btnProsseguirSem" 
+//     //                         style="width: 100%; 
+//     //                             padding: 12px; 
+//     //                             background-color: #7a1e27; 
+//     //                             color: white; 
+//     //                             border: none; 
+//     //                             border-radius: .25em; 
+//     //                             font-size: 1rem; 
+//     //                             font-weight: 500; 
+//     //                             cursor: pointer; 
+//     //                             transition: background-color 0.1s;
+//     //                             box-shadow: 0 0 0 3px transparent;">
+//     //                     Prosseguir sem solicitação
+//     //                 </button>
+//     //             ` : '',
+//     //             didOpen: () => {
+//     //                 if (dentroDaMargem) {
+//     //                     const btnProsseguir = document.getElementById('btnProsseguirSem');
+//     //                     if (btnProsseguir) {
+//     //                         btnProsseguir.onclick = () => {
+//     //                             decisaoManual = 'prosseguir';
+//     //                             Swal.clickConfirm();
+//     //                         };
+//     //                     }
+//     //                 }
+//     //             }
+//     //         });
+
+         
+
+//     //         if ((resultDatas.isConfirmed || resultDatas.isDenied) && decisaoManual !== 'prosseguir') {
+//     //             const sufixo = resultDatas.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//     //             const tipoEscolhido = `${sufixo} - Datas fora do Orçamento`;
+
+
+//     //              // Calcula as datas que realmente excedem o saldo
+//     //             const saldoRestante = Math.max(0, limiteTotal - totalJaEscalado);
+//     //             const datasExcedentes = datasSelecionadas.slice(saldoRestante);
+//     //             const datasParaSolicitar = datasExcedentes.length > 0 ? datasExcedentes : datasSelecionadas;
+               
+                
+//     //             const dadosExcecao = await solicitarDadosExcecao(
+//     //                 tipoEscolhido, 
+//     //                 dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0, 
+//     //                 nmFuncao, 
+//     //                 idFuncaoProcurado, 
+//     //                 idFuncionario, 
+//     //                 //dataUnicaParaBanco
+//     //                 datasParaSolicitar
+//     //             );
+
+//     //             if (dadosExcecao && dadosExcecao.confirmado) {
+//     //                 window.tipoExcecaoAtual = tipoEscolhido;
+//     //                 window.justificativaParaSalvar = dadosExcecao.justificativa;
+//     //                 window.bSalvarComoInativo = true;
+                    
+//     //                 return { 
+//     //                     allowed: false, 
+//     //                     solicitouAutorizacao: true, 
+//     //                     justificativa: dadosExcecao.justificativa, 
+//     //                     tipoSolicitacao: tipoEscolhido 
+//     //                 };
+//     //             }
+//     //             return { allowed: false };
+//     //         } else if (decisaoManual === 'prosseguir') {
+//     //             window.bSalvarComoInativo = false;
+//     //             window.tipoExcecaoAtual = null;
+                
+//     //             // Grava o histórico na observação geral por estar dentro da margem
+//     //             const elObs = document.getElementById('obsgeral');
+//     //             if (elObs) {
+//     //                 const periodoOriginalBR = datasPermitidas.map(d => d.split('-').reverse().join('/')).join(', ');
+//     //                 const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
+//     //                 const logHist = `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasFormatadasBR} por margem de tolerância. Por: ${nomeUsuarioLogado}.`;
+//     //                 elObs.value = (elObs.value + logHist).trim();
+//     //             }
+//     //             // Deixa vazar para avaliar a contagem de vagas abaixo
+//     //         } else {
+//     //             return { allowed: false }; 
+//     //         }
+//     //     }
+//     // }
+
+//     // // ==========================================================
+//     // // --- LÓGICA CRÍTICA 2: CONTAGEM GLOBAL DE VAGAS ---
+//     // // ==========================================================
+//     // if (dadosOrcamento) {
+//     //     let vagasOcupadasNaTabela = 0;
+//     //     const normalizarTextoGeral = (txt) => String(txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+//     //     const nmFuncaoNormalizada = normalizarTextoGeral(nmFuncao);
+
+//     //     document.querySelectorAll('#eventsTableBody tr').forEach(linha => {
+//     //         try {
+//     //             const data = JSON.parse(linha.dataset.eventData);
+//     //             if (normalizarTextoGeral(data.nmfuncao) === nmFuncaoNormalizada && data.statusstaff !== 'Inativo') {
+                    
+//     //                 const datasDoStaff = Array.isArray(data.datasevento) ? data.datasevento : JSON.parse(data.datasevento || '[]');
+//     //                 vagasOcupadasNaTabela += datasDoStaff.length;
+
+//     //                 // if (data.datadiariadobrada) {
+//     //                 //     const dobras = typeof data.datadiariadobrada === 'string' ? JSON.parse(data.datadiariadobrada) : data.datadiariadobrada;
+//     //                 //     if (Array.isArray(dobras)) {
+//     //                 //         vagasOcupadasNaTabela += dobras.length;
+//     //                 //     }
+//     //                 // }
+
+//     //                 if (data.dtdiariadobrada) {
+//     //                     const dobras = typeof data.dtdiariadobrada === 'string' 
+//     //                         ? JSON.parse(data.dtdiariadobrada) 
+//     //                         : data.dtdiariadobrada;
+//     //                     if (Array.isArray(dobras)) {
+//     //                         const dobrasNestaFuncao = dobras.filter(d => 
+//     //                             (d.status === 'Pendente' || d.status === 'Autorizado') &&
+//     //                             String(d.idfuncaodobra) === String(idFuncaoProcurado)
+//     //                         );
+//     //                         vagasOcupadasNaTabela += dobrasNestaFuncao.length;
+//     //                     }
+//     //                 }
+//     //             }
+//     //         } catch (e) {
+//     //             console.error("Erro ao computar linha da tabela:", e);
+//     //         }
+//     //     });
+
+       
+
+//     //     const qttDiariasNormais = datasSelecionadas.length;
+//     //     const impactoDestaAcao = qttDiariasNormais + countDobras;
+
+//     //     const totalGeralDesejado = totalJaEscalado + vagasOcupadasNaTabela + impactoDestaAcao;
+
+//     //     console.log("📊 [Seção Vagas] Verificação:", {
+//     //         limiteTotal,
+//     //         totalJaEscalado,
+//     //         vagasOcupadasNaTabela,
+//     //         impactoDestaAcao,
+//     //         totalGeralDesejado
+//     //     });
+
+//     //     if (totalGeralDesejado > limiteTotal) {
+//     //         const saldoNoOrcamento = limiteTotal - (totalJaEscalado + vagasOcupadasNaTabela);
+            
+//     //         const temVagaDisponivelReal = saldoNoOrcamento > 0 && saldoNoOrcamento >= impactoDestaAcao;
+            
+//     //         const diasComDobraBR = typeof formatarDatas === 'function' ? formatarDatas([...new Set(arrayDobras)]) : arrayDobras.join(', ');
+
+//     //         let msg = `O limite de vagas para <b>${nmFuncao}</b> foi atingido.<br><br>`;
+            
+//     //         if (temVagaDisponivelReal) {
+//     //             msg += `Você está soliciting <b>${impactoDestaAcao} diárias</b> (incluindo as dobras de ${diasComDobraBR}).<br>
+//     //                     O orçamento atual da função possui <b>${saldoNoOrcamento} vaga(s)</b> disponível(is) em outros dias do período.<br><br>
+//     //                     Deseja reaproveitar essas vagas do orçamento ou solicitar nova verba?`;
+//     //         } else {
+//     //             const saldoExibicao = saldoNoOrcamento > 0 ? saldoNoOrcamento : 0;
+//     //             msg += `⚠️ O orçamento geral da função é insuficiente ou está totalmente esgotado.<br>`;
+//     //             msg += `Você inseriu <b>${impactoDestaAcao} diárias</b>, mas o saldo restante é de apenas <b>${saldoExibicao} diária(s)</b> (Limite Total: ${limiteTotal}).<br><br>`;
+//     //             msg += `Como deseja prosseguir?`;
+//     //         }
+
+//     //         const resultVaga = await Swal.fire({
+//     //             icon: 'warning',
+//     //             title: 'Limite de Diárias Excedido',
+//     //             html: msg,
+//     //             showCancelButton: true,
+//     //             showDenyButton: true,
+//     //             confirmButtonText: temVagaDisponivelReal ? 'Usar Vaga de outro período' : 'Solicitar Aditivo',
+//     //             confirmButtonColor: temVagaDisponivelReal ? '#28a745' : '#5f1420', 
+//     //             denyButtonText: 'Extra Bonificado',
+//     //             denyButtonColor: '#dc3545',
+//     //             cancelButtonText: 'Corrigir Datas',
+//     //             cancelButtonColor: '#6c757d'
+//     //         });
+
+//     //         if (resultVaga.isDismissed) {
+//     //             return { allowed: false, solicitouAutorizacao: false };
+//     //         }
+
+//     //         if (resultVaga.isConfirmed && temVagaDisponivelReal) {
+//     //             window.tipoExcecaoAtual = "Vaga Reaproveitada"; 
+//     //             window.bSalvarComoInativo = false; 
+//     //             return { allowed: true };
+//     //         }
+
+//     //         if (resultVaga.isConfirmed || resultVaga.isDenied) {
+//     //             const sufixo = resultVaga.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//     //             const tipoEscolhido = `${sufixo} - Vaga Excedida`;
+
+//     //             // Datas que excedem o saldo
+//     //             const saldoRestante = Math.max(0, limiteTotal - totalJaEscalado);
+//     //             const datasExcedentes = datasSelecionadas.slice(saldoRestante);
+//     //             const datasFinais = datasExcedentes.length > 0 ? datasExcedentes : datasSelecionadas;
+
+//     //             const dadosExcecao = await solicitarDadosExcecao(
+//     //                 tipoEscolhido,
+//     //                 dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//     //                 nmFuncao,
+//     //                 idFuncaoProcurado,
+//     //                 idFuncionario,
+//     //                 datasFinais
+//     //                 //dataUnicaParaBanco
+//     //             );
+
+//     //             if (dadosExcecao && dadosExcecao.confirmado) {
+//     //                 window.tipoExcecaoAtual = tipoEscolhido;
+//     //                 window.justificativaParaSalvar = dadosExcecao.justificativa;
+//     //                 window.bSalvarComoInativo = true; 
+//     //                 window.datasParaSalvarNoBanco = datasFinais;
+
+//     //                 return {
+//     //                     allowed: false,
+//     //                     solicitouAutorizacao: true,
+//     //                     justificativa: dadosExcecao.justificativa,
+//     //                     tipoSolicitacao: tipoEscolhido
+//     //                 };
+//     //             }
+//     //         }
+//     //         return { allowed: false }; 
+//     //     }
+//     // }
+//     // --- SEÇÃO 2: VERIFICAÇÃO DE DATAS ---
+//     if (datasSelecionadas.length > 0) {
+//         let ehExcecaoDeData = false;
+//         let datasPermitidas = [];
+//         const datasSelNormalizadas = [...new Set(datasSelecionadas.map(d => String(d).trim().substring(0, 10)))];
+
+//         if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
+//             datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas)
+//                 ? dadosOrcamento.datasOrcadas
+//                 : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
+
+//             ehExcecaoDeData = datasSelNormalizadas.some(dataSel => !datasPermitidas.includes(dataSel));
+//         } else {
+//             ehExcecaoDeData = true;
+//         }
+
+//         if (ehExcecaoDeData) {
+//             if (window.justificativaParaSalvar && window.tipoExcecaoAtual) {
+//                 return { allowed: false, solicitouAutorizacao: true, justificativa: window.justificativaParaSalvar, tipoSolicitacao: window.tipoExcecaoAtual };
+//             }
+
+//             // ✅ Apenas as datas que realmente estão fora do orçamento
+//             const datasForaDoPeriodo = datasSelNormalizadas.filter(d => !datasPermitidas.includes(d));
+//             const datasForaDoPeriodoBR = datasForaDoPeriodo.map(d => d.split('-').reverse().join('/')).join(', ');
+
+//             const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
+
+//             // ✅ Saldo disponível considerando o que já está escalado + tabela na tela
+//             const saldoAtual = limiteTotal - totalJaEscalado;
+//             const temSaldoDisponivel = saldoAtual > 0;
+
+//             console.log("📊 [Seção 2] Diagnóstico:", {
+//                 datasForaDoPeriodo,
+//                 datasPermitidas,
+//                 limiteTotal,
+//                 totalJaEscalado,
+//                 saldoAtual,
+//                 temSaldoDisponivel,
+//                 dentroDaMargem
+//             });
+
+//             // ============================================================
+//             // 🔴 FLUXO SEM SALDO: Swal com select de vagas + botões de exceção
+//             // ============================================================
+//             if (!temSaldoDisponivel) {
+//                 // Busca vagas disponíveis de outras funções no mesmo orçamento
+//                 const idEventoEx  = criterios.idEvento || criterios.idevento;
+//                 const idClienteEx = criterios.idCliente || criterios.idcliente || document.getElementById('nmCliente')?.value;
+//                 const idLocalEx   = criterios.idLocalMontagem || criterios.idlocalmontagem;
+//                 const idEquipeEx  = currentEditingStaffEvent?.idequipe || null;
+
+//                 let vagasDisponiveis = [];
+//                 try {
+//                     vagasDisponiveis = await fetchComToken('/staff/orcamento/vagas-disponiveis', {
+//                         method: 'POST',
+//                         headers: { 'Content-Type': 'application/json' },
+//                         body: JSON.stringify({
+//                             idOrcamento: null,
+//                             idEvento: parseInt(idEventoEx),
+//                             idCliente: parseInt(idClienteEx),
+//                             idLocalMontagem: parseInt(idLocalEx),
+//                             setor: '',
+//                             idEquipe: idEquipeEx ? parseInt(idEquipeEx) : null
+//                         })
+//                     });
+//                 } catch (e) {
+//                     console.error("❌ Erro ao buscar vagas disponíveis:", e);
+//                 }
+
+//                 // Monta o <select> com as vagas retornadas
+//                 let optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
+//                 if (Array.isArray(vagasDisponiveis) && vagasDisponiveis.length > 0) {
+//                     vagasDisponiveis.forEach(vaga => {
+//                         const labelSetor   = vaga.setor && vaga.setor !== 'Geral / Sem Setor' ? ` | Setor: ${vaga.setor}` : ' | Sem Setor';
+//                         const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
+//                         optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">
+//                             ${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Saldo: ${vaga.saldo_disponivel})
+//                         </option>`;
+//                     });
+//                 } else {
+//                     optionsHtml = '<option value="">Nenhuma vaga disponível encontrada</option>';
+//                 }
+
+//                 let escolhaSemSaldo = null;
+
+//                 await Swal.fire({
+//                     icon: 'warning',
+//                     title: 'Data fora do Orçamento — Sem Saldo',
+//                     html: `
+//                         <p style="font-size:14px; color:#555; margin-bottom:12px; text-align:left;">
+//                             A(s) data(s) <b>${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado
+//                             e <b>não há saldo disponível</b> para a função <b>${nmFuncao}</b>.
+//                         </p>
+//                         <p style="font-size:13px; color:#777; margin-bottom:8px; text-align:left;">
+//                             Selecione uma vaga disponível de outra função para reaproveitar ou solicite uma exceção:
+//                         </p>
+//                         <select id="swal-select-vaga-semdado" class="form-control"
+//                             style="width:100%; height:42px; font-size:13px; border-radius:6px; padding:6px 12px;">
+//                             ${optionsHtml}
+//                         </select>
+//                     `,
+//                     showConfirmButton: false,
+//                     showCancelButton: false,
+//                     allowOutsideClick: false,
+//                     width: '540px',
+//                     footer: `
+//                         <div style="display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap; padding-bottom:4px;">
+//                             <button id="btn-semsaldo-aditivo" class="btn"
+//                                 style="padding:9px 18px; background:#8B0000; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 <i class="fa fa-plus"></i> Solicitar Aditivo
+//                             </button>
+//                             <button id="btn-semsaldo-extra" class="btn"
+//                                 style="padding:9px 18px; background:#DC3545; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 <i class="fa fa-star"></i> Extra Bonificado
+//                             </button>
+//                             <button id="btn-semsaldo-corrigir" class="btn"
+//                                 style="padding:9px 18px; background:#6C757D; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 Corrigir Datas
+//                             </button>
+//                         </div>
+//                     `,
+//                     didOpen: () => {
+//                         document.getElementById('btn-semsaldo-aditivo').addEventListener('click', () => {
+//                             escolhaSemSaldo = 'ADITIVO';
+//                             Swal.close();
+//                         });
+//                         document.getElementById('btn-semsaldo-extra').addEventListener('click', () => {
+//                             escolhaSemSaldo = 'EXTRA_BONIFICADO';
+//                             Swal.close();
+//                         });
+//                         document.getElementById('btn-semsaldo-corrigir').addEventListener('click', () => {
+//                             escolhaSemSaldo = 'CORRIGIR';
+//                             Swal.close();
+//                         });
+//                     }
+//                 });
+
+//                 if (!escolhaSemSaldo || escolhaSemSaldo === 'CORRIGIR') {
+//                     return { allowed: false, preventDefault: true };
+//                 }
+
+//                 const tipoEscolhido = escolhaSemSaldo === 'ADITIVO'
+//                     ? 'Aditivo - Datas fora do Orçamento'
+//                     : 'Extra Bonificado - Datas fora do Orçamento';
+
+//                 const dadosExcecao = await solicitarDadosExcecao(
+//                     tipoEscolhido,
+//                     dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//                     nmFuncao,
+//                     idFuncaoProcurado,
+//                     idFuncionario,
+//                     datasForaDoPeriodo
+//                 );
+
+//                 if (dadosExcecao?.confirmado) {
+//                     window.tipoExcecaoAtual = tipoEscolhido;
+//                     window.justificativaParaSalvar = dadosExcecao.justificativa;
+//                     window.bSalvarComoInativo = true;
+//                     return {
+//                         allowed: false,
+//                         solicitouAutorizacao: true,
+//                         justificativa: dadosExcecao.justificativa,
+//                         tipoSolicitacao: tipoEscolhido
+//                     };
+//                 }
+//                 return { allowed: false };
+//             }
+
+//             // ============================================================
+//             // 🟡 FLUXO COM SALDO: Swal informativo do estilo antigo
+//             // ============================================================
+
+//             // SWAL 1 — Informativo (apenas se não veio do backend e não está salvando)
+//             if (!dadosErroBackend && !window.estaSalvando) {
+//                 const htmlInfo = `
+//                     As datas <b>${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado.<br><br>
+//                     ${dentroDaMargem
+//                         ? `<div style="color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:5px; font-size:0.85rem; text-align:left;">
+//                             ℹ️ <b>Informativo:</b> Este período está <b>dentro da margem permitida de 30 dias</b> do planejamento original.
+//                         </div>`
+//                         : `<div style="color:#721c24; background:#f8d7da; border:1px solid #f5c6cb; padding:10px; border-radius:5px; font-size:0.85rem; text-align:left;">
+//                             🛑 <b>Atenção:</b> O período selecionado está <b>fora da margem permitida</b> de tolerância.
+//                         </div>`
+//                     }
+//                     <p style="margin-top:15px;">Deseja prosseguir para classificar a exceção ou corrigir as datas?</p>
+//                 `;
+
+//                 const { isConfirmed: prosseguiu } = await Swal.fire({
+//                     icon: dentroDaMargem ? 'info' : 'warning',
+//                     title: 'Período fora do planejado',
+//                     html: htmlInfo,
+//                     showCancelButton: true,
+//                     confirmButtonText: 'Prosseguir',
+//                     cancelButtonText: 'Corrigir Datas',
+//                     confirmButtonColor: '#28a745'
+//                 });
+
+//                 if (!prosseguiu) return { allowed: false, preventDefault: true };
+//             }
+
+//             // SWAL 2 — Decisão de exceção
+//             let decisaoManual = null;
+
+//             const htmlExcecao = `
+//                 As datas selecionadas não constam no orçamento aprovado.<br><br>
+//                 ${dentroDaMargem
+//                     ? `<div style="color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:5px; font-size:0.85rem; text-align:left;">
+//                         As datas <b>${datasForaDoPeriodoBR}</b> não estão no orçamento, mas estão dentro da margem permitida de 30 dias.
+//                     </div>
+//                     <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>`
+//                     : `<div style="color:#721c24; background:#f8d7da; border:1px solid #f5c6cb; padding:10px; border-radius:5px; font-size:0.85rem; text-align:left;">
+//                         🛑 <b>Bloqueio:</b> Período totalmente fora da margem planejada. Uma autorização de aditivo é obrigatória.
+//                     </div>`
+//                 }
+//             `;
+
+//             const resultDatas = await Swal.fire({
+//                 icon: 'warning',
+//                 title: 'Data fora do Orçamento',
+//                 html: htmlExcecao,
+//                 showCancelButton: true,
+//                 showDenyButton: true,
+//                 confirmButtonText: 'Solicitar Aditivo',
+//                 denyButtonText: 'Extra Bonificado',
+//                 cancelButtonText: 'Cancelar',
+//                 footer: dentroDaMargem ? `
+//                     <button id="btnProsseguirSem"
+//                         style="width:100%; padding:12px; background-color:#7a1e27; color:white; border:none;
+//                             border-radius:.25em; font-size:1rem; font-weight:500; cursor:pointer;">
+//                         Prosseguir sem solicitação
+//                     </button>` : '',
+//                 didOpen: () => {
+//                     const btnP = document.getElementById('btnProsseguirSem');
+//                     if (btnP) {
+//                         btnP.onclick = () => {
+//                             decisaoManual = 'prosseguir';
+//                             Swal.close();
+//                         };
+//                     }
+//                 }
+//             });
+
+//             if (decisaoManual === 'prosseguir') {
+//                 window.bSalvarComoInativo = false;
+//                 window.tipoExcecaoAtual = null;
+//                 // Registra histórico na observação geral
+//                 const elObs = document.getElementById('obsgeral');
+//                 if (elObs) {
+//                     const periodoOriginalBR = datasPermitidas.map(d => d.split('-').reverse().join('/')).join(', ');
+//                     const nomeUsuario = window.usuarioLogadoNome || "Sistema";
+//                     elObs.value = (elObs.value + `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasForaDoPeriodoBR} por margem de tolerância. Por: ${nomeUsuario}.`).trim();
+//                 }
+//                 // Deixa passar para a Seção 3 (contagem de vagas)
+
+//             } else if ((resultDatas.isConfirmed || resultDatas.isDenied) && decisaoManual !== 'prosseguir') {
+//                 const sufixo = resultDatas.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
+//                 const tipoEscolhido = `${sufixo} - Datas fora do Orçamento`;
+
+//                 const saldoRestante = Math.max(0, limiteTotal - totalJaEscalado);
+//                 const datasExcedentes = datasSelecionadas.slice(saldoRestante);
+//                 const datasParaSolicitar = datasExcedentes.length > 0 ? datasExcedentes : datasForaDoPeriodo;
+
+//                 const dadosExcecao = await solicitarDadosExcecao(
+//                     tipoEscolhido,
+//                     dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//                     nmFuncao,
+//                     idFuncaoProcurado,
+//                     idFuncionario,
+//                     datasParaSolicitar
+//                 );
+
+//                 if (dadosExcecao?.confirmado) {
+//                     window.tipoExcecaoAtual = tipoEscolhido;
+//                     window.justificativaParaSalvar = dadosExcecao.justificativa;
+//                     window.bSalvarComoInativo = true;
+//                     return {
+//                         allowed: false,
+//                         solicitouAutorizacao: true,
+//                         justificativa: dadosExcecao.justificativa,
+//                         tipoSolicitacao: tipoEscolhido
+//                     };
+//                 }
+//                 return { allowed: false };
+
+//             } else {
+//                 // Cancelou
+//                 return { allowed: false };
+//             }
+//         }
+//     }
+
+//     return { allowed: true, solicitouAutorizacao: false };
+// }
+
+
+// async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
+//  console.log("Iniciando verificação de limite de função com critérios:", criterios, "e dados de erro do backend:", dadosErroBackend);
+
+//  let nmEvento = (criterios.nmEvento || criterios.nmevento || '').trim().toUpperCase();
+//  let nmFuncao = (criterios.nmFuncao || criterios.nmfuncao || '').trim().toUpperCase();
+//  const idFuncionario = criterios.idFuncionario || document.getElementById('idFuncionario')?.value || null;
+//  const selectFunc = document.getElementById('nmFuncionario');       
+//  const nmFuncionario = criterios.nmFuncionario || selectFunc?.options[selectFunc.selectedIndex]?.text;
+
+//     // Logo após a leitura de idFuncionario, adicione:
+//     const idEvento = criterios.idEvento || criterios.idevento 
+//         || document.getElementById('idEvento')?.value 
+//         || window.idEventoAtual 
+//         || null;
+
+//     const idLocalMontagem = criterios.idLocalMontagem || criterios.idlocalmontagem
+//         || document.getElementById('idLocalMontagem')?.value
+//         || window.idLocalMontagemAtual
+//         || null;
+
+//  // ==========================================================
+//  // 1. Coleta de datas de forma robusta e blindada
+//  // ==========================================================
+//  let datasSelecionadas = [];
+
+//  if (criterios.datasEvento && Array.isArray(criterios.datasEvento) && criterios.datasEvento.length > 0) {
+//  datasSelecionadas = criterios.datasEvento;
+//  } else if (criterios.datasevento && Array.isArray(criterios.datasevento) && criterios.datasevento.length > 0) {
+//  datasSelecionadas = criterios.datasevento;
+//  } else {
+//  const campoData = document.getElementById('periodoEvento') || document.getElementById('datasEvento');
+//  if (campoData && campoData.value) {
+//  datasSelecionadas = campoData.value.split(',')
+//  .map(d => d.trim())
+//  .filter(d => d.length > 0);
+//  } else if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
+//  datasSelecionadas = campoData._flatpickr.selectedDates.map(d => d.toLocaleDateString('en-CA'));
+//  }
+//  }
+
+//  datasSelecionadas = datasSelecionadas.map(d => String(d).substring(0, 10));
+//  console.log("Datas selecionadas para verificação:", datasSelecionadas);
+
+//  const dataUnicaParaBanco = datasSelecionadas[0] || null;
+
+//  // Garante a leitura segura das dobras para evitar quebra de código
+//  let arrayDobras = criterios.datasEventoDobradas || (typeof datasEventoDobradas !== 'undefined' ? datasEventoDobradas : []);
+//  let countDobras = Array.isArray(arrayDobras) ? arrayDobras.length : 0;
+//  let ehDiariaDobrada = (countDobras > 0 || criterios.isDiariaDobrada === true || (typeof isDiariaDobrada !== 'undefined' && isDiariaDobrada === true));
+//  
+//  if (ehDiariaDobrada) {
+//  console.log("🔄 [verificarLimiteDeFuncao] É Diária Dobrada detectada no início. Ignorando validações para seguir fluxo sequencial.");
+//  return { allowed: true }; 
+//  }
+
+//  if (typeof orcamentoPorFuncao === 'undefined' || !orcamentoPorFuncao) {
+//  window.orcamentoPorFuncao = {}; 
+//  }
+
+//  // ==========================================================
+//  // 2. Busca do Orçamento na Memória / Cache
+//  // ==========================================================
+//  let chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+//  let dadosOrcamento = window.orcamentoPorFuncao ? window.orcamentoPorFuncao[chaveSimples] : undefined;
+
+//  const idFuncaoProcurado = criterios.idFuncao || criterios.idfuncao;
+
+//  if (!dadosOrcamento && window.orcamentoPorFuncao) {
+//  const todasAsChaves = Object.keys(window.orcamentoPorFuncao);
+//  const chaveEncontrada = todasAsChaves.find(c => c.includes(nmEvento) && c.includes(nmFuncao));
+//  if (chaveEncontrada) dadosOrcamento = window.orcamentoPorFuncao[chaveEncontrada];
+//  }
+
+//  if (!dadosOrcamento && window.orcamentoPorFuncao && idFuncaoProcurado) {
+//  dadosOrcamento = Object.values(window.orcamentoPorFuncao).find(o => {
+//  if (!o) return false;
+//  return String(o.idfuncao) === String(idFuncaoProcurado) || 
+//     String(o.idFuncao) === String(idFuncaoProcurado) ||
+//     String(o.id_funcao) === String(idFuncaoProcurado);
+//  });
+//  
+//  if (dadosOrcamento) {
+//  nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
+//  nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
+//  chaveSimples = `${nmEvento}-${nmFuncao}`;
+//  console.log(`💡 [verificarLimiteDeFuncao] Cache localizado via ID da Função: [${chaveSimples}]`);
+//  }
+//  }
+
+//  console.log("DADOS BRUTOS NO INÍCIO:", dadosOrcamento);
+
+//  // 3. Se não encontrar ou estiver incompleto, força recarga via API
+//  if (!dadosOrcamento || (!dadosOrcamento.quantidade_orcada && !dadosOrcamento.quantidadeOrcada)) {
+//  console.warn(`⚠️ Cache incompleto para '${chaveSimples}'. Forçando busca no banco...`);
+//  const idClienteDefinido = criterios.idCliente || criterios.idcliente || document.getElementById('nmCliente')?.value || null;
+
+//  let retornoApi = await buscarEPopularOrcamento(
+//  criterios.idEvento || criterios.idevento,
+//  idClienteDefinido,
+//  criterios.idLocalMontagem || criterios.idlocalmontagem, 
+//  criterios.idFuncao || criterios.idfuncao,
+//  datasSelecionadas,
+//  false,
+//  true
+//  );
+//  
+//  if (retornoApi) {
+//  dadosOrcamento = Array.isArray(retornoApi) ? retornoApi[0] : retornoApi;
+//  }
+
+//  if (dadosOrcamento) {
+//  nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
+//  nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
+//  chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+//  }
+//  }
+
+//  // Fallback de segurança para não quebrar objetos
+//  if (!dadosOrcamento) {
+//  dadosOrcamento = { quantidadeOrcada: 0, quantidadeEscalada: 0, datasOrcadas: [] };
+//  }
+
+//  const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
+//  const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+
+//  // ==========================================================
+//  // --- LÓGICA CRÍTICA 1: VERIFICAÇÃO DE DATAS OUT-OF-BUDGET ---
+//  // ==========================================================
+//  
+//  // --- SEÇÃO 2: VERIFICAÇÃO DE DATAS ---
+//  if (datasSelecionadas.length > 0) {
+//  let ehExcecaoDeData = false;
+//  let datasPermitidas = [];
+//  const datasSelNormalizadas = [...new Set(datasSelecionadas.map(d => String(d).trim().substring(0, 10)))];
+
+//  if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
+//  datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas)
+//  ? dadosOrcamento.datasOrcadas
+//  : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
+
+//  ehExcecaoDeData = datasSelNormalizadas.some(dataSel => !datasPermitidas.includes(dataSel));
+//  } else {
+//  ehExcecaoDeData = true;
+//  }
+
+//  if (ehExcecaoDeData) {
+//  if (window.justificativaParaSalvar && window.tipoExcecaoAtual) {
+//  return { allowed: false, solicitouAutorizacao: true, justificativa: window.justificativaParaSalvar, tipoSolicitacao: window.tipoExcecaoAtual };
+//  }
+
+//  // ✅ Apenas as datas que realmente estão fora do orçamento
+//  const datasForaDoPeriodo = datasSelNormalizadas.filter(d => !datasPermitidas.includes(d));
+//  const datasForaDoPeriodoBR = datasForaDoPeriodo.map(d => d.split('-').reverse().join('/')).join(', ');
+
+//  const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
+
+//  // ✅ Saldo disponível considerando o que já está escalado + tabela na tela
+//  const saldoAtual = limiteTotal - totalJaEscalado;
+//  const temSaldoDisponivel = saldoAtual >= datasSelNormalizadas.length;
+
+//  console.log("📊 [Seção 2] Diagnóstico:", {
+//  datasForaDoPeriodo,
+//  datasPermitidas,
+//  limiteTotal,
+//  totalJaEscalado,
+//  saldoAtual,
+//  temSaldoDisponivel,
+//  dentroDaMargem
+//  });
+
+//  // ============================================================
+//  // 🔴 FLUXO SEM SALDO: Swal com select de vagas + botões de exceção
+//  // ============================================================
+//  if (!temSaldoDisponivel) {
+//     //    const idEventoEx  = criterios.idEvento || criterios.idevento;
+//    //     const idClienteEx = criterios.idCliente || criterios.idcliente || document.getElementById('nmCliente')?.value;
+//     //    const idLocalEx   = criterios.idLocalMontagem || criterios.idlocalmontagem;
+//  // Opção 1 — via critérios (mais limpo, adicionar na montagem dos critérios)
+//                 console.log("🔍 DEBUG idEquipe:", {
+//                     criterios_idEquipe: criterios.idEquipe,
+//                     criterios_idequipe: criterios.idequipe,
+//                     currentEditingStaffEvent: currentEditingStaffEvent,
+//                     DOM_idEquipe: document.getElementById('idEquipe')?.value,
+//                     DOM_nmEquipe: document.getElementById('nmEquipe')?.value,
+//                 });
+
+//                const idEquipeEx = criterios.idEquipe 
+//                                 || criterios.idequipe 
+//                                 || currentEditingStaffEvent?.idequipe 
+//                                 || document.getElementById('idEquipe')?.value  // ← estava faltando
+//                                 || null;
+
+//                 const idEventoEx  = criterios.idEvento  || criterios.idevento  
+//                                 || document.getElementById('idEvento')?.value || null;
+//                 const idClienteEx = criterios.idCliente || criterios.idcliente 
+//                                 || document.getElementById('nmCliente')?.value || null;
+//                 const idLocalEx   = criterios.idLocalMontagem || criterios.idlocalmontagem 
+//                                 || document.getElementById('nmLocalMontagem')?.value || null;
+
+//                                 console.log("🔍 [verificarLimiteDeFuncao] Parâmetros para busca de vagas:", { 
+//                                     idEvento: idEventoEx,
+//                                     idCliente: idClienteEx,
+//                                     idLocalMontagem: idLocalEx, 
+//                                     idEquipe: idEquipeEx
+//                                 });
+
+//                 if (!idEventoEx && !idClienteEx) {
+//                     console.error("❌ [verificarLimiteDeFuncao] idEvento e idCliente ambos nulos — abortando busca de vagas.");
+//                     return { allowed: false, preventDefault: true };
+//                 }
+
+//  let vagasDisponiveis = [];
+//  try {
+//  vagasDisponiveis = await fetchComToken('/staff/orcamento/vagas-disponiveis', {
+//  method: 'POST',
+//  headers: { 'Content-Type': 'application/json' },
+//  body: JSON.stringify({
+//                             idOrcamento: null,
+//                             idEvento:        idEventoEx  ? parseInt(idEventoEx)  : null,
+//                             idCliente:       idClienteEx ? parseInt(idClienteEx) : null,
+//                             idLocalMontagem: idLocalEx   ? parseInt(idLocalEx)   : null,
+//                             setor: '',
+//                             idEquipe: idEquipeEx ? parseInt(idEquipeEx) : null
+//                         })
+//  });
+//  } catch (e) {
+//  console.error("❌ Erro ao buscar vagas disponíveis:", e);
+//  }
+
+//                 const normalizarSetor = (s) => (s || '').trim();
+
+//                 const idOrcamentoAtual = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
+//                 const idFuncaoAtual    = criterios.idFuncao || criterios.idfuncao;
+//                 const setorAtual       = normalizarSetor(dadosOrcamento.itensOrcamentoDetail?.[0]?.setor);
+
+//                 if (Array.isArray(vagasDisponiveis)) {
+//                     vagasDisponiveis = vagasDisponiveis.filter(vaga =>
+//                         !(String(vaga.idfuncao)    === String(idFuncaoAtual)    &&
+//                         String(vaga.idorcamento) === String(idOrcamentoAtual) &&
+//                         normalizarSetor(vaga.setor) === setorAtual)
+//                     );
+//                 }
+
+//                 // ← ADICIONAR
+//                 console.log("🔍 DEBUG pós-filtro:", {
+//                     idFuncaoAtual,
+//                     idOrcamentoAtual,
+//                     setorAtual,
+//                     vagasRestantes: vagasDisponiveis.map(v => ({
+//                         idfuncao: v.idfuncao,
+//                         idorcamento: v.idorcamento,
+//                         setor: v.setor,
+//                         setor_normalizado: normalizarSetor(v.setor)
+//                     }))
+//                 });
+
+//  // Monta o <select> com as vagas retornadas
+//  let optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
+//  if (Array.isArray(vagasDisponiveis) && vagasDisponiveis.length > 0) {
+//  vagasDisponiveis.forEach(vaga => {
+//  const labelSetor = (vaga.setor && vaga.setor.trim() !== '') 
+//                                             ? ` | Setor: ${vaga.setor}` 
+//                                             : ' | Sem Setor';
+//  const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
+//  optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">
+//  ${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Saldo: ${vaga.saldo_disponivel})
+//  </option>`;
+//  });
+//  } else {
+//  optionsHtml = '<option value="">Nenhuma vaga disponível encontrada</option>';
+//  }
+
+//  let escolhaSemSaldo = null;
+//                     await Swal.fire({
+//                         title: false,
+//                         html: `
+//                             <div style="display:flex; align-items:flex-start; gap:14px; background:#fff3cd;
+//                                         border-radius:10px 10px 0 0; margin:-1.25em -1.6em 1.25em; 
+//                                         padding:1.25rem 1.5rem; border-bottom:1px solid #f0c040;">
+//                                 <div style="width:38px; height:38px; border-radius:50%; background:#ffc107;
+//                                             display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+//                                     <i class="fa fa-exclamation-triangle" style="color:#7a5c00; font-size:17px;"></i>
+//                                 </div>
+//                                 <div style="text-align:left;">
+//                                     <p style="font-size:15px; font-weight:600; color:#333; margin:0 0 4px;">
+//                                         Data fora do orçamento — sem saldo
+//                                     </p>
+//                                     <p style="font-size:13px; color:#666; margin:0; line-height:1.5;">
+//                                         As datas <b style="color:#333;">${datasForaDoPeriodoBR}</b> não constam no orçamento 
+//                                         aprovado e não há saldo disponível para a função <b style="color:#333;">${nmFuncao}</b>.
+//                                     </p>
+//                                 </div>
+//                             </div>
+
+//                             <p style="font-size:13px; color:#777; margin:0 0 10px; text-align:left;">
+//                                 Selecione uma vaga disponível de outra função para reaproveitar, ou escolha uma ação:
+//                             </p>
+
+//                             <select id="swal-select-vaga-semsaldo" class="form-control"
+//                                 style="width:100%; height:40px; font-size:13px; border-radius:6px; 
+//                                     padding:6px 12px; margin-bottom:20px;">
+//                                 ${optionsHtml}
+//                             </select>
+
+//                             <button id="btn-semsaldo-vaga"
+//                                 style="width:100%; display:flex; align-items:center; justify-content:center;
+//                                     gap:8px; padding:10px; background:#198754; color:white; border:none;
+//                                     border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-bottom:10px;">
+//                                 <i class="fa fa-check"></i> Usar vaga selecionada
+//                             </button>
+
+//                             <div style="display:flex; gap:10px; margin-bottom:10px;">
+//                                 <button id="btn-semsaldo-aditivo"
+//                                     style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+//                                         gap:8px; padding:10px 8px; background:#6e1a1a; color:white; border:none;
+//                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
+//                                     <i class="fa fa-plus"></i> Solicitar aditivo
+//                                 </button>
+//                                 <button id="btn-semsaldo-extra"
+//                                     style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+//                                         gap:8px; padding:10px 8px; background:#c0392b; color:white; border:none;
+//                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
+//                                     <i class="fa fa-star"></i> Extra bonificado
+//                                 </button>
+//                             </div>
+
+//                             <button id="btn-semsaldo-corrigir"
+//                                 style="width:100%; display:flex; align-items:center; justify-content:center;
+//                                     gap:8px; padding:10px; background:#f0f0f0; color:#555; border:none;
+//                                     border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+//                                 <i class="fa fa-pencil"></i> Corrigir datas
+//                             </button>
+//                         `,
+//                         showConfirmButton: false,
+//                         showCancelButton: false,
+//                         footer: false,
+//                         allowOutsideClick: false,
+//                         width: '520px',
+//                         padding: '1.25rem 1.6rem',
+
+//            didOpen: () => {
+//  document.getElementById('btn-semsaldo-vaga').addEventListener('click', () => {
+//  const sel = document.getElementById('swal-select-vaga-semsaldo');
+//  if (!sel?.value) {
+//  Swal.showValidationMessage('Selecione uma vaga antes de confirmar.');
+//  return;
+//  }
+//  escolhaSemSaldo = `VAGA:${sel.value}`; // ex: "VAGA:48-331"
+//  Swal.close();
+//  });
+//  document.getElementById('btn-semsaldo-aditivo').addEventListener('click', () => {
+//  escolhaSemSaldo = 'ADITIVO';
+//  Swal.close();
+//  });
+//  document.getElementById('btn-semsaldo-extra').addEventListener('click', () => {
+//  escolhaSemSaldo = 'EXTRA_BONIFICADO';
+//  Swal.close();
+//  });
+//  document.getElementById('btn-semsaldo-corrigir').addEventListener('click', () => {
+//  escolhaSemSaldo = 'CORRIGIR';
+//  Swal.close();
+//  });
+//  }
+//  });
+
+//  // ── Tratamento da escolha ──────────────────────────────────────
+//  if (!escolhaSemSaldo || escolhaSemSaldo === 'CORRIGIR') {
+//  return { allowed: false, preventDefault: true };
+//  }
+
+//  // Usou vaga de outra função
+//  if (escolhaSemSaldo.startsWith('VAGA:')) {
+//  const [idFuncVaga, idOrcVaga] = escolhaSemSaldo.replace('VAGA:', '').split('-');
+//  const vagaEscolhida = vagasDisponiveis.find(v =>
+//  String(v.idfuncao) === String(idFuncVaga) &&
+//  String(v.idorcamento) === String(idOrcVaga)
+//  );
+
+//  window.tipoExcecaoAtual = "Vaga Reaproveitada";
+//  window.bSalvarComoInativo = false;
+//  window.datasParaSalvarNoBanco = datasForaDoPeriodo;
+
+//  console.log(`✅ [Sem Saldo] Vaga reaproveitada: ${vagaEscolhida?.nmfuncao} (Orç: ${idOrcVaga})`);
+//  return { allowed: true, vagaReaproveitada: vagaEscolhida || null };
+//  }
+
+//  // Solicitou Aditivo ou Extra Bonificado
+//  const tipoEscolhido = escolhaSemSaldo === 'ADITIVO'
+//  ? 'Aditivo - Datas fora do Orçamento'
+//  : 'Extra Bonificado - Datas fora do Orçamento';
+
+//  const datasParaSolicitar = datasForaDoPeriodo.filter(d => d != null && d !== '');
+
+//  const dadosExcecao = await solicitarDadosExcecao(
+//  tipoEscolhido,
+//  dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//  nmFuncao,
+//  idFuncaoProcurado,
+//  idFuncionario,
+//  datasParaSolicitar
+//  );
+
+//  if (dadosExcecao?.confirmado) {
+//  window.tipoExcecaoAtual = tipoEscolhido;
+//  window.justificativaParaSalvar = dadosExcecao.justificativa;
+//  window.bSalvarComoInativo = true;
+//  window.datasParaSalvarNoBanco = datasParaSolicitar;
+//  return {
+//  allowed: false,
+//  solicitouAutorizacao: true,
+//  justificativa: dadosExcecao.justificativa,
+//  tipoSolicitacao: tipoEscolhido,
+//  datasExcecao: datasParaSolicitar
+//  };
+//  }
+
+//  return { allowed: false };
+
+
+
+// //   } else {
+// //   // Cancelou
+// //   return { allowed: false };
+// //   }
+//                 } else {
+//                     // ============================================================
+//                     // 🟡 FLUXO COM SALDO: datas fora do período mas há vagas
+//                     // ============================================================
+//                     if (!dadosErroBackend && !window.estaSalvando) {
+//                         const infoMargem = dentroDaMargem
+//                             ? `<div style="color:#856404; background:#fff3cd; border:1px solid #ffeeba; 
+//                                         padding:10px; border-radius:6px; font-size:13px; text-align:left; margin-bottom:12px;">
+//                                 ℹ️ <b>Dentro da margem de 30 dias</b> do planejamento original.
+//                             </div>`
+//                             : `<div style="color:#721c24; background:#f8d7da; border:1px solid #f5c6cb; 
+//                                         padding:10px; border-radius:6px; font-size:13px; text-align:left; margin-bottom:12px;">
+//                                 🛑 <b>Fora da margem permitida</b> de tolerância.
+//                             </div>`;
+
+//                         let decisaoComSaldo = null;
+
+//                         await Swal.fire({
+//                             title: false,
+//                             html: `
+//                                 <div style="display:flex; align-items:flex-start; gap:14px; background:#fff3cd;
+//                                             border-radius:10px 10px 0 0; margin:-1.25em -1.6em 1.25em; 
+//                                             padding:1.25rem 1.5rem; border-bottom:1px solid #f0c040;">
+//                                     <div style="width:38px; height:38px; border-radius:50%; background:#ffc107;
+//                                                 display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+//                                         <i class="fa fa-calendar-times-o" style="color:#7a5c00; font-size:17px;"></i>
+//                                     </div>
+//                                     <div style="text-align:left;">
+//                                         <p style="font-size:15px; font-weight:600; color:#333; margin:0 0 4px;">
+//                                             Data fora do orçamento — com saldo disponível
+//                                         </p>
+//                                         <p style="font-size:13px; color:#666; margin:0; line-height:1.5;">
+//                                             As datas <b style="color:#333;">${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado,
+//                                             mas há <b style="color:#333;">${saldoAtual} vaga(s)</b> disponível para <b style="color:#333;">${nmFuncao}</b>.
+//                                         </p>
+//                                     </div>
+//                                 </div>
+
+//                                 ${infoMargem}
+
+//                                 <p style="font-size:13px; color:#777; margin:0 0 16px; text-align:left;">
+//                                     Como deseja prosseguir?
+//                                 </p>
+
+//                                 <button id="btn-comsaldo-aditivo"
+//                                     style="width:100%; display:flex; align-items:center; justify-content:center;
+//                                         gap:8px; padding:10px; background:#6e1a1a; color:white; border:none;
+//                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-bottom:10px;">
+//                                     <i class="fa fa-plus"></i> Solicitar Aditivo
+//                                 </button>
+
+//                                 <div style="display:flex; gap:10px; margin-bottom:10px;">
+//                                     <button id="btn-comsaldo-extra"
+//                                         style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+//                                             gap:8px; padding:10px 8px; background:#c0392b; color:white; border:none;
+//                                             border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
+//                                         <i class="fa fa-star"></i> Extra bonificado
+//                                     </button>
+//                                     ${dentroDaMargem ? `
+//                                     <button id="btn-comsaldo-prosseguir"
+//                                         style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+//                                             gap:8px; padding:10px 8px; background:#198754; color:white; border:none;
+//                                             border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
+//                                         <i class="fa fa-check"></i> Prosseguir assim
+//                                     </button>` : ''}
+//                                 </div>
+
+//                                 <button id="btn-comsaldo-corrigir"
+//                                     style="width:100%; display:flex; align-items:center; justify-content:center;
+//                                         gap:8px; padding:10px; background:#f0f0f0; color:#555; border:none;
+//                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+//                                     <i class="fa fa-pencil"></i> Corrigir datas
+//                                 </button>
+//                             `,
+//                             showConfirmButton: false,
+//                             showCancelButton: false,
+//                             footer: false,
+//                             allowOutsideClick: false,
+//                             width: '520px',
+//                             padding: '1.25rem 1.6rem',
+//                             didOpen: () => {
+//                                 document.getElementById('btn-comsaldo-aditivo').addEventListener('click', () => {
+//                                     decisaoComSaldo = 'ADITIVO';
+//                                     Swal.close();
+//                                 });
+//                                 document.getElementById('btn-comsaldo-extra').addEventListener('click', () => {
+//                                     decisaoComSaldo = 'EXTRA_BONIFICADO';
+//                                     Swal.close();
+//                                 });
+//                                 document.getElementById('btn-comsaldo-corrigir').addEventListener('click', () => {
+//                                     decisaoComSaldo = 'CORRIGIR';
+//                                     Swal.close();
+//                                 });
+//                                 if (dentroDaMargem) {
+//                                     document.getElementById('btn-comsaldo-prosseguir')?.addEventListener('click', () => {
+//                                         decisaoComSaldo = 'PROSSEGUIR';
+//                                         Swal.close();
+//                                     });
+//                                 }
+//                             }
+//                         });
+
+//                         // ── Tratamento da escolha ──────────────────────────────────
+//                         if (!decisaoComSaldo || decisaoComSaldo === 'CORRIGIR') {
+//                             return { allowed: false, preventDefault: true };
+//                         }
+
+//                         if (decisaoComSaldo === 'PROSSEGUIR') {
+//                             window.bSalvarComoInativo = false;
+//                             window.tipoExcecaoAtual = null;
+//                             const elObs = document.getElementById('obsgeral');
+//                             if (elObs) {
+//                                 const periodoOriginalBR = datasPermitidas.map(d => d.split('-').reverse().join('/')).join(', ');
+//                                 const nomeUsuario = window.usuarioLogadoNome || 'Sistema';
+//                                 elObs.value = (elObs.value + `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasForaDoPeriodoBR} por margem de tolerância. Por: ${nomeUsuario}.`).trim();
+//                             }
+//                             return { allowed: true, solicitouAutorizacao: false };
+//                         }
+
+//                         // Aditivo ou Extra Bonificado
+//                         const tipoEscolhido = decisaoComSaldo === 'ADITIVO'
+//                             ? 'Aditivo - Datas fora do Orçamento'
+//                             : 'Extra Bonificado - Datas fora do Orçamento';
+
+//                         const datasParaSolicitar = datasForaDoPeriodo.filter(d => d != null && d !== '');
+
+//                         const dadosExcecao = await solicitarDadosExcecao(
+//                             tipoEscolhido,
+//                             dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+//                             nmFuncao,
+//                             idFuncaoProcurado,
+//                             idFuncionario,
+//                             datasParaSolicitar
+//                         );
+
+//                         if (dadosExcecao?.confirmado) {
+//                             window.tipoExcecaoAtual = tipoEscolhido;
+//                             window.justificativaParaSalvar = dadosExcecao.justificativa;
+//                             window.bSalvarComoInativo = true;
+//                             window.datasParaSalvarNoBanco = datasParaSolicitar;
+//                             return {
+//                                 allowed: false,
+//                                 solicitouAutorizacao: true,
+//                                 justificativa: dadosExcecao.justificativa,
+//                                 tipoSolicitacao: tipoEscolhido,
+//                                 datasExcecao: datasParaSolicitar
+//                             };
+//                         }
+
+//                         return { allowed: false };
+//                     }
+
+//                     // Se estiver salvando ou vier do backend, deixa passar
+//                     return { allowed: true, solicitouAutorizacao: false };
+//                 }
+//  }
+//  }
+//  return { allowed: true, solicitouAutorizacao: false };
+// }
+
 async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     console.log("Iniciando verificação de limite de função com critérios:", criterios, "e dados de erro do backend:", dadosErroBackend);
 
     let nmEvento = (criterios.nmEvento || criterios.nmevento || '').trim().toUpperCase();
     let nmFuncao = (criterios.nmFuncao || criterios.nmfuncao || '').trim().toUpperCase();
     const idFuncionario = criterios.idFuncionario || document.getElementById('idFuncionario')?.value || null;
-    const selectFunc = document.getElementById('nmFuncionario');       
+    const selectFunc = document.getElementById('nmFuncionario');      
     const nmFuncionario = criterios.nmFuncionario || selectFunc?.options[selectFunc.selectedIndex]?.text;
+
+    // Logo após a leitura de idFuncionario, adicione:
+    const idEvento = criterios.idEvento || criterios.idevento 
+        || document.getElementById('idEvento')?.value 
+        || window.idEventoAtual 
+        || null;
+
+    const idLocalMontagem = criterios.idLocalMontagem || criterios.idlocalmontagem
+        || document.getElementById('idLocalMontagem')?.value
+        || window.idLocalMontagemAtual
+        || null;
 
     // ==========================================================
     // 1. Coleta de datas de forma robusta e blindada
@@ -14577,8 +15920,8 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
         const campoData = document.getElementById('periodoEvento') || document.getElementById('datasEvento');
         if (campoData && campoData.value) {
             datasSelecionadas = campoData.value.split(',')
-                .map(d => d.trim())
-                .filter(d => d.length > 0);
+            .map(d => d.trim())
+            .filter(d => d.length > 0);
         } else if (campoData && campoData._flatpickr && campoData._flatpickr.selectedDates.length > 0) {
             datasSelecionadas = campoData._flatpickr.selectedDates.map(d => d.toLocaleDateString('en-CA'));
         }
@@ -14593,7 +15936,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     let arrayDobras = criterios.datasEventoDobradas || (typeof datasEventoDobradas !== 'undefined' ? datasEventoDobradas : []);
     let countDobras = Array.isArray(arrayDobras) ? arrayDobras.length : 0;
     let ehDiariaDobrada = (countDobras > 0 || criterios.isDiariaDobrada === true || (typeof isDiariaDobrada !== 'undefined' && isDiariaDobrada === true));
-    
+
     if (ehDiariaDobrada) {
         console.log("🔄 [verificarLimiteDeFuncao] É Diária Dobrada detectada no início. Ignorando validações para seguir fluxo sequencial.");
         return { allowed: true }; 
@@ -14619,17 +15962,17 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
 
     if (!dadosOrcamento && window.orcamentoPorFuncao && idFuncaoProcurado) {
         dadosOrcamento = Object.values(window.orcamentoPorFuncao).find(o => {
-            if (!o) return false;
-            return String(o.idfuncao) === String(idFuncaoProcurado) || 
-                   String(o.idFuncao) === String(idFuncaoProcurado) ||
-                   String(o.id_funcao) === String(idFuncaoProcurado);
-        });
-        
-        if (dadosOrcamento) {
-            nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
-            nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
-            chaveSimples = `${nmEvento}-${nmFuncao}`;
-            console.log(`💡 [verificarLimiteDeFuncao] Cache localizado via ID da Função: [${chaveSimples}]`);
+        if (!o) return false;
+        return String(o.idfuncao) === String(idFuncaoProcurado) || 
+        String(o.idFuncao) === String(idFuncaoProcurado) ||
+        String(o.id_funcao) === String(idFuncaoProcurado);
+    });
+
+    if (dadosOrcamento) {
+        nmEvento = (dadosOrcamento.nmevento || '').trim().toUpperCase();
+        nmFuncao = (dadosOrcamento.descfuncao || dadosOrcamento.nmfuncao || '').trim().toUpperCase();
+        chaveSimples = `${nmEvento}-${nmFuncao}`;
+        console.log(`💡 [verificarLimiteDeFuncao] Cache localizado via ID da Função: [${chaveSimples}]`);
         }
     }
 
@@ -14649,7 +15992,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
             false,
             true
         );
-        
+
         if (retornoApi) {
             dadosOrcamento = Array.isArray(retornoApi) ? retornoApi[0] : retornoApi;
         }
@@ -14665,291 +16008,1105 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     if (!dadosOrcamento) {
         dadosOrcamento = { quantidadeOrcada: 0, quantidadeEscalada: 0, datasOrcadas: [] };
     }
-    
-        const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
-        const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+
+    const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
+    const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+
     // ==========================================================
     // --- LÓGICA CRÍTICA 1: VERIFICAÇÃO DE DATAS OUT-OF-BUDGET ---
     // ==========================================================
+
+    // --- SEÇÃO 2: VERIFICAÇÃO DE DATAS ---
     if (datasSelecionadas.length > 0) {
         let ehExcecaoDeData = false;
         let datasPermitidas = [];
         const datasSelNormalizadas = [...new Set(datasSelecionadas.map(d => String(d).trim().substring(0, 10)))];
 
         if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
-            datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas) 
-                ? dadosOrcamento.datasOrcadas 
-                : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
+            datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas)
+            ? dadosOrcamento.datasOrcadas
+            : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
 
             ehExcecaoDeData = datasSelNormalizadas.some(dataSel => !datasPermitidas.includes(dataSel));
         } else {
-            ehExcecaoDeData = true; 
+            ehExcecaoDeData = true;
         }
-
-        console.log("ehExcecaoDeData:", ehExcecaoDeData);
-    console.log("datasPermitidas:", datasPermitidas);
-    console.log("datasSelNormalizadas:", datasSelNormalizadas);
-    console.log("window.estaSalvando:", window.estaSalvando);
 
         if (ehExcecaoDeData) {
             if (window.justificativaParaSalvar && window.tipoExcecaoAtual) {
                 return { allowed: false, solicitouAutorizacao: true, justificativa: window.justificativaParaSalvar, tipoSolicitacao: window.tipoExcecaoAtual };
             }
 
-            // 🌟 EM VEZ DE RECALCULAR, HERDA O DIAGNÓSTICO DO BACKEND/API
-            // Se a API não trouxe a propriedade, assume true por segurança (fallback)
-            const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
+            // ✅ Apenas as datas que realmente estão fora do orçamento
+            const datasForaDoPeriodo = datasSelNormalizadas.filter(d => !datasPermitidas.includes(d));
+            const datasForaDoPeriodoBR = datasForaDoPeriodo.map(d => d.split('-').reverse().join('/')).join(', ');
+
+           // const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
+            let dentroDaMargem = true;
+            if (datasForaDoPeriodo.length > 0 && datasPermitidas.length > 0) {
+                const datasBaseDates = datasPermitidas.map(d => new Date(d + 'T00:00:00'));
+                const minDataOrig = new Date(Math.min(...datasBaseDates));
+                const maxDataOrig = new Date(Math.max(...datasBaseDates));
+                const margemInicio = new Date(minDataOrig); margemInicio.setMonth(margemInicio.getMonth() - 1);
+                const margemFim   = new Date(maxDataOrig);  margemFim.setMonth(margemFim.getMonth() + 1);
+
+                const datasMuitoFora = datasForaDoPeriodo.filter(d => {
+                    const dt = new Date(d + 'T00:00:00');
+                    return dt < margemInicio || dt > margemFim;
+                });
+                if (datasMuitoFora.length > 0) dentroDaMargem = false;
+            }
+
+            // ✅ Saldo disponível considerando o que já está escalado + tabela na tela
+            const saldoAtual = limiteTotal - totalJaEscalado;
+            const temSaldoDisponivel = saldoAtual >= datasSelNormalizadas.length;
+
+            console.log("📊 [Seção 2] Diagnóstico:", {
+                datasForaDoPeriodo,
+                datasPermitidas,
+                limiteTotal,
+                totalJaEscalado,
+                saldoAtual,
+                temSaldoDisponivel,
+                dentroDaMargem
+            });
             
-            const datasFormatadasBR = datasSelNormalizadas
-                .filter(d => !datasPermitidas.includes(d))
-                .map(d => d.split('-').reverse().join('/'))
-                .join(', ');
-
-            // 📥 SWAL 1: Alerta preventivo (Info) baseado no diagnóstico herdado
-            if (!dadosErroBackend && !window.estaSalvando) {
-                let htmlMensagemInfo = `As datas <b>${datasSelNormalizadas.map(d => d.split('-').reverse().join('/')).join(', ')}</b> não constam no orçamento aprovado.<br><br>`;
-                
-                if (dentroDaMargem) {
-                    htmlMensagemInfo += `<div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
-                        ℹ️ <b>Informativo:</b> Este período está <b>dentro da margem permitida de 30 dias</b> do planejamento original.
-                    </div>`;
-                } else {
-                    htmlMensagemInfo += `<div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
-                        🛑 <b>Atenção:</b> O período selecionado está <b>fora da margem permitida</b> de tolerância.
-                    </div>`;
-                }
-                htmlMensagemInfo += `<p style="margin-top:15px;">Deseja prosseguir para classificar a exceção ou corrigir as datas?</p>`;
-
-                const { isConfirmed } = await Swal.fire({
-                    icon: dentroDaMargem ? 'info' : 'warning',
-                    title: 'Período fora do planejado',
-                    html: htmlMensagemInfo,
-                    showCancelButton: true,
-                    confirmButtonText: 'Prosseguir',
-                    cancelButtonText: 'Corrigir Datas',
-                    confirmButtonColor: '#28a745'
+            
+            // ============================================================
+            // 🔴 FLUXO SEM SALDO: Swal com select de vagas + botões de exceção
+            // ============================================================
+            if (!temSaldoDisponivel) {
+                console.log("🔍 DEBUG idEquipe:", {
+                    criterios_idEquipe: criterios.idEquipe,
+                    criterios_idequipe: criterios.idequipe,
+                    currentEditingStaffEvent: currentEditingStaffEvent,
+                    DOM_idEquipe: document.getElementById('idEquipe')?.value,
+                    DOM_nmEquipe: document.getElementById('nmEquipe')?.value,
                 });
 
-                if (!isConfirmed) return { allowed: false, preventDefault: true };
-            }
+                const idEquipeEx = criterios.idEquipe 
+                                || criterios.idequipe 
+                                || currentEditingStaffEvent?.idequipe 
+                                || document.getElementById('idEquipe')?.value
+                                || null;
 
-            // 📥 SWAL 2: Alerta de Envio (Warning com opções de Aditivo/Extra)
-            let decisaoManual = null;
-            let htmlExcecaoComOpcoes = `As datas selecionadas não constam no orçamento aprovado.<br><br>`;
-            
-            if (dentroDaMargem) {
-                htmlExcecaoComOpcoes += `<div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
-                    As datas <b>${datasFormatadasBR}</b> não estão no orçamento, mas estão dentro da margem permitida de 30 dias.
-                </div>
-                <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>`;
-            } else {
-                htmlExcecaoComOpcoes += `<div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; font-size: 0.85rem; text-align:left;">
-                    🛑 <b>Bloqueio:</b> Período totalmente fora da margem planejada. Uma autorização de aditivo é obrigatória.
-                </div>`;
-            }
+                const idEventoEx  = criterios.idEvento  || criterios.idevento  
+                                || document.getElementById('idEvento')?.value || null;
+                const idClienteEx = criterios.idCliente || criterios.idcliente 
+                                || document.getElementById('nmCliente')?.value || null;
+                const idLocalEx   = criterios.idLocalMontagem || criterios.idlocalmontagem 
+                                || document.getElementById('nmLocalMontagem')?.value || null;
 
-            const resultDatas = await Swal.fire({
-                icon: 'warning',
-                title: 'Data fora do Orçamento',
-                html: htmlExcecaoComOpcoes,
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: 'Solicitar Aditivo',
-                denyButtonText: 'Extra Bonificado',
-                cancelButtonText: 'Cancelar',
-                footer: dentroDaMargem ? `
-                    <button id="btnProsseguirSem" 
-                            style="width: 100%; 
-                                padding: 12px; 
-                                background-color: #7a1e27; 
-                                color: white; 
-                                border: none; 
-                                border-radius: .25em; 
-                                font-size: 1rem; 
-                                font-weight: 500; 
-                                cursor: pointer; 
-                                transition: background-color 0.1s;
-                                box-shadow: 0 0 0 3px transparent;">
-                        Prosseguir sem solicitação
-                    </button>
-                ` : '',
-                didOpen: () => {
-                    if (dentroDaMargem) {
-                        const btnProsseguir = document.getElementById('btnProsseguirSem');
-                        if (btnProsseguir) {
-                            btnProsseguir.onclick = () => {
-                                decisaoManual = 'prosseguir';
-                                Swal.clickConfirm();
-                            };
+                console.log("🔍 [verificarLimiteDeFuncao] Parâmetros para busca de vagas:", { 
+                    idEvento: idEventoEx,
+                    idCliente: idClienteEx,
+                    idLocalMontagem: idLocalEx, 
+                    idEquipe: idEquipeEx
+                });
+
+                if (!idEventoEx && !idClienteEx) {
+                    console.error("❌ [verificarLimiteDeFuncao] idEvento e idCliente ambos nulos — abortando busca de vagas.");
+                    return { allowed: false, preventDefault: true };
+                }
+
+                let vagasDisponiveis = [];
+                try {
+                    vagasDisponiveis = await fetchComToken('/staff/orcamento/vagas-disponiveis', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            idOrcamento: null,
+                            idEvento:        idEventoEx  ? parseInt(idEventoEx)  : null,
+                            idCliente:       idClienteEx ? parseInt(idClienteEx) : null,
+                            idLocalMontagem: idLocalEx   ? parseInt(idLocalEx)   : null,
+                            setor: '',
+                            idEquipe: idEquipeEx ? parseInt(idEquipeEx) : null
+                        })
+                    });
+                } catch (e) {
+                    console.error("❌ Erro ao buscar vagas disponíveis:", e);
+                }
+
+                
+                const normalizarSetor = (s) => (s || '').trim();
+
+                const idOrcamentoAtual = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
+                const idFuncaoAtual    = criterios.idFuncao || criterios.idfuncao;
+                const setorAtual       = normalizarSetor(dadosOrcamento.itensOrcamentoDetail?.[0]?.setor);
+
+                // if (Array.isArray(vagasDisponiveis)) {
+                //     vagasDisponiveis = vagasDisponiveis.filter(vaga =>
+                //         !(String(vaga.idfuncao)   === String(idFuncaoAtual)    &&
+                //         String(vaga.idorcamento) === String(idOrcamentoAtual) &&
+                //         normalizarSetor(vaga.setor) === setorAtual)
+                //     );
+                // }
+
+                // ============================================================
+                // AJUSTE CRÍTICO NO FILTRO: Só remove se for EXATAMENTE a mesma vaga, 
+                // no mesmo orçamento, mesmo setor E mesmo período.
+                // ============================================================
+                if (Array.isArray(vagasDisponiveis)) {
+                    vagasDisponiveis = vagasDisponiveis.filter(vaga => {
+                        const ehMesmaFuncao = String(vaga.idfuncao) === String(idFuncaoAtual);
+                        const ehMesmoOrcamento = String(vaga.idorcamento) === String(idOrcamentoAtual);
+                        const ehMesmoSetor = normalizarSetor(vaga.setor) === setorAtual;
+                        
+                        // Pegamos os períodos cadastrados para diferenciar se é outra linha de data
+                        const periodoVaga = (vaga.periodo || vaga.periododiariasinicio || '').trim();
+                        const periodoAtual = (dadosOrcamento.periodo || dadosOrcamento.periododiariasinicio || '').trim();
+                        const ehMesmoPeriodo = periodoVaga === periodoAtual;
+
+                        // ── [BLOQUEIO TOTAL DO FLUXO PARCIAL]: Se a flag de bloqueio existir e for a mesma função, limpamos! ──
+                        if (criterios.bloquearReaproveitamento && ehMesmaFuncao) {
+                            console.log("🚫 [FLUXO PARCIAL] Omitindo vaga de mesma função já consumida:", vaga.nmfuncao);
+                            return false; // Remove totalmente do array para não gerar o botão verde
                         }
-                    }
+
+                        // Se for a mesma função, mesmo orçamento, mesmo setor E mesmo período, a gente remove.
+                        // Se mudar o período (outras datas), nós MANTEMOS para poder reaproveitar!
+                        if (ehMesmaFuncao && ehMesmoOrcamento && ehMesmoSetor && ehMesmoPeriodo) {
+                            return false; // Remove
+                        }
+                        return true; // Mantém
+                    });
                 }
-            });
 
-         
+                console.log("🔍 DEBUG pós-filtro:", {
+                    idFuncaoAtual,
+                    idOrcamentoAtual,
+                    setorAtual,
+                    vagasRestantes: vagasDisponiveis.map(v => ({
+                        idfuncao: v.idfuncao,
+                        idorcamento: v.idorcamento,
+                        setor: v.setor,
+                        setor_normalizado: normalizarSetor(v.setor)
+                    }))
+                });
 
-            if ((resultDatas.isConfirmed || resultDatas.isDenied) && decisaoManual !== 'prosseguir') {
-                const sufixo = resultDatas.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
-                const tipoEscolhido = `${sufixo} - Datas fora do Orçamento`;
+                // Definimos o array das datas que o usuário quer solicitar para uso das validações
+                const datasParaSolicitar = datasForaDoPeriodo.filter(d => d != null && d !== '');
 
-
-                 // Calcula as datas que realmente excedem o saldo
-                const saldoRestante = Math.max(0, limiteTotal - totalJaEscalado);
-                const datasExcedentes = datasSelecionadas.slice(saldoRestante);
-                const datasParaSolicitar = datasExcedentes.length > 0 ? datasExcedentes : datasSelecionadas;
-               
+                // ── [SOMA BLINDADA]: Garantindo conversão de tipo para String e Number ──
+                const idFuncaoProcuradoStr = String(idFuncaoProcurado).trim();
                 
-                const dadosExcecao = await solicitarDadosExcecao(
-                    tipoEscolhido, 
-                    dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0, 
-                    nmFuncao, 
-                    idFuncaoProcurado, 
-                    idFuncionario, 
-                    //dataUnicaParaBanco
-                    datasParaSolicitar
-                );
+                const vagasMesmaFuncao = vagasDisponiveis.filter(v => {
+                    const idVagaStr = String(v.idfuncao || v.idFuncao || '').trim();
+                    return idVagaStr === idFuncaoProcuradoStr;
+                });
 
-                if (dadosExcecao?.confirmado) {
-                    window.tipoExcecaoAtual = tipoEscolhido;
-                    window.justificativaParaSalvar = dadosExcecao.justificativa;
-                    window.bSalvarComoInativo = true;
-                    window.datasParaSalvarNoBanco = datasParaSolicitar; // ✅ ADICIONE ESTA LINHA
-                    return {
-                        allowed: false,
-                        solicitouAutorizacao: true,
-                        justificativa: dadosExcecao.justificativa,
-                        tipoSolicitacao: tipoEscolhido,
-                        datasExcecao: datasParaSolicitar // ✅ E ESTA
-                    };
-                }
-                return { allowed: false };
-            } else if (decisaoManual === 'prosseguir') {
-                window.bSalvarComoInativo = false;
-                window.tipoExcecaoAtual = null;
+                // Total de diárias registradas originalmente no orçamento (Ex: 8)
+                const totalDiariasOrcamento = vagasMesmaFuncao.reduce((sum, v) => {
+                    const saldo = parseInt(v.saldo_disponivel ?? v.saldo ?? 0, 10);
+                    return sum + (isNaN(saldo) ? 0 : saldo);
+                }, 0);
                 
-                // Grava o histórico na observação geral por estar dentro da margem
-                const elObs = document.getElementById('obsgeral');
-                if (elObs) {
-                    const periodoOriginalBR = datasPermitidas.map(d => d.split('-').reverse().join('/')).join(', ');
-                    const nomeUsuarioLogado = window.usuarioLogadoNome || "Sistema";
-                    const logHist = `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasFormatadasBR} por margem de tolerância. Por: ${nomeUsuarioLogado}.`;
-                    elObs.value = (elObs.value + logHist).trim();
-                }
-                // Deixa vazar para avaliar a contagem de vagas abaixo
-            } else {
-                return { allowed: false }; 
-            }
-        }
-    }
+                // Quantidade de dias da linha original do orçamento (Ex: 4 dias)
+                const totalDiasOrcamentoOriginal = parseInt(vagasMesmaFuncao[0]?.qtddias || 4, 10);
+                
+                // Quantidade de staffs/itens da linha original (Ex: 8 diárias / 4 dias = 2 staffs)
+                const qtdItensIdentificado = totalDiasOrcamentoOriginal > 0 ? Math.ceil(totalDiariasOrcamento / totalDiasOrcamentoOriginal) : 2;
 
-    // ==========================================================
-    // --- LÓGICA CRÍTICA 2: CONTAGEM GLOBAL DE VAGAS ---
-    // ==========================================================
-    if (dadosOrcamento) {
-        let vagasOcupadasNaTabela = 0;
-        const normalizarTextoGeral = (txt) => String(txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
-        const nmFuncaoNormalizada = normalizarTextoGeral(nmFuncao);
+                // ── [CÁLCULO DOS VALORES EXATOS PEDIDOS] ──
+                // 1. Vagas disponíveis (Queremos mostrar os 4 dias que coincidem/estão corretos no orçamento original)
+                const vagasDisponiveisExibir = totalDiasOrcamentoOriginal; 
 
-        document.querySelectorAll('#eventsTableBody tr').forEach(linha => {
-            try {
-                const data = JSON.parse(linha.dataset.eventData);
-                if (normalizarTextoGeral(data.nmfuncao) === nmFuncaoNormalizada && data.statusstaff !== 'Inativo') {
+                // 2. Faltantes (Total de datas selecionadas menos as vagas que conseguimos cobrir)
+                // Usamos o datasParaSolicitar.length para saber dinamicamente quantas datas o usuário clicou no front
+                const totalDatasClicadas = datasParaSolicitar.length;
+                const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClicadas - vagasDisponiveisExibir) : 0; 
+
+                console.log("📊 [DEBUG MATEMÁTICA CORRIGIDA]:", {
+                    totalDatasClicadas: totalDatasClicadas,
+                    totalDiariasOrcamento: totalDiariasOrcamento,
+                    totalDiasOrcamentoOriginal: totalDiasOrcamentoOriginal,
+                    qtdItensIdentificado: qtdItensIdentificado,
+                    vagasDisponiveisExibir: vagasDisponiveisExibir,
+                    faltantesExatos: faltantes
+                });
+
+                let templateHeaderHtml = '';
+                let botaoMesmaFuncaoHtml = '';
+
+                if (totalDiariasOrcamento > 0) {
+                    const textoVagasDisponiveis = vagasDisponiveisExibir === 1 ? '1 VAGA DISPONÍVEL' : `${vagasDisponiveisExibir} VAGAS DISPONÍVEIS`;
+                    const textoFaltantes = faltantes === 1 ? 'falta 1 vaga' : `faltam vagas para alocar ${faltantes} diárias`;
+                    templateHeaderHtml = `
+                        <div style="display:flex; align-items:flex-start; gap:14px; background:#fff9db; border-bottom:1px solid #f1e7bc; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                            <div style="width:38px; height:38px; border-radius:50%; background:#fff3cd; border:1px solid #f6d87f; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="fa fa-exclamation-triangle" style="color:#856404; font-size:17px;"></i>
+                            </div>
+                            <div style="text-align:left;">
+                                <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
+                                    Datas fora do orçamento
+                                </p>
+                                <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
+                                    As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento, mas <strong style="color:#28a745;">HÁ ${textoVagasDisponiveis}</strong> para a função de <strong style="color:#222222;">"${nmFuncao}"</strong> em outro setor, outro orçamento ou outro período, mas <strong style="color:#c0392b;">${textoFaltantes}</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    `;
+
+                    botaoMesmaFuncaoHtml = `
+                        <button id="btn-remanejar-mesma-funcao"
+                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                            <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${totalDiariasOrcamento} diárias)
+                        </button>
+                        <div style="text-align: center; margin: 10px 0; font-size: 11px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
+                    `;
                     
-                    const datasDoStaff = Array.isArray(data.datasevento) ? data.datasevento : JSON.parse(data.datasevento || '[]');
-                    vagasOcupadasNaTabela += datasDoStaff.length;
-
-                    // if (data.datadiariadobrada) {
-                    //     const dobras = typeof data.datadiariadobrada === 'string' ? JSON.parse(data.datadiariadobrada) : data.datadiariadobrada;
-                    //     if (Array.isArray(dobras)) {
-                    //         vagasOcupadasNaTabela += dobras.length;
-                    //     }
-                    // }
-
-                    if (data.dtdiariadobrada) {
-                        const dobras = typeof data.dtdiariadobrada === 'string' 
-                            ? JSON.parse(data.dtdiariadobrada) 
-                            : data.dtdiariadobrada;
-                        if (Array.isArray(dobras)) {
-                            const dobrasNestaFuncao = dobras.filter(d => 
-                                (d.status === 'Pendente' || d.status === 'Autorizado') &&
-                                String(d.idfuncaodobra) === String(idFuncaoProcurado)
-                            );
-                            vagasOcupadasNaTabela += dobrasNestaFuncao.length;
-                        }
-                    }
+                    var vagaMesmaFuncaoOutroPeriodo = vagasMesmaFuncao[0];
+                } else {
+                    templateHeaderHtml = `
+                        <div style="display:flex; align-items:flex-start; gap:14px; background:#f8f9fa; border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                            <div style="width:38px; height:38px; border-radius:50%; background:#fff3cd; border:1px solid #f6d87f; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="fa fa-exclamation-triangle" style="color:#856404; font-size:17px;"></i>
+                            </div>
+                            <div style="text-align:left;">
+                                <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
+                                    Datas fora do orçamento
+                                </p>
+                                <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
+                                    As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento e <strong style="color:#c0392b;">NÃO HÁ SALDO DISPONÍVEL</strong> para a função de <strong style="color:#222222;">"${nmFuncao}"</strong> para alocar <strong>${datasForaDoPeriodo.length} diárias</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    `;
                 }
-            } catch (e) {
-                console.error("Erro ao computar linha da tabela:", e);
-            }
-        });
+                // ─────────────────────────────────────────────────────────────────────────────
 
-        
+                let optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
+                if (Array.isArray(vagasDisponiveis) && vagasDisponiveis.length > 0) {
+                    vagasDisponiveis.forEach(vaga => {
+                        const labelSetor = (vaga.setor && vaga.setor.trim() !== '') 
+                                            ? ` | Setor: ${vaga.setor}` 
+                                            : ' | Sem Setor';
+                        const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
+                        optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">
+                            ${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Saldo: ${vaga.saldo_disponivel})
+                        </option>`;
+                    });
+                } else {
+                    optionsHtml = '<option value="">Nenhuma vaga disponível encontrada</option>';
+                }
 
-        const qttDiariasNormais = datasSelecionadas.length;
-        const impactoDestaAcao = qttDiariasNormais + countDobras;
+                let escolhaSemSaldo = null;
+                await Swal.fire({
+                    title: false,
+                    showConfirmButton: false,
+                    showCancelButton: false,
+                    footer: false,
+                    allowOutsideClick: false,
+                    width: '520px',
+                    padding: '0',
+                    html: `
+                        ${templateHeaderHtml}
 
-        const totalGeralDesejado = totalJaEscalado + vagasOcupadasNaTabela + impactoDestaAcao;
+                        <div style="padding:20px 24px;">
+                            ${botaoMesmaFuncaoHtml}
 
-        console.log("📊 [Seção Vagas] Verificação:", {
-            limiteTotal,
-            totalJaEscalado,
-            vagasOcupadasNaTabela,
-            impactoDestaAcao,
-            totalGeralDesejado
-        });
+                            <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+                                Selecione uma vaga disponível de outra função para reaproveitar, ou escolha uma ação:
+                            </p>
 
-        if (totalGeralDesejado > limiteTotal) {
-            const saldoNoOrcamento = limiteTotal - (totalJaEscalado + vagasOcupadasNaTabela);
-            
-            const temVagaDisponivelReal = saldoNoOrcamento > 0 && saldoNoOrcamento >= impactoDestaAcao;
-            
-            const diasComDobraBR = typeof formatarDatas === 'function' ? formatarDatas([...new Set(arrayDobras)]) : arrayDobras.join(', ');
+                            <select id="swal-select-vaga-semsaldo" class="form-control"
+                                style="width:100%; height:40px; font-size:13px; border-radius:6px; padding:6px 12px; margin-bottom:20px;">
+                                ${optionsHtml}
+                            </select>
 
-            let msg = `O limite de vagas para <b>${nmFuncao}</b> foi atingido.<br><br>`;
-            
-            if (temVagaDisponivelReal) {
-                msg += `Você está soliciting <b>${impactoDestaAcao} diárias</b> (incluindo as dobras de ${diasComDobraBR}).<br>
-                        O orçamento atual da função possui <b>${saldoNoOrcamento} vaga(s)</b> disponível(is) em outros dias do período.<br><br>
-                        Deseja reaproveitar essas vagas do orçamento ou solicitar nova verba?`;
-            } else {
-                const saldoExibicao = saldoNoOrcamento > 0 ? saldoNoOrcamento : 0;
-                msg += `⚠️ O orçamento geral da função é insuficiente ou está totalmente esgotado.<br>`;
-                msg += `Você inseriu <b>${impactoDestaAcao} diárias</b>, mas o saldo restante é de apenas <b>${saldoExibicao} diária(s)</b> (Limite Total: ${limiteTotal}).<br><br>`;
-                msg += `Como deseja prosseguir?`;
-            }
+                            <button id="btn-semsaldo-vaga"
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                <i class="fa fa-check"></i> Usar vaga selecionada
+                            </button>
 
-            const resultVaga = await Swal.fire({
-                icon: 'warning',
-                title: 'Limite de Diárias Excedido',
-                html: msg,
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: temVagaDisponivelReal ? 'Usar Vaga de outro período' : 'Solicitar Aditivo',
-                confirmButtonColor: temVagaDisponivelReal ? '#28a745' : '#5f1420', 
-                denyButtonText: 'Extra Bonificado',
-                denyButtonColor: '#dc3545',
-                cancelButtonText: 'Corrigir Datas',
-                cancelButtonColor: '#6c757d'
-            });
+                            <div style="display:flex; gap:10px; margin-bottom:12px;">
+                                <button id="btn-semsaldo-aditivo"
+                                    style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--primary-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:11.5px; cursor:pointer; white-space:nowrap;">
+                                    <i class="fa fa-plus"></i> Solicitar aditivo
+                                </button>
+                                <button id="btn-semsaldo-extra"
+                                    style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--hover-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:11.5px; cursor:pointer; white-space:nowrap;">
+                                    <i class="fa fa-star"></i> Extra bonificado
+                                </button>
+                            </div>
 
-            if (resultVaga.isDismissed) {
-                return { allowed: false, solicitouAutorizacao: false };
-            }
+                            <button id="btn-semsaldo-corrigir"
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                <i class="fa fa-pencil"></i> Corrigir datas
+                            </button>
+                        </div>
+                    `,
+                    didOpen: () => {                       
 
-            if (resultVaga.isConfirmed && temVagaDisponivelReal) {
-                window.tipoExcecaoAtual = "Vaga Reaproveitada"; 
-                window.bSalvarComoInativo = false; 
-                return { allowed: true };
-            }
+                        if (vagaMesmaFuncaoOutroPeriodo) {
+                            // ── [AJUSTE DINÂMICO DO BOTÃO PRINCIPAL] ──
+                            setTimeout(() => {
+                                const btnPrincipalVerde = document.getElementById('btn-remanejar-mesma-funcao');
+                                if (btnPrincipalVerde) {
+                                    btnPrincipalVerde.innerHTML = '<i class="fa fa-exchange-alt"></i> Alocar função com as vagas disponíveis (4 diárias)';
+                                }
+                            }, 50);
+                        }
 
-            if (resultVaga.isConfirmed || resultVaga.isDenied) {
-                const sufixo = resultVaga.isConfirmed ? 'Aditivo' : 'Extra Bonificado';
-                const tipoEscolhido = `${sufixo} - Vaga Excedida`;
+                        //     document.getElementById('btn-remanejar-mesma-funcao').addEventListener('click', async () => {
+                        //         const diariasDisponiveisExibir = parseInt(vagaMesmaFuncaoOutroPeriodo?.saldo_disponivel || totalDiasOrcamentoOriginal || 0, 10);
+                                    
+                        //         // Pegamos a quantidade exata de diárias/datas que o usuário marcou no calendário do front
+                        //         const diariasTotaisNovoPeriodo = datasParaSolicitar.length;
+                                
+                        //         // Sobras reais calculadas dinamicamente
+                        //         const diariasRestantesSobra = diariasTotaisNovoPeriodo > diariasDisponiveisExibir 
+                        //             ? (diariasTotaisNovoPeriodo - diariasDisponiveisExibir) 
+                        //             : 0;
 
-                // Datas que excedem o saldo
-                const saldoRestante = Math.max(0, limiteTotal - totalJaEscalado);
-                const datasExcedentes = datasSelecionadas.slice(saldoRestante);
-                const datasFinais = datasExcedentes.length > 0 ? datasExcedentes : datasSelecionadas;
+                        //         const confirmacaoParcial = await Swal.fire({
+                        //             title: 'Saldo Insuficiente na Vaga',
+                        //             html: `Esta vaga possui <b>${diariasDisponiveisExibir} diárias</b> disponíveis, mas você está solicitando o equivalente a <b>${diariasTotaisNovoPeriodo} diárias</b> para o novo período.<br><br>
+                        //                 Deseja definir o destino das <b>${diariasRestantesSobra} diárias</b> restantes?`,
+                        //             icon: 'warning',
+                        //             showCancelButton: true,
+                        //             confirmButtonColor: '#198754',
+                        //             cancelButtonColor: '#d33',
+                        //             confirmButtonText: 'Sim, definir destino',
+                        //             cancelButtonText: 'Não, voltar',
+                        //             allowOutsideClick: false
+                        //         });
+
+                        //         // Captura as datas reais que estão selecionadas no Flatpickr agora
+                        //         const fpInstance = document.querySelector('#id_do_seu_input_datas')?._flatpickr 
+                        //                         || document.querySelector('.flatpickr-input')?._flatpickr;
+                                
+                        //         let datasAtuaisNoCalendario = [];
+                        //         if (fpInstance) {
+                        //             // Pega as datas formatadas em string igual ao formato do componente
+                        //             datasAtuaisNoCalendario = fpInstance.selectedDates.map(date => fpInstance.formatDate(date, fpInstance.config.dateFormat));
+                        //         } else {
+                        //             datasAtuaisNoCalendario = [...datasParaSolicitar];
+                        //         }
+
+                        //         // Remove APENAS as 2 últimas diárias selecionadas (as sobras)
+                        //         const datasFiltradasSemAsSobras = datasAtuaisNoCalendario.slice(0, -2);
+
+                        //         // As datas reais da sobra que serão exibidas na modal/salvas em exceção (as 2 últimas)
+                        //         const datasSobrafinais = datasAtuaisNoCalendario.slice(-2);
+
+                        //         // // Função interna reutilizável para aplicar o Flatpickr limpando estritamente as 2 sobras
+                        //         // const dispararFluxoRetornoParcial = () => {
+                        //         //     if (fpInstance) {
+                        //         //         fpInstance.setDate(datasFiltradasSemAsSobras, true);
+                        //         //     }
+
+                        //         //     // Abre a modal de Confirmação de Alocação Parcial
+                        //         //     setTimeout(async () => {
+                        //         //         const confirmaGravacaoParcial = await Swal.fire({
+                        //         //             title: 'Confirmar Alocação Parcial',
+                        //         //             html: `Deseja confirmar a alocação das vagas disponíveis para a função <b>${nmFuncao}</b> apenas para as 4 diárias que possuem saldo?`,
+                        //         //             icon: 'question',
+                        //         //             showCancelButton: true,
+                        //         //             confirmButtonColor: '#198754',
+                        //         //             cancelButtonColor: '#6c757d',
+                        //         //             confirmButtonText: 'Sim, salvar agora',
+                        //         //             cancelButtonText: 'Não, voltar a editar',
+                        //         //             allowOutsideClick: false
+                        //         //         });
+
+                        //         //         if (confirmaGravacaoParcial.isConfirmed) {
+                        //         //             window.tipoExcecaoAtual = "Vaga Reaproveitada"; 
+                        //         //             window.bSalvarComoInativo = false;
+                        //         //             window.datasParaSalvarNoBanco = datasFiltradasSemAsSobras;
+
+                        //         //             const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                        //         //             if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                        //         //         } else {
+                        //         //             verificarLimiteDeFuncao(criterios, dadosErroBackend);
+                        //         //         }
+                        //         //     }, 150);
+                        //         // };
+
+                        //         // // ── [TRATATIVA DO BOTÃO: NÃO, VOLTAR] ──
+                        //         // if (!confirmacaoParcial.isConfirmed) {
+                        //         //     Swal.close();
+                        //         //     setTimeout(() => {
+                        //         //         dispararFluxoRetornoParcial();
+                        //         //     }, 150);
+                        //         //     return;
+                        //         // }
+
+                        //         // Função interna reutilizável para aplicar o Flatpickr limpando estritamente as sobras
+                        //         const dispararFluxoRetornoParcial = () => {
+                        //             if (fpInstance) {
+                        //                 fpInstance.setDate(datasFiltradasSemAsSobras, true);
+                        //             }
+
+                        //             // Abre a modal de Confirmação de Alocação Parcial
+                        //             setTimeout(async () => {
+                        //                 const confirmaGravacaoParcial = await Swal.fire({
+                        //                     title: 'Confirmar Alocação Parcial',
+                        //                     // 🎯 AJUSTE 1: Trocado "4 diárias" pelo valor dinâmico da variável
+                        //                     html: `Deseja confirmar a alocação das vagas disponíveis para a função <b>${nmFuncao}</b> apenas para as ${diariasDisponiveisExibir} diárias que possuem saldo?`,
+                        //                     icon: 'question',
+                        //                     showCancelButton: true,
+                        //                     confirmButtonColor: '#198754',
+                        //                     cancelButtonColor: '#6c757d',
+                        //                     confirmButtonText: 'Sim, salvar agora',
+                        //                     cancelButtonText: 'Não, voltar a editar',
+                        //                     allowOutsideClick: false
+                        //                 });
+
+                        //                 if (confirmaGravacaoParcial.isConfirmed) {
+                        //                     window.tipoExcecaoAtual = "Vaga Reaproveitada"; 
+                        //                     window.bSalvarComoInativo = false;
+                        //                     window.datasParaSalvarNoBanco = datasFiltradasSemAsSobras;
+
+                        //                     const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                        //                     if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                        //                 } else {
+                        //                     // 🎯 AJUSTE 2 (CORREÇÃO DO MENTIROSO): Apenas fecha o Swal e joga o usuário para o front
+                        //                     Swal.close();
+                        //                     console.log("🔄 [FLUXO PARCIAL] Retornando ao formulário principal para edição livre.");
+                        //                 }
+                        //             }, 150);
+                        //         };
+
+                        //         // ⚠️ MANTENHA ESTE TRECHO ABAIXO: Ele cuida do botão "Não, voltar" do PRIMEIRO modal!
+                        //         if (!confirmacaoParcial.isConfirmed) {
+                        //             Swal.close();
+                        //             setTimeout(() => {
+                        //                 dispararFluxoRetornoParcial();
+                        //             }, 150);
+                        //             return;
+                        //         }
+
+                        //         // Se escolheu "Sim, definir destino", monta a tela de sobra
+                        //         window.vagaParcialEscolhida = vagaMesmaFuncaoOutroPeriodo;
+                        //         window.qtdAlocadaParcial = 4; 
+                                
+                        //         const datasSobraBR = datasSobrafinais.map(d => {
+                        //             const parts = d.split('-');
+                        //             return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+                        //         }).join(', ');
+
+                        //         const outrasVagasFiltradas = vagasDisponiveis.filter(v => 
+                        //             String(v.idorcamento) !== String(vagaMesmaFuncaoOutroPeriodo.idorcamento) ||
+                        //             String(v.idfuncao) !== String(vagaMesmaFuncaoOutroPeriodo.idfuncao)
+                        //         );
+
+                        //         let optionsSobraHtml = '<option value="">-- Selecione uma vaga disponível --</option>';
+                        //         outrasVagasFiltradas.forEach(v => {
+                        //             optionsSobraHtml += `<option value="${v.idfuncao}-${v.idorcamento}">${v.nmfuncao} (Disponível: ${v.saldo_disponivel || v.saldo || 0} diárias)</option>`;
+                        //         });
+
+                        //         Swal.close();
+
+                        //         // ── [MODAL: DEFINIR DESTINO DA SOBRA] ──
+                        //         setTimeout(async () => {
+                        //             let acaoEscolhida = null;
+                        //             let valorVagaEscolhida = null; 
+
+                        //             await Swal.fire({
+                        //                 title: 'Definir Destino da Sobra',
+                        //                 showConfirmButton: false,
+                        //                 showCancelButton: false,
+                        //                 footer: false,
+                        //                 allowOutsideClick: false,
+                        //                 width: '520px',
+                        //                 padding: '0',
+                        //                 html: `
+                        //                     <style>
+                        //                         /* Garante simetria e impede estouro de margens */
+                        //                         .swal-container-sobra {
+                        //                             padding: 20px 24px;
+                        //                             box-sizing: border-box;
+                        //                             width: 100%;
+                        //                         }
+                        //                         .card-reaproveitar-sobra {
+                        //                             text-align: left; 
+                        //                             margin-bottom: 20px; 
+                        //                             border: 1px solid #ddd; 
+                        //                             padding: 15px; 
+                        //                             border-radius: 6px; 
+                        //                             background: #fafafa;
+                        //                             box-sizing: border-box;
+                        //                             width: 100%;
+                        //                         }
+                        //                         /* Força largura total cravada em 100% de ponta a ponta */
+                        //                         .btn-sobra-full {
+                        //                             width: 100% !important;
+                        //                             max-width: 100% !important;
+                        //                             box-sizing: border-box;
+                        //                             margin: 6px 0 !important; 
+                        //                             padding: 12px !important; 
+                        //                             font-weight: bold !important; 
+                        //                             border-radius: 5px !important; 
+                        //                             border: none !important; 
+                        //                             cursor: pointer !important; 
+                        //                             font-size: 13px !important;
+                        //                             display: block !important;
+                        //                         }
+                        //                     </style>
+
+                        //                     <div class="swal-container-sobra">
+                        //                         <div style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; font-size: 13px; text-align: left; margin-bottom: 20px; border: 1px solid #f5c6cb; box-sizing: border-box; width: 100%;">
+                        //                             <strong style="font-size: 14px;"><i class="fa fa-exclamation-triangle"></i> Alerta de Limite Excedido!</strong><br><br>
+                        //                             As primeiras <b>${diariasDisponiveisExibir} diárias</b> foram garantidas na vaga anterior.<br>
+                        //                             As seguintes datas estão <b>FORA DO ORÇAMENTO</b> ou excederam o limite:<br>
+                        //                             <span style="color:#c92432; font-weight:bold; display: block; margin-top: 5px;">${datasSobraBR}</span>
+                        //                         </div>
+
+                        //                         <div class="card-reaproveitar-sobra">
+                        //                             <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 13.5px;">Reaproveitar Saldo de Outra Função:</label>
+                        //                             <select id="swal-select-vaga-sobra" class="swal2-select" style="display: block; width: 100%; margin: 0 0 12px 0; font-size: 13px; height: 38px; box-sizing: border-box;">
+                        //                                 ${optionsSobraHtml}
+                        //                             </select>
+                        //                             <button id="btn-sobra-alocar-outra" class="btn-sobra-full" style="background-color:#198754; color:white; margin:0 !important;">
+                        //                                 Alocar na vaga selecionada
+                        //                             </button>
+                        //                         </div>
+
+                        //                         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+                        //                         <button id="btn-sobra-aditivo" class="btn-sobra-full" style="background-color:var(--primary-color); color:white;">
+                        //                             Solicitar Aditivo - Datas fora do Orçamento
+                        //                         </button>
+                        //                         <button id="btn-sobra-extra" class="btn-sobra-full" style="background-color:var(--hover-color); color:white;">
+                        //                             Solicitar Extra Bonificado - Datas fora do Orçamento
+                        //                         </button>
+                        //                         <button id="btn-sobra-cancelar" class="btn-sobra-full" style="background-color:#6c757d; color:white;">
+                        //                             Cancelar e Voltar
+                        //                         </button>
+                        //                     </div>
+                        //                 `,
+                        //                 showConfirmButton: false,
+                        //                 allowOutsideClick: false,
+                        //                 didOpen: () => {                                            
+                        //                     document.getElementById('btn-sobra-alocar-outra').addEventListener('click', () => {
+                        //                         const sel = document.getElementById('swal-select-vaga-sobra');
+                        //                         if (!sel?.value) {
+                        //                             Swal.showValidationMessage('Selecione uma vaga disponível antes de confirmar.');
+                        //                             return;
+                        //                         }
+
+                        //                         // 1. Pega os IDs selecionados no select
+                        //                         const [idFuncVaga, idOrcVaga] = sel.value.split('-');
+
+                        //                         // 2. Localiza o objeto da vaga dentro do escopo do clique
+                        //                         const vagaEscolhidaSobra = outrasVagasFiltradas.find(v =>
+                        //                             String(v.idfuncao) === String(idFuncVaga) &&
+                        //                             String(v.idorcamento) === String(idOrcVaga)
+                        //                         );
+
+                        //                         if (!vagaEscolhidaSobra) {
+                        //                             Swal.showValidationMessage('Vaga selecionada inválida ou não encontrada.');
+                        //                             return;
+                        //                         }
+
+                        //                         // 🔥 3. CAPTURA O VALOR REAL DIRETO DA TELA (Formulário Ativo)
+                        //                         // Substitua 'idInputCacheDaTela' pelo ID real do campo de texto do cachê na sua tela
+                        //                         const inputCacheTela = document.getElementById('vlrCusto');
+
+                        //                         let vlrCacheExecutado = 0;
+
+                        //                         if (inputCacheTela) {
+                        //                             // Remove R$, espaços e garante que o formato vire um float válido (ex: "215.00")
+                        //                             let valorLimpo = inputCacheTela.value.replace('R$', '').trim();
+                                                    
+                        //                             // Tratamento caso sua máscara use pontos e vírgulas (ex: 2.150,00 ou 215,00)
+                        //                             if (valorLimpo.includes(',') && valorLimpo.includes('.')) {
+                        //                                 valorLimpo = valorLimpo.replace(/\./g, '').replace(',', '.');
+                        //                             } else if (valorLimpo.includes(',')) {
+                        //                                 valorLimpo = valorLimpo.replace(',', '.');
+                        //                             }
+                                                    
+                        //                             vlrCacheExecutado = Number(valorLimpo) || 0;
+                        //                         } else {
+                        //                             // Fallback de segurança caso não encontre o elemento na árvore do DOM
+                        //                             vlrCacheExecutado = Number(dadosOrcamento.ctodiaria || 0);
+                        //                         }
+
+                        //                         const vlrCacheReaprov = Number(vagaEscolhidaSobra.ctodiaria || 0);
+                        //                         // 4. Cálculos financeiros reais baseados na tela
+                        //                         const diferencaFinIndividual = vlrCacheExecutado - vlrCacheReaprov;
+                        //                         const totalDiasSobra = datasSobrafinais.length;
+                        //                         const impactoFinanceiroTotal = diferencaFinIndividual * totalDiasSobra;
+
+                        //                         // 5. Validação do teto orçamentário da Equipe (Back-end)
+                        //                         const verbaDisponivelDaEquipe = Number(vagaEscolhidaSobra.vlr_total_orcado_equipe || 0) - Number(vagaEscolhidaSobra.vlr_total_gasto_equipe || 0);
+
+                        //                         console.log('🔍 [DEBUG VALIDAÇÃO FINANCEIRA] Detalhes do cálculo para reaproveitamento: ', vagaEscolhidaSobra.vlr_total_orcado_equipe, vagaEscolhidaSobra.vlr_total_gasto_equipe);
+                        //                         console.log("💰 [Validação Financeira] Valor da Tela (Executado): R$", vlrCacheExecutado.toFixed(2));
+                        //                         console.log("💰 [Validação Financeira] Valor da Vaga (Reaproveitada): R$", vlrCacheReaprov.toFixed(2));
+                        //                         console.log("💰 [Validação Financeira] Diferença por diária: R$", diferencaFinIndividual.toFixed(2));
+                        //                         console.log("💰 [Validação Financeira] Verba disponível da equipe: R$", verbaDisponivelDaEquipe.toFixed(2));
+                        //                         console.log("💰 [Validação Financeira] Impacto desta alocação: R$", impactoFinanceiroTotal.toFixed(2));
+                        //                         console.log("💰 [Validação Financeira] Vaga escolhida: ", vagaEscolhidaSobra.nmfuncao, vagaEscolhidaSobra.setor);
+                                                
+                        //                         if (impactoFinanceiroTotal > verbaDisponivelDaEquipe) {
+                        //                             Swal.showValidationMessage(`
+                        //                                 Ação bloqueada! O reaproveitamento estoura a verba da equipe.<br>
+                        //                                 Saldo disponível da equipe: R$ ${verbaDisponivelDaEquipe.toFixed(2)}<br>
+                        //                                 Impacto desta alocação: R$ ${impactoFinanceiroTotal.toFixed(2)}
+                        //                             `);
+                        //                             return;
+                        //                         }
+
+                        //                         // Se passou na validação, alimenta as variáveis globais
+                        //                         acaoEscolhida = 'OUTRA_VAGA';
+                        //                         valorVagaEscolhida = sel.value;
+                                                
+                        //                         // Monta a estrutura JSON que vai para o banco
+                        //                         const arrVagasReaproveitadas = datasSobrafinais.map(dataStr => ({
+                        //                             data: dataStr,
+                        //                             idfuncaoreaprov: parseInt(idFuncVaga),
+                        //                             nmfuncaoreaprov: vagaEscolhidaSobra.nmfuncao,
+                        //                             idorcamentoreaprov: parseInt(idOrcVaga),
+                        //                             setorreaprov: vagaEscolhidaSobra.setor || "",
+                        //                             vlrcachereaprov: vlrCacheReaprov,
+                        //                             vlrcacheexecutado: vlrCacheExecutado,
+                        //                             diferencafinanceira: diferencaFinIndividual
+                        //                         }));
+
+                        //                         window.vagasReaproveitadasJSON = JSON.stringify(arrVagasReaproveitadas);
+
+                        //                         Swal.close();
+                        //                     });
+
+                        //                     document.getElementById('btn-sobra-aditivo').addEventListener('click', () => { acaoEscolhida = 'ADITIVO'; Swal.close(); });
+                        //                     document.getElementById('btn-sobra-extra').addEventListener('click', () => { acaoEscolhida = 'EXTRA_BONIFICADO'; Swal.close(); });
+                        //                     document.getElementById('btn-sobra-cancelar').addEventListener('click', () => { acaoEscolhida = 'CANCELAR'; Swal.close(); });
+                        //                 }
+                        //             });
+
+                        //             // Fluxos pós fechamento da modal de sobras
+                        //             if (acaoEscolhida === 'OUTRA_VAGA') {
+                        //                 const [idFuncVaga, idOrcVaga] = valorVagaEscolhida.split('-');
+                        //                 const vagaEscolhidaSobra = outrasVagasFiltradas.find(v =>
+                        //                     String(v.idfuncao) === String(idFuncVaga) &&
+                        //                     String(v.idorcamento) === String(idOrcVaga)
+                        //                 );
+
+                        //                 window.tipoExcecaoAtual = "Vaga Reaproveitada";
+                        //                 window.bSalvarComoInativo = false;
+                        //                 window.datasParaSalvarNoBanco = datasSobrafinais;
+                        //                 window.vagaSobraReaproveitada = vagaEscolhidaSobra;
+                                        
+                        //                 const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                        //                 if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                        //             }
+                        //             else if (acaoEscolhida === 'ADITIVO' || acaoEscolhida === 'EXTRA_BONIFICADO') {
+                        //                 const labelTipo = acaoEscolhida === 'ADITIVO' 
+                        //                     ? 'Aditivo - Datas fora do Orçamento' 
+                        //                     : 'Extra Bonificado - Vaga Excedida';
+
+                        //                 const dadosExcecao = await solicitarDadosExcecao(
+                        //                     labelTipo,
+                        //                     dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+                        //                     nmFuncao,
+                        //                     idFuncaoProcurado,
+                        //                     idFuncionario,
+                        //                     datasSobrafinais
+                        //                 );
+
+                        //                 if (dadosExcecao?.confirmado) {
+                        //                     window.tipoExcecaoAtual = labelTipo;
+                        //                     window.justificativaParaSalvar = dadosExcecao.justificativa;
+                        //                     window.bSalvarComoInativo = true;
+                        //                     window.datasParaSalvarNoBanco = datasSobrafinais;
+                                            
+                        //                     const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                        //                     if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                        //                 } else {
+                        //                     setTimeout(() => { verificarLimiteDeFuncao(criterios, dadosErroBackend); }, 150);
+                        //                 }
+                        //             }
+                        //             else if (acaoEscolhida === 'CANCELAR') {
+                        //                 // ── [TRATATIVA DO BOTÃO: CANCELAR E VOLTAR] ──
+                        //                 dispararFluxoRetornoParcial();
+                        //             }
+                        //         }, 150);
+                        //     });
+                        // }
+
+                        document.getElementById('btn-remanejar-mesma-funcao').addEventListener('click', async () => {
+    
+                            // ── [SINCRO MATEMÁTICA REAL] ──
+                            const diariasDisponiveisExibir = vagasDisponiveisExibir; 
+                            const diariasTotaisNovoPeriodo = totalDatasClicadas;
+                            const diariasRestantesSobra = faltantes;
+
+                            // Só abre a validação de saldo se realmente houver diárias faltantes/sobras
+                            if (diariasRestantesSobra > 0) {
+                                const confirmacaoParcial = await Swal.fire({
+                                    title: 'Saldo Insuficiente na Vaga',
+                                    html: `Esta vaga possui <b>${diariasDisponiveisExibir} diárias</b> disponíveis, mas você está solicitando o equivalente a <b>${diariasTotaisNovoPeriodo} diárias</b> para o novo período.<br><br>
+                                        Deseja definir o destino das <b>${diariasRestantesSobra} diárias</b> restantes?`,
+                                    icon: 'warning',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#198754',
+                                    cancelButtonColor: '#d33',
+                                    confirmButtonText: 'Sim, definir destino',
+                                    cancelButtonText: 'Não, voltar',
+                                    allowOutsideClick: false
+                                });
+
+                                // Captura as datas reais que estão selecionadas no Flatpickr agora
+                                const fpInstance = document.querySelector('#id_do_seu_input_datas')?._flatpickr 
+                                                || document.querySelector('.flatpickr-input')?._flatpickr;
+                                
+                                let datasAtuaisNoCalendario = [];
+                                if (fpInstance) {
+                                    datasAtuaisNoCalendario = fpInstance.selectedDates.map(date => fpInstance.formatDate(date, fpInstance.config.dateFormat));
+                                } else {
+                                    datasAtuaisNoCalendario = [...datasParaSolicitar];
+                                }
+
+                                // ── [FATIAMENTO DINÂMICO DOS ARRAYS] ──
+                                const datasFiltradasSemAsSobras = datasAtuaisNoCalendario.slice(0, -diariasRestantesSobra);
+                                const datasSobrafinais = datasAtuaisNoCalendario.slice(-diariasRestantesSobra);
+
+                                const dispararFluxoRetornoParcial = () => {
+                                    if (fpInstance) {
+                                        fpInstance.setDate(datasFiltradasSemAsSobras, true);
+                                    }
+
+                                    // Abre a modal de Confirmação de Alocação Parcial
+                                    setTimeout(async () => {
+                                        const confirmaGravacaoParcial = await Swal.fire({
+                                            title: 'Confirmar Alocação Parcial',
+                                            html: `Deseja confirmar a alocação das vagas disponíveis para a função <b>${nmFuncao}</b> apenas para as ${diariasDisponiveisExibir} diárias que possuem saldo?`,
+                                            icon: 'question',
+                                            showCancelButton: true,
+                                            confirmButtonColor: '#198754',
+                                            cancelButtonColor: '#6c757d',
+                                            confirmButtonText: 'Sim, salvar agora',
+                                            cancelButtonText: 'Não, voltar a editar',
+                                            allowOutsideClick: false
+                                        });
+
+                                        if (confirmaGravacaoParcial.isConfirmed) {
+                                            window.tipoExcecaoAtual = "Vaga Reaproveitada"; 
+                                            window.bSalvarComoInativo = false;
+                                            window.datasParaSalvarNoBanco = datasFiltradasSemAsSobras;
+
+                                            const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                                            if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                                        } else {
+                                            Swal.close();
+                                            console.log("🔄 [FLUXO PARCIAL] Retornando ao formulário principal para edição livre.");
+                                        }
+                                    }, 150);
+                                };
+
+                                // ⚠️ MANTENHA ESTE TRECHO ABAIXO: Ele cuida do botão "Não, voltar" do PRIMEIRO modal!
+                                if (!confirmacaoParcial.isConfirmed) {
+                                    Swal.close();
+                                    setTimeout(() => {
+                                        dispararFluxoRetornoParcial();
+                                    }, 150);
+                                    return;
+                                }
+
+                                // Se escolheu "Sim, definir destino", monta a tela de sobra
+                                window.vagaParcialEscolhida = vagaMesmaFuncaoOutroPeriodo;
+                                window.qtdAlocadaParcial = diariasDisponiveisExibir; 
+                                
+                                const datasSobraBR = datasSobrafinais.map(d => {
+                                    const parts = d.split('-');
+                                    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+                                }).join(', ');
+
+                                const outrasVagasFiltradas = vagasDisponiveis.filter(v => 
+                                    String(v.idorcamento) !== String(vagaMesmaFuncaoOutroPeriodo.idorcamento) ||
+                                    String(v.idfuncao) !== String(vagaMesmaFuncaoOutroPeriodo.idfuncao)
+                                );
+
+                                let optionsSobraHtml = '<option value="">-- Selecione uma vaga disponível --</option>';
+                                outrasVagasFiltradas.forEach(v => {
+                                    optionsSobraHtml += `<option value="${v.idfuncao}-${v.idorcamento}">${v.nmfuncao} (Disponível: ${v.saldo_disponivel || v.saldo || 0} diárias)</option>`;
+                                });
+
+                                Swal.close();
+
+                                // ── [MODAL: DEFINIR DESTINO DA SOBRA] ──
+                                setTimeout(async () => {
+                                    let acaoEscolhida = null;
+                                    let valorVagaEscolhida = null; 
+
+                                    await Swal.fire({
+                                        title: 'Definir Destino da Sobra',
+                                        showConfirmButton: false,
+                                        showCancelButton: false,
+                                        footer: false,
+                                        allowOutsideClick: false,
+                                        width: '520px',
+                                        padding: '0',
+                                        html: `
+                                            <style>
+                                                .swal-container-sobra { padding: 20px 24px; box-sizing: border-box; width: 100%; }
+                                                .card-reaproveitar-sobra { text-align: left; margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 6px; background: #fafafa; box-sizing: border-box; width: 100%; }
+                                                .btn-sobra-full { width: 100% !important; max-width: 100% !important; box-sizing: border-box; margin: 6px 0 !important; padding: 12px !important; font-weight: bold !important; border-radius: 5px !important; border: none !important; cursor: pointer !important; font-size: 13px !important; display: block !important; }
+                                            </style>
+
+                                            <div class="swal-container-sobra">
+                                                <div style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; font-size: 13px; text-align: left; margin-bottom: 20px; border: 1px solid #f5c6cb; box-sizing: border-box; width: 100%;">
+                                                    <strong style="font-size: 14px;"><i class="fa fa-exclamation-triangle"></i> Alerta de Limite Excedido!</strong><br><br>
+                                                    As primeiras <b>${diariasDisponiveisExibir} diárias</b> foram garantidas na vaga anterior.<br>
+                                                    As seguintes datas estão <b>FORA DO ORÇAMENTO</b> ou excederam o limite:<br>
+                                                    <span style="color:#c92432; font-weight:bold; display: block; margin-top: 5px;">${datasSobraBR}</span>
+                                                </div>
+
+                                                <div class="card-reaproveitar-sobra">
+                                                    <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 13.5px;">Reaproveitar Saldo de Outra Função:</label>
+                                                    <select id="swal-select-vaga-sobra" class="swal2-select" style="display: block; width: 100%; margin: 0 0 12px 0; font-size: 13px; height: 38px; box-sizing: border-box;">
+                                                        ${optionsSobraHtml}
+                                                    </select>
+                                                    <button id="btn-sobra-alocar-outra" class="btn-sobra-full" style="background-color:#198754; color:white; margin:0 !important;">
+                                                        Alocar na vaga selecionada
+                                                    </button>
+                                                </div>
+
+                                                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+                                                <button id="btn-sobra-aditivo" class="btn-sobra-full" style="background-color:var(--primary-color); color:white;">
+                                                    Solicitar Aditivo - Datas fora do Orçamento
+                                                </button>
+                                                <button id="btn-sobra-extra" class="btn-sobra-full" style="background-color:var(--hover-color); color:white;">
+                                                    Solicitar Extra Bonificado - Datas fora do Orçamento
+                                                </button>
+                                                <button id="btn-sobra-cancelar" class="btn-sobra-full" style="background-color:#6c757d; color:white;">
+                                                    Cancelar e Voltar
+                                                </button>
+                                            </div>
+                                        `,
+                                        showConfirmButton: false,
+                                        allowOutsideClick: false,
+                                        didOpen: () => {                                            
+                                            document.getElementById('btn-sobra-alocar-outra').addEventListener('click', () => {
+                                                const sel = document.getElementById('swal-select-vaga-sobra');
+                                                if (!sel?.value) {
+                                                    Swal.showValidationMessage('Selecione uma vaga disponível antes de confirmar.');
+                                                    return;
+                                                }
+
+                                                const [idFuncVaga, idOrcVaga] = sel.value.split('-');
+
+                                                const vagaEscolhidaSobra = outrasVagasFiltradas.find(v =>
+                                                    String(v.idfuncao) === String(idFuncVaga) &&
+                                                    String(v.idorcamento) === String(idOrcVaga)
+                                                );
+
+                                                if (!vagaEscolhidaSobra) {
+                                                    Swal.showValidationMessage('Vaga selecionada inválida ou não encontrada.');
+                                                    return;
+                                                }
+
+                                                const inputCacheTela = document.getElementById('vlrCusto');
+                                                let vlrCacheExecutado = 0;
+
+                                                if (inputCacheTela) {
+                                                    let valorLimpo = inputCacheTela.value.replace('R$', '').trim();
+                                                    if (valorLimpo.includes(',') && valorLimpo.includes('.')) {
+                                                        valorLimpo = valorLimpo.replace(/\./g, '').replace(',', '.');
+                                                    } else if (valorLimpo.includes(',')) {
+                                                        valorLimpo = valorLimpo.replace(',', '.');
+                                                    }
+                                                    vlrCacheExecutado = Number(valorLimpo) || 0;
+                                                } else {
+                                                    vlrCacheExecutado = Number(dadosOrcamento.ctodiaria || 0);
+                                                }
+
+                                                const vlrCacheReaprov = Number(vagaEscolhidaSobra.ctodiaria || 0);
+                                                const diferencaFinIndividual = vlrCacheExecutado - vlrCacheReaprov;
+                                                const totalDiasSobra = datasSobrafinais.length;
+                                                const impactoFinanceiroTotal = diferencaFinIndividual * totalDiasSobra;
+
+                                                const verbaDisponivelDaEquipe = Number(vagaEscolhidaSobra.vlr_total_orcado_equipe || 0) - Number(vagaEscolhidaSobra.vlr_total_gasto_equipe || 0);
+
+                                                if (impactoFinanceiroTotal > verbaDisponivelDaEquipe) {
+                                                    Swal.showValidationMessage(`
+                                                        Ação bloqueada! O reaproveitamento estoura a verba da equipe.<br>
+                                                        Saldo disponível da equipe: R$ ${verbaDisponivelDaEquipe.toFixed(2)}<br>
+                                                        Impacto desta alocação: R$ ${impactoFinanceiroTotal.toFixed(2)}
+                                                    `);
+                                                    return;
+                                                }
+
+                                                acaoEscolhida = 'OUTRA_VAGA';
+                                                valorVagaEscolhida = sel.value;
+                                                
+                                                const arrVagasReaproveitadas = datasSobrafinais.map(dataStr => ({
+                                                    data: dataStr,
+                                                    idfuncaoreaprov: parseInt(idFuncVaga),
+                                                    nmfuncaoreaprov: vagaEscolhidaSobra.nmfuncao,
+                                                    idorcamentoreaprov: parseInt(idOrcVaga),
+                                                    setorreaprov: vagaEscolhidaSobra.setor || "",
+                                                    vlrcachereaprov: vlrCacheReaprov,
+                                                    vlrcacheexecutado: vlrCacheExecutado,
+                                                    diferencafinanceira: diferencaFinIndividual
+                                                }));
+
+                                                window.vagasReaproveitadasJSON = JSON.stringify(arrVagasReaproveitadas);
+                                                Swal.close();
+                                            });
+
+                                            document.getElementById('btn-sobra-aditivo').addEventListener('click', () => { acaoEscolhida = 'ADITIVO'; Swal.close(); });
+                                            document.getElementById('btn-sobra-extra').addEventListener('click', () => { acaoEscolhida = 'EXTRA_BONIFICADO'; Swal.close(); });
+                                            document.getElementById('btn-sobra-cancelar').addEventListener('click', () => { acaoEscolhida = 'CANCELAR'; Swal.close(); });
+                                        }
+                                    });
+
+                                    // Fluxos pós fechamento da modal de sobras
+                                    if (acaoEscolhida === 'OUTRA_VAGA') {
+                                        const [idFuncVaga, idOrcVaga] = valorVagaEscolhida.split('-');
+                                        const vagaEscolhidaSobra = outrasVagasFiltradas.find(v =>
+                                            String(v.idfuncao) === String(idFuncVaga) &&
+                                            String(v.idorcamento) === String(idOrcVaga)
+                                        );
+
+                                        window.tipoExcecaoAtual = "Vaga Reaproveitada";
+                                        window.bSalvarComoInativo = false;
+                                        window.datasParaSalvarNoBanco = datasSobrafinais;
+                                        window.vagaSobraReaproveitada = vagaEscolhidaSobra;
+                                        
+                                        const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                                        if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                                    }
+                                    else if (acaoEscolhida === 'ADITIVO' || acaoEscolhida === 'EXTRA_BONIFICADO') {
+                                        const labelTipo = acaoEscolhida === 'ADITIVO' 
+                                            ? 'Aditivo - Datas fora do Orçamento' 
+                                            : 'Extra Bonificado - Vaga Excedida';
+
+                                        const dadosExcecao = await solicitarDadosExcecao(
+                                            labelTipo,
+                                            dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+                                            nmFuncao,
+                                            idFuncaoProcurado,
+                                            idFuncionario,
+                                            datasSobrafinais
+                                        );
+
+                                        if (dadosExcecao?.confirmado) {
+                                            window.tipoExcecaoAtual = labelTipo;
+                                            window.justificativaParaSalvar = dadosExcecao.justificativa;
+                                            window.bSalvarComoInativo = true;
+                                            window.datasParaSalvarNoBanco = datasSobrafinais;
+                                            
+                                            const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                                            if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                                        } else {
+                                            setTimeout(() => { verificarLimiteDeFuncao(criterios, dadosErroBackend); }, 150);
+                                        }
+                                    }
+                                    else if (acaoEscolhida === 'CANCELAR') {
+                                        dispararFluxoRetornoParcial();
+                                    }
+                                }, 150); // <--- AQUI: Agora o setTimeout fecha perfeitamente!
+
+                            } else {
+                                // Se não houver sobra (saldo cobre tudo perfeitamente)
+                                window.tipoExcecaoAtual = null; 
+                                window.bSalvarComoInativo = false;
+                                window.datasParaSalvarNoBanco = datasParaSolicitar;
+
+                                const btnSalvarPrincipal = document.getElementById('btnSalvarStaff') || document.querySelector('.btn-primary-salvar');
+                                if(btnSalvarPrincipal) btnSalvarPrincipal.click();
+                            }
+                        }); // <--- AQUI: Fechamento correto do EventListener principal
+                        
+
+                        // Ouvinte do Select e confirmação tradicional (outras funções)
+                        document.getElementById('btn-semsaldo-vaga').addEventListener('click', async () => {
+                            const sel = document.getElementById('swal-select-vaga-semsaldo');
+                            if (!sel?.value) {
+                                Swal.showValidationMessage('Selecione uma vaga antes de confirmar.');
+                                return;
+                            }
+
+                            const [idFuncVaga, idOrcVaga] = sel.value.split('-');
+                            const vagaEscolhida = vagasDisponiveis.find(v =>
+                                String(v.idfuncao) === String(idFuncVaga) &&
+                                String(v.idorcamento) === String(idOrcVaga)
+                            );
+
+                            const totalDiasOrcOriginal = parseInt(vagaEscolhida?.qtddias || 4, 10);
+                            const totalSaldoVaga = vagaEscolhida ? parseInt(vagaEscolhida.saldo_disponivel ?? vagaEscolhida.saldo ?? 0, 10) : 0;
+                            const staffsPorDia = totalDiasOrcOriginal > 0 ? Math.ceil(totalSaldoVaga / totalDiasOrcOriginal) : 2;
+
+                            const qtdSolicitadaReal = datasParaSolicitar.length * staffsPorDia;
+                            const saldoDisponivelVaga = totalSaldoVaga;
+
+                            if (String(idFuncVaga) !== String(idFuncaoProcurado) && saldoDisponivelVaga < qtdSolicitadaReal) {
+                                const diasQueConsomemOSaldo = Math.floor(saldoDisponivelVaga / staffsPorDia);
+                                
+                                const confirmacaoParcial = await Swal.fire({
+                                    title: 'Saldo Insuficiente na Vaga',
+                                    html: `Esta vaga possui apenas <b>${saldoDisponivelVaga} diárias</b> disponíveis, mas você está solicitando o equivalente a <b>${qtdSolicitadaReal} diárias</b>.<br><br>
+                                        Deseja alocar as primeiras <b>${saldoDisponivelVaga} diárias</b> dentro desta vaga?`,
+                                    icon: 'warning',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#198754',
+                                    cancelButtonColor: '#d33',
+                                    confirmButtonText: `Sim, alocar ${saldoDisponivelVaga}`,
+                                    cancelButtonText: 'Não, voltar'
+                                });
+
+                                if (confirmacaoParcial.isConfirmed) {
+                                    window.vagaParcialEscolhida = vagaEscolhida;
+                                    window.qtdAlocadaParcial = saldoDisponivelVaga;
+                                    window.datasRestantesSemSaldo = datasParaSolicitar.slice(diasQueConsomemOSaldo);
+
+                                    escolhaSemSaldo = 'REMANESCENTE_PARCIAL';
+                                    Swal.close();
+                                }
+                                return; 
+                            }
+
+                            escolhaSemSaldo = `VAGA:${sel.value}`;
+                            Swal.close();
+                        });
+
+                        document.getElementById('btn-semsaldo-aditivo').addEventListener('click', () => { escolhaSemSaldo = 'ADITIVO'; Swal.close(); });
+                        document.getElementById('btn-semsaldo-extra').addEventListener('click', () => { escolhaSemSaldo = 'EXTRA_BONIFICADO'; Swal.close(); });
+                        document.getElementById('btn-semsaldo-corrigir').addEventListener('click', () => { escolhaSemSaldo = 'CORRIGIR'; Swal.close(); });
+                    }
+                });
+
+                
+                if (!escolhaSemSaldo || escolhaSemSaldo === 'CORRIGIR') {
+                    return { allowed: false, preventDefault: true };
+                }
+
+                // 🌐 [NOVO FLUXO PARCIAL]: Se clicou em "Sim, definir destino"
+                if (escolhaSemSaldo === 'REMANESCENTE_PARCIAL') {
+                    console.log("🔄 [FLUXO PARCIAL] Atualizando datas restantes e reavaliando no modal...");
+
+                    // 1. Atualizamos o array de critérios originais com as 2 datas que restaram na sobra
+                    criterios.datasEvento = window.datasRestantesSemSaldo;
+                    
+                    // 2. Chamamos a função novamente de forma recursiva para reabrir o Modal imediatamente.
+                    // Como o saldo da vaga principal agora estará esgotado para o período total demandado,
+                    // o sistema reabrirá direto na tela exigindo Aditivo ou Extra Bonificado para as 2 diárias restantes!
+                    return await verificarLimiteDeFuncao(criterios, dadosErroBackend);
+                }
+
+                // Usou vaga de outra função por completo (ou mesma função com saldo total)
+                if (escolhaSemSaldo.startsWith('VAGA:')) {
+                    const [idFuncVaga, idOrcVaga] = escolhaSemSaldo.replace('VAGA:', '').split('-');
+                    const vagaEscolhida = vagasDisponiveis.find(v =>
+                        String(v.idfuncao) === String(idFuncVaga) &&
+                        String(v.idorcamento) === String(idOrcVaga)
+                    );
+                    window.tipoExcecaoAtual = "Vaga Reaproveitada";
+                    window.bSalvarComoInativo = false;
+                    window.datasParaSalvarNoBanco = datasForaDoPeriodo;
+
+                    console.log(`✅ [Sem Saldo] Vaga reaproveitada: ${vagaEscolhida?.nmfuncao} (Orç: ${idOrcVaga})`);
+                    return { allowed: true, vagaReaproveitada: vagaEscolhida || null };
+                }
+
+                // Solicitou Aditivo ou Extra Bonificado diretamente
+                const tipoEscolhido = escolhaSemSaldo === 'ADITIVO'
+                    ? 'Aditivo - Datas fora do Orçamento'
+                    : 'Extra Bonificado - Datas fora do Orçamento';
 
                 const dadosExcecao = await solicitarDadosExcecao(
                     tipoEscolhido,
@@ -14957,28 +17114,184 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                     nmFuncao,
                     idFuncaoProcurado,
                     idFuncionario,
-                    datasFinais
-                    //dataUnicaParaBanco
+                    datasParaSolicitar
                 );
 
-                if (dadosExcecao && dadosExcecao.confirmado) {
+                if (dadosExcecao?.confirmado) {
                     window.tipoExcecaoAtual = tipoEscolhido;
                     window.justificativaParaSalvar = dadosExcecao.justificativa;
-                    window.bSalvarComoInativo = true; 
-                    window.datasParaSalvarNoBanco = datasFinais;
-
+                    window.bSalvarComoInativo = true;
+                    window.datasParaSalvarNoBanco = datasParaSolicitar;
                     return {
                         allowed: false,
                         solicitouAutorizacao: true,
                         justificativa: dadosExcecao.justificativa,
-                        tipoSolicitacao: tipoEscolhido
+                        tipoSolicitacao: tipoEscolhido,
+                        datasExcecao: datasParaSolicitar
                     };
                 }
+
+                return { allowed: false };
+
+            } else {
+                // ============================================================
+                // 🟡 FLUXO COM SALDO: datas fora do período mas há vagas
+                // ============================================================
+
+                if (!dadosErroBackend && !window.estaSalvando) {
+                    const infoMargem = dentroDaMargem
+                        ? `<div style="color:#856404; background:#fff3cd; border:1px solid #ffeeba; 
+                                    padding:10px; border-radius:6px; font-size:13px; text-align:left; margin-bottom:12px;">
+                            🗓️ <b>Datas Dentro da margem de tolerância de 30 dias do orçamento original.</b>
+                        </div>`
+                        : `<div style="color:#721c24; background:#f8d7da; border:1px solid #f5c6cb; 
+                                    padding:10px; border-radius:6px; font-size:13px; text-align:left; margin-bottom:12px;">
+                            ❌ <b>Datas Fora da margem de tolerância de 30 dias do orçamento original.</b>
+                        </div>`;
+
+                    let decisaoComSaldo = null;
+
+                    await Swal.fire({
+                        title: false,
+                        showConfirmButton: false,
+                        showCancelButton: false,
+                        footer: false,
+                        allowOutsideClick: false,
+                        width: '520px',
+                        padding: '0',
+                        html: `
+                            <!-- Banner de Alerta Superior (Cinza Claro Otimizado) -->
+                            <div style="display:flex; align-items:flex-start; gap:14px; background:#f8f9fa; border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                                <!-- Círculo do Alerta com alto contraste agora -->
+                                <div style="width:38px; height:38px; border-radius:50%; background:#fff3cd; border:1px solid #f6d87f; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    <i class="fa fa-calendar-times-o" style="color:#856404; font-size:17px;"></i>
+                                </div>
+                                <div style="text-align:left;">
+                                    <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
+                                        Data Fora Do Orçamento, mas há <span style="color:#000; font-weight:800; font-size:15px; border-radius:4px; ">${saldoAtual}</span> diárias disponíveis para ${nmFuncao} em outro setor, período ou orçamento
+                                    </p>
+                                    <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
+                                        As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Conteúdo do Formulário/Ações -->
+                            <div style="padding:20px 24px;">
+                                
+                                ${infoMargem}
+
+                                <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+                                    Como deseja prosseguir?
+                                </p>
+
+                                <!-- 1º: Prosseguir assim (Destaque Principal se estiver dentro da margem) -->
+                                ${dentroDaMargem ? `
+                                <button id="btn-comsaldo-prosseguir"
+                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                    <i class="fa fa-check"></i> Prosseguir usando vagas disponíveis
+                                </button>` : ''}
+
+                                <!-- 2º: Opções de Exceção (Lado a Lado) -->
+                                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                                    <button id="btn-comsaldo-aditivo"
+                                        style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--primary-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:11.5px; cursor:pointer; white-space:nowrap;">
+                                        <i class="fa fa-plus"></i> Aditivo
+                                    </button>
+                                    <button id="btn-comsaldo-extra"
+                                        style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--hover-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:11.5px; cursor:pointer; white-space:nowrap;">
+                                        <i class="fa fa-star"></i> Extra Bonificado
+                                    </button>
+                                </div>
+
+                                <!-- 3º: Botão Corrigir (Fundo neutro) -->
+                                <button id="btn-comsaldo-corrigir"
+                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                    <i class="fa fa-pencil"></i> Corrigir datas
+                                </button>
+                            </div>
+                        `,
+                        didOpen: () => {
+                            if (dentroDaMargem) {
+                                document.getElementById('btn-comsaldo-prosseguir').addEventListener('click', () => {
+                                    decisaoComSaldo = 'prosseguir';
+                                    Swal.close();
+                                });
+                            }
+
+                            document.getElementById('btn-comsaldo-aditivo').addEventListener('click', () => {
+                                decisaoComSaldo = 'Aditivo - Datas fora do Orçamento'; // Mantém o padrão correto para salvar
+                                Swal.close();
+                            });
+
+                            document.getElementById('btn-comsaldo-extra').addEventListener('click', () => {
+                                decisaoComSaldo = 'Extra Bonificado - Datas fora do Orçamento'; // Mantém o padrão correto para salvar
+                                Swal.close();
+                            });
+
+                            document.getElementById('btn-comsaldo-corrigir').addEventListener('click', () => {
+                                decisaoComSaldo = 'corrigir';
+                                Swal.close();
+                            });
+                        }
+                    });
+
+
+                    // ── Tratamento da escolha ──────────────────────────────────
+                    if (!decisaoComSaldo || decisaoComSaldo === 'CORRIGIR') {
+                        return { allowed: false, preventDefault: true };
+                    }
+
+                    if (decisaoComSaldo === 'PROSSEGUIR') {
+                        window.bSalvarComoInativo = false;
+                        window.tipoExcecaoAtual = null;
+                        const elObs = document.getElementById('obsgeral');
+                        if (elObs) {
+                            const periodoOriginalBR = datasPermitidas.map(d => d.split('-').reverse().join('/')).join(', ');
+                            const nomeUsuario = window.usuarioLogadoNome || 'Sistema';
+                            elObs.value = (elObs.value + `\n[HISTÓRICO] Período planejado: ${periodoOriginalBR}. Registrado em: ${datasForaDoPeriodoBR} por margem de tolerância. Por: ${nomeUsuario}.`).trim();
+                        }
+                        return { allowed: true, solicitouAutorizacao: false };
+                    }
+
+                    // Aditivo ou Extra Bonificado
+                    const tipoEscolhido = decisaoComSaldo === 'ADITIVO'
+                        ? 'Aditivo - Datas fora do Orçamento'
+                        : 'Extra Bonificado - Datas fora do Orçamento';
+
+                    const datasParaSolicitar = datasForaDoPeriodo.filter(d => d != null && d !== '');
+
+                    const dadosExcecao = await solicitarDadosExcecao(
+                        tipoEscolhido,
+                        dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+                        nmFuncao,
+                        idFuncaoProcurado,
+                        idFuncionario,
+                        datasParaSolicitar
+                    );
+
+                    if (dadosExcecao?.confirmado) {
+                        window.tipoExcecaoAtual = tipoEscolhido;
+                        window.justificativaParaSalvar = dadosExcecao.justificativa;
+                        window.bSalvarComoInativo = true;
+                        window.datasParaSalvarNoBanco = datasParaSolicitar;
+                        return {
+                            allowed: false,
+                            solicitouAutorizacao: true,
+                            justificativa: dadosExcecao.justificativa,
+                            tipoSolicitacao: tipoEscolhido,
+                            datasExcecao: datasParaSolicitar
+                        };
+                    }
+
+                    return { allowed: false };
+                }
+
+                // Se estiver salvando ou vier do backend, deixa passar
+                return { allowed: true, solicitouAutorizacao: false };
             }
-            return { allowed: false }; 
         }
     }
-
     return { allowed: true, solicitouAutorizacao: false };
 }
 
@@ -15288,7 +17601,10 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
         const idEvento = document.getElementById('nmEvento')?.value;
         const idCliente = document.getElementById('nmCliente')?.value;
         const idLocalMontagem = document.getElementById('nmLocalMontagem')?.value;
-        const idEquipe = document.getElementById('nmEquipe')?.value;
+       const idEquipe = currentEditingStaffEvent?.idequipe 
+              || document.getElementById('idEquipe')?.value   // hidden input
+              || document.getElementById('nmEquipe')?.dataset?.id  // data-id no elemento
+              || null;
         
         // Captura o ID do orçamento se ele estiver disponível no escopo do formulário ou objeto global
         const idOrcamento = currentEditingStaffEvent?.idorcamento || null;
@@ -15310,6 +17626,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
             console.warn("⚠️ Não foi possível buscar as vagas do orçamento: IDs do Evento, Cliente ou Local ausentes.");
             return null;
         }
+        console.log("✅ Parâmetros necessários para buscar vagas estão presentes. Prosseguindo com a requisição...", idEvento, idCliente, idLocalMontagem, setorAtual, idEquipe);
 
         // Faz o POST consumindo a rota de vagas
         const vagasBuscadas = await fetchComToken('/staff/orcamento/vagas-disponiveis', {
@@ -15352,7 +17669,10 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
 
         let optionsHtml = '<option value="">Selecione uma função disponível para sua equipe...</option>';
         funcoesFiltradas.forEach(vaga => {
-            const labelSetor = vaga.setor && vaga.setor !== 'Geral / Sem Setor' ? ` | Setor: ${vaga.setor}` : ' | Sem Setor';
+            //const labelSetor = vaga.setor && vaga.setor !== 'Geral / Sem Setor' ? ` | Setor: ${vaga.setor}` : ' | Sem Setor';
+            const labelSetor = (vaga.setor && vaga.setor.trim() !== '') 
+                                ? ` | Setor: ${vaga.setor}` 
+                                : ' | Sem Setor';
             const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : ' | Período não definido';
             optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${vaga.idorcamento} | Saldo: ${vaga.saldo_disponivel} diárias)</option>`;
         });        
@@ -15619,7 +17939,8 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                     parseInt(v.idorcamento) === idOrcamentoFinal
                 );
                 
-                const setorVaga = vagaEscolhida ? (vagaEscolhida.setor || 'Geral / Sem Setor') : 'Geral / Sem Setor';
+                //const setorVaga = vagaEscolhida ? (vagaEscolhida.setor || 'Geral / Sem Setor') : 'Geral / Sem Setor';
+                const setorVaga = (vagaEscolhida?.setor || '').trim();
                 const nomeVaga = vagaEscolhida ? vagaEscolhida.nmfuncao : nmFuncao;
 
                 // DEFINIÇÃO DO VALOR DO CACHÊ DA DOBRA POR NÍVEL
@@ -15734,8 +18055,10 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                 });
 
                 if (!textoJustificativa) return null;
+
+                const setorVagaDisplay = setorVaga !== '' ? setorVaga : 'Sem Setor';
                 
-                window.justificativaParaSalvar = `[Diária Dobrada ${dataFormatadaBR}] Consumiu vaga da função "${nomeVaga}" (${nivelSelecionadoTexto}) do setor "${setorVaga}" para cobrir virada. Justificativa: ${textoJustificativa.trim()}`.trim();
+                window.justificativaParaSalvar = `[Diária Dobrada ${dataFormatadaBR}] Consumiu vaga da função "${nomeVaga}" (${nivelSelecionadoTexto}) do setor "${setorVagaDisplay}" para cobrir virada. Justificativa: ${textoJustificativa.trim()}`.trim();
                 window.tipoExcecaoAtual = "Vaga Reaproveitada";
                 
                 //return escolhaModal;
