@@ -58,6 +58,7 @@ function normalizarStatus(notif, fonte) {
     'Aprovada':   'notif-aprovada',
     'Recusada':   'notif-recusada',
     'Finalizado': 'notif-finalizado',
+    'Vencidos':   'notif-vencidos',
   };
 
   if (fonte === 'banco') {
@@ -81,7 +82,12 @@ function normalizarStatus(notif, fonte) {
     status = notif.status || 'Pendente';
   }
 
-  return { ...notif, status,classeStatus: mapaClasse[status] || '' };
+  // Para 'pag', o backend já calcula classeStatus (notif-vencidos, notif-hoje etc.) — preservar
+  const classeStatus = fonte === 'pag'
+      ? (notif.classeStatus || mapaClasse[status] || '')
+      : (mapaClasse[status] || '');
+
+  return { ...notif, status, classeStatus };
 }
 
 // ─────────────────────────────────────────────
@@ -102,6 +108,10 @@ function montarAbas() {
   if (master || financeiro) {
     abas.push({ key: 'Vencidos', label: 'Vencidos', icon: 'brightness_alert' });
   }
+
+  // Ajusta altura da lista conforme quantidade de abas (cada aba extra = ~80px no aside)
+  const altura = (master || financeiro) ? '560px' : '460px';
+  document.documentElement.style.setProperty('--lista-height', altura);
 
   return abas;
 }
