@@ -5016,8 +5016,10 @@ async function verificaStaff() {
             // 9. VERIFICAÇÃO DE LIMITE DE VAGAS (POST)
             // =========================================================
             if (metodo === "POST" && !isFormLoadedFromDoubleClick) {
-                window.justificativaParaSalvar = null;
-                window.tipoExcecaoAtual = null;
+                 if (!window.bSalvarComoInativo) {
+                    window.justificativaParaSalvar = null;
+                    window.tipoExcecaoAtual = null;
+                }
 
                 const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
                 const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => date.toISOString().split('T')[0]) || [];
@@ -16585,14 +16587,14 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
         // Se temos os IDs e eles são iguais, é a vaga atual!
         let ehVagaAtual = (idVagaAtualContexto !== '' && idVagaLoop !== '') && (idVagaLoop === idVagaAtualContexto);
 
-        // Fallback de contingência: Se por acaso os IDs não existirem no objeto, cruzamos orçamento + setor + função
-        if (!ehVagaAtual && idVagaAtualContexto === '') {
+        // Fallback de contingência: só aplica em edições (não em novas inserções)
+        // Em novos POSTs não existe "vaga atual" — o fallback removeria vagas válidas incorretamente
+        if (!ehVagaAtual && idVagaAtualContexto === '' && window.currentEditingStaffEvent) {
             const vOrcamento = String(vaga.idorcamento || '').trim();
             const aOrcamento = String(idOrcamentoAtual || '').trim();
             const vSetor = normalizarSetor(vaga.setor || '');
             const aSetor = String(setorAtual || '').trim();
-            
-            // Sem o período (que está quebrando), se bater orçamento, setor e função, consideramos a atual
+
             ehVagaAtual = (vFuncao === aFuncao) && (vOrcamento === aOrcamento) && (vSetor === aSetor);
         }
 
@@ -16676,8 +16678,11 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                 // });
 
                 // ── [CÁLCULO DOS VALORES EXATOS PEDIDOS - REAPROVEITAMENTO REAL] ──
-                // 1. Vagas disponíveis para exibição (Saldo real vindo de OUTRAS vagas encontradas)
-               const vagasDisponiveisExibir = totalDiariasOrcamento; 
+                // Desconta as datas que JÁ estão no período do orçamento (serão consumidas por este próprio registro)
+                // O saldo real disponível para reaproveitamento = saldo total - datas que este staff usa do período orçado
+                const datasNoPeriodoCount = datasSelNormalizadas.filter(d => datasPermitidas.includes(d)).length;
+                const saldoParaReaproveitamento = Math.max(0, totalDiariasOrcamento - datasNoPeriodoCount);
+               const vagasDisponiveisExibir = saldoParaReaproveitamento;
 const totalDatasClicadas = datasParaSolicitar.length;
 const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClicadas - vagasDisponiveisExibir) : 0;
 
@@ -17052,6 +17057,48 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
 
                                         // Pequeno delay estratégico de 200ms para a animação de fechar do Swal terminar antes de disparar o fluxo de Justificativa
                                         // Pequeno delay estratégico para a animação de fechar do Swal terminar antes de disparar o fluxo de Justificativa
+                                        if (resultadoSobra.isConfirmed && (acaoEscolhida === 'ADITIVO_SOBRA' || acaoEscolhida === 'EXTRA_SOBRA')) {
+                                            setTimeout(async () => {
+                                                const tipoTexto = acaoEscolhida === 'ADITIVO_SOBRA'
+                                                    ? 'Aditivo - Datas fora do Orçamento'
+                                                    : 'Extra Bonificado - Datas fora do Orçamento';
+
+                                                const dadosExcecao = await solicitarDadosExcecao(
+                                                    tipoTexto,
+                                                    dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
+                                                    nmFuncao,
+                                                    idFuncaoProcurado,
+                                                    idFuncionario,
+                                                    datasSobrafinais
+                                                );
+
+                                                if (dadosExcecao?.confirmado) {
+                                                    window.tipoExcecaoAtual = tipoTexto;
+                                                    window.justificativaParaSalvar = dadosExcecao.justificativa;
+                                                    window.bSalvarComoInativo = true;
+                                                    window.datasParaSalvarNoBanco = datasSobrafinais;
+
+                                                    const btnSalvarPrincipal = document.getElementById('Enviar');
+                                                    if (btnSalvarPrincipal) {
+                                                        btnSalvarPrincipal.disabled = false;
+                                                        btnSalvarPrincipal.textContent = 'Enviar';
+                                                        btnSalvarPrincipal.title = 'Pronto para Salvar (Exceção)';
+                                                    }
+
+                                                    await new Promise(r => setTimeout(r, 250));
+
+                                                    if (btnSalvarPrincipal) {
+                                                        btnSalvarPrincipal.click();
+                                                        if (btnSalvarPrincipal.form) {
+                                                            btnSalvarPrincipal.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                                                        }
+                                                    }
+                                                } else {
+                                                    setTimeout(() => { verificarLimiteDeFuncao(criterios, dadosErroBackend); }, 150);
+                                                }
+                                            }, 200);
+                                        }
+
                                         if (resultadoSobra.isConfirmed && acaoEscolhida === 'OUTRA_VAGA') {
                                             setTimeout(async () => {
                                                 const [idFuncVaga, idOrcVaga] = valorVagaEscolhida.split('-');
