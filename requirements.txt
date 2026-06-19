@@ -1,0 +1,4 @@
+python-docx
+docxtpl
+num2words
+python-dateutil
