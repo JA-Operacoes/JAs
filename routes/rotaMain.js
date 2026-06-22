@@ -1886,7 +1886,17 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
                 `, [idStaffAlvo]);
 
-                const statusFinalStaff = (datasAtuais.length === 0) ? 'Deletado' : ((pendenciasReais.length > 0) ? 'Pendente' : 'Ativo');
+                // Aditivo e Extra Bonificado só viram Ativo ao ser incluídos no orçamento
+                // FUNCEXCEDIDO não tem etapa de orçamento, então vira Ativo direto na autorização
+                const ehAditivoOuExtra = tipoSolicitacaoOriginal.toLowerCase().includes('aditivo') ||
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('extra bonificado') ||
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('extra');
+
+                const statusFinalStaff = (datasAtuais.length === 0)
+                    ? 'Deletado'
+                    : (ehAditivoOuExtra && statusParaAtualizar === 'Autorizado')
+                        ? 'Pendente'
+                        : (pendenciasReais.length > 0) ? 'Pendente' : 'Ativo';
                 
                 console.log(`> Lista final de datas para salvar:`, datasAtuais);
 
