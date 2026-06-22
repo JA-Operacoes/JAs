@@ -6776,6 +6776,13 @@ async function verificaStaff() {
                             });
                         }
 
+                        // Limpa os globals de autorização para o próximo cadastro
+                        window.bSalvarComoInativo = false;
+                        window.tipoExcecaoAtual = null;
+                        window.justificativaParaSalvar = null;
+                        window.vagasSobraAcumuladas = [];
+                        window.datasParaSalvarNoBanco = null;
+
                         if (typeof limparCamposStaffParcial === "function") {
                             limparCamposStaffParcial();
                         } else {
@@ -6784,23 +6791,17 @@ async function verificaStaff() {
                             if(document.getElementById('imgFuncionario')) document.getElementById('imgFuncionario').src = 'img/sem-foto.png';
                         }
 
-                        if (idEv && idCli && idLoc && idFunc && datasParaValidar.length > 0) {
-                            console.log("🛡️ Revalidando orçamento para a próxima inserção...");
-                            await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, datasParaValidar, false, true);
-                            
-                            const criterios = {
-                                idEvento: idEv,
-                                idCliente: idCli,
-                                idLocalMontagem: idLoc,
-                                idFuncao: idFunc,
-                                setor: setor,
-                                datasEvento: datasParaValidar
-                            };
-                            
-                            if (typeof verificarLimiteDeFuncao === "function") {
-                                await verificarLimiteDeFuncao(criterios);
-                                console.log("✅ Revalidação de limites concluída após decisão de cadastrar mais um.");
-                            }
+                        // Limpa as datas para o próximo funcionário selecionar as suas
+                        if (picker) {
+                            picker.clear();
+                        }
+
+                        // Atualiza a exibição do orçamento sem disparar validação de limites.
+                        // verificarLimiteDeFuncao NÃO é chamado aqui — ele só deve rodar
+                        // quando o usuário clicar em Enviar com o próximo funcionário preenchido.
+                        if (idEv && idCli && idLoc && idFunc) {
+                            console.log("🛡️ Atualizando orçamento para a próxima inserção...");
+                            await buscarEPopularOrcamento(idEv, idCli, idLoc, idFunc, [], false, true);
                         }
                         console.groupEnd();
 
@@ -16717,14 +16718,17 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         </div>
                     `;
 
-                    botaoMesmaFuncaoHtml = `
-                        <button id="btn-remanejar-mesma-funcao"
-                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
-                            <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${totalDiariasOrcamento} diárias)
-                        </button>
-                        <div style="text-align: center; margin: 10px 0; font-size: 11px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
-                    `;
-                    
+                    // Só exibe o botão se houver saldo real disponível para reaproveitamento
+                    if (vagasDisponiveisExibir > 0) {
+                        botaoMesmaFuncaoHtml = `
+                            <button id="btn-remanejar-mesma-funcao"
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${vagasDisponiveisExibir} diárias)
+                            </button>
+                            <div style="text-align: center; margin: 10px 0; font-size: 11px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
+                        `;
+                    }
+
                     var vagaMesmaFuncaoOutroPeriodo = vagasMesmaFuncao[0];
                 } else {
                     templateHeaderHtml = `
@@ -16746,10 +16750,14 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                 // ─────────────────────────────────────────────────────────────────────────────
 
                 let optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
-                if (Array.isArray(vagasDisponiveis) && vagasDisponiveis.length > 0) {
-                    vagasDisponiveis.forEach(vaga => {
-                        const labelSetor = (vaga.setor && vaga.setor.trim() !== '') 
-                                            ? ` | Setor: ${vaga.setor}` 
+                // Exclui a mesma função — ela já está coberta pelo botão verde "Alocar função com as vagas disponíveis"
+                const vagasOutrasFuncoes = Array.isArray(vagasDisponiveis)
+                    ? vagasDisponiveis.filter(v => String(v.idfuncao) !== String(idFuncaoProcurado))
+                    : [];
+                if (vagasOutrasFuncoes.length > 0) {
+                    vagasOutrasFuncoes.forEach(vaga => {
+                        const labelSetor = (vaga.setor && vaga.setor.trim() !== '')
+                                            ? ` | Setor: ${vaga.setor}`
                                             : ' | Sem Setor';
                         const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
                         optionsHtml += `<option value="${vaga.idfuncao}-${vaga.idorcamento}">
