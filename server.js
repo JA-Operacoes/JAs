@@ -94,6 +94,7 @@ app.use("/Contrato",require("./routes/rotaContrato"));
 app.use("/index", autenticarToken(), require("./routes/rotaIndex"));
 app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
+app.use("/ceo", autenticarToken(), contextoEmpresa, require("./routes/rotaCeo"));
 
 // Logo após as outras rotas protegidas, no mesmo padrão:
 app.use("/notificacoes", autenticarToken(), contextoEmpresa, require("./routes/rotaNotificacao"));

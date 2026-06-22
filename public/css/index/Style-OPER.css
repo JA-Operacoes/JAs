@@ -655,3 +655,128 @@ input#search-aside {
       display: none;
     }
   }
+
+  /* ===== CeoMode: tela limpa, só o header visível ===== */
+  body.ceo-mode #sidebar,
+  body.ceo-mode .cards,
+  body.ceo-mode .dashboard-container {
+    display: none !important;
+  }
+
+  /* main vira área em branco de tela cheia (o sidebar é fixed, então não há margem a remover) */
+  body.ceo-mode #conteudo {
+    flex: 1;
+    margin: 0;
+    background-color: #ffffff;
+    min-height: calc(100vh - 90px); /* desconta a altura do header fixo */
+  }
+
+  /* estado visual do ícone quando o modo está ativo */
+  body.ceo-mode #menu-horizontal li.Ceo a {
+    color: #dc2e2e; /* destaque "sair" — alinhado ao vermelho já usado no tema */
+  }
+
+  /* ===== Painel CEO (conteúdo da tela limpa) ===== */
+  #ceo-panel { display: none; }
+
+  body.ceo-mode #ceo-panel {
+    display: block;
+    width: 100%;
+    max-width: 1400px;
+    margin: 100px auto 40px;
+    padding: 0 24px 40px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+    font-family: var(--Font-primary);
+    color: #2e2e2e;
+    text-align: left;
+  }
+
+  #ceo-panel .ceo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  #ceo-panel .ceo-header h2 { font-size: 22px; font-weight: 700; margin: 0; }
+
+  #ceo-panel .ceo-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+  #ceo-panel .ceo-controls .material-symbols-outlined { color: #888; }
+  #ceo-panel #ceo-select-cliente {
+    border: none;
+    outline: none;
+    font-size: 15px;
+    min-width: 240px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  #ceo-panel .ceo-resumo {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  #ceo-panel .ceo-resumo-card {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  #ceo-panel .ceo-resumo-card span { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+  #ceo-panel .ceo-resumo-card strong { font-size: 20px; }
+
+  #ceo-panel .ceo-eventos { display: flex; flex-direction: column; gap: 14px; }
+  #ceo-panel .ceo-vazio { color: #888; padding: 40px 0; text-align: center; }
+
+  #ceo-panel .ceo-evento {
+    background: #fff;
+    border-radius: 10px;
+    border-left: 6px solid #ccc;
+    padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  #ceo-panel .ceo-evento.nivel-otimo { border-left-color: #1e9e54; }
+  #ceo-panel .ceo-evento.nivel-ok    { border-left-color: #e0a106; }
+  #ceo-panel .ceo-evento.nivel-ruim  { border-left-color: #dc2e2e; }
+
+  #ceo-panel .ceo-evt-topo {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 12px;
+  }
+  #ceo-panel .ceo-evt-nome { font-size: 17px; font-weight: 600; }
+  #ceo-panel .ceo-evt-nome small { color: #999; font-weight: 400; }
+
+  #ceo-panel .ceo-badge {
+    font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 20px; white-space: nowrap;
+  }
+  #ceo-panel .badge-otimo { background: #e3f6ec; color: #1e9e54; }
+  #ceo-panel .badge-ok    { background: #fdf3da; color: #b07d05; }
+  #ceo-panel .badge-ruim  { background: #fbe3e3; color: #dc2e2e; }
+
+  #ceo-panel .ceo-evt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  #ceo-panel .ceo-evt-grid > div { display: flex; flex-direction: column; gap: 3px; }
+  #ceo-panel .ceo-evt-grid span { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  #ceo-panel .ceo-evt-grid strong { font-size: 15px; }
+  #ceo-panel .ceo-evt-grid strong.pos { color: #1e9e54; }
+  #ceo-panel .ceo-evt-grid strong.neg { color: #dc2e2e; }
+
+  #ceo-panel .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }

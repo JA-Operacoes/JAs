@@ -2342,10 +2342,10 @@ async function escolherSolicitacao(solicitacoes, linha) {
         
         return solicitacaoSelecionada;
     } else {
-        console.log('%cEntrou no Else', 'background-color:red; color:white; padding:2px;');
-        
-        // Agora a 'linha' existe aqui pois veio pelo parâmetro da função!
-        removerLinha(linha);
+        // Usuário cancelou a seleção. Mantém a linha que ele adicionou
+        // manualmente — apenas não vincula nenhuma solicitação.
+        // (Mesmo comportamento do caso de solicitação única, em
+        // verificarSolicitacaoPendente.)
         return null;
     }
 }
