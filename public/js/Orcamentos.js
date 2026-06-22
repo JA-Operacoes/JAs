@@ -4634,7 +4634,7 @@ async function atualizarCampoGeradoAnoPosterior(
 
 function desinicializarOrcamentosModal() {
 
-  window.isCleaning = true;
+  isCleaning = true;
   console.log("🧹 Desinicializando módulo Orcamentos.js");
 
   const selectLocalMontagem = document.getElementById("idMontagem");
