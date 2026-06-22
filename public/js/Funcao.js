@@ -281,8 +281,8 @@ const getNum = (selector) => {
             if (!funcoes || funcoes.length === 0) {
                 return Swal.fire({
                     icon: 'info',
-                    title: 'Nenhum cliente cadastrado',
-                    text: 'Não foi encontrado nenhum cliente no sistema.',
+                    title: 'Nenhuma função cadastrada',
+                    text: 'Não foi encontrado nenhuma função no sistema.',
                     confirmButtonText: 'Ok'
                 });
             }
