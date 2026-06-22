@@ -2246,15 +2246,13 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
 
         if (!data.encontrou || data.solicitacoes.length === 0) return null;
 
-        // ✅ Se houver mais de uma, abre seleção primeiro
-        let sol;
+        // Se houver mais de uma, escolherSolicitacao cuida da seleção e do vínculo.
         if (data.solicitacoes.length > 1) {
-            sol = await escolherSolicitacao(data.solicitacoes);
-            if (!sol) return null; // usuário cancelou
-        } else {
-            sol = data.solicitacoes[0];
-            carregarSolicitacao(sol, linha);
+            return await escolherSolicitacao(data.solicitacoes, linha);
         }
+
+        // Apenas uma: NÃO carrega ainda — só após a confirmação do usuário (abaixo).
+        const sol = data.solicitacoes[0];
 
         const tipoLabel  = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
         const dtSolicita = sol.dtsolicitacao ? new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR') : '—';
@@ -2285,11 +2283,8 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
         });
 
         if (!isConfirmed) {
-            if (typeof removerLinha === 'function') {
-                removerLinha(linha);
-            } else {
-                linha.remove(); // Fallback caso não tenha a função mapeada
-            }
+            // Usuário não quis vincular. Mantém a linha que ele adicionou
+            // manualmente — apenas não vincula a solicitação.
             return null;
         }
 

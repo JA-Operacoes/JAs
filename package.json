@@ -1,9 +1,10 @@
 {
   "name": "ja-system---teste",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "setup": "node setup.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "Bug-fix": "npm version patch && git push --follow-tags",
     "Novidade": "npm version minor && git push --follow-tags"

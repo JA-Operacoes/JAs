@@ -1648,11 +1648,12 @@ router.get("/:nrOrcamento/proposta/adicionais",
                     oi.periododiariasinicio AS inicio_datas,
                     oi.periododiariasfim AS fim_datas,
                     oi.adicional AS is_adicional,
-                    oi.vlrdiaria AS vlr_diaria
+                    oi.vlrdiaria AS vlr_diaria,
+                    oi.totvdadiaria AS total_cliente
                 FROM orcamentoitens oi
                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
                 WHERE oi.idorcamento = $1
-                AND oi.adicional = 'true'
+                AND oi.adicional = true
             `;
       const resultItens = await client.query(queryItens, [dados.idorcamento]);
 
@@ -1662,14 +1663,17 @@ router.get("/:nrOrcamento/proposta/adicionais",
 
       // ✅ Etapa 3: Processa itens
       resultItens.rows.forEach((item) => {
-          const valorItem = (parseFloat(item.qtd_itens) || 0) 
-                    * (parseFloat(item.qtd_dias) || 0) 
-                    * (parseFloat(item.vlr_diaria) || 0);
-          
-          if (valorItem <= 0) return;
+          let valorItem = parseFloat(item.total_cliente);
+          if (!Number.isFinite(valorItem)) {
+              valorItem = (parseFloat(item.qtd_itens) || 0)
+                        * (parseFloat(item.qtd_dias) || 0)
+                        * (parseFloat(item.vlr_diaria) || 0);
+          }
+
+          if (!(parseFloat(item.qtd_itens) > 0)) return;
 
           valorTotalAdicionais += valorItem;
-          
+
           const datasFormatadas =
               item.inicio_datas && item.fim_datas
                   ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
