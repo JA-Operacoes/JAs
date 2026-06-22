@@ -235,11 +235,11 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 FROM (
                                     SELECT 
                                         ano, h, m, 
-                                        ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                                        ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
                                     FROM (
                                         SELECT 
                                             ano, h, 
-                                            (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                            (( (ano % 19) + 11 * h + 22 * ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
                                         FROM (
                                             SELECT 
                                                 ano,
@@ -476,11 +476,11 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 FROM (
                                     SELECT 
                                         ano, h, m, 
-                                        ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                                        ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
                                     FROM (
                                         SELECT 
                                             ano, h, 
-                                            (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                            (( (ano % 19) + 11 * h + 22 * ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
                                         FROM (
                                             SELECT 
                                                 ano,
@@ -604,11 +604,11 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     FROM (
                                         SELECT 
                                             ano, h, m, 
-                                            ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
+                                            ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) AS l
                                         FROM (
                                             SELECT 
                                                 ano, h, 
-                                                (( (ano % 19) + 11 * h + 22 * ((2 * (ano % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
+                                                (( (ano % 19) + 11 * h + 22 * ((2 * ((ano / 100) % 4) + 2 * ((ano % 100) / 4) - (ano % 100 % 4) + 32 - h) % 7) ) / 451) AS m
                                             FROM (
                                                 SELECT 
                                                     ano,
@@ -881,7 +881,25 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
                         SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
                         -- Usamos a contagem seletiva que funcionou no pgAdmin
-                        COALESCE(MAX(td.diarias_utilizadas_no_periodo), 0) AS "DIÁRIAS UTILIZADAS",
+                        -- Reaproveitadas já estão em datasevento; normais = datasevento - reaprov
+                        -- Dobras são diárias extras não contidas em datasevento; somam ao total
+                        CASE
+                            WHEN COALESCE(MAX(td.dobras_no_periodo),0) + COALESCE(MAX(td.reaprov_no_periodo),0) = 0
+                                THEN CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) AS TEXT)
+                            WHEN COALESCE(MAX(td.reaprov_no_periodo),0) = 0
+                                THEN CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) + COALESCE(MAX(td.dobras_no_periodo),0) AS TEXT)
+                                     || ' (' || CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) AS TEXT) || ' normais - '
+                                     || CAST(COALESCE(MAX(td.dobras_no_periodo),0) AS TEXT) || ' dobras)'
+                            WHEN COALESCE(MAX(td.dobras_no_periodo),0) = 0
+                                THEN CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) AS TEXT)
+                                     || ' (' || CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) - COALESCE(MAX(td.reaprov_no_periodo),0) AS TEXT) || ' normais - '
+                                     || CAST(COALESCE(MAX(td.reaprov_no_periodo),0) AS TEXT) || ' reaprov.)'
+                            ELSE
+                                CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) + COALESCE(MAX(td.dobras_no_periodo),0) AS TEXT)
+                                || ' (' || CAST(COALESCE(MAX(td.diarias_utilizadas_no_periodo),0) - COALESCE(MAX(td.reaprov_no_periodo),0) AS TEXT) || ' normais - '
+                                || CAST(COALESCE(MAX(td.dobras_no_periodo),0) AS TEXT) || ' dobras - '
+                                || CAST(COALESCE(MAX(td.reaprov_no_periodo),0) AS TEXT) || ' reaprov.)'
+                        END AS "DIÁRIAS UTILIZADAS",
                         SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_no_periodo), 0) AS "SALDO"
                     FROM
                         orcamentos o
@@ -895,10 +913,31 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             tse.nmfuncao,
                             -- AQUI ESTÁ A CORREÇÃO: Conta apenas os dias do período solicitado
                             SUM((
-                                SELECT COUNT(*) 
+                                SELECT COUNT(*)
                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                 WHERE date_val::date >= $2::date AND date_val::date <= $3::date
-                            )) AS diarias_utilizadas_no_periodo
+                            )) AS diarias_utilizadas_no_periodo,
+                            SUM((
+                                SELECT COUNT(*)
+                                FROM jsonb_array_elements(
+                                    CASE WHEN jsonb_typeof(tse.dtdiariadobrada) = 'array'
+                                         THEN tse.dtdiariadobrada ELSE '[]'::jsonb END
+                                ) AS d(dobra)
+                                WHERE (dobra->>'status') = 'Autorizado'
+                                AND (dobra->>'data')::date >= $2::date
+                                AND (dobra->>'data')::date <= $3::date
+                            )) AS dobras_no_periodo,
+                            SUM((
+                                SELECT COUNT(*)
+                                FROM jsonb_array_elements(
+                                    CASE WHEN jsonb_typeof(tse.vagasreaproveitadas) = 'array'
+                                         THEN tse.vagasreaproveitadas ELSE '[]'::jsonb END
+                                ) AS v(reaprov)
+                                WHERE (reaprov->>'status') = 'Autorizado'
+                                AND (reaprov->>'data')::date >= $2::date
+                                AND (reaprov->>'data')::date <= $3::date
+                                AND (reaprov->>'idfuncao_origem')::int <> tse.idfuncao
+                            )) AS reaprov_no_periodo
                         FROM
                             staffeventos tse
                         JOIN staffempresas semp ON semp.idstaff = tse.idstaff
@@ -1112,8 +1151,43 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
-                AND tse.obspospgto IS NOT NULL 
+                AND tse.obspospgto IS NOT NULL
                 AND TRIM(tse.obspospgto) != ''
+
+            UNION ALL
+
+            -- 8. VAGAS REAPROVEITADAS
+            SELECT
+                tse.idevento,
+                tbf.nome AS "Profissional",
+                'Vaga Reaproveitada (' || CAST(COUNT(*) AS TEXT) || ' vaga(s))' AS "Informacao",
+                STRING_AGG(
+                    'Origem: ' || (vr->>'nmfuncao_origem')
+                    || CASE WHEN (vr->>'setor_origem') IS NOT NULL AND TRIM(vr->>'setor_origem') != ''
+                            THEN ' [' || (vr->>'setor_origem') || ']' ELSE '' END,
+                    ' | '
+                    ORDER BY (vr->>'nmfuncao_origem')
+                ) AS "Observacao"
+            FROM
+                staffeventos tse
+            JOIN
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            JOIN
+                staffempresas semp ON tse.idstaff = semp.idstaff
+            CROSS JOIN LATERAL
+                jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(tse.vagasreaproveitadas) = 'array'
+                         THEN tse.vagasreaproveitadas ELSE '[]'::jsonb END
+                ) AS vr
+            WHERE
+                semp.idempresa = $1 ${wherePeriodoFinal}
+                AND tse.statusstaff = 'Ativo'
+                AND jsonb_typeof(tse.vagasreaproveitadas) = 'array'
+                AND jsonb_array_length(tse.vagasreaproveitadas) > 0
+                AND (vr->>'status') = 'Autorizado'
+                AND (vr->>'idfuncao_origem')::int <> tse.idfuncao
+            GROUP BY
+                tse.idevento, tbf.nome
 
             ORDER BY
                 idevento, "Profissional", "Informacao";
