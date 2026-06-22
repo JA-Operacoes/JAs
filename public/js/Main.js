@@ -9560,7 +9560,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     } else if (isAditivoExtra) {
                         const tipo = (infoItem.tipoSolicitacao || '').toUpperCase();
                         if (tipo.includes('REAPROVEITADA') || tipo.includes('OUTRA FUNÇÃO') || tipo.includes('OUTRA FUNCAO')) {
-                            tituloCard = "Vaga Reaproveitada - Diária de Outra Função";
+                            const ehOutraFuncao = tipo.includes('OUTRA');
+                            tituloCard = ehOutraFuncao
+                                ? "Vaga Reaproveitada - Diária de Outra Função e Datas fora do Orçamento"
+                                : "Vaga Reaproveitada - Diária de Outra Função";
                         } else if ((tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) || tipo === 'FUNCEXCEDIDO') {
                             tituloCard = "Aditivo - Vaga Excedida";
                         } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
@@ -9769,10 +9772,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             }
                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
                         } else if (tipoUpper.includes('REAPROVEITADA') || tipoUpper.includes('OUTRA FUNÇÃO') || tipoUpper.includes('OUTRA FUNCAO')) {
-                            // Mostra datas fora do orçamento (contexto 1) + justificativa (contexto 2)
-                            if (dataFormatadaSolictacao) {
-                                htmlBody += `<strong>Data(s) fora do Orçamento:</strong> ${dataFormatadaSolictacao}<br>`;
-                            }
                             const justif = pedido.justificativaSolicitacao || infoItem.descricao || '';
                             if (justif) {
                                 htmlBody += `<strong>Justificativa:</strong> ${justif}<br>`;
