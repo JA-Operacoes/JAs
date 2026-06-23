@@ -17589,7 +17589,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    const FiltrosVencimentos = criarsesDeFiltro(conteudoGeral, valoresResumoElement);
+    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 
     container.appendChild(valoresResumoElement);

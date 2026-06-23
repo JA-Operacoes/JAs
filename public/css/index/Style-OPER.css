@@ -682,7 +682,7 @@ input#search-aside {
   body.ceo-mode #ceo-panel {
     display: block;
     width: 100%;
-    max-width: 1400px;
+    max-width: 20000px;
     margin: 100px auto 40px;
     padding: 0 24px 40px;
     box-sizing: border-box;
@@ -714,12 +714,137 @@ input#search-aside {
   }
   #ceo-panel .ceo-controls .material-symbols-outlined { color: #888; }
   #ceo-panel #ceo-select-cliente {
-    border: none;
-    outline: none;
-    font-size: 15px;
-    min-width: 240px;
+    all: unset;
+    display: flex;
     background: transparent;
+    border: none;
+    border-bottom: 2px solid black;
+    text-decoration: none;
+    
+    /* SOLUÇÃO PARA O CURSOR INVISÍVEL */
+    cursor: text;          /* Devolve o ícone de 'I' ao passar o mouse */
+    caret-color: black;    /* Garante que o traço que pisca seja visível */
+    color: black;          /* Garante que o texto digitado seja visível */
+    
+    width: 500px;
+    padding: 2px 0;
+  }
+
+  /* Botões e comparador */
+  #ceo-panel #ceo-btn-comparar,
+  #ceo-panel .ceo-comparador-acoes button {
+    background: #942123;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
     cursor: pointer;
+  }
+  #ceo-panel #ceo-btn-comparar { margin-left: 12px; }
+  #ceo-panel .ceo-comparador-acoes button.secundario { background: #888; }
+
+  #ceo-panel .ceo-comparador {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  #ceo-panel .ceo-comparador label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; }
+  #ceo-panel #ceo-multi-eventos {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 6px;
+    font-size: 14px;
+  }
+  #ceo-panel .ceo-comparador-acoes { display: flex; gap: 10px; margin-top: 12px; }
+
+  #ceo-panel .ceo-titulo {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2e2e2e;
+    margin: 6px 0 14px;
+  }
+
+  /* Filtro de anos (chips) */
+  #ceo-panel .ceo-anos-filtro {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  #ceo-panel .ceo-anos-label { font-size: 13px; color: #555; margin-right: 4px; }
+  #ceo-panel .ceo-ano-chip {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #555;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  #ceo-panel .ceo-ano-chip.ativo { background: #942123; border-color: #942123; color: #fff; }
+
+  /* Card de evento clicável (abre comparação por ano) */
+  #ceo-panel .ceo-evento.clicavel { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+  #ceo-panel .ceo-evento.clicavel:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); transform: translateY(-1px); }
+  #ceo-panel .ceo-evt-dica { display: block; font-size: 11px; color: #1f6fc4; margin: -6px 0 8px; }
+
+  /* Busca de evento (comparação por ano) */
+  #ceo-panel .ceo-busca {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 18px;
+    max-width: 480px;
+  }
+  #ceo-panel .ceo-busca .material-symbols-outlined { color: #888; }
+  #ceo-panel #ceo-busca-evento {
+    border: none; outline: none; font-size: 15px; width: 100%; background: transparent;
+  }
+  #ceo-panel .ceo-busca-lista {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    list-style: none;
+    margin: 0; padding: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 50;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  #ceo-panel .ceo-busca-lista li {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #ceo-panel .ceo-busca-lista li small { color: #1f6fc4; margin-left: 6px; }
+  #ceo-panel .ceo-busca-lista li:hover { background: #f0f2f5; }
+  #ceo-panel .ceo-busca-lista li.vazio { color: #999; cursor: default; }
+
+  /* Selo de destaque e nome do cliente nos cards */
+  #ceo-panel .ceo-fogo {
+    font-size: 12px; font-weight: 600; color: #b5360a;
+    background: #fdece2; padding: 2px 8px; border-radius: 12px; margin-left: 6px;
+  }
+  #ceo-panel .ceo-evt-cliente {
+    display: block; font-size: 12px; font-weight: 600; color: #1f6fc4;
+    text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px;
   }
 
   #ceo-panel .ceo-resumo {
@@ -740,7 +865,25 @@ input#search-aside {
   #ceo-panel .ceo-resumo-card span { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
   #ceo-panel .ceo-resumo-card strong { font-size: 20px; }
 
-  #ceo-panel .ceo-eventos { display: flex; flex-direction: column; gap: 14px; }
+  /* Gráficos */
+  #ceo-panel .ceo-graficos {
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  #ceo-panel .ceo-chart-card {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    padding: 14px 16px 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  #ceo-panel .ceo-chart-card h3 {
+    font-size: 14px; font-weight: 600; color: #444; margin: 0 0 8px;
+  }
+  #ceo-panel .ceo-chart { width: 100%; height: 300px; }
+
+  #ceo-panel .ceo-eventos { display: flex; flex-direction: column; gap: 14px; max-height: 355px; overflow-x: auto; scrollbar-width: thin;}
   #ceo-panel .ceo-vazio { color: #888; padding: 40px 0; text-align: center; }
 
   #ceo-panel .ceo-evento {
