@@ -2291,8 +2291,7 @@ try {
     const containerEventos = document.getElementById("container-eventos"); 
 
     if (!containerEventos) {
-        console.error("Erro: Container de eventos não encontrado no HTML.");
-        return;
+        return; // elemento estático removido; renderização agora é feita por mostrarEventosEmAberto()
     }
 
     const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
@@ -3048,7 +3047,9 @@ async function abrirTelaEquipesEvento(evento) {
             // 🚀 NOVA REGRA DE CÁLCULO:
             // Se cache fechado for true: assume qtddias.
             // Se cache fechado for false: multiplica qtditens (qtd_orcamento) * qtddias.
-            const vagasOrcadas = isCacheFechado ? qtdDiasOrcados : (qtd_orcamento * qtdDiasOrcados);
+            const vagasOrcadas = isCacheFechado
+                ? qtdDiasOrcados
+                : (f.total_diarias_orcadas != null ? Number(f.total_diarias_orcadas) : qtd_orcamento * qtdDiasOrcados);
             
             console.log(`[Nova Regra -> Função: ${f.nome ?? f.nome_funcao}] | Itens: ${qtd_orcamento} | Dias: ${qtdDiasOrcados} | CacheFechado: ${isCacheFechado} | Total Diárias Meta: ${vagasOrcadas}`);
 
@@ -5152,11 +5153,13 @@ function abrirDetalhesEquipe(equipe, evento) {
     let vagasOrcadas = 0;
 
     if (isCacheFechado) {
-        vagasOrcadas = qtdDiasOrcados; 
-        itensOrcados = qtdItensOrcados; 
+        vagasOrcadas = qtdDiasOrcados;
+        itensOrcados = qtdItensOrcados;
     } else {
         itensOrcados = qtdItensOrcados;
-        vagasOrcadas = qtdItensOrcados * qtdDiasOrcados;
+        vagasOrcadas = func.total_diarias_orcadas != null
+            ? Number(func.total_diarias_orcadas)
+            : qtdItensOrcados * qtdDiasOrcados;
     }
 
     // ----------------------------------------------------
@@ -5319,9 +5322,10 @@ function abrirDetalhesEquipe(equipe, evento) {
                         const qOrcamento = Number(f.qtd_orcamento ?? f.qtditens ?? 0);
                         const dOrcamento = Number(f.qtddias_orcamento ?? f.qtddias ?? 1);
                         
-                        const vOrcadas = (f.cache_fechado === true || f.cache_fechado === "true" || f.tem_cache_fechado === true || f.tem_cache_fechado === "true") 
-                            ? dOrcamento 
-                            : (qOrcamento * dOrcamento);
+                        const isCacheFechadoInterno = f.cache_fechado === true || f.cache_fechado === "true" || f.tem_cache_fechado === true || f.tem_cache_fechado === "true" || f.is_cache_fechado === true;
+                        const vOrcadas = isCacheFechadoInterno
+                            ? dOrcamento
+                            : (f.total_diarias_orcadas != null ? Number(f.total_diarias_orcadas) : qOrcamento * dOrcamento);
                         
                         const sDisponivel = Math.max(0, vOrcadas - (dConsumidas + dPendentes + dobPendentes));
 
@@ -14354,7 +14358,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <div class="categoria-bloco">
                                 <h3>Ajuda de Custo</h3>
                                 <p class="datas-evento">Período Evento Início Marcação a Fim Desmontagem: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
-                                <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong> (2 dias após Início Montagem <strong>${evento.dataInicioMontagem}</strong>)</p>
+                                <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong> (2 dias após ${evento.dataInicioInfraMontagem && evento.dataInicioInfraMontagem !== '---' ? `Início Montagem Infra <strong>${evento.dataInicioInfraMontagem}</strong>` : `Início Montagem <strong>${evento.dataInicioMontagem}</strong>`})</p>
+
                                 
                                 <div class="totais">
                                     <p class="pendentes-pagos"><strong>Pendente:</strong> ${formatarMoeda(ajPendente)}</p>
@@ -17589,7 +17594,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    const FiltrosVencimentos = criarsesDeFiltro(conteudoGeral, valoresResumoElement);
+    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 
     container.appendChild(valoresResumoElement);

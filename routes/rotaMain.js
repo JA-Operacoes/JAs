@@ -888,8 +888,9 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
          --   WHEN bool_or(i.cachefechado = true) THEN SUM(i.qtddias)  -- cache: soma diárias
          --   ELSE MAX(i.qtditens)                                       -- pessoas: max de vagas (não soma)
          -- END AS qtd_orcamento,
-          MAX(i.qtditens) AS qtd_orcamento,
+          SUM(i.qtditens) AS qtd_orcamento,
           MAX(i.qtddias) AS qtddias_orcamento,
+          SUM(i.qtditens * i.qtddias) AS total_diarias_orcadas,
           MIN(i.periododiariasinicio) AS dtini_vaga,
           MAX(i.periododiariasfim) AS dtfim_vaga,
           -- Retornamos se QUALQUER item desse grupo é cache fechado
@@ -1197,6 +1198,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
         qtddias_orcamento: Number(item.qtddias_orcamento) || 1,
+        total_diarias_orcadas: item.total_diarias_orcadas != null ? Number(item.total_diarias_orcadas) : null,
         qtd_cadastrada, // Agora reflete ou pessoas ou diárias
         diarias_consumidas,
         dobras_pendentes,
@@ -1206,7 +1208,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
         datas_staff: datas_staff,
-        tem_cache_fechado: item.tem_cache_fechado 
+        tem_cache_fechado: item.tem_cache_fechado
       });
     }
 
@@ -2403,20 +2405,21 @@ router.get("/vencimentos", async (req, res) => {
     }
 
     const queryAgregacao = `
-        SELECT 
-            o.idevento, 
+        SELECT
+            o.idevento,
             e.nmevento,
             MIN(o.dtinimarcacao) AS dtinimarcacao,
+            MIN(o.dtiniinframontagem) AS dtiniinframontagem,
             MIN(o.dtinimontagem) AS dtinimontagem,
             MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
         FROM orcamentos o
         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
         JOIN eventos e ON o.idevento = e.idevento
-        WHERE oe.idempresa = $1 
+        WHERE oe.idempresa = $1
         AND (
-            -- Vencimento da Ajuda (2 dias após início da montagem)
-            (o.dtinimontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3
-            OR 
+            -- Vencimento da Ajuda (2 dias após início da montagem infra, ou montagem)
+            (COALESCE(o.dtiniinframontagem, o.dtinimontagem) + INTERVAL '2 days')::date BETWEEN $2 AND $3
+            OR
             -- Vencimento do Cachê (2 dias após fim da desmontagem)
             (o.dtfimdesmontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3
             OR
@@ -2501,8 +2504,11 @@ router.get("/vencimentos", async (req, res) => {
 
         // Datas oficiais do orçamento para o "Período do Evento"
         const dtInicioMarcacao = normalizarParaDate(ev.dtinimarcacao);
+        const dtInicioInfraMontagem = normalizarParaDate(ev.dtiniinframontagem);
         const dtInicioMontagem = normalizarParaDate(ev.dtinimontagem);
         const dtFimDesmontagem = normalizarParaDate(ev.dtfimdesmontagem);
+        // Base para ajuda de custo: montagem infra tem prioridade sobre montagem
+        const dtBaseAjuda = dtInicioInfraMontagem ?? dtInicioMontagem;
 
         const staffsProcessados = staffs.map(s => {
             const vC = parseFloat(s.totalcache_full) || 0;
@@ -2567,8 +2573,9 @@ router.get("/vencimentos", async (req, res) => {
             periodo_evento: formatarDDMMYYYY(dtInicioMarcacao), 
             dataFimEvento: formatarDDMMYYYY(dtFimDesmontagem),
             dataInicioMontagem: formatarDDMMYYYY(dtInicioMontagem),
+            dataInicioInfraMontagem: formatarDDMMYYYY(dtInicioInfraMontagem),
             // Regra de Negócio: Baseada na Escala do Staff
-            dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+            dataVencimentoAjuda: dtBaseAjuda ? new Date(dtBaseAjuda.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             dataVencimentoCaixinha: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
             ajuda:   { total: ajT, pendente: ajT - ajP - ajS - ajR, pago: ajP, suspenso: ajS, recusado: ajR },
