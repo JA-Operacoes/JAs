@@ -298,7 +298,8 @@ async function carregarPavilhaoOrc(idMontagem) {
   updatePavilhaoDisplayInputs();
 
   if (!idMontagem || idMontagem === "") {
-    console.warn("ID da Montagem está vazio, não carregando pavilhões.");
+    // Durante a limpeza é esperado (montagem foi resetada); só avisa fora desse contexto.
+    if (!isCleaning) console.warn("ID da Montagem está vazio, não carregando pavilhões.");
     // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
     const idPavilhaoSelect = document.querySelector(".idPavilhao");
     if (idPavilhaoSelect) {
@@ -2846,8 +2847,13 @@ function ceilToTenCents(value, factor) {
 //   recalcularLinha(linha);
 // }
 async function atualizaProdutoOrc(event, linhaFornecida) {
+    // Durante a limpeza/teardown do modal, o reset dispara 'change' em todos os selects
+    // (inclusive fora de linhas); não há o que atualizar aqui, então evita a cascata de
+    // "closest('tr') falhou" e os recálculos inúteis.
+    if (isCleaning) return;
+
     let select = event.target;
-    
+
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
     let linha = select.closest('tr');
 
@@ -3219,6 +3225,7 @@ function resetarOutrosSelectsOrc(select) {
 // Função para configurar eventos no modal de orçamento
 async function verificaOrcamento() {
   initializeAllFlatpickrsInModal();
+  ativarTooltipStatus(); // religa o tooltip do Status ao #Status deste modal (idempotente)
 
   carregarFuncaoOrc();
   carregarEventosOrc();
@@ -4771,7 +4778,7 @@ function desinicializarOrcamentosModal() {
 
   lastEditedGlobalFieldType = null;
 
-  setTimeout(() => { window.isCleaning = false; }, 500);
+  setTimeout(() => { isCleaning = false; }, 500);
 
   console.log("✅ Módulo Orcamentos.js desinicializado.");
 }
@@ -6583,6 +6590,38 @@ if (statusInput) {
     // Para garantir que a verificação rode após carregar um orçamento
     statusInput.addEventListener('blur', verificarStatusParaAdicional);
 }
+
+// Tooltip do Status: mostra o significado da letra atual do input (A=Aberto, etc.).
+// Como o #Status é readonly e definido por código em vários pontos, interceptamos
+// também a escrita de .value (que não dispara eventos) para manter o tooltip em dia.
+function ativarTooltipStatus() {
+  const input = document.getElementById('Status');
+  if (!input) return;
+  const tip = input.closest('.form2')?.querySelector('.tooltip');
+  if (!tip) return;
+  // Idempotente: o modal é recriado a cada abertura (novo #Status). Só liga uma vez por
+  // elemento; se já foi ligado, o getter/setter abaixo mantém o texto em dia sozinho.
+  if (input.dataset.tipStatus === '1') return;
+  input.dataset.tipStatus = '1';
+
+  const LABELS = { A: 'Aberto', P: 'Proposta', E: 'Em Andamento', F: 'Fechado', R: 'Reprovado' };
+  const atualizar = () => {
+    const v = (input.value || '').trim().toUpperCase();
+    tip.textContent = LABELS[v] ? `${LABELS[v]}` : 'Status';
+  };
+
+  atualizar();
+  ['input', 'change', 'blur'].forEach((ev) => input.addEventListener(ev, atualizar));
+
+  // Captura mudanças programáticas (input.value = "F"), que não emitem eventos.
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get() { return desc.get.call(this); },
+    set(v) { desc.set.call(this, v); atualizar(); },
+  });
+}
+ativarTooltipStatus();
 
 document
   .getElementById("fecharOrc")
@@ -8609,6 +8648,8 @@ function configurarEventosOrcamento() {
   //inicializarFlatpickrsGlobais();
   initializeAllFlatpickrsInModal();
   verificaOrcamento();
+  // Religa o tooltip do Status ao elemento recém-criado deste modal (idempotente).
+  ativarTooltipStatus();
 
   console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 }
