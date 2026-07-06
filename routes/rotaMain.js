@@ -1654,7 +1654,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             };
         });       
 
-        console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}, resultadoFinal:`, resultadoFinal);
+        // console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}, resultadoFinal:`, resultadoFinal);
         res.json(resultadoFinal);
        
 
