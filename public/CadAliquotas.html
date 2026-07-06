@@ -1,0 +1,115 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+<link rel="stylesheet" href="css/Modal/CadAliquotas.css">
+
+<div id="cadModalAliquotas" class="modal">
+  <div class="modal-content">
+
+    <div class="Close"><button class="close" id="Fechar" type="button"> X </button></div>
+
+    <div id="form-aliquotas">
+
+      <div class="title">
+        <h1>Alíquotas / Parâmetros Fiscais</h1>
+      </div>
+
+      <form id="aliquotas" name="form" autocomplete="off">
+
+        <!-- Competência -->
+        <section class="aliq-secao">
+          <div class="aliq-secao-topo">
+            <div class="form2 form2-ano">
+              <select id="aliq-ano"></select>
+              <label for="aliq-ano">Ano</label>
+            </div>
+          </div>
+          <p class="aliq-aviso">
+            Atualize quando sair a portaria anual (Receita Federal / Previdência).
+            Vale para todas as empresas (lei federal).
+          </p>
+        </section>
+
+        <!-- INSS -->
+        <section class="aliq-secao">
+          <h3>INSS — faixas progressivas</h3>
+          <table class="aliq-tabela" id="aliq-inss">
+            <thead><tr><th>Até (R$)</th><th>Alíquota (%)</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <button type="button" id="aliq-add-inss" class="aliq-add">+ faixa INSS</button>
+        </section>
+
+        <!-- IRRF -->
+        <section class="aliq-secao">
+          <h3>IRRF — tabela progressiva mensal</h3>
+          <table class="aliq-tabela" id="aliq-irrf">
+            <thead><tr><th>Até (R$)</th><th>Alíquota (%)</th><th>Parcela a deduzir (R$)</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <button type="button" id="aliq-add-irrf" class="aliq-add">+ faixa IRRF</button>
+          <small class="aliq-hint">Deixe "Até" vazio na última faixa (sem teto).</small>
+        </section>
+
+        <!-- Deduções e FGTS -->
+        <fieldset class="aliq-secao">
+          <h3>Deduções e FGTS</h3>
+          <div class="aliq-campos">
+            <div class="form2">
+              <input type="text" inputmode="numeric" id="aliq-dep" class="input" oninput="formatReais(this)" value="0">
+              <label class="user-label" for="aliq-dep">  Por Dependente (R$)</label>
+            </div>
+            <div class="form2">
+              <input type="text" inputmode="numeric" id="aliq-simpl" class="input" oninput="formatReais(this)" value="0">
+              <label class="user-label" for="aliq-simpl">Des.Simples(R$)</label>
+            </div>
+            <div class="form2">
+              <input type="number" step="0.01" min="0" id="aliq-fgts" class="input">
+              <label class="user-label" for="aliq-fgts">FGTS (%)</label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Redutor do IRRF -->
+        <fieldset class="aliq-secao">
+          <h3>Redutor do IRRF</h3>
+          <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" inputmode="numeric" id="aliq-red-isencao-ate" class="input" oninput="formatReais(this)" value="0">
+                <label class="user-label" for="aliq-red-isencao-ate">Isenção até (R$)</label>
+              </div>
+              <div class="form2">
+                <input type="text" inputmode="numeric" id="aliq-red-isencao-red" class="input" oninput="formatReais(this)" value="0">
+                <label class="user-label" for="aliq-red-isencao-red">Redutor da isenção (R$)</label>
+              </div>
+          </div>
+          <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" inputmode="numeric" id="aliq-red-phaseout" class="input" oninput="formatReais(this)" value="0">
+                <label class="user-label" for="aliq-red-phaseout">Phase-out até (R$)</label>
+              </div>
+              <div class="form2">
+                <input type="text" inputmode="numeric" id="aliq-red-coefa" class="input" oninput="formatReais(this)" value="0">
+                <label class="user-label" for="aliq-red-coefa">Coeficiente A (R$)</label>
+              </div>
+              <div class="form2">
+                <input type="number" step="0.000001" id="aliq-red-coefb" class="input">
+                <label class="user-label" for="aliq-red-coefb">Coeficiente B</label>
+              </div>
+            </div>
+        </fieldset>
+
+      </form>
+    </div>
+
+    <div class="BTNs">
+      <Button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</Button>
+      <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+      <button class="btnEnviar" id="Enviar" type="button">Salvar</button>
+    </div>
+
+  </div>
+</div>
+
