@@ -54,4 +54,45 @@ console.log('✅ Consulta permissão retornou:', rows);
     }
   };
 }
-module.exports = { verificarPermissao };
+// Flags especiais (transversais): não pertencem a um módulo específico, são colunas
+// booleanas em `permissoes`. Whitelist evita injeção do nome da coluna na query.
+const FLAGS_ESPECIAIS = ['master', 'financeiro', 'supremo', 'comercial', 'devs', 'rh'];
+
+// middleware: exige que o usuário tenha QUALQUER uma das flags na empresa atual.
+// Uso: exigirFlag('rh', 'supremo')  → passa quem tiver rh OU supremo em algum módulo.
+function exigirFlag(...flags) {
+  const colunas = flags.map((f) => String(f).toLowerCase());
+  for (const c of colunas) {
+    if (!FLAGS_ESPECIAIS.includes(c)) {
+      throw new Error(`exigirFlag: flag inválida '${c}'.`);
+    }
+  }
+
+  return async (req, res, next) => {
+    const idusuario = req.usuario?.idusuario;
+    const idempresa = req.idempresa || req.headers.idempresa;
+
+    if (!idusuario || !idempresa) {
+      return res.status(401).json({ erro: "Autenticação ou contexto da empresa ausente." });
+    }
+
+    // Monta "(coluna1 = true OR coluna2 = true ...)" com nomes já validados pela whitelist.
+    const condicao = colunas.map((c) => `${c} = true`).join(' OR ');
+
+    try {
+      const { rows } = await db.query(
+        `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND (${condicao}) LIMIT 1`,
+        [idusuario, idempresa]
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ erro: `Você não tem permissão para acessar este recurso.` });
+      }
+      next();
+    } catch (err) {
+      console.error(`❌ Erro ao verificar flags [${colunas.join(', ')}]:`, err);
+      res.status(500).json({ erro: 'Erro ao verificar permissões.' });
+    }
+  };
+}
+
+module.exports = { verificarPermissao, exigirFlag };

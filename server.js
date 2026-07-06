@@ -11,6 +11,7 @@ const port = process.env.PORT || 3000;
 
 
 const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewares');
+const { exigirFlag } = require('./middlewares/permissaoMiddleware');
 
 //const contextoEmpresa = require('./middlewares/contextoEmpresa');
 
@@ -95,6 +96,7 @@ app.use("/index", autenticarToken(), require("./routes/rotaIndex"));
 app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
 app.use("/ceo", autenticarToken(), contextoEmpresa, require("./routes/rotaCeo"));
+app.use("/rh", autenticarToken(), contextoEmpresa, exigirFlag('rh', 'supremo'), require("./routes/rotaRH"));
 
 // Logo após as outras rotas protegidas, no mesmo padrão:
 app.use("/notificacoes", autenticarToken(), contextoEmpresa, require("./routes/rotaNotificacao"));
