@@ -923,3 +923,314 @@ input#search-aside {
   #ceo-panel .ceo-evt-grid strong.neg { color: #dc2e2e; }
 
   #ceo-panel .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
+
+  /* ===== RH (Holerite Virtual): tela limpa, mesmo padrão do CeoMode ===== */
+  body.rh-mode #sidebar,
+  body.rh-mode .cards,
+  body.rh-mode .dashboard-container {
+    display: none !important;
+  }
+  body.rh-mode #conteudo {
+    flex: 1;
+    margin: 0;
+    background-color: #ffffff;
+    min-height: calc(100vh - 90px);
+  }
+  body.rh-mode #menu-horizontal li.RH a { color: #dc2e2e; }
+
+  #rh-panel { display: none; }
+  body.rh-mode #rh-panel {
+    display: block;
+    width: 100%;
+    max-width: 10000px;
+    margin: 100px auto 40px;
+    padding: 0 24px 40px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+    font-family: var(--Font-primary);
+    color: #2e2e2e;
+    text-align: left;
+  }
+
+  #rh-panel .rh-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  #rh-panel .rh-header h2 { font-size: 22px; font-weight: 700; margin: 0; }
+  #rh-panel .rh-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+  #rh-panel .rh-controls .material-symbols-outlined { color: #888; }
+  #rh-panel .rh-controls select {
+    border: none;
+    border-bottom: 2px solid #000;
+    background: transparent;
+    padding: 4px 6px;
+    font-size: 14px;
+  }
+  #rh-panel .rh-busca-func { position: relative; }
+  #rh-panel #rh-busca-func {
+    border: none;
+    border-bottom: 2px solid #000;
+    background: transparent;
+    padding: 4px 6px;
+    font-size: 14px;
+    width: 260px;
+  }
+  #rh-panel .rh-func-lista {
+    position: absolute;
+    left: 0; right: 0; top: 100%;
+    z-index: 50;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 4px 0 0;
+    padding: 4px;
+    list-style: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  #rh-panel .rh-func-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; }
+  #rh-panel .rh-func-lista li:hover { background: #f0f2f5; }
+
+  #rh-panel .rh-titulo { font-size: 18px; font-weight: 600; margin: 8px 0 16px; }
+  #rh-panel .rh-vazio { color: #888; padding: 40px 0; text-align: center; }
+  #rh-panel .rh-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
+
+  #rh-panel .rh-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  #rh-panel .rh-resumo-card {
+    background: #f7f8fa;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #rh-panel .rh-resumo-card span { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+  #rh-panel .rh-resumo-card strong { font-size: 20px; }
+
+  #rh-panel .rh-card {
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  #rh-panel .rh-card-topo, #rh-panel .rh-sub { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; background-color: var(--primary-color); border-radius: 10px; }
+  #rh-panel .rh-card-topo small { color: #888; }
+
+  .rh-infos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .rh-sub-infos {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 20px;
+    color: var(--font-color);
+  }
+
+  table{
+    width: 100%;
+  }
+
+  .header-func, .body-func {
+      display: table-row; /* Garante que funcionem como linhas da tabela */
+  }
+
+  .header-func th, .body-func td {
+      padding: 8px; /* Ajuste o espaçamento como preferir */
+      text-align: left;
+  }
+
+  .empregador {
+    display: flex;
+    flex-direction: column;
+    color: var(--font-color);
+  }
+
+  .registro {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: end;
+    color: var(--font-color);
+  }
+
+
+  #rh-panel .rh-badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  #rh-panel .rh-badge.badge-pago      { background: #e3f5ea; color: #1e9e54; }
+  #rh-panel .rh-badge.badge-pendente  { background: #fdf3e0; color: #c98a06; }
+  #rh-panel .rh-badge.badge-previsao  { background: #e7eefc; color: #3a63c0; }
+
+  /* Visão geral da folha do mês (tabela por funcionário) */
+  #rh-panel .rh-folha { margin-bottom: 20px; }
+  #rh-panel .rh-folha-tab { width: 100%; border-collapse: collapse; font-size: 14px; }
+  #rh-panel .rh-folha-tab th,
+  #rh-panel .rh-folha-tab td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ececec; }
+  #rh-panel .rh-folha-tab th {
+    font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; font-weight: 600;
+  }
+  #rh-panel .rh-folha-tab td:nth-child(2),
+  #rh-panel .rh-folha-tab td:nth-child(3),
+  #rh-panel .rh-folha-tab td:nth-child(4),
+  #rh-panel .rh-folha-tab th:nth-child(2),
+  #rh-panel .rh-folha-tab th:nth-child(3),
+  #rh-panel .rh-folha-tab th:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+  #rh-panel .rh-folha-tab tbody tr { cursor: pointer; transition: background .12s; }
+  #rh-panel .rh-folha-tab tbody tr:hover { background: #f4f7ff; }
+
+  /* Botão "voltar para a lista" no topo do holerite */
+  #rh-panel .rh-voltar {
+    margin-bottom: 12px;
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--font-color, #333);
+  }
+  #rh-panel .rh-voltar:hover { background: #f0f0f0; }
+
+  #rh-panel .rh-bloco { margin-bottom: 18px; }
+  #rh-panel .rh-bloco h4 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: #555; }
+  #rh-panel .rh-bloco > label { display: block; font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+
+  #rh-panel .rh-item { display: flex; gap: 8px; margin-bottom: 6px; }
+  #rh-panel .rh-item .rh-item-desc { flex: 1; }
+  #rh-panel .rh-item .rh-item-valor { width: 140px; }
+  #rh-panel input[type="text"], #rh-panel input[type="number"] {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+  #rh-panel .rh-item-rm {
+    border: none; background: #f0f2f5; color: #c0392b; border-radius: 6px;
+    width: 32px; cursor: pointer; font-weight: 700;
+  }
+  #rh-panel .rh-bloco > button,
+  #rh-panel .rh-acoes button {
+    margin-top: 8px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    background: #942123;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #rh-panel button.secundario { background: #888 !important; }
+
+  #rh-panel .rh-totais {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 18px 0;
+    padding: 16px;
+    background: #f7f8fa;
+    border-radius: 10px;
+  }
+  #rh-panel .rh-cadastro { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  #rh-panel .rh-cadastro > div { display: flex; flex-direction: column; gap: 4px; }
+  #rh-panel .rh-cadastro #rh-dependentes { width: 90px; }
+  #rh-panel .rh-calc-info { display: block; margin-top: 8px; font-size: 12px; color: #1f6fc4; }
+  #rh-panel .rh-totais > div { display: flex; flex-direction: column; gap: 4px; }
+  #rh-panel .rh-totais span { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  #rh-panel .rh-totais strong { font-size: 18px; }
+  #rh-panel .rh-totais strong.pos { color: #1e9e54; }
+  #rh-panel .rh-totais strong.neg { color: #dc2e2e; }
+  #rh-panel .rh-totais strong.ben { color: #838181; }
+
+  #rh-panel .rh-dias-uteis {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  #rh-panel .rh-dias-uteis label { font-size: 13px; color: #555; font-weight: 600; }
+  #rh-panel .rh-dias-uteis input { width: 70px; padding: 4px 6px; }
+  #rh-panel .rh-dias-uteis small { font-size: 11px; color: #888; }
+
+  #rh-panel .rh-incluir-benef {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+    font-size: 13px;
+    color: #555;
+    cursor: pointer;
+  }
+
+  #rh-panel .rh-acoes { display: flex; gap: 10px; }
+
+  /* From Uiverse.io by SpatexDEV */ 
+#rh-panel .rh-acoes button {
+  border: none;
+  display: flex;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  text-transform: uppercase;
+  vertical-align: middle;
+  align-items: center;
+  border-radius: 0.5rem;
+  user-select: none;
+  gap: 0.75rem;
+  transition: all 0.6s ease;
+}
+
+#rh-panel .rh-acoes button:hover {
+background-color: var(--hover-color);
+}
+
+#rh-panel .rh-acoes button:focus,
+#rh-panel .rh-acoes button:active {
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+#rh-panel .rh-acoes button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+#rh-panel .rh-bases {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin: 18px 0;
+    padding: 16px;
+    background: #f7f8fa;
+    border-radius: 10px;
+}
