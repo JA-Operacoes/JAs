@@ -1,18 +1,20 @@
--- Tabela de alíquotas / parâmetros fiscais da folha, por ANO.
--- Empresa-agnóstica: é lei federal, igual para todas as empresas; a chave é só o ano.
--- Lida por routes/rotaRH.js -> obterParametros(ano). PARAMS_2026 no código é só fallback.
+-- Migration: criar table aliquotas
+-- Criada em: 2026-07-13T17:06:42.165Z
+--
+-- Escreva abaixo o SQL da mudanca de ESTRUTURA (uma migration = uma mudanca).
+-- Roda dentro de uma transacao; se der erro, nada deste arquivo e aplicado.
+-- Depois de escrever: 'npm run migrate' pra aplicar no seu banco local.
 
 CREATE TABLE IF NOT EXISTS aliquotas (
   ano                       INTEGER PRIMARY KEY,
-  inssfaixas                JSONB    NOT NULL,  -- [{ "ate": 1621.00, "aliquota": 0.075 }, ...]
-  irrffaixas                JSONB    NOT NULL,  -- [{ "ate": 2428.80, "aliquota": 0, "deduzir": 0 }, ...] (ate=null = última faixa)
+  inssfaixas                JSONB    NOT NULL,
+  irrffaixas                JSONB    NOT NULL,
   irrfdeducaodependente     NUMERIC(10,2) NOT NULL,
   irrfdescontosimplificado  NUMERIC(10,2) NOT NULL,
-  irrfredutor               JSONB    NOT NULL,  -- { "isencao_ate":5000, "isencao_redutor":312.89, "phaseout_ate":7350, "coef_a":978.62, "coef_b":0.133145 }
-  fgtsaliquota              NUMERIC(6,4)  NOT NULL  -- 0.08 (8%)
+  irrfredutor               JSONB    NOT NULL,
+  fgtsaliquota              NUMERIC(6,4)  NOT NULL  
 );
 
--- Seed 2026 (Receita Federal / Portaria Interm. MPS-MF nº 13; Leis 15.191 e 15.270/2025).
 INSERT INTO aliquotas
   (ano, inssfaixas, irrffaixas, irrfdeducaodependente,
    irrfdescontosimplificado, irrfredutor, fgtsaliquota)

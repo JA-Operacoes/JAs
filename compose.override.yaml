@@ -1,0 +1,13 @@
+# Override de DESENVOLVIMENTO (aplicado automaticamente em `docker compose up`).
+# Monta o código-fonte no container e usa `node --watch` para reiniciar a cada
+# alteração, além de abrir a porta do debugger (9229).
+services:
+  app:
+    environment:
+      NODE_ENV: development
+    command: ["node", "--watch", "--inspect=0.0.0.0:9229", "server.js"]
+    volumes:
+      - .:/usr/src/app            # código do host = hot-reload
+      - /usr/src/app/node_modules # preserva o node_modules da imagem
+    ports:
+      - "9229:9229"

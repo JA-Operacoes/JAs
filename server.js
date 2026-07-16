@@ -6,8 +6,38 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const app = express();
 const port = process.env.PORT || 3000;
+
+// --- Banner de ambiente ---------------------------------------------------
+// Quando APP_ENV está definido (ex.: "teste"), injeta um aviso visual no topo
+// de TODA página HTML servida de /public, pra ninguém confundir com produção.
+// Em prod/local a variável fica vazia e este middleware nem é registrado.
+if (process.env.APP_ENV) {
+  const publicDir = path.join(__dirname, "public");
+  const rotulo = process.env.APP_ENV.toUpperCase();
+  const banner =
+    `\n<div id="__ambiente_banner" style="position:fixed;bottom:0;left:0;width:100%;` +
+    `z-index:99999;background:green;color:#fff;` +
+    `font:600 13px/1.6 system-ui,Abel,sans-serif;text-align:center;` +
+    `letter-spacing:1px;padding:4px 8px;box-shadow:0 1px 4px rgba(0,0,0,.3);` +
+    `pointer-events:none;">🧪 AMBIENTE DE ${rotulo} — dados não são de produção</div>\n`;
+
+  app.use((req, res, next) => {
+    const rel = req.path === "/" ? "login.html" : req.path;
+    if (!rel.endsWith(".html")) return next();
+    const arquivo = path.join(publicDir, rel);
+    if (!arquivo.startsWith(publicDir)) return next(); // evita path traversal
+    fs.readFile(arquivo, "utf8", (err, html) => {
+      if (err) return next(); // não é um html de /public → fluxo normal
+      const comBanner = html.includes("</body>")
+        ? html.replace("</body>", banner + "</body>")
+        : html + banner;
+      res.type("html").send(comBanner);
+    });
+  });
+}
 
 
 const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewares');
@@ -114,6 +144,5 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`✅ Servidor rodando em http://localhost:${port}`);
 });
-
 
 

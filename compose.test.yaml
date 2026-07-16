@@ -1,0 +1,44 @@
+# Ambiente de TESTE compartilhado (homologação).
+#
+# Roda na MESMA máquina da produção, mas totalmente isolado dela graças ao
+# nome de projeto (-p jasystem-test): banco, volume e rede ganham prefixo
+# próprio e NÃO encostam na produção (-p jasystem-prod).
+#
+# O TESTE tem HOT-RELOAD: o código do host é montado no container e o `node
+# --watch` reinicia sozinho a cada alteração. Ou seja, editou o código → o teste
+# atualiza automático (NÃO precisa rebuild). Só precisa rebuild se mudar
+# dependência (package.json) ou o Dockerfile.
+#
+# A PRODUÇÃO é o contrário: roda da imagem buildada (sem montar código), então
+# só muda quando você faz o deploy manual de propósito.
+#
+# Subir/atualizar o teste (rebuild só é necessário na 1ª vez ou ao mudar deps):
+#   docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test up -d --build
+#
+# Resetar o teste com uma cópia limpa da produção (teste_Docker.sql):
+#   docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test down -v
+#   docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test up -d --build
+#
+# Subir a PRODUÇÃO (manual, só depois de validar o teste):
+#   docker compose -p jasystem-prod -f compose.yaml up -d --build
+#
+# Acesso pela rede: teste em http://IP-DO-SERVIDOR:3001 | produção em :3000
+services:
+  db:
+    # !override troca a lista inteira de portas do compose.yaml (senão o Compose
+    # SOMA as listas e o teste tentaria abrir 5432 tbm, colidindo com a prod).
+    ports: !override
+      - "5433:5432"        # porta diferente da prod (5432) p/ conviverem na mesma máquina
+  app:
+    environment:
+      NODE_ENV: production # roda igual à prod, só que com dados de teste
+    # Hot-reload: monta o código do host e reinicia sozinho a cada alteração.
+    # Usa nodemon em modo POLLING (-L) porque o `node --watch` não recebe os
+    # eventos de arquivo através do bind mount do Windows. Ignora public/ (o
+    # front-end é servido direto do disco, não precisa reiniciar o servidor).
+    command: ["npx", "nodemon", "-L", "--ignore", "public/", "--ext", "js,json", "server.js"]
+    volumes:
+      - .:/usr/src/app            # código do host = alterações refletem na hora
+      - /usr/src/app/node_modules # preserva o node_modules da imagem
+    ports: !override
+      - "3001:3000"        # app de teste em :3001, prod continua em :3000
