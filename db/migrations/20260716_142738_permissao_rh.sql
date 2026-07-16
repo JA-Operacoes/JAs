@@ -5,5 +5,4 @@
 -- Roda dentro de uma transacao; se der erro, nada deste arquivo e aplicado.
 -- Depois de escrever: 'npm run migrate' pra aplicar no seu banco local.
 
-ALTER TABLE permissoes
-ADD COLUMN rh BOOLEAN DEFAULT FALSE;
+ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS rh BOOLEAN DEFAULT FALSE;
