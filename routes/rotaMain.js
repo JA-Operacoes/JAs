@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
@@ -497,14 +497,15 @@ router.get("/eventos-abertos", async (req, res) => {
                             ELSE (i2.qtditens * i2.qtddias)
                         END AS total_vagas,
                         bool_and(i2.cachefechado) as cache_fechado,
-                        MAX(i2.qtddias) as qtddias
+                        MAX(i2.qtddias) as qtddias,
+                        COALESCE(i2.setor, '') AS setor
                     FROM orcamentoitens i2
                     JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
                     JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
                     JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
                     WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' AND o2.status <> 'R'
                     AND (o2.status = 'F' OR (o2.status IN ('P', 'E') AND o2.contratarstaff = true))
-                    GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao, i2.qtditens, i2.qtddias, i2.cachefechado
+                    GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao, i2.qtditens, i2.qtddias, i2.cachefechado, COALESCE(i2.setor, '')
                 ) AS t) AS equipes_detalhes_base
             FROM orcamentoitens i
             JOIN orcamentos o ON i.idorcamento = o.idorcamento
@@ -718,13 +719,14 @@ router.get("/eventos-fechados", async (req, res) => {
                             eq2.idequipe, eq2.nmequipe AS equipe, i2.idfuncao, 
                             f2.descfuncao AS nome_funcao, SUM(i2.qtditens) AS total_vagas,
                             MIN(i2.periododiariasinicio) AS dtini_vaga,
-                            MAX(i2.periododiariasfim) AS dtfim_vaga
+                            MAX(i2.periododiariasfim) AS dtfim_vaga,
+                            COALESCE(i2.setor, '') AS setor
                         FROM orcamentoitens i2
                         JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
                         JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
                         JOIN orcamentos o2 ON o2.idorcamento = i2.idorcamento
                         WHERE o2.idevento = o.idevento AND i2.categoria = 'Produto(s)' 
-                        GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
+                        GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao, COALESCE(i2.setor, '')
                     ) AS t
                 ) AS equipes_detalhes_base
             FROM orcamentoitens i
@@ -854,53 +856,57 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     const idevento = req.query.idevento || req.headers.idevento;
     const idempresa = req.query.idempresa || req.headers.idempresa;
     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
+    const idmontagem = req.query.idmontagem ? Number(req.query.idmontagem) : null;
 
     if (!idevento || !idempresa) {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca Orçamentos (Inalterado)
+    // 1️⃣ Busca Orçamentos
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.status, o.idcliente, o.idmontagem
         FROM orcamentos o
         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-        WHERE o.idevento = $1 AND oe.idempresa = $2 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3 AND o.status <> 'R'
+        WHERE o.idevento = $1 AND oe.idempresa = $2 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
+          AND ($4::int IS NULL OR o.idmontagem = $4)
+          AND o.status <> 'R'
         ORDER BY o.dtinirealizacao DESC;`,
-      [idevento, idempresa, ano]
+      [idevento, idempresa, ano, idmontagem]
     );
 
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
 
     const idsOrcamentos = orcamentos.map(o => o.idorcamento);
-    const idcliente = orcamentos[0].idcliente;
-    const idmontagem = orcamentos[0].idmontagem;
+    const idclienteOrc = orcamentos[0].idcliente;
+    const idmontagemOrc = orcamentos[0].idmontagem;
 
     // 2️⃣ Busca Vagas (Ajuste na sintaxe do CASE)
     const { rows: itensOrcamento } = await pool.query(
         `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
           COALESCE(i.setor, '') AS setor_orcamento,
-          -- Aqui está a mágica:
-          --SUM(CASE 
-          --    WHEN i.cachefechado = true THEN i.qtddias 
-          --    ELSE i.qtditens                                     
-          --END) AS qtd_orcamento,
-         -- CASE
-         --   WHEN bool_or(i.cachefechado = true) THEN SUM(i.qtddias)  -- cache: soma diárias
-         --   ELSE MAX(i.qtditens)                                       -- pessoas: max de vagas (não soma)
-         -- END AS qtd_orcamento,
           SUM(i.qtditens) AS qtd_orcamento,
           MAX(i.qtddias) AS qtddias_orcamento,
           SUM(i.qtditens * i.qtddias) AS total_diarias_orcadas,
           MIN(i.periododiariasinicio) AS dtini_vaga,
           MAX(i.periododiariasfim) AS dtfim_vaga,
-          -- Retornamos se QUALQUER item desse grupo é cache fechado
           bool_or(i.cachefechado = true) as tem_cache_fechado,
-          i.idorcamento -- 🎯 IMPORTANTE: Adicione o idorcamento para o frontend usar
+          i.idorcamento,
+          o.contratarstaff,
+          COALESCE(SUM(CASE
+            WHEN i.adicional = true AND COALESCE(i.vlrdiaria, 0) = 0
+            THEN 0 ELSE i.totgeralitem END), 0) AS vlr_orcado_item,
+          COALESCE(SUM(CASE
+            WHEN i.adicional = true AND COALESCE(i.vlrdiaria, 0) = 0
+            THEN i.totgeralitem ELSE 0 END), 0) AS vlr_bonificado_item,
+          MAX(i.vlrdiaria) AS vlrdiaria,
+          MAX(i.vlrajdctoalimentacao) AS vlrajdctoalimentacao,
+          MAX(i.vlrajdctotransporte) AS vlrajdctotransporte
         FROM orcamentoitens i
         JOIN funcao f ON f.idfuncao = i.idfuncao
         JOIN equipe eq ON eq.idequipe = f.idequipe
+        JOIN orcamentos o ON o.idorcamento = i.idorcamento
         WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
-        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento`,
+        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor, i.idorcamento, o.contratarstaff`,
         [idsOrcamentos]
     );
     // trecho original
@@ -1020,10 +1026,14 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
                     THEN (dd.item->>'idorcamento')::int
                     ELSE se.idorcamento
                 END AS idorcamento,
-                COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+                CASE
+                    WHEN jsonb_typeof(dd.item) = 'object' AND TRIM(COALESCE(dd.item->>'setordobra', '')) <> ''
+                    THEN TRIM(dd.item->>'setordobra')
+                    ELSE COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')
+                END AS localizacao,
                 se.idstaff,
                 se.statusstaff,
-                CASE 
+                CASE
                     WHEN jsonb_typeof(dd.item) = 'object' THEN (dd.item->>'data')::date
                     ELSE dd.item::text::date
                 END AS data_trabalho,
@@ -1105,7 +1115,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         AND d_oc.data_trabalho = p_dia.data_trabalho
         WHERE EXTRACT(YEAR FROM d_oc.data_trabalho) = $3
         GROUP BY d_oc.idfuncao, d_oc.idorcamento, d_oc.localizacao`,
-        [idevento, idcliente, ano]
+        [idevento, idclienteOrc, ano]
     );
 
  // 🛑 PAUSE FORÇADO AQUI:
@@ -1132,13 +1142,121 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
        ) AS d
        WHERE se.idevento = $1 AND se.idcliente = $3
        GROUP BY se.idfuncao, localizacao`,
-      [idevento, ano, idcliente]
+      [idevento, ano, idclienteOrc]
     );
 
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
       const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
       acc[key] = row.datas_staff;
       return acc;
+    }, {});
+
+    // 5️⃣-A Gasto financeiro por equipe (Parte A: diárias normais + benefícios)
+    // Filtra pelos mesmos orçamentos do orcado para evitar que staffeventos de outras
+    // montagens/orçamentos do mesmo evento inflem o gasto e causem falso "Limite Excedido"
+    const { rows: gastoEquipeRows } = await pool.query(
+        `SELECT f.idequipe,
+                COALESCE(SUM(
+                    se.vlrtotcache
+                    + COALESCE(se.vlrtotajdcusto, 0)
+                    + COALESCE(se.vlrajustecusto, 0)
+                ), 0) AS vlr_gasto_equipe
+         FROM staffeventos se
+         JOIN funcao f ON f.idfuncao = se.idfuncao
+         WHERE se.idevento = $1
+           AND se.idcliente = $2
+           AND se.idorcamento = ANY($3)
+           AND se.ativo = true
+           AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+         GROUP BY f.idequipe`,
+        [idevento, idclienteOrc, idsOrcamentos]
+    );
+    const gastoEquipeMap = gastoEquipeRows.reduce((acc, row) => {
+        acc[Number(row.idequipe)] = Number(row.vlr_gasto_equipe || 0);
+        return acc;
+    }, {});
+
+    // 5️⃣-B Vagas reaproveitadas por função de origem → função destino (com setor e orcamento)
+    const { rows: reaproveitadasRows } = await pool.query(`
+        SELECT
+            (vr->>'idfuncao_origem')::int                                          AS idfuncao_origem,
+            UPPER(TRIM(COALESCE(vr->>'setor_origem', '')))                         AS setor_origem,
+            COALESCE((vr->>'idorcamento_origem')::int, 0)                          AS idorcamento_origem,
+            se.idfuncao                                                            AS idfuncao_destino,
+            UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))           AS setor_destino,
+            se.idorcamento                                                         AS idorcamento_destino,
+            fn.descfuncao                                                          AS nome_funcao_destino,
+            COUNT(*)                                                               AS qtd
+        FROM staffeventos se
+        CROSS JOIN LATERAL jsonb_array_elements(
+            CASE WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array'
+                 THEN se.vagasreaproveitadas ELSE '[]'::jsonb END
+        ) AS vr
+        JOIN funcao fn ON fn.idfuncao = se.idfuncao
+        WHERE se.idevento = $1
+          AND se.idcliente = $2
+          AND se.statusstaff IN ('Ativo', 'Pendente')
+          AND (vr->>'idfuncao_origem') IS NOT NULL
+        GROUP BY
+            (vr->>'idfuncao_origem')::int,
+            UPPER(TRIM(COALESCE(vr->>'setor_origem', ''))),
+            COALESCE((vr->>'idorcamento_origem')::int, 0),
+            se.idfuncao,
+            UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, ''))),
+            se.idorcamento,
+            fn.descfuncao
+    `, [idevento, idclienteOrc]);
+
+    // Map: "idfuncao_origem_SETOR_ORIGEM_idorcamento_origem" → [{...destino}]
+    // Ignora quando origem e destino são a mesma linha de orçamento (data fora do período no mesmo item)
+    const reaproveitadasMap = {};
+    for (const r of reaproveitadasRows) {
+        const isSelf = Number(r.idfuncao_origem)    === Number(r.idfuncao_destino)
+                    && (r.setor_origem || '')        === (r.setor_destino || '')
+                    && Number(r.idorcamento_origem)  === Number(r.idorcamento_destino);
+        if (isSelf) continue;
+
+        const key = `${Number(r.idfuncao_origem)}_${r.setor_origem}_${Number(r.idorcamento_origem)}`;
+        if (!reaproveitadasMap[key]) reaproveitadasMap[key] = [];
+        const isSameFuncao    = Number(r.idfuncao_origem) === Number(r.idfuncao_destino);
+        const isSameSetor     = (r.setor_origem || '') === (r.setor_destino || '');
+        const isDiffOrcamento = Number(r.idorcamento_origem) !== Number(r.idorcamento_destino);
+        const labelDestino = (isSameFuncao && isSameSetor && isDiffOrcamento)
+            ? `${r.nome_funcao_destino} (outro orçamento)`
+            : r.setor_destino
+                ? `${r.nome_funcao_destino} (${r.setor_destino})`
+                : `${r.nome_funcao_destino} (sem setor)`;
+        reaproveitadasMap[key].push({
+            idfuncao_destino: Number(r.idfuncao_destino),
+            setor_destino: r.setor_destino,
+            nome_funcao_destino: labelDestino,
+            qtd: Number(r.qtd)
+        });
+    }
+
+    // 5️⃣-C Solicitações de aditivo pendentes por função/orçamento
+    const { rows: aditivosPendentesRows } = await pool.query(`
+        SELECT
+            idfuncao,
+            idorcamento,
+            COUNT(DISTINCT idregistroalterado) AS qtd_aditivo_pendente,
+            COUNT(DISTINCT CASE WHEN tiposolicitacao ILIKE '%Limite Excedido%' THEN idregistroalterado END) AS qtd_limite_pendente
+        FROM solicitacoes
+        WHERE idorcamento = ANY($1::int[])
+          AND idempresa = $2
+          AND categoria_log = 'aditivoextra'
+          AND status = 'Pendente'
+          AND (tiposolicitacao ILIKE '%Aditivo%' OR tiposolicitacao ILIKE '%Bonificado%')
+        GROUP BY idfuncao, idorcamento
+    `, [idsOrcamentos, idempresa]);
+
+    const aditivosPendentesMap = aditivosPendentesRows.reduce((acc, row) => {
+        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}`;
+        acc[key] = {
+            qtd: Number(row.qtd_aditivo_pendente || 0),
+            qtd_limite: Number(row.qtd_limite_pendente || 0)
+        };
+        return acc;
     }, {});
 
     // 5️⃣ Agrupamento final (Com a lógica condicional interna)
@@ -1150,9 +1268,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         equipesMap[idequipeKey] = {
           equipe: item.equipe || "Sem equipe",
           idequipe: item.idequipe,
+          vlr_orcado_equipe: 0,
+          vlr_bonificado_equipe: 0,
           funcoes: [],
         };
       }
+      equipesMap[idequipeKey].vlr_orcado_equipe    += Number(item.vlr_orcado_item    || 0);
+      equipesMap[idequipeKey].vlr_bonificado_equipe += Number(item.vlr_bonificado_item || 0);
 
       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
       const cadastrado = staffCount.find(s => 
@@ -1208,14 +1330,31 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
         datas_staff: datas_staff,
-        tem_cache_fechado: item.tem_cache_fechado
+        tem_cache_fechado: item.tem_cache_fechado,
+        contratarstaff: item.contratarstaff,
+        vagas_usadas_em: reaproveitadasMap[`${Number(item.idfuncao)}_${String(item.setor_orcamento || '').trim().toUpperCase()}_${Number(item.idorcamento)}`] || [],
+        qtd_aditivo_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}`]?.qtd || 0,
+        qtd_limite_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}`]?.qtd_limite || 0,
+        vlrdiaria: parseFloat(item.vlrdiaria || 0),
+        vlrajdctoalimentacao: parseFloat(item.vlrajdctoalimentacao || 0),
+        vlrajdctotransporte: parseFloat(item.vlrajdctotransporte || 0)
       });
     }
 
-    res.status(200).json({ 
-      equipes: Object.values(equipesMap), 
+    // Enriquece cada equipe com saldo financeiro
+    for (const key of Object.keys(equipesMap)) {
+      const vlrOrcado     = equipesMap[key].vlr_orcado_equipe;  // já exclui itens BONIFICADO
+      const vlrGasto      = gastoEquipeMap[Number(key)] || 0;
+      const vlrBonificado = equipesMap[key].vlr_bonificado_equipe || 0;  // apenas para exibição
+      equipesMap[key].vlr_gasto_equipe      = vlrGasto;
+      equipesMap[key].vlr_bonificado_equipe = vlrBonificado;
+      equipesMap[key].saldo_fin_equipe      = vlrOrcado - vlrGasto;
+    }
+
+    res.status(200).json({
+      equipes: Object.values(equipesMap),
       idmontagem,
-      idorcamento: idsOrcamentos[0] 
+      idorcamento: idsOrcamentos[0]
     });
 
   } catch (err) {
@@ -1224,55 +1363,6 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   }
 });
 
-// router.get("/ListarFuncionarios", async (req, res) => {
-//   const idempresa = req.query.idempresa || req.idempresa;
-//   const { idEvento, idEquipe, ano } = req.query;
-  
-//   const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
-
-//   if (!idEvento || !idEquipe || !idempresa) {
-//     return res.status(400).json({ erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." });
-//   }
-
-//   try {
-//     const query = `
-//     SELECT DISTINCT ON (se.idstaffevento)
-//     se.idstaffevento, 
-//     se.idfuncionario, 
-//     se.nmfuncionario AS nome, 
-//     se.nmfuncao AS funcao, 
-//     se.vlrtotal, 
-//     se.statuspgto AS status_pagamento,
-//     se.statuspgtoajdcto AS status_ajuda_custo,
-//     -- Aqui está a correção:
-//     COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
-//     se.nivelexperiencia,
-//     se.statusstaff,
-//     se.datasevento AS datas
-// FROM public.staffeventos se
-// INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
-// WHERE se.idevento = $1
-//   AND se.idequipe = $2
-//   AND oe.idempresa = $3
-//   AND EXISTS (
-//       SELECT 1 
-//       FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-//       WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
-//   )
-// ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
-
-//     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
-//     res.status(200).json(rows);
-//   } catch (erro) {
-//     console.error("Erro ListarFuncionarios:", erro);
-//     res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
-//   }
-// });
-// =======================================
-
-// =======================================
-// ORCAMENTOS
-// =======================================
 
 router.get("/ListarFuncionarios", async (req, res) => {
   const idempresa = req.query.idempresa || req.idempresa;
@@ -1289,9 +1379,10 @@ router.get("/ListarFuncionarios", async (req, res) => {
       SELECT DISTINCT ON (se.idstaffevento)
         se.idstaffevento, 
         se.idfuncionario, 
-        se.nmfuncionario AS nome, 
-        se.nmfuncao AS funcao, 
-        se.vlrtotal, 
+        se.nmfuncionario AS nome,
+        f.cpf AS cpf,
+        se.nmfuncao AS funcao,
+        se.vlrtotal,
         se.statuspgto AS status_pagamento,
         se.statuspgtoajdcto AS status_ajuda_custo,
         COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
@@ -1304,10 +1395,11 @@ router.get("/ListarFuncionarios", async (req, res) => {
         se.dtdiariadobrada
       FROM public.staffeventos se
       INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
+      LEFT JOIN public.funcionarios f ON f.idfuncionario = se.idfuncionario
       WHERE se.idevento = $1
         AND se.idequipe = $2
         AND oe.idempresa = $3
-        AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
+        AND se.statusstaff NOT IN ('Deletado', 'Inativado')
         AND EXISTS (
             SELECT 1 
             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
@@ -1538,16 +1630,20 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                     jsonb_build_object('idsolicitacao', s.idsolicitacao,
                                        'data', s.dtsolicitada,
                                        'status', s.status,
-                                       'justificativa', s.justificativa)
+                                       'justificativa', s.justificativa,
+                                       'tiposolicitacao', s.tiposolicitacao)
                 ) AS dtsolicitada_agrupada,
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
                 s.idfuncionario        AS idusuarioalvo,
                 se.vlralimentacao,
                 se.vlrtransporte,
+                se.vlrcache,
                 se.dtdiariadobrada::text AS dtdiariadobrada,
                 se.dtmeiadiaria::text    AS dtmeiadiaria,
                 MIN(se.nmfuncao)        AS nmfuncao_destino,
-                MIN(se.vagasreaproveitadas::text) AS vagasreaproveitadas_raw
+                MIN(se.vagasreaproveitadas::text) AS vagasreaproveitadas_raw,
+                COALESCE(MIN(s.idorcamento), MIN(se.idorcamento)) AS idorcamento_sol,
+                COALESCE(MIN(fn_orig.idequipe), MIN(fn.idequipe)) AS idequipe_sol
             FROM public.solicitacoes s
             LEFT JOIN public.staffeventos se ON s.idregistroalterado = se.idstaffevento
             LEFT JOIN public.usuarios u      ON u.idusuario = s.idusuariosolicitante
@@ -1564,12 +1660,74 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 u.nome, u.sobrenome, resp.nome, resp.sobrenome, f.nome, e.nmevento,
                 se.datasevento, s.categoria_log, s.status, o.dtfiminfradesmontagem,
                 o.dtfimdesmontagem, s.idfuncionario, se.vlralimentacao, se.vlrtransporte,
-                se.dtdiariadobrada, se.dtmeiadiaria
+                se.vlrcache, se.dtdiariadobrada, se.dtmeiadiaria
             ORDER BY MIN(s.dtsolicitacao) DESC
         `;
 
         const { rows } = await pool.query(queryBase, params);
-        
+
+        // Saldo financeiro por equipe — para Ajuste de Custo positivo e Extra Bonificado
+        const saldoEquipeMap = new Map();
+        const paresFinanceiros = new Set();
+        rows.forEach(r => {
+            if (r.categoria !== 'statuscaixinha' && r.idorcamento_sol && r.idequipe_sol) {
+                paresFinanceiros.add(`${r.idorcamento_sol}|${r.idequipe_sol}`);
+            }
+        });
+        if (paresFinanceiros.size > 0) {
+            const idOrcs = [...new Set([...paresFinanceiros].map(p => parseInt(p.split('|')[0])))];
+            const idEqs  = [...new Set([...paresFinanceiros].map(p => parseInt(p.split('|')[1])))];
+            try {
+                const { rows: saldoRows } = await pool.query(`
+                    SELECT
+                        oi.idorcamento,
+                        f.idequipe,
+                        COALESCE(SUM(oi.totgeralitem) FILTER (
+                            WHERE oi.categoria = 'Produto(s)'
+                              AND NOT (oi.adicional = true AND COALESCE(oi.vlrdiaria, 0) = 0)
+                        ), 0) AS vlr_orcado,
+                        COALESCE((
+                            SELECT SUM(se2.vlrtotcache + COALESCE(se2.vlrtotajdcusto,0) + COALESCE(se2.vlrajustecusto,0))
+                            FROM staffeventos se2
+                            JOIN funcao f2 ON se2.idfuncao = f2.idfuncao
+                            WHERE se2.idorcamento = oi.idorcamento
+                              AND f2.idequipe = f.idequipe
+                              AND se2.ativo = true
+                              AND se2.statusstaff NOT IN ('Inativo', 'Deletado', 'Pendente')
+                        ), 0) AS vlr_gasto,
+                        COALESCE((
+                            SELECT SUM(sl.vlrsolicitado)
+                            FROM solicitacoes sl
+                            JOIN funcao f3 ON sl.idfuncao = f3.idfuncao
+                            WHERE sl.idorcamento = oi.idorcamento
+                              AND f3.idequipe = f.idequipe
+                              AND sl.status = 'Pendente'
+                              AND (
+                                  sl.categoria_log = 'statusajustecusto'
+                                  OR (sl.categoria_log = 'aditivoextra' AND (
+                                      sl.tiposolicitacao ILIKE '%BONIFICADO%'
+                                      OR sl.tiposolicitacao ILIKE '%VAGA EXCEDIDA%'
+                                      OR sl.tiposolicitacao = 'FUNCEXCEDIDO'
+                                  ))
+                              )
+                        ), 0) AS vlr_pendente
+                    FROM orcamentoitens oi
+                    JOIN funcao f ON oi.idfuncao = f.idfuncao
+                    WHERE oi.idorcamento = ANY($1::int[])
+                      AND f.idequipe    = ANY($2::int[])
+                    GROUP BY oi.idorcamento, f.idequipe
+                `, [idOrcs, idEqs]);
+                saldoRows.forEach(s => {
+                    saldoEquipeMap.set(`${s.idorcamento}|${s.idequipe}`, {
+                        vlr_orcado:   parseFloat(s.vlr_orcado)   || 0,
+                        vlr_gasto:    parseFloat(s.vlr_gasto)    || 0,
+                        vlr_pendente: parseFloat(s.vlr_pendente) || 0
+                    });
+                });
+            } catch (errSaldo) {
+                console.error('⚠️ Erro ao buscar saldo financeiro:', errSaldo);
+            }
+        }
 
         const parseValor = (v) => {
             if (!v) return 0;
@@ -1577,11 +1735,12 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             return parseFloat(String(v).replace(',', '.')) || 0;
         };
 
-        const resultadoFinal = rows.map(r => {
+        let resultadoFinal = rows.map(r => {
             // 1. Determina a Categoria Única para evitar duplicidade no front
-            const categoriaReal = (r.tiposolicitacao === 'FUNCEXCEDIDO' || r.tiposolicitacao?.includes('VAGA EXCEDIDA'))
-                ? 'statusvagaexcedida'
-                : r.categoria === 'aditivoextra' ? 'statusaditivoextra' : r.categoria;
+            // aditivoextra é o único valor salvo no BD para todos os subtipos de aditivo/bonificado.
+            // statusvagaexcedida é o campo que o frontend sabe renderizar corretamente.
+            // O tiposolicitacao distingue os subtipos dentro do card.
+            const categoriaReal = r.categoria === 'aditivoextra' ? 'statusvagaexcedida' : r.categoria;
               
             // 2. Título formatado conforme sua regra
             const tituloExibicao = obterTituloFormatado(r);
@@ -1600,13 +1759,17 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
 
             const getDiaria = () => r.dtsolicitada_agrupada ? JSON.stringify(r.dtsolicitada_agrupada) : null;
 
-            // Extrai nome da função de origem do JSON vagasreaproveitadas
+            // Extrai nome da função de origem e custo da diária do JSON vagasreaproveitadas
             let nmfuncaoOrigem = '';
+            let vlrCacheJson = 0, vlrAlimJson = 0, vlrTranspJson = 0;
             if (r.vagasreaproveitadas_raw) {
                 try {
                     const parsedVagas = JSON.parse(r.vagasreaproveitadas_raw);
                     if (Array.isArray(parsedVagas) && parsedVagas.length > 0) {
                         nmfuncaoOrigem = parsedVagas[0].nmfuncao_origem || '';
+                        vlrCacheJson  = parseFloat(parsedVagas[0].vlr_cache_executado || 0);
+                        vlrAlimJson   = parseFloat(parsedVagas[0].vlralimentacao || 0);
+                        vlrTranspJson = parseFloat(parsedVagas[0].vlrtransporte   || 0);
                     }
                 } catch(e) {}
             }
@@ -1651,10 +1814,133 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 solicitacoes_individuais: (r.dtsolicitada_agrupada || []).map(sol => ({
                     idsolicitacao: sol.idsolicitacao,
                     data: Array.isArray(sol.data) ? sol.data : [sol.data],
-                    status: sol.status
+                    status: sol.status,
+                    justificativa: sol.justificativa || ''
                 })),
+
+                // Campos auxiliares para merge de combo FuncExcedido + Estouro Financeiro
+                idstaffevento: r.idstaffevento,
+                tiposolicitacao_raw: r.tiposolicitacao,
+
+                // Custo por diária — staffevento direto ou fallback no JSON de vagasreaproveitadas
+                vlrCacheSol:  parseFloat(r.vlrcache  || 0) || vlrCacheJson,
+                vlrAlimSol:   parseFloat(r.vlralimentacao || 0) || vlrAlimJson,
+                vlrTranspSol: parseFloat(r.vlrtransporte  || 0) || vlrTranspJson,
+
+                // Detalhe por data do JSON vagasreaproveitadas: função origem + custo por dia
+                vagasReaproveitadasDetalhes: (() => {
+                    if (!r.vagasreaproveitadas_raw) return null;
+                    try {
+                        const parsed = JSON.parse(r.vagasreaproveitadas_raw);
+                        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+                        return parsed.map(v => ({
+                            data:               String(v.data || '').substring(0, 10),
+                            nmfuncao_origem:    v.nmfuncao_origem    || '',
+                            vlr_cache_executado: parseFloat(v.vlr_cache_executado || 0),
+                            vlr_cache_origem:    parseFloat(v.vlr_cache_origem    || 0),
+                            vlralimentacao:      v.vlralimentacao !== undefined ? parseFloat(v.vlralimentacao) : null,
+                            vlrtransporte:       v.vlrtransporte  !== undefined ? parseFloat(v.vlrtransporte)  : null,
+                            setor_origem:        v.setor_origem || '',
+                        }));
+                    } catch(e) { return null; }
+                })(),
+
+                // Dados financeiros da equipe (Master/Supremo)
+                ...(() => {
+                    const saldo = saldoEquipeMap.get(`${r.idorcamento_sol}|${r.idequipe_sol}`);
+                    return {
+                        vlrOrcadoEquipe:    saldo?.vlr_orcado   || 0,
+                        vlrGastoEquipe:     saldo?.vlr_gasto    || 0,
+                        vlrPendenteEquipe:  saldo?.vlr_pendente || 0
+                    };
+                })()
             };
-        });       
+        });
+
+        // --- Merge de pares FuncExcedido + Estouro Financeiro em um único card ---
+        const comboByStaff = new Map();
+        resultadoFinal.forEach(item => {
+            const tipo = item.tiposolicitacao_raw;
+            if (tipo === 'Aditivo - Limite Financeiro da Equipe Excedido' || tipo === 'FuncExcedido + Estouro Financeiro') {
+                if (!comboByStaff.has(item.idstaffevento)) {
+                    comboByStaff.set(item.idstaffevento, { aditivoItem: null, funcExcItem: null });
+                }
+                const entry = comboByStaff.get(item.idstaffevento);
+                if (tipo === 'Aditivo - Limite Financeiro da Equipe Excedido') entry.aditivoItem = item;
+                else entry.funcExcItem = item;
+            }
+        });
+
+        const comboPairs = new Map([...comboByStaff.entries()].filter(([, v]) => v.aditivoItem && v.funcExcItem));
+        if (comboPairs.size > 0) {
+            const comboLogIds = new Set();
+            const comboMerged = [];
+            comboPairs.forEach(({ aditivoItem, funcExcItem }) => {
+                comboLogIds.add(aditivoItem.id_log);
+                comboLogIds.add(funcExcItem.id_log);
+                comboMerged.push({
+                    ...aditivoItem,
+                    isComboFuncExcedidoAditivo: true,
+                    titulo_formatado: 'FuncExcedido + Estouro Financeiro',
+                    categoria_item: 'funcexcedido_estouro',
+                    dadosAditivo: aditivoItem,
+                    dadosFuncExcedido: funcExcItem,
+                });
+            });
+            resultadoFinal = [
+                ...resultadoFinal.filter(item => !comboLogIds.has(item.id_log)),
+                ...comboMerged
+            ];
+        }
+
+        // --- Merge de pares Extra Bonificado + Diária Dobrada em um único card ---
+        const comboEDB = new Map();
+        resultadoFinal.forEach(item => {
+            const cat  = item.categoria || '';
+            const tipo = (item.tiposolicitacao_raw || '').toLowerCase();
+            if (cat === 'aditivoextra' && (tipo.includes('bonificado') || tipo.includes('aditivo'))) {
+                if (!comboEDB.has(item.idstaffevento)) comboEDB.set(item.idstaffevento, { bonifItem: null, dobradaItem: null });
+                const entry = comboEDB.get(item.idstaffevento);
+                const novoStatus   = (item.status_aprovacao || '').toLowerCase();
+                const atualStatus  = (entry.bonifItem?.status_aprovacao || 'autorizado').toLowerCase();
+                // Preferir item Pendente: garante que aditivo/bonif já resolvido não sobreponha o pendente
+                if (!entry.bonifItem || novoStatus === 'pendente' || atualStatus !== 'pendente') {
+                    entry.bonifItem = item;
+                }
+            } else if (cat === 'statusdiariadobrada') {
+                if (!comboEDB.has(item.idstaffevento)) comboEDB.set(item.idstaffevento, { bonifItem: null, dobradaItem: null });
+                const entry = comboEDB.get(item.idstaffevento);
+                const novoStatus  = (item.status_aprovacao || '').toLowerCase();
+                const atualStatus = (entry.dobradaItem?.status_aprovacao || 'autorizado').toLowerCase();
+                if (!entry.dobradaItem || novoStatus === 'pendente' || atualStatus !== 'pendente') {
+                    entry.dobradaItem = item;
+                }
+            }
+        });
+        const comboPairsEDB = new Map([...comboEDB.entries()].filter(([, v]) => v.bonifItem && v.dobradaItem));
+        if (comboPairsEDB.size > 0) {
+            const comboLogIdsEDB = new Set();
+            const comboMergedEDB = [];
+            comboPairsEDB.forEach(({ bonifItem, dobradaItem }) => {
+                comboLogIdsEDB.add(bonifItem.id_log);
+                comboLogIdsEDB.add(dobradaItem.id_log);
+                const tipoBonus = (bonifItem.tiposolicitacao_raw || '').toLowerCase();
+                const isAditivo = tipoBonus.includes('aditivo') && !tipoBonus.includes('bonificado');
+                comboMergedEDB.push({
+                    ...bonifItem,
+                    isComboExtraDobrada: true,
+                    isComboAditivoDobrada: isAditivo,
+                    titulo_formatado: isAditivo ? 'Aditivo + Diária Dobrada' : 'Extra Bonificado + Diária Dobrada',
+                    categoria_item: 'extrabonificado_dobrada',
+                    dadosBonificado: bonifItem,
+                    dadosDobrada: dobradaItem,
+                });
+            });
+            resultadoFinal = [
+                ...resultadoFinal.filter(item => !comboLogIdsEDB.has(item.id_log)),
+                ...comboMergedEDB
+            ];
+        }
 
         console.log(`TOTAL ENVIADO PARA FRONT: ${resultadoFinal.length}, resultadoFinal:`, resultadoFinal);
         res.json(resultadoFinal);
@@ -1841,9 +2127,19 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 let datasAtuaisRaw = Array.isArray(registro.datasevento) ? registro.datasevento : [];
                 let datasAtuais = datasAtuaisRaw.map(d => converterParaISO(d)).filter(Boolean);
-                
+
                 let datasParaProcessar = dataEspecifica ? [dataEspecifica] : datasDaSolicitacao;
                 datasParaProcessar = datasParaProcessar.map(d => converterParaISO(d)).filter(Boolean);
+
+                // Datas de diária dobrada vivem em dtdiariadobrada, nunca em datasevento.
+                // Separa para não adicionar/remover datas dobradas do campo de eventos.
+                let dtDobradaRaw = registro.dtdiariadobrada;
+                if (typeof dtDobradaRaw === 'string') { try { dtDobradaRaw = JSON.parse(dtDobradaRaw); } catch(e) { dtDobradaRaw = []; } }
+                const dtDobradaArr = Array.isArray(dtDobradaRaw) ? dtDobradaRaw : [];
+                const dtDobradaDatesSet = new Set(dtDobradaArr.map(e => String(e.data || '').substring(0, 10)));
+
+                const datasParaEventos = datasParaProcessar.filter(d => !dtDobradaDatesSet.has(d));
+                const datasParaDobrada = datasParaProcessar.filter(d => dtDobradaDatesSet.has(d));
 
                 let dataRespostaBR = dataEspecifica || (datasDaSolicitacao[0] || '');
                 if (dataRespostaBR && dataRespostaBR.includes('-')) {
@@ -1854,18 +2150,54 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 const stringRespostaNova = `${dataFormatadaTexto} - ${statusParaAtualizar}`;
 
                 if (statusParaAtualizar === 'Autorizado') {
-                    datasParaProcessar.forEach(dStr => {
+                    datasParaEventos.forEach(dStr => {
                         if (dStr && !datasAtuais.includes(dStr)) {
                             datasAtuais.push(dStr);
                         }
                     });
                 } else if (statusParaAtualizar === 'Rejeitado') {
-                    datasParaProcessar.forEach(dStr => {
+                    datasParaEventos.forEach(dStr => {
                         datasAtuais = datasAtuais.filter(d => d !== dStr);
                     });
                 }
 
                 datasAtuais = [...new Set(datasAtuais)].sort();
+
+                // Atualiza vagasreaproveitadas conforme o resultado da autorização
+                let vagasReaproveitadasAtualizadas = null;
+                if (statusParaAtualizar === 'Rejeitado') {
+                    const datasRejeitadasSet = new Set(datasParaProcessar);
+                    let vagasAtuals = registro.vagasreaproveitadas || [];
+                    if (typeof vagasAtuals === 'string') {
+                        try { vagasAtuals = JSON.parse(vagasAtuals); } catch(e) { vagasAtuals = []; }
+                    }
+                    if (Array.isArray(vagasAtuals) && vagasAtuals.length > 0) {
+                        const vagasFiltradas = vagasAtuals.filter(
+                            v => !datasRejeitadasSet.has(String(v.data).split('T')[0])
+                        );
+                        vagasReaproveitadasAtualizadas = JSON.stringify(vagasFiltradas);
+                        console.log(`🗑️ [REJEIÇÃO] ${vagasAtuals.length - vagasFiltradas.length} entrada(s) removida(s) de vagasreaproveitadas`);
+                    }
+                } else if (statusParaAtualizar === 'Autorizado') {
+                    let vagasAtuals = registro.vagasreaproveitadas || [];
+                    if (typeof vagasAtuals === 'string') {
+                        try { vagasAtuals = JSON.parse(vagasAtuals); } catch(e) { vagasAtuals = []; }
+                    }
+                    if (Array.isArray(vagasAtuals) && vagasAtuals.length > 0) {
+                        const datasAutorizadasSet = new Set(datasParaProcessar);
+                        const vagasAtualizadas = vagasAtuals.map(v => {
+                            if (datasAutorizadasSet.has(String(v.data).split('T')[0]) && v.status === 'Pendente') {
+                                return { ...v, status: 'Autorizado' };
+                            }
+                            return v;
+                        });
+                        const houveMudanca = vagasAtualizadas.some((v, i) => v.status !== vagasAtuals[i].status);
+                        if (houveMudanca) {
+                            vagasReaproveitadasAtualizadas = JSON.stringify(vagasAtualizadas);
+                            console.log(`✅ [AUTORIZAÇÃO] vagasreaproveitadas atualizadas para 'Autorizado' nas datas: ${datasParaProcessar.join(', ')}`);
+                        }
+                    }
+                }
 
                 let obsModificada = registro.obsgeral || ''; 
                 obsModificada = obsModificada.trim();
@@ -1888,11 +2220,14 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
                 `, [idStaffAlvo]);
 
-                // Aditivo e Extra Bonificado só viram Ativo ao ser incluídos no orçamento
-                // FUNCEXCEDIDO não tem etapa de orçamento, então vira Ativo direto na autorização
+                // Aditivo e Extra Bonificado só viram Ativo ao ser incluídos no orçamento.
+                // FuncExcedido simples não tem etapa de orçamento → vira Ativo direto na autorização.
+                // FuncExcedido + Estouro Financeiro tem Aditivo vinculado → deve permanecer Pendente
+                // até a vaga ser incluída no orçamento (mesma regra do Aditivo).
                 const ehAditivoOuExtra = tipoSolicitacaoOriginal.toLowerCase().includes('aditivo') ||
                                          tipoSolicitacaoOriginal.toLowerCase().includes('extra bonificado') ||
-                                         tipoSolicitacaoOriginal.toLowerCase().includes('extra');
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('extra') ||
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('funcexcedido + estouro');
 
                 const statusFinalStaff = (datasAtuais.length === 0)
                     ? 'Deletado'
@@ -1950,19 +2285,49 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 let totalFinal = totalCache + totalAjdCusto;
 
+                // Quando o registro vai ser Deletado, preserva datasevento como estava —
+                // se ficou sem datas é porque a solicitação era a única, não há necessidade de limpar.
                 const finalUpAditivo = await pool.query(`
                     UPDATE staffeventos
-                    SET datasevento = $1::jsonb,
-                        vlrtotcache = $2,
-                        vlrtotajdcusto = $3,
-                        vlrtotal = $4,
+                    SET datasevento     = CASE WHEN $5 = 'Deletado' THEN datasevento ELSE $1::jsonb END,
+                        vlrtotcache     = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $2       END,
+                        vlrtotajdcusto  = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $3       END,
+                        vlrtotal        = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $4       END,
                         statusstaff = $5,
-                        obsgeral = $6
+                        obsgeral = $6,
+                        vagasreaproveitadas = CASE WHEN $8::text IS NOT NULL THEN $8::jsonb ELSE vagasreaproveitadas END
                     WHERE idstaffevento = $7
                     RETURNING *;
-                `, [JSON.stringify(datasAtuais), totalCache, totalAjdCusto, totalFinal, statusFinalStaff, obsModificada, idStaffAlvo]);
+                `, [JSON.stringify(datasAtuais), totalCache, totalAjdCusto, totalFinal, statusFinalStaff, obsModificada, idStaffAlvo, vagasReaproveitadasAtualizadas]);
 
                 console.log(`✅ [FLUXO A] Linhas alteradas com sucesso no staffeventos: ${finalUpAditivo.rowCount}`);
+
+                // Cascata: marcar como Rejeitado no JSONB dtdiariadobrada as datas do aditivo rejeitado.
+                // Mantém o histórico — apenas atualiza o status, nunca remove a entrada.
+                // Datas já Autorizadas não são rebaixadas.
+                if (statusParaAtualizar === 'Rejeitado' && datasParaDobrada.length > 0) {
+                    try {
+                        const datasRejSet = new Set(datasParaDobrada);
+                        let houveMudancaDobra = false;
+                        const dtDobradaAtualizada = dtDobradaArr.map(entry => {
+                            const dataEntry = String(entry.data || '').substring(0, 10);
+                            if (datasRejSet.has(dataEntry) && entry.status !== 'Autorizado') {
+                                houveMudancaDobra = true;
+                                return { ...entry, status: 'Rejeitado' };
+                            }
+                            return entry;
+                        });
+                        if (houveMudancaDobra) {
+                            await pool.query(
+                                `UPDATE staffeventos SET dtdiariadobrada = $1::jsonb WHERE idstaffevento = $2`,
+                                [JSON.stringify(dtDobradaAtualizada), idStaffAlvo]
+                            );
+                            console.log(`📅 [FLUXO A] dtdiariadobrada: datas ${datasParaDobrada.join(',')} marcadas como Rejeitado`);
+                        }
+                    } catch (errCascataDobra) {
+                        console.error('[FLUXO A] Erro ao atualizar dtdiariadobrada na rejeição:', errCascataDobra);
+                    }
+                }
 
                 res.locals.idlog_origem = idlog_origem;
                 res.locals.acao = 'atualizou';
@@ -2049,7 +2414,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 //     if (isAjudaCustoPaga) totalCache += vlrAlimExtra;
                 //     else totalAjdCusto += vlrAlimExtra;
                 // }
-                if (itemModificado && statusParaAtualizar === 'Autorizado') {
+                if (itemModificado && statusParaAtualizar === 'Autorizado' && tipoSolicitacaoOriginal !== 'Dobrada - Estouro Financeiro') {
                     const vlrItemCache = itemModificado.vlr_cache != null ? parseFloat(itemModificado.vlr_cache)
                                       : itemModificado.vlrcache != null ? parseFloat(itemModificado.vlrcache) : 0;
                     const vlrItemAlim  = itemModificado.vlr_alimentacao != null ? parseFloat(itemModificado.vlr_alimentacao)
@@ -2152,17 +2517,22 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
             `, [idStaffAlvo]);
 
-            const statusStaffCalculado = (pendenciasFluxoB.length > 0) ? 'Pendente' : 'Ativo';
+            const ehEstouroFinanceiroDobra = tipoSolicitacaoOriginal === 'Dobrada - Estouro Financeiro';
+            const statusStaffCalculado = (pendenciasFluxoB.length > 0 || (ehEstouroFinanceiroDobra && statusParaAtualizar === 'Autorizado'))
+                ? 'Pendente'
+                : 'Ativo';
 
             const novaObsPosPgto = obsDobraLog
                 ? ((registro.obspospgto ? registro.obspospgto + '\n' : '') + obsDobraLog)
                 : (registro.obspospgto || null);
 
+            const ativoCalculado = statusStaffCalculado === 'Ativo';
             const queryUpdate = `
                 UPDATE staffeventos se
                 SET ${colunaDestinoBanco} = $1,
                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4,
-                    statusstaff = $5, obspospgto = $7
+                    statusstaff = $5, obspospgto = $7,
+                    ativo = ($8 OR ativo)
                 WHERE se.idstaffevento = $6
                 RETURNING se.*;
             `;
@@ -2176,7 +2546,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 totalAjdCusto,
                 statusStaffCalculado,
                 idStaffAlvo,
-                novaObsPosPgto
+                novaObsPosPgto,
+                ativoCalculado
             ]);
             
             console.log(`✅ [FLUXO B] Linhas alteradas com sucesso no staffeventos: ${finalResult.rowCount}`);
@@ -3128,10 +3499,70 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
                 [novoStatus, idUsuarioAprovador, idSolicitacao, idEmpresa]
             );
 
+            const solAtualizada = rows[0];
+
+            // Quando Extra Bonificado é rejeitado, rejeita automaticamente a Diária Dobrada vinculada
+            if (novoStatus === 'Rejeitado' && solAtualizada?.idregistroalterado) {
+                const idStaffEvento = solAtualizada.idregistroalterado;
+
+                // Datas do Extra Bonificado rejeitado (para marcar no JSONB)
+                const datasRejeitadas = Array.isArray(solAtualizada.dtsolicitada)
+                    ? solAtualizada.dtsolicitada.map(d => String(d).substring(0, 10))
+                    : [];
+
+                try {
+                    // Buscar estado atual do staffevento
+                    const seRes = await pool.query(
+                        `SELECT dtdiariadobrada, obsgeral FROM staffeventos WHERE idstaffevento = $1`,
+                        [idStaffEvento]
+                    );
+
+                    if (seRes.rows.length > 0) {
+                        const seRow = seRes.rows[0];
+
+                        // Marcar as datas como Rejeitado no JSONB dtdiariadobrada
+                        let dtDobrada = Array.isArray(seRow.dtdiariadobrada) ? seRow.dtdiariadobrada : [];
+                        if (datasRejeitadas.length > 0) {
+                            dtDobrada = dtDobrada.map(entry => {
+                                const dataEntry = String(entry.data || '').substring(0, 10);
+                                return datasRejeitadas.includes(dataEntry)
+                                    ? { ...entry, status: 'Rejeitado' }
+                                    : entry;
+                            });
+                        }
+
+                        // Registrar rejeição em obsgeral
+                        const hoje = new Date().toLocaleDateString('pt-BR');
+                        const obsRejeicao = `[${hoje}] Extra Bonificado rejeitado — Diária Dobrada cancelada automaticamente.`;
+                        const obsAtual = (seRow.obsgeral || '').trim();
+                        const novaObs = obsAtual ? `${obsAtual}\n${obsRejeicao}` : obsRejeicao;
+
+                        await pool.query(
+                            `UPDATE staffeventos SET dtdiariadobrada = $1::jsonb, obsgeral = $2 WHERE idstaffevento = $3`,
+                            [JSON.stringify(dtDobrada), novaObs, idStaffEvento]
+                        );
+
+                        // Rejeitar a solicitação de Diária Dobrada vinculada (se ainda Pendente)
+                        await pool.query(
+                            `UPDATE public.solicitacoes
+                             SET status = 'Rejeitado', idusuarioresponsavel = $1, dtresposta = NOW()
+                             WHERE idregistroalterado = $2
+                               AND categoria_log = 'statusdiariadobrada'
+                               AND status = 'Pendente'
+                               AND idempresa = $3`,
+                            [idUsuarioAprovador, idStaffEvento, idEmpresa]
+                        );
+                    }
+                } catch (errCascata) {
+                    // Loga mas não falha a requisição principal
+                    console.error('[aditivoextra] Erro ao cascatear rejeição para Diária Dobrada:', errCascata);
+                }
+            }
+
             res.json({
                 sucesso: true,
                 mensagem: `Solicitação ${novoStatus.toLowerCase()} com sucesso.`,
-                dados: rows[0]
+                dados: solAtualizada
             });
 
         } catch (error) {
