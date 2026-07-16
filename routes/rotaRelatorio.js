@@ -909,9 +909,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         SELECT
                             tse.idevento,
                             tse.idcliente,
+                            tse.idorcamento,
                             semp.idempresa,
                             tse.nmfuncao,
-                            -- AQUI ESTÁ A CORREÇÃO: Conta apenas os dias do período solicitado
                             SUM((
                                 SELECT COUNT(*)
                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
@@ -945,9 +945,10 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             semp.idempresa = $1
                             AND tse.statusstaff = 'Ativo'
                         GROUP BY
-                            tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
+                            tse.idevento, tse.idcliente, tse.idorcamento, semp.idempresa, tse.nmfuncao
                     ) AS td ON td.idevento = o.idevento
                             AND td.idcliente = o.idcliente
+                            AND td.idorcamento = o.idorcamento
                             AND td.idempresa = oe.idempresa
                             AND td.nmfuncao = oi.produto
                     WHERE
