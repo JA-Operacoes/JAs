@@ -1,4 +1,4 @@
-import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
+﻿import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
 
@@ -393,22 +393,22 @@ async function carregarFuncaoOrc() {
         option.value = funcao.idfuncao;
         option.textContent = funcao.descfuncao;
         option.setAttribute("data-descproduto", funcao.descfuncao);
-        if (funcao.ctofuncaobase > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaobase);
-        } else if (funcao.ctofuncaojunior > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaojunior);
-        } else if (funcao.ctofuncaopleno > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaopleno);
-        } else if (funcao.ctofuncaosenior > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaosenior);
-        } else {
-          option.setAttribute("data-cto", 0);
-        } //base, junior, pleno ou senior????
+        const ctoEscolhido =
+          funcao.ctofuncaosenior > 0 ? funcao.ctofuncaosenior :
+          funcao.ctofuncaopleno  > 0 ? funcao.ctofuncaopleno  :
+          funcao.ctofuncaojunior > 0 ? funcao.ctofuncaojunior :
+                                       funcao.ctofuncaobase   || 0;
 
-        option.setAttribute("data-vda", funcao.vdafuncao); // option.setAttribute("data-transporte", funcao.transporte); //option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
+        const transpEscolhido =
+          (funcao.ctofuncaosenior > 0 && funcao.transpsenior > 0)
+            ? funcao.transpsenior
+            : funcao.transporte || 0;
+
+        option.setAttribute("data-cto", ctoEscolhido);
+        option.setAttribute("data-vda", funcao.vdafuncao);
 
         option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
-        option.setAttribute("data-transporte", funcao.transporte || 0);
+        option.setAttribute("data-transporte", transpEscolhido);
         option.setAttribute("data-categoria", "Produto(s)");
         select.appendChild(option);
       });
@@ -1547,6 +1547,7 @@ function adicionarLinhaOrc() {
   //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
   // }
   tabela.insertBefore(novaLinha, tabela.firstChild);
+  window._ultimaLinhaAdicionada = novaLinha;
 
   // Base do item (valor original sem desconto/acréscimo)
   let vlrVendaDoBanco = desformatarMoeda(novaLinha.querySelector(".vlrVenda").textContent);
@@ -1721,25 +1722,7 @@ function adicionarLinhaOrc() {
     });
   }
 
-  novaLinha.querySelector(".idFuncao").addEventListener("change", async function (event) {
-      const linha = this.closest("tr");
-      if (linha) {
-        atualizaProdutoOrc(event, linha);
-        recalcularLinha(linha);
-
-        const idOrcamento = document.getElementById("idOrcamento")?.value;
-        const idFuncao    = this.value;
-
-        if (idOrcamento && idFuncao) {
-            const solicitacao = await verificarSolicitacaoPendente(
-                idOrcamento, idFuncao, null, null,
-                linha  // ✅ passa a linha aqui
-            );
-
-            // carregarSolicitacao já define dataset.idsolicitacao corretamente
-        }
-      }
-    });
+  // Listener no hidden input — disparado apenas por código (atualizaProdutoOrc já cobre o fluxo de seleção)
 
   novaLinha
     .querySelector(".qtdProduto input")
@@ -1905,13 +1888,8 @@ function adicionarLinhaOrc() {
 
 
 async function adicionarLinhaAdicional(isBonificado = false) {
-  // if (isCleaning) return;
-    // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
-    //if (isBonificado === false) { 
-    if (typeof isCleaning !== 'undefined' && isCleaning) {
-        return; 
-    }
-    if (isBonificado === false) {
+    // Mostra o Swal apenas em chamadas do usuário; chamadas automáticas (isCleaning) pulam direto para adicionar a linha
+    if (isBonificado === false && !(typeof isCleaning !== 'undefined' && isCleaning)) {
         const result = await Swal.fire({
             title: 'Tipo de Item Adicional',
             text: "Selecione o tipo de item que deseja adicionar:",
@@ -1946,7 +1924,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     const initialDisplayStyle = ufAtual.toUpperCase() === "SP" ? "display: none;" : "display: table-cell;";
 
     const novaLinha = tabelaBody.insertRow();
-    
+    window._ultimaLinhaAdicionada = novaLinha;
 
     // Aplica classes e dataset para identificação e estilo
     novaLinha.classList.add("liberada", "linhaAdicional", "adicional");
@@ -2201,29 +2179,17 @@ async function adicionarLinhaAdicional(isBonificado = false) {
         inputSetor.addEventListener('change', async function() {
             const setor = this.value.trim();
             const idFuncaoVal = novaLinha.querySelector('.idFuncao')?.value;
-            const produtoNome = novaLinha.querySelector('.produto-input')?.value || 
+            const produtoNome = novaLinha.querySelector('.produto-input')?.value ||
                               novaLinha.querySelector('.produto')?.value || "Item";
-            if (setor && idFuncaoVal) {
-                await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this);
+            if (idFuncaoVal) {
+                const ehAdicional = novaLinha?.querySelector('.isAdicional')?.value === 'true';
+                console.log(`[setor-change] setor="${setor}" isAdicional HTML=${novaLinha?.querySelector('.isAdicional')?.value} → ehAdicional=${ehAdicional}`);
+                await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this, ehAdicional);
             }
         });
     }
 
-    // ✅ NOVO bloco 9 — verificação no lugar certo
-    const idFuncaoInputAdicional = novaLinha.querySelector('.idFuncao');
-          idFuncaoInputAdicional.addEventListener('change', async function () {
-          console.log('🔥 [idFuncao change] Disparou! Valor:', this.value);
-          
-          const idOrcamento = document.getElementById("idOrcamento")?.value;
-          const idFuncaoVal = this.value;
-          
-          console.log('🔍 [idFuncao change] idOrcamento:', idOrcamento, '| idFuncaoVal:', idFuncaoVal);
-
-          if (idOrcamento && idFuncaoVal) {
-              // carregarSolicitacao já define dataset.idsolicitacao corretamente
-              await verificarSolicitacaoPendente(idOrcamento, idFuncaoVal, null, null, novaLinha);
-          }
-      });
+    // Verificação de solicitação é feita em atualizaProdutoOrc (disparado pelo SELECT real, não pelo hidden input)
     }
 
 
@@ -2257,6 +2223,14 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
         const tipoLabel  = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
         const dtSolicita = sol.dtsolicitacao ? new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR') : '—';
         const dtResposta = sol.dtresposta    ? new Date(sol.dtresposta).toLocaleDateString('pt-BR')    : '—';
+        const tipoSolLower = (sol.tiposolicitacao || '').toLowerCase();
+        const sufixoModal = tipoSolLower.includes('bonificado') ? 'BONIFICADO'
+                          : (tipoSolLower.includes('aditivo') || tipoSolLower.includes('estouro')) ? 'ADITIVO'
+                          : '';
+        const setorBaseModal = (sol.setor || '').trim();
+        const setorModal = sufixoModal
+            ? (setorBaseModal ? `${setorBaseModal} ${sufixoModal}` : sufixoModal)
+            : (setorBaseModal || '—');
 
         const {isConfirmed} = await Swal.fire({
             title: `${tipoLabel} — Solicitação Encontrada`,
@@ -2266,7 +2240,7 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
                     <p>👤 Solicitante: <b>${sol.nomesolicitante || '—'}</b> em ${dtSolicita}</p>
                     <p>✅ Autorizado por: <b>${sol.nomeresponsavel || '—'}</b> em ${dtResposta}</p>
                     <p>📦 Qtd solicitada: <b>${sol.qtdsolicitada}</b></p>
-                    <p>🧭 Setor: <b>${sol.setor || '—'}</b></p>
+                    <p>🧭 Setor: <b>${setorModal}</b></p>
                     <p>📅 Período Solicitado: <b>${sol.periodoStr}</b></p>
                     ${sol.justificativa ? `<p>📝 Justificativa: <i>${sol.justificativa}</i></p>` : ''}
                     <hr style="margin:8px 0">
@@ -2301,8 +2275,8 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
 
 async function escolherSolicitacao(solicitacoes, linha) {
     const opcoes = solicitacoes.map((sol, i) => `
-        <label for="sol_${i}" style="display:flex; align-items:flex-start; gap:8px; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; margin-bottom:8px; user-select:none;">
-            <input type="radio" id="sol_${i}" name="sol_escolhida" value="${i}" style="margin-top:3px; cursor:pointer; flex-shrink:0;">
+        <label for="sol_${i}" style="display:flex; align-items:flex-start; gap:8px; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; margin-bottom:8px; user-select:none; pointer-events:auto;">
+            <input type="radio" id="sol_${i}" name="sol_escolhida" value="${i}" style="margin-top:3px;  cursor:pointer; flex-shrink:0;">
             <div style="text-align:left; pointer-events:auto;">
                 <b>#${sol.ids_solicitacoes}</b> — ${sol.tiposolicitacao}<br>
                 <small>👤 <b>${sol.nomesolicitante || '—'}</b> em ${new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR')}</small><br>
@@ -2361,6 +2335,22 @@ function carregarSolicitacao(sol, linha) {
         ? sol.ids_solicitacoes.join(',')
         : (sol.idsolicitacao || "");
 
+    // Marca a linha como adicional (independente de como foi criada)
+    linha.dataset.adicional = 'true';
+
+    // Marca como bonificado quando a solicitação é Extra Bonificado — garante vlrVenda=0 no recalcularLinha
+    const isBonificadoSol = (sol.tiposolicitacao || '').toLowerCase().includes('bonificado');
+    if (isBonificadoSol) {
+        linha.dataset.extrabonificado = 'true';
+        linha.dataset.bonificado = 'true';
+        linha.dataset.vlrbase = '0';
+        linha.style.backgroundColor = '#c5eed0'; // Verde — bonificado
+        linha.style.borderLeft = '4px solid #28a745';
+    } else {
+        linha.style.backgroundColor = '#e48585'; // Vermelho — aditivo
+        linha.style.borderLeft = '4px solid #ff0000';
+    }
+
     // 2. Preenche a Categoria (Aditivo / Extra Bonificado)
     const inputCategoria = linha.querySelector(".categoria-input");
     if (inputCategoria) {
@@ -2373,10 +2363,77 @@ function carregarSolicitacao(sol, linha) {
         inputProduto.value = sol.nome;
     }
 
-    // 4. Preenche o Setor vindo do banco
+    // Atualiza labels visuais de tipo na coluna de produto (EXTRA BONIFICADO / ADICIONAL)
+    const tdProduto = inputProduto?.closest('td');
+    if (tdProduto) {
+        tdProduto.querySelectorAll('small').forEach(el => el.remove());
+        if (isBonificadoSol) {
+            tdProduto.insertAdjacentHTML('beforeend', '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>');
+        } else {
+            tdProduto.insertAdjacentHTML('beforeend', '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>');
+        }
+    }
+
+    // 4. Preenche o Setor: aditivos usam "{setor} ADITIVO", bonificados usam "{setor} BONIFICADO"
     const inputSetor = linha.querySelector(".setor-input");
     if (inputSetor) {
-        inputSetor.value = sol.setor || "";
+        const tipoSol = (sol.tiposolicitacao || '').toLowerCase();
+        const sufixoSetor = tipoSol.includes('bonificado') ? 'BONIFICADO'
+                          : (tipoSol.includes('aditivo') || tipoSol.includes('estouro')) ? 'ADITIVO'
+                          : '';
+
+        let setorBase = (sol.setor || '').trim();
+
+        // Fallback: se a API não retornou setor, busca nas linhas existentes da mesma função
+        if (!setorBase && sufixoSetor) {
+            const idfuncaoAtual = linha.querySelector('input.idFuncao')?.value;
+            if (idfuncaoAtual) {
+                const rows = Array.from(document.querySelectorAll('#tabela tbody tr'));
+                for (const row of rows) {
+                    if (row === linha) continue;
+                    const rowFuncao = row.querySelector('input.idFuncao')?.value;
+                    const rowSetor  = row.querySelector('.setor-input')?.value?.trim();
+                    const jaMarcado = row.dataset.adicional === 'true' || row.querySelector('.isAdicional')?.value === 'true';
+                    if (rowFuncao === idfuncaoAtual && rowSetor && !jaMarcado) {
+                        setorBase = rowSetor;
+                        console.log(`[carregarSolicitacao] Setor via fallback DOM: "${setorBase}" (idfuncao=${idfuncaoAtual})`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Monta setor base e enumera automaticamente se já existe outro item com
+        // mesmo idfuncao e mesmo setor (ex: "EXCEDIDO ADITIVO" → "EXCEDIDO ADITIVO 2")
+        let setorFinal = sufixoSetor
+            ? (setorBase ? `${setorBase} ${sufixoSetor}` : sufixoSetor)
+            : setorBase;
+
+        if (setorFinal && sufixoSetor) {
+            const idfuncaoSol = String(sol.idfuncao || linha.querySelector('input.idFuncao')?.value || '');
+            const setoresEmUso = new Set(
+                Array.from(document.querySelectorAll('#tabela tbody tr'))
+                    .filter(r => r !== linha && String(r.querySelector('input.idFuncao')?.value || '') === idfuncaoSol)
+                    .map(r => (r.querySelector('.setor-input')?.value || '').trim().toLowerCase())
+            );
+            let n = 2;
+            let candidato = setorFinal;
+            while (setoresEmUso.has(candidato.toLowerCase())) {
+                candidato = `${setorFinal} ${n++}`;
+            }
+            setorFinal = candidato;
+        }
+
+        inputSetor.value = setorFinal;
+
+        console.log(`[carregarSolicitacao] setorBase="${setorBase}" sufixo="${sufixoSetor}" → setor="${inputSetor.value}"`);
+
+        // Bloqueia edição do setor após preenchimento pela solicitação
+        inputSetor.readOnly = true;
+        inputSetor.style.background  = '#f0f0f0';
+        inputSetor.style.cursor      = 'not-allowed';
+        inputSetor.title             = 'Setor definido pela solicitação — não editável';
+        linha.dataset.setorBloqueado = 'true';
     }
 
     // 5. Preenche a quantidade solicitada
@@ -2389,17 +2446,44 @@ function carregarSolicitacao(sol, linha) {
     const inputData = linha.querySelector(".datas-item");
     if (inputData) {
         const fpInstance = inputData._flatpickr;
-        
+
+        // Datas rejeitadas (do mesmo staffevento, já calculadas no backend)
+        const datasRejeitadas = Array.isArray(sol.datas_rejeitadas) ? sol.datas_rejeitadas : [];
+
+        // Obs de datas rejeitadas — guarda no dataset para ser enviado no save
+        const obsBon = sol.obsbonificado || null;
+        linha.dataset.obsbonificado = obsBon || '';
+
         // Se houver instância ativa do flatpickr e as datas brutas em array
         if (fpInstance && Array.isArray(sol.datas_solicitadas) && sol.datas_solicitadas.length > 0) {
-            // Converte as strings de data 'YYYY-MM-DD' em objetos Date seguros evitando fuso horário
-            const datasJS = sol.datas_solicitadas.map(d => {
-                const strData = typeof d === 'string' ? d.split('T')[0] : new Date(d).toISOString().split('T')[0];
-                return new Date(strData + 'T00:00:00');
-            });
-            fpInstance.setDate([datasJS[0], datasJS[datasJS.length - 1]], true);
+            const toDate = str => new Date((typeof str === 'string' ? str.split('T')[0] : new Date(str).toISOString().split('T')[0]) + 'T00:00:00');
+
+            // Período: usa range completo incluindo rejeitadas (para o flatpickr mostrar do início ao fim)
+            const todasDatas = [
+                ...sol.datas_solicitadas.map(toDate),
+                ...datasRejeitadas.map(toDate)
+            ].sort((a, b) => a - b);
+
+            fpInstance.setDate([todasDatas[0], todasDatas[todasDatas.length - 1]], true);
             fpInstance.close();
-            atualizarQtdDias(inputData, fpInstance.selectedDates);
+
+            // qtddias = apenas as datas AUTORIZADAS (não dias calendário do range)
+            const inputQtdDias = linha.querySelector("input.qtdDias");
+            if (inputQtdDias) inputQtdDias.value = sol.datas_solicitadas.length;
+
+            // Exibe obs de datas rejeitadas abaixo do campo de período
+            const tdDatas = inputData.closest('td');
+            if (tdDatas) {
+                tdDatas.querySelectorAll('.obs-rejeitadas').forEach(el => el.remove());
+                if (datasRejeitadas.length > 0) {
+                    const fmtBR = d => new Date((typeof d === 'string' ? d.split('T')[0] : d) + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    tdDatas.insertAdjacentHTML('beforeend',
+                        `<div class="obs-rejeitadas" style="font-size:10px;color:#dc2626;font-style:italic;margin-top:2px;line-height:1.3;">
+                            Rejeitadas: ${datasRejeitadas.map(fmtBR).join(', ')}
+                        </div>`
+                    );
+                }
+            }
         } else {
             // Fallback visual caso não tenha flatpickr anexado
             inputData.value = sol.periodoStr || "";
@@ -2861,9 +2945,8 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     }
 
     if (!linha) {
-        // Plano C: Se ainda assim for null, tenta pegar a última linha clicada ou a primeira da tabela (Emergência)
-        console.warn("Aviso: closest('tr') falhou. Tentando localizar via DOM estável.");
-        linha = document.querySelector("#tabela tbody tr:first-child"); 
+        // Plano C: usa a última linha adicionada pelo usuário (prepend ou append), senão first-child
+        linha = window._ultimaLinhaAdicionada || document.querySelector("#tabela tbody tr:first-child");
     }
 
     if (!linha) {
@@ -2873,7 +2956,7 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     console.log("Select alterado com sucesso na linha:", linha);
 
-    
+
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
     // let linha = linhaFornecida || select.closest('tr');
 
@@ -2963,13 +3046,23 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     const inputEquip = linha.querySelector("input.idEquipamento");
     const inputSupri = linha.querySelector("input.idSuprimento");
 
-    if (select.classList.contains("idFuncao") && inputFuncao) inputFuncao.value = valorSelecionado;
-        // ✅ Verificação de solicitação — momento certo, idFuncao acabou de ser preenchido
-        const idOrcamento = document.getElementById("idOrcamento")?.value;
-        if (idOrcamento && valorSelecionado) {
-            // carregarSolicitacao já define dataset.idsolicitacao corretamente
-            verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null, linha);
+    if (select.classList.contains("idFuncao") && inputFuncao) {
+        inputFuncao.value = valorSelecionado;
+        // Verifica solicitação pendente apenas uma vez por seleção (lock evita dupla chamada)
+        if (!linha.dataset.verificandoSol) {
+            linha.dataset.verificandoSol = 'true';
+            const idOrcamento = document.getElementById("idOrcamento")?.value;
+            if (idOrcamento && valorSelecionado) {
+                try {
+                    await verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null, linha);
+                } finally {
+                    delete linha.dataset.verificandoSol;
+                }
+            } else {
+                delete linha.dataset.verificandoSol;
+            }
         }
+    }
     if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
     if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
 
@@ -3318,7 +3411,9 @@ async function verificaOrcamento() {
 
       // Se o campo estiver vazio, limpa o formulário e sai
       if (!nrOrcamento) {
-        limparOrcamento(); // Implemente esta função para limpar o form
+        isCleaning = true;
+        limparOrcamento();
+        setTimeout(() => { isCleaning = false; }, 500);
         return;
       }
 
@@ -3332,6 +3427,7 @@ async function verificaOrcamento() {
       } catch (error) {
         console.error("Erro ao buscar orçamento:", error);
 
+        isCleaning = true;
         let errorMessage = error.message;
         if (error.message.includes("404")) {
           errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
@@ -3343,6 +3439,7 @@ async function verificaOrcamento() {
           errorMessage = `Erro ao carregar orçamento: ${error.message}`;
           limparOrcamento();
         }
+        setTimeout(() => { isCleaning = false; }, 500);
 
         Swal.fire("Erro!", errorMessage, "error");
       }
@@ -3817,9 +3914,9 @@ async function verificaOrcamento() {
 
       linhas.forEach((linha) => {
       // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
-      // Prioriza a leitura do input hidden, que é adicionado apenas na linha adicional.
+      // Prioriza o input hidden; usa dataset.adicional como fallback (setado por carregarSolicitacao)
         const isAdicionalInput = linha.querySelector(".isAdicional");
-        const isAdicional = isAdicionalInput?.value === "true"; 
+        const isAdicional = isAdicionalInput?.value === "true" || linha.dataset.adicional === 'true';
 
         // O console.log agora reflete o resultado da nova e mais robusta lógica
         console.log("Processando linha. É adicional?", isAdicional, linha);
@@ -3957,6 +4054,7 @@ async function verificaOrcamento() {
             ids_solicitacoes: linha.dataset?.idsolicitacao
                 ? linha.dataset.idsolicitacao.split(',').map(Number)
                 : null,
+            obsbonificado: linha.dataset?.obsbonificado || null,
         };
 
         // 🎯 Aqui vem o tratamento correto dos períodos:
@@ -4028,6 +4126,39 @@ async function verificaOrcamento() {
         "Payload Final do Orçamento (sem id_empresa):",
         dadosOrcamento
       );
+
+      // Valida duplicidade para itens novos antes de salvar
+      const linhasTabela = document.querySelectorAll('#tabela tbody tr');
+      for (const linha of linhasTabela) {
+          const idItemExistente = linha.querySelector('input.idItemOrcamento')?.value;
+          if (idItemExistente && idItemExistente.trim() !== '') continue; // item já salvo, pula
+          const idFuncaoVal = linha.querySelector('input.idFuncao')?.value;
+          if (!idFuncaoVal) continue;
+          const setorVal    = linha.querySelector('.setor-input')?.value?.trim() || '';
+          const produtoNome = linha.querySelector('.produto-input')?.value?.trim()
+                           || linha.querySelector('.produto')?.textContent?.trim()
+                           || 'Item';
+          const ehAdicionalLinha = linha.querySelector('.isAdicional')?.value === 'true'
+                              || linha.dataset.adicional === 'true'
+                              || !!linha.dataset.idsolicitacao;
+
+          // Bloqueia save se linha de solicitação está sem setor
+          if (ehAdicionalLinha && !setorVal) {
+              await Swal.fire({
+                  title: 'Setor não definido',
+                  html: `O item vinculado à solicitação (<b>${produtoNome}</b>) está sem setor.<br>Não é possível salvar sem definir o setor corretamente.`,
+                  icon: 'error',
+                  confirmButtonText: 'Entendido',
+              });
+              btnEnviar.disabled = false;
+              btnEnviar.textContent = 'Salvar Orçamento';
+              return;
+          }
+
+          if (ehAdicionalLinha) continue; // linha de solicitação com setor OK — pula duplicate check
+          const ehDuplicata = await verificarDuplicidadeInstantanea(idFuncaoVal, setorVal, produtoNome, linha.querySelector('.setor-input'), false);
+          if (ehDuplicata) return;
+      }
 
       // Determina o método e a URL com base na existência do ID do orçamento
       const isUpdate = orcamentoId !== null;
@@ -4278,26 +4409,14 @@ async function verificaOrcamento() {
           }
 
           if (erroData && (erroData.status === "duplicado" || erroData.isDuplicado)) {
-              const result = await Swal.fire({
+              await Swal.fire({
                   title: 'Item já existente',
-                  html: `${erroData.message}<br><br>Deseja incluir como um <strong>Novo Item</strong>?`,
+                  html: `${erroData.message}<br>Favor colocar um setor diferente.`,
                   icon: 'warning',
-                  showCancelButton: true,
-                  confirmButtonText: 'Sim, Incluir',
-                  cancelButtonText: 'Cancelar',
-                  reverseButtons: true,
-                  confirmButtonColor: '#28a745'
+                  confirmButtonText: 'OK',
+                  confirmButtonColor: '#e67e22'
               });
-
-              if (result.isConfirmed) {
-                  // AJUSTE: O nome deve ser IGUAL ao que o Backend busca: req.body.ignorarDuplicata
-                  window._ignorarDuplicata = true; 
-                  
-                  // Se você usa uma função que monta o JSON antes do fetch, 
-                  // certifique-se de que ela inclua: ignorarDuplicata: window._ignorarDuplicata
-                  btnEnviar.click(); 
-              }
-              return; 
+              return;
           }
 
           // 2. Lógica de CONFIRMAÇÃO DE SETOR
@@ -4513,8 +4632,10 @@ async function verificaOrcamento() {
 }
 
 
-async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, elementoInput) {
+async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, elementoInput, isAdicional = false) {
     if (!idFuncao) return;
+    console.log(`[duplicidade] idFuncao=${idFuncao} setor="${setor}" isAdicional=${isAdicional}`);
+    if (isAdicional) { console.log('[duplicidade] ✅ Pulando — linha adicional'); return; }
 
     console.log(`Iniciando verificação de duplicidade para Função ID ${idFuncao} e Setor "${setor}"`);
 
@@ -4541,54 +4662,51 @@ async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, ele
             }
         } catch (error) {
             if (error.message.includes("409") || error.message.includes("Já existe")) {
-                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+                const origem = (error.message.includes("Orçamento nº") || error.message.includes("mesmo evento"))
+                    ? 'outro-orcamento'
+                    : 'mesmo-orcamento';
+                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput, origem);
             }
         }
-    } 
-    
+    }
+
     // SE O ORÇAMENTO É NOVO (ID NULL) OU PARA REFORÇAR A SEGURANÇA:
     // Verificamos se já existe uma linha com o mesmo ID Função e Setor na tabela agora
+    const linhaAtual = elementoInput?.closest('tr') || document.activeElement?.closest('tr');
     let duplicadoNoDOM = false;
     document.querySelectorAll('#tabela tbody tr').forEach(linha => {
         const idLinha = linha.querySelector('.idFuncao')?.value;
         const setorLinha = linha.querySelector('.setor-input')?.value?.trim();
-        
+
         // Verifica se é a mesma função e mesmo setor, mas NÃO é a linha atual que estamos editando
-        if (idLinha == idFuncao && setorLinha == setor.trim() && linha !== document.activeElement.closest('tr')) {
+        if (idLinha == idFuncao && setorLinha == setor.trim() && linha !== linhaAtual) {
             duplicadoNoDOM = true;
         }
     });
 
     if (duplicadoNoDOM) {
-        await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+        return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput, 'mesmo-orcamento');
     }
 }
 
 // Função auxiliar para evitar repetição de código
-async function exibirAlertaDuplicidade(produto, setor, elementoInput) {
-    const result = await Swal.fire({
+async function exibirAlertaDuplicidade(produto, setor, elementoInput, origem) {
+    const localMsg = origem === 'outro-orcamento'
+        ? 'em outro orçamento do mesmo evento e cliente'
+        : 'neste mesmo orçamento';
+    await Swal.fire({
         title: 'Item já existente',
-        html: `O item <strong>${produto}</strong> já existe para o setor <strong>${setor || 'Geral'}</strong>.<br><br>Deseja manter assim mesmo?`,
+        html: `O item <strong>${produto}</strong> já existe <strong>${localMsg}</strong> com o setor <strong>${setor || 'Vazio'}</strong>.<br>Favor colocar um setor diferente.`,
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sim, manter',
-        cancelButtonText: 'Vou alterar',
-        confirmButtonColor: '#28a745'
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#e67e22'
     });
-
-    if (result.isConfirmed) {
-        // Usuário quer manter a duplicidade (útil para Aditivos/Extra Bonificados)
-        window._ignorarDuplicata = true;
-    } else {
-        // 🎯 AÇÃO: Limpa o setor se o usuário clicar em "Vou Alterar" ou fechar o modal
-        if (elementoInput) {
-            elementoInput.value = '';
-            setTimeout(() => elementoInput.focus(), 100); // Um pequeno delay para o foco voltar após o modal fechar
-        }
-        
-        // Garante que a flag de ignorar não fique ativa por engano
-        window._ignorarDuplicata = false;
+    window._ignorarDuplicata = false;
+    if (elementoInput) {
+        elementoInput.value = '';
+        setTimeout(() => elementoInput.focus(), 100);
     }
+    return true;
 }
 
 async function atualizarCampoGeradoAnoPosterior(
@@ -4767,11 +4885,12 @@ function desinicializarOrcamentosModal() {
   }
 
   // Resetar estados e limpar formulário (se aplicável)
+  isCleaning = true;
   limparOrcamento(); // Chame sua função de limpeza de formulário
 
   lastEditedGlobalFieldType = null;
 
-  setTimeout(() => { window.isCleaning = false; }, 500);
+  setTimeout(() => { isCleaning = false; }, 500);
 
   console.log("✅ Módulo Orcamentos.js desinicializado.");
 }
@@ -5471,6 +5590,10 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     newRow.dataset.vlrbase          = vlrBaseItem.toString();
     newRow.dataset.adicional        = isAdicional  ? "true" : "false";
     newRow.dataset.extrabonificado  = isBonificado ? "true" : "false";
+    newRow.dataset.obsbonificado    = item.obsbonificado || "";
+    newRow.dataset.idsolicitacao    = Array.isArray(item.idsolicitacao)
+        ? item.idsolicitacao.join(',')
+        : (item.idsolicitacao || "");
 
     newRow.innerHTML = `
       <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
@@ -5530,6 +5653,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         <div class="flatpickr-container">
           <input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar">
         </div>
+        ${item.obsbonificado ? `<div class="obs-rejeitadas" style="font-size:10px;color:#dc2626;font-style:italic;margin-top:2px;line-height:1.3;">${item.obsbonificado}</div>` : ''}
       </td>
       <td class="descontoItem Moeda">
         <div class="Acres-Desc">

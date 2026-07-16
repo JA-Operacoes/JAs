@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
 const {
@@ -87,8 +87,8 @@ router.get(
             vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
             descontoitem, percentdescontoitem, acrescimoitem, percentacrescimoitem,
             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
-            vlrajdctotransporte, totajdctoitem, hospedagem, transporte,            
-            totgeralitem, setor, cachefechado, adicional
+            vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
+            totgeralitem, setor, cachefechado, adicional, idsolicitacao, obsbonificado
         FROM orcamentoitens
         WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
@@ -1985,32 +1985,60 @@ router.post(
 // Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
 router.post('/verificar-duplicidade', async (req, res) => {
     const { idOrcamento, idFuncao, setor } = req.body;
-    
+
     try {
-        // Se não houver ID de orçamento (orçamento novo), não há o que duplicar ainda
         if (!idOrcamento) {
-            return res.status(200).send("Novo orçamento, sem duplicidade.");
+            return res.status(200).send('Novo orçamento, sem duplicidade.');
         }
 
-        const check = await client.query(`
-            SELECT idorcamentoitem FROM orcamentoitens 
-            WHERE idorcamento = $1 
-              AND idfuncao = $2 
-              AND (setor = $3 OR (setor IS NULL AND $3 = ''))
-            LIMIT 1
-        `, [idOrcamento, idFuncao, (setor || '').trim()]);
+        const setorTrimmed = (setor || '').trim();
 
-        if (check.rows.length > 0) {
-            return res.status(409).json({ 
-                status: "duplicado", 
-                message: "Já existe este item para o setor informado." 
+        // 1. Verificar dentro do mesmo orçamento
+        const checkMesmoOrc = await pool.query(
+            `SELECT idorcamentoitem FROM orcamentoitens
+             WHERE idorcamento = $1
+               AND idfuncao = $2
+               AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+             LIMIT 1`,
+            [idOrcamento, idFuncao, setorTrimmed]
+        );
+
+        if (checkMesmoOrc.rows.length > 0) {
+            return res.status(409).json({
+                status: 'duplicado',
+                message: 'Já existe este item com o mesmo setor neste orçamento.'
             });
         }
-        
-        res.status(200).send("OK");
+
+        // 2. Verificar em outros orçamentos do mesmo evento, cliente e ANO
+        const checkOutrosOrc = await pool.query(
+            `SELECT oi.idorcamentoitem, o.nrorcamento
+             FROM orcamentoitens oi
+             JOIN orcamentos o      ON oi.idorcamento     = o.idorcamento
+             JOIN orcamentos oatual ON oatual.idorcamento = $1
+             WHERE o.idevento                            = oatual.idevento
+               AND o.idcliente                           = oatual.idcliente
+               AND EXTRACT(YEAR FROM o.dtinirealizacao)  = EXTRACT(YEAR FROM oatual.dtinirealizacao)
+               AND o.idorcamento                        != $1
+               AND oatual.idevento                      IS NOT NULL
+               AND oi.idfuncao                           = $2
+               AND (oi.setor = $3 OR (oi.setor IS NULL AND $3 = ''))
+             LIMIT 1`,
+            [idOrcamento, idFuncao, setorTrimmed]
+        );
+
+        if (checkOutrosOrc.rows.length > 0) {
+            const nrOrc = checkOutrosOrc.rows[0].nrorcamento;
+            return res.status(409).json({
+                status: 'duplicado',
+                message: `Já existe este item com o mesmo setor no Orçamento nº ${nrOrc} do mesmo evento.`
+            });
+        }
+
+        res.status(200).send('OK');
     } catch (err) {
-        console.error("Erro na verificação:", err);
-        res.status(500).send("Erro interno ao verificar duplicidade");
+        console.error('Erro na verificação de duplicidade:', err);
+        res.status(500).send('Erro interno ao verificar duplicidade');
     }
 });
 
@@ -2074,10 +2102,19 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
               MIN(s.idsolicitacao)                                    AS idsolicitacao,
               s.tiposolicitacao,
               f.nome,
-              se.setor                                                AS setor,
+              COALESCE(
+                  se.setor,
+                  (
+                      SELECT elem->>'setordobra'
+                      FROM jsonb_array_elements(COALESCE(se.dtdiariadobrada::jsonb, '[]'::jsonb)) AS elem
+                      WHERE (elem->>'tiposolicitacao') = 'Dobrada - Estouro Financeiro'
+                      LIMIT 1
+                  )
+              )                                                       AS setor,
+              se.idfuncao                                             AS idfuncao,
               s.idusuariosolicitante,
               s.idusuarioresponsavel,
-              s.idregistroalterado, 
+              s.idregistroalterado,
               array_agg(s.idsolicitacao ORDER BY s.dtsolicitada[1] ASC) AS ids_solicitacoes,
               MIN(s.qtdsolicitada)                                    AS qtdsolicitada,
               MIN(s.justificativa)                                    AS justificativa,
@@ -2085,8 +2122,17 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
               MAX(s.dtresposta)                                       AS dtresposta,
               u1.nome                                                 AS nomesolicitante,
               u2.nome                                                 AS nomeresponsavel,
-              -- Todas as datas agrupadas num array ordenado
-              array_agg(s.dtsolicitada[1]::date ORDER BY s.dtsolicitada[1] ASC) AS datas_solicitadas
+              -- Todas as datas agrupadas num array ordenado (apenas autorizadas)
+              array_agg(s.dtsolicitada[1]::date ORDER BY s.dtsolicitada[1] ASC) AS datas_solicitadas,
+              -- Datas rejeitadas do mesmo staffevento/tipo (para exibir obs e calcular período completo)
+              COALESCE((
+                  SELECT array_agg(s2.dtsolicitada[1]::date ORDER BY s2.dtsolicitada[1] ASC)
+                  FROM solicitacoes s2
+                  WHERE s2.idregistroalterado = s.idregistroalterado
+                    AND s2.idorcamento = o.idorcamento
+                    AND s2.tiposolicitacao = s.tiposolicitacao
+                    AND s2.status = 'Rejeitado'
+              ), ARRAY[]::date[]) AS datas_rejeitadas
           FROM solicitacoes s
           LEFT JOIN funcionarios f ON f.idfuncionario = s.idfuncionario
           LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
@@ -2095,10 +2141,10 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
           LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
           WHERE s.idorcamento = $1
             ${filtroItem}
-            AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Vaga Excedida', 'Extra Bonificado - Datas fora do Orçamento')
+            AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Aditivo - Limite Excedido', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Vaga Excedida', 'Extra Bonificado - Datas fora do Orçamento', 'Aditivo - Limite Financeiro da Equipe Excedido', 'Dobrada - Estouro Financeiro')
             AND s.status = 'Autorizado'
             AND NOT EXISTS (
-                SELECT 1 FROM orcamentoitens oi 
+                SELECT 1 FROM orcamentoitens oi
                 WHERE s.idsolicitacao = ANY(oi.idsolicitacao)
                 AND oi.idsolicitacao IS NOT NULL
             )
@@ -2106,6 +2152,8 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
               s.idregistroalterado,
               f.nome,
               se.setor,
+              se.idfuncao,
+              se.dtdiariadobrada,
               s.tiposolicitacao,
               s.idusuariosolicitante,
               s.idusuarioresponsavel,
@@ -2127,31 +2175,36 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
             })));
         }
 
-        res.json({ 
+        res.json({
           encontrou: result.rows.length > 0,
           solicitacoes: result.rows.map(sol => {
-            const datas = Array.isArray(sol.datas_solicitadas)
-              ? [...sol.datas_solicitadas].map(d => typeof d === 'string' ? d : d.toISOString().split('T')[0]).sort()
-              : [sol.datas_solicitadas];
-
             const fmt = d => {
-                const str = typeof d === 'string' ? d : d.toISOString().split('T')[0];
+                const str = typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0];
                 return new Date(str + 'T00:00:00').toLocaleDateString('pt-BR');
             };
 
-            let consecutivas = true;
-            for (let i = 1; i < datas.length; i++) {
-                const diff = (new Date(datas[i]) - new Date(datas[i - 1])) / 86400000;
-                if (diff !== 1) { consecutivas = false; break; }
-            }
+            // Datas autorizadas
+            const datas = Array.isArray(sol.datas_solicitadas)
+              ? [...sol.datas_solicitadas].map(d => typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]).sort()
+              : [sol.datas_solicitadas];
 
-            const periodoStr = datas.length === 1
-                ? fmt(datas[0])
-                : consecutivas
-                    ? `${fmt(datas[0])} até ${fmt(datas[datas.length - 1])}`
-                    : datas.map(fmt).join(', ');
+            // Datas rejeitadas
+            const datasRejeitadas = Array.isArray(sol.datas_rejeitadas)
+              ? sol.datas_rejeitadas.map(d => typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]).sort()
+              : [];
 
-            return { ...sol, periodoStr };
+            // Período usa range completo (autorizado + rejeitado)
+            const todasDatas = [...datas, ...datasRejeitadas].sort();
+            const periodoStr = todasDatas.length === 1
+                ? fmt(todasDatas[0])
+                : `${fmt(todasDatas[0])} até ${fmt(todasDatas[todasDatas.length - 1])}`;
+
+            // Obs das datas rejeitadas para exibir no orçamento
+            const obsbonificado = datasRejeitadas.length > 0
+                ? `Rejeitadas: ${datasRejeitadas.map(fmt).join(', ')}`
+                : null;
+
+            return { ...sol, periodoStr, datas_rejeitadas: datasRejeitadas, obsbonificado };
         })
       });
 
@@ -2668,17 +2721,71 @@ router.put("/:id",
       for (const item of itens) {
         const isAdicional = item.adicional === true;
         // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
-        const valorBase = item.vlrbase ?? item.vlrdiaria; 
-        const setorItem = (item.setor || '').trim();
+        const valorBase = item.vlrbase ?? item.vlrdiaria;
+        let setorItem = (item.setor || '').trim();
 
+        // Auto-enumera setores ADITIVO/BONIFICADO quando já existe item com mesmo setor+função.
+        if (setorItem && /\b(ADITIVO|BONIFICADO)\b$/i.test(setorItem)) {
+            const baseSetor = setorItem;
+            let candidato = baseSetor;
+            let contador = 2;
+            while (true) {
+                const params = item.id
+                    ? [idOrcamento, item.idfuncao, candidato, item.id]
+                    : [idOrcamento, item.idfuncao, candidato];
+                const excluirAtual = item.id ? 'AND idorcamentoitem != $4' : '';
+                const conflito = await client.query(`
+                    SELECT idorcamentoitem FROM orcamentoitens
+                    WHERE idorcamento = $1 AND idfuncao = $2 AND setor = $3
+                    ${excluirAtual}
+                    LIMIT 1
+                `, params);
+                if (conflito.rows.length === 0) break;
+                candidato = `${baseSetor} ${contador++}`;
+            }
+            setorItem = candidato;
+        }
+
+        // Sincroniza setor_origem em vagasreaproveitadas via idregistroalterado da solicitação.
+        if (/\b(ADITIVO|BONIFICADO)\b/i.test(setorItem) && (item.ids_solicitacoes || []).filter(Boolean).length > 0) {
+            const idsSols = (item.ids_solicitacoes || []).filter(Boolean).map(Number);
+            if (idsSols.length > 0) {
+                const solRes = await client.query(`
+                    SELECT DISTINCT idregistroalterado AS idstaffevento
+                    FROM solicitacoes
+                    WHERE idsolicitacao = ANY($1) AND idregistroalterado IS NOT NULL
+                    LIMIT 1
+                `, [idsSols]);
+                if (solRes.rows.length > 0) {
+                    const idStaffAlvo = solRes.rows[0].idstaffevento;
+                    await client.query(`
+                        UPDATE staffeventos
+                        SET vagasreaproveitadas = (
+                            SELECT COALESCE(jsonb_agg(
+                                CASE
+                                    WHEN (v->>'idfuncao_origem')::int = $2
+                                         AND (v->>'idorcamento_origem')::int = $3
+                                         AND regexp_replace(COALESCE(v->>'setor_origem',''), '[[:space:]]+[[:digit:]]+$', '')
+                                             = regexp_replace($4, '[[:space:]]+[[:digit:]]+$', '')
+                                    THEN jsonb_set(v, '{setor_origem}', to_jsonb($4::text))
+                                    ELSE v
+                                END
+                            ), vagasreaproveitadas::jsonb)
+                            FROM jsonb_array_elements(COALESCE(vagasreaproveitadas::jsonb, '[]'::jsonb)) AS v
+                        )
+                        WHERE idstaffevento = $1
+                    `, [idStaffAlvo, item.idfuncao, idOrcamento, setorItem]);
+                }
+            }
+        }
 
         // Se for um item NOVO (sem item.id) e o frontend não enviou a flag 'ignorarDuplicata'
         if (!item.id && !req.body.ignorarDuplicata) {
             const checkDuplicidade = await client.query(`
-                SELECT idorcamentoitem 
-                FROM orcamentoitens 
-                WHERE idorcamento = $1 
-                  AND idfuncao = $2 
+                SELECT idorcamentoitem
+                FROM orcamentoitens
+                WHERE idorcamento = $1
+                  AND idfuncao = $2
                   AND (setor = $3 OR (setor IS NULL AND $3 = ''))
                 LIMIT 1
             `, [idOrcamento, item.idfuncao, setorItem]);
@@ -2704,35 +2811,165 @@ router.put("/:id",
           const ignorarValidacaoSetor = itensSemSetorPermitidos.includes(item.idfuncao);
 
           if (!ignorarValidacaoSetor) {
-            const checkSolicitacao = await client.query(`
-                SELECT 
-                    se.statusstaff, 
-                    sol.status as status_solicitacao,
-                    se.setor,
-                    se.pavilhao,
-                    se.idstaffevento
-                FROM staffeventos se
-                INNER JOIN solicitacoes sol ON (
-                    sol.idregistroalterado = se.idstaffevento
-                    AND sol.idorcamento = se.idorcamento
-                )
-                WHERE se.idorcamento = $1 
-                  AND se.idfuncao = $2 
-                  AND (se.setor = $3 OR (se.setor IS NULL AND $3 = ''))
-                  AND se.statusstaff != 'Deletado'
-                  AND sol.status != 'Deletado'
-                LIMIT 1
-            `, [idOrcamento, item.idfuncao, setorItem]);
+            // Tenta lookup direto via ids_solicitacoes (mais preciso — evita ambiguidade de setor)
+            const idsSolicitacoes = (item.ids_solicitacoes || []).filter(Boolean).map(Number);
+            let checkSolicitacao = { rows: [] };
+
+            if (idsSolicitacoes.length > 0) {
+                checkSolicitacao = await client.query(`
+                    SELECT
+                        se.statusstaff,
+                        sol.status as status_solicitacao,
+                        se.setor,
+                        se.pavilhao,
+                        se.idstaffevento,
+                        sol.tiposolicitacao,
+                        sol.categoria_log,
+                        sol.dtsolicitada[1]::date as dtsolicitada_item
+                    FROM staffeventos se
+                    INNER JOIN solicitacoes sol ON sol.idregistroalterado = se.idstaffevento
+                    WHERE sol.idsolicitacao = ANY($1)
+                      AND se.idorcamento = $2
+                      AND se.statusstaff != 'Deletado'
+                      AND sol.status != 'Deletado'
+                    ORDER BY (se.statusstaff = 'Pendente') DESC
+                    LIMIT 1
+                `, [idsSolicitacoes, idOrcamento]);
+            }
+
+            // Fallback: lookup por setor (itens sem ids_solicitacoes ou lookup direto vazio)
+            if (checkSolicitacao.rows.length === 0) {
+                checkSolicitacao = await client.query(`
+                    SELECT
+                        se.statusstaff,
+                        sol.status as status_solicitacao,
+                        se.setor,
+                        se.pavilhao,
+                        se.idstaffevento,
+                        sol.tiposolicitacao,
+                        sol.categoria_log,
+                        sol.dtsolicitada[1]::date as dtsolicitada_item
+                    FROM staffeventos se
+                    INNER JOIN solicitacoes sol ON (
+                        sol.idregistroalterado = se.idstaffevento
+                        AND sol.idorcamento = se.idorcamento
+                    )
+                    WHERE se.idorcamento = $1
+                      AND se.idfuncao = $2
+                      AND (
+                          se.setor = $3
+                          OR (se.setor IS NULL AND $3 = '')
+                          OR (
+                              $3 ~* '(ADITIVO|BONIFICADO)([[:space:]]+[[:digit:]]+)?$'
+                              AND se.setor = trim(regexp_replace(
+                                  regexp_replace($3, '[[:space:]]+[[:digit:]]+$', ''),
+                                  '[[:space:]]+(ADITIVO|BONIFICADO)$', '', 'i'
+                              ))
+                          )
+                      )
+                      AND se.statusstaff != 'Deletado'
+                      AND sol.status != 'Deletado'
+                    ORDER BY (se.statusstaff = 'Pendente') DESC
+                    LIMIT 1
+                `, [idOrcamento, item.idfuncao, setorItem]);
+            }
 
             if (checkSolicitacao.rows.length > 0) {
-                const { status_solicitacao, idstaffevento, statusstaff } = checkSolicitacao.rows[0];
+                const { status_solicitacao, idstaffevento, statusstaff, tiposolicitacao, categoria_log, dtsolicitada_item } = checkSolicitacao.rows[0];
 
                 if (status_solicitacao === 'Autorizado') {
+                    // Sincroniza setor_origem nas vagasreaproveitadas independente do statusstaff atual.
+                    // Necessário para setores enumerados (ex: "EXCEDIDO ADITIVO 2"):
+                    // remove o sufixo numérico para comparar a base e atualiza para o setor exato do item.
+                    if (setorItem) {
+                        await client.query(`
+                            UPDATE staffeventos
+                            SET vagasreaproveitadas = (
+                                SELECT COALESCE(jsonb_agg(
+                                    CASE
+                                        WHEN (v->>'idfuncao_origem')::int = $2
+                                             AND (v->>'idorcamento_origem')::int = $3
+                                             AND regexp_replace(COALESCE(v->>'setor_origem',''), '[[:space:]]+[[:digit:]]+$', '')
+                                                 = regexp_replace($4, '[[:space:]]+[[:digit:]]+$', '')
+                                        THEN jsonb_set(v, '{setor_origem}', to_jsonb($4::text))
+                                        ELSE v
+                                    END
+                                ), vagasreaproveitadas::jsonb)
+                                FROM jsonb_array_elements(
+                                    COALESCE(vagasreaproveitadas::jsonb, '[]'::jsonb)
+                                ) AS v
+                            )
+                            WHERE idstaffevento = $1
+                        `, [idstaffevento, item.idfuncao, idOrcamento, setorItem]);
+                    }
+
                     if (statusstaff === 'Pendente') {
-                        await client.query(`UPDATE staffeventos SET statusstaff = 'Ativo' WHERE idstaffevento = $1`, [idstaffevento]);
+                        if (categoria_log === 'statusdiariadobrada' && tiposolicitacao === 'Dobrada - Estouro Financeiro') {
+                            const seResult = await client.query(`
+                                SELECT dtdiariadobrada, vlrtotcache, vlrtotajdcusto, vlrtotal, statuspgtoajdcto
+                                FROM staffeventos WHERE idstaffevento = $1
+                            `, [idstaffevento]);
+
+                            if (seResult.rows.length > 0) {
+                                const se = seResult.rows[0];
+                                let dtdiariadobrada = se.dtdiariadobrada;
+                                if (typeof dtdiariadobrada === 'string') { try { dtdiariadobrada = JSON.parse(dtdiariadobrada); } catch(e) { dtdiariadobrada = []; } }
+
+                                const dataEsperada = dtsolicitada_item ? String(dtsolicitada_item).split('T')[0] : null;
+                                const entradaEstouro = (Array.isArray(dtdiariadobrada) ? dtdiariadobrada : [])
+                                    .find(d => d.tiposolicitacao === 'Dobrada - Estouro Financeiro' && (!dataEsperada || d.data === dataEsperada));
+
+                                let novoCacheTotal = parseFloat(se.vlrtotcache) || 0;
+                                let novoAjdTotal   = parseFloat(se.vlrtotajdcusto) || 0;
+
+                                if (entradaEstouro) {
+                                    const vlrItemCache = entradaEstouro.vlr_cache != null ? parseFloat(entradaEstouro.vlr_cache) : 0;
+                                    const vlrItemAlim  = entradaEstouro.vlr_alimentacao != null ? parseFloat(entradaEstouro.vlr_alimentacao) : 0;
+                                    const isAjdPago = (se.statuspgtoajdcto || '').toLowerCase() === 'pago';
+                                    novoCacheTotal += vlrItemCache;
+                                    if (isAjdPago) novoCacheTotal += vlrItemAlim;
+                                    else           novoAjdTotal   += vlrItemAlim;
+                                }
+
+                                const setorOrcamentoItemP1 = item.setor || null;
+
+                                console.log(`[Path 1] idstaffevento=${idstaffevento} setor="${setorOrcamentoItemP1}" dataEsperada="${dataEsperada}"`);
+
+                                // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente)
+                                await client.query(`
+                                    UPDATE staffeventos
+                                    SET statusstaff = 'Ativo', ativo = true,
+                                        vlrtotcache = $2, vlrtotajdcusto = $3, vlrtotal = $4
+                                    WHERE idstaffevento = $1 AND statusstaff = 'Pendente'
+                                `, [idstaffevento, novoCacheTotal, novoAjdTotal, novoCacheTotal + novoAjdTotal]);
+
+                                // 2. Atualiza setordobra no JSON — sem condição de statusstaff
+                                if (setorOrcamentoItemP1) {
+                                    await client.query(`
+                                        UPDATE staffeventos
+                                        SET dtdiariadobrada = (
+                                            SELECT jsonb_agg(
+                                                CASE
+                                                    WHEN (d->>'tiposolicitacao') = 'Dobrada - Estouro Financeiro'
+                                                         AND ($2::text IS NULL OR (d->>'data') = $2)
+                                                    THEN jsonb_set(d, '{setordobra}', to_jsonb($3::text))
+                                                    ELSE d
+                                                END
+                                            )
+                                            FROM jsonb_array_elements(COALESCE(dtdiariadobrada::jsonb, '[]'::jsonb)) AS d
+                                        )
+                                        WHERE idstaffevento = $1
+                                    `, [idstaffevento, dataEsperada, setorOrcamentoItemP1]);
+                                }
+
+                                console.log(`✅ [Path 1] Staffevento ${idstaffevento} (Dobrada Estouro) ativado, setordobra → "${setorOrcamentoItemP1}"`);
+                            }
+                        } else {
+                            await client.query(`UPDATE staffeventos SET statusstaff = 'Ativo', ativo = true WHERE idstaffevento = $1`, [idstaffevento]);
+                        }
                     }
                     // Segue o fluxo de salvamento normal
-                } 
+                }
                 else if (status_solicitacao === 'Pendente') {
                     await client.query("ROLLBACK");
                     return res.status(400).json({ 
@@ -2792,29 +3029,37 @@ router.put("/:id",
                 percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
                 tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
                 totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
-                adicional = $28, 
-                vlrbase = $29, cachefechado = $30, idsolicitacao = $31
-            WHERE idorcamentoitem = $32 AND idorcamento = $33;
+                adicional = $28,
+                vlrbase = $29, cachefechado = $30, idsolicitacao = $31, obsbonificado = $32
+            WHERE idorcamentoitem = $33 AND idorcamento = $34;
           `;
 
           // Usa ids_solicitacoes (array agrupado do GET) ou wrapa idsolicitacao singular
           const idsArray = item.ids_solicitacoes ?? (item.idsolicitacao ? [item.idsolicitacao] : null);
+
+          // Itens com setor BONIFICADO não cobram o cliente — vlrdiaria e totvdadiaria devem ser 0
+          const setorItemUpd = (item.setor ?? '').toUpperCase();
+          const ehBonificadoUpd = setorItemUpd.includes('BONIFICADO');
+          const vlrDiariaUpd    = ehBonificadoUpd ? 0 : item.vlrdiaria;
+          const totVdaDiariaUpd = ehBonificadoUpd ? 0 : item.totvdadiaria;
+          const vlrBaseUpd      = ehBonificadoUpd ? 0 : valorBase;
 
           const itemValues = [
             item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
             item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
             item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
             item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
-            item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
+            vlrDiariaUpd, totVdaDiariaUpd, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
             item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte,
             item.totgeralitem, item.setor ?? '', isAdicional,
-            valorBase, // $29
-            item.cachefechado, // $30
-            idsArray, // ✅ MUDOU AQUI - Antes era item.idsolicitacao
-            item.id,   // $32
-            idOrcamento // $33
+            vlrBaseUpd,           // $29
+            item.cachefechado,    // $30
+            idsArray,             // $31
+            item.obsbonificado ?? null, // $32
+            item.id,              // $33
+            idOrcamento           // $34
           ];
 
           await client.query(updateItemQuery, itemValues);
@@ -2832,8 +3077,8 @@ router.put("/:id",
                 vlrajdctoalimentacao, tpajdctotransporte,
                 vlrajdctotransporte, totajdctoitem,
                 hospedagem, transporte, totgeralitem,
-                setor, adicional, 
-                vlrbase, cachefechado, idsolicitacao
+                setor, adicional,
+                vlrbase, cachefechado, idsolicitacao, obsbonificado
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6, $7, $8,
@@ -2844,27 +3089,35 @@ router.put("/:id",
                 $21, $22, $23,
                 $24, $25, $26,
                 $27, $28, $29,
-                $30, $31, $32
+                $30, $31, $32, $33
             )
           `;
 
           // Usa ids_solicitacoes (array agrupado do GET) ou wrapa idsolicitacao singular
           const idsArray = item.ids_solicitacoes ?? (item.idsolicitacao ? [item.idsolicitacao] : null);
 
+          // Itens com setor BONIFICADO não cobram o cliente — vlrdiaria e totvdadiaria devem ser 0
+          const setorItem = (item.setor ?? '').toUpperCase();
+          const ehBonificadoItem = setorItem.includes('BONIFICADO');
+          const vlrDiariaInsert    = ehBonificadoItem ? 0 : item.vlrdiaria;
+          const totVdaDiariaInsert = ehBonificadoItem ? 0 : item.totvdadiaria;
+          const vlrBaseInsert      = ehBonificadoItem ? 0 : valorBase;
+
           const itemValues = [
             idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
             item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
             item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
             item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
-            item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
+            item.percentacrescimoitem, vlrDiariaInsert, totVdaDiariaInsert,
             item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
             item.vlrajdctoalimentacao, item.tpajdctotransporte,
             item.vlrajdctotransporte, item.totajdctoitem,
             item.hospedagem, item.transporte, item.totgeralitem,
             item.setor ?? '', isAdicional,
-            valorBase, // $30
-            item.cachefechado, // $31
-            idsArray // ✅ MUDOU AQUI - Antes era item.idsolicitacao
+            vlrBaseInsert,          // $30
+            item.cachefechado,      // $31
+            idsArray,               // $32
+            item.obsbonificado ?? null // $33
           ];
 
           await client.query(insertItemQuery, itemValues);
@@ -2888,18 +3141,97 @@ router.put("/:id",
                 const { idregistroalterado } = solicitacaoResult.rows[0];
 
                 await client.query(`
-                    UPDATE staffeventos 
-                    SET statusstaff = 'Ativo'
+                    UPDATE staffeventos
+                    SET statusstaff = 'Ativo', ativo = true
                     WHERE idstaffevento = $1
-                    AND statusstaff = 'Pendente'
+                    AND ativo = false
+                    AND statusstaff NOT IN ('Inativo', 'Deletado')
                     AND EXISTS (
-                        SELECT 1 FROM staffempresas sem 
-                        WHERE sem.idstaff = staffeventos.idstaff 
+                        SELECT 1 FROM staffempresas sem
+                        WHERE sem.idstaff = staffeventos.idstaff
                         AND sem.idempresa = $2
                     )
                 `, [idregistroalterado, idempresa]);
 
                 console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitações: ${idsArray.join(', ')})`);
+            } else {
+                // Dobrada - Estouro Financeiro: categoria_log = 'statusdiariadobrada'
+                const dobradaEstouroResult = await client.query(`
+                    SELECT idregistroalterado, dtsolicitada
+                    FROM solicitacoes
+                    WHERE idsolicitacao = ANY($1)
+                    AND categoria_log = 'statusdiariadobrada'
+                    AND tiposolicitacao = 'Dobrada - Estouro Financeiro'
+                    AND status = 'Autorizado'
+                    LIMIT 1
+                `, [idsArray]);
+
+                if (dobradaEstouroResult.rows.length > 0) {
+                    const { idregistroalterado, dtsolicitada } = dobradaEstouroResult.rows[0];
+                    const dataEsperada = dtsolicitada ? String(dtsolicitada).split('T')[0] : null;
+
+                    const seResult = await client.query(`
+                        SELECT dtdiariadobrada, vlrtotcache, vlrtotajdcusto, vlrtotal, statuspgtoajdcto
+                        FROM staffeventos WHERE idstaffevento = $1
+                    `, [idregistroalterado]);
+
+                    if (seResult.rows.length > 0) {
+                        const se = seResult.rows[0];
+                        let dtdiariadobrada = se.dtdiariadobrada;
+                        if (typeof dtdiariadobrada === 'string') { try { dtdiariadobrada = JSON.parse(dtdiariadobrada); } catch(e) { dtdiariadobrada = []; } }
+
+                        const entradaEstouro = (Array.isArray(dtdiariadobrada) ? dtdiariadobrada : [])
+                            .find(d => d.tiposolicitacao === 'Dobrada - Estouro Financeiro' && (!dataEsperada || d.data === dataEsperada));
+
+                        let novoCacheTotal = parseFloat(se.vlrtotcache) || 0;
+                        let novoAjdTotal   = parseFloat(se.vlrtotajdcusto) || 0;
+
+                        if (entradaEstouro) {
+                            const vlrItemCache = entradaEstouro.vlr_cache != null ? parseFloat(entradaEstouro.vlr_cache) : 0;
+                            const vlrItemAlim  = entradaEstouro.vlr_alimentacao != null ? parseFloat(entradaEstouro.vlr_alimentacao) : 0;
+                            const isAjdPago = (se.statuspgtoajdcto || '').toLowerCase() === 'pago';
+
+                            novoCacheTotal += vlrItemCache;
+                            if (isAjdPago) novoCacheTotal += vlrItemAlim;
+                            else           novoAjdTotal   += vlrItemAlim;
+                        }
+
+                        const novoTotal = novoCacheTotal + novoAjdTotal;
+                        const setorOrcamentoItem = item.setor || null;
+
+                        console.log(`[Path 2] idstaffevento=${idregistroalterado} setor="${setorOrcamentoItem}" dataEsperada="${dataEsperada}" novoCache=${novoCacheTotal}`);
+
+                        // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente)
+                        await client.query(`
+                            UPDATE staffeventos
+                            SET statusstaff = 'Ativo', ativo = true,
+                                vlrtotcache = $2, vlrtotajdcusto = $3, vlrtotal = $4
+                            WHERE idstaffevento = $1 AND statusstaff = 'Pendente'
+                        `, [idregistroalterado, novoCacheTotal, novoAjdTotal, novoTotal]);
+
+                        // 2. Atualiza setordobra no JSON — sem condição de statusstaff
+                        //    para garantir que sempre reflete o setor real do orcamentoitem
+                        if (setorOrcamentoItem) {
+                            await client.query(`
+                                UPDATE staffeventos
+                                SET dtdiariadobrada = (
+                                    SELECT jsonb_agg(
+                                        CASE
+                                            WHEN (d->>'tiposolicitacao') = 'Dobrada - Estouro Financeiro'
+                                                 AND ($2::text IS NULL OR (d->>'data') = $2)
+                                            THEN jsonb_set(d, '{setordobra}', to_jsonb($3::text))
+                                            ELSE d
+                                        END
+                                    )
+                                    FROM jsonb_array_elements(COALESCE(dtdiariadobrada::jsonb, '[]'::jsonb)) AS d
+                                )
+                                WHERE idstaffevento = $1
+                            `, [idregistroalterado, dataEsperada, setorOrcamentoItem]);
+                        }
+
+                        console.log(`✅ [Path 2] Staffevento ${idregistroalterado} (Dobrada Estouro) ativado, setordobra → "${setorOrcamentoItem}"`);
+                    }
+                }
             }
         }
       }
