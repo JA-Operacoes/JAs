@@ -1,0 +1,393 @@
+/* Tela de alíquotas — padrão de modal do CadFuncionarios (modal escuro, form cinza,
+   .form2 com label flutuante, .Close, .BTNs, scrollbar), escopado em #cadModalAliquotas
+   e organizado por seções. */
+
+/* ===== Overlay e container (padrão do modal) ===== */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%;
+  max-width: 700px;
+  display: none;
+  z-index: 1000;
+}
+
+.modal-open #modal-overlay,
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto;
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ===== Moldura escura ===== */
+#cadModalAliquotas.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  background-color: #4d4d4d;
+  padding: 6px;
+  width: 760px;
+  max-width: 95vw;
+  max-height: 92vh;
+  border-radius: 10px;
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+#cadModalAliquotas .modal-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* deixa o form interno rolar */
+}
+
+/* ===== Cabeçalho (fechar + título) ===== */
+
+ body{
+    font-family: "Abel", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+  }
+  
+  .title{
+    font-family: "Abel", sans-serif;
+      font-size: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 0;
+      margin-bottom: 10px;
+  }
+
+
+/* ===== Form cinza rolável ===== */
+#form-aliquotas {
+    font-family: "Abel", sans-serif;
+    display: flex;                
+    flex-direction: column; 
+    justify-content: center;
+    background-color: white;
+    max-width: 825px;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    margin: 0 auto;
+    padding: 10px;                
+    background-color: #cacaca; 
+  border: #ce0303;    
+    border-radius: 10px;
+    overflow-y: auto;
+    position: relative;
+}
+
+/* ===== Seções ===== */
+#cadModalAliquotas .aliq-secao {
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+#cadModalAliquotas .aliq-secao:last-child { margin-bottom: 0; }
+#cadModalAliquotas .aliq-secao h3 {
+  font-size: 15px;
+  color: #2b2a2a;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #b9b9b9;
+  padding-bottom: 4px;
+}
+#cadModalAliquotas .aliq-secao-topo { display: flex; align-items: center; gap: 16px; }
+#cadModalAliquotas .aliq-aviso {
+  font-size: 12.5px;
+  color: #555;
+  margin-top: 10px;
+  line-height: 1.35;
+}
+
+/* ===== Campos com label flutuante (padrão .form2) ===== */
+#cadModalAliquotas .aliq-campos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px 14px;
+}
+
+  .form-2colunas{
+    display: flex;
+    gap: 0.5px; /* Espaço entre os inputs */
+    max-width: 700px; /* Garante que os elementos não ultrapassem o container */
+    justify-content: center;
+  }
+
+  .form-3colunas{
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  max-width: 300;
+  gap: 0,5px;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 650px;
+  gap: 10px;
+  margin: 0 auto;
+}
+
+.form2 {
+  position: relative;
+}
+
+form#aliquotas {
+    display: flex;
+    flex-direction: column;
+    height: 550px;
+}
+
+.input {
+ border: solid 2px #9e9e9e;
+ border-radius: 1rem;
+ background: none;
+ padding: 1rem;
+ font-size: 1rem;
+ color: #f5f5f5;
+ transition: border 150ms cubic-bezier(0.4,0,0.2,1);
+}
+
+.user-label {
+ position: absolute;
+ left: 15px;
+ color: #000000;
+ pointer-events: none;
+ transform: translateY(1rem);
+ transition: 150ms cubic-bezier(0.4,0,0.2,1);
+}
+
+.input:focus, input:valid {
+ outline: none;
+ border: 1.5px solid var(--border-color);
+  color: var(--black-color);
+  height: 10px;
+}
+
+.input:focus ~ label, input:valid ~ label {
+ transform: translateY(-50%) scale(0.8);
+ background-color: #e2e2e2;
+ padding: 0 .2em;
+ color: var(--black-color);
+}
+
+  /* .form, .form2{
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin: 12px;
+    gap:5px;
+  }
+  .form input{
+    font-family:  var(--Font-primary);
+    width: 350px;
+    height: 30px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
+  
+  .form2 input{
+    font-family: var(--Font-primary);
+    width: 270px;
+    height: 30px;
+    border-radius: 6px;
+    font-size: 15px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
+
+  #idiomasContainer input {
+  font-family: var(--Font-primary);
+  width: 100px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+} 
+
+  .form2 select{
+    font-family: var(--Font-primary);
+    width: 200px;
+    height: 30px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
+  .form label, .form-2colunas label, .form2 label{
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    transform: translateY(-70%);
+    color: #000000;
+    font-size: 14px;
+    pointer-events: none;
+    transition: 0.3s;
+    left: 20px;
+  }
+
+  .uppercase {
+    text-transform: uppercase;
+  }
+
+  input:focus{
+    border: 2px solid var(--border-color);
+  }
+
+  .uppercase {
+  text-transform: uppercase;
+  }
+
+  input:focus ~ label,
+  input:valid ~ label{
+    top: 0;
+    left: 25%;
+    font-size: 12px;
+    padding: 0 2px;
+    background: #e2e2e2;
+  }
+  
+input ~ label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #e2e2e2; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset 
+} */
+
+/* ===== Tabelas de faixas (INSS / IRRF) ===== */
+#cadModalAliquotas .aliq-tabela { width: 100%; border-collapse: collapse; }
+#cadModalAliquotas .aliq-tabela th,
+#cadModalAliquotas .aliq-tabela td { padding: 5px 8px; text-align: left; }
+#cadModalAliquotas .aliq-tabela th {
+  font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: .5px;
+}
+#cadModalAliquotas .aliq-tabela td:last-child,
+#cadModalAliquotas .aliq-tabela th:last-child { width: 36px; text-align: center; }
+#cadModalAliquotas .aliq-tabela input {
+  width: 100%;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 10px;
+  border: 1px solid #000;
+  background: transparent;
+  color: #000;
+  outline: none;
+  box-sizing: border-box;
+}
+#cadModalAliquotas .aliq-rm {
+  border: none; background: transparent; color: #b51d1d;
+  cursor: pointer; font-size: 16px; padding: 0;
+}
+#cadModalAliquotas .aliq-add {
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #999;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #000;
+}
+#cadModalAliquotas .aliq-hint { display: block; color: #555; font-size: 12px; margin-top: 6px; }
+
+/* ===== Rodapé (padrão .BTNs) ===== */
+  button {
+    font-family: "Abel", sans-serif;
+    font-weight: var(--font-weight);
+    font-size: 20px;
+    background-color: var(--primary-color);
+    width: 25%;
+    color: var(--font-color);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;  
+    transition: 5%;
+  }
+    .Close{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+  }
+  
+  .BTNs{
+    display: flex;
+      text-align: center;
+      justify-content: space-between;
+      margin-top: 10px;
+  }
+  
+  .Enviar:hover,
+  .Limpar:hover,
+  .Pesquisar:hover{
+    background-color: var(--hover-color);
+  }
+  
+  
+  button.close {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    width: 200px;
+    height: 30px;
+    margin: 0;
+  }
+
+
+/* ===== Scrollbar ===== */
+#cadModalAliquotas ::-webkit-scrollbar { width: 6px; height: 12px; }
+#cadModalAliquotas ::-webkit-scrollbar-thumb { background-color: #888; border-radius: 10px; }
+#cadModalAliquotas ::-webkit-scrollbar-track { background-color: transparent; border-radius: 5px; }
+#cadModalAliquotas ::-webkit-scrollbar-thumb:hover { background-color: #555; }

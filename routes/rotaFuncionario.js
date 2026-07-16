@@ -87,10 +87,59 @@ router.get("/bancos", verificarPermissao('Bancos', 'pesquisar'), async (req, res
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
+// ===== Busca de CBO (Classificação Brasileira de Ocupações) =====
+// Base oficial (MTE/CBO2002) hospedada localmente em /data — sem depender de API externa.
+// Carrega 1x em memória: ocupações + sinônimos, apontando todos para o título oficial.
+let cboIndice = null;
+function carregarCBO() {
+  if (cboIndice) return cboIndice;
+  const ler = (arquivo) => JSON.parse(fs.readFileSync(path.join(__dirname, "../data", arquivo), "utf8"));
+  const ocupacoes = ler("cbo_ocupacao.json");      // [{ code, name }]
+  const sinonimos = ler("cbo_sinonimo.json");      // [{ code, name }]
+  const tituloPorCodigo = new Map(ocupacoes.map((o) => [o.code, o.name]));
+  // Lista de termos pesquisáveis: ocupação + sinônimos (todos resolvem p/ o título oficial).
+  const termos = [
+    ...ocupacoes.map((o) => ({ code: o.code, termo: o.name })),
+    ...sinonimos.map((s) => ({ code: s.code, termo: s.name })),
+  ];
+  cboIndice = { tituloPorCodigo, termos };
+  return cboIndice;
+}
+const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+// GET /funcionarios/cbo?q=termo  → [{ codigo, titulo }] (até 20). Busca por código ou nome/sinônimo.
+router.get("/cbo", (req, res) => {
+  try {
+    const q = semAcento(req.query.q);
+    if (q.length < 2) return res.json([]);
+    const { tituloPorCodigo, termos } = carregarCBO();
+    const soDigitos = q.replace(/\D/g, "");
+    // Busca por TODAS as palavras (ignora conectivos), além de match por código.
+    const palavras = q.split(/\s+/).filter((p) => p.length >= 2 && !["de", "da", "do", "e", "em"].includes(p));
+    const vistos = new Set();
+    const resultado = [];
+    for (const t of termos) {
+      if (resultado.length >= 20) break;
+      const nome = semAcento(t.termo);
+      const casaCodigo = soDigitos.length >= 2 && t.code.startsWith(soDigitos);
+      const casaNome = palavras.length > 0 && palavras.every((p) => nome.includes(p));
+      if (!casaCodigo && !casaNome) continue;
+      if (vistos.has(t.code)) continue;
+      vistos.add(t.code);
+      resultado.push({ codigo: t.code, titulo: tituloPorCodigo.get(t.code) || t.termo });
+    }
+    res.json(resultado);
+  } catch (error) {
+    console.error("ERRO /funcionarios/cbo:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET todas ou por descrição
 router.get("/", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
     const { nome } = req.query;
     const idempresa = req.idempresa;
+    
     console.log("ROTA FUNCIONARIOS", nome, idempresa);
     try {
         if (nome) {
@@ -161,7 +210,7 @@ router.put("/:id",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado
+            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
         } = req.body;
 
 
@@ -232,9 +281,9 @@ router.put("/:id",
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, salario = $34 , funcao = $35, cbo = $36, dependentes = $37, admissao = $38, valealim = $39, valetrnsp = $40
                 FROM funcionarioempresas fe
-                WHERE func.idfuncionario = $34 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $35
+                WHERE func.idfuncionario = $41 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $42
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -245,7 +294,7 @@ router.put("/:id",
                 celularPessoal, celularFamiliar, email, site, codigoBanco, 
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
-                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado,
+                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp,
                 id, idempresa // ID do funcionário para a cláusula WHERE
             ];
 
@@ -324,7 +373,7 @@ router.post("/",
         const {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
-            complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado
+            complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp
         } = req.body;
        
         
@@ -364,14 +413,14 @@ router.post("/",
                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40)
                 RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix, 
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];
@@ -393,7 +442,7 @@ router.post("/",
                 celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                 numeroConta, digitoConta, agencia, digitoAgencia, tipoConta,
                 cep, rua, numero, complemento, bairro, cidade, estado, pais,
-                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado
+                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
             };
             
             res.status(201).json({

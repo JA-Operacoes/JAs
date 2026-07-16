@@ -20,7 +20,8 @@ Criado para substituir sistemas complexos como o SIGEVENT, o JA System foca na e
 3. [Instalação (Setup)](#-instalação-setup)
 4. [Variáveis de Ambiente](#-variáveis-de-ambiente)
 5. [Como Rodar](#-como-rodar)
-6. [Arquitetura](#-arquitetura)
+6. [Migrations do Banco](#-migrations-do-banco)
+7. [Arquitetura](#-arquitetura)
 7. [Autenticação e Permissões](#-autenticação-e-permissões)
 8. [Multiempresa (Multi-tenant)](#-multiempresa-multi-tenant)
 9. [Mapa de Módulos e Rotas](#-mapa-de-módulos-e-rotas)
@@ -163,19 +164,44 @@ O servidor sobe em `http://localhost:3000` e redireciona a raiz (`/`) para a tel
 
 ### Com Docker
 
-```bash
-# Produção (API + PostgreSQL)
-docker compose -f compose.yaml up --build
+Os ambientes Docker têm scripts prontos no `package.json` (projetos Compose separados por `-p`, para não misturar os bancos):
 
-# Desenvolvimento com debug (Node Inspector na porta 9229)
-docker compose -f compose.debug.yaml up --build
+```bash
+# TESTE (API + PostgreSQL isolados, usa .env.test)
+npm run teste:up        # sobe o ambiente
+npm run teste:migrate   # aplica as migrations dentro do container
+npm run teste:logs      # acompanha os logs da API
+npm run teste:reset     # derruba com volumes e sobe do zero
+npm run teste:down      # derruba o ambiente
+
+# PRODUÇÃO
+npm run prod:up         # sobe o ambiente
+npm run prod:migrate    # aplica as migrations dentro do container
 ```
 
 | Serviço | Porta |
 | --- | --- |
 | API (jasystem) | `3000` |
 | PostgreSQL | `5432` |
-| Debugger (modo debug) | `9229` |
+
+---
+
+## 🗄 Migrations do Banco
+
+Cada mudança de **estrutura** do banco (nova tabela, coluna, índice…) vira um arquivo `.sql` em [db/migrations/](db/migrations/). O runner ([db/migrate.js](db/migrate.js)) aplica, em ordem cronológica, só os arquivos que ainda não foram aplicados em cada banco — controlados pela tabela `schema_migrations`.
+
+```bash
+# Cria uma nova migration vazia (nome = timestamp + descrição)
+npm run migrate:new -- "Descricao sobre a alteracao"
+
+# Sem descrição, ele pergunta no terminal (Enter vazio = cancela)
+npm run migrate:new
+
+# Aplica as migrations pendentes no banco local
+npm run migrate
+```
+
+> Isso substitui o antigo modelo de promover o banco por dump/restore, que fazia um dev sobrescrever o trabalho do outro. Detalhes e regras em [db/migrations/README.md](db/migrations/README.md).
 
 ---
 
@@ -192,7 +218,7 @@ docker compose -f compose.debug.yaml up --build
 ├── 📂 controllers/        → regras de negócio (auth, permissões)
 ├── 📂 middlewares/        → autenticação (JWT), permissões, logs, upload
 ├── 📂 models/             → templates .docx de propostas e contratos
-├── 📂 migrations/         → scripts de migração do banco
+├── 📂 db/migrations/      → scripts de migração de estrutura do banco (.sql)
 ├── 📂 utils/              → utilitários compartilhados
 ├── 📂 uploads/            → arquivos gerados/enviados (propostas, contratos, comprovantes)
 │

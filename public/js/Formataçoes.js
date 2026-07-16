@@ -318,7 +318,37 @@ document.addEventListener("DOMContentLoaded", function () {
         // Atualiza o valor do input com a formatação
         input.value = formatado;
     };
-    
+
+  //  ----------------------- Formatação REAIS (R$) -----------------------
+
+    // Formata o que o usuário digita em moeda BR (1.234,56), tratando os 2 últimos
+    // dígitos como centavos. Use no oninput do campo. Ex: <input oninput="formatReais(this)">
+    window.formatReais = function (input) {
+        let digitos = input.value.replace(/\D/g, ""); // só números
+        if (digitos === "") { input.value = ""; return; }
+        // últimos 2 dígitos = centavos
+        const valor = parseInt(digitos, 10) / 100;
+        input.value = "R$ " + valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    // Converte o valor exibido ("R$ 1.234,56" ou "1.234,56") em número puro para o banco:
+    // 1234.56. Retorna "" se vazio. Chame antes de enviar ao backend.
+    window.desformatarReais = function (valor) {
+        if (valor === null || valor === undefined || valor === "") return "";
+        // mantém só dígitos, vírgula e sinal; tira "R$" e os pontos de milhar
+        const limpo = String(valor).replace(/[^\d,-]/g, "").replace(",", ".");
+        const n = parseFloat(limpo);
+        return isNaN(n) ? "" : n;
+    };
+
+    // Converte um número puro vindo do banco (1234.56) para o texto formatado (1.234,56).
+    // Útil ao preencher o formulário no modo edição.
+    window.formatarReaisValor = function (numero) {
+        const n = Number(numero);
+        if (isNaN(n)) return "";
+        return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
     document.addEventListener("DOMContentLoaded", function() {
         const ieInput = document.querySelector("#inscEstadual");
     
@@ -336,7 +366,22 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
     });
-});
+
+    
+    // --------------------------------------------------- Datas  ---------------------------------------------------------
+    window.formatData = function(dataInput) {
+        const formatador = new Intl.DateTimeFormat('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        // Converte para objeto Date caso receba uma string ou timestamp
+        return formatador.format(new Date(dataInput));
+    }
+
+});    
+
 
 // // --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
 // async function carregarBancosDoBackend() {

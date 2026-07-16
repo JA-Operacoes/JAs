@@ -179,7 +179,11 @@ window.temPermissao = function (modulo, acao) {
       const p = window.permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
       return p && p[`pode_${acao}`];
   };
-  
+
+  // Sinaliza que window.permissoes E window.temPermissao estão prontos, para módulos
+  // (ex.: RH.js) que dependem de temPermissao() no carregamento.
+  document.dispatchEvent(new CustomEvent("permissoesCarregadas"));
+
 
   document.querySelectorAll(".abrir-modal").forEach((botao) => {
     const url = botao.dataset.url || "";
@@ -197,7 +201,14 @@ window.temPermissao = function (modulo, acao) {
       return;
     }
 
-    if (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar")) {
+    // Aliquotas é parâmetro fiscal do RH: liberada apenas para quem tem 'rh' OU 'supremo'
+    // (mesmo critério do RH mode), e não pela permissão acessar/pesquisar do módulo.
+    if (modulo === "Aliquotas") {
+      if (!temPermissao("Staff", "rh") && !temPermissao("Staff", "supremo")) {
+        botao.style.display = "none";
+        return;
+      }
+    } else if (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar")) {
       botao.style.display = "none";
       return;
     }
@@ -205,6 +216,14 @@ window.temPermissao = function (modulo, acao) {
     botao.removeAttribute("onclick");
     botao.addEventListener("click", () => {
       window.moduloAtual = modulo;
+      // Aliquotas tem tela própria (modal autoconfigurado em Aliquotas.js), igual ao RH:
+      // o loader genérico não liga os botões/fechar dela, então abrimos pela função dedicada.
+      if (modulo === "Aliquotas") {
+        import("./Aliquotas.js")
+          .then((m) => m.abrirAliquotas())
+          .catch((err) => console.error("Erro ao abrir Aliquotas:", err));
+        return;
+      }
       abrirModal(url, modulo);
     });
   });
