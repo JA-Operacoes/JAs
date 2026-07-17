@@ -34,7 +34,7 @@ router.get(
         SELECT
             o.idorcamento, o.status, o.idcliente, c.nmfantasia AS nomecliente,
             o.idevento, e.nmevento AS nomeevento, o.idmontagem,
-            lm.descmontagem AS nomelocalmontagem, o.nrorcamento,
+            lm.descmontagem AS nomelocalmontagem, lm.ufmontagem, o.nrorcamento,
             o.inframontagem, o.dtinipreevento, o.dtfimpreevento,
             o.dtiniinframontagem, o.dtfiminframontagem, o.dtinimarcacao,
             o.dtfimmarcacao, o.dtinimontagem, o.dtfimmontagem,          
