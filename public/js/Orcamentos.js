@@ -247,6 +247,10 @@ async function carregarLocalMontOrc() {
         console.log("IDLOCALMONTAGEM selecionado:", idMontagem);
 
         carregarPavilhaoOrc(idMontagem);
+
+        // Atualiza a UF do local e reaplica a regra de ajuda de custo (fora de SP)
+        atualizarUFOrc(this);
+        reaplicarAjudaCustoForaSP();
       });
     });
   } catch (error) {
@@ -2806,12 +2810,66 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 
   // 3. Tenta pegar o atributo de forma segura
-  const uf = selectedOption.getAttribute("data-uf");
-  
+  // (o atributo criado em carregarLocalMontOrc é "data-ufmontagem")
+  const uf = selectedOption.getAttribute("data-ufmontagem") || selectedOption.getAttribute("data-uf");
+
   const ufInput = document.getElementById("ufmontagem");
   if (ufInput) {
-    ufInput.value = uf || "";
+    ufInput.value = (uf || "").trim().toUpperCase();
   }
+}
+
+// Evento "fora de São Paulo": UF do local de montagem preenchida e diferente de 'SP'.
+function eventoForaDeSP() {
+  const uf = (document.getElementById("ufmontagem")?.value || "").trim().toUpperCase();
+  return uf !== "" && uf !== "SP";
+}
+
+// Fator de alimentação quando fora de SP — fórmula da Viagem 2 (café + almoço + jantar = 2,5x).
+const FATOR_ALIMENTACAO_FORA_SP = 2.5;
+
+// Transporte "local" da função (mesma cascata usada ao montar as options: transpsenior quando houver custo sênior).
+function transporteLocalFuncao(funcao) {
+  if (!funcao) return 0;
+  return (funcao.ctofuncaosenior > 0 && funcao.transpsenior > 0)
+    ? parseFloat(funcao.transpsenior) || 0
+    : parseFloat(funcao.transporte) || 0;
+}
+
+// Recalcula a ajuda de custo de todas as linhas de FUNÇÃO conforme a regra "fora de SP".
+// Usado quando o local de montagem (UF) muda depois de já haver itens na tabela.
+function reaplicarAjudaCustoForaSP() {
+  const corpo = document.querySelector("#tabela tbody");
+  if (!corpo || !Array.isArray(funcoesDisponiveis)) return;
+
+  const foraSP = eventoForaDeSP();
+
+  corpo.querySelectorAll("tr").forEach((linha) => {
+    const idFunc = linha.querySelector("input.idFuncao")?.value;
+    if (!idFunc) return; // sem função (equipamento/suprimento/linha vazia) -> não mexe
+
+    const funcao = funcoesDisponiveis.find((f) => String(f.idfuncao) === String(idFunc));
+    if (!funcao) return;
+
+    let alim = parseFloat(funcao.alimentacao) || 0;
+    let transp = transporteLocalFuncao(funcao);
+    if (foraSP) {
+      alim = alim * FATOR_ALIMENTACAO_FORA_SP;
+      transp = 0;
+    }
+
+    const spanAlim = linha.querySelector(".vlralimentacao-input");
+    const spanTrans = linha.querySelector(".vlrtransporte-input");
+    const tdAlim = linha.querySelector(".ajdCusto.alimentacao");
+    const tdTrans = linha.querySelector(".ajdCusto.transporte");
+
+    if (spanAlim) spanAlim.textContent = formatarMoeda(alim);
+    if (tdAlim) tdAlim.dataset.originalAjdcusto = alim.toString();
+    if (spanTrans) spanTrans.textContent = formatarMoeda(transp);
+    if (tdTrans) tdTrans.dataset.originalAjdcusto = transp.toString();
+
+    recalcularLinha(linha);
+  });
 }
 
 function ceilToTenCents(value, factor) {
@@ -3016,6 +3074,21 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+
+    // 1.5 REGRA DE AJUDA DE CUSTO POR CATEGORIA + "FORA DE SÃO PAULO"
+    // - Função (Produto(s)): se o evento for fora de SP, a alimentação usa a fórmula
+    //   da Viagem 2 (café + almoço + jantar = 2,5x) e o transporte é zerado.
+    // - Equipamento/Suprimento: não têm ajuda de custo (força 0).
+    const ehFuncao = Categoria === "Produto(s)";
+    if (ehFuncao) {
+        if (eventoForaDeSP()) {
+            vlrAlimentacao = vlrAlimentacao * FATOR_ALIMENTACAO_FORA_SP;
+            vlrTransporte = 0;
+        }
+    } else {
+        vlrAlimentacao = 0;
+        vlrTransporte = 0;
+    }
 
     // 2. PROTEÇÃO CONTRA REAJUSTE DUPLO
     if (linha.dataset.reajustadoTotal === 'true') return;
