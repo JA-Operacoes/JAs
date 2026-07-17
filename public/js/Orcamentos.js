@@ -7453,19 +7453,38 @@ async function rehidrateItemsForNewYear(itens) {
 
     // ... (manter eqMap e supMap iguais)
 
-    for (const item of itens) {
-      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior), 
-      // esse deve ser o valor "mãe" para o novo reajuste.
-      let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
-      let ctoReferencia = parseFloat(item.ctodiaria || 0);
+    // Maior custo disponível da função: Sênior > Pleno > Junior > Base.
+    // (mesma cascata usada ao adicionar uma linha nova em carregarFuncaoOrc)
+    const custoMaiorFuncao = (f) => {
+      if (!f) return 0;
+      return (
+        parseFloat(
+          f.ctofuncaosenior > 0 ? f.ctofuncaosenior :
+          f.ctofuncaopleno  > 0 ? f.ctofuncaopleno  :
+          f.ctofuncaojunior > 0 ? f.ctofuncaojunior :
+                                  f.ctofuncaobase   || 0
+        ) || 0
+      );
+    };
 
-      // 2. Fallback: Se por algum motivo o item veio zerado, busca na tabela mestra
-      if (vlrReferencia === 0) {
-        if (item.idfuncao && funcMap[String(item.idfuncao)]) {
-          vlrReferencia = parseFloat(funcMap[String(item.idfuncao)].vdafuncao) || 0;
-          ctoReferencia = parseFloat(funcMap[String(item.idfuncao)].ctofuncaobase) || 0;
-        }
-        // ... (repetir lógica para equip e suprimento se necessário)
+    for (const item of itens) {
+      // Função mestra correspondente ao item (se for um item de função/produto).
+      const funcMestra = item.idfuncao ? funcMap[String(item.idfuncao)] : null;
+
+      // 1. VENDA: mantém o valor "mãe" do orçamento anterior (vlrbase) como base do reajuste.
+      let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
+
+      // 2. CUSTO: para itens de função, NÃO usa o custo gravado no ano anterior.
+      //    Sempre recalcula pelo MAIOR custo atual da função (Sênior > Pleno > Junior > Base),
+      //    igual ao comportamento de uma linha nova. Itens sem função (equip/suprimento)
+      //    mantêm o custo gravado.
+      let ctoReferencia = funcMestra
+        ? custoMaiorFuncao(funcMestra)
+        : parseFloat(item.ctodiaria || 0);
+
+      // 3. Fallback: se a venda veio zerada, busca na tabela mestra da função.
+      if (vlrReferencia === 0 && funcMestra) {
+        vlrReferencia = parseFloat(funcMestra.vdafuncao) || 0;
       }
 
       // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
