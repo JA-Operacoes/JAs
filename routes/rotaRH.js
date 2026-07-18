@@ -5,8 +5,59 @@
 // automático de INSS/IRRF com base em parâmetros fiscais editáveis por ano.
 const express = require("express");
 const router = express.Router();
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const pool = require("../db/conexaoDB");
 const { contextoEmpresa } = require("../middlewares/authMiddlewares");
+const { exigirFlag } = require("../middlewares/permissaoMiddleware");
+
+// Só master/dev pode ALTERAR comprovantes (trocar um já anexado ou remover). O primeiro
+// anexo é liberado para o usuário de RH; a partir daí a mudança é restrita.
+async function podeAlterarComprovante(idusuario, idempresa) {
+  if (!idusuario || !idempresa) return false;
+  const { rows } = await pool.query(
+    `SELECT 1 FROM permissoes
+      WHERE idusuario = $1 AND idempresa = $2 AND (master = true OR devs = true) LIMIT 1`,
+    [idusuario, idempresa]
+  );
+  return rows.length > 0;
+}
+
+// ===== Upload de comprovante do holerite (imagem / PDF / JFIF) =====
+// Um comprovante por holerite. Guarda só o nome do arquivo na coluna
+// folhaholerite.comprovante; o arquivo fica em uploads/rh/comprovantes e é
+// servido pelo static /uploads (server.js já trata .jfif como image/jpeg).
+const dirComprovantesRH = path.join(__dirname, "../uploads/rh/comprovantes");
+fs.mkdirSync(dirComprovantesRH, { recursive: true });
+
+const storageComprovanteRH = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, dirComprovantesRH),
+  filename: (req, file, cb) => {
+    const id = req.params.id || "0";
+    const nomeLimpo = path.parse(file.originalname).name
+      .replace(/\s+/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "");
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${nomeLimpo}-${Date.now()}${ext}`);
+  },
+});
+
+// Aceita imagens (image/*, cobre JFIF que os navegadores enviam como image/jpeg)
+// e PDFs. Rejeita o resto com mensagem clara.
+const fileFilterComprovanteRH = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
+    cb(null, true);
+  } else {
+    cb(new Error("Apenas imagens e PDFs são permitidos."), false);
+  }
+};
+
+const uploadComprovanteRH = multer({
+  storage: storageComprovanteRH,
+  fileFilter: fileFilterComprovanteRH,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+}).single("comprovante");
 
 // Perfis considerados "salário fixo" (entram na folha).
 const PERFIS_FOLHA = ["Interno", "Externo"];
@@ -639,7 +690,7 @@ router.get("/holerite", async (req, res) => {
         holerite: {
           idholerite: null, idfuncionario, nome: funcionario.nome, mes, ano, tipo,
           salariobase, ...dadosFunc,
-          status: "Pendente", dtpagamento: null, obs: null,
+          status: "Pendente", dtpagamento: null, obs: null, comprovante: null,
           itens: [], ...calcularTotais(salariobase, []),
         },
       });
@@ -656,7 +707,7 @@ router.get("/holerite", async (req, res) => {
         idholerite: h.idholerite, idfuncionario, nome: funcionario.nome,
         mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase: Number(h.salariobase) || 0,
         ...dadosFunc,
-        status: h.status, dtpagamento: h.dtpagamento, obs: h.obs,
+        status: h.status, dtpagamento: h.dtpagamento, obs: h.obs, comprovante: h.comprovante || null,
         itens, ...calcularTotais(h.salariobase, itens),
       },
     });
@@ -745,6 +796,80 @@ router.put("/holerite/:id/pagar", async (req, res) => {
     res.json({ ok: true, ...rows[0] });
   } catch (error) {
     console.error("ERRO RH /holerite/:id/pagar:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /rh/holerite/:id/comprovante — anexa (ou substitui) o comprovante de pagamento.
+// multipart/form-data, campo "comprovante" (imagem/PDF/JFIF, até 10MB).
+router.post("/holerite/:id/comprovante", (req, res) => {
+  uploadComprovanteRH(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    try {
+      const idempresa = req.idempresa;
+      const idholerite = parseInt(req.params.id, 10);
+      if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+      if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+      if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+      // Confere que o holerite pertence à empresa e pega o comprovante antigo (p/ remover).
+      const atual = await pool.query(
+        `SELECT comprovante FROM folhaholerite WHERE idholerite = $1 AND idempresa = $2`,
+        [idholerite, idempresa]
+      );
+      if (atual.rowCount === 0) {
+        fs.unlink(path.join(dirComprovantesRH, req.file.filename), () => {});
+        return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+      }
+
+      // Já existe comprovante → é uma TROCA, restrita a master/dev.
+      if (atual.rows[0].comprovante && !(await podeAlterarComprovante(req.usuario?.idusuario, idempresa))) {
+        fs.unlink(path.join(dirComprovantesRH, req.file.filename), () => {});
+        return res.status(403).json({ error: "Apenas master/dev pode trocar um comprovante já anexado." });
+      }
+
+      await pool.query(
+        `UPDATE folhaholerite SET comprovante = $1 WHERE idholerite = $2 AND idempresa = $3`,
+        [req.file.filename, idholerite, idempresa]
+      );
+
+      // Remove o arquivo anterior (se houver e for diferente do novo).
+      const antigo = atual.rows[0].comprovante;
+      if (antigo && antigo !== req.file.filename) {
+        fs.unlink(path.join(dirComprovantesRH, antigo), () => {});
+      }
+
+      res.json({ ok: true, comprovante: req.file.filename, url: `/uploads/rh/comprovantes/${req.file.filename}` });
+    } catch (error) {
+      console.error("ERRO RH POST /holerite/:id/comprovante:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+});
+
+// DELETE /rh/holerite/:id/comprovante — remove o comprovante anexado (só master/dev).
+router.delete("/holerite/:id/comprovante", exigirFlag("master", "devs"), async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idholerite = parseInt(req.params.id, 10);
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+
+    const atual = await pool.query(
+      `SELECT comprovante FROM folhaholerite WHERE idholerite = $1 AND idempresa = $2`,
+      [idholerite, idempresa]
+    );
+    if (atual.rowCount === 0) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+
+    await pool.query(
+      `UPDATE folhaholerite SET comprovante = NULL WHERE idholerite = $1 AND idempresa = $2`,
+      [idholerite, idempresa]
+    );
+    const antigo = atual.rows[0].comprovante;
+    if (antigo) fs.unlink(path.join(dirComprovantesRH, antigo), () => {});
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("ERRO RH DELETE /holerite/:id/comprovante:", error);
     res.status(500).json({ error: error.message });
   }
 });
