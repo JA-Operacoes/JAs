@@ -348,6 +348,11 @@ function renderHolerite(h) {
   const beneficios = (h.itens || []).filter((i) => i.tipo === "B");
   const descontos = (h.itens || []).filter((i) => i.tipo === "D");
   const pago = h.status === "Pago";
+  // Só master/dev pode trocar um comprovante já anexado ou removê-lo. O primeiro
+  // anexo é liberado para o usuário de RH.
+  const podeAlterarComprovante =
+    (window.temPermissao?.("Staff", "master") ?? false) ||
+    (window.temPermissao?.("Staff", "devs") ?? false);
 
   const linha = (i, idx) => `
     <div class="rh-item" data-idx="${idx}">
@@ -518,13 +523,16 @@ function renderHolerite(h) {
       <div class="rh-acoes">
         <button type="button" id="rh-salvar">Salvar holerite</button>
         <button type="button" id="rh-pagar" class="${pago ? "secundario" : ""}">${pago ? "Reverter p/ Pendente" : "Marcar como pago"}</button>
-        ${pago ? `
+        ${pago ? (!h.comprovante ? `
         <button type="button" id="rh-comprovante">
             <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" >
             <path stroke-width="2" stroke="#fffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
             <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#fffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path></svg>
             ADD Comprovante
-        </button>` : ""}
+        </button>
+        <input type="file" id="rh-comprovante-input" accept="image/*,application/pdf,.jfif" style="display:none">` : `
+        <button type="button" id="rh-comprovante-ver">Ver comprovante</button>
+        ${podeAlterarComprovante ? `<button type="button" id="rh-comprovante-rm" class="secundario">Remover comprovante</button>` : ""}`) : ""}
       </div>
     </div>
   `;
@@ -562,6 +570,25 @@ function renderHolerite(h) {
   document.getElementById("rh-salvar-base").addEventListener("click", salvarSalarioBase);
   document.getElementById("rh-salvar").addEventListener("click", () => salvarHolerite());
   document.getElementById("rh-pagar").addEventListener("click", () => alternarPagamento(!pago));
+
+  // Comprovante de pagamento (imagem/PDF/JFIF): clique abre o seletor de arquivo.
+  const btnComp = document.getElementById("rh-comprovante");
+  const inpComp = document.getElementById("rh-comprovante-input");
+  if (btnComp && inpComp) {
+    btnComp.addEventListener("click", () => inpComp.click());
+    inpComp.addEventListener("change", (e) => {
+      const arq = e.target.files && e.target.files[0];
+      if (arq) enviarComprovante(arq);
+      e.target.value = ""; // permite reenviar o mesmo arquivo depois
+    });
+  }
+  const btnCompVer = document.getElementById("rh-comprovante-ver");
+  if (btnCompVer) btnCompVer.addEventListener("click", () => {
+    if (holeriteAtual.comprovante)
+      window.open(`/uploads/rh/comprovantes/${holeriteAtual.comprovante}`, "_blank", "noopener");
+  });
+  const btnCompRm = document.getElementById("rh-comprovante-rm");
+  if (btnCompRm) btnCompRm.addEventListener("click", removerComprovante);
 }
 
 function addLinha(containerId) {
@@ -819,6 +846,47 @@ async function alternarPagamento(pago) {
       text: 'Não foi possível alterar o status de pagamento.',
       confirmButtonText: 'Ok',
     });
+  }
+}
+
+// Envia o comprovante de pagamento (imagem/PDF/JFIF) do holerite atual.
+// Garante que o holerite esteja persistido antes (precisa do idholerite).
+async function enviarComprovante(arquivo) {
+  if (!holeriteAtual.idholerite) {
+    await salvarHolerite(true);
+    if (!holeriteAtual || !holeriteAtual.idholerite) return;
+  }
+  try {
+    const fd = new FormData();
+    fd.append("comprovante", arquivo);
+    const r = await fetchComToken(`/rh/holerite/${holeriteAtual.idholerite}/comprovante`, {
+      method: "POST",
+      body: fd,
+    });
+    if (!r || !r.ok) throw new Error((r && r.error) || "Falha no envio.");
+    await carregarHolerite(holeriteAtual.idfuncionario);
+    Swal.fire({ icon: "success", title: "Comprovante anexado", timer: 1600, showConfirmButton: false });
+  } catch (err) {
+    console.error("Erro ao enviar comprovante (RH):", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível anexar o comprovante.", confirmButtonText: "Ok" });
+  }
+}
+
+async function removerComprovante() {
+  if (!holeriteAtual.idholerite) return;
+  const conf = await Swal.fire({
+    icon: "warning", title: "Remover comprovante?", showCancelButton: true,
+    confirmButtonText: "Remover", cancelButtonText: "Cancelar",
+  });
+  if (!conf.isConfirmed) return;
+  try {
+    const r = await fetchComToken(`/rh/holerite/${holeriteAtual.idholerite}/comprovante`, { method: "DELETE" });
+    if (!r || !r.ok) throw new Error((r && r.error) || "Falha ao remover.");
+    await carregarHolerite(holeriteAtual.idfuncionario);
+    Swal.fire({ icon: "success", title: "Comprovante removido", timer: 1600, showConfirmButton: false });
+  } catch (err) {
+    console.error("Erro ao remover comprovante (RH):", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível remover o comprovante.", confirmButtonText: "Ok" });
   }
 }
 
