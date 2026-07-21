@@ -5257,7 +5257,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL
     // ----------------------------------------------------
     const exibicaoDiariasVisuais = diáriasConsumidas + dobrasPendentes;
-    const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + pendentes + dobrasPendentes));
+    const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + dobrasPendentes));
     
     // 🚀 CORREÇÃO PRINCIPAL: Mesmo que venha true do banco, se houver diárias disponíveis, não está concluído!
     // const concluido = (func.concluido === true) && (disponiveis === 0);
@@ -9413,28 +9413,32 @@ function safeParse(input) {
 
 // ── Combo FuncExcedido + Estouro Financeiro: helpers ─────────────────────────
 
-function desbloquearFuncaoExcedidaAutorizada(secao2El) {
-    const linhas = secao2El.querySelectorAll('.linha-data-aditivo');
-    linhas.forEach(linha => {
+function desbloquearFuncaoExcedidaAutorizada(secao2El, dataAlvo) {
+    const linha = dataAlvo != null
+        ? secao2El.querySelector(`.linha-data-aditivo[data-data="${String(dataAlvo).replace(/["\\]/g, '\\$&')}"]`)
+        : null;
+    if (linha) {
         const btnA = linha.querySelector('.aprovar-fe-func-ind');
         const btnR = linha.querySelector('.rejeitar-fe-func-ind');
         if (btnA) { btnA.disabled = false; btnA.style.opacity = '1'; btnA.style.cursor = 'pointer'; }
         if (btnR) { btnR.disabled = false; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer'; }
-    });
-    secao2El.style.borderLeftColor = '#16a34a';
-    secao2El.style.background = '#f0fdf4';
-    const titulo = secao2El.querySelector('.combo-fe-titulo-sec2');
-    if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Funcionário Excedido'; titulo.style.color = '#166534'; }
-    const aviso = secao2El.querySelector('.combo-fe-aviso-lock');
-    if (aviso) aviso.remove();
+    }
+    // Header/título da seção só vira "tudo liberado" quando não sobrar nenhuma linha
+    // ainda bloqueada — não assume mais estado uniforme pro card inteiro.
+    const aindaBloqueadas = secao2El.querySelectorAll('.aprovar-fe-func-ind:disabled').length > 0;
+    if (!aindaBloqueadas) {
+        secao2El.style.borderLeftColor = '#16a34a';
+        secao2El.style.background = '#f0fdf4';
+        const titulo = secao2El.querySelector('.combo-fe-titulo-sec2');
+        if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Funcionário Excedido'; titulo.style.color = '#166534'; }
+        const aviso = secao2El.querySelector('.combo-fe-aviso-lock');
+        if (aviso) aviso.remove();
+    }
 }
 
 function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
     const adm = pedido.dadosAditivo;
     const fex = pedido.dadosFuncExcedido;
-    const stAdm = (adm?.status_aprovacao || 'pendente').toLowerCase();
-    const aditivoPendente  = stAdm === 'pendente';
-    const aditivoRejeitado = stAdm === 'rejeitado';
     const admSols  = adm?.solicitacoes_individuais || [];
     const fexSols  = fex?.solicitacoes_individuais || [];
     const idLogAdm = adm?.id_log || '';
@@ -9448,19 +9452,30 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
     const solicitante   = pedido.solicitante_nome || pedido.nomeSolicitante || adm?.solicitante_nome || adm?.nomeSolicitante || '';
     const idStaffEvento = pedido.idstaffevento || adm?.idstaffevento || '';
 
-    const linhasDatas = (sols, classeAprovar, classeRejeitar, idLog, bloqueado) => sols.map((sol, idx) => {
+    const normalizarData = (sol) => {
+        let datasRaw = sol.data;
+        if (typeof datasRaw === 'string') datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+        return String(Array.isArray(datasRaw) ? datasRaw[0] : datasRaw).trim();
+    };
+    // Solicitação 1 (Aditivo) e Solicitação 2 (FuncExcedido) são criadas em pares 1:1
+    // por data — usamos isso pra travar/destravar cada linha da Seção 2 conforme SÓ a
+    // data correspondente da Seção 1 (não mais um status único pro card inteiro).
+    const admPorData = new Map(admSols.map(sol => [normalizarData(sol), sol]));
+
+    const linhasDatas = (sols, classeAprovar, classeRejeitar, idLog, bloqueadoFn) => sols.map((sol, idx) => {
         let datasRaw = sol.data;
         if (typeof datasRaw === 'string') datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
         const dataFmt = (Array.isArray(datasRaw) ? datasRaw : [datasRaw]).map(d => {
             const dt = String(d).trim();
             return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
         }).join(', ');
-        const dataAttr = String(Array.isArray(datasRaw) ? datasRaw[0] : datasRaw).trim();
+        const dataAttr = normalizarData(sol);
+        const bloqueado = typeof bloqueadoFn === 'function' ? bloqueadoFn(sol, dataAttr) : !!bloqueadoFn;
         const solSt = (sol.status || 'pendente').toLowerCase();
         const jaResolvida = solSt === 'autorizado' || solSt === 'rejeitado';
         const isLast = idx === sols.length - 1;
         return `
-            <div class="linha-data-aditivo" data-idsolicitacao="${sol.idsolicitacao}"
+            <div class="linha-data-aditivo" data-idsolicitacao="${sol.idsolicitacao}" data-data="${dataAttr}"
                  style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:${isLast ? 'none' : '1px solid #e5e7eb'};">
                 <span style="font-size:13px;">📅 ${dataFmt}</span>
                 <div style="display:flex;gap:6px;">
@@ -9480,17 +9495,32 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
     }).join('');
 
     const htmlSols1 = linhasDatas(admSols, 'aprovar-fe-aditivo-ind', 'rejeitar-fe-aditivo-ind', idLogAdm, false);
-    const htmlSols2 = linhasDatas(fexSols, 'aprovar-fe-func-ind', 'rejeitar-fe-func-ind', idLogFex, aditivoPendente || aditivoRejeitado);
+    const htmlSols2 = linhasDatas(fexSols, 'aprovar-fe-func-ind', 'rejeitar-fe-func-ind', idLogFex, (sol, dataAttr) => {
+        const admMatch = admPorData.get(dataAttr);
+        // Sem par encontrado (dado legado/órfão) → mantém bloqueado por segurança.
+        if (!admMatch) return true;
+        const stAdm = (admMatch.status || 'pendente').toLowerCase();
+        return stAdm === 'pendente' || stAdm === 'rejeitado';
+    });
 
-    const corSec2Border = aditivoPendente ? '#9ca3af' : aditivoRejeitado ? '#dc2626' : '#16a34a';
-    const bgSec2        = aditivoPendente ? '#f9fafb' : aditivoRejeitado ? '#fef2f2' : '#f0fdf4';
-    const corSec2Titulo = aditivoPendente ? '#6b7280' : aditivoRejeitado ? '#991b1b' : '#166534';
-    const iconeSec2     = aditivoPendente ? '🔒' : aditivoRejeitado ? '❌' : '✅';
+    // Resumo agregado — só pra exibição do banner da Seção 2 (informativo). O
+    // desbloqueio/travamento de cada linha já é individual, por data, acima.
+    const statusUnicosAdm = new Set(admSols.map(sol => (sol.status || 'pendente').toLowerCase().trim()));
+    const aditivoPendente         = admSols.length === 0 || statusUnicosAdm.has('pendente');
+    const aditivoTodoRejeitado    = !aditivoPendente && statusUnicosAdm.size === 1 && statusUnicosAdm.has('rejeitado');
+    const aditivoParcialRejeitado = !aditivoPendente && !aditivoTodoRejeitado && statusUnicosAdm.has('rejeitado');
+
+    const corSec2Border = aditivoPendente ? '#9ca3af' : aditivoTodoRejeitado ? '#dc2626' : aditivoParcialRejeitado ? '#f59e0b' : '#16a34a';
+    const bgSec2        = aditivoPendente ? '#f9fafb' : aditivoTodoRejeitado ? '#fef2f2' : aditivoParcialRejeitado ? '#fffbeb' : '#f0fdf4';
+    const corSec2Titulo = aditivoPendente ? '#6b7280' : aditivoTodoRejeitado ? '#991b1b' : aditivoParcialRejeitado ? '#92400e' : '#166534';
+    const iconeSec2     = aditivoPendente ? '🔒' : aditivoTodoRejeitado ? '❌' : aditivoParcialRejeitado ? '⚠️' : '✅';
     const tituloSec2    = aditivoPendente
-        ? 'Solicitação 2 — Autorizar Funcionário Excedido (Bloqueado)'
-        : aditivoRejeitado
+        ? 'Solicitação 2 — Autorizar Funcionário Excedido (libera por data)'
+        : aditivoTodoRejeitado
             ? 'Solicitação 2 — Cancelada (Aditivo Rejeitado)'
-            : 'Solicitação 2 — Autorizar Funcionário Excedido';
+            : aditivoParcialRejeitado
+                ? 'Solicitação 2 — Autorizar Funcionário Excedido (parte do Aditivo foi rejeitada)'
+                : 'Solicitação 2 — Autorizar Funcionário Excedido';
 
     return `
         <div class="combo-fe-card"
@@ -9509,8 +9539,10 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
                     🔴 Solicitação 1 — Aditivo: Criar Vaga no Orçamento (Limite Financeiro Excedido)
                 </div>
                 <div style="font-size:11px;color:#7f1d1d;margin-bottom:8px;line-height:1.5;">
-                    Ao <strong>Autorizar</strong>: vaga extra criada no orçamento, autorização do funcionário desbloqueada.<br>
-                    Ao <strong>Rejeitar</strong>: funcionário cancelado automaticamente e marcado como Deletado.
+                    Ao <strong>Autorizar</strong> uma data: vaga extra criada no orçamento pra ela, autorização do
+                    funcionário nessa mesma data é desbloqueada.<br>
+                    Ao <strong>Rejeitar</strong> uma data: só a autorização do funcionário nessa mesma data é
+                    cancelada — as demais datas seguem seu próprio fluxo.
                 </div>
                 ${justificativa ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativa}</div>` : ''}
                 <div style="border:1px solid #fca5a5;border-radius:4px;overflow:hidden;font-size:12px;">
@@ -9523,13 +9555,175 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
                 <div class="combo-fe-titulo-sec2" style="font-weight:700;color:${corSec2Titulo};margin-bottom:4px;">
                     ${iconeSec2} ${tituloSec2}
                 </div>
-                ${aditivoPendente  ? `<div class="combo-fe-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Aguardando resolução do Aditivo acima antes de autorizar o funcionário.</div>` : ''}
-                ${aditivoRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">Aditivo rejeitado — autorização do funcionário cancelada automaticamente. Registro permanece inativo.</div>` : ''}
-                ${!aditivoRejeitado ? `
+                ${aditivoPendente ? `<div class="combo-fe-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Cada data libera assim que a mesma data do Aditivo acima for autorizada.</div>` : ''}
+                ${aditivoTodoRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">Aditivo rejeitado em todas as datas — autorização do funcionário cancelada nessas datas.</div>` : ''}
+                ${aditivoParcialRejeitado ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;">Parte das datas do Aditivo foi rejeitada — só as datas correspondentes do funcionário foram canceladas.</div>` : ''}
                 <div style="border:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};border-radius:4px;overflow:hidden;font-size:12px;">
                     <div style="background:${aditivoPendente ? '#f3f4f6' : '#dcfce7'};padding:4px 10px;border-bottom:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};font-size:11px;"><strong>DATAS DO FUNCIONÁRIO</strong></div>
                     ${htmlSols2 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
-                </div>` : ''}
+                </div>
+            </div>
+        </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Combo FuncExcedido + Vaga Excedida — clone estrutural de cardFuncaoExcedidaAditivo
+// (mesma trava por-data, mesmo par Solicitação 1/Solicitação 2), mas Solicitação 1
+// pode ser Aditivo OU Extra Bonificado (pedido.isComboAditivoFuncVaga), e o motivo é
+// "Vaga Excedida" (quantidade/dias orçados) em vez de "Limite Financeiro Excedido".
+// Mantido como função separada (não generalizada dentro de cardFuncaoExcedidaAditivo)
+// de propósito: aquela função é grande e foi corrigida recentemente nesta sessão —
+// clonar aqui evita risco de regressão nela.
+
+function desbloquearFuncaoExcedidaVagaAutorizada(secao2El, dataAlvo) {
+    const linha = dataAlvo != null
+        ? secao2El.querySelector(`.linha-data-aditivo[data-data="${String(dataAlvo).replace(/["\\]/g, '\\$&')}"]`)
+        : null;
+    if (linha) {
+        const btnA = linha.querySelector('.aprovar-fev-func-ind');
+        const btnR = linha.querySelector('.rejeitar-fev-func-ind');
+        if (btnA) { btnA.disabled = false; btnA.style.opacity = '1'; btnA.style.cursor = 'pointer'; }
+        if (btnR) { btnR.disabled = false; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer'; }
+    }
+    const aindaBloqueadas = secao2El.querySelectorAll('.aprovar-fev-func-ind:disabled').length > 0;
+    if (!aindaBloqueadas) {
+        secao2El.style.borderLeftColor = '#16a34a';
+        secao2El.style.background = '#f0fdf4';
+        const titulo = secao2El.querySelector('.combo-fev-titulo-sec2');
+        if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Funcionário Excedido'; titulo.style.color = '#166534'; }
+        const aviso = secao2El.querySelector('.combo-fev-aviso-lock');
+        if (aviso) aviso.remove();
+    }
+}
+
+function cardFuncaoExcedidaVagaExcedida(pedido, statusDesejado, podeAprovar) {
+    const adm = pedido.dadosAditivo;
+    const fex = pedido.dadosFuncExcedido;
+    const admSols  = adm?.solicitacoes_individuais || [];
+    const fexSols  = fex?.solicitacoes_individuais || [];
+    const idLogAdm = adm?.id_log || '';
+    const idLogFex = fex?.id_log || '';
+    const idsFexStr = fexSols.map(s => s.idsolicitacao).join(',');
+    const justificativa = adm?.justificativaSolicitacao || pedido.justificativaSolicitacao
+        || admSols[0]?.justificativa || fexSols[0]?.justificativa || '';
+    const nmFunc       = pedido.nomefuncionario || '-';
+    const descFunc     = pedido.descFuncao || pedido.descFuncaoOriginal || '-';
+    const dtCriacao    = pedido.dtCriacao ? new Date(pedido.dtCriacao).toLocaleDateString('pt-BR') : '';
+    const solicitante   = pedido.solicitante_nome || pedido.nomeSolicitante || adm?.solicitante_nome || adm?.nomeSolicitante || '';
+    const idStaffEvento = pedido.idstaffevento || adm?.idstaffevento || '';
+
+    const isAditivo  = !!(pedido.isComboAditivoFuncVaga);
+    const labelTipo1 = isAditivo ? 'Aditivo' : 'Extra Bonificado';
+
+    const normalizarData = (sol) => {
+        let datasRaw = sol.data;
+        if (typeof datasRaw === 'string') datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+        return String(Array.isArray(datasRaw) ? datasRaw[0] : datasRaw).trim();
+    };
+    // Solicitação 1 (Aditivo/Extra Bonificado) e Solicitação 2 (FuncExcedido) são
+    // criadas em pares 1:1 por data — trava/destrava cada linha da Seção 2 conforme
+    // SÓ a data correspondente da Seção 1.
+    const admPorData = new Map(admSols.map(sol => [normalizarData(sol), sol]));
+
+    const linhasDatas = (sols, classeAprovar, classeRejeitar, idLog, bloqueadoFn) => sols.map((sol, idx) => {
+        let datasRaw = sol.data;
+        if (typeof datasRaw === 'string') datasRaw = datasRaw.replace(/[{}]/g, '').split(',');
+        const dataFmt = (Array.isArray(datasRaw) ? datasRaw : [datasRaw]).map(d => {
+            const dt = String(d).trim();
+            return dt.includes('-') ? dt.split('-').reverse().join('/') : dt;
+        }).join(', ');
+        const dataAttr = normalizarData(sol);
+        const bloqueado = typeof bloqueadoFn === 'function' ? bloqueadoFn(sol, dataAttr) : !!bloqueadoFn;
+        const solSt = (sol.status || 'pendente').toLowerCase();
+        const jaResolvida = solSt === 'autorizado' || solSt === 'rejeitado';
+        const isLast = idx === sols.length - 1;
+        return `
+            <div class="linha-data-aditivo" data-idsolicitacao="${sol.idsolicitacao}" data-data="${dataAttr}"
+                 style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:${isLast ? 'none' : '1px solid #e5e7eb'};">
+                <span style="font-size:13px;">📅 ${dataFmt}</span>
+                <div style="display:flex;gap:6px;">
+                    ${jaResolvida
+                        ? `<span style="font-size:12px;font-weight:bold;color:${solSt === 'autorizado' ? '#16a34a' : '#dc2626'};border:1px solid ${solSt === 'autorizado' ? '#16a34a' : '#dc2626'};border-radius:3px;padding:2px 8px;">${solSt === 'autorizado' ? '✅ Autorizado' : '❌ Rejeitado'}</span>`
+                        : (podeAprovar ? `
+                            <button class="${classeAprovar}" data-id="${sol.idsolicitacao}" data-logid="${idLog}" data-data="${dataAttr}"
+                                ${bloqueado ? 'disabled' : ''}
+                                style="background:none;border:1px solid #16a34a;border-radius:3px;font-size:13px;padding:2px 6px;${bloqueado ? 'opacity:0.35;cursor:not-allowed;' : 'cursor:pointer;'}">✅</button>
+                            <button class="${classeRejeitar}" data-id="${sol.idsolicitacao}" data-logid="${idLog}" data-data="${dataAttr}"
+                                ${bloqueado ? 'disabled' : ''}
+                                style="background:none;border:1px solid #dc2626;border-radius:3px;font-size:13px;padding:2px 6px;${bloqueado ? 'opacity:0.35;cursor:not-allowed;' : 'cursor:pointer;'}">❌</button>
+                          ` : '')
+                    }
+                </div>
+            </div>`;
+    }).join('');
+
+    const htmlSols1 = linhasDatas(admSols, 'aprovar-fev-aditivo-ind', 'rejeitar-fev-aditivo-ind', idLogAdm, false);
+    const htmlSols2 = linhasDatas(fexSols, 'aprovar-fev-func-ind', 'rejeitar-fev-func-ind', idLogFex, (sol, dataAttr) => {
+        const admMatch = admPorData.get(dataAttr);
+        if (!admMatch) return true;
+        const stAdm = (admMatch.status || 'pendente').toLowerCase();
+        return stAdm === 'pendente' || stAdm === 'rejeitado';
+    });
+
+    const statusUnicosAdm = new Set(admSols.map(sol => (sol.status || 'pendente').toLowerCase().trim()));
+    const aditivoPendente         = admSols.length === 0 || statusUnicosAdm.has('pendente');
+    const aditivoTodoRejeitado    = !aditivoPendente && statusUnicosAdm.size === 1 && statusUnicosAdm.has('rejeitado');
+    const aditivoParcialRejeitado = !aditivoPendente && !aditivoTodoRejeitado && statusUnicosAdm.has('rejeitado');
+
+    const corSec2Border = aditivoPendente ? '#9ca3af' : aditivoTodoRejeitado ? '#dc2626' : aditivoParcialRejeitado ? '#f59e0b' : '#16a34a';
+    const bgSec2        = aditivoPendente ? '#f9fafb' : aditivoTodoRejeitado ? '#fef2f2' : aditivoParcialRejeitado ? '#fffbeb' : '#f0fdf4';
+    const corSec2Titulo = aditivoPendente ? '#6b7280' : aditivoTodoRejeitado ? '#991b1b' : aditivoParcialRejeitado ? '#92400e' : '#166534';
+    const iconeSec2     = aditivoPendente ? '🔒' : aditivoTodoRejeitado ? '❌' : aditivoParcialRejeitado ? '⚠️' : '✅';
+    const tituloSec2    = aditivoPendente
+        ? 'Solicitação 2 — Autorizar Funcionário Excedido (libera por data)'
+        : aditivoTodoRejeitado
+            ? `Solicitação 2 — Cancelada (${labelTipo1} Rejeitado)`
+            : aditivoParcialRejeitado
+                ? `Solicitação 2 — Autorizar Funcionário Excedido (parte do ${labelTipo1} foi rejeitada)`
+                : 'Solicitação 2 — Autorizar Funcionário Excedido';
+
+    return `
+        <div class="combo-fev-card"
+             data-ids-funcexc="${idsFexStr}"
+             data-idlog-funcexc="${idLogFex}"
+             data-idstaffevento="${idStaffEvento}"
+             data-natureza="${isAditivo ? 'aditivo' : 'extra'}"
+             style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">
+                <strong>Funcionário:</strong> ${nmFunc} &nbsp;|&nbsp; <strong>Função:</strong> ${descFunc}
+                ${dtCriacao ? `&nbsp;|&nbsp; <strong>Solicitado em:</strong> ${dtCriacao}${solicitante ? ` &nbsp; <strong>por:</strong> ${solicitante}` : ''}` : ''}
+                ${justificativa ? `<br><span style="margin-top:4px;display:block;"><strong>Justificativa:</strong> ${justificativa}</span>` : ''}
+            </div>
+            <div class="combo-fev-secao-aditivo"
+                 style="background:#fee2e2;border-radius:6px;padding:12px;margin-bottom:10px;border-left:4px solid #dc2626;">
+                <div style="font-weight:700;color:#991b1b;margin-bottom:4px;">
+                    🔴 Solicitação 1 — ${labelTipo1}: ${isAditivo ? 'Criar Vaga no Orçamento' : 'Diária Extra Bonificada'} (Vaga Excedida)
+                </div>
+                <div style="font-size:11px;color:#7f1d1d;margin-bottom:8px;line-height:1.5;">
+                    Ao <strong>Autorizar</strong> uma data: ${isAditivo
+                        ? 'vaga extra criada no orçamento pra ela, autorização do funcionário nessa mesma data é desbloqueada.'
+                        : 'a empresa absorve o custo da diária extra sem criar vaga no orçamento, e a autorização do funcionário nessa mesma data é desbloqueada.'}<br>
+                    Ao <strong>Rejeitar</strong> uma data: só a autorização do funcionário nessa mesma data é
+                    cancelada — as demais datas seguem seu próprio fluxo.
+                </div>
+                ${justificativa ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativa}</div>` : ''}
+                <div style="border:1px solid #fca5a5;border-radius:4px;overflow:hidden;font-size:12px;">
+                    <div style="background:#fef2f2;padding:4px 10px;border-bottom:1px solid #fca5a5;font-size:11px;"><strong>DATAS EXCEDIDAS</strong></div>
+                    ${htmlSols1 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                </div>
+            </div>
+            <div class="combo-fev-secao-func" data-idlog="${idLogFex}"
+                 style="background:${bgSec2};border-radius:6px;padding:12px;border-left:4px solid ${corSec2Border};">
+                <div class="combo-fev-titulo-sec2" style="font-weight:700;color:${corSec2Titulo};margin-bottom:4px;">
+                    ${iconeSec2} ${tituloSec2}
+                </div>
+                ${aditivoPendente ? `<div class="combo-fev-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Cada data libera assim que a mesma data do ${labelTipo1} acima for autorizada.</div>` : ''}
+                ${aditivoTodoRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">${labelTipo1} rejeitado em todas as datas — autorização do funcionário cancelada nessas datas.</div>` : ''}
+                ${aditivoParcialRejeitado ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;">Parte das datas do ${labelTipo1} foi rejeitada — só as datas correspondentes do funcionário foram canceladas.</div>` : ''}
+                <div style="border:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};border-radius:4px;overflow:hidden;font-size:12px;">
+                    <div style="background:${aditivoPendente ? '#f3f4f6' : '#dcfce7'};padding:4px 10px;border-bottom:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};font-size:11px;"><strong>DATAS DO FUNCIONÁRIO</strong></div>
+                    ${htmlSols2 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                </div>
             </div>
         </div>`;
 }
@@ -9790,13 +9984,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 return;
             }
 
-            // Caso especial: combo FuncExcedido + Estouro Financeiro — status controlado independente
-            if (pedidoOriginal.isComboFuncExcedidoAditivo) {
-                const stAdm = (pedidoOriginal.dadosAditivo?.status_aprovacao || 'pendente').toLowerCase();
-                const stFE  = (pedidoOriginal.dadosFuncExcedido?.status_aprovacao || 'pendente').toLowerCase();
-                const ok = (statusDesejado === STATUS_PENDENTE_LOWER  && (stAdm === 'pendente' || stFE === 'pendente'))
-                        || (statusDesejado === STATUS_AUTORIZADO_LOWER && stAdm === 'autorizado' && stFE === 'autorizado')
-                        || (statusDesejado === STATUS_REJEITADO_LOWER  && (stAdm === 'rejeitado' || stFE === 'rejeitado'));
+            // Caso especial: combos FuncExcedido + Estouro Financeiro / FuncExcedido + Vaga
+            // Excedida — status controlado por data (cada lado pode ter datas em status
+            // diferentes, então olhamos as datas individuais em vez de um status único do
+            // card inteiro). Os dois combos usam exatamente os mesmos campos
+            // dadosAditivo/dadosFuncExcedido, só o flag de origem muda.
+            if (pedidoOriginal.isComboFuncExcedidoAditivo || pedidoOriginal.isComboFuncExcedidoVaga) {
+                const admSolsBucket = pedidoOriginal.dadosAditivo?.solicitacoes_individuais || [];
+                const feSolsBucket  = pedidoOriginal.dadosFuncExcedido?.solicitacoes_individuais || [];
+                const statusDaSol = (s) => (s.status || 'pendente').toLowerCase().trim();
+                const algumaCom = (sols, st) => sols.some(s => statusDaSol(s) === st);
+                const ok = (statusDesejado === STATUS_PENDENTE_LOWER   && (algumaCom(admSolsBucket, 'pendente')   || algumaCom(feSolsBucket, 'pendente')))
+                        || (statusDesejado === STATUS_AUTORIZADO_LOWER && (algumaCom(admSolsBucket, 'autorizado') || algumaCom(feSolsBucket, 'autorizado')))
+                        || (statusDesejado === STATUS_REJEITADO_LOWER  && (algumaCom(admSolsBucket, 'rejeitado')  || algumaCom(feSolsBucket, 'rejeitado')));
                 if (ok) { pedidoConsolidado.temMatch = true; temAlgumMatchNesteGrupo = true; }
                 return; // pula o processamento normal de campos
             }
@@ -9933,6 +10133,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 htmlBody += cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar);
                 return;
             }
+            // ─── Combo FuncExcedido + Vaga Excedida ───────────────────────
+            if (pedido.isComboFuncExcedidoVaga) {
+                itensGrupo++;
+                totalItensRenderizados++;
+                htmlBody += cardFuncaoExcedidaVagaExcedida(pedido, statusDesejado, podeAprovar);
+                return;
+            }
             // ─────────────────────────────────────────────────────────────
 
             const solicitacoesIndividuais = pedido.solicitacoes_individuais || [];
@@ -9978,7 +10185,9 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                 : "Vaga Reaproveitada - Diária de Outra Função";
                         } else if (tipo.includes('BONIFICADO') && tipo.includes('VAGA EXCEDIDA')) {
                             tituloCard = "Extra Bonificado - Vaga Excedida";
-                        } else if ((tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) || tipo === 'FUNCEXCEDIDO') {
+                        } else if (tipo === 'FUNCEXCEDIDO') {
+                            tituloCard = "Funcionário Excedido";
+                        } else if (tipo.includes('VAGA') && !tipo.includes('REAPROVEITADA')) {
                             tituloCard = "Aditivo - Vaga Excedida";
                         } else if (tipo.includes('ORÇAMENTO') || tipo.includes('ORCAMENTO') || tipo.includes('FORA')) {
                             tituloCard = "Aditivo - Datas fora do Orçamento";
@@ -10279,6 +10488,16 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             } else {
                                 todasAsDatas = dataFormatadaSolictacao;
                             }
+                            const justifFex = pedido.justificativaSolicitacao || infoItem.descricao || '';
+                            if (justifFex) {
+                                htmlBody += `<strong>Justificativa:</strong> ${justifFex}<br>`;
+                            }
+                            if (tipoUpper === 'FUNCEXCEDIDO') {
+                                const funcaoSol = pedido.descFuncaoOriginal || pedido.descFuncao || '';
+                                if (funcaoSol) {
+                                    htmlBody += `<strong>Função Solicitada:</strong> ${funcaoSol}<br>`;
+                                }
+                            }
                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
                         } else if (tipoUpper.includes('REAPROVEITADA') || tipoUpper.includes('OUTRA FUNÇÃO') || tipoUpper.includes('OUTRA FUNCAO')) {
                             const justif = pedido.justificativaSolicitacao || infoItem.descricao || '';
@@ -10356,7 +10575,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const rejeitadasIni = solicitacoesIndividuais.filter(s => (s.status || '').toLowerCase() === 'rejeitado').length;
                             const previsionadoIni = saldoAtual - vlrDia * (datasAll - rejeitadasIni);
                             const corPrev = previsionadoIni < 0 ? '#dc2626' : '#16a34a';
-                            htmlBody += `<div class="badge-financeiro-aditivo" data-saldo-atual="${saldoAtual}" data-vlr-dia="${vlrDia}" data-datas-all="${datasAll}" style="margin:4px 0 6px;padding:5px 10px;background:#f8fafc;border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:#374151;">💰 <strong>Custo Orçado:</strong> ${fmt(orcado)} &nbsp;|&nbsp;<strong>Saldo atual:</strong> ${saldoAtualFmt} &nbsp;|&nbsp;<strong>Saldo Após autorizar e incluir no orçamento:</strong> <span style="color:${corSaldo};font-weight:bold;">${saldoApos < 0 ? '-' : ''}${fmt(saldoApos)}${aviso}</span> &nbsp;|&nbsp;<strong>Saldo previsionado conforme decisão:</strong> <span class="saldo-previsionado-value" style="color:${corPrev};font-weight:bold;">${previsionadoIni < 0 ? '-' : ''}${fmt(previsionadoIni)}</span></div>`;
+                            htmlBody += `<div class="badge-financeiro-aditivo" data-saldo-atual="${saldoAtual}" data-vlr-dia="${vlrDia}" data-datas-all="${datasAll}" style="margin:4px 0 6px;padding:5px 10px;background:#f8fafc;border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:#374151;">💰 <strong>Custo Orçado:</strong> ${fmt(orcado)} &nbsp;|&nbsp;<strong>Saldo atual:</strong> ${saldoAtualFmt} &nbsp;|&nbsp;<strong>Saldo Após autorizar todos e incluir no orçamento:</strong> <span style="color:${corSaldo};font-weight:bold;">${saldoApos < 0 ? '-' : ''}${fmt(saldoApos)}${aviso}</span> &nbsp;|&nbsp;<strong>Saldo previsionado conforme decisão:</strong> <span class="saldo-previsionado-value" style="color:${corPrev};font-weight:bold;">${previsionadoIni < 0 ? '-' : ''}${fmt(previsionadoIni)}</span></div>`;
                             if (outrasPendentes > 0) {
                                 const saldoEfetivo = saldoApos - outrasPendentes, corEfetivo = saldoEfetivo < 0 ? '#dc2626' : '#92400e';
                                 htmlBody += `<div style="margin:0 0 6px;padding:3px 10px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:3px;font-size:11.5px;color:#78350f;">📋 Há outras ${fmt(outrasPendentes)} em sol. pendentes — saldo efetivo: <span style="color:${corEfetivo};font-weight:bold;">${saldoEfetivo < 0 ? '-' : ''}${fmt(saldoEfetivo)}</span>${saldoEfetivo < 0 ? ' — aguardar aprovações ou solicitar Aditivo' : ''}</div>`;
@@ -10528,8 +10747,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             const result = await Swal.fire({
                 title: isAprovar ? 'Autorizar Aditivo?' : 'Rejeitar Aditivo?',
                 html: isAprovar
-                    ? 'Ao autorizar, a vaga será criada no orçamento e a autorização do funcionário será desbloqueada.'
-                    : '<strong>Atenção:</strong> Rejeitar o Aditivo cancelará automaticamente a solicitação do funcionário excedido. O staffevento será marcado como Deletado.',
+                    ? 'Ao autorizar, a vaga será criada no orçamento e a autorização do funcionário nesta mesma data será desbloqueada.'
+                    : '<strong>Atenção:</strong> Rejeitar o Aditivo cancelará automaticamente a autorização do funcionário excedido apenas nesta data.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
@@ -10563,21 +10782,20 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 if (divBadge) divBadge.innerHTML = `<span style="font-size:12px;font-weight:bold;color:${corStatus};border:1px solid ${corStatus};border-radius:3px;padding:2px 8px;">${textoStatus}</span>`;
             }
 
+            const secao2 = cardCombo?.querySelector('.combo-fe-secao-func');
             if (isAprovar) {
-                // Desbloqueia Seção 2 imediatamente (card continua aberto)
-                const secao2 = cardCombo?.querySelector('.combo-fe-secao-func');
-                if (secao2) desbloquearFuncaoExcedidaAutorizada(secao2);
+                // Desbloqueia só a linha da Seção 2 com a mesma data (card continua aberto)
+                if (secao2) desbloquearFuncaoExcedidaAutorizada(secao2, dataEsp);
             } else {
-                // Rejeição: auto-rejeita o FuncExcedido e indica na Seção 2
-                const idsFuncExc   = cardCombo?.getAttribute('data-ids-funcexc');
+                // Rejeição: auto-rejeita só a linha do FuncExcedido com a MESMA data, não todas
                 const idLogFuncExc = cardCombo?.getAttribute('data-idlog-funcexc');
-                if (idsFuncExc && idLogFuncExc) {
-                    for (const idSolFE of idsFuncExc.split(',')) {
-                        await atualizarStatusAditivoExtra(idSolFE.trim(), 'rejeitado', null, idLogFuncExc, true, 'statusvagaexcedida');
-                    }
+                const linhaFE = secao2?.querySelector(`.linha-data-aditivo[data-data="${String(dataEsp).replace(/["\\]/g, '\\$&')}"]`);
+                const idSolFEAlvo = linhaFE?.getAttribute('data-idsolicitacao');
+                if (idSolFEAlvo && idLogFuncExc) {
+                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida');
+                    const divBadgeFE = linhaFE.querySelector('div');
+                    if (divBadgeFE) divBadgeFE.innerHTML = `<span style="font-size:12px;font-weight:bold;color:#dc2626;border:1px solid #dc2626;border-radius:3px;padding:2px 8px;">❌ Cancelado (Aditivo rejeitado)</span>`;
                 }
-                const secao2 = cardCombo?.querySelector('.combo-fe-secao-func');
-                if (secao2) secao2.innerHTML = `<div style="color:#6b7280;font-size:12px;padding:8px;">❌ Aditivo Rejeitado — Autorização do funcionário cancelada automaticamente.</div>`;
             }
 
             Swal.fire({ icon: 'success', title: isAprovar ? 'Aditivo Autorizado!' : 'Aditivo Rejeitado!', timer: 800, showConfirmButton: false });
@@ -10599,6 +10817,108 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 html: isAprovar
                     ? 'O funcionário será ativado no evento nas datas excedidas.'
                     : 'O funcionário permanecerá inativo. A vaga no orçamento foi criada mas não será ocupada por este funcionário.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!result.isConfirmed) return;
+
+            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusvagaexcedida');
+            if (!sucesso) return;
+
+            const linhaDom = target.closest('.linha-data-aditivo');
+            if (linhaDom) {
+                linhaDom.querySelector('div').innerHTML = `<span style="font-size:12px;font-weight:bold;color:${isAprovar ? '#16a34a' : '#dc2626'};border:1px solid ${isAprovar ? '#16a34a' : '#dc2626'};border-radius:3px;padding:2px 8px;">${isAprovar ? '✅ Autorizado' : '❌ Rejeitado'}</span>`;
+            }
+            atualizarContadoresGlobais();
+            return;
+        }
+
+        //── COMBO FuncExcedido + Vaga Excedida ────────────────────
+        // Seção 1 — Autorizar/Rejeitar Aditivo ou Extra Bonificado (individual)
+        if (target.classList.contains('aprovar-fev-aditivo-ind') ||
+            target.classList.contains('rejeitar-fev-aditivo-ind')) {
+            event.stopPropagation();
+            const isAprovar  = target.classList.contains('aprovar-fev-aditivo-ind');
+            const idSol      = target.getAttribute('data-id');
+            const idLog      = target.getAttribute('data-logid');
+            const dataEsp    = target.getAttribute('data-data');
+            const cardCombo  = target.closest('.combo-fev-card');
+            const linhaDom   = target.closest('.linha-data-aditivo');
+            const isAditivo  = cardCombo?.getAttribute('data-natureza') !== 'extra';
+            const labelTipo1 = isAditivo ? 'Aditivo' : 'Extra Bonificado';
+
+            const result = await Swal.fire({
+                title: isAprovar ? `Autorizar ${labelTipo1}?` : `Rejeitar ${labelTipo1}?`,
+                html: isAprovar
+                    ? `Ao autorizar, ${isAditivo ? 'a vaga será criada no orçamento' : 'a empresa absorve o custo da diária extra'} e a autorização do funcionário nesta mesma data será desbloqueada.`
+                    : `<strong>Atenção:</strong> Rejeitar o ${labelTipo1} cancelará automaticamente a autorização do funcionário excedido apenas nesta data.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!result.isConfirmed) return;
+
+            try {
+                const novoStatus = isAprovar ? 'Autorizado' : 'Rejeitado';
+                const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp })
+                });
+                if (!resp?.sucesso) {
+                    Swal.fire('Erro', resp?.erro || 'Falha na atualização', 'error');
+                    return;
+                }
+            } catch (err) {
+                Swal.fire('Erro', 'Falha ao comunicar com o servidor', 'error');
+                return;
+            }
+
+            const corStatus = isAprovar ? '#16a34a' : '#dc2626';
+            const textoStatus = isAprovar ? '✅ Autorizado' : '❌ Rejeitado';
+            if (linhaDom) {
+                const divBadge = linhaDom.querySelector('div');
+                if (divBadge) divBadge.innerHTML = `<span style="font-size:12px;font-weight:bold;color:${corStatus};border:1px solid ${corStatus};border-radius:3px;padding:2px 8px;">${textoStatus}</span>`;
+            }
+
+            const secao2 = cardCombo?.querySelector('.combo-fev-secao-func');
+            if (isAprovar) {
+                if (secao2) desbloquearFuncaoExcedidaVagaAutorizada(secao2, dataEsp);
+            } else {
+                const idLogFuncExc = cardCombo?.getAttribute('data-idlog-funcexc');
+                const linhaFE = secao2?.querySelector(`.linha-data-aditivo[data-data="${String(dataEsp).replace(/["\\]/g, '\\$&')}"]`);
+                const idSolFEAlvo = linhaFE?.getAttribute('data-idsolicitacao');
+                if (idSolFEAlvo && idLogFuncExc) {
+                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida');
+                    const divBadgeFE = linhaFE.querySelector('div');
+                    if (divBadgeFE) divBadgeFE.innerHTML = `<span style="font-size:12px;font-weight:bold;color:#dc2626;border:1px solid #dc2626;border-radius:3px;padding:2px 8px;">❌ Cancelado (${labelTipo1} rejeitado)</span>`;
+                }
+            }
+
+            Swal.fire({ icon: 'success', title: isAprovar ? `${labelTipo1} Autorizado!` : `${labelTipo1} Rejeitado!`, timer: 800, showConfirmButton: false });
+            atualizarContadoresGlobais();
+            return;
+        }
+
+        // Seção 2 — Autorizar/Rejeitar FuncExcedido (individual)
+        if (target.classList.contains('aprovar-fev-func-ind') ||
+            target.classList.contains('rejeitar-fev-func-ind')) {
+            event.stopPropagation();
+            const isAprovar = target.classList.contains('aprovar-fev-func-ind');
+            const idSol     = target.getAttribute('data-id');
+            const idLog     = target.getAttribute('data-logid');
+            const dataEsp   = target.getAttribute('data-data');
+
+            const result = await Swal.fire({
+                title: isAprovar ? 'Autorizar Funcionário Excedido?' : 'Rejeitar Funcionário Excedido?',
+                html: isAprovar
+                    ? 'O funcionário será ativado no evento nas datas excedidas.'
+                    : 'O funcionário permanecerá inativo. A vaga não será ocupada por este funcionário.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',

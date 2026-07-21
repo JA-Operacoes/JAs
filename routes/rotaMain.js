@@ -1788,7 +1788,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 justificativaSolicitacao: r.desccaixinha || '',
                 nomeAprovador: r.nomeaprovador || '',
                 dataDecisao: r.datadecisao,
-                funcionario: categoriaReal === 'statusvagaexcedida' ? null : (r.nomefuncionario || '-'),
+                funcionario: (categoriaReal === 'statusvagaexcedida' && r.tiposolicitacao !== 'FuncExcedido') ? null : (r.nomefuncionario || '-'),
                 nomefuncionario: r.nomefuncionario,
                 evento: r.evento || '-',
                 dtCriacao: r.criado_em,
@@ -1858,40 +1858,103 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         });
 
         // --- Merge de pares FuncExcedido + Estouro Financeiro em um único card ---
-        const comboByStaff = new Map();
-        resultadoFinal.forEach(item => {
-            const tipo = item.tiposolicitacao_raw;
-            if (tipo === 'Aditivo - Limite Financeiro da Equipe Excedido' || tipo === 'FuncExcedido + Estouro Financeiro') {
-                if (!comboByStaff.has(item.idstaffevento)) {
-                    comboByStaff.set(item.idstaffevento, { aditivoItem: null, funcExcItem: null });
+        // O GROUP BY da query base inclui s.status, então uma solicitação multi-data com
+        // status misto (algumas datas Autorizadas, outras Pendentes) vira 2 linhas SQL pro
+        // mesmo idstaffevento+tiposolicitacao — cada uma só com as datas daquele status.
+        // Por isso, ao invés de sobrescrever o slot quando já existe um item ali, mescla os
+        // dois (concatena as datas) — senão as datas do status-group anterior somem do card.
+        const mesclarStatusGroups = (base, extra) => {
+            const individuaisBase  = base.solicitacoes_individuais  || [];
+            const individuaisExtra = extra.solicitacoes_individuais || [];
+            const idsVistos = new Set(individuaisBase.map(s => s.idsolicitacao));
+            const individuaisMerged = [
+                ...individuaisBase,
+                ...individuaisExtra.filter(s => !idsVistos.has(s.idsolicitacao))
+            ];
+
+            const dtsolicitadaBase  = base.dtsolicitada  || [];
+            const dtsolicitadaExtra = extra.dtsolicitada || [];
+            const idsDtVistos = new Set(dtsolicitadaBase.map(s => s.idsolicitacao));
+            const dtsolicitadaMerged = [
+                ...dtsolicitadaBase,
+                ...dtsolicitadaExtra.filter(s => !idsDtVistos.has(s.idsolicitacao))
+            ];
+
+            const statusUnicos = new Set(individuaisMerged.map(s => (s.status || 'pendente').toLowerCase().trim()));
+            const statusAgregado = statusUnicos.has('pendente')
+                ? 'pendente'
+                : (statusUnicos.size === 1 ? [...statusUnicos][0] : 'misto');
+
+            return {
+                ...base,
+                id_log: Math.min(base.id_log, extra.id_log),
+                // Guarda todos os id_log absorvidos nesta mesclagem — o dedupe abaixo
+                // (comboLogIds) precisa remover TODAS as linhas originais do resultado
+                // final, não só a de id_log menor.
+                _idLogsMesclados: [...(base._idLogsMesclados || [base.id_log]), extra.id_log],
+                solicitacoes_individuais: individuaisMerged,
+                dtsolicitada: dtsolicitadaMerged,
+                status_aprovacao: statusAgregado,
+            };
+        };
+
+        // Config das combinações "Aditivo/Extra Bonificado + FuncExcedido" que viram
+        // um único card. Cada entrada casa o(s) tipo(s) possíveis da Solicitação 1
+        // (tipo1Variants) com o tipo fixo da Solicitação 2 (tipo2), agrupando por
+        // idstaffevento — mesmo mecanismo pros dois pares, só a config muda.
+        const combosConfig = [
+            {
+                tipo1Variants: ['Aditivo - Limite Financeiro da Equipe Excedido'],
+                tipo2: 'FuncExcedido + Estouro Financeiro',
+                comboFlag: 'isComboFuncExcedidoAditivo',
+                categoriaItem: 'funcexcedido_estouro',
+            },
+            {
+                tipo1Variants: ['Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida'],
+                tipo2: 'FuncExcedido + Vaga Excedida',
+                comboFlag: 'isComboFuncExcedidoVaga',
+                categoriaItem: 'funcexcedido_vagaexcedida',
+            },
+        ];
+
+        combosConfig.forEach(({ tipo1Variants, tipo2, comboFlag, categoriaItem }) => {
+            const comboByStaff = new Map();
+            resultadoFinal.forEach(item => {
+                const tipo = item.tiposolicitacao_raw;
+                if (tipo1Variants.includes(tipo) || tipo === tipo2) {
+                    if (!comboByStaff.has(item.idstaffevento)) {
+                        comboByStaff.set(item.idstaffevento, { aditivoItem: null, funcExcItem: null });
+                    }
+                    const entry = comboByStaff.get(item.idstaffevento);
+                    const slot = tipo1Variants.includes(tipo) ? 'aditivoItem' : 'funcExcItem';
+                    entry[slot] = entry[slot] ? mesclarStatusGroups(entry[slot], item) : item;
                 }
-                const entry = comboByStaff.get(item.idstaffevento);
-                if (tipo === 'Aditivo - Limite Financeiro da Equipe Excedido') entry.aditivoItem = item;
-                else entry.funcExcItem = item;
+            });
+
+            const comboPairs = new Map([...comboByStaff.entries()].filter(([, v]) => v.aditivoItem && v.funcExcItem));
+            if (comboPairs.size > 0) {
+                const comboLogIds = new Set();
+                const comboMerged = [];
+                comboPairs.forEach(({ aditivoItem, funcExcItem }) => {
+                    (aditivoItem._idLogsMesclados || [aditivoItem.id_log]).forEach(id => comboLogIds.add(id));
+                    (funcExcItem._idLogsMesclados || [funcExcItem.id_log]).forEach(id => comboLogIds.add(id));
+                    comboMerged.push({
+                        ...aditivoItem,
+                        [comboFlag]: true,
+                        // Distingue Aditivo x Extra Bonificado quando a Solicitação 1 admite os dois tipos.
+                        isComboAditivoFuncVaga: (aditivoItem.tiposolicitacao_raw || '').toLowerCase().includes('aditivo'),
+                        titulo_formatado: tipo2,
+                        categoria_item: categoriaItem,
+                        dadosAditivo: aditivoItem,
+                        dadosFuncExcedido: funcExcItem,
+                    });
+                });
+                resultadoFinal = [
+                    ...resultadoFinal.filter(item => !comboLogIds.has(item.id_log)),
+                    ...comboMerged
+                ];
             }
         });
-
-        const comboPairs = new Map([...comboByStaff.entries()].filter(([, v]) => v.aditivoItem && v.funcExcItem));
-        if (comboPairs.size > 0) {
-            const comboLogIds = new Set();
-            const comboMerged = [];
-            comboPairs.forEach(({ aditivoItem, funcExcItem }) => {
-                comboLogIds.add(aditivoItem.id_log);
-                comboLogIds.add(funcExcItem.id_log);
-                comboMerged.push({
-                    ...aditivoItem,
-                    isComboFuncExcedidoAditivo: true,
-                    titulo_formatado: 'FuncExcedido + Estouro Financeiro',
-                    categoria_item: 'funcexcedido_estouro',
-                    dadosAditivo: aditivoItem,
-                    dadosFuncExcedido: funcExcItem,
-                });
-            });
-            resultadoFinal = [
-                ...resultadoFinal.filter(item => !comboLogIds.has(item.id_log)),
-                ...comboMerged
-            ];
-        }
 
         // --- Merge de pares Extra Bonificado + Diária Dobrada em um único card ---
         const comboEDB = new Map();
@@ -1954,7 +2017,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
 
 // 1. Coloque a função auxiliar fora da rota
 const obterTituloFormatado = (r) => {
-    if (r.tiposolicitacao === 'FUNCEXCEDIDO') return "Func Excedido";
+    if ((r.tiposolicitacao || '').toUpperCase() === 'FUNCEXCEDIDO') return "Funcionário Excedido";
 
     let natureza = "";
     const categoria = (r.categoria || "").toLowerCase();
@@ -2199,7 +2262,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     }
                 }
 
-                let obsModificada = registro.obsgeral || ''; 
+                let obsModificada = registro.obslogsistema || '';
                 obsModificada = obsModificada.trim();
                 if (obsModificada.startsWith('.')) obsModificada = obsModificada.replace(/^\.+/, '').trim();
                 if (obsModificada.endsWith('.')) obsModificada = obsModificada.slice(0, -1).trim();
@@ -2227,7 +2290,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 const ehAditivoOuExtra = tipoSolicitacaoOriginal.toLowerCase().includes('aditivo') ||
                                          tipoSolicitacaoOriginal.toLowerCase().includes('extra bonificado') ||
                                          tipoSolicitacaoOriginal.toLowerCase().includes('extra') ||
-                                         tipoSolicitacaoOriginal.toLowerCase().includes('funcexcedido + estouro');
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('funcexcedido + estouro') ||
+                                         tipoSolicitacaoOriginal.toLowerCase().includes('funcexcedido + vaga');
 
                 const statusFinalStaff = (datasAtuais.length === 0)
                     ? 'Deletado'
@@ -2294,7 +2358,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                         vlrtotajdcusto  = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $3       END,
                         vlrtotal        = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $4       END,
                         statusstaff = $5,
-                        obsgeral = $6,
+                        obslogsistema = $6,
                         vagasreaproveitadas = CASE WHEN $8::text IS NOT NULL THEN $8::jsonb ELSE vagasreaproveitadas END
                     WHERE idstaffevento = $7
                     RETURNING *;
@@ -3513,7 +3577,7 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
                 try {
                     // Buscar estado atual do staffevento
                     const seRes = await pool.query(
-                        `SELECT dtdiariadobrada, obsgeral FROM staffeventos WHERE idstaffevento = $1`,
+                        `SELECT dtdiariadobrada, obslogsistema FROM staffeventos WHERE idstaffevento = $1`,
                         [idStaffEvento]
                     );
 
@@ -3531,14 +3595,14 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
                             });
                         }
 
-                        // Registrar rejeição em obsgeral
+                        // Registrar rejeição em obslogsistema (log automático, protegido)
                         const hoje = new Date().toLocaleDateString('pt-BR');
                         const obsRejeicao = `[${hoje}] Extra Bonificado rejeitado — Diária Dobrada cancelada automaticamente.`;
-                        const obsAtual = (seRow.obsgeral || '').trim();
+                        const obsAtual = (seRow.obslogsistema || '').trim();
                         const novaObs = obsAtual ? `${obsAtual}\n${obsRejeicao}` : obsRejeicao;
 
                         await pool.query(
-                            `UPDATE staffeventos SET dtdiariadobrada = $1::jsonb, obsgeral = $2 WHERE idstaffevento = $3`,
+                            `UPDATE staffeventos SET dtdiariadobrada = $1::jsonb, obslogsistema = $2 WHERE idstaffevento = $3`,
                             [JSON.stringify(dtDobrada), novaObs, idStaffEvento]
                         );
 
