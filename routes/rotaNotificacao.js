@@ -352,8 +352,8 @@ router.get('/inclusao-orcamentos-notificacao', autenticarToken(), async (req, re
       AND s.status = 'Autorizado'
       AND s.dtresposta > NOW() - INTERVAL '7 days'
       AND NOT EXISTS (
-          SELECT 1 FROM orcamentoitens oi 
-          WHERE s.idsolicitacao = ANY(oi.idsolicitacao) 
+          SELECT 1 FROM orcamentoitens oi
+          WHERE s.idsolicitacao = oi.idsolicitacao
       )
     GROUP BY 
         s.tiposolicitacao,
@@ -436,7 +436,7 @@ router.get('/retorno-Inclusao', autenticarToken(), async (req, res) => {
               AND n.lido = true
           )) AS ja_lido
       FROM solicitacoes s
-      INNER JOIN orcamentoitens oi ON s.idsolicitacao = ANY(oi.idsolicitacao)
+      INNER JOIN orcamentoitens oi ON s.idsolicitacao = oi.idsolicitacao
       INNER JOIN orcamentos o ON s.idorcamento = o.idorcamento
       LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
       LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
