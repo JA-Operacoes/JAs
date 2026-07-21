@@ -108,7 +108,13 @@ body.modal-open .notif-conteudo {
     z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
   }
 
-  /* From Uiverse.io by vinodjangid07 */ 
+  /* Garante que o SweetAlert fique acima do modal do orçamento e bloqueie os cliques atrás */
+  .swal-acima-modal {
+    z-index: 100010 !important;
+    pointer-events: auto !important;
+  }
+
+  /* From Uiverse.io by vinodjangid07 */
 .faq-button {
   width: 25px;
   height: 25px;
@@ -961,6 +967,8 @@ span.pavilhao-tag {
 
   .addLinha{
     display: flex;
+    flex-direction: row;
+    gap: 8px;
     justify-content: center;
     align-items: center;
   }

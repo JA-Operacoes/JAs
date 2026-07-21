@@ -1940,11 +1940,11 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
-        novaLinha.style.backgroundColor = "#c5eed0";
-        novaLinha.style.borderLeft = "4px solid #48bb78"; // Borda verde
+        novaLinha.style.backgroundColor = "#e48585";
+        novaLinha.style.borderLeft = "4px solid #ff0000"; // Borda verde
     } else {
-        novaLinha.style.backgroundColor = "#e48585"; // Cor padrão para aditivos
-        novaLinha.style.borderLeft = " 4px solid #ff0000 "; // Sem borda para aditivos
+        novaLinha.style.backgroundColor = "#c5eed0"; // Cor padrão para aditivos
+        novaLinha.style.borderLeft = "4px solid #48bb78"; // Sem borda para aditivos
     }
 
     // 2. HTML da Nova Linha
@@ -1966,7 +1966,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
                 </svg>
               </span>
           </label>
-          ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
+          ${isBonificado ? '<br><span style="font-size: 10px; color: #ff0000; font-weight: bold;">[BONIFICADO]</span>' : '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">[ADITIVO]</span>'}
         </div>
       </td>
 
@@ -1998,7 +1998,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
       <td class="produto">
         <input type="text" class="produto-input" value="" placeholder="Nome do item...">
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : '<br><small style="color: #28a745; font-weight: bold;">[EXTRA ADITIVO]</small>'}
       </td>
 
       <td class="setor"><input type="text" class="setor-input" value=""></td>
@@ -2349,11 +2349,11 @@ function carregarSolicitacao(sol, linha) {
         linha.dataset.extrabonificado = 'true';
         linha.dataset.bonificado = 'true';
         linha.dataset.vlrbase = '0';
-        linha.style.backgroundColor = '#c5eed0'; // Verde — bonificado
-        linha.style.borderLeft = '4px solid #28a745';
-    } else {
-        linha.style.backgroundColor = '#e48585'; // Vermelho — aditivo
+        linha.style.backgroundColor = '#e48585'; // Verde — bonificado
         linha.style.borderLeft = '4px solid #ff0000';
+    } else {
+        linha.style.backgroundColor = '#c5eed0'; // Vermelho — aditivo
+        linha.style.borderLeft = '4px solid #28a745';
     }
 
     // 2. Preenche a Categoria (Aditivo / Extra Bonificado)
@@ -3546,6 +3546,42 @@ async function verificaOrcamento() {
     });
   } else {
     console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
+  }
+
+  const btnTooltipAdicional = document.getElementById("tooltipAdicional");
+  if (btnTooltipAdicional) {
+    btnTooltipAdicional.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Botão 'Tooltip Adicional' clicado");
+      Swal.fire({
+        title: 'Extra Bonificado x Aditivo',
+        icon: 'info',
+        allowOutsideClick: false,
+        heightAuto: false,
+        customClass: { container: 'swal-acima-modal' },
+        html: `
+          <div style="text-align: left; line-height: 1.5; pointer-events:auto;">
+            <p>Ao adicionar um item em um orçamento <b>Fechado</b>, ele pode ser de dois tipos:</p>
+            <p>
+              <b style="color: #d33;">Extra Bonificado (vermelho)</b><br>
+              É um <b>custo total da JA</b>. Ou seja, é um item
+              bonificado que a JA absorve integralmente — por isso aparece em
+              <span style="color: #d33;">vermelho</span>, pois representa uma despesa.
+            </p>
+            <p>
+              <b style="color: #28a745;">Aditivo (verde)</b><br>
+              É um <b>lucro</b>, pois o <b>cliente é quem vai pagar</b> por esse item
+              adicional. Por isso aparece em <span style="color: #28a745;">verde</span>,
+              representando uma receita.
+            </p>
+          </div>
+        `,
+        confirmButtonText: 'Entendi'
+      });
+    });
+  } else {
+    console.error("Botão 'Tooltip Adicional' não encontrado.");
   }
 
   const btnGerarProximoAno = document.getElementById("GerarProximoAno");
@@ -5720,8 +5756,8 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       </td>
       <td class="produto">
         ${nomeProduto}
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
-        ${isAdicional && !isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isAdicional && !isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[ADICIONAL]</small>' : ''}
       </td>
       <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
       <td class="qtdDias">
@@ -6535,7 +6571,15 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-            let deveContinuarAtivo = false; 
+
+            // Botão de tooltip adicional acompanha o botão 'Adicional' (visível quando fechado)
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'flex';
+                botao.disabled = false;
+                return;
+            }
+
+            let deveContinuarAtivo = false;
             
             // 🔑 CORREÇÃO 2: Busca a linha pai (tr) do botão e verifica se ela possui as suas classes de adicional
             const linhaPai = botao.closest('tr');
@@ -6619,11 +6663,17 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-            
+
+            // Botão de tooltip adicional só aparece quando fechado
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'none';
+                return;
+            }
+
             if (id === 'GerarProximoAno') {
                 botao.style.display = 'none';
                 return;
-            } 
+            }
 
             if (classes.contains('Excel') || classes.contains('Contrato') || classes.contains('Adicional')) {
                 botao.style.display = 'none';
@@ -6733,6 +6783,7 @@ function liberarSelectsParaAdicional() {
 function verificarStatusParaAdicional() {
     const statusOrcamento = document.getElementById('Status')?.value;
     const btnAdicional = document.getElementById('adicionarLinhaAdicional');
+    const btnTooltipAdicional = document.getElementById('tooltipAdicional');
     const btnNormal = document.getElementById('adicionarLinha');
     const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
     
@@ -6741,6 +6792,9 @@ function verificarStatusParaAdicional() {
         if (btnAdicional) {
             btnAdicional.style.display = 'block';
             console.log("Status Fechado, botão 'Adicional' habilitado.");
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'flex';
         }
         if (btnNormal) {
             btnNormal.style.display = 'none'; // Impede adição normal quando fechado
@@ -6763,6 +6817,9 @@ function verificarStatusParaAdicional() {
         // Se não for 'F', mostra o botão normal e esconde o adicional
         if (btnAdicional) {
             btnAdicional.style.display = 'none';
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'none';
         }
         if (btnNormal) {
             btnNormal.style.display = 'block';
