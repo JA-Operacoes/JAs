@@ -286,6 +286,10 @@ async function carregarLocalMontOrc() {
         console.log("IDLOCALMONTAGEM selecionado:", idMontagem);
 
         carregarPavilhaoOrc(idMontagem);
+
+        // Atualiza a UF do local e reaplica a regra de ajuda de custo (fora de SP)
+        atualizarUFOrc(this);
+        reaplicarAjudaCustoForaSP();
       });
     });
   } catch (error) {
@@ -1975,11 +1979,11 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
-        novaLinha.style.backgroundColor = "#c5eed0";
-        novaLinha.style.borderLeft = "4px solid #48bb78"; // Borda verde
+        novaLinha.style.backgroundColor = "#e48585";
+        novaLinha.style.borderLeft = "4px solid #ff0000"; // Borda verde
     } else {
-        novaLinha.style.backgroundColor = "#e48585"; // Cor padrão para aditivos
-        novaLinha.style.borderLeft = " 4px solid #ff0000 "; // Sem borda para aditivos
+        novaLinha.style.backgroundColor = "#c5eed0"; // Cor padrão para aditivos
+        novaLinha.style.borderLeft = "4px solid #48bb78"; // Sem borda para aditivos
     }
 
     // 2. HTML da Nova Linha
@@ -2001,7 +2005,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
                 </svg>
               </span>
           </label>
-          ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
+          ${isBonificado ? '<br><span style="font-size: 10px; color: #ff0000; font-weight: bold;">[BONIFICADO]</span>' : '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">[ADITIVO]</span>'}
         </div>
       </td>
 
@@ -2033,7 +2037,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
       <td class="produto">
         <input type="text" class="produto-input" value="" placeholder="Nome do item...">
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : '<br><small style="color: #28a745; font-weight: bold;">[EXTRA ADITIVO]</small>'}
       </td>
 
       <td class="setor"><input type="text" class="setor-input" value=""></td>
@@ -2384,11 +2388,11 @@ function carregarSolicitacao(sol, linha) {
         linha.dataset.extrabonificado = 'true';
         linha.dataset.bonificado = 'true';
         linha.dataset.vlrbase = '0';
-        linha.style.backgroundColor = '#c5eed0'; // Verde — bonificado
-        linha.style.borderLeft = '4px solid #28a745';
-    } else {
-        linha.style.backgroundColor = '#e48585'; // Vermelho — aditivo
+        linha.style.backgroundColor = '#e48585'; // Verde — bonificado
         linha.style.borderLeft = '4px solid #ff0000';
+    } else {
+        linha.style.backgroundColor = '#c5eed0'; // Vermelho — aditivo
+        linha.style.borderLeft = '4px solid #28a745';
     }
 
     // 2. Preenche a Categoria (Aditivo / Extra Bonificado)
@@ -2845,12 +2849,66 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 
   // 3. Tenta pegar o atributo de forma segura
-  const uf = selectedOption.getAttribute("data-uf");
-  
+  // (o atributo criado em carregarLocalMontOrc é "data-ufmontagem")
+  const uf = selectedOption.getAttribute("data-ufmontagem") || selectedOption.getAttribute("data-uf");
+
   const ufInput = document.getElementById("ufmontagem");
   if (ufInput) {
-    ufInput.value = uf || "";
+    ufInput.value = (uf || "").trim().toUpperCase();
   }
+}
+
+// Evento "fora de São Paulo": UF do local de montagem preenchida e diferente de 'SP'.
+function eventoForaDeSP() {
+  const uf = (document.getElementById("ufmontagem")?.value || "").trim().toUpperCase();
+  return uf !== "" && uf !== "SP";
+}
+
+// Fator de alimentação quando fora de SP — fórmula da Viagem 2 (café + almoço + jantar = 2,5x).
+const FATOR_ALIMENTACAO_FORA_SP = 2.5;
+
+// Transporte "local" da função (mesma cascata usada ao montar as options: transpsenior quando houver custo sênior).
+function transporteLocalFuncao(funcao) {
+  if (!funcao) return 0;
+  return (funcao.ctofuncaosenior > 0 && funcao.transpsenior > 0)
+    ? parseFloat(funcao.transpsenior) || 0
+    : parseFloat(funcao.transporte) || 0;
+}
+
+// Recalcula a ajuda de custo de todas as linhas de FUNÇÃO conforme a regra "fora de SP".
+// Usado quando o local de montagem (UF) muda depois de já haver itens na tabela.
+function reaplicarAjudaCustoForaSP() {
+  const corpo = document.querySelector("#tabela tbody");
+  if (!corpo || !Array.isArray(funcoesDisponiveis)) return;
+
+  const foraSP = eventoForaDeSP();
+
+  corpo.querySelectorAll("tr").forEach((linha) => {
+    const idFunc = linha.querySelector("input.idFuncao")?.value;
+    if (!idFunc) return; // sem função (equipamento/suprimento/linha vazia) -> não mexe
+
+    const funcao = funcoesDisponiveis.find((f) => String(f.idfuncao) === String(idFunc));
+    if (!funcao) return;
+
+    let alim = parseFloat(funcao.alimentacao) || 0;
+    let transp = transporteLocalFuncao(funcao);
+    if (foraSP) {
+      alim = alim * FATOR_ALIMENTACAO_FORA_SP;
+      transp = 0;
+    }
+
+    const spanAlim = linha.querySelector(".vlralimentacao-input");
+    const spanTrans = linha.querySelector(".vlrtransporte-input");
+    const tdAlim = linha.querySelector(".ajdCusto.alimentacao");
+    const tdTrans = linha.querySelector(".ajdCusto.transporte");
+
+    if (spanAlim) spanAlim.textContent = formatarMoeda(alim);
+    if (tdAlim) tdAlim.dataset.originalAjdcusto = alim.toString();
+    if (spanTrans) spanTrans.textContent = formatarMoeda(transp);
+    if (tdTrans) tdTrans.dataset.originalAjdcusto = transp.toString();
+
+    recalcularLinha(linha);
+  });
 }
 
 function ceilToTenCents(value, factor) {
@@ -3055,6 +3113,21 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+
+    // 1.5 REGRA DE AJUDA DE CUSTO POR CATEGORIA + "FORA DE SÃO PAULO"
+    // - Função (Produto(s)): se o evento for fora de SP, a alimentação usa a fórmula
+    //   da Viagem 2 (café + almoço + jantar = 2,5x) e o transporte é zerado.
+    // - Equipamento/Suprimento: não têm ajuda de custo (força 0).
+    const ehFuncao = Categoria === "Produto(s)";
+    if (ehFuncao) {
+        if (eventoForaDeSP()) {
+            vlrAlimentacao = vlrAlimentacao * FATOR_ALIMENTACAO_FORA_SP;
+            vlrTransporte = 0;
+        }
+    } else {
+        vlrAlimentacao = 0;
+        vlrTransporte = 0;
+    }
 
     // 2. PROTEÇÃO CONTRA REAJUSTE DUPLO
     if (linha.dataset.reajustadoTotal === 'true') return;
@@ -3512,6 +3585,42 @@ async function verificaOrcamento() {
     });
   } else {
     console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
+  }
+
+  const btnTooltipAdicional = document.getElementById("tooltipAdicional");
+  if (btnTooltipAdicional) {
+    btnTooltipAdicional.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Botão 'Tooltip Adicional' clicado");
+      Swal.fire({
+        title: 'Extra Bonificado x Aditivo',
+        icon: 'info',
+        allowOutsideClick: false,
+        heightAuto: false,
+        customClass: { container: 'swal-acima-modal' },
+        html: `
+          <div style="text-align: left; line-height: 1.5; pointer-events:auto;">
+            <p>Ao adicionar um item em um orçamento <b>Fechado</b>, ele pode ser de dois tipos:</p>
+            <p>
+              <b style="color: #d33;">Extra Bonificado (vermelho)</b><br>
+              É um <b>custo total da JA</b>. Ou seja, é um item
+              bonificado que a JA absorve integralmente — por isso aparece em
+              <span style="color: #d33;">vermelho</span>, pois representa uma despesa.
+            </p>
+            <p>
+              <b style="color: #28a745;">Aditivo (verde)</b><br>
+              É um <b>lucro</b>, pois o <b>cliente é quem vai pagar</b> por esse item
+              adicional. Por isso aparece em <span style="color: #28a745;">verde</span>,
+              representando uma receita.
+            </p>
+          </div>
+        `,
+        confirmButtonText: 'Entendi'
+      });
+    });
+  } else {
+    console.error("Botão 'Tooltip Adicional' não encontrado.");
   }
 
   const btnGerarProximoAno = document.getElementById("GerarProximoAno");
@@ -5686,8 +5795,8 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       </td>
       <td class="produto">
         ${nomeProduto}
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
-        ${isAdicional && !isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isAdicional && !isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[ADICIONAL]</small>' : ''}
       </td>
       <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
       <td class="qtdDias">
@@ -6501,7 +6610,15 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-            let deveContinuarAtivo = false; 
+
+            // Botão de tooltip adicional acompanha o botão 'Adicional' (visível quando fechado)
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'flex';
+                botao.disabled = false;
+                return;
+            }
+
+            let deveContinuarAtivo = false;
             
             // 🔑 CORREÇÃO 2: Busca a linha pai (tr) do botão e verifica se ela possui as suas classes de adicional
             const linhaPai = botao.closest('tr');
@@ -6585,11 +6702,17 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-            
+
+            // Botão de tooltip adicional só aparece quando fechado
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'none';
+                return;
+            }
+
             if (id === 'GerarProximoAno') {
                 botao.style.display = 'none';
                 return;
-            } 
+            }
 
             if (classes.contains('Excel') || classes.contains('Contrato') || classes.contains('Adicional')) {
                 botao.style.display = 'none';
@@ -6699,6 +6822,7 @@ function liberarSelectsParaAdicional() {
 function verificarStatusParaAdicional() {
     const statusOrcamento = document.getElementById('Status')?.value;
     const btnAdicional = document.getElementById('adicionarLinhaAdicional');
+    const btnTooltipAdicional = document.getElementById('tooltipAdicional');
     const btnNormal = document.getElementById('adicionarLinha');
     const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
     
@@ -6707,6 +6831,9 @@ function verificarStatusParaAdicional() {
         if (btnAdicional) {
             btnAdicional.style.display = 'block';
             console.log("Status Fechado, botão 'Adicional' habilitado.");
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'flex';
         }
         if (btnNormal) {
             btnNormal.style.display = 'none'; // Impede adição normal quando fechado
@@ -6729,6 +6856,9 @@ function verificarStatusParaAdicional() {
         // Se não for 'F', mostra o botão normal e esconde o adicional
         if (btnAdicional) {
             btnAdicional.style.display = 'none';
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'none';
         }
         if (btnNormal) {
             btnNormal.style.display = 'block';
@@ -7509,6 +7639,20 @@ async function rehidrateItemsForNewYear(itens) {
 
     // ... (manter eqMap e supMap iguais)
 
+    // Maior custo disponível da função: Sênior > Pleno > Junior > Base.
+    // (mesma cascata usada ao adicionar uma linha nova em carregarFuncaoOrc)
+    const custoMaiorFuncao = (f) => {
+      if (!f) return 0;
+      return (
+        parseFloat(
+          f.ctofuncaosenior > 0 ? f.ctofuncaosenior :
+          f.ctofuncaopleno  > 0 ? f.ctofuncaopleno  :
+          f.ctofuncaojunior > 0 ? f.ctofuncaojunior :
+                                  f.ctofuncaobase   || 0
+        ) || 0
+      );
+    };
+
     for (const item of itens) {
       // Rola o período da diária +1 ano — sem isso o item herda as datas do orçamento
       // original, o que colide com o período do orçamento antigo e quebra a
@@ -7519,15 +7663,18 @@ async function rehidrateItemsForNewYear(itens) {
       // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior),
       // esse deve ser o valor "mãe" para o novo reajuste.
       let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
-      let ctoReferencia = parseFloat(item.ctodiaria || 0);
 
-      // 2. Fallback: Se por algum motivo o item veio zerado, busca na tabela mestra
-      if (vlrReferencia === 0) {
-        if (item.idfuncao && funcMap[String(item.idfuncao)]) {
-          vlrReferencia = parseFloat(funcMap[String(item.idfuncao)].vdafuncao) || 0;
-          ctoReferencia = parseFloat(funcMap[String(item.idfuncao)].ctofuncaobase) || 0;
-        }
-        // ... (repetir lógica para equip e suprimento se necessário)
+      // 2. CUSTO: para itens de função, NÃO usa o custo gravado no ano anterior.
+      //    Sempre recalcula pelo MAIOR custo atual da função (Sênior > Pleno > Junior > Base),
+      //    igual ao comportamento de uma linha nova. Itens sem função (equip/suprimento)
+      //    mantêm o custo gravado.
+      let ctoReferencia = funcMestra
+        ? custoMaiorFuncao(funcMestra)
+        : parseFloat(item.ctodiaria || 0);
+
+      // 3. Fallback: se a venda veio zerada, busca na tabela mestra da função.
+      if (vlrReferencia === 0 && funcMestra) {
+        vlrReferencia = parseFloat(funcMestra.vdafuncao) || 0;
       }
 
       // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
