@@ -566,7 +566,13 @@ router.post("/orcamento/consultar",
 
         if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
             return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
-        }        
+        }
+
+        // 🌟 CORREÇÃO: distingue "setor não informado" (não filtra) de "setor vazio" (filtra
+        // só os itens SEM setor). Antes, `setor || null` colapsava os dois casos em NULL,
+        // fazendo a busca por "sem setor" ignorar o filtro e somar TODOS os setores da função.
+        const filtrarPorSetor = setor !== undefined;
+        const setorNormalizado = (setor ?? '').toString().trim();
 
         const query = `WITH datas_orcamento AS (
                     SELECT
@@ -601,7 +607,8 @@ router.post("/orcamento/consultar",
                         ELSE 0 END) AS total_normais,
                         SUM(CASE WHEN se.statusstaff NOT IN ('Inativo', 'Deletado') THEN COALESCE(se.vlrtotcache, 0) + COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) AS total_custo_normal
                     FROM staffeventos se
-                    WHERE se.ativo = true
+                    WHERE (se.ativo = true OR se.statusstaff = 'Pendente')
+                      AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                     GROUP BY se.idorcamento, se.idfuncao, se.setor
                 ),
                 -- 2. Varre todos os JSONs de vagasreaproveitadas para achar diárias que vieram de outro setor/função.
@@ -620,7 +627,8 @@ router.post("/orcamento/consultar",
                             ELSE '[]'::jsonb
                         END
                     ) AS vaga
-                    WHERE se.ativo = true
+                    WHERE (se.ativo = true OR se.statusstaff = 'Pendente')
+                      AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                       AND NOT (
                           se.idfuncao = (vaga->>'idfuncao_origem')::int
                           AND COALESCE(se.setor, '') = COALESCE(vaga->>'setor_origem', '')
@@ -711,7 +719,7 @@ router.post("/orcamento/consultar",
                     AND o.idmontagem = $4
                     AND o.status != 'R'
                     AND oi.idfuncao = $6
-                    AND (oi.setor = $7 OR $7 IS NULL)
+                    AND (NOT $9::boolean OR NULLIF(oi.setor, '') IS NOT DISTINCT FROM NULLIF($7::text, ''))
                     AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
                 GROUP BY
                     oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia,
@@ -720,7 +728,7 @@ router.post("/orcamento/consultar",
                     o.contratarstaff, dto.periodos_disponiveis,
                     dnf.total_normais, dro.total_reaproveitado, tof.total,
                     tof.total_custo_orcado, dnf.total_custo_normal, df.total_custo_dobrado
-                ORDER BY oi.idorcamentoitem;`;
+                ORDER BY o.contratarstaff DESC, o.dtinirealizacao DESC, oi.idorcamentoitem DESC;`;
 
         console.log("QUERY", query);
         const values = [
@@ -730,8 +738,9 @@ router.post("/orcamento/consultar",
             idLocalMontagem,
             datasEvento,
             idFuncao,
-            setor || null,
-            ignorarFiltroData
+            setorNormalizado,
+            ignorarFiltroData,
+            filtrarPorSetor
         ];
 
         const result = await client.query(query, values);
@@ -1433,8 +1442,8 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
         queryValues.push(nmcliente);
         paramIndex++; // Agora é $5
 
-        // CRITERIA 4: datasevento ($5)
-        query += ` AND se.datasevento::jsonb = $${paramIndex}::jsonb`;
+        // CRITERIA 4: sobreposição de qualquer data (basta 1 data em comum para ser duplicata)
+        query += ` AND se.datasevento::jsonb ?| ARRAY(SELECT jsonb_array_elements_text($${paramIndex}::jsonb))`;
         queryValues.push(JSON.stringify(datasEventoArray));
         
         // 🎯 O índice para idFuncao será o próximo: $6
@@ -1645,6 +1654,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.statuscustofechado,
           se.obspospgto,
           se.obsgeral,
+          se.obslogsistema,
           se.ativo,
           se.desccustofechado,
           se.statusstaff,
@@ -1683,7 +1693,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     'idsolicitacao', sol.idsolicitacao,
                     'status', sol.status,
                     'noOrcamento', EXISTS (
-                        SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
+                        SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = oi.idsolicitacao
                     )
                 )
                 FROM solicitacoes sol
@@ -1763,16 +1773,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     }
 );
 
-function ordenarDatas(datas) {
-    if (!datas || datas.length === 0) {
-    return [];
-    }
-    // Supondo que as datas estejam no formato 'YYYY-MM-DD'
-    return datas.sort((a, b) => new Date(a) - new Date(b));
-}
-
-
-router.put("/:idStaffEvento", 
+router.put("/:idStaffEvento",
     autenticarToken(), 
     contextoEmpresa, 
     verificarPermissao('staff', 'alterar'), 
@@ -1987,22 +1988,30 @@ router.put("/:idStaffEvento",
 
             const obsPosPosPgtoFinal = obsPosPosPgtoBase || null;
 
+            // 🌟 obslogsistema é o log de sistema (exceções, solicitações etc): NUNCA aceita
+            // sobrescrita do front — só concatena a NOVA linha (obslogsistemaNovo) ao que já
+            // estava salvo (old.obslogsistema). obsgeral é observação livre do usuário e pode
+            // ser sobrescrito normalmente com o que vier do form.
+            const obsLogSistemaFinal = body.obslogsistemaNovo
+                ? (old.obslogsistema ? old.obslogsistema.trimEnd() + '\n' + body.obslogsistemaNovo : body.obslogsistemaNovo)
+                : old.obslogsistema;
+
             // 3. UPDATE PRINCIPAL STAFFEVENTOS
             await client.query(`
                 UPDATE staffeventos SET
                     idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
-                    vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18, 
+                    vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18,
                     vlrtotal = $19, descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
-                    statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27, 
+                    statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27,
                     dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
-                    comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
+                    comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35,
                     nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                    statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, 
+                    statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45,
                     statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff),
-                    compcontgastos = $52, compnotafiscal = $53
-                WHERE idstaffevento = $49 
+                    compcontgastos = $52, compnotafiscal = $53, obsgeral = $54, obslogsistema = $55
+                WHERE idstaffevento = $49
                 AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $50)`,
                 [
                     body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
@@ -2016,7 +2025,7 @@ router.put("/:idStaffEvento",
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
-                    paths.contgastos, paths.notafiscal
+                    paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal
                 ]
             );
 
@@ -2846,8 +2855,12 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento, statusstaff,
-        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto, obsgeral, 
-        tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao, vagasreaproveitadas
+        vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto, obsgeral,
+        obslogsistemaNovo,
+        tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao, vagasreaproveitadas,
+        datasExcecaoFuncOnly: datasExcecaoFuncOnlyRaw,
+        datasExcecaoVagaOnly: datasExcecaoVagaOnlyRaw,
+        datasExcecaoCombo:    datasExcecaoComboRaw
     } = req.body;
 
     //const statusStaff = statusstaff || (justificativaAditivo ? 'Pendente' : 'Ativo');
@@ -3090,11 +3103,11 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
                 statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, 
-                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos, compnotafiscal, vagasreaproveitadas, ativo
+                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos, compnotafiscal, vagasreaproveitadas, ativo, obslogsistema
             ) VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
                 $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,
-                $49,$50,$51,$52,$53,$54,$55
+                $49,$50,$51,$52,$53,$54,$55,$56
             ) RETURNING idstaffevento;
         `;
 
@@ -3115,7 +3128,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral, 
             statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null,
             req.files?.compnotafiscal?.[0] ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}` : null,
-            jsonVagasReaproveitadas, ativoFinal
+            jsonVagasReaproveitadas, ativoFinal, obslogsistemaNovo || null
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -3204,26 +3217,23 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         // 🎯 6. VÍNCULO DE ADITIVO / EXTRA
         if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
             console.log(`\n➕ [ADITIVO/EXTRA DETECTADO]: ${tipoSolicitacaoAditivo}`);
+
+            const _parseDatasExcecao = (val, fallback) => {
+                try {
+                    if (!val) return fallback;
+                    return (Array.isArray(val) ? val : JSON.parse(val)).filter(d => d).map(d => String(d).split('T')[0]);
+                } catch { return fallback; }
+            };
+
             let datasSolicitadasArray = [];
             try {
-                const fonteDatas = datasExcecao 
+                const fonteDatas = datasExcecao
                     ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
                     : datasArray;
-                
-                datasSolicitadasArray = fonteDatas
-                    .filter(d => d)
-                    .map(d => String(d).split('T')[0]);
-                    
-            } catch (e) { 
+                datasSolicitadasArray = fonteDatas.filter(d => d).map(d => String(d).split('T')[0]);
+            } catch (e) {
                 datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
             }
-
-            console.log("🎯 [ADITIVO CHECK]:", {
-                statusStaff,
-                tipoSolicitacaoAditivo,
-                justificativaAditivo,
-                datasExcecao
-            });
 
             // Monta índice de justificativa por data a partir de vagasreaproveitadas (quando disponível)
             const vagasReaproveitadasParsed = jsonVagasReaproveitadas ? JSON.parse(jsonVagasReaproveitadas) : [];
@@ -3242,33 +3252,106 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             `;
 
-            const ehFuncExcedidoComEstouro = tipoSolicitacaoAditivo === 'FuncExcedido + Estouro Financeiro';
+            // Natureza da vaga extra (Aditivo ou Extra Bonificado) para os dois fluxos que precisam
+            const naturezaVagaTipoGlobal = tipoSolicitacaoAditivo.includes('Extra Bonificado')
+                ? 'Extra Bonificado - Vaga Excedida'
+                : 'Aditivo - Vaga Excedida';
 
-            for (const dataUnica of datasSolicitadasArray) {
-                const justificativaParaData = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
-                console.log(`  💾 Gravando exceção para data: ${dataUnica} | tipo: ${tipoSolicitacaoAditivo} | justificativa: ${justificativaParaData}`);
+            // ① Datas com APENAS restrição de FuncExcedido (há vaga no orçamento)
+            //    → 1 solicitação: FuncExcedido (categoria statusvagaexcedida)
+            const datasFuncOnly = _parseDatasExcecao(datasExcecaoFuncOnlyRaw, []);
+            for (const dataUnica of datasFuncOnly) {
+                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+                console.log(`  💾 [FUNC-ONLY] Gravando FuncExcedido para data: ${dataUnica}`);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    'FuncExcedido',
+                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
+                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
+                ]);
+            }
 
-                if (ehFuncExcedidoComEstouro) {
-                    // Solicitação 1: Aditivo de verba (para o aprovador criar o orcamentoitem)
-                    await client.query(queryAditivo, [
-                        idorcamento, idfuncionario, idfuncao, idempresa,
-                        'Aditivo - Limite Financeiro da Equipe Excedido',
-                        1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                        `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                    ]);
-                    // Solicitação 2: FuncExcedido — bloqueada até o Aditivo ser resolvido
-                    await client.query(queryAditivo, [
-                        idorcamento, idfuncionario, idfuncao, idempresa,
-                        'FuncExcedido + Estouro Financeiro',
-                        1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                        `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
-                    ]);
-                } else {
-                    await client.query(queryAditivo, [
-                        idorcamento, idfuncionario, idfuncao, idempresa, tipoSolicitacaoAditivo,
-                        1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                        `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                    ]);
+            // ② Datas com APENAS restrição de VagaExcedida (fora do período orçado, funcionário NÃO excedido)
+            //    → 1 solicitação: Aditivo ou Extra Bonificado (categoria aditivoextra)
+            const datasVagaOnly = _parseDatasExcecao(datasExcecaoVagaOnlyRaw, []);
+            for (const dataUnica of datasVagaOnly) {
+                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+                console.log(`  💾 [VAGA-ONLY] Gravando VagaExcedida (${naturezaVagaTipoGlobal}) para data: ${dataUnica}`);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    naturezaVagaTipoGlobal,
+                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
+                    `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
+                ]);
+            }
+
+            // ④ Datas FORA do orçamento E com conflito de funcionário → card vinculado
+            //    → 2 solicitações: VagaExcedida (Seção 1) + FuncExcedido + Vaga Excedida (Seção 2, bloqueada)
+            const datasCombo = _parseDatasExcecao(datasExcecaoComboRaw, []);
+            for (const dataUnica of datasCombo) {
+                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+                console.log(`  💾 [COMBO] Gravando VagaExcedida+FuncExcedido vinculados para data: ${dataUnica}`);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    naturezaVagaTipoGlobal,
+                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
+                    `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
+                ]);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    'FuncExcedido + Vaga Excedida',
+                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
+                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
+                ]);
+            }
+
+            // ③ Fluxo legado: só roda se os novos arrays não foram usados (backward compat)
+            const usouNovaSeparacao = datasFuncOnly.length > 0 || datasVagaOnly.length > 0 || datasCombo.length > 0;
+            if (!usouNovaSeparacao) {
+                const ehFuncExcedidoComEstouro = tipoSolicitacaoAditivo === 'FuncExcedido + Estouro Financeiro';
+                const ehFuncExcedidoComVaga = typeof tipoSolicitacaoAditivo === 'string'
+                    && tipoSolicitacaoAditivo.startsWith('FuncExcedido + Vaga Excedida');
+                const naturezaVagaTipo = ehFuncExcedidoComVaga && tipoSolicitacaoAditivo.includes('Extra Bonificado')
+                    ? 'Extra Bonificado - Vaga Excedida'
+                    : 'Aditivo - Vaga Excedida';
+
+                for (const dataUnica of datasSolicitadasArray) {
+                    const justificativaParaData = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+                    console.log(`  💾 [LEGADO] Gravando exceção para data: ${dataUnica} | tipo: ${tipoSolicitacaoAditivo}`);
+
+                    if (ehFuncExcedidoComEstouro) {
+                        await client.query(queryAditivo, [
+                            idorcamento, idfuncionario, idfuncao, idempresa,
+                            'Aditivo - Limite Financeiro da Equipe Excedido',
+                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
+                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
+                        ]);
+                        await client.query(queryAditivo, [
+                            idorcamento, idfuncionario, idfuncao, idempresa,
+                            'FuncExcedido + Estouro Financeiro',
+                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
+                            `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
+                        ]);
+                    } else if (ehFuncExcedidoComVaga) {
+                        await client.query(queryAditivo, [
+                            idorcamento, idfuncionario, idfuncao, idempresa,
+                            naturezaVagaTipo,
+                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
+                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
+                        ]);
+                        await client.query(queryAditivo, [
+                            idorcamento, idfuncionario, idfuncao, idempresa,
+                            'FuncExcedido + Vaga Excedida',
+                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
+                            `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
+                        ]);
+                    } else {
+                        await client.query(queryAditivo, [
+                            idorcamento, idfuncionario, idfuncao, idempresa, tipoSolicitacaoAditivo,
+                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
+                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
+                        ]);
+                    }
                 }
             }
         }

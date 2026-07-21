@@ -1448,9 +1448,10 @@ function bloquearFormularioVisualizacao(motivo, tipo) {
     const banner = document.getElementById('bannerBloqueio');
     if (banner) {
         const config = {
-            deletado: { bg: '#cc0000', icone: '🚫', texto: `REGISTRO DELETADO — ${motivo}` },
-            pendente: { bg: '#e67e22', icone: '⏳', texto: `AGUARDANDO APROVAÇÃO — ${motivo}` },
-            inativo: { bg: '#7f8c8d', icone: '🔒', texto: `REGISTRO INATIVO — ${motivo}` },
+            deletado:           { bg: '#cc0000', icone: '🚫', texto: `REGISTRO DELETADO — ${motivo}` },
+            pendente:           { bg: '#e67e22', icone: '⏳', texto: `AGUARDANDO APROVAÇÃO — ${motivo}` },
+            pendente_orcamento: { bg: '#1a6fc4', icone: '⏳', texto: `AGUARDANDO APROVAÇÃO — ${motivo}` },
+            inativo:            { bg: '#7f8c8d', icone: '🔒', texto: `REGISTRO INATIVO — ${motivo}` },
         };
         const { bg, icone, texto } = config[tipo] || config.pendente;
         banner.innerHTML = `${icone} ${texto}`;
@@ -1519,6 +1520,8 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     const containerObsPosPgto = document.getElementById('containerObsPosPgto');
     const obsPosPgtoTextarea = document.getElementById('obsPosPgto');
     const obsGeralTextarea = document.getElementById('obsGeral');
+    const containerObsLogSistema = document.getElementById('containerObsLogSistema');
+    const obsLogSistemaTextarea = document.getElementById('obsLogSistema');
     
     // 1. Lógica do Botão Enviar
     if (btn) {
@@ -1873,6 +1876,18 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     }
 
     obsGeralTextarea.value = eventData.obsgeral?.trim() || '';
+
+    // 🟢 LOG DE SISTEMA: mostra o container apenas se houver conteúdo
+    if (containerObsLogSistema && obsLogSistemaTextarea) {
+        const logSistema = eventData.obslogsistema || '';
+        if (logSistema.trim() !== '') {
+            obsLogSistemaTextarea.value = logSistema.trim();
+            containerObsLogSistema.style.display = 'block';
+        } else {
+            obsLogSistemaTextarea.value = '';
+            containerObsLogSistema.style.display = 'none';
+        }
+    }
 
     // Bloqueia pickers silenciosamente durante carregamento se já foi pago
     const statuspgtoCarreg = (eventData.statuspgto || '').trim().toUpperCase();
@@ -2532,8 +2547,8 @@ const carregarTabelaStaff = async (funcionarioId) => {
                         document.getElementById('Enviar')?.setAttribute('data-bloqueado', 'true');
                         carregarDadosParaEditar(eventData, true);
                         setTimeout(() => bloquearFormularioVisualizacao(
-                            aguardandoOrcamento ? 'Aguardando inclusão no orçamento' : 'Solicitação pendente de aprovação', 
-                            'pendente'
+                            aguardandoOrcamento ? 'Aguardando inclusão no orçamento' : 'Solicitação pendente de aprovação',
+                            aguardandoOrcamento ? 'pendente_orcamento' : 'pendente'
                         ), 200);
                         return;
                     }
@@ -4928,10 +4943,20 @@ async function verificaStaff() {
                             url = `/staff/${existingEventData.idstaffevento}`;
                            // currentEditingStaffEvent = existingEventData; //Verificar se é necessário atualizar o objeto de edição atual
                         } else if (isSameFunction) {
+                            const existDatas = Array.isArray(existingEventData.datasevento)
+                                ? existingEventData.datasevento
+                                : (existingEventData.datasevento ? JSON.parse(existingEventData.datasevento) : []);
+                            const existSet = new Set(existDatas.map(d => String(d).substring(0, 10)));
+                            const datasConflito = periodoDoEvento.filter(d => existSet.has(String(d).substring(0, 10)));
+                            const fmtDia = d => { const p = String(d).trim().split('-'); return `${p[2]}/${p[1]}`; };
+                            const todasDuplicadas = datasConflito.length === periodoDoEvento.length;
+                            const datasHtml = todasDuplicadas
+                                ? ''
+                                : `<br><br><span style="color:#dc2626;font-weight:600;">Datas em conflito: ${datasConflito.map(fmtDia).join(', ')}</span>`;
                             await Swal.fire({
                                 icon: "error",
                                 title: "Cadastro Duplicado!",
-                                html: `O evento para <strong>${nmFuncionario}</strong> com a função <strong>${existingEventData.nmfuncao}</strong> JÁ ESTÁ CADASTRADO.<br><br>Edite o registro existente.`,
+                                html: `O evento para <strong>${nmFuncionario}</strong> com a função <strong>${existingEventData.nmfuncao}</strong> JÁ ESTÁ CADASTRADO.${datasHtml}<br><br>Edite o registro existente.`,
                                 confirmButtonText: "Entendido",
                             });
                             return;
@@ -5103,9 +5128,155 @@ async function verificaStaff() {
                             console.error('[FuncExcedido] Erro ao verificar saldo financeiro:', errFin);
                         }
 
+                        // Verificação de vaga/diária excedida — só roda se o combo financeiro
+                        // acima não já tiver resolvido tudo (caso triplo fora de escopo por ora).
+                        let justFEVaga = null;
+                        let naturezaFEVaga = null;
+                        if (!justFEFinanceiro) {
+                            try {
+                                // Limpa arrays de exceção de registros anteriores
+                                window.datasExcecaoFuncOnly = null;
+                                window.datasExcecaoVagaOnly = null;
+                                window.datasExcecaoCombo    = null;
+
+                                const saldoVaga = await obterSaldoVagaFuncao({
+                                    nmEvento, nmFuncao: descFuncao, idFuncao, idEvento, idCliente,
+                                    idLocalMontagem: idMontagem, datasSelecionadas: periodoDoEvento
+                                });
+
+                                // Categoriza cada data selecionada para exibição clara no Swal
+                                const _orcSet = new Set(saldoVaga.datasOrcadas || []);
+                                const _confSet = new Set(datasConflitantes);
+                                const _fmtD = arr => arr.slice().sort().map(d => { const p = d.split('-'); return `${p[2]}/${p[1]}`; }).join(', ');
+                                const _dNormais    = periodoDoEvento.filter(d => !_confSet.has(d) && _orcSet.has(d));
+                                const _dFuncExc    = periodoDoEvento.filter(d =>  _confSet.has(d) && _orcSet.has(d));
+                                const _dFora       = periodoDoEvento.filter(d => !_orcSet.has(d));
+                                // Datas fora do orçamento com conflito de funcionário → card vinculado (Vaga + FuncExcedido)
+                                const _dCombo      = _dFora.filter(d =>  _confSet.has(d));
+                                const _dForaOnly   = _dFora.filter(d => !_confSet.has(d));
+
+                                if (!saldoVaga.temSaldoDisponivel || _dFora.length > 0) {
+                                    // Separa por tipo: FuncExcedido / VagaExcedida simples / Combo vinculado
+                                    window.datasExcecaoFuncOnly = _dFuncExc;
+                                    window.datasExcecaoVagaOnly = _dForaOnly;
+                                    window.datasExcecaoCombo    = _dCombo;
+
+                                    let acaoFEVaga = null;
+                                    await Swal.fire({
+                                        title: false,
+                                        showConfirmButton: false,
+                                        showCancelButton: false,
+                                        footer: false,
+                                        allowOutsideClick: false,
+                                        width: '500px',
+                                        padding: '0',
+                                        html: `
+                                            <div style="display:flex; align-items:flex-start; gap:14px; background:#f8d7da; border-bottom:1px solid #f5c6cb; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                                                <div style="width:38px; height:38px; border-radius:50%; background:#f5c6cb; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                    <i class="fa fa-ban" style="color:#721c24; font-size:17px;"></i>
+                                                </div>
+                                                <div style="text-align:left;">
+                                                    <p style="font-size:14px; font-weight:700; color:#721c24; margin:0 0 6px;">Restrições detectadas nas datas selecionadas</p>
+                                                    <p style="font-size:12px; color:#721c24; margin:0;">
+                                                        Orçado: <b>${saldoVaga.limiteTotal}</b> diária(s) | Escalado: <b>${saldoVaga.totalJaEscalado}</b> | Disponível: <b>${saldoVaga.saldoAtual}</b>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div style="padding:16px 24px 20px;">
+                                                <p style="font-size:12px; color:#555; margin:0 0 12px; text-align:left; font-weight:600;">Situação de cada data:</p>
+                                                ${_dNormais.length ? `
+                                                <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#1b5e20;">
+                                                    <b>✅ Será alocada normalmente:</b> ${_fmtD(_dNormais)}<br>
+                                                    <span style="font-size:11px; opacity:0.8;">Dentro do período orçado e funcionário disponível.</span>
+                                                </div>` : ''}
+                                                ${_dFuncExc.length ? `
+                                                <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#6d4c00;">
+                                                    <b>⚠️ Funcionário excedido (há vaga no orçamento):</b> ${_fmtD(_dFuncExc)}<br>
+                                                    <span style="font-size:11px; opacity:0.8;">Funcionário já agendado em outro evento. Será necessária aprovação.</span>
+                                                </div>` : ''}
+                                                ${_dCombo.length ? `
+                                                <div style="background:#ede9fe; border:1px solid #c4b5fd; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#4c1d95;">
+                                                    <b>🔗 Fora do orçamento + funcionário excedido:</b> ${_fmtD(_dCombo)}<br>
+                                                    <span style="font-size:11px; opacity:0.8;">Exige vaga extra E autorização do funcionário — card vinculado (aprovação sequencial).</span>
+                                                </div>` : ''}
+                                                ${_dForaOnly.length ? `
+                                                <div style="background:#fce4ec; border:1px solid #ef9a9a; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#880e4f;">
+                                                    <b>🚫 Fora do período orçado (vaga excedida):</b> ${_fmtD(_dForaOnly)}<br>
+                                                    <span style="font-size:11px; opacity:0.8;">Data não planejada no orçamento. Exige solicitação de vaga extra.</span>
+                                                </div>` : ''}
+                                                <p style="font-size:12px; color:#555; margin:12px 0 14px; text-align:left;">
+                                                    Para as datas com restrição serão criadas as solicitações de aprovação necessárias. Escolha o tipo de vaga extra:
+                                                </p>
+                                                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                                                    <button id="btn-fev-aditivo"
+                                                        style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--primary-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                                        <i class="fa fa-plus"></i> Aditivo
+                                                    </button>
+                                                    <button id="btn-fev-extra"
+                                                        style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 4px; background:var(--hover-color); color:white; border:none; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                                        <i class="fa fa-star"></i> Extra Bonificado
+                                                    </button>
+                                                </div>
+                                                <button id="btn-fev-cancelar"
+                                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                                    <i class="fa fa-times"></i> Cancelar
+                                                </button>
+                                            </div>
+                                        `,
+                                        didOpen: () => {
+                                            document.getElementById('btn-fev-aditivo').addEventListener('click', () => { acaoFEVaga = 'ADITIVO'; Swal.close(); });
+                                            document.getElementById('btn-fev-extra').addEventListener('click', () => { acaoFEVaga = 'EXTRA';   Swal.close(); });
+                                            document.getElementById('btn-fev-cancelar').addEventListener('click', () => { acaoFEVaga = 'CANCELAR'; Swal.close(); });
+                                        }
+                                    });
+
+                                    if (acaoFEVaga !== 'ADITIVO' && acaoFEVaga !== 'EXTRA') return;
+                                    naturezaFEVaga = acaoFEVaga === 'ADITIVO' ? 'aditivo' : 'extra';
+
+                                    const _labelVaga = naturezaFEVaga === 'aditivo' ? 'Aditivo' : 'Extra Bonificado';
+                                    const dadosExcFEVaga = await solicitarDadosExcecao(
+                                        naturezaFEVaga === 'aditivo' ? 'Aditivo - Vaga Excedida' : 'Extra Bonificado - Vaga Excedida',
+                                        idOrcamentoAtual,
+                                        descFuncao,
+                                        idFuncao,
+                                        idFuncionario,
+                                        [..._dFuncExc, ..._dFora],
+                                        null,
+                                        `<div style="border-radius:6px;overflow:hidden;margin-bottom:12px;font-size:12px;text-align:left;">
+                                            ${_dNormais.length ? `
+                                            <div style="background:#e8f5e9;border:1px solid #a5d6a7;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#1b5e20;">
+                                                <b>✅ ${_fmtD(_dNormais)}</b> — será alocada normalmente (sem solicitação)
+                                            </div>` : ''}
+                                            ${_dFuncExc.length ? `
+                                            <div style="background:#fff8e1;border:1px solid #ffe082;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#6d4c00;">
+                                                <b>⚠️ ${_fmtD(_dFuncExc)}</b> — funcionário excedido → solicitação de FuncExcedido
+                                            </div>` : ''}
+                                            ${_dCombo.length ? `
+                                            <div style="background:#ede9fe;border:1px solid #c4b5fd;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#4c1d95;">
+                                                <b>🔗 ${_fmtD(_dCombo)}</b> — fora do orçamento + funcionário excedido → card vinculado (${_labelVaga} + FuncExcedido)
+                                            </div>` : ''}
+                                            ${_dForaOnly.length ? `
+                                            <div style="background:#fce4ec;border:1px solid #ef9a9a;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#880e4f;">
+                                                <b>🚫 ${_fmtD(_dForaOnly)}</b> — fora do período orçado → solicitação de ${_labelVaga}
+                                            </div>` : ''}
+                                            <div style="padding:6px 0 0;color:#555;font-size:11px;">
+                                                A justificativa abaixo será aplicada a todas as solicitações criadas.
+                                            </div>
+                                        </div>`
+                                    );
+                                    if (!dadosExcFEVaga?.confirmado) return;
+                                    justFEVaga = dadosExcFEVaga.justificativa;
+                                }
+                            } catch (errVaga) {
+                                console.error('[FuncExcedido] Erro ao verificar vaga/diária excedida:', errVaga);
+                            }
+                        }
+
                         let justificativa;
                         if (justFEFinanceiro) {
                             justificativa = justFEFinanceiro;
+                        } else if (justFEVaga) {
+                            justificativa = justFEVaga;
                         } else {
                             const swalResult = await Swal.fire({
                                 title: "Solicitar Autorização?",
@@ -5127,13 +5298,23 @@ async function verificaStaff() {
                         }
 
                         window.bSalvarComoInativo = true;
-                        window.tipoExcecaoAtual = justFEFinanceiro ? 'FuncExcedido + Estouro Financeiro' : "FuncExcedido";
-                        window.prefixoSolicitacao = justFEFinanceiro
-                            ? '[SOLICITAÇÃO - FUNCEXCEDIDO + ESTOURO FINANCEIRO DA EQUIPE]'
-                            : "[SOLICITAÇÃO - FUNCEXCEDIDO (Limite de agendamento diário excedido)]";
+                        if (justFEFinanceiro) {
+                            window.tipoExcecaoAtual = 'FuncExcedido + Estouro Financeiro';
+                            window.prefixoSolicitacao = '[SOLICITAÇÃO - FUNCEXCEDIDO + ESTOURO FINANCEIRO DA EQUIPE]';
+                        } else if (justFEVaga) {
+                            window.tipoExcecaoAtual = naturezaFEVaga === 'aditivo'
+                                ? 'FuncExcedido + Vaga Excedida (Aditivo)'
+                                : 'FuncExcedido + Vaga Excedida (Extra Bonificado)';
+                            window.prefixoSolicitacao = '[SOLICITAÇÃO - FUNCEXCEDIDO + VAGA EXCEDIDA]';
+                        } else {
+                            window.tipoExcecaoAtual = "FuncExcedido";
+                            window.prefixoSolicitacao = "[SOLICITAÇÃO - FUNCEXCEDIDO (Limite de agendamento diário excedido)]";
+                        }
                         window.justificativaParaSalvar = justificativa;
-                        window.datasParaSalvarNoBanco = datasConflitantes;
-                        
+                        window.datasParaSalvarNoBanco = (window.datasExcecaoFuncOnly || window.datasExcecaoVagaOnly)
+                            ? [...(window.datasExcecaoFuncOnly || []), ...(window.datasExcecaoVagaOnly || [])]
+                            : datasConflitantes;
+
                     } else {
                         msg += `<br><br>Você está no <strong>${(totalConflitosExistentes + 1)}º</strong> agendamento (Limite: ${limiteMaximo}).`;
                         msg += `<br>Motivo: ${motivoLiberacao}<br><br>Deseja continuar?`;
@@ -6577,6 +6758,11 @@ async function verificaStaff() {
 
                 console.log("Entrou no try. Método:", metodo, "URL:", url, window.tipoExcecaoAtual ? "Tipo de Exceção: " + window.tipoExcecaoAtual : "Sem tipo de exceção");
 
+                // 🌟 `obsgeral` é 100% observação livre do usuário — sempre envia o que está
+                // na tela, independente de qualquer exceção/tag de sistema (que vai à parte,
+                // em `obslogsistemaNovo`, protegida no backend contra sobrescrita/remoção).
+                formData.set('obsgeral', document.getElementById('obsGeral')?.value?.trim() || '');
+
                 const deveSerInativo = window.bSalvarComoInativo === true;
 
                 if (deveSerInativo) {
@@ -6585,16 +6771,15 @@ async function verificaStaff() {
                     formData.set('statusstaff', 'Pendente');
                     formData.set('tipoSolicitacaoAditivo', window.tipoExcecaoAtual);
                     formData.set('justificativaAditivo', window.justificativaParaSalvar);
-                    
-                    const datasConflito = Array.isArray(window.datasParaSalvarNoBanco) 
-                        ? window.datasParaSalvarNoBanco 
+
+                    const datasConflito = Array.isArray(window.datasParaSalvarNoBanco)
+                        ? window.datasParaSalvarNoBanco
                         : [window.datasParaSalvarNoBanco];
-                    
+
                     formData.set('datasExcecao', JSON.stringify(datasConflito));
-                    // Atualiza o log obsgeral
-                    // const agora = new Date().toLocaleString('pt-BR');
-                    // const prefixo = `[SOLICITAÇÃO - ${window.tipoExcecaoAtual?.toUpperCase() || 'ADITIVO'}]`;
-                    // formData.set('obsgeral', `${prefixo} - ${agora}. Justificativa: ${window.justificativaParaSalvar}`);
+                    formData.set('datasExcecaoFuncOnly', JSON.stringify(window.datasExcecaoFuncOnly || []));
+                    formData.set('datasExcecaoVagaOnly', JSON.stringify(window.datasExcecaoVagaOnly || []));
+                    formData.set('datasExcecaoCombo',    JSON.stringify(window.datasExcecaoCombo    || []));
 
                     // 🚀 FORMATAÇÃO DAS DATAS DO ADITIVO PARA PT-BR (DD/MM/AAAA)
                     const datasFormatadasBR = datasConflito.map(dStr => {
@@ -6606,20 +6791,39 @@ async function verificaStaff() {
                         return dStr; // Fallback caso venha em outro formato
                     }).filter(Boolean).join(', ');
 
-                    // Atualiza o log obsgeral com a marcação das datas solicitadas
-                    const agora = new Date().toLocaleString('pt-BR');
-                    const prefixo = `[SOLICITAÇÃO - ${window.tipoExcecaoAtual?.toUpperCase() || 'ADITIVO'}]`;
-                    const tagDatas = datasFormatadasBR ? ` [EXCEDIDO EM ${datasFormatadasBR}]` : '';
-                    
-                    formData.set('obsgeral', `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`);
+                    // Envia só a NOVA linha do log de sistema — o backend concatena com o
+                    // histórico já salvo (obslogsistema), nunca sobrescreve.
+                    const _now = new Date();
+                    const agora = `Solicitado em ${_now.toLocaleDateString('pt-BR')} às ${_now.toLocaleTimeString('pt-BR')}`;
+                    const fmtBR = arr => arr.filter(Boolean).map(d => { const p = String(d).trim().split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }).join(', ');
+                    const hasFuncOnly = Array.isArray(window.datasExcecaoFuncOnly) && window.datasExcecaoFuncOnly.length > 0;
+                    const hasVagaOnly = Array.isArray(window.datasExcecaoVagaOnly) && window.datasExcecaoVagaOnly.length > 0;
+                    const hasCombo    = Array.isArray(window.datasExcecaoCombo)    && window.datasExcecaoCombo.length > 0;
+
+                    let prefixo, tagDatas;
+                    if (hasFuncOnly || hasVagaOnly || hasCombo) {
+                        const labelVaga = (window.tipoExcecaoAtual || '').toLowerCase().includes('bonificado')
+                            ? 'EXTRA BONIFICADO'
+                            : 'ADITIVO';
+                        const partes = [];
+                        if (hasFuncOnly) partes.push(`FUNCEXCEDIDO EM ${fmtBR(window.datasExcecaoFuncOnly)}`);
+                        if (hasVagaOnly) partes.push(`${labelVaga} (VAGA) EM ${fmtBR(window.datasExcecaoVagaOnly)}`);
+                        if (hasCombo)    partes.push(`COMBO VINCULADO (${labelVaga} + FUNCEXCEDIDO) EM ${fmtBR(window.datasExcecaoCombo)}`);
+                        prefixo  = `[SOLICITAÇÃO - ${partes.join(' + ')}]`;
+                        tagDatas = '';
+                    } else {
+                        prefixo  = `[SOLICITAÇÃO - ${window.tipoExcecaoAtual?.toUpperCase() || 'ADITIVO'}]`;
+                        tagDatas = datasFormatadasBR ? ` [EXCEDIDO EM ${datasFormatadasBR}]` : '';
+                    }
+
+                    formData.set('obslogsistemaNovo', `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`);
                 } else {
                     formData.set('ativo', 'true');
                     if (window.tipoExcecaoAtual) {
                         formData.set('tipoSolicitacaoAditivo', window.tipoExcecaoAtual);
                     }
                     if (window.obsGeralNotaDatas) {
-                        const obsGeralAtual = document.getElementById('obsGeral')?.value?.trim() || '';
-                        formData.set('obsgeral', obsGeralAtual ? `${obsGeralAtual}\n${window.obsGeralNotaDatas}` : window.obsGeralNotaDatas);
+                        formData.set('obslogsistemaNovo', window.obsGeralNotaDatas);
                         window.obsGeralNotaDatas = null;
                     }
                 }
@@ -6853,14 +7057,21 @@ async function verificaStaff() {
                         console.log("🔄 currentEditingStaffEvent.datadiariadobrada atualizado com dados salvos.");
                     }
 
-                    // 3. FINALIZAÇÃO E RESETS DE FLAGS DE EXCEÇÃO                 
-                    window.bSalvarComoInativo = false; 
+                    // 3. FINALIZAÇÃO E RESETS DE FLAGS DE EXCEÇÃO
+                    window.bSalvarComoInativo = false;
                     window.justificativaParaSalvar = "";
                     window.tipoExcecaoAtual = null;
                     window.datasParaSalvarNoBanco = null;
                     window.vagaSobraReaproveitada = null;
                     window.nivelFoiTrocado = false;
                     window.obsGeralNotaDatas = null;
+
+                    // 🌟 CORREÇÃO: invalida o cache de saldo/vagas por função. Sem isso,
+                    // `verificarLimiteDeFuncao` reaproveitava a quantidade_escalada de ANTES
+                    // deste salvamento, deixando o sistema achar que ainda havia saldo já
+                    // consumido por este próprio staff — permitindo estourar orçado/diárias
+                    // em cadastros consecutivos na mesma sessão sem recarregar a página.
+                    window.orcamentoPorFuncao = {};
 
                     const foiSolicitacao = formData.get('statusstaff') === 'Pendente';
 
@@ -8631,6 +8842,72 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //     }
 // }
 
+
+// Replica a resolução de saldo de vaga/diária que `verificarLimiteDeFuncao` já faz
+// (cache `window.orcamentoPorFuncao` + fallback `buscarEPopularOrcamento`), extraída
+// aqui como helper isolado pra poder ser chamada de dentro do bloco de FuncExcedido
+// (combo "FuncExcedido + Vaga Excedida") sem precisar mexer em `verificarLimiteDeFuncao`.
+async function obterSaldoVagaFuncao({ nmEvento, nmFuncao, idFuncao, idEvento, idCliente, idLocalMontagem, datasSelecionadas }) {
+    nmEvento = (nmEvento || '').trim().toUpperCase();
+    nmFuncao = (nmFuncao || '').trim().toUpperCase();
+
+    if (typeof orcamentoPorFuncao === 'undefined' || !window.orcamentoPorFuncao) {
+        window.orcamentoPorFuncao = {};
+    }
+
+    let chaveSimples = [nmEvento, nmFuncao].filter(p => p).join('-');
+    let dadosOrcamento = window.orcamentoPorFuncao ? window.orcamentoPorFuncao[chaveSimples] : undefined;
+
+    if (!dadosOrcamento && window.orcamentoPorFuncao) {
+        const todasAsChaves = Object.keys(window.orcamentoPorFuncao);
+        const chaveEncontrada = todasAsChaves.find(c => c.includes(nmEvento) && c.includes(nmFuncao));
+        if (chaveEncontrada) dadosOrcamento = window.orcamentoPorFuncao[chaveEncontrada];
+    }
+
+    if (!dadosOrcamento && window.orcamentoPorFuncao && idFuncao) {
+        dadosOrcamento = Object.values(window.orcamentoPorFuncao).find(o => {
+            if (!o) return false;
+            return String(o.idfuncao) === String(idFuncao) ||
+                String(o.idFuncao) === String(idFuncao) ||
+                String(o.id_funcao) === String(idFuncao);
+        });
+    }
+
+    if (!dadosOrcamento || (!dadosOrcamento.quantidade_orcada && !dadosOrcamento.quantidadeOrcada)) {
+        let retornoApi = await buscarEPopularOrcamento(
+            idEvento, idCliente, idLocalMontagem, idFuncao, datasSelecionadas, false, true
+        );
+        if (retornoApi) {
+            dadosOrcamento = Array.isArray(retornoApi) ? retornoApi[0] : retornoApi;
+        }
+    }
+
+    if (!dadosOrcamento) {
+        dadosOrcamento = { quantidadeOrcada: 0, quantidadeEscalada: 0, datasOrcadas: [] };
+    }
+
+    const limiteTotal = Number(dadosOrcamento.quantidadeOrcada || dadosOrcamento.quantidade_orcada || 0);
+    const totalJaEscalado = Number(dadosOrcamento.quantidadeEscalada || dadosOrcamento.quantidade_escalada || dadosOrcamento.diarias_escaladas || 0);
+
+    const datasAtuaisNoBanco = currentEditingStaffEvent?.datasevento
+        ? (Array.isArray(currentEditingStaffEvent.datasevento)
+            ? currentEditingStaffEvent.datasevento
+            : (typeof currentEditingStaffEvent.datasevento === 'string'
+                ? JSON.parse(currentEditingStaffEvent.datasevento)
+                : []))
+        : [];
+    const diasAtuaisDoRegistro = datasAtuaisNoBanco.length;
+    const totalJaEscaladoSemEsteRegistro = Math.max(0, totalJaEscalado - diasAtuaisDoRegistro);
+
+    const totalDiariasSolicitadas = (datasSelecionadas || []).length;
+    const saldoAtual = limiteTotal - totalJaEscaladoSemEsteRegistro;
+    const temSaldoDisponivel = saldoAtual >= totalDiariasSolicitadas;
+
+    const rawDatasOrcadas = dadosOrcamento.datasOrcadas || dadosOrcamento.datas_totais_orcadas || [];
+    const datasOrcadas = rawDatasOrcadas.map(d => typeof d === 'string' && d.includes('T') ? d.split('T')[0] : d);
+
+    return { limiteTotal, totalJaEscalado, saldoAtual, totalDiariasSolicitadas, temSaldoDisponivel, datasOrcadas };
+}
 
 async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento, bEhDiariaDobrada = false, ignorarModalVisivel = false) {
     try {
@@ -11170,6 +11447,14 @@ function limparCamposStaff() {
     const containerObs = document.getElementById('containerObsPosPgto');
     if (containerObs) {
         containerObs.style.display = 'none'; // Oculta o histórico no reset
+    }
+    const obsLogSis = document.getElementById('obsLogSistema');
+    if (obsLogSis) {
+        obsLogSis.value = "";
+    }
+    const containerObsLogSis = document.getElementById('containerObsLogSistema');
+    if (containerObsLogSis) {
+        containerObsLogSis.style.display = 'none'; // Oculta o histórico no reset
     }
 
     const containersParaLimpar = [
@@ -18273,7 +18558,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 </div>
                                 <div style="text-align:left;">
                                     <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
-                                        Data Fora Do Orçamento, mas há <span style="color:#000; font-weight:800; font-size:15px; border-radius:4px; ">${saldoAtual}</span> diárias disponíveis para ${nmFuncao} em outro setor, período ou orçamento
+                                        Data Fora Do Período Orçado, mas há <span style="color:#000; font-weight:800; font-size:15px; border-radius:4px; ">${saldoAtual}</span> diárias disponíveis para ${nmFuncao} neste mesmo orçamento e setor, em outro período
                                     </p>
                                     <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
                                         As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento.
@@ -18360,6 +18645,21 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     
 
                     if (decisaoComSaldo === 'prosseguir') {
+                        /* ═══════════════════════════════════════════════════════════════════
+                         * BLOCO ORIGINAL — mantido comentado (não apagado) em 2026-07-17.
+                         * Buscava vagas de reaproveitamento em OUTROS setores/orçamentos
+                         * (excluindo de propósito o setor/orçamento atual) pra decidir se o
+                         * registro era "Vaga Reaproveitada" ou "mesmo orçamento", podendo abrir
+                         * um 2º swal pedindo pra escolher a origem. Isso foi criado quando o
+                         * saldo calculado em /orcamento/consultar ainda agregava TODOS os
+                         * setores da função (bug do "setor || null" em rotaStaff.js, corrigido
+                         * nesta mesma data) — então não dava pra saber se o saldo exibido era
+                         * do próprio setor ou de outro. Com o backend corrigido, `dadosOrcamento`
+                         * já vem isolado por setor, então esse bloco ficou redundante para o
+                         * fluxo normal (confirmado por investigação: a Diária Dobrada nunca
+                         * chega aqui — ela retorna antes, no bloco `ehDiariaDobrada` no início
+                         * desta função). Se algum caso real precisar de novo desse
+                         * comportamento de "escolher outro setor/orçamento", é só reativar.
 
                         console.log("✅ Entrou no bloco PROSSEGUIR");
 
@@ -18582,6 +18882,22 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             const setorDisplay = (vagaEscolhida?.setor || '').trim() || 'Sem Setor';
                             window.obsGeralNotaDatas = `[HISTÓRICO] Registrado em: ${datasForaDoPeriodoBR} por margem de tolerância. Vaga reaproveitada do setor "${setorDisplay}" (Orç: ${vagaEscolhida?.idorcamento}). Por: ${nomeUsuarioMulti}.`;
                         }
+
+                        return { allowed: true, solicitouAutorizacao: false };
+                        ═══════════════════════════════════════════════════════════════════ */
+
+                        // 🌟 BLOCO NOVO — o saldo que abriu este swal (temSaldoDisponivel) já foi
+                        // calculado isolado por (idorcamento, idfuncao, setor): é garantidamente
+                        // do MESMO orçamento e MESMO setor em uso agora, só que em outro período
+                        // (dentro da margem de tolerância). Não há "outra origem" pra escolher.
+                        console.log("✅ Entrou no bloco PROSSEGUIR — saldo já confirmado no próprio orçamento/setor");
+
+                        window.bSalvarComoInativo = false;
+                        window.datasParaSalvarNoBanco = datasForaDoPeriodo;
+                        window.tipoExcecaoAtual = null;
+
+                        const nomeUsuario = window.usuarioLogadoNome || 'Sistema';
+                        window.obsGeralNotaDatas = `[DATA FORA DO PERÍODO] Data(s) ${datasForaDoPeriodoBR} registrada(s) fora do período do orçamento, dentro da margem de 30 dias com vaga disponível no mesmo orçamento e setor. Por: ${nomeUsuario}.`;
 
                         return { allowed: true, solicitouAutorizacao: false };
                     }
