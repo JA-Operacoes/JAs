@@ -1148,12 +1148,32 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 staffeventos tse
             JOIN
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
+            JOIN
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.obspospgto IS NOT NULL
                 AND TRIM(tse.obspospgto) != ''
+
+            UNION ALL
+
+            -- 7b. HISTÓRICO DO SISTEMA (exceções/solicitações: data fora do período,
+            -- funcexcedido, aditivo, vaga reaproveitada etc — log protegido, não editável)
+            SELECT
+                tse.idevento,
+                tbf.nome AS "Profissional",
+                'Histórico do Sistema' AS "Informacao",
+                tse.obslogsistema AS "Observacao"
+            FROM
+                staffeventos tse
+            JOIN
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            JOIN
+                staffempresas semp ON tse.idstaff = semp.idstaff
+            WHERE
+                semp.idempresa = $1 ${wherePeriodoFinal}
+                AND tse.obslogsistema IS NOT NULL
+                AND TRIM(tse.obslogsistema) != ''
 
             UNION ALL
 

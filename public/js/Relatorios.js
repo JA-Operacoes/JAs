@@ -628,8 +628,18 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 <span class="data-relatorio">Data de Início: <strong>${formatarData(dataInicioSelecionada)}</strong></span>
                 <span class="data-relatorio">Data de Final: <strong>${formatarData(dataFimSelecionada)}</strong></span>
             </p>
+            <p class="legenda-relatorio" style="font-size: 11px; margin: 4px 0 10px;">
+                <span style="display:inline-block; margin-right:16px;">
+                    <span style="display:inline-block; width:12px; height:12px; background-color:#cbe4fd; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    Custo Fechado / Liberado
+                </span>
+                <span style="display:inline-block;">
+                    <span style="display:inline-block; width:12px; height:12px; background-color:rgb(136,9,9); border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    Ajuste de Custo aplicado
+                </span>
+            </p>
         `;
-        
+
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
