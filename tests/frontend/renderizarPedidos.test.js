@@ -351,6 +351,197 @@ describe("renderizarPedidos (public/js/Main.js)", () => {
       const secao2 = container.querySelector(".combo-fe-secao-func");
       expect(secao2.querySelector(".aprovar-fe-func-ind").disabled).toBe(false);
     });
+
+    function pedidoComboMultiData() {
+      return [
+        {
+          funcionario: "Equipe Segurança",
+          registrosOriginais: [
+            {
+              id_log: 1000,
+              isComboFuncExcedidoAditivo: true,
+              nomefuncionario: "Equipe Segurança",
+              dadosAditivo: {
+                id_log: 1010,
+                status_aprovacao: "pendente",
+                solicitacoes_individuais: [
+                  { idsolicitacao: 851, data: "2026-08-01", status: "pendente" },
+                  { idsolicitacao: 853, data: "2026-08-02", status: "pendente" },
+                ],
+              },
+              dadosFuncExcedido: {
+                id_log: 1020,
+                status_aprovacao: "pendente",
+                solicitacoes_individuais: [
+                  { idsolicitacao: 852, data: "2026-08-01", status: "pendente" },
+                  { idsolicitacao: 854, data: "2026-08-02", status: "pendente" },
+                ],
+              },
+            },
+          ],
+        },
+      ];
+    }
+
+    function linhaPorData(container, data) {
+      return [...container.querySelectorAll(".combo-fe-secao-func .linha-data-aditivo")]
+        .find((el) => el.getAttribute("data-data") === data);
+    }
+
+    test("autorizar só uma data do Aditivo desbloqueia só a linha correspondente do FuncExcedido", async () => {
+      const container = render(pedidoComboMultiData());
+
+      const botoesAditivo = [...container.querySelectorAll(".aprovar-fe-aditivo-ind")];
+      const botaoData01 = botoesAditivo.find((b) => b.getAttribute("data-data") === "2026-08-01");
+      botaoData01.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await aguardarFluxoAssincrono();
+
+      expect(global.fetchComToken).toHaveBeenCalledWith(
+        "/main/notificacoes-financeiras/atualizar-status",
+        expect.objectContaining({
+          body: JSON.stringify({
+            idpedido: "851", categoria: "statusaditivoextra", acao: "Autorizado", idlog_origem: "1010", data: "2026-08-01",
+          }),
+        })
+      );
+
+      expect(linhaPorData(container, "2026-08-01").querySelector(".aprovar-fe-func-ind").disabled).toBe(false);
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fe-func-ind").disabled).toBe(true);
+    });
+
+    test("rejeitar uma data do Aditivo cancela só a data correspondente do FuncExcedido", async () => {
+      const container = render(pedidoComboMultiData());
+
+      const botoesRejeitar = [...container.querySelectorAll(".rejeitar-fe-aditivo-ind")];
+      const botaoData01 = botoesRejeitar.find((b) => b.getAttribute("data-data") === "2026-08-01");
+      botaoData01.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await aguardarFluxoAssincrono();
+
+      expect(global.atualizarStatusAditivoExtra).toHaveBeenCalledWith(
+        "852", "rejeitado", "2026-08-01", "1020", true, "statusvagaexcedida"
+      );
+      expect(global.atualizarStatusAditivoExtra).not.toHaveBeenCalledWith(
+        "854", "rejeitado", expect.anything(), "1020", true, "statusvagaexcedida"
+      );
+
+      expect(linhaPorData(container, "2026-08-01").textContent).toContain("Cancelado");
+      // a outra data não foi tocada — segue bloqueada aguardando sua própria data do Aditivo
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fe-func-ind").disabled).toBe(true);
+    });
+
+    test("data do FuncExcedido sem par correspondente no Aditivo permanece bloqueada", () => {
+      const pedidos = pedidoComboMultiData();
+      // remove o par da segunda data do lado Aditivo — vira uma data órfã do lado FuncExcedido
+      pedidos[0].registrosOriginais[0].dadosAditivo.solicitacoes_individuais =
+        pedidos[0].registrosOriginais[0].dadosAditivo.solicitacoes_individuais.filter((s) => s.data !== "2026-08-02");
+      const container = render(pedidos);
+
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fe-func-ind").disabled).toBe(true);
+    });
+  });
+
+  // ── 6b. Combo Funcionário Excedido + Vaga Excedida (Aditivo ou Extra Bonificado) ──
+  describe("combo Vaga Excedida (Aditivo/Extra Bonificado) + Funcionário Excedido", () => {
+    function pedidoComboVaga({ isAditivo = true } = {}) {
+      return [
+        {
+          funcionario: "Equipe Segurança",
+          registrosOriginais: [
+            {
+              id_log: 2000,
+              isComboFuncExcedidoVaga: true,
+              isComboAditivoFuncVaga: isAditivo,
+              nomefuncionario: "Equipe Segurança",
+              dadosAditivo: {
+                id_log: 2010,
+                status_aprovacao: "pendente",
+                solicitacoes_individuais: [
+                  { idsolicitacao: 951, data: "2026-08-01", status: "pendente" },
+                  { idsolicitacao: 953, data: "2026-08-02", status: "pendente" },
+                ],
+              },
+              dadosFuncExcedido: {
+                id_log: 2020,
+                status_aprovacao: "pendente",
+                solicitacoes_individuais: [
+                  { idsolicitacao: 952, data: "2026-08-01", status: "pendente" },
+                  { idsolicitacao: 954, data: "2026-08-02", status: "pendente" },
+                ],
+              },
+            },
+          ],
+        },
+      ];
+    }
+
+    function linhaPorData(container, data) {
+      return [...container.querySelectorAll(".combo-fev-secao-func .linha-data-aditivo")]
+        .find((el) => el.getAttribute("data-data") === data);
+    }
+
+    test("natureza Aditivo: renderiza bloqueado com o rótulo 'Aditivo'", () => {
+      const container = render(pedidoComboVaga({ isAditivo: true }));
+
+      expect(container.innerHTML).toContain("combo-fev-card");
+      expect(container.innerHTML).toContain("Vaga Excedida");
+      expect(container.querySelector(".combo-fev-secao-aditivo").textContent).toContain("Aditivo");
+      expect(container.querySelector(".aprovar-fev-func-ind").disabled).toBe(true);
+    });
+
+    test("natureza Extra Bonificado: renderiza bloqueado com o rótulo 'Extra Bonificado'", () => {
+      const container = render(pedidoComboVaga({ isAditivo: false }));
+
+      expect(container.querySelector(".combo-fev-secao-aditivo").textContent).toContain("Extra Bonificado");
+    });
+
+    test("autorizar só uma data da Solicitação 1 desbloqueia só a linha correspondente do FuncExcedido", async () => {
+      const container = render(pedidoComboVaga());
+
+      const botoesAditivo = [...container.querySelectorAll(".aprovar-fev-aditivo-ind")];
+      const botaoData01 = botoesAditivo.find((b) => b.getAttribute("data-data") === "2026-08-01");
+      botaoData01.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await aguardarFluxoAssincrono();
+
+      expect(global.fetchComToken).toHaveBeenCalledWith(
+        "/main/notificacoes-financeiras/atualizar-status",
+        expect.objectContaining({
+          body: JSON.stringify({
+            idpedido: "951", categoria: "statusaditivoextra", acao: "Autorizado", idlog_origem: "2010", data: "2026-08-01",
+          }),
+        })
+      );
+
+      expect(linhaPorData(container, "2026-08-01").querySelector(".aprovar-fev-func-ind").disabled).toBe(false);
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fev-func-ind").disabled).toBe(true);
+    });
+
+    test("rejeitar uma data da Solicitação 1 cancela só a data correspondente do FuncExcedido", async () => {
+      const container = render(pedidoComboVaga());
+
+      const botoesRejeitar = [...container.querySelectorAll(".rejeitar-fev-aditivo-ind")];
+      const botaoData01 = botoesRejeitar.find((b) => b.getAttribute("data-data") === "2026-08-01");
+      botaoData01.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await aguardarFluxoAssincrono();
+
+      expect(global.atualizarStatusAditivoExtra).toHaveBeenCalledWith(
+        "952", "rejeitado", "2026-08-01", "2020", true, "statusvagaexcedida"
+      );
+      expect(global.atualizarStatusAditivoExtra).not.toHaveBeenCalledWith(
+        "954", "rejeitado", expect.anything(), "2020", true, "statusvagaexcedida"
+      );
+
+      expect(linhaPorData(container, "2026-08-01").textContent).toContain("Cancelado");
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fev-func-ind").disabled).toBe(true);
+    });
+
+    test("data do FuncExcedido sem par correspondente na Solicitação 1 permanece bloqueada", () => {
+      const pedidos = pedidoComboVaga();
+      pedidos[0].registrosOriginais[0].dadosAditivo.solicitacoes_individuais =
+        pedidos[0].registrosOriginais[0].dadosAditivo.solicitacoes_individuais.filter((s) => s.data !== "2026-08-02");
+      const container = render(pedidos);
+
+      expect(linhaPorData(container, "2026-08-02").querySelector(".aprovar-fev-func-ind").disabled).toBe(true);
+    });
   });
 
   // ── 7. Lista vazia ───────────────────────────────────────────────────────

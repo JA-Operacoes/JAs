@@ -197,6 +197,36 @@ describe("POST /notificacoes-financeiras/atualizar-status", () => {
       expect(encontrarChamada("SET datasevento")).toBeDefined();
       expect(encontrarChamada("SET statuscustofechado")).toBeUndefined();
     });
+
+    test("autorizar 'FuncExcedido + Vaga Excedida' mantém statusstaff Pendente (tem Aditivo/Extra vinculado, precisa entrar no orçamento)", async () => {
+      mockarBanco({
+        dadosSol: { dtsolicitada: ["2026-09-21"], tiposolicitacao: "FuncExcedido + Vaga Excedida" },
+        registro: {
+          idstaffevento: 502,
+          datasevento: [],
+          dtdiariadobrada: [],
+          vagasreaproveitadas: [],
+          obsgeral: "",
+          vlrcache: 50,
+          vlrtransporte: 0,
+          vlralimentacao: 0,
+          qtdpessoaslote: 1,
+          perfil: "freelancer",
+          statuspgtoajdcto: "",
+          vlrtotcache: 0,
+          vlrtotajdcusto: 0,
+        },
+      });
+
+      const res = await request(app)
+        .post("/notificacoes-financeiras/atualizar-status")
+        .send({ idpedido: 603, categoria: "statusvagaexcedida", acao: "Autorizado", idlog_origem: 902 });
+
+      expect(res.status).toBe(200);
+      const chamadaStaff = encontrarChamada("SET datasevento");
+      const [, , , , statusStaff] = chamadaStaff[1];
+      expect(statusStaff).toBe("Pendente");
+    });
   });
 
   describe("statuscustofechado (FLUXO B)", () => {
