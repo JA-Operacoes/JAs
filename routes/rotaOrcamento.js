@@ -2145,8 +2145,7 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
             AND s.status = 'Autorizado'
             AND NOT EXISTS (
                 SELECT 1 FROM orcamentoitens oi
-                WHERE s.idsolicitacao = ANY(oi.idsolicitacao)
-                AND oi.idsolicitacao IS NOT NULL
+                WHERE s.idsolicitacao = oi.idsolicitacao
             )
           GROUP BY
               s.idregistroalterado,
@@ -2650,6 +2649,21 @@ router.put("/:id",
 
     const idempresa = req.idempresa;
 
+    // Antes de ativar um staffevento (statusstaff = 'Ativo') na inclusão no orçamento,
+    // verifica se ainda existe OUTRA solicitação Pendente pro mesmo staffevento (de
+    // qualquer categoria) — se houver, statusstaff deve continuar 'Pendente' mesmo com
+    // esta solicitação específica já incluída. Mesmo padrão do `pendenciasReais` já
+    // usado em routes/rotaMain.js.
+    const temOutrasPendencias = async (idstaffeventoAlvo, idsExcluir = []) => {
+      const idsParaExcluir = idsExcluir.length ? idsExcluir : [0];
+      const { rows } = await client.query(`
+        SELECT 1 FROM public.solicitacoes
+        WHERE idregistroalterado = $1 AND status = 'Pendente' AND idsolicitacao != ALL($2::int[])
+        LIMIT 1
+      `, [idstaffeventoAlvo, idsParaExcluir]);
+      return rows.length > 0;
+    };
+
     try {
       await client.query("BEGIN");
 
@@ -2935,13 +2949,15 @@ router.put("/:id",
 
                                 console.log(`[Path 1] idstaffevento=${idstaffevento} setor="${setorOrcamentoItemP1}" dataEsperada="${dataEsperada}"`);
 
-                                // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente)
+                                // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente),
+                                //    mas só vira 'Ativo' se não houver outra solicitação pendente
+                                const novoStatusStaffP1 = (await temOutrasPendencias(idstaffevento, idsSolicitacoes)) ? 'Pendente' : 'Ativo';
                                 await client.query(`
                                     UPDATE staffeventos
-                                    SET statusstaff = 'Ativo', ativo = true,
+                                    SET statusstaff = $5, ativo = $6,
                                         vlrtotcache = $2, vlrtotajdcusto = $3, vlrtotal = $4
                                     WHERE idstaffevento = $1 AND statusstaff = 'Pendente'
-                                `, [idstaffevento, novoCacheTotal, novoAjdTotal, novoCacheTotal + novoAjdTotal]);
+                                `, [idstaffevento, novoCacheTotal, novoAjdTotal, novoCacheTotal + novoAjdTotal, novoStatusStaffP1, novoStatusStaffP1 === 'Ativo']);
 
                                 // 2. Atualiza setordobra no JSON — sem condição de statusstaff
                                 if (setorOrcamentoItemP1) {
@@ -2965,7 +2981,11 @@ router.put("/:id",
                                 console.log(`✅ [Path 1] Staffevento ${idstaffevento} (Dobrada Estouro) ativado, setordobra → "${setorOrcamentoItemP1}"`);
                             }
                         } else {
-                            await client.query(`UPDATE staffeventos SET statusstaff = 'Ativo', ativo = true WHERE idstaffevento = $1`, [idstaffevento]);
+                            const novoStatusStaffP1Generico = (await temOutrasPendencias(idstaffevento, idsSolicitacoes)) ? 'Pendente' : 'Ativo';
+                            await client.query(`
+                                UPDATE staffeventos SET statusstaff = $2, ativo = $3
+                                WHERE idstaffevento = $1 AND statusstaff = 'Pendente'
+                            `, [idstaffevento, novoStatusStaffP1Generico, novoStatusStaffP1Generico === 'Ativo']);
                         }
                     }
                     // Segue o fluxo de salvamento normal
@@ -3054,10 +3074,10 @@ router.put("/:id",
             item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte,
             item.totgeralitem, item.setor ?? '', isAdicional,
-            vlrBaseUpd,           // $29
-            item.cachefechado,    // $30
-            idsArray,             // $31
-            item.obsbonificado ?? null, // $32
+            vlrBaseUpd,                      // $29
+            item.cachefechado,               // $30
+            idsArray ? idsArray[0] : null,   // $31 — coluna integer, guarda só o ID primário
+            item.obsbonificado ?? null,      // $32
             item.id,              // $33
             idOrcamento           // $34
           ];
@@ -3114,10 +3134,10 @@ router.put("/:id",
             item.vlrajdctotransporte, item.totajdctoitem,
             item.hospedagem, item.transporte, item.totgeralitem,
             item.setor ?? '', isAdicional,
-            vlrBaseInsert,          // $30
-            item.cachefechado,      // $31
-            idsArray,               // $32
-            item.obsbonificado ?? null // $33
+            vlrBaseInsert,                    // $30
+            item.cachefechado,                // $31
+            idsArray ? idsArray[0] : null,    // $32 — coluna integer, guarda só o ID primário
+            item.obsbonificado ?? null        // $33
           ];
 
           await client.query(insertItemQuery, itemValues);
@@ -3140,9 +3160,10 @@ router.put("/:id",
             if (solicitacaoResult.rows.length > 0) {
                 const { idregistroalterado } = solicitacaoResult.rows[0];
 
+                const novoStatusStaffAditivo = (await temOutrasPendencias(idregistroalterado, idsArray)) ? 'Pendente' : 'Ativo';
                 await client.query(`
                     UPDATE staffeventos
-                    SET statusstaff = 'Ativo', ativo = true
+                    SET statusstaff = $3, ativo = $4
                     WHERE idstaffevento = $1
                     AND ativo = false
                     AND statusstaff NOT IN ('Inativo', 'Deletado')
@@ -3151,7 +3172,7 @@ router.put("/:id",
                         WHERE sem.idstaff = staffeventos.idstaff
                         AND sem.idempresa = $2
                     )
-                `, [idregistroalterado, idempresa]);
+                `, [idregistroalterado, idempresa, novoStatusStaffAditivo, novoStatusStaffAditivo === 'Ativo']);
 
                 console.log(`✅ Staffevento ${idregistroalterado} ativado após inclusão no orçamento (solicitações: ${idsArray.join(', ')})`);
             } else {
@@ -3201,13 +3222,15 @@ router.put("/:id",
 
                         console.log(`[Path 2] idstaffevento=${idregistroalterado} setor="${setorOrcamentoItem}" dataEsperada="${dataEsperada}" novoCache=${novoCacheTotal}`);
 
-                        // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente)
+                        // 1. Ativa o staffevento e soma os valores (apenas se ainda Pendente),
+                        //    mas só vira 'Ativo' se não houver outra solicitação pendente
+                        const novoStatusStaffDobrada = (await temOutrasPendencias(idregistroalterado, idsArray)) ? 'Pendente' : 'Ativo';
                         await client.query(`
                             UPDATE staffeventos
-                            SET statusstaff = 'Ativo', ativo = true,
+                            SET statusstaff = $5, ativo = $6,
                                 vlrtotcache = $2, vlrtotajdcusto = $3, vlrtotal = $4
                             WHERE idstaffevento = $1 AND statusstaff = 'Pendente'
-                        `, [idregistroalterado, novoCacheTotal, novoAjdTotal, novoTotal]);
+                        `, [idregistroalterado, novoCacheTotal, novoAjdTotal, novoTotal, novoStatusStaffDobrada, novoStatusStaffDobrada === 'Ativo']);
 
                         // 2. Atualiza setordobra no JSON — sem condição de statusstaff
                         //    para garantir que sempre reflete o setor real do orcamentoitem

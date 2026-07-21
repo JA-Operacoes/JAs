@@ -29,6 +29,45 @@ document.addEventListener("DOMContentLoaded", function () {
 let idMontagemChangeListener = null;
 let statusInputListener = null;
 let edicaoInputListener = null;
+
+// NOTA: este script é injetado dinamicamente (Index.js/abrirModal) toda vez que o
+// modal de Orçamento é aberto, sempre DEPOIS do DOMContentLoaded da página principal —
+// esse evento já disparou há muito tempo e não dispara de novo, então qualquer setup
+// preso em `document.addEventListener("DOMContentLoaded", ...)` aqui neste arquivo
+// nunca roda. Por isso este bloco roda direto, no nível superior do módulo: o HTML do
+// modal já foi injetado via innerHTML antes deste <script> ser criado, então o
+// elemento já existe no DOM neste ponto.
+(function configurarInputEdicao() {
+  // Edição só aceita dígitos (é sempre um ano) — sem travar em qual ano,
+  // pois o orçamentista pode criar orçamentos para anos futuros.
+  const edicaoInput = document.getElementById("edicao");
+  if (!edicaoInput) return;
+
+  let edicaoAvisoAtivo = false;
+  edicaoInputListener = (e) => {
+    const valorOriginal = e.target.value;
+    const somenteDigitos = valorOriginal.replace(/\D/g, "").slice(0, 4);
+    if (somenteDigitos === valorOriginal) return;
+
+    e.target.value = somenteDigitos;
+
+    // Debounce: só mostra o aviso uma vez por "rajada" de digitação inválida,
+    // pra não abrir um Swal atrás do outro se o usuário insistir na tecla.
+    if (!edicaoAvisoAtivo && typeof Swal !== "undefined") {
+      edicaoAvisoAtivo = true;
+      Swal.fire({
+        icon: "warning",
+        title: "Apenas números",
+        text: "O campo Edição aceita somente números (o ano do orçamento).",
+        toast: true,
+        position: "top-end",
+        timer: 1800,
+        showConfirmButton: false,
+      }).then(() => { edicaoAvisoAtivo = false; });
+    }
+  };
+  edicaoInput.addEventListener("input", edicaoInputListener);
+})();
 let nrOrcamentoInputListener = null;
 let nrOrcamentoBlurListener = null;
 let btnAdicionarLinhaListener = null;
@@ -7436,6 +7475,23 @@ function getOrcamentoAtualCarregado() {
  * orçamento do 'Próximo Ano' no frontend. Isso melhora a experiência do
  * usuário mostrando já os valores atualizados mesmo antes de salvar.
  */
+// Soma 1 ano à data mantendo mês/dia (e o horário, se houver), sem usar `new Date(string)`
+// para não sofrer o deslocamento de fuso horário que afeta strings ISO. Trata 29/fev
+// caindo num ano não bissexto virando 28/fev.
+function somarUmAnoNaData(dataStr) {
+  if (!dataStr) return dataStr;
+  const match = String(dataStr).match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (!match) return dataStr;
+  const [, ano, mes, dia, resto] = match;
+  const anoNovo = parseInt(ano, 10) + 1;
+  let diaNovo = dia;
+  if (mes === '02' && dia === '29') {
+    const bissexto = anoNovo % 4 === 0 && (anoNovo % 100 !== 0 || anoNovo % 400 === 0);
+    if (!bissexto) diaNovo = '28';
+  }
+  return `${anoNovo}-${mes}-${diaNovo}${resto}`;
+}
+
 async function rehidrateItemsForNewYear(itens) {
   if (!itens || !Array.isArray(itens) || itens.length === 0) return;
 
@@ -7454,7 +7510,13 @@ async function rehidrateItemsForNewYear(itens) {
     // ... (manter eqMap e supMap iguais)
 
     for (const item of itens) {
-      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior), 
+      // Rola o período da diária +1 ano — sem isso o item herda as datas do orçamento
+      // original, o que colide com o período do orçamento antigo e quebra a
+      // identificação de "qual orçamento está vigente" ao cadastrar staff.
+      if (item.periododiariasinicio) item.periododiariasinicio = somarUmAnoNaData(item.periododiariasinicio);
+      if (item.periododiariasfim) item.periododiariasfim = somarUmAnoNaData(item.periododiariasfim);
+
+      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior),
       // esse deve ser o valor "mãe" para o novo reajuste.
       let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
       let ctoReferencia = parseFloat(item.ctodiaria || 0);
