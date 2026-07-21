@@ -20,6 +20,8 @@ const NAMES = [
   "safeParse",
   "desbloquearFuncaoExcedidaAutorizada",
   "cardFuncaoExcedidaAditivo",
+  "desbloquearFuncaoExcedidaVagaAutorizada",
+  "cardFuncaoExcedidaVagaExcedida",
   "desbloquearBonificadoAutorizado",
   "cardBonificadoDiariaDobrada",
   "renderizarPedidos",
