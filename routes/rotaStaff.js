@@ -178,7 +178,7 @@ router.get("/funcionarios",  async (req, res) => {
       const result = await pool.query(
       `SELECT func.*, s.avaliacao FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-      INNER JOIN staff s ON s.idfuncionario = func.idfuncionario
+      LEFT JOIN staff s ON s.idfuncionario = func.idfuncionario
       WHERE funce.idempresa = $1 AND func.ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
