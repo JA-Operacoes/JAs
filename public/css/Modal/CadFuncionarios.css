@@ -431,6 +431,10 @@ input#dataNasc:not([value=""]) ~ label, input#admisao:not([value=""]) ~ label{
   input#idFuncionario, input#dependentes{
     width: 70px;
   }
+
+  .dependentes-container:not(:empty){
+    margin-top: 8px;
+  }
   input#idFuncionario:hover{
     cursor: not-allowed;
   }

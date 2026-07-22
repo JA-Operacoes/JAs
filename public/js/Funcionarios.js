@@ -70,11 +70,77 @@ if (typeof window.funcionarioriginal === "undefined") {
         admissao: "",
         salario: "",
         dependentes: "",
+        dependentesdados: [],
         admissao: "",
         valealim: "",
         valetrnsp: ""
     };
 }
+
+// Gera dinamicamente os campos (nome + data de nascimento) de cada dependente,
+// conforme a quantidade informada no input #dependentes. Preserva os valores já
+// digitados quando a quantidade aumenta/diminui. `oninput` chama esta função.
+// `dadosIniciais` (opcional) pré-preenche os campos ao carregar um funcionário:
+// array de { nome, nascimento }.
+window.gerarCamposDependentes = function gerarCamposDependentes(quantidade, dadosIniciais) {
+    const container = document.getElementById("dependentesContainer");
+    if (!container) return;
+
+    let qtd = parseInt(quantidade, 10);
+    if (isNaN(qtd) || qtd < 0) qtd = 0;
+    const MAX_DEPENDENTES = 20;
+    if (qtd > MAX_DEPENDENTES) qtd = MAX_DEPENDENTES;
+
+    // Se veio uma lista pronta (carregamento), usa ela; senão preserva o que já
+    // estava digitado antes de recriar os campos.
+    let valores;
+    if (Array.isArray(dadosIniciais)) {
+        valores = dadosIniciais.map(d => ({
+            nome: d?.nome || "",
+            nasc: (d?.nascimento || "").split("T")[0]
+        }));
+    } else {
+        valores = [];
+        container.querySelectorAll(".dependente-item").forEach((item, i) => {
+            valores[i] = {
+                nome: item.querySelector(`[name="depNome[]"]`)?.value || "",
+                nasc: item.querySelector(`[name="depNasc[]"]`)?.value || ""
+            };
+        });
+    }
+
+    container.innerHTML = "";
+
+    for (let i = 0; i < qtd; i++) {
+        const nome = valores[i]?.nome || "";
+        const nasc = valores[i]?.nasc || "";
+
+        const item = document.createElement("div");
+        item.className = "form-2colunas dependente-item";
+        item.innerHTML = `
+            <div class="form2">
+                <input type="text" class="uppercase" name="depNome[]" id="depNome_${i}" value="${nome}" spellcheck="false">
+                <label for="depNome_${i}">Nome do ${i + 1}º dependente</label>
+            </div>
+            <div class="form2">
+                <input type="date" name="depNasc[]" id="depNasc_${i}" value="${nasc}">
+                <label for="depNasc_${i}">Dt Nasc.</label>
+            </div>
+        `;
+        container.appendChild(item);
+    }
+};
+
+// Coleta os dependentes preenchidos no formulário e devolve um array
+// [{ nome, nascimento }] pronto pra virar JSON e ir ao backend.
+window.coletarDependentes = function coletarDependentes() {
+    const container = document.getElementById("dependentesContainer");
+    if (!container) return [];
+    return Array.from(container.querySelectorAll(".dependente-item")).map(item => ({
+        nome: (item.querySelector(`[name="depNome[]"]`)?.value || "").toUpperCase().trim(),
+        nascimento: item.querySelector(`[name="depNasc[]"]`)?.value || ""
+    }));
+};
 
 function usuarioTemPermissaoFinanceiro() {
   if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
@@ -279,6 +345,7 @@ async function verificaFuncionarios() {
         const funcao = document.getElementById("funcao")?.value.toUpperCase().trim() || '';
         const cbo = document.getElementById("cbo")?.value.trim() || '';
         const dependentes = document.getElementById("dependentes")?.value.trim() || '0';
+        const dependentesDados = JSON.stringify(coletarDependentes());
         const admissao = document.getElementById("admissao").value;
         
 
@@ -345,6 +412,7 @@ async function verificaFuncionarios() {
         formData.append("funcao", funcao);
         formData.append("cbo", cbo);
         formData.append("dependentes", dependentes);
+        formData.append("dependentesDados", dependentesDados);
         formData.append("admissao", admissao);
         formData.append("valealim", valealim);
         formData.append("valetrnsp", valetrnsp);
@@ -377,8 +445,20 @@ async function verificaFuncionarios() {
                     // Lógica de comparação de foto mantida
                 }
 
+                // 1.5. Comparar os dados dos dependentes (JSONB)
+                if (!houveAlteracao) {
+                    let depOriginal = window.funcionarioOriginal.dependentesdados;
+                    if (typeof depOriginal === 'string') {
+                        try { depOriginal = JSON.parse(depOriginal || '[]'); } catch (e) { depOriginal = []; }
+                    }
+                    if (!Array.isArray(depOriginal)) depOriginal = [];
+                    if (JSON.stringify(depOriginal) !== dependentesDados) {
+                        houveAlteracao = true;
+                    }
+                }
+
                 // 2. Comparar os outros campos de texto/booleano
-                if (!houveAlteracao) { 
+                if (!houveAlteracao) {
                     const camposTextoParaComparar = {
                         perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                         celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
@@ -1125,6 +1205,14 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             }
 
             document.getElementById("dependentes").value = funcionario.dependentes  || "0";
+            // dependentesdados vem do banco como JSONB (array) ou string JSON.
+            let dependentesDadosCarregados = funcionario.dependentesdados;
+            if (typeof dependentesDadosCarregados === 'string') {
+                try { dependentesDadosCarregados = JSON.parse(dependentesDadosCarregados || '[]'); }
+                catch (e) { dependentesDadosCarregados = []; }
+            }
+            if (!Array.isArray(dependentesDadosCarregados)) dependentesDadosCarregados = [];
+            gerarCamposDependentes(funcionario.dependentes || 0, dependentesDadosCarregados);
             document.getElementById("admissao").value = funcionario.admissao?.split('T')[0] || '';
 
             document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
@@ -1440,6 +1528,11 @@ function limparCamposFuncionarios(){
             }
         }
     });
+
+    // Zera a quantidade de dependentes e remove os campos dinâmicos gerados.
+    const campoDependentes = document.getElementById("dependentes");
+    if (campoDependentes) campoDependentes.value = "0";
+    gerarCamposDependentes(0);
 
     // --- Limpeza específica para Radio Buttons (Perfil) ---
     const radioPerfil = document.querySelectorAll('input[name="perfil"]'); // Seleciona todos os rádios com name="perfil"
