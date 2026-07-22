@@ -62,9 +62,12 @@ if (typeof window.funcionarioriginal === "undefined") {
         dataNascimento:"",
         nomeFamiliar:"",
         apelido:"",
-        pcd: false, 
+        pcd: false,
         ativo: true,
         bonificado: false,
+        mei: false,
+        adesaoPlanoSaude: false,
+        tipoPlanoSaude: "",
         funcao: "",
         cbo: "",
         admissao: "",
@@ -106,6 +109,21 @@ function atualizarFieldsetFinanceiro() {
       inp.dataset.required = "1"; inp.required = false;
     }
   });
+}
+
+// Habilita/mostra o select de acomodação (Enfermaria A/B, Apartamento A/B) somente
+// quando o checkbox 'Adesão Plano de Saúde' está marcado. Desmarcado, desabilita e
+// limpa o valor selecionado para não enviar uma acomodação sem adesão.
+function atualizarTipoPlanoSaude() {
+  const checkbox = document.getElementById("adesaoPlanoSaude");
+  const select = document.getElementById("tipoPlanoSaude");
+  if (!checkbox || !select) return;
+
+  const habilitado = checkbox.checked === true;
+  select.disabled = !habilitado;
+  if (!habilitado) {
+    select.value = "";
+  }
 }
 
 // ===== Autocomplete de CBO por Função =====
@@ -205,9 +223,15 @@ async function verificaFuncionarios() {
     const selectLinguas = document.getElementById('Linguas');
     if (selectLinguas) {
         selectLinguas.addEventListener('change', async function () {
-            atualizarCamposLinguas(); 
-        });        
+            atualizarCamposLinguas();
+        });
     }
+
+    const checkboxAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
+    if (checkboxAdesaoPlanoSaude) {
+        checkboxAdesaoPlanoSaude.addEventListener("change", atualizarTipoPlanoSaude);
+    }
+    atualizarTipoPlanoSaude(); // estado inicial
 
     botaoLimpar.addEventListener("click", (e) => {
         e.preventDefault();
@@ -273,6 +297,15 @@ async function verificaFuncionarios() {
 
         const campoBonificado = document.getElementById("bonificado");
         const bonificado = campoBonificado?.checked === true;
+
+        const campoMei = document.getElementById("mei");
+        const mei = campoMei?.checked === true;
+
+        const campoAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
+        const adesaoPlanoSaude = campoAdesaoPlanoSaude?.checked === true;
+        const tipoPlanoSaude = adesaoPlanoSaude
+            ? (document.getElementById("tipoPlanoSaude")?.value.trim() || '')
+            : '';
         const salario = desformatarReais(document.getElementById("salario")?.value) || '';
         const valealim = desformatarReais(document.getElementById("valealim")?.value) || '';
         const valetrnsp = desformatarReais(document.getElementById("valetrnsp")?.value) || '';
@@ -341,6 +374,9 @@ async function verificaFuncionarios() {
         formData.append("pcd", pcd); // <- envia como string "true" ou "false"
         formData.append("ativo", ativo); // 🎯 CAMPO ATIVO: Adicionado ao FormData
         formData.append("bonificado", bonificado);
+        formData.append("mei", mei);
+        formData.append("adesaoPlanoSaude", adesaoPlanoSaude);
+        formData.append("tipoPlanoSaude", tipoPlanoSaude);
         formData.append("salario", salario);
         formData.append("funcao", funcao);
         formData.append("cbo", cbo);
@@ -352,6 +388,8 @@ async function verificaFuncionarios() {
             console.log("valor de pcd:", pcd);
             console.log("valor de ativo:", ativo); // 🎯 CAMPO ATIVO
             console.log("valor de bonificado:", bonificado); // 🎯 CAMPO BONIFICADO
+            console.log("valor de mei:", mei); // 🎯 CAMPO MEI
+            console.log("valor de adesaoPlanoSaude:", adesaoPlanoSaude, "tipoPlanoSaude:", tipoPlanoSaude);
 
             // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
             const inputFileElement = document.getElementById('file');
@@ -365,7 +403,7 @@ async function verificaFuncionarios() {
                 perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                 celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                 numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
+                cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo, bonificado, mei, adesaoPlanoSaude, tipoPlanoSaude, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
             });
             if (metodo === "PUT" && window.funcionarioOriginal) {
                 let houveAlteracao = false;
@@ -384,12 +422,12 @@ async function verificaFuncionarios() {
                         celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                         numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                         cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd,
-                        ativo, bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
+                        ativo, bonificado, mei, adesaoPlanoSaude, tipoPlanoSaude, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
                     };
 
                     for (const key in camposTextoParaComparar) {
                         // Trata PCD e ATIVO como booleanos
-                        if (key === 'pcd' || key === 'ativo' || key === 'bonificado') {
+                        if (key === 'pcd' || key === 'ativo' || key === 'bonificado' || key === 'mei' || key === 'adesaoPlanoSaude') {
                             const originalBool = window.funcionarioOriginal[key] === true;
                             const atualBool = camposTextoParaComparar[key] === true;
                             if (originalBool !== atualBool) {
@@ -462,8 +500,9 @@ async function verificaFuncionarios() {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
-                    numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, 
-                    pcd: pcd, ativo: ativo, bonificado: bonificado, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
+                    numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido,
+                    pcd: pcd, ativo: ativo, bonificado: bonificado, mei: mei,
+                    adesaoPlanoSaude: adesaoPlanoSaude, tipoPlanoSaude: tipoPlanoSaude, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
                 };
 
             } catch (error) {
@@ -1004,6 +1043,21 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 checkboxBonificado.checked = funcionario.bonificado === true;
             }
 
+            const checkboxMei = document.getElementById("mei");
+            if (checkboxMei) {
+                checkboxMei.checked = funcionario.mei === true;
+            }
+
+            const checkboxAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
+            if (checkboxAdesaoPlanoSaude) {
+                checkboxAdesaoPlanoSaude.checked = funcionario.adesaoplanosaude === true;
+            }
+            const selectTipoPlanoSaude = document.getElementById("tipoPlanoSaude");
+            if (selectTipoPlanoSaude) {
+                selectTipoPlanoSaude.value = funcionario.tipoplanosaude || '';
+            }
+            atualizarTipoPlanoSaude();
+
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
             radiosPerfil.forEach(radio => {
                 if (radio.value === funcionario.perfil) {
@@ -1136,7 +1190,10 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 ...funcionario, 
                 pcd: funcionario.pcd === true, // Garante que é booleano
                 ativo: funcionario.ativo === true, // 🎯 NOVO: Garante que é booleano (true = ativo)
-                bonificado: funcionario.bonificado === true // 🎯 NOVO: Garante que é booleano (true = bonificado)
+                bonificado: funcionario.bonificado === true, // 🎯 NOVO: Garante que é booleano (true = bonificado)
+                mei: funcionario.mei === true, // Garante que é booleano (true = mei)
+                adesaoPlanoSaude: funcionario.adesaoplanosaude === true,
+                tipoPlanoSaude: funcionario.tipoplanosaude || ''
             };
            
             const selectLinguas = document.getElementById('Linguas'); 
@@ -1417,9 +1474,20 @@ function limparCamposFuncionarios(){
 
     const campoBonificado = document.getElementById("bonificado");
     if (campoBonificado && campoBonificado.type === "checkbox") {
-        campoBonificado.checked = false; 
+        campoBonificado.checked = false;
     }
-    
+
+    const campoMei = document.getElementById("mei");
+    if (campoMei && campoMei.type === "checkbox") {
+        campoMei.checked = false;
+    }
+
+    const campoAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
+    if (campoAdesaoPlanoSaude && campoAdesaoPlanoSaude.type === "checkbox") {
+        campoAdesaoPlanoSaude.checked = false;
+    }
+    atualizarTipoPlanoSaude(); // desabilita e limpa o select de acomodação
+
     // 🎯 CAMPO ATIVO: Garante que o checkbox 'ativo' é MARCADO (true por padrão)
     const campoAtivo = document.getElementById("ativo");
     if (campoAtivo && campoAtivo.type === "checkbox") {
