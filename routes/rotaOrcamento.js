@@ -2145,7 +2145,7 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
             AND s.status = 'Autorizado'
             AND NOT EXISTS (
                 SELECT 1 FROM orcamentoitens oi
-                WHERE s.idsolicitacao = oi.idsolicitacao
+                WHERE s.idsolicitacao = ANY(oi.idsolicitacao)
             )
           GROUP BY
               s.idregistroalterado,
@@ -3076,7 +3076,7 @@ router.put("/:id",
             item.totgeralitem, item.setor ?? '', isAdicional,
             vlrBaseUpd,                      // $29
             item.cachefechado,               // $30
-            idsArray ? idsArray[0] : null,   // $31 — coluna integer, guarda só o ID primário
+            idsArray,   // $31 — coluna integer, guarda só o ID primário
             item.obsbonificado ?? null,      // $32
             item.id,              // $33
             idOrcamento           // $34
@@ -3136,7 +3136,7 @@ router.put("/:id",
             item.setor ?? '', isAdicional,
             vlrBaseInsert,                    // $30
             item.cachefechado,                // $31
-            idsArray ? idsArray[0] : null,    // $32 — coluna integer, guarda só o ID primário
+            idsArray,                         // $32 — coluna integer, guarda só o ID primário
             item.obsbonificado ?? null        // $33
           ];
 
