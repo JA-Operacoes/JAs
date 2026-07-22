@@ -150,6 +150,24 @@
                     </svg>
                   </div>
                 </label>
+
+                <label class="ios-checkbox blue" title="MEI: emite nota fiscal dos serviços prestados">
+                  <p>MEI</p>
+                  <input type="checkbox" id="mei" name="mei" />
+                  <div class="checkbox-wrapper">
+                    <div class="checkbox-bg"></div>
+                    <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                      <path
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="3"
+                        stroke="currentColor"
+                        d="M4 12L10 18L20 6"
+                        class="check-path"
+                      ></path>
+                    </svg>
+                  </div>
+                </label>
               </div>
 
 
@@ -208,7 +226,35 @@
               </div>
             </div>
 
-            <div id="dependentesContainer" class="dependentes-container"></div>
+            <div class="checkbox-container" style="align-items: center;">
+              <label class="ios-checkbox blue">
+                <p>ADESÃO PLANO DE SAÚDE</p>
+                <input type="checkbox" id="adesaoPlanoSaude" name="adesaoPlanoSaude" />
+                <div class="checkbox-wrapper">
+                  <div class="checkbox-bg"></div>
+                  <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                    <path
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                      stroke-width="3"
+                      stroke="currentColor"
+                      d="M4 12L10 18L20 6"
+                      class="check-path"
+                    ></path>
+                  </svg>
+                </div>
+              </label>
+
+              <div class="select-plano-saude-box">
+                <select id="tipoPlanoSaude" name="tipoPlanoSaude" class="select-plano-saude" disabled>
+                  <option value="" selected disabled>Selecione a acomodação</option>
+                  <option value="Enfermaria A">Enfermaria A</option>
+                  <option value="Enfermaria B">Enfermaria B</option>
+                  <option value="Apartamento A">Apartamento A</option>
+                  <option value="Apartamento B">Apartamento B</option>
+                </select>
+              </div>
+            </div>
           </fieldset>
 
 

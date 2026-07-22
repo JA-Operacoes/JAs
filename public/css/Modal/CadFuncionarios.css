@@ -325,6 +325,47 @@ display: none;
     color: #000000;
     outline: none;
   }
+
+  /* Caixa com bordas retas de verdade: o navegador pode pintar o <select> nativo
+     com cantos arredondados que o CSS do próprio select não consegue remover em
+     alguns temas do Windows. Por isso o select fica levemente maior que a caixa
+     visível e o "overflow: hidden" do wrapper recorta esses cantos, deixando só
+     o retângulo reto da borda do wrapper aparente. */
+  .select-plano-saude-box {
+    position: relative;
+    display: inline-block;
+    width: 240px;
+    height: 40px;
+    border: 1px solid #000000;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .select-plano-saude {
+    font-family: var(--Font-primary);
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: calc(100% + 16px);
+    height: calc(100% + 16px);
+    font-size: 14px;
+    padding: 8px 40px 8px 23px;
+    color: #000000;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23000000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 20px center;
+  }
+
+  .select-plano-saude::-ms-expand {
+    display: none;
+  }
   .form label, .form-2colunas label, .form2 label{
     display: flex;
     justify-content: center;
