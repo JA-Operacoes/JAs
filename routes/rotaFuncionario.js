@@ -219,6 +219,15 @@ router.put("/:id",
             adesaoPlanoSaude, tipoPlanoSaude
         } = req.body;
 
+        // dependentesDados chega como string JSON (FormData). Normaliza para um
+        // array válido antes de gravar no JSONB; qualquer coisa inesperada vira [].
+        let dependentesDadosJson = '[]';
+        try {
+            const parsed = typeof dependentesDados === 'string' ? JSON.parse(dependentesDados || '[]') : (dependentesDados || []);
+            dependentesDadosJson = JSON.stringify(Array.isArray(parsed) ? parsed : []);
+        } catch (e) {
+            dependentesDadosJson = '[]';
+        }
 
         let fotoPathParaBD = null;
         let client; // Usaremos um cliente do pool para transação
@@ -287,9 +296,9 @@ router.put("/:id",
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, mei = $34, salario = $35 , funcao = $36, cbo = $37, dependentes = $38, admissao = $39, valealim = $40, valetrnsp = $41, adesaoplanosaude = $42, tipoplanosaude = $43
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, mei = $34, salario = $35 , funcao = $36, cbo = $37, dependentes = $38, admissao = $39, valealim = $40, valetrnsp = $41, adesaoplanosaude = $42, tipoplanosaude = $43, dependentesdados = $44
                 FROM funcionarioempresas fe
-                WHERE func.idfuncionario = $44 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $45
+                WHERE func.idfuncionario = $45 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $46
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -302,7 +311,7 @@ router.put("/:id",
                 complemento, bairro, cidade, estado, pais,
                 dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
                 vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
-                adesaoPlanoSaude, tipoPlanoSaude,
+                adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson,
                 id, idempresa // ID do funcionário para a cláusula WHERE
             ];
 
@@ -385,6 +394,14 @@ router.post("/",
             adesaoPlanoSaude, tipoPlanoSaude
         } = req.body;
 
+        // dependentesDados chega como string JSON (FormData). Normaliza para array.
+        let dependentesDadosJson = '[]';
+        try {
+            const parsed = typeof dependentesDados === 'string' ? JSON.parse(dependentesDados || '[]') : (dependentesDados || []);
+            dependentesDadosJson = JSON.stringify(Array.isArray(parsed) ? parsed : []);
+        } catch (e) {
+            dependentesDadosJson = '[]';
+        }
 
         const idempresa = req.idempresa;
         let client;
@@ -423,8 +440,8 @@ router.post("/",
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
-                    adesaoplanosaude, tipoplanosaude
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43)
+                    adesaoplanosaude, tipoplanosaude, dependentesdados
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44)
                 RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
@@ -432,7 +449,7 @@ router.post("/",
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
                     vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
-                    adesaoPlanoSaude, tipoPlanoSaude
+                    adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];
