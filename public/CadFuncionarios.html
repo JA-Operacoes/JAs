@@ -96,44 +96,6 @@
                 <label for="rg">RG</label>
               </div>   
 
-              <!-- <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">PCD</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="pcd" name="pcd" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                </label>
-              </div>
-
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">Ativo</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                </label>
-              </div>
-
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">Bonificado</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="bonificado" name="bonificado" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                </label>
-              </div> -->
               <div class="checkbox-container">
                 <label class="ios-checkbox blue">
                   <p>PCD</p>
@@ -233,7 +195,7 @@
                 <label for="salario">Salario Bruto</label>
               </div>
               <div class="form2">
-                <input type="number" name="dependentes" id="dependentes" value="0">
+                <input type="number" name="dependentes" id="dependentes" min="0" value="0" oninput="gerarCamposDependentes(this.value)">
                 <label for="dependentes">Dependentes</label>
               </div>
               <div class="form2">
@@ -245,6 +207,8 @@
                 <label for="valetrnsp">Vale Transporte (dia)</label>
               </div>
             </div>
+
+            <div id="dependentesContainer" class="dependentes-container"></div>
           </fieldset>
 
 
