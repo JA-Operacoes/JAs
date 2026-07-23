@@ -1700,12 +1700,31 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     ajusteCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
     ajusteCustoTextarea.value = eventData.descajustecusto;
     statusAjusteCustoInput.value = eventData.statusajustecusto || '';
+    // Valor já autorizado não deve ser mais editado — só via Pendente/Rejeitado primeiro
+    ajusteCustoInput.readOnly = (eventData.statusajustecusto || '').trim() === 'Autorizado';
+
+    // "Solicitar Novamente": só quando Rejeitado e o cachê (onde o ajuste é somado) ainda não foi PAGO
+    const btnResolicitarAjuste = document.getElementById('btnSolicitarNovamenteAjusteCusto');
+    if (btnResolicitarAjuste) {
+        const podeResolicitarAjuste = (eventData.statusajustecusto || '').trim() === 'Rejeitado'
+            && (eventData.statuspgto || '').trim().toUpperCase() !== 'PAGO';
+        btnResolicitarAjuste.style.display = podeResolicitarAjuste ? 'inline-block' : 'none';
+    }
 
     caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
     descCaixinhaTextarea.value = eventData.desccaixinha || '';
    // statusCaixinhaInput.value = eventData.statuscaixinha || '';
     const vlrCaixinha = parseFloat(eventData.vlrcaixinha || 0);
     statusCaixinhaInput.value = eventData.statuscaixinha || (vlrCaixinha !== 0 ? 'Pendente' : '');
+    caixinhaInput.readOnly = (eventData.statuscaixinha || '').trim() === 'Autorizado';
+
+    // "Solicitar Novamente": só quando Rejeitado e o pagamento da caixinha ainda não foi PAGO
+    const btnResolicitarCaixinha = document.getElementById('btnSolicitarNovamenteCaixinha');
+    if (btnResolicitarCaixinha) {
+        const podeResolicitarCaixinha = (eventData.statuscaixinha || '').trim() === 'Rejeitado'
+            && (eventData.statuspgtocaixinha || '').trim().toUpperCase() !== 'PAGO';
+        btnResolicitarCaixinha.style.display = podeResolicitarCaixinha ? 'inline-block' : 'none';
+    }
     window.statusAnteriorCaixinha = eventData.statuscaixinha;
     statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
     window.statusPgtoCaixinhaOriginalDoBanco = eventData.statuspgtocaixinha;
@@ -3737,8 +3756,8 @@ async function verificaStaff() {
 
     
     ajusteCustoInput.addEventListener('change', () => {
-        let valor = ajusteCustoInput.value.replace(',', '.');
-        if (!isNaN(parseFloat(valor))) {
+        let valor = ajusteCustoInput.value.replace(',', '.').replace(/\s+/g, '');
+        if (valor !== '' && !isNaN(parseFloat(valor))) {
             ajusteCustoInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
         } else {
             ajusteCustoInput.value = '0,00';
@@ -3747,6 +3766,40 @@ async function verificaStaff() {
         // if (typeof calcularValorTotal === 'function') {
         //     calcularValorTotal();
         // }
+    });
+
+    // "Solicitar Novamente": reabre uma solicitação de Ajuste de Custo depois de Rejeitada,
+    // sem sobrescrever a rejeitada — o backend já cria uma nova (status = 'Pendente' filtrado no UPDATE).
+    document.getElementById('btnSolicitarNovamenteAjusteCusto')?.addEventListener('click', () => {
+        const vlrAnterior = ajusteCustoInput.value;
+        ajusteCustoInput.readOnly = false;
+        ajusteCustoTextarea.value = '';
+        if (typeof mostrarStatusComoPendente === 'function') {
+            mostrarStatusComoPendente('StatusAjusteCusto');
+        }
+        document.getElementById('btnSolicitarNovamenteAjusteCusto').style.display = 'none';
+        ajusteCustoInput.focus();
+        ajusteCustoInput.select();
+
+        const agora = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const novaNota = `[AJUSTE DE CUSTO - NOVA SOLICITAÇÃO] Substitui solicitação rejeitada de R$ ${vlrAnterior}. Nova solicitação em ${agora}.`;
+        window.obsGeralNotaDatas = window.obsGeralNotaDatas ? window.obsGeralNotaDatas + '\n' + novaNota : novaNota;
+    });
+
+    document.getElementById('btnSolicitarNovamenteCaixinha')?.addEventListener('click', () => {
+        const vlrAnterior = caixinhaInput.value;
+        caixinhaInput.readOnly = false;
+        descCaixinhaTextarea.value = '';
+        if (typeof mostrarStatusComoPendente === 'function') {
+            mostrarStatusComoPendente('StatusCaixinha');
+        }
+        document.getElementById('btnSolicitarNovamenteCaixinha').style.display = 'none';
+        caixinhaInput.focus();
+        caixinhaInput.select();
+
+        const agora = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const novaNota = `[CAIXINHA - NOVA SOLICITAÇÃO] Substitui solicitação rejeitada de R$ ${vlrAnterior}. Nova solicitação em ${agora}.`;
+        window.obsGeralNotaDatas = window.obsGeralNotaDatas ? window.obsGeralNotaDatas + '\n' + novaNota : novaNota;
     });
 
     const selectAjusteCusto = document.getElementById('selectStatusAjusteCusto');
@@ -5880,7 +5933,7 @@ async function verificaStaff() {
 
                 console.log("HOUVE ALTERAÇÃO:", houveAlteracao, "ALTEROU DATAS:", houveAlteracaoDatas);
 
-                const alterouDadosOrcamento = houveAlteracaoDatas || houveAlteracaoDiariaDobrada || logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao);
+                const alterouDadosOrcamento = houveAlteracaoDatas || houveAlteracaoDiariaDobrada || houveAlteracaoAjusteCusto || houveAlteracaoCaixinha || logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao);
                 console.log("HOUVE ALTERAÇÃO:", houveAlteracao, "ALTEROU DATAS:", houveAlteracaoDatas, "ALTEROU FUNÇÃO:", alterouDadosOrcamento);
 
                 //if (alterouDadosOrcamento) {
@@ -16878,7 +16931,20 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
     let countDobras = Array.isArray(arrayDobras) ? arrayDobras.length : 0;
     let ehDiariaDobrada = (countDobras > 0 || criterios.isDiariaDobrada === true || (typeof isDiariaDobrada !== 'undefined' && isDiariaDobrada === true));
 
-    if (ehDiariaDobrada) {
+    // Só é uma diária dobrada NOVA se houver data ainda não autorizada no registro salvo.
+    // Evita reabrir o bloqueio de limite financeiro quando a dobra já estava autorizada
+    // e o salvamento atual só mexeu em algo não relacionado a ela (ex.: remover uma data normal).
+    const dobrasJaAutorizadas = new Set(
+        (currentEditingStaffEvent?.dtdiariadobrada || [])
+            .filter(d => d && d.status === 'Autorizado')
+            .map(d => String(d.data).substring(0, 10))
+    );
+    const arrayDobrasNovas = arrayDobras.filter(d => {
+        const dataStr = (typeof d === 'object' && d !== null) ? d.data : d;
+        return !dobrasJaAutorizadas.has(String(dataStr).substring(0, 10));
+    });
+
+    if (ehDiariaDobrada && arrayDobrasNovas.length > 0) {
         console.log("🔄 [verificarLimiteDeFuncao] É Diária Dobrada detectada no início.");
 
         // Busca saldo real da equipe (mesmo padrão do check in-period)
@@ -16914,7 +16980,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
 
         const vlrCacheDobra   = parseFloat(window.vlrCacheDobraSelecionado || 0);
         const vlrAlimDobra    = parseFloat(window.vlrAlimentacaoDobraSelecionado || 0);
-        const numDatasDobra   = Array.isArray(arrayDobras) ? arrayDobras.length : 0;
+        const numDatasDobra   = arrayDobrasNovas.length;
         const custoDobra      = (vlrCacheDobra + vlrAlimDobra) * numDatasDobra;
 
         console.log(`💰 [Dobrada] orcado: R$${orcadoEqDobra.toFixed(2)} | gasto: R$${gastoEqDobra.toFixed(2)} | saldo: R$${saldoEqDobra.toFixed(2)} | custo dobrada: R$${custoDobra.toFixed(2)}`);
@@ -16985,7 +17051,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                     solicitouAutorizacao: true,
                     justificativa: dadosExcecaoDb.justificativa,
                     tipoSolicitacao: 'Dobrada - Estouro Financeiro',
-                    datasExcecao: arrayDobras
+                    datasExcecao: arrayDobrasNovas
                 };
             }
 
@@ -17074,12 +17140,19 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
         let datasPermitidas = [];
         const datasSelNormalizadas = [...new Set(datasSelecionadas.map(d => String(d).trim().substring(0, 10)))];
 
+        // Só entram na validação de exceção as datas que ainda não estavam salvas no registro.
+        // As que já existiam antes (ex.: 18,19,20) já foram tratadas em um salvamento anterior.
+        const datasJaSalvas = new Set(
+            (currentEditingStaffEvent?.datasevento || []).map(d => String(d).trim().substring(0, 10))
+        );
+        const datasNovasSelecionadas = datasSelNormalizadas.filter(d => !datasJaSalvas.has(d));
+
         if (dadosOrcamento && dadosOrcamento.datasOrcadas) {
             datasPermitidas = (Array.isArray(dadosOrcamento.datasOrcadas)
             ? dadosOrcamento.datasOrcadas
             : [dadosOrcamento.datasOrcadas]).map(d => String(d).trim().substring(0, 10));
 
-            ehExcecaoDeData = datasSelNormalizadas.some(dataSel => !datasPermitidas.includes(dataSel));
+            ehExcecaoDeData = datasNovasSelecionadas.some(dataSel => !datasPermitidas.includes(dataSel));
         } else {
             ehExcecaoDeData = true;
         }
@@ -17144,9 +17217,10 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                     const orcadoEqChk = Number(saldoEq?.vlr_total_orcado_equipe || 0);
                     const gastoEqChkRaw = Number(saldoEq?.vlr_total_gasto_equipe || 0);
 
-                    // Ao editar, o custo atual do registro já está no gasto — subtrai para não double-count
+                    // Ao editar, o custo atual do registro já está no gasto — subtrai para não double-count.
+                    // vlrtotcache já embute o ajuste de custo quando Autorizado — não soma vlrajustecusto de novo.
                     const custoAtualEd = currentEditingStaffEvent
-                        ? (Number(currentEditingStaffEvent.vlrtotcache || 0) + Number(currentEditingStaffEvent.vlrtotajdcusto || 0) + Number(currentEditingStaffEvent.vlrajustecusto || 0))
+                        ? (Number(currentEditingStaffEvent.vlrtotcache || 0) + Number(currentEditingStaffEvent.vlrtotajdcusto || 0))
                         : 0;
                     const gastoEqChk = Math.max(0, gastoEqChkRaw - custoAtualEd);
                     const saldoEqChk = orcadoEqChk - gastoEqChk;
@@ -17154,11 +17228,34 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                     const vlrCacheChk  = parseFloat(document.getElementById('vlrCusto')?.value?.replace(',', '.') || 0);
                     const vlrAlimChk   = parseFloat(document.getElementById('alimentacao')?.value?.replace(',', '.') || 0);
                     const vlrTranspChk = parseFloat(document.getElementById('transporte')?.value?.replace(',', '.') || 0);
-                    const custoPropostoChk = (vlrCacheChk + vlrAlimChk + vlrTranspChk) * totalDiariasSolicitadas;
+                    const vlrAjusteChk   = parseFloat(document.getElementById('ajusteCusto')?.value?.replace(',', '.') || 0);
+                    const vlrCaixinhaChk = parseFloat(document.getElementById('caixinha')?.value?.replace(',', '.') || 0);
+                    const custoPropostoChk = ((vlrCacheChk + vlrAlimChk + vlrTranspChk) * totalDiariasSolicitadas) + vlrAjusteChk + vlrCaixinhaChk;
 
                     console.log(`💰 [Check financeiro universal] orcado: R$${orcadoEqChk.toFixed(2)} | gasto: R$${gastoEqChk.toFixed(2)} | saldo: R$${saldoEqChk.toFixed(2)} | custo proposto: R$${custoPropostoChk.toFixed(2)}`);
 
                     if (orcadoEqChk > 0 && (saldoEqChk <= 0 || custoPropostoChk > saldoEqChk)) {
+
+                        // Ajuste de Custo (positivo) e Caixinha já criam solicitação Pendente — quem decide
+                        // se autoriza mesmo com o limite estourado é o aprovador, não quem está cadastrando.
+                        const ajusteCustoPositivoAtivo = !!(document.getElementById('ajusteCustocheck')?.checked && vlrAjusteChk > 0);
+                        const caixinhaAtivaChk = !!(document.getElementById('Caixinhacheck')?.checked && vlrCaixinhaChk > 0);
+                        if (ajusteCustoPositivoAtivo || caixinhaAtivaChk) {
+                            await Swal.fire({
+                                icon: 'warning',
+                                title: 'Limite financeiro da equipe atingido',
+                                html: `
+                                    <div style="text-align:left; font-size:13px; color:#555;">
+                                        <p style="margin:0 0 10px;">Custo proposto: <b>R$ ${custoPropostoChk.toFixed(2)}</b> | Saldo da equipe: <b style="color:#c0392b;">R$ ${saldoEqChk.toFixed(2)}</b></p>
+                                        <p style="margin:0;">Isso ultrapassa o saldo atual da equipe. A solicitação será registrada como Pendente — quem decide se autoriza mesmo assim é o aprovador.</p>
+                                    </div>
+                                `,
+                                confirmButtonText: 'Prosseguir com Solicitação',
+                                confirmButtonColor: 'var(--primary-color, #8B0000)',
+                            });
+                            return { allowed: true };
+                        }
+
                         const datasAditivo = datasReaisParaValidar.length > 0 ? datasReaisParaValidar : [];
                         const idOrcChk = dadosOrcamento?.idorcamento || dadosOrcamento?.idOrcamento || 0;
 
@@ -17272,8 +17369,8 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                 };
             }
 
-            // ✅ Apenas as datas que realmente estão fora do orçamento
-            const datasForaDoPeriodo = datasSelNormalizadas.filter(d => !datasPermitidas.includes(d));
+            // ✅ Apenas as datas novas que realmente estão fora do orçamento
+            const datasForaDoPeriodo = datasNovasSelecionadas.filter(d => !datasPermitidas.includes(d));
             const datasForaDoPeriodoBR = datasForaDoPeriodo.map(d => d.split('-').reverse().join('/')).join(', ');
 
            // const dentroDaMargem = dadosOrcamento.hasOwnProperty('dentroDaMargem') ? dadosOrcamento.dentroDaMargem : true;
@@ -17574,6 +17671,16 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                 let templateHeaderHtml = '';
                 let botaoMesmaFuncaoHtml = '';
 
+                // Pré-calcula se reaproveitar essa vaga cabe no saldo financeiro da equipe (mesma conta
+                // usada no clique do botão), pra não oferecer como opção algo que vai travar depois.
+                const vlrPorDiaPreview = vlrCacheForm + vlrAlimForm + vlrTranspForm;
+                const custoInPeriodoPreview = datasNoPeriodoCount * vlrPorDiaPreview;
+                const saldoEfetivoForaDoPeriodoPreview = Math.max(0, saldoFinEquipe - custoInPeriodoPreview);
+                const capacidadeFinanceiraPreview = (saldoFinEquipe > 0 && vlrPorDiaPreview > 0)
+                    ? Math.floor(saldoEfetivoForaDoPeriodoPreview / vlrPorDiaPreview)
+                    : vagasDisponiveisExibir;
+                const temCapacidadeFinanceiraParaReaproveitar = Math.min(vagasDisponiveisExibir, capacidadeFinanceiraPreview) > 0;
+
                 if (totalDiariasOrcamento > 0) {
                     const textoVagasDisponiveis = vagasDisponiveisExibir === 0 ? 'NÃO HÁ VAGAS DISPONÍVEIS' : vagasDisponiveisExibir === 1 ? 'HÁ 1 VAGA DISPONÍVEL' : `HÁ ${vagasDisponiveisExibir} VAGAS DISPONÍVEIS`;
                     const corVagasDisponiveis = vagasDisponiveisExibir === 0 ? '#c0392b' : '#28a745';
@@ -17594,14 +17701,20 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         </div>
                     `;
 
-                    // Só exibe o botão se houver saldo real disponível para reaproveitamento
-                    if (vagasDisponiveisExibir > 0) {
+                    // Só exibe o botão se houver saldo real disponível E capacidade financeira para reaproveitar
+                    if (vagasDisponiveisExibir > 0 && temCapacidadeFinanceiraParaReaproveitar) {
                         botaoMesmaFuncaoHtml = `
                             <button id="btn-remanejar-mesma-funcao"
                                 style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
                                 <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${vagasDisponiveisExibir} diárias)
                             </button>
                             <div style="text-align: center; margin: 10px 0; font-size: 11px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
+                        `;
+                    } else if (vagasDisponiveisExibir > 0 && !temCapacidadeFinanceiraParaReaproveitar) {
+                        botaoMesmaFuncaoHtml = `
+                            <div style="background:#fff3cd; color:#856404; padding:10px 14px; border-radius:6px; font-size:12px; margin-bottom:16px; text-align:left; border:1px solid #f6d87f;">
+                                ℹ️ Há <b>${vagasDisponiveisExibir} vaga(s)</b> dessa função disponível em outro setor, orçamento ou período, mas o <b>saldo financeiro da equipe não é suficiente</b> para usá-las agora.
+                            </div>
                         `;
                     }
 
@@ -18983,16 +19096,43 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
         // proposto esgotaria ou excederia o saldo restante (datas dentro do período)
         const vagaRefEqPer = vagasDisponiveis.find(v => Number(v.vlr_total_orcado_equipe || 0) > 0) || vagasDisponiveis[0];
         const orcadoEqPer  = Number(vagaRefEqPer?.vlr_total_orcado_equipe || 0);
-        const gastoEqPer   = Number(vagaRefEqPer?.vlr_total_gasto_equipe  || 0);
+        // Ao editar, o custo atual do registro já está no gasto — subtrai para não double-count.
+        // vlrtotcache já embute o ajuste de custo quando Autorizado — não soma vlrajustecusto de novo.
+        const custoAtualEdPer = currentEditingStaffEvent
+            ? (Number(currentEditingStaffEvent.vlrtotcache || 0) + Number(currentEditingStaffEvent.vlrtotajdcusto || 0))
+            : 0;
+        const gastoEqPer   = Math.max(0, Number(vagaRefEqPer?.vlr_total_gasto_equipe || 0) - custoAtualEdPer);
         const saldoEqPer   = orcadoEqPer - gastoEqPer;
 
         const vlrCacheFormPer  = parseFloat(document.getElementById('vlrCusto')?.value?.replace(',', '.') || 0);
         const vlrAlimFormPer   = parseFloat(document.getElementById('alimentacao')?.value?.replace(',', '.') || 0);
         const vlrTranspFormPer = parseFloat(document.getElementById('transporte')?.value?.replace(',', '.') || 0);
-        const custoPropostoInPeriodo = (vlrCacheFormPer + vlrAlimFormPer + vlrTranspFormPer) * totalDiariasSolicitadas;
+        const vlrAjusteFormPer   = parseFloat(document.getElementById('ajusteCusto')?.value?.replace(',', '.') || 0);
+        const vlrCaixinhaFormPer = parseFloat(document.getElementById('caixinha')?.value?.replace(',', '.') || 0);
+        const custoPropostoInPeriodo = ((vlrCacheFormPer + vlrAlimFormPer + vlrTranspFormPer) * totalDiariasSolicitadas) + vlrAjusteFormPer + vlrCaixinhaFormPer;
 
         if (orcadoEqPer > 0 && (saldoEqPer <= 0 || custoPropostoInPeriodo >= saldoEqPer)) {
             console.warn(`🛑 [Bloqueio financeiro equipe - in-period] Saldo: R$${saldoEqPer.toFixed(2)}`);
+
+            // Ajuste de Custo (positivo) e Caixinha já criam solicitação Pendente — quem decide
+            // se autoriza mesmo com o limite estourado é o aprovador, não quem está cadastrando.
+            const ajusteCustoPositivoAtivoPer = !!(document.getElementById('ajusteCustocheck')?.checked && vlrAjusteFormPer > 0);
+            const caixinhaAtivaPer = !!(document.getElementById('Caixinhacheck')?.checked && vlrCaixinhaFormPer > 0);
+            if (ajusteCustoPositivoAtivoPer || caixinhaAtivaPer) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Limite financeiro da equipe atingido',
+                    html: `
+                        <div style="text-align:left; font-size:13px; color:#555;">
+                            <p style="margin:0 0 10px;">Orçado: <b>R$ ${orcadoEqPer.toFixed(2)}</b> | Gasto: <b>R$ ${gastoEqPer.toFixed(2)}</b> | Saldo: <b>R$ ${saldoEqPer.toFixed(2)}</b></p>
+                            <p style="margin:0;">Isso ultrapassa o saldo atual da equipe. A solicitação será registrada como Pendente — quem decide se autoriza mesmo assim é o aprovador.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Prosseguir com Solicitação',
+                    confirmButtonColor: 'var(--primary-color, #8B0000)',
+                });
+                return { allowed: true };
+            }
 
             let acaoFinEq = null;
 
