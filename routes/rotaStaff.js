@@ -1321,8 +1321,11 @@ router.post("/orcamento/vagas-disponiveis",
                 LEFT JOIN escalado_por_funcao e ON o.idfuncao = e.idfuncao
                                                AND o.setor_normalizado = e.setor_normalizado
                                                AND o.idorcamento = e.idorcamento
-                WHERE (o.total_orcado - COALESCE(e.total_consumido, 0)) > 0
-                  AND ($6::int IS NULL OR f.idequipe = $6) 
+                WHERE (
+                    (o.total_orcado - COALESCE(e.total_consumido, 0)) > 0
+                    OR o.tem_cache_fechado = true
+                  )
+                  AND ($6::int IS NULL OR f.idequipe = $6)
                 ORDER BY o.idorcamento, f.descfuncao, o.setor_original;
             `;
 
@@ -1693,7 +1696,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     'idsolicitacao', sol.idsolicitacao,
                     'status', sol.status,
                     'noOrcamento', EXISTS (
-                        SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = oi.idsolicitacao
+                        SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
                     )
                 )
                 FROM solicitacoes sol
