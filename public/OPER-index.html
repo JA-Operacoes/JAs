@@ -6,7 +6,7 @@
    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link rel="stylesheet" href="css/index/Main.css">
+    <link rel="stylesheet" href="css/index/Main.css?v=20260707b">
     <link rel="stylesheet" href="css/index/Notificacoes.css">
     <link rel="stylesheet" href="/css/index/toast.css">
     <link rel="stylesheet" href="css/index/Style-OPER.css">
@@ -55,6 +55,13 @@
         <div class="interface">
             <nav>
                 <ul id = "menu-horizontal">
+                    <li class="Ceo" style="display: none;">
+                        <a href="#" title="CEO Mode" style="gap: 10px;"><span class="material-symbols-outlined">finance</span>CEO MODE</a>
+                    </li>
+                    <li class="RH">
+                        <a href="#" title="RH" style="gap: 10px;"><span class="material-symbols-outlined"></span>RH</a>
+                    </li>
+
                     <li class="Cadastro"> 
                         <a href="#">Cadastros</a>
                         <div class ="drop">
@@ -126,6 +133,7 @@
                                     </div>
                                 </div>
 
+                                <a href="#" class="abrir-modal" data-modulo="Aliquotas" data-url="CadAliquotas.html">Aliquotas</a>
                                 <a href="#" class="abrir-modal" data-modulo="ContasReceber" data-url="ContasReceber.html">Contas a Receber</a>
                             </div>
                         </div>
@@ -137,11 +145,14 @@
                             <span id="notif-badge" class="notif-badge" style="display:none;"></span>
                         </button>
                         <div id="notif-dropdown" class="notif-dropdown">
-                            <div class="notif-header">
-                                <span>Notificações</span>
-                                <button id="notif-marcar-todas" class="notif-marcar-todas">Marcar todas como lidas</button>
+                                <div id="notif-abas"></div>
+                            <div class="notif-conteudo">
+                                <div class="notif-header">
+                                    <span>Notificações</span>
+                                    <button id="notif-marcar-todas" class="notif-marcar-todas">Marcar todas como lidas</button>
+                                </div>
+                                <ul id="notif-lista" class="notif-lista"></ul>
                             </div>
-                            <ul id="notif-lista" class="notif-lista"></ul>
                         </div>
                     </div>
                     
@@ -340,6 +351,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://unpkg.com/scrollreveal"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 
     <!--@Scripts.js-->
     <script src="js/permissoes.js" type="module" defer></script>
@@ -349,6 +361,8 @@
     <script src="js/Main.js" type="module" defer></script>
     <script src="js/tema.js" type="module" defer></script> 
     <script src="js/Notificacao.js" type="module" defer></script>
+    <script src="js/CeoMode.js" type="module" defer></script>
+    <script src="js/RH.js" type="module" defer></script>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 

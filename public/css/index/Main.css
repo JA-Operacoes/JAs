@@ -1404,6 +1404,22 @@ select#mesSelect,select#anoSelect,select#viewSelect,select#semanaSelect {
   font-size: 0.9rem;
 }
 
+.icon-location {
+  color: #e53935;
+}
+
+.evento-titulo-cliente {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.evento-cliente {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 .evt-local-periodo {
   width: 100%;
   display: flex;
@@ -1744,6 +1760,8 @@ span.nenhum-evento {
 .header-equipes-evento h2 {
   margin: 0;
   font-size: 1.4em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-voltar {
@@ -1894,9 +1912,14 @@ button.ver-funcionarios-btn {
 
 .info-evento {
   display: flex;
+  align-items: center;
   width: 100%;
-  justify-content: space-between;
-  gap: 30px;
+  justify-content: flex-start;
+  gap: 40px;
+}
+
+.info-evento p {
+  white-space: nowrap;
 }
 
 button.btn-abrir-staff {

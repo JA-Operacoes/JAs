@@ -66,6 +66,7 @@ async function listarPermissoesPorUsuario(req, res) {
       supremo: !!row.supremo,
       comercial: !!row.comercial,
       devs: !!row.devs,
+      rh: !!row.rh,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -90,7 +91,8 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     financeiro, 
     supremo, 
     comercial,
-    devs
+    devs,
+    rh
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
@@ -112,6 +114,21 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     // Normaliza o nome do módulo (capitaliza)
     const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
 
+    // Segurança: a permissão "devs" é forte (dados sensíveis). Só quem já é devs
+    // pode concedê-la. Se o solicitante não for devs, a tentativa é ignorada (força false).
+    let devsEfetivo = devs;
+    if (devs) {
+      const solicitanteId = req.usuario?.idusuario;
+      const { rows: devsRows } = await db.query(
+        'SELECT 1 FROM permissoes WHERE idusuario = $1 AND devs = true LIMIT 1',
+        [solicitanteId]
+      );
+      if (devsRows.length === 0) {
+        devsEfetivo = false;
+        console.warn(`Usuário ${solicitanteId} tentou conceder permissão 'devs' sem possuí-la. Ignorado.`);
+      }
+    }
+
     //for (const idempresa of empresas) {
       // Verifica se já existe permissão para este usuário, empresa e módulo
  
@@ -129,10 +146,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10
-          WHERE idusuario = $11 AND modulo = $12 AND idempresa = $13
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11
+          WHERE idusuario = $12 AND modulo = $13 AND idempresa = $14
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devsEfetivo, rh, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -141,10 +158,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, idempresa)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devsEfetivo, rh, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }

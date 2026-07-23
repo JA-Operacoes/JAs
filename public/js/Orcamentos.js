@@ -1,4 +1,4 @@
-import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
+﻿import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
 
@@ -29,6 +29,45 @@ document.addEventListener("DOMContentLoaded", function () {
 let idMontagemChangeListener = null;
 let statusInputListener = null;
 let edicaoInputListener = null;
+
+// NOTA: este script é injetado dinamicamente (Index.js/abrirModal) toda vez que o
+// modal de Orçamento é aberto, sempre DEPOIS do DOMContentLoaded da página principal —
+// esse evento já disparou há muito tempo e não dispara de novo, então qualquer setup
+// preso em `document.addEventListener("DOMContentLoaded", ...)` aqui neste arquivo
+// nunca roda. Por isso este bloco roda direto, no nível superior do módulo: o HTML do
+// modal já foi injetado via innerHTML antes deste <script> ser criado, então o
+// elemento já existe no DOM neste ponto.
+(function configurarInputEdicao() {
+  // Edição só aceita dígitos (é sempre um ano) — sem travar em qual ano,
+  // pois o orçamentista pode criar orçamentos para anos futuros.
+  const edicaoInput = document.getElementById("edicao");
+  if (!edicaoInput) return;
+
+  let edicaoAvisoAtivo = false;
+  edicaoInputListener = (e) => {
+    const valorOriginal = e.target.value;
+    const somenteDigitos = valorOriginal.replace(/\D/g, "").slice(0, 4);
+    if (somenteDigitos === valorOriginal) return;
+
+    e.target.value = somenteDigitos;
+
+    // Debounce: só mostra o aviso uma vez por "rajada" de digitação inválida,
+    // pra não abrir um Swal atrás do outro se o usuário insistir na tecla.
+    if (!edicaoAvisoAtivo && typeof Swal !== "undefined") {
+      edicaoAvisoAtivo = true;
+      Swal.fire({
+        icon: "warning",
+        title: "Apenas números",
+        text: "O campo Edição aceita somente números (o ano do orçamento).",
+        toast: true,
+        position: "top-end",
+        timer: 1800,
+        showConfirmButton: false,
+      }).then(() => { edicaoAvisoAtivo = false; });
+    }
+  };
+  edicaoInput.addEventListener("input", edicaoInputListener);
+})();
 let nrOrcamentoInputListener = null;
 let nrOrcamentoBlurListener = null;
 let btnAdicionarLinhaListener = null;
@@ -151,46 +190,6 @@ if (selectSuprimento) {
   });
 }
 
-// function atualizarOuCriarCampoTexto(nmFantasia, texto) {
-//     const campo = document.getElementById(nmFantasia);
-//     if (campo) {
-//         campo.textContent = texto || "";
-//     } else {
-//         console.warn(`Elemento com NomeFantasia '${nmFantasia}' não encontrado.`);
-//     }
-// }
-
-// // Busca por nome fantasia
-// async function buscarEExibirDadosClientePorNome(nmFantasia) {
-//     try {
-//         const dadosCliente = await fetchComToken(`orcamentos/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-
-//         // if (!dadosCliente.ok) {
-//         //     throw new Error(`Erro ao buscar dados do cliente: ${dadosCliente.status}`);
-//         // }
-
-//        // const dadosCliente = await response.json();
-
-//         console.log("Cliente selecionado! Dados:", {
-//             nome: dadosCliente.nmcontato,
-//             celular: dadosCliente.celcontato,
-//             email: dadosCliente.emailcontato
-//         });
-
-//         // atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
-//         // atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
-//         // atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
-
-//     } catch (error) {
-//         console.error("Erro ao buscar dados do cliente:", error);
-//         Swal.fire("Erro", "Erro ao buscar dados do cliente", "error");
-
-//         atualizarOuCriarCampoTexto("nmContato", "");
-//         atualizarOuCriarCampoTexto("celContato", "");
-//         atualizarOuCriarCampoTexto("emailContato", "");
-//     }
-// }
-
 async function carregarClientesOrc() {
   try {
     const clientes = await fetchComToken("orcamentos/clientes");
@@ -287,6 +286,10 @@ async function carregarLocalMontOrc() {
         console.log("IDLOCALMONTAGEM selecionado:", idMontagem);
 
         carregarPavilhaoOrc(idMontagem);
+
+        // Atualiza a UF do local e reaplica a regra de ajuda de custo (fora de SP)
+        atualizarUFOrc(this);
+        reaplicarAjudaCustoForaSP();
       });
     });
   } catch (error) {
@@ -338,7 +341,8 @@ async function carregarPavilhaoOrc(idMontagem) {
   updatePavilhaoDisplayInputs();
 
   if (!idMontagem || idMontagem === "") {
-    console.warn("ID da Montagem está vazio, não carregando pavilhões.");
+    // Durante a limpeza é esperado (montagem foi resetada); só avisa fora desse contexto.
+    if (!isCleaning) console.warn("ID da Montagem está vazio, não carregando pavilhões.");
     // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
     const idPavilhaoSelect = document.querySelector(".idPavilhao");
     if (idPavilhaoSelect) {
@@ -433,22 +437,22 @@ async function carregarFuncaoOrc() {
         option.value = funcao.idfuncao;
         option.textContent = funcao.descfuncao;
         option.setAttribute("data-descproduto", funcao.descfuncao);
-        if (funcao.ctofuncaobase > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaobase);
-        } else if (funcao.ctofuncaojunior > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaojunior);
-        } else if (funcao.ctofuncaopleno > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaopleno);
-        } else if (funcao.ctofuncaosenior > 0) {
-          option.setAttribute("data-cto", funcao.ctofuncaosenior);
-        } else {
-          option.setAttribute("data-cto", 0);
-        } //base, junior, pleno ou senior????
+        const ctoEscolhido =
+          funcao.ctofuncaosenior > 0 ? funcao.ctofuncaosenior :
+          funcao.ctofuncaopleno  > 0 ? funcao.ctofuncaopleno  :
+          funcao.ctofuncaojunior > 0 ? funcao.ctofuncaojunior :
+                                       funcao.ctofuncaobase   || 0;
 
-        option.setAttribute("data-vda", funcao.vdafuncao); // option.setAttribute("data-transporte", funcao.transporte); //option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
+        const transpEscolhido =
+          (funcao.ctofuncaosenior > 0 && funcao.transpsenior > 0)
+            ? funcao.transpsenior
+            : funcao.transporte || 0;
+
+        option.setAttribute("data-cto", ctoEscolhido);
+        option.setAttribute("data-vda", funcao.vdafuncao);
 
         option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
-        option.setAttribute("data-transporte", funcao.transporte || 0);
+        option.setAttribute("data-transporte", transpEscolhido);
         option.setAttribute("data-categoria", "Produto(s)");
         select.appendChild(option);
       });
@@ -1587,6 +1591,7 @@ function adicionarLinhaOrc() {
   //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
   // }
   tabela.insertBefore(novaLinha, tabela.firstChild);
+  window._ultimaLinhaAdicionada = novaLinha;
 
   // Base do item (valor original sem desconto/acréscimo)
   let vlrVendaDoBanco = desformatarMoeda(novaLinha.querySelector(".vlrVenda").textContent);
@@ -1761,33 +1766,7 @@ function adicionarLinhaOrc() {
     });
   }
 
-  novaLinha
-    .querySelector(".idFuncao")
-    .addEventListener("change", async function (event) {
-      const linha = this.closest("tr");
-      if (linha) {
-        atualizaProdutoOrc(event, linha);
-        recalcularLinha(linha);
-
-        const idOrcamento = document.getElementById("idOrcamento")?.value;
-        const idFuncao    = this.value;
-
-            if (idOrcamento && idFuncao) {
-                const solicitacao = await verificarSolicitacaoPendente(
-                    idOrcamento, idFuncao, null, null
-                );
-
-                // Guarda o idsolicitacao no dataset da linha para usar no save
-                if (solicitacao) {
-                    linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-                }
-            }
-      } else {
-        console.error(
-          "Erro: Não foi possível encontrar a linha (<tr>) pai para o select recém-adicionado."
-        );
-      }
-    });
+  // Listener no hidden input — disparado apenas por código (atualizaProdutoOrc já cobre o fluxo de seleção)
 
   novaLinha
     .querySelector(".qtdProduto input")
@@ -1953,13 +1932,8 @@ function adicionarLinhaOrc() {
 
 
 async function adicionarLinhaAdicional(isBonificado = false) {
-  // if (isCleaning) return;
-    // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
-    //if (isBonificado === false) { 
-    if (typeof isCleaning !== 'undefined' && isCleaning) {
-        return; 
-    }
-    if (isBonificado === false) {
+    // Mostra o Swal apenas em chamadas do usuário; chamadas automáticas (isCleaning) pulam direto para adicionar a linha
+    if (isBonificado === false && !(typeof isCleaning !== 'undefined' && isCleaning)) {
         const result = await Swal.fire({
             title: 'Tipo de Item Adicional',
             text: "Selecione o tipo de item que deseja adicionar:",
@@ -1994,7 +1968,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     const initialDisplayStyle = ufAtual.toUpperCase() === "SP" ? "display: none;" : "display: table-cell;";
 
     const novaLinha = tabelaBody.insertRow();
-    
+    window._ultimaLinhaAdicionada = novaLinha;
 
     // Aplica classes e dataset para identificação e estilo
     novaLinha.classList.add("liberada", "linhaAdicional", "adicional");
@@ -2005,11 +1979,11 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
-        novaLinha.style.backgroundColor = "#c5eed0";
-        novaLinha.style.borderLeft = "4px solid #48bb78"; // Borda verde
+        novaLinha.style.backgroundColor = "#e48585";
+        novaLinha.style.borderLeft = "4px solid #ff0000"; // Borda verde
     } else {
-        novaLinha.style.backgroundColor = "#e48585"; // Cor padrão para aditivos
-        novaLinha.style.borderLeft = " 4px solid #ff0000 "; // Sem borda para aditivos
+        novaLinha.style.backgroundColor = "#c5eed0"; // Cor padrão para aditivos
+        novaLinha.style.borderLeft = "4px solid #48bb78"; // Sem borda para aditivos
     }
 
     // 2. HTML da Nova Linha
@@ -2031,7 +2005,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
                 </svg>
               </span>
           </label>
-          ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
+          ${isBonificado ? '<br><span style="font-size: 10px; color: #ff0000; font-weight: bold;">[BONIFICADO]</span>' : '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">[ADITIVO]</span>'}
         </div>
       </td>
 
@@ -2063,7 +2037,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 
       <td class="produto">
         <input type="text" class="produto-input" value="" placeholder="Nome do item...">
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : '<br><small style="color: #28a745; font-weight: bold;">[EXTRA ADITIVO]</small>'}
       </td>
 
       <td class="setor"><input type="text" class="setor-input" value=""></td>
@@ -2249,65 +2223,69 @@ async function adicionarLinhaAdicional(isBonificado = false) {
         inputSetor.addEventListener('change', async function() {
             const setor = this.value.trim();
             const idFuncaoVal = novaLinha.querySelector('.idFuncao')?.value;
-            const produtoNome = novaLinha.querySelector('.produto-input')?.value || 
+            const produtoNome = novaLinha.querySelector('.produto-input')?.value ||
                               novaLinha.querySelector('.produto')?.value || "Item";
-            if (setor && idFuncaoVal) {
-                await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this);
+            if (idFuncaoVal) {
+                const ehAdicional = novaLinha?.querySelector('.isAdicional')?.value === 'true';
+                console.log(`[setor-change] setor="${setor}" isAdicional HTML=${novaLinha?.querySelector('.isAdicional')?.value} → ehAdicional=${ehAdicional}`);
+                await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this, ehAdicional);
             }
         });
     }
 
-    // ✅ NOVO bloco 9 — verificação no lugar certo
-    const idFuncaoInputAdicional = novaLinha.querySelector('.idFuncao');
-          idFuncaoInputAdicional.addEventListener('change', async function () {
-          console.log('🔥 [idFuncao change] Disparou! Valor:', this.value);
-          
-          const idOrcamento = document.getElementById("idOrcamento")?.value;
-          const idFuncaoVal = this.value;
-          
-          console.log('🔍 [idFuncao change] idOrcamento:', idOrcamento, '| idFuncaoVal:', idFuncaoVal);
-
-          if (idOrcamento && idFuncaoVal) {
-              const solicitacao = await verificarSolicitacaoPendente(idOrcamento, idFuncaoVal, null, null);
-              if (solicitacao) {
-                  novaLinha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-              }
-          }
-      });
+    // Verificação de solicitação é feita em atualizaProdutoOrc (disparado pelo SELECT real, não pelo hidden input)
     }
 
 
-async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento) {
+// ─────────────────────────────────────────────
+// Funções de verificação de solicitação pendente
+// Arquivo: verificarSolicitacao.js (ou inclua no seu JS de orçamentos)
+// ─────────────────────────────────────────────
+
+
+async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento, linha) {
     if (!idOrcamento) return null;
 
     try {
         const params = new URLSearchParams({ idorcamento: idOrcamento });
-        if (idFuncao)      params.append('idfuncao', idFuncao);
+        if (idFuncao)      params.append('idfuncao',      idFuncao);
         if (idEquipamento) params.append('idequipamento', idEquipamento);
-        if (idSuprimento)  params.append('idsuprimento', idSuprimento);
+        if (idSuprimento)  params.append('idsuprimento',  idSuprimento);
 
         const data = await fetchComToken(`/orcamentos/solicitacoes/verificar?${params.toString()}`);
 
-        if (!data.encontrou || data.solicitacoes.length === 0) {
-            return null; // ✅ Sem solicitação — sem ruído, fluxo normal
+        if (!data.encontrou || data.solicitacoes.length === 0) return null;
+
+        // Se houver mais de uma, escolherSolicitacao cuida da seleção e do vínculo.
+        if (data.solicitacoes.length > 1) {
+            return await escolherSolicitacao(data.solicitacoes, linha);
         }
 
+        // Apenas uma: NÃO carrega ainda — só após a confirmação do usuário (abaixo).
         const sol = data.solicitacoes[0];
-        const tipoLabel   = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
-        const dtSolicita  = new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR');
-        const dtResposta  = new Date(sol.dtresposta).toLocaleDateString('pt-BR');
 
-        // ✅ Apenas informa — não bloqueia o fluxo
-        await Swal.fire({
+        const tipoLabel  = sol.tiposolicitacao.includes('Bonificado') ? '🆓 Extra Bonificado' : '💲 Aditivo';
+        const dtSolicita = sol.dtsolicitacao ? new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR') : '—';
+        const dtResposta = sol.dtresposta    ? new Date(sol.dtresposta).toLocaleDateString('pt-BR')    : '—';
+        const tipoSolLower = (sol.tiposolicitacao || '').toLowerCase();
+        const sufixoModal = tipoSolLower.includes('bonificado') ? 'BONIFICADO'
+                          : (tipoSolLower.includes('aditivo') || tipoSolLower.includes('estouro')) ? 'ADITIVO'
+                          : '';
+        const setorBaseModal = (sol.setor || '').trim();
+        const setorModal = sufixoModal
+            ? (setorBaseModal ? `${setorBaseModal} ${sufixoModal}` : sufixoModal)
+            : (setorBaseModal || '—');
+
+        const {isConfirmed} = await Swal.fire({
             title: `${tipoLabel} — Solicitação Encontrada`,
             html: `
                 <div class="body-sol">
-                    <p>📌 <b>Solicitação #${sol.idsolicitacao}</b></p>
+                    <p>📌 <b>Solicitação #${sol.ids_solicitacoes}</b></p>
                     <p>👤 Solicitante: <b>${sol.nomesolicitante || '—'}</b> em ${dtSolicita}</p>
                     <p>✅ Autorizado por: <b>${sol.nomeresponsavel || '—'}</b> em ${dtResposta}</p>
                     <p>📦 Qtd solicitada: <b>${sol.qtdsolicitada}</b></p>
-                    <p>🧭 Setor: <b>${sol.setor || '—'}</b></p>
-                    <p>📅 Data Solicitada: <b>${sol.dtsolicitada ? new Date(sol.dtsolicitada).toLocaleDateString('pt-BR') : '—'}</b></p>
+                    <p>🧭 Setor: <b>${setorModal}</b></p>
+                    <p>📅 Período Solicitado: <b>${sol.periodoStr}</b></p>
                     ${sol.justificativa ? `<p>📝 Justificativa: <i>${sol.justificativa}</i></p>` : ''}
                     <hr style="margin:8px 0">
                     <p style="color:#28a745; font-weight:bold;">
@@ -2318,7 +2296,18 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
             icon: 'info',
             confirmButtonText: 'Entendido',
             confirmButtonColor: '#3085d6',
+            showCancelButton: true,        // ✅ botão cancelar
+            cancelButtonText: 'Cancelar',
         });
+
+        if (!isConfirmed) {
+            // Usuário não quis vincular. Mantém a linha que ele adicionou
+            // manualmente — apenas não vincula a solicitação.
+            return null;
+        }
+
+        // ✅ CARREGA OS DADOS APENAS APÓS A CONFIRMAÇÃO DO USUÁRIO
+        carregarSolicitacao(sol, linha);
 
         return sol;
 
@@ -2326,6 +2315,228 @@ async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento
         console.error('Erro ao verificar solicitação:', err);
         return null;
     }
+}
+
+async function escolherSolicitacao(solicitacoes, linha) {
+    const opcoes = solicitacoes.map((sol, i) => `
+        <label for="sol_${i}" style="display:flex; align-items:flex-start; gap:8px; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; margin-bottom:8px; user-select:none; pointer-events:auto;">
+            <input type="radio" id="sol_${i}" name="sol_escolhida" value="${i}" style="margin-top:3px;  cursor:pointer; flex-shrink:0;">
+            <div style="text-align:left; pointer-events:auto;">
+                <b>#${sol.ids_solicitacoes}</b> — ${sol.tiposolicitacao}<br>
+                <small>👤 <b>${sol.nomesolicitante || '—'}</b> em ${new Date(sol.dtsolicitacao).toLocaleDateString('pt-BR')}</small><br>
+                <small>Setor: ${sol.setor}</small><br>
+                <small>📅 <b>${sol.periodoStr}</b> — Qtd: <b>${sol.qtdsolicitada}</b></small>
+                ${sol.justificativa ? `<br><small>📝 ${sol.justificativa}</small>` : ''}
+            </div>
+        </label>
+    `).join('');
+
+    const { value: indice, isConfirmed } = await Swal.fire({
+        title: `${solicitacoes.length} Solicitações Encontradas`,
+        html: `
+            <p style="margin-bottom:12px; color:#555;">Selecione qual deseja vincular ao item:</p>
+            <div>${opcoes}</div>
+        `,
+        confirmButtonText: 'Vincular Selecionada',
+        confirmButtonColor: '#3085d6',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const selecionado = document.querySelector('input[name="sol_escolhida"]:checked');
+            if (!selecionado) {
+                Swal.showValidationMessage('Selecione uma solicitação para continuar.');
+                return false;
+            }
+            return selecionado.value;
+        }
+    });
+
+    if (isConfirmed) {
+        // Pega o objeto específico que o usuário escolheu na lista
+        const solicitacaoSelecionada = solicitacoes[Number(indice)];
+        
+        // Passa o objeto específico e a linha para a função de carregar
+        carregarSolicitacao(solicitacaoSelecionada, linha);
+        
+        return solicitacaoSelecionada;
+    } else {
+        // Usuário cancelou a seleção. Mantém a linha que ele adicionou
+        // manualmente — apenas não vincula nenhuma solicitação.
+        // (Mesmo comportamento do caso de solicitação única, em
+        // verificarSolicitacaoPendente.)
+        return null;
+    }
+}
+
+// 2. AJUSTEI OS PARÂMETROS PARA RECEBER O OBJETO ÚNICO E A LINHA
+function carregarSolicitacao(sol, linha) {
+    if (!sol || !linha) return;
+
+    console.log("📥 [carregarSolicitacao] Preenchendo linha com a solicitação:", sol);
+
+    // 1. Vincula os IDs das solicitações (como string separada por vírgula se for array) no dataset da linha
+    linha.dataset.idsolicitacao = Array.isArray(sol.ids_solicitacoes)
+        ? sol.ids_solicitacoes.join(',')
+        : (sol.idsolicitacao || "");
+
+    // Marca a linha como adicional (independente de como foi criada)
+    linha.dataset.adicional = 'true';
+
+    // Marca como bonificado quando a solicitação é Extra Bonificado — garante vlrVenda=0 no recalcularLinha
+    const isBonificadoSol = (sol.tiposolicitacao || '').toLowerCase().includes('bonificado');
+    if (isBonificadoSol) {
+        linha.dataset.extrabonificado = 'true';
+        linha.dataset.bonificado = 'true';
+        linha.dataset.vlrbase = '0';
+        linha.style.backgroundColor = '#e48585'; // Verde — bonificado
+        linha.style.borderLeft = '4px solid #ff0000';
+    } else {
+        linha.style.backgroundColor = '#c5eed0'; // Vermelho — aditivo
+        linha.style.borderLeft = '4px solid #28a745';
+    }
+
+    // 2. Preenche a Categoria (Aditivo / Extra Bonificado)
+    const inputCategoria = linha.querySelector(".categoria-input");
+    if (inputCategoria) {
+        inputCategoria.value = sol.tiposolicitacao || "";
+    }
+
+    // 3. Preenche o Produto/Função (Sua rota traz o alias f.nome como 'nome')
+    const inputProduto = linha.querySelector(".produto-input");
+    if (inputProduto && sol.nome) {
+        inputProduto.value = sol.nome;
+    }
+
+    // Atualiza labels visuais de tipo na coluna de produto (EXTRA BONIFICADO / ADICIONAL)
+    const tdProduto = inputProduto?.closest('td');
+    if (tdProduto) {
+        tdProduto.querySelectorAll('small').forEach(el => el.remove());
+        if (isBonificadoSol) {
+            tdProduto.insertAdjacentHTML('beforeend', '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>');
+        } else {
+            tdProduto.insertAdjacentHTML('beforeend', '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>');
+        }
+    }
+
+    // 4. Preenche o Setor: aditivos usam "{setor} ADITIVO", bonificados usam "{setor} BONIFICADO"
+    const inputSetor = linha.querySelector(".setor-input");
+    if (inputSetor) {
+        const tipoSol = (sol.tiposolicitacao || '').toLowerCase();
+        const sufixoSetor = tipoSol.includes('bonificado') ? 'BONIFICADO'
+                          : (tipoSol.includes('aditivo') || tipoSol.includes('estouro')) ? 'ADITIVO'
+                          : '';
+
+        let setorBase = (sol.setor || '').trim();
+
+        // Fallback: se a API não retornou setor, busca nas linhas existentes da mesma função
+        if (!setorBase && sufixoSetor) {
+            const idfuncaoAtual = linha.querySelector('input.idFuncao')?.value;
+            if (idfuncaoAtual) {
+                const rows = Array.from(document.querySelectorAll('#tabela tbody tr'));
+                for (const row of rows) {
+                    if (row === linha) continue;
+                    const rowFuncao = row.querySelector('input.idFuncao')?.value;
+                    const rowSetor  = row.querySelector('.setor-input')?.value?.trim();
+                    const jaMarcado = row.dataset.adicional === 'true' || row.querySelector('.isAdicional')?.value === 'true';
+                    if (rowFuncao === idfuncaoAtual && rowSetor && !jaMarcado) {
+                        setorBase = rowSetor;
+                        console.log(`[carregarSolicitacao] Setor via fallback DOM: "${setorBase}" (idfuncao=${idfuncaoAtual})`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Monta setor base e enumera automaticamente se já existe outro item com
+        // mesmo idfuncao e mesmo setor (ex: "EXCEDIDO ADITIVO" → "EXCEDIDO ADITIVO 2")
+        let setorFinal = sufixoSetor
+            ? (setorBase ? `${setorBase} ${sufixoSetor}` : sufixoSetor)
+            : setorBase;
+
+        if (setorFinal && sufixoSetor) {
+            const idfuncaoSol = String(sol.idfuncao || linha.querySelector('input.idFuncao')?.value || '');
+            const setoresEmUso = new Set(
+                Array.from(document.querySelectorAll('#tabela tbody tr'))
+                    .filter(r => r !== linha && String(r.querySelector('input.idFuncao')?.value || '') === idfuncaoSol)
+                    .map(r => (r.querySelector('.setor-input')?.value || '').trim().toLowerCase())
+            );
+            let n = 2;
+            let candidato = setorFinal;
+            while (setoresEmUso.has(candidato.toLowerCase())) {
+                candidato = `${setorFinal} ${n++}`;
+            }
+            setorFinal = candidato;
+        }
+
+        inputSetor.value = setorFinal;
+
+        console.log(`[carregarSolicitacao] setorBase="${setorBase}" sufixo="${sufixoSetor}" → setor="${inputSetor.value}"`);
+
+        // Bloqueia edição do setor após preenchimento pela solicitação
+        inputSetor.readOnly = true;
+        inputSetor.style.background  = '#f0f0f0';
+        inputSetor.style.cursor      = 'not-allowed';
+        inputSetor.title             = 'Setor definido pela solicitação — não editável';
+        linha.dataset.setorBloqueado = 'true';
+    }
+
+    // 5. Preenche a quantidade solicitada
+    const inputQtd = linha.querySelector(".qtdProduto input[type='number']");
+    if (inputQtd) {
+        inputQtd.value = sol.qtdsolicitada || 1;
+    }
+
+    // 6. Preenche o período / datas usando a instância do flatpickr ou texto cru
+    const inputData = linha.querySelector(".datas-item");
+    if (inputData) {
+        const fpInstance = inputData._flatpickr;
+
+        // Datas rejeitadas (do mesmo staffevento, já calculadas no backend)
+        const datasRejeitadas = Array.isArray(sol.datas_rejeitadas) ? sol.datas_rejeitadas : [];
+
+        // Obs de datas rejeitadas — guarda no dataset para ser enviado no save
+        const obsBon = sol.obsbonificado || null;
+        linha.dataset.obsbonificado = obsBon || '';
+
+        // Se houver instância ativa do flatpickr e as datas brutas em array
+        if (fpInstance && Array.isArray(sol.datas_solicitadas) && sol.datas_solicitadas.length > 0) {
+            const toDate = str => new Date((typeof str === 'string' ? str.split('T')[0] : new Date(str).toISOString().split('T')[0]) + 'T00:00:00');
+
+            // Período: usa range completo incluindo rejeitadas (para o flatpickr mostrar do início ao fim)
+            const todasDatas = [
+                ...sol.datas_solicitadas.map(toDate),
+                ...datasRejeitadas.map(toDate)
+            ].sort((a, b) => a - b);
+
+            fpInstance.setDate([todasDatas[0], todasDatas[todasDatas.length - 1]], true);
+            fpInstance.close();
+
+            // qtddias = apenas as datas AUTORIZADAS (não dias calendário do range)
+            const inputQtdDias = linha.querySelector("input.qtdDias");
+            if (inputQtdDias) inputQtdDias.value = sol.datas_solicitadas.length;
+
+            // Exibe obs de datas rejeitadas abaixo do campo de período
+            const tdDatas = inputData.closest('td');
+            if (tdDatas) {
+                tdDatas.querySelectorAll('.obs-rejeitadas').forEach(el => el.remove());
+                if (datasRejeitadas.length > 0) {
+                    const fmtBR = d => new Date((typeof d === 'string' ? d.split('T')[0] : d) + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    tdDatas.insertAdjacentHTML('beforeend',
+                        `<div class="obs-rejeitadas" style="font-size:10px;color:#dc2626;font-style:italic;margin-top:2px;line-height:1.3;">
+                            Rejeitadas: ${datasRejeitadas.map(fmtBR).join(', ')}
+                        </div>`
+                    );
+                }
+            }
+        } else {
+            // Fallback visual caso não tenha flatpickr anexado
+            inputData.value = sol.periodoStr || "";
+        }
+    }
+
+    // 7. Dispara os gatilhos nativos de recálculo da sua planilha
+    if (typeof recalcularLinha === 'function') recalcularLinha(linha);
+    if (typeof recalcularTotaisGerais === 'function') recalcularTotaisGerais();
 }
 
 function removerLinhaOrc(botao) {
@@ -2412,7 +2623,6 @@ function initializeAllFlatpickrsInModal() {
     "✅ Todos os Flatpickrs no modal de orçamento inicializados/reinicializados."
   );
 
-  // // 1. Inicializa os campos globais com a função já existente
   // inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
 
   // // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
@@ -2639,12 +2849,66 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 
   // 3. Tenta pegar o atributo de forma segura
-  const uf = selectedOption.getAttribute("data-uf");
-  
+  // (o atributo criado em carregarLocalMontOrc é "data-ufmontagem")
+  const uf = selectedOption.getAttribute("data-ufmontagem") || selectedOption.getAttribute("data-uf");
+
   const ufInput = document.getElementById("ufmontagem");
   if (ufInput) {
-    ufInput.value = uf || "";
+    ufInput.value = (uf || "").trim().toUpperCase();
   }
+}
+
+// Evento "fora de São Paulo": UF do local de montagem preenchida e diferente de 'SP'.
+function eventoForaDeSP() {
+  const uf = (document.getElementById("ufmontagem")?.value || "").trim().toUpperCase();
+  return uf !== "" && uf !== "SP";
+}
+
+// Fator de alimentação quando fora de SP — fórmula da Viagem 2 (café + almoço + jantar = 2,5x).
+const FATOR_ALIMENTACAO_FORA_SP = 2.5;
+
+// Transporte "local" da função (mesma cascata usada ao montar as options: transpsenior quando houver custo sênior).
+function transporteLocalFuncao(funcao) {
+  if (!funcao) return 0;
+  return (funcao.ctofuncaosenior > 0 && funcao.transpsenior > 0)
+    ? parseFloat(funcao.transpsenior) || 0
+    : parseFloat(funcao.transporte) || 0;
+}
+
+// Recalcula a ajuda de custo de todas as linhas de FUNÇÃO conforme a regra "fora de SP".
+// Usado quando o local de montagem (UF) muda depois de já haver itens na tabela.
+function reaplicarAjudaCustoForaSP() {
+  const corpo = document.querySelector("#tabela tbody");
+  if (!corpo || !Array.isArray(funcoesDisponiveis)) return;
+
+  const foraSP = eventoForaDeSP();
+
+  corpo.querySelectorAll("tr").forEach((linha) => {
+    const idFunc = linha.querySelector("input.idFuncao")?.value;
+    if (!idFunc) return; // sem função (equipamento/suprimento/linha vazia) -> não mexe
+
+    const funcao = funcoesDisponiveis.find((f) => String(f.idfuncao) === String(idFunc));
+    if (!funcao) return;
+
+    let alim = parseFloat(funcao.alimentacao) || 0;
+    let transp = transporteLocalFuncao(funcao);
+    if (foraSP) {
+      alim = alim * FATOR_ALIMENTACAO_FORA_SP;
+      transp = 0;
+    }
+
+    const spanAlim = linha.querySelector(".vlralimentacao-input");
+    const spanTrans = linha.querySelector(".vlrtransporte-input");
+    const tdAlim = linha.querySelector(".ajdCusto.alimentacao");
+    const tdTrans = linha.querySelector(".ajdCusto.transporte");
+
+    if (spanAlim) spanAlim.textContent = formatarMoeda(alim);
+    if (tdAlim) tdAlim.dataset.originalAjdcusto = alim.toString();
+    if (spanTrans) spanTrans.textContent = formatarMoeda(transp);
+    if (tdTrans) tdTrans.dataset.originalAjdcusto = transp.toString();
+
+    recalcularLinha(linha);
+  });
 }
 
 function ceilToTenCents(value, factor) {
@@ -2764,8 +3028,13 @@ function ceilToTenCents(value, factor) {
 //   recalcularLinha(linha);
 // }
 async function atualizaProdutoOrc(event, linhaFornecida) {
+    // Durante a limpeza/teardown do modal, o reset dispara 'change' em todos os selects
+    // (inclusive fora de linhas); não há o que atualizar aqui, então evita a cascata de
+    // "closest('tr') falhou" e os recálculos inúteis.
+    if (isCleaning) return;
+
     let select = event.target;
-    
+
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
     let linha = select.closest('tr');
 
@@ -2779,9 +3048,8 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     }
 
     if (!linha) {
-        // Plano C: Se ainda assim for null, tenta pegar a última linha clicada ou a primeira da tabela (Emergência)
-        console.warn("Aviso: closest('tr') falhou. Tentando localizar via DOM estável.");
-        linha = document.querySelector("#tabela tbody tr:first-child"); 
+        // Plano C: usa a última linha adicionada pelo usuário (prepend ou append), senão first-child
+        linha = window._ultimaLinhaAdicionada || document.querySelector("#tabela tbody tr:first-child");
     }
 
     if (!linha) {
@@ -2791,7 +3059,7 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
 
     console.log("Select alterado com sucesso na linha:", linha);
 
-    
+
     // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
     // let linha = linhaFornecida || select.closest('tr');
 
@@ -2846,6 +3114,21 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
 
+    // 1.5 REGRA DE AJUDA DE CUSTO POR CATEGORIA + "FORA DE SÃO PAULO"
+    // - Função (Produto(s)): se o evento for fora de SP, a alimentação usa a fórmula
+    //   da Viagem 2 (café + almoço + jantar = 2,5x) e o transporte é zerado.
+    // - Equipamento/Suprimento: não têm ajuda de custo (força 0).
+    const ehFuncao = Categoria === "Produto(s)";
+    if (ehFuncao) {
+        if (eventoForaDeSP()) {
+            vlrAlimentacao = vlrAlimentacao * FATOR_ALIMENTACAO_FORA_SP;
+            vlrTransporte = 0;
+        }
+    } else {
+        vlrAlimentacao = 0;
+        vlrTransporte = 0;
+    }
+
     // 2. PROTEÇÃO CONTRA REAJUSTE DUPLO
     if (linha.dataset.reajustadoTotal === 'true') return;
 
@@ -2881,18 +3164,23 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     const inputEquip = linha.querySelector("input.idEquipamento");
     const inputSupri = linha.querySelector("input.idSuprimento");
 
-    if (select.classList.contains("idFuncao") && inputFuncao) inputFuncao.value = valorSelecionado;
-        // ✅ Verificação de solicitação — momento certo, idFuncao acabou de ser preenchido
-        const idOrcamento = document.getElementById("idOrcamento")?.value;
-        if (idOrcamento && valorSelecionado) {
-            verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null)
-                .then(solicitacao => {
-                    if (solicitacao) {
-                        linha.dataset.idsolicitacao = solicitacao.idsolicitacao;
-                        console.log('✅ [atualizaProduto] Solicitação vinculada:', solicitacao.idsolicitacao);
-                    }
-                });
+    if (select.classList.contains("idFuncao") && inputFuncao) {
+        inputFuncao.value = valorSelecionado;
+        // Verifica solicitação pendente apenas uma vez por seleção (lock evita dupla chamada)
+        if (!linha.dataset.verificandoSol) {
+            linha.dataset.verificandoSol = 'true';
+            const idOrcamento = document.getElementById("idOrcamento")?.value;
+            if (idOrcamento && valorSelecionado) {
+                try {
+                    await verificarSolicitacaoPendente(idOrcamento, valorSelecionado, null, null, linha);
+                } finally {
+                    delete linha.dataset.verificandoSol;
+                }
+            } else {
+                delete linha.dataset.verificandoSol;
+            }
         }
+    }
     if (select.classList.contains("idEquipamento") && inputEquip) inputEquip.value = valorSelecionado;
     if (select.classList.contains("idSuprimento") && inputSupri) inputSupri.value = valorSelecionado;
 
@@ -3142,6 +3430,7 @@ function resetarOutrosSelectsOrc(select) {
 // Função para configurar eventos no modal de orçamento
 async function verificaOrcamento() {
   initializeAllFlatpickrsInModal();
+  ativarTooltipStatus(); // religa o tooltip do Status ao #Status deste modal (idempotente)
 
   carregarFuncaoOrc();
   carregarEventosOrc();
@@ -3241,7 +3530,9 @@ async function verificaOrcamento() {
 
       // Se o campo estiver vazio, limpa o formulário e sai
       if (!nrOrcamento) {
-        limparOrcamento(); // Implemente esta função para limpar o form
+        isCleaning = true;
+        limparOrcamento();
+        setTimeout(() => { isCleaning = false; }, 500);
         return;
       }
 
@@ -3255,6 +3546,7 @@ async function verificaOrcamento() {
       } catch (error) {
         console.error("Erro ao buscar orçamento:", error);
 
+        isCleaning = true;
         let errorMessage = error.message;
         if (error.message.includes("404")) {
           errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
@@ -3266,6 +3558,7 @@ async function verificaOrcamento() {
           errorMessage = `Erro ao carregar orçamento: ${error.message}`;
           limparOrcamento();
         }
+        setTimeout(() => { isCleaning = false; }, 500);
 
         Swal.fire("Erro!", errorMessage, "error");
       }
@@ -3292,6 +3585,42 @@ async function verificaOrcamento() {
     });
   } else {
     console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
+  }
+
+  const btnTooltipAdicional = document.getElementById("tooltipAdicional");
+  if (btnTooltipAdicional) {
+    btnTooltipAdicional.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Botão 'Tooltip Adicional' clicado");
+      Swal.fire({
+        title: 'Extra Bonificado x Aditivo',
+        icon: 'info',
+        allowOutsideClick: false,
+        heightAuto: false,
+        customClass: { container: 'swal-acima-modal' },
+        html: `
+          <div style="text-align: left; line-height: 1.5; pointer-events:auto;">
+            <p>Ao adicionar um item em um orçamento <b>Fechado</b>, ele pode ser de dois tipos:</p>
+            <p>
+              <b style="color: #d33;">Extra Bonificado (vermelho)</b><br>
+              É um <b>custo total da JA</b>. Ou seja, é um item
+              bonificado que a JA absorve integralmente — por isso aparece em
+              <span style="color: #d33;">vermelho</span>, pois representa uma despesa.
+            </p>
+            <p>
+              <b style="color: #28a745;">Aditivo (verde)</b><br>
+              É um <b>lucro</b>, pois o <b>cliente é quem vai pagar</b> por esse item
+              adicional. Por isso aparece em <span style="color: #28a745;">verde</span>,
+              representando uma receita.
+            </p>
+          </div>
+        `,
+        confirmButtonText: 'Entendi'
+      });
+    });
+  } else {
+    console.error("Botão 'Tooltip Adicional' não encontrado.");
   }
 
   const btnGerarProximoAno = document.getElementById("GerarProximoAno");
@@ -3740,9 +4069,9 @@ async function verificaOrcamento() {
 
       linhas.forEach((linha) => {
       // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
-      // Prioriza a leitura do input hidden, que é adicionado apenas na linha adicional.
+      // Prioriza o input hidden; usa dataset.adicional como fallback (setado por carregarSolicitacao)
         const isAdicionalInput = linha.querySelector(".isAdicional");
-        const isAdicional = isAdicionalInput?.value === "true"; 
+        const isAdicional = isAdicionalInput?.value === "true" || linha.dataset.adicional === 'true';
 
         // O console.log agora reflete o resultado da nova e mais robusta lógica
         console.log("Processando linha. É adicional?", isAdicional, linha);
@@ -3877,7 +4206,10 @@ async function verificaOrcamento() {
             
             // 3. ATRIBUTO EXTRA BONIFICADO:
             extrabonificado: linha.dataset?.extrabonificado === "true" || false,
-            idsolicitacao: linha.dataset?.idsolicitacao ? parseInt(linha.dataset.idsolicitacao) : null,
+            ids_solicitacoes: linha.dataset?.idsolicitacao
+                ? linha.dataset.idsolicitacao.split(',').map(Number)
+                : null,
+            obsbonificado: linha.dataset?.obsbonificado || null,
         };
 
         // 🎯 Aqui vem o tratamento correto dos períodos:
@@ -3949,6 +4281,39 @@ async function verificaOrcamento() {
         "Payload Final do Orçamento (sem id_empresa):",
         dadosOrcamento
       );
+
+      // Valida duplicidade para itens novos antes de salvar
+      const linhasTabela = document.querySelectorAll('#tabela tbody tr');
+      for (const linha of linhasTabela) {
+          const idItemExistente = linha.querySelector('input.idItemOrcamento')?.value;
+          if (idItemExistente && idItemExistente.trim() !== '') continue; // item já salvo, pula
+          const idFuncaoVal = linha.querySelector('input.idFuncao')?.value;
+          if (!idFuncaoVal) continue;
+          const setorVal    = linha.querySelector('.setor-input')?.value?.trim() || '';
+          const produtoNome = linha.querySelector('.produto-input')?.value?.trim()
+                           || linha.querySelector('.produto')?.textContent?.trim()
+                           || 'Item';
+          const ehAdicionalLinha = linha.querySelector('.isAdicional')?.value === 'true'
+                              || linha.dataset.adicional === 'true'
+                              || !!linha.dataset.idsolicitacao;
+
+          // Bloqueia save se linha de solicitação está sem setor
+          if (ehAdicionalLinha && !setorVal) {
+              await Swal.fire({
+                  title: 'Setor não definido',
+                  html: `O item vinculado à solicitação (<b>${produtoNome}</b>) está sem setor.<br>Não é possível salvar sem definir o setor corretamente.`,
+                  icon: 'error',
+                  confirmButtonText: 'Entendido',
+              });
+              btnEnviar.disabled = false;
+              btnEnviar.textContent = 'Salvar Orçamento';
+              return;
+          }
+
+          if (ehAdicionalLinha) continue; // linha de solicitação com setor OK — pula duplicate check
+          const ehDuplicata = await verificarDuplicidadeInstantanea(idFuncaoVal, setorVal, produtoNome, linha.querySelector('.setor-input'), false);
+          if (ehDuplicata) return;
+      }
 
       // Determina o método e a URL com base na existência do ID do orçamento
       const isUpdate = orcamentoId !== null;
@@ -4199,26 +4564,14 @@ async function verificaOrcamento() {
           }
 
           if (erroData && (erroData.status === "duplicado" || erroData.isDuplicado)) {
-              const result = await Swal.fire({
+              await Swal.fire({
                   title: 'Item já existente',
-                  html: `${erroData.message}<br><br>Deseja incluir como um <strong>Novo Item</strong>?`,
+                  html: `${erroData.message}<br>Favor colocar um setor diferente.`,
                   icon: 'warning',
-                  showCancelButton: true,
-                  confirmButtonText: 'Sim, Incluir',
-                  cancelButtonText: 'Cancelar',
-                  reverseButtons: true,
-                  confirmButtonColor: '#28a745'
+                  confirmButtonText: 'OK',
+                  confirmButtonColor: '#e67e22'
               });
-
-              if (result.isConfirmed) {
-                  // AJUSTE: O nome deve ser IGUAL ao que o Backend busca: req.body.ignorarDuplicata
-                  window._ignorarDuplicata = true; 
-                  
-                  // Se você usa uma função que monta o JSON antes do fetch, 
-                  // certifique-se de que ela inclua: ignorarDuplicata: window._ignorarDuplicata
-                  btnEnviar.click(); 
-              }
-              return; 
+              return;
           }
 
           // 2. Lógica de CONFIRMAÇÃO DE SETOR
@@ -4434,8 +4787,10 @@ async function verificaOrcamento() {
 }
 
 
-async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, elementoInput) {
+async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, elementoInput, isAdicional = false) {
     if (!idFuncao) return;
+    console.log(`[duplicidade] idFuncao=${idFuncao} setor="${setor}" isAdicional=${isAdicional}`);
+    if (isAdicional) { console.log('[duplicidade] ✅ Pulando — linha adicional'); return; }
 
     console.log(`Iniciando verificação de duplicidade para Função ID ${idFuncao} e Setor "${setor}"`);
 
@@ -4462,54 +4817,51 @@ async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, ele
             }
         } catch (error) {
             if (error.message.includes("409") || error.message.includes("Já existe")) {
-                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+                const origem = (error.message.includes("Orçamento nº") || error.message.includes("mesmo evento"))
+                    ? 'outro-orcamento'
+                    : 'mesmo-orcamento';
+                return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput, origem);
             }
         }
-    } 
-    
+    }
+
     // SE O ORÇAMENTO É NOVO (ID NULL) OU PARA REFORÇAR A SEGURANÇA:
     // Verificamos se já existe uma linha com o mesmo ID Função e Setor na tabela agora
+    const linhaAtual = elementoInput?.closest('tr') || document.activeElement?.closest('tr');
     let duplicadoNoDOM = false;
     document.querySelectorAll('#tabela tbody tr').forEach(linha => {
         const idLinha = linha.querySelector('.idFuncao')?.value;
         const setorLinha = linha.querySelector('.setor-input')?.value?.trim();
-        
+
         // Verifica se é a mesma função e mesmo setor, mas NÃO é a linha atual que estamos editando
-        if (idLinha == idFuncao && setorLinha == setor.trim() && linha !== document.activeElement.closest('tr')) {
+        if (idLinha == idFuncao && setorLinha == setor.trim() && linha !== linhaAtual) {
             duplicadoNoDOM = true;
         }
     });
 
     if (duplicadoNoDOM) {
-        await exibirAlertaDuplicidade(produtoNome, setor, elementoInput);
+        return await exibirAlertaDuplicidade(produtoNome, setor, elementoInput, 'mesmo-orcamento');
     }
 }
 
 // Função auxiliar para evitar repetição de código
-async function exibirAlertaDuplicidade(produto, setor, elementoInput) {
-    const result = await Swal.fire({
+async function exibirAlertaDuplicidade(produto, setor, elementoInput, origem) {
+    const localMsg = origem === 'outro-orcamento'
+        ? 'em outro orçamento do mesmo evento e cliente'
+        : 'neste mesmo orçamento';
+    await Swal.fire({
         title: 'Item já existente',
-        html: `O item <strong>${produto}</strong> já existe para o setor <strong>${setor || 'Geral'}</strong>.<br><br>Deseja manter assim mesmo?`,
+        html: `O item <strong>${produto}</strong> já existe <strong>${localMsg}</strong> com o setor <strong>${setor || 'Vazio'}</strong>.<br>Favor colocar um setor diferente.`,
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sim, manter',
-        cancelButtonText: 'Vou alterar',
-        confirmButtonColor: '#28a745'
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#e67e22'
     });
-
-    if (result.isConfirmed) {
-        // Usuário quer manter a duplicidade (útil para Aditivos/Extra Bonificados)
-        window._ignorarDuplicata = true;
-    } else {
-        // 🎯 AÇÃO: Limpa o setor se o usuário clicar em "Vou Alterar" ou fechar o modal
-        if (elementoInput) {
-            elementoInput.value = '';
-            setTimeout(() => elementoInput.focus(), 100); // Um pequeno delay para o foco voltar após o modal fechar
-        }
-        
-        // Garante que a flag de ignorar não fique ativa por engano
-        window._ignorarDuplicata = false;
+    window._ignorarDuplicata = false;
+    if (elementoInput) {
+        elementoInput.value = '';
+        setTimeout(() => elementoInput.focus(), 100);
     }
+    return true;
 }
 
 async function atualizarCampoGeradoAnoPosterior(
@@ -4550,7 +4902,7 @@ async function atualizarCampoGeradoAnoPosterior(
 
 function desinicializarOrcamentosModal() {
 
-  window.isCleaning = true;
+  isCleaning = true;
   console.log("🧹 Desinicializando módulo Orcamentos.js");
 
   const selectLocalMontagem = document.getElementById("idMontagem");
@@ -4688,11 +5040,12 @@ function desinicializarOrcamentosModal() {
   }
 
   // Resetar estados e limpar formulário (se aplicável)
+  isCleaning = true;
   limparOrcamento(); // Chame sua função de limpeza de formulário
 
   lastEditedGlobalFieldType = null;
 
-  setTimeout(() => { window.isCleaning = false; }, 500);
+  setTimeout(() => { isCleaning = false; }, 500);
 
   console.log("✅ Módulo Orcamentos.js desinicializado.");
 }
@@ -5294,511 +5647,6 @@ function atualizarEstadoLiberaStaff(status) {
   // ========================================================
 }
 
-// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
-//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//   const tabelaBody = document.querySelector("#tabela tbody");
-
-//   if (!tabelaBody) {
-//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
-//     return;
-//   }
-
-//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
-
-//   if (!itens || itens.length === 0) {
-//     const emptyRow = tabelaBody.insertRow();
-//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//     return;
-//   }
-
-//   // --- LÓGICA DE REAJUSTE ---
-//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
-  
-//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
-//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-
-//   // =======================================================
-//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
-//   // =======================================================
-//   const PRIORIDADE_CATEGORIAS = {
-//     "PRODUTOS": 1,
-//     "EQUIPAMENTOS": 2,
-//     "SUPRIMENTOS": 3
-//   };
-
-//   itens.sort((a, b) => {
-//     const catA = (a.categoria || "OUTROS").toUpperCase();
-//     const catB = (b.categoria || "OUTROS").toUpperCase();
-
-//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
-//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
-
-//     // 1º Passo: Comparar o peso da Categoria
-//     if (pesoA !== pesoB) {
-//       return pesoA - pesoB;
-//     }
-
-//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
-//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
-//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
-//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
-//     return nomeA.localeCompare(nomeB);
-//   });
-//   // =======================================================
-
-//   itens.forEach((item) => {
-//     let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-//     let ctoDiaria = parseFloat(item.ctodiaria || 0);
-//     let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-//     let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-//     let vlrHospedagem = parseFloat(item.hospedagem || 0);
-//     let vlrTransporte = parseFloat(item.transporte || 0);
-
-//     let itemOrcamentoID = item.idorcamentoitem;
-//     const qtdItens = item.qtditens || 0;
-//     const qtdDias = item.qtddias || 0;
-
-//     let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-//     let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-//     let totAjuda = parseFloat(item.totajdctoitem || 0);
-//     let totGeralItem = parseFloat(item.totgeralitem || 0);
-//     let descontoItem = parseFloat(item.descontoitem || 0);
-//     let acrescimoItem = parseFloat(item.acrescimoitem || 0);
-
-//     if (aplicarReajuste) {
-//       vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
-//       ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
-//       vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
-//       vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
-//       vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
-//       vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
-
-//       itemOrcamentoID = ""; // Novo ID para reajuste
-
-//       totVdaDiaria = vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
-//       totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
-//       totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
-//       totGeralItem = totAjuda + totCtoDiaria;
-//     }
-
-//     // Fallback Ajuda de Custo
-//     if (!aplicarReajuste && (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) && parseFloat(item.totajdctoitem || 0) > 0) {
-//       const multiplicador = (qtdItens * qtdDias) || 1;
-//       vlrAjdAlimentacao = parseFloat(item.totajdctoitem) / multiplicador;
-//       totAjuda = parseFloat(item.totajdctoitem);
-//       totGeralItem = totAjuda + totCtoDiaria;
-//     }
-
-//     const vlrBaseItemRaw = parseFloat(item.vlrbase);
-//     const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0 ? vlrBaseItemRaw : (vlrDiaria + descontoItem - acrescimoItem);
-
-//     // Nome unificado do produto
-//     const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
-
-//     const newRow = tabelaBody.insertRow();
-//     newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-//     newRow.dataset.idfuncao = item.idfuncao || "";
-//     newRow.dataset.idequipamento = item.idequipamento || "";
-//     newRow.dataset.idsuprimento = item.idsuprimento || "";
-//     newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
-//     newRow.dataset.adicional = item.adicional ? "true" : "false";
-//     newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-
-//     if (item.extrabonificado) {
-//         newRow.style.backgroundColor = "#f0fff4";
-//         newRow.style.borderLeft = "4px solid #48bb78";
-//     }
-
-//     newRow.innerHTML = `
-//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
-//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
-//                     </label>
-//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
-//                 </div>
-//             </td>
-//             <td class="cacheFechado">
-//             <div class="checkbox-wrapper-33">
-//                 <label class="checkbox">
-//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
-//                     <span class="checkbox__symbol">
-//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                             <path d="M4 14l8 7L24 7"></path>
-//                         </svg>
-//                     </span>
-//                     <p class="checkbox__textwrapper"></p>
-//                 </label>
-//             </div>
-//         </td>
-//             <td class="Categoria">${item.categoria || ""}</td>
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="produto">${nomeProduto}</td>
-//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
-//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
-//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
-//             <td class="descontoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="acrescimoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>            
-//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
-//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
-//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
-//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
-//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
-//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
-//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-//         `;
-
-//     // --- EVENTOS ---
-//     const setupAcresDesc = (sel, type) => {
-//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
-//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
-//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
-//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
-//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
-//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
-//     };
-
-//     setupAcresDesc(".descontoItem", "desconto");
-//     setupAcresDesc(".acrescimoItem", "acrescimo");
-
-//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
-//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
-//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
-
-//     const itemDateInput = newRow.querySelector(".datas-item");
-//     if (itemDateInput) {
-//       const dates = [];
-//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
-//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
-//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
-//         // Garante que o campo de datas seja sempre preenchido visualmente
-//         if (item.datas && item.datas.length > 0) {
-//           let fpInstance = itemDateInput._flatpickr;
-//           if (!fpInstance) {
-//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
-//           }
-//           fpInstance.setDate(item.datas, true);
-//         }
-//     }
-
-//     const delBtn = newRow.querySelector(".btnApagar");
-//     if (delBtn) {
-//       delBtn.addEventListener("click", async (e) => {
-//         e.preventDefault();
-//         const id = newRow.dataset.idorcamentoitem;
-//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
-//         else {
-//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
-//           if (isConfirmed) {
-//             try {
-//               const principalId = document.getElementById("idOrcamento").value;
-//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
-//               newRow.remove();
-//               recalcularTotaisGerais();
-//               Swal.fire("Deletado!", "", "success");
-//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
-//           }
-//         }
-//       });
-//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
-//     }
-//       if (item.cachefechado === true || item.cachefechado === "true") {
-//         const chkCache = newRow.querySelector(".chk-cache-fechado");
-//         if (chkCache) {
-//             // Chamamos a função passando o elemento para que ela trave os botões
-//             window.toggleEditavel(chkCache); 
-//         }
-//     }
-//   });
-
-
-//   if (aplicarReajuste) {
-//     const aviso = document.getElementById("avisoReajusteMensagem");
-//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
-//     recalcularTotaisGerais();
-//     aplicarDescontoEAcrescimo("Desconto"); 
-//   }
-
-//   aplicarMascaraMoeda();
-// }
-// =============================
-// VERIFICA LINHAS PELO PERÍODO
-// =============================
-
-
-// export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
-//   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//   const tabelaBody = document.querySelector("#tabela tbody");
-
-//   if (!tabelaBody) {
-//     console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
-//     return;
-//   }
-
-//   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
-
-//   if (!itens || itens.length === 0) {
-//     const emptyRow = tabelaBody.insertRow();
-//     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//     return;
-//   }
-
-//   // --- LÓGICA DE REAJUSTE ---
-//   const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
-  
-//   const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
-//   const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-//   const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-
-//   // =======================================================
-//   // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
-//   // =======================================================
-//   const PRIORIDADE_CATEGORIAS = {
-//     "PRODUTOS": 1,
-//     "EQUIPAMENTOS": 2,
-//     "SUPRIMENTOS": 3
-//   };
-
-//   itens.sort((a, b) => {
-//     const catA = (a.categoria || "OUTROS").toUpperCase();
-//     const catB = (b.categoria || "OUTROS").toUpperCase();
-
-//     const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
-//     const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
-
-//     // 1º Passo: Comparar o peso da Categoria
-//     if (pesoA !== pesoB) {
-//       return pesoA - pesoB;
-//     }
-
-//     // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
-//     // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
-//     const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
-//     const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
-//     return nomeA.localeCompare(nomeB);
-//   });
-//   // =======================================================
-
-// itens.forEach((item) => {
-//   // VALORES ORIGINAIS (NÃO mexer!)
-//   let vlrDiaria = parseFloat(item.vlrdiaria || 0);
-//   let ctoDiaria = parseFloat(item.ctodiaria || 0);
-//   let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
-//   let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
-//   let vlrHospedagem = parseFloat(item.hospedagem || 0);
-//   let vlrTransporte = parseFloat(item.transporte || 0);
-
-//   let itemOrcamentoID = item.idorcamentoitem;
-//   const qtdItens = item.qtditens || 0;
-//   const qtdDias = item.qtddias || 0;
-
-//   // TOTAIS ORIGINAIS do banco
-//   let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
-//   let totCtoDiaria = parseFloat(item.totctodiaria || 0);
-//   let totAjuda = parseFloat(item.totajdctoitem || 0);
-//   let totGeralItem = parseFloat(item.totgeralitem || 0);
-//   let descontoItem = parseFloat(item.descontoitem || 0);
-//   let acrescimoItem = parseFloat(item.acrescimoitem || 0);
-
-//   // ✅ REAJUSTA SÓ OS TOTAIS FINAIS (+8% exato)
-//   if (aplicarReajuste) {
-//     totVdaDiaria = ceilToTenCents(totVdaDiaria, fatorGeral);
-//     totCtoDiaria = ceilToTenCents(totCtoDiaria, fatorGeral);
-//     totAjuda = ceilToTenCents(totAjuda, fatorAjuda);
-//     totGeralItem = totCtoDiaria + totAjuda;
-
-//     itemOrcamentoID = ""; // Novo orçamento
-//   }
-
-//   const vlrBaseItem = vlrDiaria; // Unitário ORIGINAL
-
-//   const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
-
-//   const newRow = tabelaBody.insertRow();
-//   newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
-//   newRow.dataset.idfuncao = item.idfuncao || "";
-//   newRow.dataset.idequipamento = item.idequipamento || "";
-//   newRow.dataset.idsuprimento = item.idsuprimento || "";
-//   newRow.dataset.vlrbase = vlrBaseItem.toString(); // ORIGINAL
-//   newRow.dataset.reajustadoTotal = aplicarReajuste ? 'true' : 'false'; // Flag
-//   newRow.dataset.adicional = item.adicional ? "true" : "false";
-//   newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-
-//   if (item.extrabonificado) {
-//     newRow.style.backgroundColor = "#f0fff4";
-//     newRow.style.borderLeft = "4px solid #48bb78";
-//   }
-
-//     newRow.innerHTML = `
-//             <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
-//             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
-//                         <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
-//                     </label>
-//                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
-//                 </div>
-//             </td>
-//             <td class="cacheFechado">
-//             <div class="checkbox-wrapper-33">
-//                 <label class="checkbox">
-//                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" ${item.cachefechado ? "checked" : ""} />
-//                     <span class="checkbox__symbol">
-//                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                             <path d="M4 14l8 7L24 7"></path>
-//                         </svg>
-//                     </span>
-//                     <p class="checkbox__textwrapper"></p>
-//                 </label>
-//             </div>
-//         </td>
-//             <td class="Categoria">${item.categoria || ""}</td>
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="produto">${nomeProduto}</td>
-//             <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
-//             <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
-//             <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
-//             <td class="descontoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(descontoItem)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="acrescimoItem Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(acrescimoItem)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>            
-//             <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
-//             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
-//             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
-//             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-//             <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
-//             <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
-//             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
-//             <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
-//             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-//             <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-//         `;
-
-//     // --- EVENTOS ---
-//     const setupAcresDesc = (sel, type) => {
-//         const vi = newRow.querySelector(`${sel} .ValorInteiros`);
-//         const vp = newRow.querySelector(`${sel} .valorPerCent`);
-//         vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
-//         vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
-//         vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
-//         vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
-//     };
-
-//     setupAcresDesc(".descontoItem", "desconto");
-//     setupAcresDesc(".acrescimoItem", "acrescimo");
-
-//     newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
-//     newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
-//     newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
-
-//     const itemDateInput = newRow.querySelector(".datas-item");
-//     if (itemDateInput) {
-//       const dates = [];
-//       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
-//       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
-//       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
-//         // Garante que o campo de datas seja sempre preenchido visualmente
-//         if (item.datas && item.datas.length > 0) {
-//           let fpInstance = itemDateInput._flatpickr;
-//           if (!fpInstance) {
-//             fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
-//           }
-//           fpInstance.setDate(item.datas, true);
-//         }
-//     }
-
-//     const delBtn = newRow.querySelector(".btnApagar");
-//     if (delBtn) {
-//       delBtn.addEventListener("click", async (e) => {
-//         e.preventDefault();
-//         const id = newRow.dataset.idorcamentoitem;
-//         if (!id) { newRow.remove(); recalcularTotaisGerais(); }
-//         else {
-//           const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
-//           if (isConfirmed) {
-//             try {
-//               const principalId = document.getElementById("idOrcamento").value;
-//               await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
-//               newRow.remove();
-//               recalcularTotaisGerais();
-//               Swal.fire("Deletado!", "", "success");
-//             } catch (err) { Swal.fire("Erro!", err.message, "error"); }
-//           }
-//         }
-//       });
-//       if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
-//     }
-//       if (item.cachefechado === true || item.cachefechado === "true") {
-//         const chkCache = newRow.querySelector(".chk-cache-fechado");
-//         if (chkCache) {
-//             // Chamamos a função passando o elemento para que ela trave os botões
-//             window.toggleEditavel(chkCache); 
-//         }
-//     }
-//   });
-
-
-//   if (aplicarReajuste) {
-//     const aviso = document.getElementById("avisoReajusteMensagem");
-//     if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
-//     recalcularTotaisGerais();
-//     aplicarDescontoEAcrescimo("Desconto"); 
-//   }
-
-//   aplicarMascaraMoeda();
-// }
-
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
@@ -5897,6 +5745,10 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     newRow.dataset.vlrbase          = vlrBaseItem.toString();
     newRow.dataset.adicional        = isAdicional  ? "true" : "false";
     newRow.dataset.extrabonificado  = isBonificado ? "true" : "false";
+    newRow.dataset.obsbonificado    = item.obsbonificado || "";
+    newRow.dataset.idsolicitacao    = Array.isArray(item.idsolicitacao)
+        ? item.idsolicitacao.join(',')
+        : (item.idsolicitacao || "");
 
     newRow.innerHTML = `
       <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
@@ -5943,8 +5795,8 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       </td>
       <td class="produto">
         ${nomeProduto}
-        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
-        ${isAdicional && !isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[ADICIONAL]</small>' : ''}
+        ${isBonificado ? '<br><small style="color: #dc3545; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+        ${isAdicional && !isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[ADICIONAL]</small>' : ''}
       </td>
       <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
       <td class="qtdDias">
@@ -5956,6 +5808,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         <div class="flatpickr-container">
           <input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar">
         </div>
+        ${item.obsbonificado ? `<div class="obs-rejeitadas" style="font-size:10px;color:#dc2626;font-style:italic;margin-top:2px;line-height:1.3;">${item.obsbonificado}</div>` : ''}
       </td>
       <td class="descontoItem Moeda">
         <div class="Acres-Desc">
@@ -6709,14 +6562,6 @@ function removerMascaraMoedaInputs() {
 // Chame após o cálculo ou inserção de valores
 aplicarMascaraMoeda();
 
-/**
- * Bloqueia ou desbloqueia campos de formulário e botões
- * com base no status do orçamento ('F' para Fechado).
- */
-/**
- * Bloqueia ou desbloqueia campos de formulário e botões
- * com base no status do orçamento ('F' para Fechado).
- */
 function bloquearCamposSeFechado() {
     const statusInput = document.getElementById('Status');
     const fechado = statusInput?.value === 'F';
@@ -6738,8 +6583,7 @@ function bloquearCamposSeFechado() {
             const id = campo.id;
             const dentroDeAdicional = campo.closest('.linhaAdicional');
 
-            // 🛑 EXCEÇÃO: NÃO bloquear se for linha adicional ou campo permitido
-            if (         
+            if (
                 idsPermitidos.includes(id) ||
                 dentroDeAdicional
             ) return;
@@ -6767,15 +6611,42 @@ function bloquearCamposSeFechado() {
             const id = botao.id || '';
             const classes = botao.classList;
 
-            const deveContinuarAtivo =
-                id === 'Enviar' ||
-                id === 'Close' ||
-                id === 'Limpar' ||
-                classes.contains('Close') ||
-                classes.contains('pesquisar') ||
-                classes.contains('Adicional') || 
-                classes.contains('Excel') ||
-                classes.contains('Contrato') ;
+            // Botão de tooltip adicional acompanha o botão 'Adicional' (visível quando fechado)
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'flex';
+                botao.disabled = false;
+                return;
+            }
+
+            let deveContinuarAtivo = false;
+            
+            // 🔑 CORREÇÃO 2: Busca a linha pai (tr) do botão e verifica se ela possui as suas classes de adicional
+            const linhaPai = botao.closest('tr');
+            const dentroDeAdicional = linhaPai?.classList.contains('linhaAdicional') || 
+                                      linhaPai?.classList.contains('adicional') || 
+                                      linhaPai?.classList.contains('liberada');
+            if (dentroDeAdicional) {
+              deveContinuarAtivo =
+                    id === 'Enviar' ||
+                    id === 'Close' ||
+                    id === 'Limpar' ||
+                    classes.contains('Close') ||
+                    classes.contains('btnApagar') || // 🔥 Liberado aqui!
+                    classes.contains('pesquisar') ||
+                    classes.contains('Adicional') || 
+                    classes.contains('Excel') ||
+                    classes.contains('Contrato') ;
+            } else {
+              deveContinuarAtivo =
+                  id === 'Enviar' ||
+                  id === 'Close' ||
+                  id === 'Limpar' ||
+                  classes.contains('Close') ||
+                  classes.contains('pesquisar') ||
+                  classes.contains('Adicional') || 
+                  classes.contains('Excel') ||
+                  classes.contains('Contrato') ;
+             }
 
             if (id === 'GerarProximoAno') {
                 botao.style.display = 'inline-block'; 
@@ -6831,11 +6702,17 @@ function bloquearCamposSeFechado() {
         botoes.forEach(botao => {
             const id = botao.id || '';
             const classes = botao.classList;
-            
+
+            // Botão de tooltip adicional só aparece quando fechado
+            if (id === 'tooltipAdicional') {
+                botao.style.display = 'none';
+                return;
+            }
+
             if (id === 'GerarProximoAno') {
                 botao.style.display = 'none';
                 return;
-            } 
+            }
 
             if (classes.contains('Excel') || classes.contains('Contrato') || classes.contains('Adicional')) {
                 botao.style.display = 'none';
@@ -6857,6 +6734,7 @@ function bloquearCamposSeFechado() {
         }
     }
 }
+
 
 
 /**
@@ -6944,6 +6822,7 @@ function liberarSelectsParaAdicional() {
 function verificarStatusParaAdicional() {
     const statusOrcamento = document.getElementById('Status')?.value;
     const btnAdicional = document.getElementById('adicionarLinhaAdicional');
+    const btnTooltipAdicional = document.getElementById('tooltipAdicional');
     const btnNormal = document.getElementById('adicionarLinha');
     const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
     
@@ -6952,6 +6831,9 @@ function verificarStatusParaAdicional() {
         if (btnAdicional) {
             btnAdicional.style.display = 'block';
             console.log("Status Fechado, botão 'Adicional' habilitado.");
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'flex';
         }
         if (btnNormal) {
             btnNormal.style.display = 'none'; // Impede adição normal quando fechado
@@ -6974,6 +6856,9 @@ function verificarStatusParaAdicional() {
         // Se não for 'F', mostra o botão normal e esconde o adicional
         if (btnAdicional) {
             btnAdicional.style.display = 'none';
+        }
+        if (btnTooltipAdicional) {
+            btnTooltipAdicional.style.display = 'none';
         }
         if (btnNormal) {
             btnNormal.style.display = 'block';
@@ -6998,6 +6883,38 @@ if (statusInput) {
     // Para garantir que a verificação rode após carregar um orçamento
     statusInput.addEventListener('blur', verificarStatusParaAdicional);
 }
+
+// Tooltip do Status: mostra o significado da letra atual do input (A=Aberto, etc.).
+// Como o #Status é readonly e definido por código em vários pontos, interceptamos
+// também a escrita de .value (que não dispara eventos) para manter o tooltip em dia.
+function ativarTooltipStatus() {
+  const input = document.getElementById('Status');
+  if (!input) return;
+  const tip = input.closest('.form2')?.querySelector('.tooltip');
+  if (!tip) return;
+  // Idempotente: o modal é recriado a cada abertura (novo #Status). Só liga uma vez por
+  // elemento; se já foi ligado, o getter/setter abaixo mantém o texto em dia sozinho.
+  if (input.dataset.tipStatus === '1') return;
+  input.dataset.tipStatus = '1';
+
+  const LABELS = { A: 'Aberto', P: 'Proposta', E: 'Em Andamento', F: 'Fechado', R: 'Reprovado' };
+  const atualizar = () => {
+    const v = (input.value || '').trim().toUpperCase();
+    tip.textContent = LABELS[v] ? `${LABELS[v]}` : 'Status';
+  };
+
+  atualizar();
+  ['input', 'change', 'blur'].forEach((ev) => input.addEventListener(ev, atualizar));
+
+  // Captura mudanças programáticas (input.value = "F"), que não emitem eventos.
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get() { return desc.get.call(this); },
+    set(v) { desc.set.call(this, v); atualizar(); },
+  });
+}
+ativarTooltipStatus();
 
 document
   .getElementById("fecharOrc")
@@ -7688,6 +7605,23 @@ function getOrcamentoAtualCarregado() {
  * orçamento do 'Próximo Ano' no frontend. Isso melhora a experiência do
  * usuário mostrando já os valores atualizados mesmo antes de salvar.
  */
+// Soma 1 ano à data mantendo mês/dia (e o horário, se houver), sem usar `new Date(string)`
+// para não sofrer o deslocamento de fuso horário que afeta strings ISO. Trata 29/fev
+// caindo num ano não bissexto virando 28/fev.
+function somarUmAnoNaData(dataStr) {
+  if (!dataStr) return dataStr;
+  const match = String(dataStr).match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (!match) return dataStr;
+  const [, ano, mes, dia, resto] = match;
+  const anoNovo = parseInt(ano, 10) + 1;
+  let diaNovo = dia;
+  if (mes === '02' && dia === '29') {
+    const bissexto = anoNovo % 4 === 0 && (anoNovo % 100 !== 0 || anoNovo % 400 === 0);
+    if (!bissexto) diaNovo = '28';
+  }
+  return `${anoNovo}-${mes}-${diaNovo}${resto}`;
+}
+
 async function rehidrateItemsForNewYear(itens) {
   if (!itens || !Array.isArray(itens) || itens.length === 0) return;
 
@@ -7705,19 +7639,42 @@ async function rehidrateItemsForNewYear(itens) {
 
     // ... (manter eqMap e supMap iguais)
 
+    // Maior custo disponível da função: Sênior > Pleno > Junior > Base.
+    // (mesma cascata usada ao adicionar uma linha nova em carregarFuncaoOrc)
+    const custoMaiorFuncao = (f) => {
+      if (!f) return 0;
+      return (
+        parseFloat(
+          f.ctofuncaosenior > 0 ? f.ctofuncaosenior :
+          f.ctofuncaopleno  > 0 ? f.ctofuncaopleno  :
+          f.ctofuncaojunior > 0 ? f.ctofuncaojunior :
+                                  f.ctofuncaobase   || 0
+        ) || 0
+      );
+    };
+
     for (const item of itens) {
-      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior), 
+      // Rola o período da diária +1 ano — sem isso o item herda as datas do orçamento
+      // original, o que colide com o período do orçamento antigo e quebra a
+      // identificação de "qual orçamento está vigente" ao cadastrar staff.
+      if (item.periododiariasinicio) item.periododiariasinicio = somarUmAnoNaData(item.periododiariasinicio);
+      if (item.periododiariasfim) item.periododiariasfim = somarUmAnoNaData(item.periododiariasfim);
+
+      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior),
       // esse deve ser o valor "mãe" para o novo reajuste.
       let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
-      let ctoReferencia = parseFloat(item.ctodiaria || 0);
 
-      // 2. Fallback: Se por algum motivo o item veio zerado, busca na tabela mestra
-      if (vlrReferencia === 0) {
-        if (item.idfuncao && funcMap[String(item.idfuncao)]) {
-          vlrReferencia = parseFloat(funcMap[String(item.idfuncao)].vdafuncao) || 0;
-          ctoReferencia = parseFloat(funcMap[String(item.idfuncao)].ctofuncaobase) || 0;
-        }
-        // ... (repetir lógica para equip e suprimento se necessário)
+      // 2. CUSTO: para itens de função, NÃO usa o custo gravado no ano anterior.
+      //    Sempre recalcula pelo MAIOR custo atual da função (Sênior > Pleno > Junior > Base),
+      //    igual ao comportamento de uma linha nova. Itens sem função (equip/suprimento)
+      //    mantêm o custo gravado.
+      let ctoReferencia = funcMestra
+        ? custoMaiorFuncao(funcMestra)
+        : parseFloat(item.ctodiaria || 0);
+
+      // 3. Fallback: se a venda veio zerada, busca na tabela mestra da função.
+      if (vlrReferencia === 0 && funcMestra) {
+        vlrReferencia = parseFloat(funcMestra.vdafuncao) || 0;
       }
 
       // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
@@ -9024,6 +8981,8 @@ function configurarEventosOrcamento() {
   //inicializarFlatpickrsGlobais();
   initializeAllFlatpickrsInModal();
   verificaOrcamento();
+  // Religa o tooltip do Status ao elemento recém-criado deste modal (idempotente).
+  ativarTooltipStatus();
 
   console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 }

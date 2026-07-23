@@ -2,25 +2,37 @@ const express = require('express');
 const router = express.Router();
 const svc = require('../src/services/NotificacaoServices.js');
 const pool = require('../db');
-const { autenticarToken, contextoEmpresa} = require('../middlewares/authMiddlewares');
+const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 
-
-
-
-// GET /notificacoes — lista + contagem
+// ─────────────────────────────────────────────
+// GET /notificacoes
+// ─────────────────────────────────────────────
 router.get('/', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
-    const { apenasNaoLidas } = req.query;
+    const idempresa = req.idempresa;
+    const { apenasNaoLidas, status } = req.query;
 
     const [todasNotificacoes, naoLidas] = await Promise.all([
-      svc.buscarNotificacoes(idusuario, { apenasNaoLidas: apenasNaoLidas === 'true' }),
-      svc.contarNaoLidas(idusuario),
+      svc.buscarNotificacoes(idusuario, idempresa, { apenasNaoLidas: apenasNaoLidas === 'true' }),
+      svc.contarNaoLidas(idusuario, idempresa),
     ]);
 
-    // FILTRO: Remove qualquer notificação que pertença a uma solicitação (idreferencia não nulo)
-    // Esses itens já são tratados pela rota /solicitacoes-notificacao
-    const notificacoes = todasNotificacoes.filter(n => n.idreferencia === null);
+    let notificacoes = todasNotificacoes.filter(n => n.idreferencia === null);
+
+    if (status && status !== 'Todas') {
+      const mapStatus = {
+        'Pendente':   ['Pendente'],
+        'Aprovada':   ['Autorizado', 'Aprovado'],
+        'Recusada':   ['Rejeitado', 'Recusado'],
+        'Finalizado': ['Finalizado'],
+        'Vencidos':   ['Vencidos'],
+      };
+      const statusPermitidos = mapStatus[status] || [];
+      notificacoes = notificacoes.filter(n =>
+        statusPermitidos.some(s => s.toLowerCase() === (n.status || '').toLowerCase())
+      );
+    }
 
     res.json({ notificacoes, naoLidas });
   } catch (err) {
@@ -29,100 +41,46 @@ router.get('/', autenticarToken(), async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
 // PATCH /notificacoes/:id/lida
+// ─────────────────────────────────────────────
 router.patch('/:id/lida', autenticarToken(), async (req, res) => {
-    try {
-        const { id } = req.params;
-        const idusuario = req.usuario.idusuario;
-        const idempresa = req.idempresa; 
-
-        let idreferencia = null;
-        let mensagemLog = '';
-
-        // Identifica qual o tipo de ID e extrai o número
-        if (id.startsWith('sol-')) {
-            idreferencia = parseInt(id.replace('sol-', ''));
-            mensagemLog = 'Solicitação visualizada';
-        } else if (id.startsWith('contapagar-')) {
-            idreferencia = parseInt(id.replace('contapagar-', ''));
-            mensagemLog = 'Lançamento financeiro visualizado';
-        } else if (id.startsWith('staff-ajuda-') || id.startsWith('staff-cache-')) {
-            // Para staff, pegamos o ID do evento ou o ID que você definiu no prefixo
-            idreferencia = parseInt(id.split('-').pop()); 
-            mensagemLog = 'Pagamento de Staff visualizado';
-        }
-
-        if (idreferencia) {
-            await pool.query(
-                `INSERT INTO notificacao (
-                    idusuario, idreferencia, idempresa, lido, tipo, mensagem, criado_em
-                )
-                VALUES ($1, $2, $3, true, 'info', $4, NOW())
-                ON CONFLICT (idusuario, idreferencia) 
-                DO UPDATE SET 
-                    lido = true, 
-                    idempresa = $3,
-                    criado_em = NOW()`,
-                [idusuario, idreferencia, idempresa, mensagemLog]
-            );
-            return res.json({ ok: true });
-        }
-
-        // Se for uma notificação que já existe no banco (ID numérico puro)
-        if (!isNaN(id)) {
-            await pool.query(
-                `UPDATE notificacao SET lido = true WHERE idnotificacao = $1 AND idusuario = $2`,
-                [id, idusuario]
-            );
-        }
-
-        res.json({ ok: true });
-
-    } catch (err) {
-        console.error('❌ Erro no PATCH lida:', err);
-        res.status(500).json({ error: 'Erro ao marcar como lida' });
-    }
-});
-
-// PATCH /notificacoes/todas-lidas
-router.patch('/todas-lidas', autenticarToken(), async (req, res) => {
   try {
-    const idusuario = req.usuario?.idusuario;
+    const idusuario = req.usuario.idusuario;
     const idempresa = req.idempresa;
-
-    // 1. Marcar notificações que já existem fisicamente na tabela
-    await pool.query(
-      `UPDATE notificacao SET lido = true WHERE idusuario = $1 AND idempresa = $2`,
-      [idusuario, idempresa]
-    );
-
-    // 2. Criar registros de "lido" para Solicitações e Lançamentos que ainda não têm entrada na tabela
-    // Este query insere na tabela de notificações referenciando os IDs de lançamentos ativos
-    await pool.query(`
-      INSERT INTO notificacao (idusuario, idreferencia, idempresa, lido, criado_em)
-      SELECT $1, idlancamento, $2, true, NOW() FROM lancamentos WHERE idempresa = $2 AND ativo = true
-      ON CONFLICT (idusuario, idreferencia) DO UPDATE SET lido = true
-    `, [idusuario, idempresa]);
-
-    await pool.query(`
-      INSERT INTO notificacao (idusuario, idreferencia, idempresa, lido, criado_em)
-      SELECT $1, idsolicitacao, $2, true, NOW() FROM solicitacoes WHERE idempresa = $2
-      ON CONFLICT (idusuario, idreferencia) DO UPDATE SET lido = true
-    `, [idusuario, idempresa]);
-
+    const { id } = req.params;
+    await svc.marcarComoLida(idusuario, id, idempresa);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao marcar todas como lidas' });
+    console.error('Erro ao marcar como lida:', err);
+    res.status(500).json({ error: 'Erro ao marcar notificação' });
   }
 });
 
+// ─────────────────────────────────────────────
+// PATCH /notificacoes/todas-lidas
+// ─────────────────────────────────────────────
+router.patch('/todas-lidas', autenticarToken(), async (req, res) => {
+  try {
+    const idusuario = req.usuario.idusuario;
+    const idempresa = req.idempresa;
+    await svc.marcarTodasComoLidas(idusuario, idempresa);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Erro ao marcar todas como lidas:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /notificacoes/agenda-notificacao
+// ─────────────────────────────────────────────
 router.get('/agenda-notificacao', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
     const agora = new Date();
     const horaAtual = agora.getHours();
-    const diaDaSemana = agora.getDay(); // 0 = Domingo, 5 = Sexta, 6 = Sábado
+    const diaDaSemana = agora.getDay();
 
     let sql = `
       SELECT a.idagenda, a.titulo, a.hora_evento, a.data_evento, a.tipo, n.lido, a.criado_em, 'hoje' as quando
@@ -135,11 +93,7 @@ router.get('/agenda-notificacao', autenticarToken(), async (req, res) => {
 
     if (horaAtual >= 18) {
       let intervalo = "'1 day'";
-      
-      // Se for Sexta (5), estendemos o intervalo para 3 dias (até Segunda)
-      if (diaDaSemana === 5) {
-        intervalo = "'3 days'";
-      }
+      if (diaDaSemana === 5) intervalo = "'3 days'";
 
       sql += `
         UNION ALL
@@ -154,96 +108,103 @@ router.get('/agenda-notificacao', autenticarToken(), async (req, res) => {
 
     sql += ` ORDER BY hora_evento ASC`;
 
-    // 2. EXECUTAR A QUERY ÚNICA
     const agendaRaw = await pool.query(sql, [idusuario]);
 
-    // 3. PROCESSAR OS RESULTADOS
     const lembretes = agendaRaw.rows.map(evento => {
       const config = {
-        'Reunião': { icon: 'groups_2', type: 'danger' },
+        'Reunião':  { icon: 'groups_2',        type: 'danger' },
         'Evento':   { icon: 'event_available', type: 'info' },
-        'Lembrete': { icon: 'priority_high', type: 'warning' },
-        'Anotação': { icon: 'text_ad', type: 'info' }
+        'Lembrete': { icon: 'priority_high',   type: 'warning' },
+        'Anotação': { icon: 'text_ad',         type: 'info' }
       };
-
       const configRead = {
         false: { iconRead: 'check_small', typeRead: 'danger' },
-        true:  { iconRead: 'done_all', typeRead: 'success' }
+        true:  { iconRead: 'done_all',    typeRead: 'success' }
       };
 
       const tipoDb = evento.tipo || 'Evento';
       const { icon, type } = config[tipoDb] || { icon: 'calendar_today', type: 'warning' };
-      
-      // Tratando o status lido (convertendo null ou undefined para false)
       const statusLido = evento.lido === true;
       const { iconRead, typeRead } = configRead[statusLido];
-
-      // Mensagem customizada se for de amanhã
-      const prefixo = evento.quando === 'amanha' ? 'AMANHÃ' : tipoDb.toUpperCase();
+      const prefixo = evento.quando === 'futuro' ? 'AMANHÃ' : tipoDb.toUpperCase();
 
       return {
         id: `agenda-${evento.idagenda}`,
-        type: type,
-        icon: icon,
+        type,
+        icon,
         message: `${prefixo}: ${evento.titulo} às ${evento.hora_evento.substring(0, 5)}`,
         read: statusLido,
         ficticio: true,
         created_at: evento.criado_em || agora,
-        typeRead: typeRead,
-        iconRead: iconRead,
-        quando: evento.quando // Enviamos a "coluna virtual" para o front
+        typeRead,
+        iconRead,
+        quando: evento.quando,
+        status: 'Pendente',
       };
     });
 
     res.json(lembretes);
-
   } catch (err) {
     console.error('Erro na agenda fictícia:', err);
     res.status(500).json([]);
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /notificacoes/solicitacoes-notificacao
+// ─────────────────────────────────────────────
 router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
-     
 
-    // 1. Busca todas as permissões do usuário
     const { rows: allPermissoes } = await pool.query(
-        `SELECT modulo, master, supremo FROM permissoes WHERE idusuario = $1`,
-        [idusuario]
+      `SELECT modulo, master, supremo FROM permissoes WHERE idusuario = $1`,
+      [idusuario]
     );
 
-    // 2. Corrigindo a lógica de permissão (Aceita booleano ou string 'true')
     const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && (p.master === true || p.master === 'true'));
     const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && (p.supremo === true || p.supremo === 'true'));
     const temAcessoTotal = ehMasterStaff || ehSupremoStaff;
 
-    
-    // 3. Query com JOIN para saber se o usuário já leu a notificação "fictícia"
     let sqlBase = `
       SELECT 
-        s.idsolicitacao,
-        (u.nome || ' ' || u.sobrenome) AS funcionario,
-        s.tiposolicitacao, 
-        s.status, 
-        s.dtsolicitacao, 
-        s.dtresposta, 
+        MIN(s.idsolicitacao)                                         AS idsolicitacao,
+        s.tiposolicitacao,
         s.idusuariosolicitante,
-        EXISTS (
-            SELECT 1 FROM notificacao n 
-            WHERE n.idreferencia = s.idsolicitacao 
-            AND n.idusuario = $1 
-            AND n.lido = true
-        ) as ja_lido
-      FROM solicitacoes s
-      LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
-      WHERE s.idempresa = $2
+        s.idfuncionario,                                                
+        s.status,                        
+        (u.nome || ' ' || u.sobrenome)            AS funcionario,
+        (f.nome)                                  AS nomefuncionario,   
+        o.idorcamento,
+        e.nmevento                                AS evento,           
+        COUNT(s.idsolicitacao)                    AS total_solicitacoes,
+        MIN(s.dtsolicitacao)                      AS dtsolicitacao,
+        MAX(s.dtresposta)                         AS dtresposta,
+        to_char(MIN(s.dtsolicitada[1]), 'DD/MM/YYYY') AS dt_inicio,
+        to_char(MAX(s.dtsolicitada[1]), 'DD/MM/YYYY') AS dt_fim,
+        array_agg(to_char(s.dtsolicitada[1], 'DD/MM/YYYY') ORDER BY s.dtsolicitada[1] ASC) AS datas_solicitadas,
+        json_agg(
+            json_build_object(
+                'idsolicitacao', s.idsolicitacao,
+                'status',        s.status,
+                'dtsolicitada',  s.dtsolicitada[1]::date,
+                'dtresposta',    s.dtresposta
+            )
+            ORDER BY s.dtsolicitada[1] ASC
+        ) AS solicitacoes_agrupadas,
+        COALESCE(bool_and(notif.lido), false)     AS ja_lido
+    FROM solicitacoes s
+    LEFT JOIN usuarios u      ON s.idusuariosolicitante = u.idusuario
+    LEFT JOIN funcionarios f  ON s.idfuncionario = f.idfuncionario    
+    LEFT JOIN orcamentos o    ON s.idorcamento = o.idorcamento         
+    LEFT JOIN eventos e       ON o.idevento = e.idevento               
+    LEFT JOIN notificacao notif ON notif.idreferencia = s.idsolicitacao AND notif.idusuario = $1
+    WHERE s.idempresa = $2
     `;
 
     let params = [idusuario, idempresa];
-    let finalSql = "";
+    let finalSql = '';
 
     if (temAcessoTotal) {
       finalSql = `${sqlBase} AND (s.status = 'Pendente' OR s.dtresposta > NOW() - INTERVAL '24 hours')`;
@@ -252,23 +213,24 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
       params.push(idusuario);
     }
 
-    finalSql += ` ORDER BY COALESCE(s.dtresposta, s.dtsolicitacao) DESC`;
+    finalSql += `
+      GROUP BY 
+          s.tiposolicitacao,
+          s.idusuariosolicitante,
+          s.idfuncionario,             
+          s.status,
+          u.nome, u.sobrenome,
+          f.nome,          
+          o.idorcamento,      
+          e.nmevento             
+      ORDER BY COALESCE(MAX(s.dtresposta), MIN(s.dtsolicitacao)) DESC
+    `;
 
     const result = await pool.query(finalSql, params);
 
-    // 4. MAPEA para o formato que o Notificacao.js entende
-    //  const configTipo = {
-    //   'Ajuste Custo':    { icon: 'paid' },
-    //   'Ajuste de Custo': { icon: 'paid' },
-    //   'Caixinha':        { icon: 'attach_money' },
-    //   'Meia Diária':     { icon: 'speed_0_5' },
-    //   'Diária Dobrada':  { icon: 'speed_2x' },
-    //   'EXTRA BONIFICADO - VAGA EXCEDIDA': { icon: 'star' },
-    // };
-
     const configStatus = {
       'pendente':   { icon: 'pending_actions', type: 'warning' },
-      'autorizado': { icon: 'check_circle',        type: 'success' },
+      'autorizado': { icon: 'check_circle',    type: 'success' },
       'rejeitado':  { icon: 'block',           type: 'danger'  }
     };
 
@@ -276,47 +238,56 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
       const statusLower = (sol.status || 'pendente').toLowerCase();
       const tipoDb = sol.tiposolicitacao || 'Solicitação';
 
-      // const { icon: iconTipo } = configTipo[tipoDb] || { icon: 'request_quote' };
+      const statusNormalizado = (() => {
+        if (statusLower === 'pendente')                                  return 'Pendente';
+        if (statusLower === 'autorizado' || statusLower === 'aprovado')  return 'Aprovada';
+        if (statusLower === 'rejeitado'  || statusLower === 'recusado')  return 'Recusada';
+        if (statusLower === 'finalizado')                                 return 'Finalizado';
+        return 'Pendente';
+      })();
+
       const { icon: iconStatus, type } = configStatus[statusLower] || configStatus['pendente'];
-
       const statusLido = sol.ja_lido === true;
-      const configRead = {
-        false: { iconRead: 'check_small', typeRead: 'danger' },
-        true:  { iconRead: 'done_all', typeRead: 'success' }
-      };
-      const { iconRead, typeRead } = configRead[statusLido];
+      const { iconRead, typeRead } = statusLido
+        ? { iconRead: 'done_all',    typeRead: 'success' }
+        : { iconRead: 'check_small', typeRead: 'danger'  };
 
-      if (temAcessoTotal){
-          return {
-            id: `sol-${sol.idsolicitacao}`,
-            type,
-            icon: iconStatus,
-            message: statusLower === 'pendente'
-              ? `Nova Solicitação: ${tipoDb}`
-              : `Solicitação ${sol.status}: ${tipoDb}`,
-            subtext: `Solicitante: ${sol.funcionario} · ${statusLower === 'pendente' ? 'aguarda resposta' : 'foi ' + sol.status.toLowerCase()}`,
-            created_at: sol.dtresposta || sol.dtsolicitacao,
-            read: statusLido,
-            ficticio: true,
-            iconRead,
-            typeRead
-          };
+      const periodoStr = sol.dt_inicio === sol.dt_fim
+        ? sol.dt_inicio
+        : `${sol.dt_inicio} até ${sol.dt_fim}`;
+
+      const base = {
+        id: `sol-${sol.idsolicitacao}`,
+        type,
+        icon: iconStatus,
+        created_at: sol.dtresposta || sol.dtsolicitacao,
+        read: statusLido,
+        ficticio: true,
+        iconRead,
+        typeRead,
+        status: statusNormalizado,
+        solicitacoes_agrupadas: sol.solicitacoes_agrupadas,
+        total_solicitacoes: sol.total_solicitacoes,
+        periodoStr,
+      };
+
+      if (temAcessoTotal) {
+        return {
+          ...base,
+          message: statusLower === 'pendente'
+            ? `Nova Solicitação: ${tipoDb}`
+            : `Solicitação ${sol.status}: ${tipoDb}`,
+          subtext: `Solicitante: ${sol.funcionario} · ${sol.nomefuncionario} · ${sol.evento} · ${periodoStr}`,
+        };
       } else {
         return {
-          id: `sol-${sol.idsolicitacao}`,
-          type: type,
-            icon: iconStatus,
-            message: statusLower === 'pendente'
-              ? `Sua Solicitação: ${tipoDb}`
-              : `Solicitação ${sol.status}: ${tipoDb}`,
-            subtext:`${tipoDb} ${statusLower === 'pendente' ? 'aguarda resposta' : 'foi ' + sol.status.toLowerCase()}`,
-            created_at: sol.dtresposta || sol.dtsolicitacao,
-            read: statusLido,
-            ficticio: true,
-            iconRead,
-            typeRead
-          };
-        }
+          ...base,
+          message: statusLower === 'pendente'
+            ? `Sua Solicitação: ${tipoDb}`
+            : `Solicitação ${sol.status}: ${tipoDb}`,
+          subtext: `${sol.nomefuncionario} - ${statusLower === 'pendente' ? 'aguarda resposta' : 'foi ' + statusLower} · ${periodoStr}`,
+        };
+      }
     });
 
     res.json(listaFormatada);
@@ -326,201 +297,206 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /notificacoes/inclusao-orcamentos-notificacao
+// ─────────────────────────────────────────────
 router.get('/inclusao-orcamentos-notificacao', autenticarToken(), async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
 
     const { rows: allPermissoes } = await pool.query(
-        `SELECT modulo, master, supremo, comercial FROM permissoes WHERE idusuario = $1`,
-        [idusuario]
+      `SELECT modulo, master, supremo, comercial FROM permissoes WHERE idusuario = $1`,
+      [idusuario]
     );
 
-    // 2. Corrigindo a lógica de permissão (Aceita booleano ou string 'true')
-    const ehMasterStaff  = allPermissoes.some(p => p.modulo === 'Staff' && (p.master === true || p.master === 'true'));
-    const ehSupremoStaff = allPermissoes.some(p => p.modulo === 'Staff' && (p.supremo === true || p.supremo === 'true'));
+    const ehMasterStaff        = allPermissoes.some(p => p.modulo === 'Staff'      && (p.master === true    || p.master === 'true'));
+    const ehSupremoStaff       = allPermissoes.some(p => p.modulo === 'Staff'      && (p.supremo === true   || p.supremo === 'true'));
     const ehComercialOrcamento = allPermissoes.some(p => p.modulo === 'Orcamentos' && (p.comercial === true || p.comercial === 'true'));
     const temAcessoTotal = ehMasterStaff || ehSupremoStaff || ehComercialOrcamento;
 
-    console.log('[notificacao] acesso:', { ehMasterStaff, ehSupremoStaff, ehComercialOrcamento, temAcessoTotal });
+    if (!temAcessoTotal) return res.status(200).json([]);
 
-    if (!temAcessoTotal) { return res.status(200).json([]);}
+    const sqlBase = `
+      SELECT 
+        MIN(s.idsolicitacao)                                        AS idsolicitacao,
+        s.tiposolicitacao,
+        s.idfuncionario,                                            
+        o.nrorcamento,
+        o.idorcamento,
+        f.descfuncao,
+        fn.nome                                                     AS nomefuncionario,  
+        COUNT(s.idsolicitacao)                                      AS total_solicitacoes,
+        (SELECT setor FROM orcamentoitens 
+        WHERE idorcamento = o.idorcamento LIMIT 1)                 AS setor,
+        MIN(s.dtresposta)                                           AS dtresposta,
+        MIN(s.dtsolicitacao)                                        AS dtsolicitacao,
+        to_char(MIN(s.dtsolicitada[1]), 'DD/MM/YYYY')               AS dt_inicio,
+        to_char(MAX(s.dtsolicitada[1]), 'DD/MM/YYYY')               AS dt_fim,
+        json_agg(
+            json_build_object(
+                'idsolicitacao', s.idsolicitacao,
+                'funcionario',   (u.nome || ' ' || u.sobrenome),
+                'status',        s.status,
+                'dtresposta',    s.dtresposta,
+                'dtsolicitacao', to_char(s.dtsolicitada[1], 'DD/MM/YYYY')
+            )
+            ORDER BY s.dtsolicitada[1] DESC
+        ) AS solicitacoes_agrupadas,
+        COALESCE(bool_and(n.lido), false)                           AS ja_lido
+    FROM solicitacoes s
+    LEFT JOIN usuarios u      ON s.idusuariosolicitante = u.idusuario
+    LEFT JOIN orcamentos o    ON s.idorcamento = o.idorcamento
+    LEFT JOIN funcao f        ON s.idfuncao = f.idfuncao
+    LEFT JOIN funcionarios fn ON s.idfuncionario = fn.idfuncionario  
+    LEFT JOIN notificacao n   ON n.idreferencia = s.idsolicitacao AND n.idusuario = $1
+    WHERE s.idempresa = $2
+      AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Datas fora do Orçamento')
+      AND s.status = 'Autorizado'
+      AND s.dtresposta > NOW() - INTERVAL '7 days'
+      AND NOT EXISTS (
+          SELECT 1 FROM orcamentoitens oi
+          WHERE s.idsolicitacao = ANY(oi.idsolicitacao)
+      )
+    GROUP BY 
+        s.tiposolicitacao,
+        s.idfuncionario,   
+        o.nrorcamento,
+        o.idorcamento,
+        f.descfuncao,
+        fn.nome            
+    ORDER BY MIN(s.dtresposta) DESC
+    `;
 
-    // let sqlBase = ` SELECT 
-    //         s.idsolicitacao,
-    //         (u.nome || ' ' || u.sobrenome) AS funcionario,
-    //         s.tiposolicitacao,
-    //         -- Busca apenas o PRIMEIRO setor vinculado ao orçamento
-    //         (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
-    //         s.status,
-    //         s.dtsolicitacao,
-    //         s.dtresposta,
-    //         f.descfuncao,
-    //         s.idusuariosolicitante,
-    //         o.nrorcamento,
-    //         EXISTS (
-    //             SELECT 1 FROM notificacao n
-    //             WHERE n.idreferencia = s.idsolicitacao
-    //             AND n.idusuario = $1
-    //             AND n.lido = true
-    //         ) AS ja_lido
-    //     FROM solicitacoes s
-    //     LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
-    //     LEFT JOIN orcamentos o ON s.idorcamento = o.idorcamento
-    //     LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
-    //     WHERE s.idempresa = $2
-    //       AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'FUNCEXEDIDO')
-    //       AND s.status = 'Autorizado'
-    //       AND s.dtresposta > NOW() - INTERVAL '7 days'
-    //     ORDER BY s.dtresposta DESC`;
-
-        let sqlBase =` SELECT 
-            s.idsolicitacao,
-            (u.nome || ' ' || u.sobrenome) AS funcionario,
-            s.tiposolicitacao,
-            (SELECT setor FROM orcamentoitens WHERE idorcamento = o.idorcamento LIMIT 1) AS setor,
-            s.status,
-            s.dtsolicitacao,
-            s.dtresposta, 
-            f.descfuncao,
-            s.idusuariosolicitante,
-            o.nrorcamento,
-            EXISTS (
-                SELECT 1 FROM notificacao n
-                WHERE n.idreferencia = s.idsolicitacao
-                AND n.idusuario = $1
-                AND n.lido = true
-            ) AS ja_lido
-        FROM solicitacoes s
-        LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
-        LEFT JOIN orcamentos o ON s.idorcamento = o.idorcamento
-        LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
-        WHERE s.idempresa = $2
-          AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'FUNCEXEDIDO')
-          AND s.status = 'Autorizado'
-          AND s.dtresposta > NOW() - INTERVAL '7 days'
-          
-          -- NOVA TRAVA AQUI: 
-          -- Se o item já foi inserido no orçamento, o NOT EXISTS será falso e a linha não retornará.
-          AND NOT EXISTS (
-              SELECT 1 FROM orcamentoitens oi 
-              WHERE oi.idsolicitacao = s.idsolicitacao
-          )
-
-        ORDER BY s.dtresposta DESC;`;
-
-    const result = await pool.query(sqlBase,[idusuario, idempresa]);
+    const result = await pool.query(sqlBase, [idusuario, idempresa]);
 
     const mensagensPorTipo = {
       'Aditivo - Vaga Excedida':         'Aditivo de Vaga Excedida Autorizado — incluir no orçamento',
+      'Aditivo - Datas fora do orçamento': 'Aditivo - Datas fora do orçamento Autorizado — incluir no orçamento',
       'Extra Bonificado - Vaga Excedida': 'Extra Bonificado Autorizado — incluir no orçamento',
+      'Extra Bonificado - Datas fora do orçamento': 'Extra Bonificado - Datas fora do orçamento Autorizado — incluir no orçamento',
     };
 
-    // 5. Mapeia para o formato de notificação
     const listaFormatada = result.rows.map(sol => {
-        const statusLido = sol.ja_lido === true;
-        const configRead = {
-            false: { iconRead: 'check_small', typeRead: 'danger'  },
-            true:  { iconRead: 'done_all',    typeRead: 'success' }
-        };
-        const { iconRead, typeRead } = configRead[statusLido];
+      const statusLido = sol.ja_lido === true;
+      const { iconRead, typeRead } = statusLido
+        ? { iconRead: 'done_all',    typeRead: 'success' }
+        : { iconRead: 'check_small', typeRead: 'danger'  };
 
-        return {
-            id: `sol-${sol.idsolicitacao}`,
-            type: 'success',
-            icon: 'add_circle',
-            message: mensagensPorTipo[sol.tiposolicitacao] ?? `Solicitação Autorizada — incluir no orçamento`,
-            subtext: `Solicitante: ${sol.funcionario} - Função: ${sol.descfuncao} - Orçamento: ${sol.nrorcamento} - Setor: ${sol.setor}`,
-            created_at: sol.dtresposta,
-            read: statusLido,
-            ficticio: true,
-            iconRead,
-            typeRead,
-            // dados extras para o fluxo de inclusão no orçamento:
-            idsolicitacao: sol.idsolicitacao,
-            nrorcamento: sol.nrorcamento,
-            valoraditivo: sol.valoraditivo
-        };
+      const periodoStr = sol.dt_inicio === sol.dt_fim
+        ? sol.dt_inicio
+        : `${sol.dt_inicio} até ${sol.dt_fim}`;
+
+      return {
+        id: `sol-${sol.idsolicitacao}`,
+        type: 'success',
+        icon: 'add_circle',
+        message: mensagensPorTipo[sol.tiposolicitacao] ?? 'Solicitação Autorizada — incluir no orçamento',
+        subtext: `Função: ${sol.descfuncao} — Orçamento: ${sol.nrorcamento} — Setor: ${sol.setor}`,
+        subtext2: `${periodoStr}`,
+        created_at: sol.dtresposta,
+        read: statusLido,
+        ficticio: true,
+        iconRead,
+        typeRead,
+        idsolicitacao: sol.idsolicitacao,
+        nrorcamento: sol.nrorcamento,
+        total_solicitacoes: sol.total_solicitacoes,
+        solicitacoes_agrupadas: sol.solicitacoes_agrupadas,
+        status: 'Pendente',
+      };
     });
 
     return res.status(200).json(listaFormatada);
-
   } catch (err) {
     console.error('Erro ao buscar aditivos extras autorizados:', err);
     return res.status(500).json({ erro: 'Erro interno ao buscar aditivos extras.' });
   }
 });
-router.get('/retorno-inclusao', autenticarToken(), async (req, res) => {
-    const idempresa = req.idempresa;
-    const idusuario = req.usuario?.idusuario;
 
-    try {
-        const { rows } = await pool.query(
-            `SELECT 
-                s.idsolicitacao,
-                (u.nome || ' ' || u.sobrenome) AS funcionario_solicitante,
-                s.tiposolicitacao,
-                s.dtresposta,
-                f.descfuncao,
-                o.nrorcamento,
-                oi.idorcamentoitem,
-                oi.setor,
-                EXISTS (
-                    SELECT 1 FROM notificacao n 
-                    WHERE n.idreferencia = s.idsolicitacao 
-                    AND n.idusuario = $1 
-                    AND n.lido = true
-                ) as ja_lido
-            FROM solicitacoes s
-            INNER JOIN orcamentoitens oi ON s.idsolicitacao = oi.idsolicitacao
-            INNER JOIN orcamentos o ON s.idorcamento = o.idorcamento
-            LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
-            LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
-            WHERE s.status = 'Autorizado'
-              AND s.idempresa = $2
-              AND s.dtresposta > NOW() - INTERVAL '7 days'
-            ORDER BY s.dtresposta DESC;`,
-            [idusuario, idempresa] // $1 é idusuario para o EXISTS, $2 é idempresa
-        );
+// ─────────────────────────────────────────────
+// GET /notificacoes/retorno-Inclusao
+// ─────────────────────────────────────────────
+router.get('/retorno-Inclusao', autenticarToken(), async (req, res) => {
+  const idempresa = req.idempresa;
+  const idusuario = req.usuario?.idusuario;
 
-        const listaFormatada = rows.map(sol => {
-            const statusLido = sol.ja_lido === true;
-            const configRead = {
-            false: { iconRead: 'check_small', typeRead: 'danger'  },
-            true:  { iconRead: 'done_all',    typeRead: 'success' }
-            };
-            const { iconRead, typeRead } = configRead[statusLido];
-            
-            return {
-                id: `inc-${sol.idsolicitacao}`, 
-                type: 'success',
-                icon: 'task_alt',
-                message: `${sol.tiposolicitacao} Incluído!`,
-                subtext: `${sol.descfuncao} - ${sol.setor} (Orçamento N° ${sol.nrorcamento})já consta nos itens do orçamento.`,
-                created_at: sol.dtresposta,
-                read: statusLido,
-                ficticio: true,
-                iconRead,
-                typeRead,
-                idsolicitacao: sol.idsolicitacao,
-                idorcamentoitem: sol.idorcamentoitem
-            };
-        });
+  try {
+    const { rows } = await pool.query(
+      `SELECT 
+          array_agg(s.idsolicitacao ORDER BY s.idsolicitacao) AS ids_solicitacoes,
+          (u.nome || ' ' || u.sobrenome) AS funcionario_solicitante,
+          s.tiposolicitacao,
+          MAX(s.dtresposta) AS dtresposta,
+          f.descfuncao,
+          o.nrorcamento,
+          MIN(oi.idorcamentoitem) AS orcamento_item,
+          MIN(oi.setor) AS setor,
+          BOOL_OR(EXISTS (
+              SELECT 1 FROM notificacao n 
+              WHERE n.idreferencia = s.idsolicitacao 
+              AND n.idusuario = $1
+              AND n.lido = true
+          )) AS ja_lido
+      FROM solicitacoes s
+      INNER JOIN orcamentoitens oi ON s.idsolicitacao = ANY(oi.idsolicitacao)
+      INNER JOIN orcamentos o ON s.idorcamento = o.idorcamento
+      LEFT JOIN usuarios u ON s.idusuariosolicitante = u.idusuario
+      LEFT JOIN funcao f ON s.idfuncao = f.idfuncao
+      WHERE s.status = 'Autorizado'
+        AND s.idempresa = $2
+        AND s.dtresposta > NOW() - INTERVAL '7 days'
+      GROUP BY 
+          u.idusuario,
+          u.nome,
+          u.sobrenome,
+          s.tiposolicitacao,
+          f.idfuncao,
+          f.descfuncao,
+          o.idorcamento,
+          o.nrorcamento
+      ORDER BY MAX(s.dtresposta) DESC`,
+      [idusuario, idempresa]
+    );
 
-        return res.status(200).json(listaFormatada);
+    const listaFormatada = rows.map(sol => {
+      const statusLido = sol.ja_lido === true;
+      const { iconRead, typeRead } = statusLido
+        ? { iconRead: 'done_all',    typeRead: 'success' }
+        : { iconRead: 'check_small', typeRead: 'danger'  };
+        
 
-    } catch (err) {
-        console.error('Erro ao buscar retorno de inclusão:', err);
-        return res.status(500).json({ erro: 'Erro interno.' });
-    }
+      return {
+        id: `inc-${sol.idsolicitacao}`,
+        type: 'success-finished',
+        icon: 'task_alt',
+        message: `${sol.tiposolicitacao} Incluído!`,
+        subtext: `${sol.descfuncao} - ${sol.setor} (Orçamento N° ${sol.nrorcamento}) já consta nos itens do orçamento.`,
+        created_at: sol.dtresposta,
+        read: statusLido,
+        ficticio: true,
+        iconRead,
+        typeRead,
+        idsolicitacao: sol.idsolicitacao,
+        idorcamentoitem: sol.idorcamentoitem,
+        status: 'Finalizado',
+      };
+    });
+
+    return res.status(200).json(listaFormatada);
+  } catch (err) {
+    console.error('Erro ao buscar retorno de inclusão:', err);
+    return res.status(500).json({ erro: 'Erro interno.' });
+  }
 });
 
-
+// ─────────────────────────────────────────────
+// GET /notificacoes/pagamentos-contas
+// ─────────────────────────────────────────────
 router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
-    console.log('👤 idusuario:', idusuario, '| idempresa:', idempresa);
     const anoFiltro = new Date().getFullYear();
 
     const { rows: allPermissoes } = await pool.query(
@@ -533,22 +509,19 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
     );
 
     if (!temAcessoTotal) return res.json([]);
-    console.log('👤Usuario Tem Acesso Total:', temAcessoTotal);
 
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
     const fmt = d => d.toISOString().split('T')[0];
     const startDate = fmt(new Date(hoje.getTime() - 90 * 86400000));
-    const endDate = fmt(new Date(hoje.getTime() + 1 * 86400000));
+    const endDate   = fmt(new Date(hoje.getTime() + 1  * 86400000));
 
-    // --- PARTE A: BUSCA CONTAS A PAGAR COM STATUS DE LEITURA ---
     const queryContasPagar = `
       SELECT 
           l.idlancamento, l.descricao, 
           COALESCE(p.dtvcto, l.vctobase) AS data_vencimento,
           CAST(COALESCE(p.vlrreal, p.vlrprevisto, l.vlrestimado, 0) AS FLOAT) AS valor_pendente,
-          -- Verificamos se este usuário já leu esta notificação específica
           EXISTS (
             SELECT 1 FROM notificacao n 
             WHERE n.idreferencia = l.idlancamento 
@@ -558,15 +531,15 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
           COALESCE(forn.nmfantasia, func.nome, cli.nmfantasia, 'Lançamento Geral') AS nome_vinculo
       FROM lancamentos l
       LEFT JOIN pagamentos p ON l.idlancamento = p.idlancamento
-      LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor' AND l.idvinculo = forn.idfornecedor)
-      LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND l.idvinculo = func.idfuncionario)
-      LEFT JOIN clientes cli ON (LOWER(TRIM(l.tipovinculo)) = 'cliente' AND l.idvinculo = cli.idcliente)
+      LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor'   AND l.idvinculo = forn.idfornecedor)
+      LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario'  AND l.idvinculo = func.idfuncionario)
+      LEFT JOIN clientes cli      ON (LOWER(TRIM(l.tipovinculo)) = 'cliente'      AND l.idvinculo = cli.idcliente)
       WHERE l.ativo = true AND l.idempresa = $1
-      AND (p.status IS NULL OR p.status != 'PAGO')
-      AND (
-          EXTRACT(YEAR FROM COALESCE(p.dtvcto, l.vctobase)) = $2
-          OR (l.tiporepeticao = 'FIXO' AND (l.dttermino IS NULL OR EXTRACT(YEAR FROM l.dttermino) >= $2))
-      )
+        AND (p.status IS NULL OR p.status != 'PAGO')
+        AND (
+            EXTRACT(YEAR FROM COALESCE(p.dtvcto, l.vctobase)) = $2
+            OR (l.tiporepeticao = 'FIXO' AND (l.dttermino IS NULL OR EXTRACT(YEAR FROM l.dttermino) >= $2))
+        )
     `;
 
     const [resContas, resEventosRaw] = await Promise.all([
@@ -577,57 +550,50 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
         JOIN eventos e ON o.idevento = e.idevento
         WHERE oe.idempresa = $1
-        AND ((o.dtinimontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3 OR (o.dtfimdesmontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3)
+          AND (
+            (o.dtinimontagem   + INTERVAL '2 days')::date BETWEEN $2 AND $3
+            OR (o.dtfimdesmontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3
+          )
         GROUP BY o.idevento, e.nmevento
       `, [idempresa, startDate, endDate])
     ]);
 
     const notificacoes = [];
 
-    // --- FUNÇÃO AUXILIAR CORRIGIDA ---
     function gerarEstruturaNotif(idBase, tipo, titulo, dataVenc, valor, jaLido, meta) {
       if (valor <= 0) return null;
-      
+
       const dVenc = new Date(dataVenc + 'T00:00:00');
-      const dias = Math.round((dVenc - hoje) / 86400000);
+      const dias  = Math.round((dVenc - hoje) / 86400000);
       if (dias > 5) return null;
 
-      let   estado = '';
+      let estado = '';
       let mensagemData = '';
+      let classeStatus = '';
 
       if (dias < 0) {
-        estado = 'vencido';
-        mensagemData = 'VENCIDA';
-        classeStatus = 'notif-vencidos';
+        estado = 'vencido';  mensagemData = 'VENCIDA';               classeStatus = 'notif-vencidos';
       } else if (dias === 0) {
-        estado = 'hoje';
-        mensagemData = 'VENCE HOJE';
-        classeStatus = 'notif-hoje';
-      }else if (dias === 1){
-        estado = 'amanha'
-        mensagemData = 'VENCE AMANHA'
-        classeStatus = 'notif-amanha';
+        estado = 'hoje';     mensagemData = 'VENCE HOJE';            classeStatus = 'notif-hoje';
+      } else if (dias === 1) {
+        estado = 'amanha';   mensagemData = 'VENCE AMANHÃ';          classeStatus = 'notif-amanha';
       } else {
-        estado = 'pendente'; // Novo estado para o contador
-        mensagemData = `VENCE EM ${dias} ${dias === 1 ? 'DIA' : 'DIAS'}`;
-        classeStatus = 'notif-a-vencer'
+        estado = 'pendente'; mensagemData = `VENCE EM ${dias} DIAS`; classeStatus = 'notif-a-vencer';
       }
 
       const formatarReais = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
       const config = {
-        'vencido': { icon: 'brightness_alert', type: 'danger' },
-        'hoje':    { icon: 'paid', type: 'warning' },
-        'amanha':  { icon: 'notification_important', type: 'info' }
+        'vencido': { icon: 'brightness_alert',        type: 'danger'  },
+        'hoje':    { icon: 'paid',                    type: 'warning' },
+        'amanha':  { icon: 'notification_important',  type: 'info'    },
       };
       const { icon, type } = config[estado] || { icon: 'calendar_today', type: 'info' };
 
       const statusLido = jaLido === true;
-      const configRead = {
-        false: { iconRead: 'check_small', typeRead: 'danger' },
-        true:  { iconRead: 'done_all', typeRead: 'success' }
-      };
-      const { iconRead, typeRead } = configRead[statusLido];
+      const { iconRead, typeRead } = statusLido
+        ? { iconRead: 'done_all',    typeRead: 'success' }
+        : { iconRead: 'check_small', typeRead: 'danger'  };
 
       return {
         id: idBase,
@@ -635,19 +601,21 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
         icon,
         message: `${tipo} ${mensagemData}: ${titulo}`,
         subtext: `Valor: ${formatarReais(valor)} · ${meta.fornecedor || 'Staff'}`,
-        badge: estado === 'amanha' ? 'AMANHÃ' : (estado === 'pendente' ? `FALTAM ${dias}D` : estado.toUpperCase()),
-        diasAteVencimento: dias, // Útil para ordenação precisa
+        badge: estado === 'amanha'  ? 'AMANHÃ'
+             : estado === 'pendente' ? `FALTAM ${dias}D`
+             : estado.toUpperCase(),
+        diasAteVencimento: dias,
         estado,
         classeStatus,
         created_at: dataVenc,
-        read:statusLido,
+        read: statusLido,
         iconRead,
         typeRead,
-        meta
+        meta,
+        status: estado === 'vencido' ? 'Vencidos' : 'Pendente',
       };
     }
 
-    // Processar Contas
     resContas.rows.forEach(conta => {
       const n = gerarEstruturaNotif(
         `contapagar-${conta.idlancamento}`,
@@ -661,16 +629,14 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
       if (n) notificacoes.push(n);
     });
 
-    // Processar Staff (Aqui você pode adicionar um check de leitura similar se necessário)
     if (resEventosRaw.rows.length > 0) {
-        // ... (sua lógica de busca de totais de staff permanece igual)
+      // lógica de staff permanece igual — adicione aqui se necessário
     }
 
-    const ordem = { vencido: 0, hoje: 1, amanha: 2 };
-    notificacoes.sort((a, b) => (ordem[a.estado] - ordem[b.estado]));
+    const ordem = { vencido: 0, hoje: 1, amanha: 2, pendente: 3 };
+    notificacoes.sort((a, b) => (ordem[a.estado] ?? 9) - (ordem[b.estado] ?? 9));
 
     res.json(notificacoes);
-
   } catch (err) {
     console.error('Erro:', err);
     res.status(500).json([]);

@@ -27,7 +27,8 @@ const outrasPermissoes = [
     document.getElementById('Financeiro'),
     document.getElementById('AdminSupremo'),
     document.getElementById('Comercial'),
-    document.getElementById('Devs')
+    document.getElementById('Devs'),
+    document.getElementById('rh')
 ];
 
 
@@ -58,6 +59,29 @@ listaEmpresas.addEventListener('change', verificarE_HabilitarPermissoes);
 moduloSelect.addEventListener('change', verificarE_HabilitarPermissoes);
 
 document.addEventListener('DOMContentLoaded', verificarE_HabilitarPermissoes);
+
+// Esconde o checkbox "Devs" para quem não possui a própria permissão devs.
+// Devs dá acesso a dados sensíveis/permissão muito forte, então só quem já é devs
+// pode concedê-la a outro usuário. Em caso de falha na verificação, esconde por segurança.
+async function aplicarVisibilidadeDevs() {
+  const chkDevs = document.getElementById('Devs');
+  const wrapper = chkDevs?.closest('div');
+  if (!wrapper) return;
+  try {
+    const permissoesLogado = await fetchComToken('/auth/permissoes');
+    const ehDevs = Array.isArray(permissoesLogado)
+      && permissoesLogado.some(p => !!p.pode_devs);
+    if (!ehDevs) {
+      wrapper.style.display = 'none';
+      chkDevs.checked = false; // nunca concede devs por essa tela
+    }
+  } catch (err) {
+    console.error('Erro ao verificar permissão devs do usuário logado:', err);
+    wrapper.style.display = 'none';
+    chkDevs.checked = false;
+  }
+}
+document.addEventListener('DOMContentLoaded', aplicarVisibilidadeDevs);
 
 
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
@@ -1534,7 +1558,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     financeiro:   document.getElementById("Financeiro").checked,
     supremo:      document.getElementById("AdminSupremo").checked,
     comercial:    document.getElementById("Comercial").checked,
-    devs:         document.getElementById("Devs").checked
+    devs:         document.getElementById("Devs").checked,
+    rh:         document.getElementById("rh").checked
   };
 
   // Verifica se há mudança nas permissões
@@ -1576,6 +1601,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     supremo: atuais.supremo,
     comercial: atuais.comercial,
     devs: atuais.devs,
+    rh: atuais.rh,
     ativo: empresaAtiva
   };
 
@@ -1692,7 +1718,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   const chkSupremo   = document.getElementById("AdminSupremo");
   const chkComercial = document.getElementById("Comercial");
   const chkDevs      = document.getElementById("Devs");
-  
+  const chkRh        = document.getElementById("rh");
+
 
   try {
     console.log("Entrou no carregarPermissoesUsuario", idusuario, "Empresa:", idEmpresaAtual, "Módulo:", nomeModulo);
@@ -1732,6 +1759,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       chkSupremo.checked    = Boolean(p.supremo);
       chkComercial.checked  = Boolean(p.comercial);
       chkDevs.checked       = Boolean(p.devs);
+      chkRh.checked         = Boolean(p.rh);
       verificarE_HabilitarPermissoes();
 
       permissoesOriginais = {
@@ -1745,23 +1773,25 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         financeiro: Boolean(p.financeiro),
         supremo: Boolean(p.supremo),
         comercial: Boolean(p.comercial),
-        devs: Boolean(p.devs)
+        devs: Boolean(p.devs),
+        rh: Boolean(p.rh)
        
       };
     } else {
       console.log("16. Nenhuma permissão encontrada. Permissões Originais serão falsas.");
       permissoesOriginais = {
         modulo: nomeModulo || null, // Se não houver módulo, mantém null
-        acesso: false,
-        cadastrar: false,
-        alterar: false,
-        pesquisar: false,
-        apagar: false,
-        master: false,
+        acesso:     false,
+        cadastrar:  false,
+        alterar:    false,
+        pesquisar:  false,
+        apagar:     false,
+        master:     false,
         financeiro: false,
-        supremo: false,
-        comercial: false,
-        devs: false
+        supremo:    false,
+        comercial:  false,
+        devs:       false,
+        rh:         false
       };
     }
     console.log("Permissões originais:", permissoesOriginais);

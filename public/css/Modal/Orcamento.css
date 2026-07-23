@@ -29,6 +29,44 @@
     z-index: 1000; /* Fica acima do overlay */
   }
 
+    /* body.modal-open .notif-wrapper,
+    body.modal-open .notif-dropdown,
+    body.modal-open .notif-sino,
+    body.modal-open .notif-badge {
+      pointer-events: auto !important;
+    }
+
+    /* 2. Garante que o menu do sino fique visualmente ACIMA do seu modal (que usa z-index: 9999) *
+    body.modal-open .notif-dropdown {
+      z-index: 100002 !important;
+    } */
+
+
+body.modal-open .top-bar,
+body.modal-open .notif-wrapper {
+  z-index: 100001 !important; /* Maior que os 9999 do modal */
+  position: relative !important; /* Necessário para o z-index funcionar */
+  pointer-events: auto !important; /* Permite interagir com a barra do sino */
+}
+
+/* 2. ELEVA O DROPDOWN: Garante que a lista flutuante venha para a frente de tudo */
+body.modal-open .notif-dropdown {
+    z-index: 100001 !important; /* Maior que os 9999 do modal */
+  position: relative !important; /* Necessário para o z-index funcionar */
+}
+
+/* 3. LIBERA OS CLIQUES: Reativa o ponteiro do mouse em todos os elementos internos do sino */
+body.modal-open .notif-wrapper,
+body.modal-open .notif-dropdown,
+body.modal-open .notif-sino,
+body.modal-open .notif-badge,
+body.modal-open .notif-item,
+body.modal-open .aba-btn,
+body.modal-open .notif-conteudo {
+  pointer-events: auto !important;
+}
+
+
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
   #cadModalOrcamentos.modal {
     position: fixed;
@@ -69,6 +107,95 @@
     pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
     z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
   }
+
+  /* Garante que o SweetAlert fique acima do modal do orçamento e bloqueie os cliques atrás */
+  .swal-acima-modal {
+    z-index: 100010 !important;
+    pointer-events: auto !important;
+  }
+
+  /* From Uiverse.io by vinodjangid07 */
+.faq-button {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--primary-color);
+  background-image: linear-gradient(147deg, var(--grey-color), var(--primary-color) 74%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.151);
+  position: relative;
+}
+.faq-button svg {
+  height: 15px;
+  fill: white;
+}
+.faq-button:hover svg {
+  animation: jello-vertical 0.7s both;
+}
+@keyframes jello-vertical {
+  0% {
+    transform: scale3d(1, 1, 1);
+  }
+  30% {
+    transform: scale3d(0.75, 1.25, 1);
+  }
+  40% {
+    transform: scale3d(1.25, 0.75, 1);
+  }
+  50% {
+    transform: scale3d(0.85, 1.15, 1);
+  }
+  65% {
+    transform: scale3d(1.05, 0.95, 1);
+  }
+  75% {
+    transform: scale3d(0.95, 1.05, 1);
+  }
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+.tooltip {
+  position: absolute;
+  top: -20px;
+  opacity: 0;
+  background-color: var(--primary-color);
+  background-image: linear-gradient(147deg, var(--grey-color), var(--primary-color) 74%);
+  color: var(--font-color);
+  padding: 5px 10px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition-duration: 0.2s;
+  pointer-events: none;
+  letter-spacing: 0.5px;
+}
+
+.tooltip::before {
+  position: absolute;
+  content: "";
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary-color);
+  background-size: 1000%;
+  background-position: center;
+  transform: rotate(45deg);
+  bottom: -15%;
+  transition-duration: 0.3s;
+}
+
+.faq-button:hover .tooltip {
+  top: -40px;
+  opacity: 1;
+  transition-duration: 0.3s;
+}
+
 
   input.form-control.input{
     text-align: center;
@@ -840,6 +967,8 @@ span.pavilhao-tag {
 
   .addLinha{
     display: flex;
+    flex-direction: row;
+    gap: 8px;
     justify-content: center;
     align-items: center;
   }

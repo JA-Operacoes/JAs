@@ -18,12 +18,6 @@
         </div>
 
         <form  id="funcionarios" name="form" autocomplete="off">
-          
-          <div class="form">
-            <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
-            <label for ="idFuncionario">#Codigo</label>
-          </div>
-
           <fieldset>
             <legend>Perfil</legend>                
             <div class="Perfil">              
@@ -71,6 +65,10 @@
             <legend> Informações Pessoais </legend>
             <div class="form-2colunas">
               <div class="form2">
+                <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
+                <label for ="idFuncionario">Codigo</label>
+              </div>
+              <div class="form2">
                 <input type="text" name="nome" id="nome" class="uppercase" required >
                 <label for="nome">Nome do Funcionário</label>
               </div>
@@ -98,31 +96,80 @@
                 <label for="rg">RG</label>
               </div>   
 
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">PCD</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="pcd" name="pcd" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
+              <div class="checkbox-container">
+                <label class="ios-checkbox blue">
+                  <p>PCD</p>
+                  <input type="checkbox" id="pcd" name="pcd" />
+                  <div class="checkbox-wrapper">
+                    <div class="checkbox-bg"></div>
+                    <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                      <path
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="3"
+                        stroke="currentColor"
+                        d="M4 12L10 18L20 6"
+                        class="check-path"
+                      ></path>
                     </svg>
-                  </span>
+                  </div>
+                </label>
+
+                <label class="ios-checkbox green">
+                  <P>ATIVO</P>
+                  <input type="checkbox" id="ativo" name="ativo" />
+                  <div class="checkbox-wrapper">
+                    <div class="checkbox-bg"></div>
+                    <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                      <path
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="3"
+                        stroke="currentColor"
+                        d="M4 12L10 18L20 6"
+                        class="check-path"
+                      ></path>
+                    </svg>
+                  </div>
+                </label>
+
+                <label class="ios-checkbox purple">
+                  <p>BONIFICADO</p>
+                  <input type="checkbox" id="bonificado" name="bonificado" />
+                  <div class="checkbox-wrapper">
+                    <div class="checkbox-bg"></div>
+                    <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                      <path
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="3"
+                        stroke="currentColor"
+                        d="M4 12L10 18L20 6"
+                        class="check-path"
+                      ></path>
+                    </svg>
+                  </div>
+                </label>
+
+                <label class="ios-checkbox blue" title="MEI: emite nota fiscal dos serviços prestados">
+                  <p>MEI</p>
+                  <input type="checkbox" id="mei" name="mei" />
+                  <div class="checkbox-wrapper">
+                    <div class="checkbox-bg"></div>
+                    <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                      <path
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="3"
+                        stroke="currentColor"
+                        d="M4 12L10 18L20 6"
+                        class="check-path"
+                      ></path>
+                    </svg>
+                  </div>
                 </label>
               </div>
 
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">Funcionário Ativo</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                </label>
-              </div>
 
             </div>
 
@@ -136,11 +183,80 @@
                   <option value="Poliglota">Poliglota</option>
                 </select>
               </div>
+              <div class="form2" id="idiomasContainer" style="margin-left: 10px;"></div>
             </div>
 
               <div id="idiomasContainer" style="margin-left: 10px;"></div>
               <br>
 
+          </fieldset>
+
+          <fieldset class="financeiro" style="display: none;">
+            <legend>RH</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="funcao" id="funcao" class="uppercase" required>
+                <label for="funcao">Função</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="cbo" id="cbo" required>
+                <label for="cbo">CBO</label>
+              </div>
+              <div class="form2">
+                <input type="date" name="admissao" id="admissao" required>
+                <label for="admissao">Data de Admisao</label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="salario" id="salario" oninput="formatReais(this)" required>
+                <label for="salario">Salario Bruto</label>
+              </div>
+              <div class="form2">
+                <input type="number" name="dependentes" id="dependentes" min="0" value="0" oninput="gerarCamposDependentes(this.value)">
+                <label for="dependentes">Dependentes</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="valeA" id="valealim" oninput="formatReais(this)" value="0">
+                <label for="valealim">Vale Alimentação (dia)</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="valeT" id="valetrnsp" oninput="formatReais(this)" value="0">
+                <label for="valetrnsp">Vale Transporte (dia)</label>
+              </div>
+            </div>
+
+            <div id="dependentesContainer" class="dependentes-container"></div>
+
+            <div class="checkbox-container" style="align-items: center;">
+              <label class="ios-checkbox blue">
+                <p>ADESÃO PLANO DE SAÚDE</p>
+                <input type="checkbox" id="adesaoPlanoSaude" name="adesaoPlanoSaude" />
+                <div class="checkbox-wrapper">
+                  <div class="checkbox-bg"></div>
+                  <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                    <path
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                      stroke-width="3"
+                      stroke="currentColor"
+                      d="M4 12L10 18L20 6"
+                      class="check-path"
+                    ></path>
+                  </svg>
+                </div>
+              </label>
+
+              <div class="select-plano-saude-box">
+                <select id="tipoPlanoSaude" name="tipoPlanoSaude" class="select-plano-saude" disabled>
+                  <option value="" selected disabled>Selecione a acomodação</option>
+                  <option value="Enfermaria A">Enfermaria A</option>
+                  <option value="Enfermaria B">Enfermaria B</option>
+                  <option value="Apartamento A">Apartamento A</option>
+                  <option value="Apartamento B">Apartamento B</option>
+                </select>
+              </div>
+            </div>
           </fieldset>
 
 
@@ -188,20 +304,18 @@
                 <!-- <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
                 <input type="text" name="banco" id="banco" class = "uppercase" required  >
                 <label for="banco">Banco</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="agencia" id="agencia"  required >
+                <label for="agencia"> Agência </label>
               </div>                 
               
             </div>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="agencia" id="agencia"  required >
-                <label for="agencia"> Agência </label>
-              </div>
-              <div class="form2">
                 <input type="text" name="digitoAgencia" id="digitoAgencia"  required >
                 <label for="digitoAgencia"> Dígito da Agência </label>
               </div>
-            </div>
-            <div class="form-2colunas">
               <div class="form2">
                 <input type="text" name="nConta" id="nConta" required >
                 <label for="nConta">N° da Conta </label>

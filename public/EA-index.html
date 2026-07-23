@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/index/Main.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="css/index/Main.css?v=20260707b">
+    <link rel="stylesheet" href="css/index/Notificacoes.css">
+    <link rel="stylesheet" href="/css/index/toast.css">
     <link rel="stylesheet" href="css/index/Style-EA.css">
     <link rel="stylesheet" href="css/Footer/Footer-OPER.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -40,7 +43,7 @@
     <div class="interface">
         <div class="logotipo">
             <div class="logo-ea"><a  href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
-            <div class="logo-ja-oper"><a class="minilogos" class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>           
+            <div class="logo-ja-oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>           
             <div class="logo-ed"><a class="minilogos" ><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
             <div class="logo-es"><a class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
             <div class="logo-ep"><a class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
@@ -52,7 +55,14 @@
         <div class="interface">
             <nav>
                 <ul id = "menu-horizontal">
-                    <li class="Cadastro"> 
+                    <li class="Ceo" style="display: none;">
+                        <a href="#" title="CEO Mode" style="gap: 10px;"><span class="material-symbols-outlined">finance</span>CEO MODE</a>
+                    </li>
+                    <li class="RH">
+                        <a href="#" title="RH" style="gap: 10px;"><span class="material-symbols-outlined"></span>RH</a>
+                    </li>
+
+                    <li class="Cadastro">
                         <a href="#">Cadastros</a>
                         <div class ="drop">
                             <div class ="drop-content">
@@ -123,10 +133,29 @@
                                     </div>
                                 </div>
 
+                                <a href="#" class="abrir-modal" data-modulo="Aliquotas" data-url="CadAliquotas.html">Aliquotas</a>
                                 <a href="#" class="abrir-modal" data-modulo="ContasReceber" data-url="ContasReceber.html">Contas a Receber</a>
                             </div>
                         </div>
                     </li>
+
+                    <div class="notif-wrapper">
+                        <button id="notif-sino" class="notif-sino" title="Notificações">
+                            <i class="fa fa-bell"></i>
+                            <span id="notif-badge" class="notif-badge" style="display:none;"></span>
+                        </button>
+                        <div id="notif-dropdown" class="notif-dropdown">
+                                <div id="notif-abas"></div>
+                            <div class="notif-conteudo">
+                                <div class="notif-header">
+                                    <span>Notificações</span>
+                                    <button id="notif-marcar-todas" class="notif-marcar-todas">Marcar todas como lidas</button>
+                                </div>
+                                <ul id="notif-lista" class="notif-lista"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    
                 </ul>
             </nav>
         </div>
@@ -149,6 +178,10 @@
 
                 <div id="painel-eventos" class="painel ativo">
                     <div class="destaque">Selecione o Evento:</div>
+                    <div class="search">
+                        <span class="material-symbols-outlined search-icon">search</span>
+                        <input id="search-aside" type="text" placeholder="Buscar Eventos...">
+                    </div>
                     <div class="lista-scroll"><ul id="lista-dados-eventos"></ul></div>
                 </div>
 
@@ -310,19 +343,26 @@
 
         </main>
     </div>
-    
+    <!--@imports -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scrollbar/8.3.1/smooth-scrollbar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scrollbar/8.3.1/plugins/overscroll.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://unpkg.com/scrollreveal"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <!--@Scripts.js-->
     <script src="js/permissoes.js" type="module" defer></script>
     <script src="js/Index.js" type="module" defer ></script>
     <script src="js/Aside.js" type="module" defer></script>
     <script src="js/Formataçoes.js" type="module" defer ></script>
     <script src="js/Main.js" type="module" defer></script>
     <script src="js/tema.js" type="module" defer></script> 
+    <script src="js/Notificacao.js" type="module" defer></script>
+    <script src="js/CeoMode.js" type="module" defer></script>
+    <script src="js/RH.js" type="module" defer></script>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 

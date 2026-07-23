@@ -1,10 +1,25 @@
 {
   "name": "ja-system---teste",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "setup": "node setup.js",
+    "migrate": "node db/migrate.js",
+    "migrate:new": "node db/new-migration.js",
+
+    "teste:up": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test up -d --build",
+    "teste:down": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test down",
+    "teste:reset": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test down -v && docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test up -d --build",
+    "teste:migrate": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test exec app npm run migrate",
+    "teste:logs": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test logs -f app",
+
+
+    "prod:up": "docker compose -p jasystem-prod -f compose.yaml up -d --build",
+    "prod:migrate": "docker compose -p jasystem-prod -f compose.yaml exec app npm run migrate",
     "test": "echo \"Error: no test specified\" && exit 1",
+
+    
     "Bug-fix": "npm version patch && git push --follow-tags",
     "Novidade": "npm version minor && git push --follow-tags"
   },
@@ -21,6 +36,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
+    "nodemon": "^3.1.0",
     "pg": "^8.14.1",
     "scrollreveal": "^4.0.9",
     "xlsx": "^0.18.5"
@@ -28,8 +44,12 @@
   "description": "",
   "devDependencies": {
     "@eslint/js": "^9.23.0",
+    "acorn": "^8.17.0",
     "eslint": "^9.23.0",
     "eslint-plugin-react": "^7.37.4",
-    "globals": "^16.0.0"
+    "globals": "^16.0.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "supertest": "^7.2.2"
   }
 }

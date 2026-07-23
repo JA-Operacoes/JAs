@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+﻿<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
@@ -140,6 +140,17 @@
               <fieldset>
                 <legend>Evento</legend>
                 <div id="bannerBloqueio" style="display:none;"></div>
+                <div class="checkbox" style="margin-top: 8px; justify-content: flex-start;">
+                  <div class="Vertical">
+                    <input id="ckbInativo" type="checkbox" />
+                    <label for="ckbInativo">Inativo (Trabalhou, mas não completou evento )</label>
+                  </div>
+                  <div class="Vertical">
+                    <input id="ckbDeletado" type="checkbox" />
+                    <label for="ckbDeletado">Deletado (Não trabalhou no evento)</label>
+                  </div>
+                </div>
+
                 <div class="Selects">                                  
                   <div class="field">
                     <label for="descFuncao">Função:</label>
@@ -381,8 +392,8 @@
                           <option value="Autorizado">Autorizado</option>
                           <option value="Rejeitado">Rejeitado</option>
                         </select>
+                        <button type="button" id="btnSolicitarNovamenteAjusteCusto" style="display:none; background:none; border:none; padding:0; font-size:11px; color:#8B0000; text-decoration:underline; cursor:pointer; white-space:nowrap;">Solicitar Novamente</button>
                       </div>
-                       
                     </div>
 
                 <div class="form-2colunas caixinha">
@@ -400,11 +411,12 @@
                       <option value="Autorizado">Autorizado</option>
                       <option value="Rejeitado">Rejeitado</option>
                     </select>
-                  </div> 
-                  <div class="form2" id="campoPgtoCaixinha" style="display: none;">                      
+                    <button type="button" id="btnSolicitarNovamenteCaixinha" style="display:none; background:none; border:none; padding:0; font-size:11px; color:#8B0000; text-decoration:underline; cursor:pointer; white-space:nowrap;">Solicitar Novamente</button>
+                  </div>
+                  <div class="form2" id="campoPgtoCaixinha" style="display: none;">
                     <input type="text" class="preenchido" name="statusPgtoCaixinha" id="statusPgtoCaixinha" required data-permanent-readonly="true" readonly >
                     <label for="statusPgtoCaixinha">Status do Pgto Caixinha</label>
-                  </div>                      
+                  </div>
                 </div>
 
                 <div class="form-2colunas">
@@ -461,8 +473,11 @@
               
                 <br>              
 
-                <div class="pdf">                    
-                  <div class="collumn">
+                <div style="display: flex; align-items: center; gap: 10px; margin: 4px 0 8px;"><hr style="flex: 1; border: none; border-top: 1px solid #bbb; margin: 0;"><span style="white-space: nowrap; color: #777; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Comprovantes</span><hr style="flex: 1; border: none; border-top: 1px solid #bbb; margin: 0;"></div>
+                <div class="pdf" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;">
+
+                  <!-- Linha 1: Cachê | Ajuda de Custo -->
+                  <div class="collumn" style="flex: 0 0 calc(50% - 6px); min-width: 0;">
                       <h5>Comprovante de Cachê + Bônus</h5>
                       <div class="containerPDF">
                           <label for="fileCache" class="footerPDF" name="footerPDF[]">
@@ -479,10 +494,8 @@
                       </div>
                   </div>
 
-                  <br>
-
-                  <div class="collumn">
-                    <h5>Comprovante de Ajuda de Custo</h5>
+                  <div class="collumn" style="flex: 0 0 calc(50% - 6px); min-width: 0;">
+                      <h5>Comprovante de Ajuda de Custo</h5>
                       <div class="containerPDF">
                           <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto">
                               <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
@@ -494,8 +507,7 @@
                           <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
                       </div>
                       <div id="comprovanteAjdCustoDisplay" style="display: none; margin-top: 10px;">
-                          <div id="linkContainerAjdCusto">
-                              </div>
+                          <div id="linkContainerAjdCusto"></div>
                       </div>
                       <div class="containerPDF">
                           <label for="fileAjdCusto2" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto2">
@@ -508,24 +520,22 @@
                           <input id="fileAjdCusto2" class="filePDFInput" type="file" name="comppgtoajdcusto50" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
                       </div>
                       <div id="comprovanteAjdCusto2Display" style="display: none; margin-top: 10px;">
-                          <div id="linkContainerAjdCusto2">
-                          </div>
+                          <div id="linkContainerAjdCusto2"></div>
                       </div>
                       <div class="checkbox">
                           <div class="Vertical">
-                            <input id="check50" type="checkbox" />
-                            <label for="check50">50%</label>
-                          </div> 
+                              <input id="check50" type="checkbox" />
+                              <label for="check50">50%</label>
+                          </div>
                           <div class="Vertical">
-                            <input id="check100" type="checkbox" />
-                            <label for="check100">100%</label>
+                              <input id="check100" type="checkbox" />
+                              <label for="check100">100%</label>
                           </div>
                       </div>
                   </div>
 
-                  <br>
-
-                  <div class="collumn">
+                  <!-- Linha 2: Caixinha | Controle de Gastos | Nota Fiscal -->
+                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
                       <h5>Comprovante de Caixinha</h5>
                       <div class="containerPDF">
                           <label for="fileCaixinha" class="footerPDF" name="footerPDF[]" id="labelFileCaixinha">
@@ -538,34 +548,50 @@
                           <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtocaixinha" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
                       </div>
                       <div id="comprovanteCaixinhaDisplay" style="display: none; margin-top: 10px;">
-                          <div id="linkContainerCaixinha">
-                              </div>
+                          <div id="linkContainerCaixinha"></div>
                       </div>
                   </div>
-                  <div class="collumn" style="flex: 1;">
-                    <h5>Controle de Gastos</h5>
-                    <div class="containerPDF">
-                        <label for="fileControleGastos" class="footerPDF" name="footerPDF[]" id="labelFileControleGastos">
-                            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                <path d="M15.331 6H8.5v20h15V14.154h-8.169z" />
-                                <path d="M18.153 6h-.009v5.342H23.5v-.002z" />
-                            </svg>
-                            <p id="fileNameControleGastos" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                        </label>
-                        <input id="fileControleGastos" class="filePDFInput" type="file" name="compcontrolegastos" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                    </div>
-                    <div id="comprovanteControleGastosDisplay" style="display: none; margin-top: 10px;">
-                        <div id="linkContainerControleGastos"></div>
-                    </div>
-                  </div>             
-                  
-                  <br>
+
+                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
+                      <h5>Controle de Gastos</h5>
+                      <div class="containerPDF">
+                          <label for="fileControleGastos" class="footerPDF" name="footerPDF[]" id="labelFileControleGastos">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z" />
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z" />
+                              </svg>
+                              <p id="fileNameControleGastos" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                          </label>
+                          <input id="fileControleGastos" class="filePDFInput" type="file" name="compcontrolegastos" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteControleGastosDisplay" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerControleGastos"></div>
+                      </div>
+                  </div>
+
+                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
+                      <h5>Nota Fiscal</h5>
+                      <div class="containerPDF">
+                          <label for="fileNotaFiscal" class="footerPDF" name="footerPDF[]" id="labelFileNotaFiscal">
+                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z" />
+                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z" />
+                              </svg>
+                              <p id="fileNameNotaFiscal" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                          </label>
+                          <input id="fileNotaFiscal" class="filePDFInput" type="file" name="compnotafiscal" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                      </div>
+                      <div id="comprovanteNotaFiscalDisplay" style="display: none; margin-top: 10px;">
+                          <div id="linkContainerNotaFiscal"></div>
+                      </div>
+                  </div>
 
                   <input type="hidden" name="limparComprovanteCache" id="limparComprovanteCache" value="false">
                   <input type="hidden" name="limparComprovanteAjdCusto" id="limparComprovanteAjdCusto" value="false">
                   <input type="hidden" name="limparComprovanteAjdCusto2" id="limparComprovanteAjdCusto2" value="false">
                   <input type="hidden" name="limparComprovanteCaixinha" id="limparComprovanteCaixinha" value="false">
                   <input type="hidden" name="limparComprovanteControleGastos" id="limparComprovanteControleGastos" value="false">
+                  <input type="hidden" name="limparComprovanteNotaFiscal" id="limparComprovanteNotaFiscal" value="false">
 
                 </div>
                 <br>
@@ -573,9 +599,14 @@
                     <h5>Observações Gerais</h5>
                     <textarea id="obsGeral" name="obsGeral" class="obs-textarea-auto" rows="3"></textarea>
                 </div>
+                <div id="containerObsLogSistema" class="collumn container-obs-pos">
+                    <h5>Histórico do Sistema (Automático)</h5>
+                    <textarea id="obsLogSistema" name="obslogsistema" class="obs-textarea-auto" rows="3" readonly
+                        placeholder="O sistema registrará aqui exceções e solicitações (aditivo, extra bonificado, etc)..."></textarea>
+                </div>
                 <div id="containerObsPosPgto" class="collumn container-obs-pos">
                     <h5>Histórico de Alterações Pós-Pagamento (Automático)</h5>
-                    <textarea id="obsPosPgto" name="obspospgto" class="obs-textarea-auto" rows="4" readonly 
+                    <textarea id="obsPosPgto" name="obspospgto" class="obs-textarea-auto" rows="4" readonly
                         placeholder="O sistema registrará aqui as alterações automáticas..."></textarea>
                 </div>
                 <br>

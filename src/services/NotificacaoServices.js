@@ -9,20 +9,20 @@ async function criarNotificacao(idusuario, idempresa, { tipo = 'info', mensagem,
   return rows[0];
 }
 
-async function buscarNotificacoes(idusuario, { apenasNaoLidas = false } = {}) {
+async function buscarNotificacoes(idusuario, idempresa, { apenasNaoLidas = false } = {}) {
   const filtro = apenasNaoLidas ? 'AND lido = FALSE' : '';
   const { rows } = await pool.query(
-    `SELECT 
-        idnotificacao AS id, 
-        tipo          AS type, 
-        mensagem      AS message, 
-        lido          AS read, 
-        metadata, 
-        criado_em     AS created_at 
+    `SELECT
+        idnotificacao AS id,
+        tipo          AS type,
+        mensagem      AS message,
+        lido          AS read,
+        metadata,
+        criado_em     AS created_at
      FROM notificacao
-     WHERE idusuario = $1 ${filtro}
+     WHERE idusuario = $1 AND idempresa = $2 ${filtro}
      ORDER BY criado_em DESC LIMIT 50`,
-    [idusuario]
+    [idusuario, idempresa]
   );
 
   return rows.map(n => ({
@@ -37,25 +37,25 @@ async function buscarNotificacoes(idusuario, { apenasNaoLidas = false } = {}) {
   }));
 }
 
-async function contarNaoLidas(idusuario) {
+async function contarNaoLidas(idusuario, idempresa) {
   const { rows } = await pool.query(
-    `SELECT COUNT(*) AS count FROM notificacao WHERE idusuario = $1 AND lido = FALSE`,
-    [idusuario]
+    `SELECT COUNT(*) AS count FROM notificacao WHERE idusuario = $1 AND idempresa = $2 AND lido = FALSE`,
+    [idusuario, idempresa]
   );
   return Number(rows[0].count);
 }
 
-async function marcarComoLida(idnotificacao, idusuario) {
+async function marcarComoLida(idnotificacao, idusuario, idempresa) {
   await pool.query(
-    `UPDATE notificacao SET lido = TRUE WHERE idnotificacao = $1 AND idusuario = $2`,
-    [idnotificacao, idusuario]
+    `UPDATE notificacao SET lido = TRUE WHERE idnotificacao = $1 AND idusuario = $2 AND idempresa = $3`,
+    [idnotificacao, idusuario, idempresa]
   );
 }
 
-async function marcarTodasComoLidas(idusuario) {
+async function marcarTodasComoLidas(idusuario, idempresa) {
   await pool.query(
-    `UPDATE notificacao SET lido = TRUE WHERE idusuario = $1 AND lido = FALSE`,
-    [idusuario]
+    `UPDATE notificacao SET lido = TRUE WHERE idusuario = $1 AND idempresa = $2 AND lido = FALSE`,
+    [idusuario, idempresa]
   );
 }
 
