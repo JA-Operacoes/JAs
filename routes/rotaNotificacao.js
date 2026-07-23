@@ -10,11 +10,12 @@ const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlew
 router.get('/', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
+    const idempresa = req.idempresa;
     const { apenasNaoLidas, status } = req.query;
 
     const [todasNotificacoes, naoLidas] = await Promise.all([
-      svc.buscarNotificacoes(idusuario, { apenasNaoLidas: apenasNaoLidas === 'true' }),
-      svc.contarNaoLidas(idusuario),
+      svc.buscarNotificacoes(idusuario, idempresa, { apenasNaoLidas: apenasNaoLidas === 'true' }),
+      svc.contarNaoLidas(idusuario, idempresa),
     ]);
 
     let notificacoes = todasNotificacoes.filter(n => n.idreferencia === null);
@@ -46,8 +47,9 @@ router.get('/', autenticarToken(), async (req, res) => {
 router.patch('/:id/lida', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
+    const idempresa = req.idempresa;
     const { id } = req.params;
-    await svc.marcarComoLida(idusuario, id);
+    await svc.marcarComoLida(idusuario, id, idempresa);
     res.json({ ok: true });
   } catch (err) {
     console.error('Erro ao marcar como lida:', err);
@@ -61,7 +63,8 @@ router.patch('/:id/lida', autenticarToken(), async (req, res) => {
 router.patch('/todas-lidas', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
-    await svc.marcarTodasComoLidas(idusuario);
+    const idempresa = req.idempresa;
+    await svc.marcarTodasComoLidas(idusuario, idempresa);
     res.json({ ok: true });
   } catch (err) {
     console.error('Erro ao marcar todas como lidas:', err);
