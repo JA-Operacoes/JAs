@@ -1004,7 +1004,7 @@ router.post('/orcamento/saldo-equipe',
                           AND NOT (oi.adicional = true AND COALESCE(oi.vlrdiaria, 0) = 0)
                     ), 0) AS vlr_total_orcado_equipe,
                     COALESCE((
-                        SELECT SUM(se.vlrtotcache + COALESCE(se.vlrtotajdcusto, 0) + COALESCE(se.vlrajustecusto, 0))
+                        SELECT SUM(se.vlrtotcache + COALESCE(se.vlrtotajdcusto, 0))
                         FROM staffeventos se
                         JOIN funcao f ON se.idfuncao = f.idfuncao
                         WHERE se.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
@@ -1233,9 +1233,8 @@ router.post("/orcamento/vagas-disponiveis",
                             (
                                 -- Parte A: Diárias Normais + Benefícios de todos os orçamentos válidos da equipe
                                 SELECT COALESCE(SUM(
-                                    se_sub.vlrtotcache 
-                                    + COALESCE(se_sub.vlrtotajdcusto, 0) 
-                                    + COALESCE(se_sub.vlrajustecusto, 0)
+                                    se_sub.vlrtotcache
+                                    + COALESCE(se_sub.vlrtotajdcusto, 0)
                                 ), 0)
                                 FROM staffeventos se_sub
                                 JOIN funcao f_sub2 ON se_sub.idfuncao = f_sub2.idfuncao
@@ -2081,31 +2080,52 @@ router.put("/:idStaffEvento",
                              WHERE idregistroalterado = $4::integer
                                AND categoria_log = $5::varchar
                                AND idempresa = $6::integer
-                               AND $7::date = ANY(dtsolicitada)`,
+                               AND $7::date = ANY(dtsolicitada)
+                               AND status = 'Pendente'`,
                             [statusDec, idOrcamentoRegistro, idUsuarioLogado, idStaffEvento, item.campo, idempresa, entrada.data]
                         );
 
                         if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(statusDec)) {
-                            // No INSERT, passamos a data dentro de um array literal do Postgres para bater com date[]
-                            await client.query(`
-                                INSERT INTO public.solicitacoes (
-                                    idorcamento, idregistroalterado, idfuncionario, idfuncao, idempresa,
-                                    tiposolicitacao, status, dtsolicitacao, idusuariosolicitante,
-                                    categoria_log, justificativa, dtsolicitada, vlrsolicitado
-                                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, $10, ARRAY[$11]::date[], $12)`,
-                                [idOrcamentoRegistro,
-                                 idStaffEvento,
-                                 body.idfuncionario,
-                                 entrada.idfuncaodobra ? entrada.idfuncaodobra : body.idfuncao,
-                                 idempresa,
-                                 entrada.tiposolicitacao || item.tipo,
-                                 statusDec,
-                                 idUsuarioLogado,
-                                 item.campo,
-                                 justificativaItemIndividual,
-                                 entrada.data,
-                                 (parseFloat(entrada.vlr_cache) || 0) + (parseFloat(entrada.vlr_alimentacao) || 0)]
+                            const vlrEntradaAtual = (parseFloat(entrada.vlr_cache) || 0) + (parseFloat(entrada.vlr_alimentacao) || 0);
+
+                            // Evita duplicar histórico: se a última solicitação já registrada pra essa
+                            // combinação (registro+categoria+data) já está com o MESMO status e valor,
+                            // é só o form reenviando dado que não mudou — não é uma decisão nova.
+                            const { rows: ultimaSol } = await client.query(
+                                `SELECT status, vlrsolicitado FROM public.solicitacoes
+                                 WHERE idregistroalterado = $1::integer
+                                   AND categoria_log = $2::varchar
+                                   AND idempresa = $3::integer
+                                   AND $4::date = ANY(dtsolicitada)
+                                 ORDER BY dtsolicitacao DESC LIMIT 1`,
+                                [idStaffEvento, item.campo, idempresa, entrada.data]
                             );
+                            const jaIgual = ultimaSol.length > 0
+                                && ultimaSol[0].status === statusDec
+                                && Number(ultimaSol[0].vlrsolicitado).toFixed(2) === vlrEntradaAtual.toFixed(2);
+
+                            if (!jaIgual) {
+                                // No INSERT, passamos a data dentro de um array literal do Postgres para bater com date[]
+                                await client.query(`
+                                    INSERT INTO public.solicitacoes (
+                                        idorcamento, idregistroalterado, idfuncionario, idfuncao, idempresa,
+                                        tiposolicitacao, status, dtsolicitacao, idusuariosolicitante,
+                                        categoria_log, justificativa, dtsolicitada, vlrsolicitado
+                                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, $10, ARRAY[$11]::date[], $12)`,
+                                    [idOrcamentoRegistro,
+                                     idStaffEvento,
+                                     body.idfuncionario,
+                                     entrada.idfuncaodobra ? entrada.idfuncaodobra : body.idfuncao,
+                                     idempresa,
+                                     entrada.tiposolicitacao || item.tipo,
+                                     statusDec,
+                                     idUsuarioLogado,
+                                     item.campo,
+                                     justificativaItemIndividual,
+                                     entrada.data,
+                                     vlrEntradaAtual]
+                                );
+                            }
                         }
                     }            
 
@@ -2172,9 +2192,10 @@ router.put("/:idStaffEvento",
                             vlrsolicitado = $3, 
                             justificativa = $4::text,
                             idusuariosolicitante = $2::integer -- Adicionado para não ficar NULL no update
-                        WHERE idregistroalterado = $5::integer 
-                        AND categoria_log = $6::varchar 
-                        AND idempresa = $7::integer`,
+                        WHERE idregistroalterado = $5::integer
+                        AND categoria_log = $6::varchar
+                        AND idempresa = $7::integer
+                        AND status = 'Pendente'`,
                         [item.status, idUsuarioLogado, item.valor, item.desc, idStaffEvento, item.campo, idempresa]
                     );
 
@@ -2191,7 +2212,8 @@ router.put("/:idStaffEvento",
                         categoria: item.campo, // $8
                         valor: item.valor, // $9
                         justificativa: item.desc, // $10
-                        datas: item.datas // $11
+                        datas: item.datas, // $11
+                        status: item.status
                     });
                     }
                 }
@@ -2333,29 +2355,44 @@ async function registrarSolicitacao(client, dados) {
         dados.categoria
     ]);
 
-    // 2. Se não achou nada para atualizar, insere
+    // 2. Se não achou nada para atualizar, verifica se é de fato uma solicitação nova antes de inserir.
+    // Evita recriar duplicata quando o form reenvia um status já decidido (Autorizado/Rejeitado) sem mudança.
     if (updateRes.rowCount === 0) {
-        await client.query(`
-            INSERT INTO public.solicitacoes (
-                idempresa, idorcamento, idfuncionario, idfuncao,
-                idregistroalterado, idusuariosolicitante, tiposolicitacao,
-                categoria_log, vlrsolicitado, justificativa,
-                dtsolicitada, status, dtsolicitacao
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
-        `, [
-            dados.idempresa,
-            dados.idorcamento,
-            dados.idfuncionario || null,
-            dados.idfuncao,
-            dados.idstaffevento || null,
-            dados.idusuariosolicitante,
-            dados.tiposolicitacao,
-            dados.categoria,
-            dados.valor || 0,
-            dados.justificativa,
-            formatarParaJsonB(dados.datas),
-            'Pendente'
-        ]);
+        const statusNovo = dados.status || 'Pendente';
+
+        const { rows: ultimaSol } = await client.query(`
+            SELECT status, vlrsolicitado FROM public.solicitacoes
+            WHERE idregistroalterado = $1 AND categoria_log = $2
+            ORDER BY dtsolicitacao DESC LIMIT 1
+        `, [dados.idstaffevento || null, dados.categoria]);
+
+        const jaIgual = ultimaSol.length > 0
+            && ultimaSol[0].status === statusNovo
+            && Number(ultimaSol[0].vlrsolicitado).toFixed(2) === Number(dados.valor || 0).toFixed(2);
+
+        if (!jaIgual) {
+            await client.query(`
+                INSERT INTO public.solicitacoes (
+                    idempresa, idorcamento, idfuncionario, idfuncao,
+                    idregistroalterado, idusuariosolicitante, tiposolicitacao,
+                    categoria_log, vlrsolicitado, justificativa,
+                    dtsolicitada, status, dtsolicitacao
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+            `, [
+                dados.idempresa,
+                dados.idorcamento,
+                dados.idfuncionario || null,
+                dados.idfuncao,
+                dados.idstaffevento || null,
+                dados.idusuariosolicitante,
+                dados.tiposolicitacao,
+                dados.categoria,
+                dados.valor || 0,
+                dados.justificativa,
+                formatarParaJsonB(dados.datas),
+                statusNovo
+            ]);
+        }
     }
 }
 

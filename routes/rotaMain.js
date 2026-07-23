@@ -1687,7 +1687,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                               AND NOT (oi.adicional = true AND COALESCE(oi.vlrdiaria, 0) = 0)
                         ), 0) AS vlr_orcado,
                         COALESCE((
-                            SELECT SUM(se2.vlrtotcache + COALESCE(se2.vlrtotajdcusto,0) + COALESCE(se2.vlrajustecusto,0))
+                            SELECT SUM(se2.vlrtotcache + COALESCE(se2.vlrtotajdcusto,0))
                             FROM staffeventos se2
                             JOIN funcao f2 ON se2.idfuncao = f2.idfuncao
                             WHERE se2.idorcamento = oi.idorcamento
@@ -1704,6 +1704,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                               AND sl.status = 'Pendente'
                               AND (
                                   sl.categoria_log = 'statusajustecusto'
+                                  OR sl.categoria_log = 'statuscaixinha'
                                   OR (sl.categoria_log = 'aditivoextra' AND (
                                       sl.tiposolicitacao ILIKE '%BONIFICADO%'
                                       OR sl.tiposolicitacao ILIKE '%VAGA EXCEDIDA%'

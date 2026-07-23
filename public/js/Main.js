@@ -10602,8 +10602,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             } else {
                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                             }
-                            // Ajuste de custo positivo impacta o saldo da equipe
-                            if (campo === 'statusajustecusto' && valor > 0) vlrSolBadge = valor;
+                            // Ajuste de custo e Caixinha positivos impactam o saldo da equipe (exibição informativa)
+                            if ((campo === 'statusajustecusto' || campo === 'statuscaixinha') && valor > 0) vlrSolBadge = valor;
                         } else {
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
@@ -10646,14 +10646,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     // Badge financeiro — apenas pendentes (valores são sempre atuais, não históricos)
                     // isAditivoExtra já renderizou o badge interno (antes do DETALHAMENTO) — evita duplicata
-                    if (window.ehMasterOuSupremo && pedido.vlrOrcadoEquipe > 0 && !campo.includes('caixinha') && statusLower === STATUS_PENDENTE_LOWER && !isAditivoExtra) {
+                    if (window.ehMasterOuSupremo && pedido.vlrOrcadoEquipe > 0 && statusLower === STATUS_PENDENTE_LOWER && !isAditivoExtra) {
                         const orcado = pedido.vlrOrcadoEquipe;
                         const gasto = pedido.vlrGastoEquipe || 0;
                         const pendente = pedido.vlrPendenteEquipe || 0;
-                        // Para Ajuste de Custo: vlrajustecusto já está em vlr_gasto (route inclui mesmo pendente).
-                        // saldoAtual do route = saldo pós-ajuste; precisamos do pré-ajuste para exibição correta.
-                        const ehAjusteCusto = campo === 'statusajustecusto';
-                        const saldoAtual = ehAjusteCusto ? (orcado - gasto + vlrSolBadge) : (orcado - gasto);
+                        // vlr_gasto da rota não soma mais vlrajustecusto à parte (já embutido em vlrtotcache
+                        // quando Autorizado) — não precisa mais de compensação manual pra Ajuste de Custo.
+                        const saldoAtual = orcado - gasto;
                         const saldoApos = saldoAtual - vlrSolBadge;
                         const outrasPendentes = pendente - vlrSolBadge;
                         const fmt = v => {
