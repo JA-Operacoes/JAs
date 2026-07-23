@@ -36,6 +36,7 @@ async function apiFetch(url, options = {}) {
     headers: {
       'Authorization': `Bearer ${TOKEN}`,
       'Content-Type': 'application/json',
+      'idempresa': localStorage.getItem('idempresa'),
       ...options.headers
     }
   });
