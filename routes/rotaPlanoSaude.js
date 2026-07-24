@@ -5,8 +5,12 @@ const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlew
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 
-// Normaliza/valida o corpo { nome, tipos:[{ nome, faixas:[{de,ate,valor}] }] }.
-// Retorna { erro } quando invalido, ou { nome, tipos } limpo quando ok.
+// Modelo relacional em 2 tabelas:
+//   tipoplanosaude   -> um registro por tipo; nomeplano repete entre os tipos do plano
+//   faixasplanosaude -> faixas (de/ate/valor) de cada tipo (ON DELETE CASCADE)
+// Um "plano" nao tem tabela propria: e identificado por (idempresa, nomeplano).
+
+// Valida/normaliza o corpo { nome, tipos:[{ nome, faixas:[{de,ate,valor}] }] }.
 function normalizarPlano(body) {
   const nome = (body?.nome || "").trim();
   if (!nome) return { erro: "Informe o nome do plano." };
@@ -21,55 +25,89 @@ function normalizarPlano(body) {
 
     const faixas = (Array.isArray(t?.faixas) ? t.faixas : []).map((f) => ({
       de: f?.de != null ? Number(f.de) : null,
-      ate: f?.ate != null ? Number(f.ate) : null, // null = idade em diante (ultima faixa)
+      ate: f?.ate != null ? Number(f.ate) : null, // null = idade em diante
       valor: f?.valor != null ? Number(f.valor) : null,
     }));
     if (!faixas.length) return { erro: `O tipo "${nomeTipo}" nao tem nenhuma faixa de valor.` };
+    if (faixas.some((f) => f.valor == null)) return { erro: `Preencha o valor de todas as faixas de "${nomeTipo}".` };
 
     tipos.push({ nome: nomeTipo, faixas });
   }
   return { nome, tipos };
 }
 
-// jsonb[] no pg: passa um array de STRINGS json e casta com $n::jsonb[].
-const paraJsonbArray = (tipos) => tipos.map((t) => JSON.stringify(t));
+// Insere um plano inteiro (tipos + faixas) usando o client de uma transacao.
+async function inserirPlano(client, idempresa, nome, tipos) {
+  for (const t of tipos) {
+    const { rows } = await client.query(
+      `INSERT INTO tipoplanosaude (idempresa, nomeplano, nometipo)
+       VALUES ($1, $2, $3) RETURNING idtipoplanosaude`,
+      [idempresa, nome, t.nome]
+    );
+    const idtipo = rows[0].idtipoplanosaude;
+    for (const f of t.faixas) {
+      await client.query(
+        `INSERT INTO faixasplanosaude (idtipoplanosaude, de, ate, valor)
+         VALUES ($1, $2, $3, $4)`,
+        [idtipo, f.de, f.ate, f.valor]
+      );
+    }
+  }
+}
 
-// Ao ler, cada elemento do jsonb[] pode vir como objeto (ja parseado) ou string.
-const normalizarTiposLidos = (tipos) =>
-  (Array.isArray(tipos) ? tipos : []).map((t) => (typeof t === "string" ? JSON.parse(t) : t));
+// Monta o objeto { nome, tipos:[{ idtipo, nome, faixas }] } de um plano.
+async function carregarPlano(idempresa, nomeplano) {
+  const { rows } = await pool.query(
+    `SELECT t.idtipoplanosaude, t.nometipo,
+            f.idfaixaplano, f.de, f.ate, f.valor
+       FROM tipoplanosaude t
+       LEFT JOIN faixasplanosaude f ON f.idtipoplanosaude = t.idtipoplanosaude
+      WHERE t.idempresa = $1 AND lower(t.nomeplano) = lower($2) AND t.ativo = true
+      ORDER BY t.idtipoplanosaude, f.de NULLS LAST, f.idfaixaplano`,
+    [idempresa, nomeplano]
+  );
+  if (!rows.length) return null;
 
-// ---- Listar (para o Pesquisar / montar seletor) ----
+  const mapa = new Map();
+  for (const r of rows) {
+    if (!mapa.has(r.idtipoplanosaude)) {
+      mapa.set(r.idtipoplanosaude, { idtipo: r.idtipoplanosaude, nome: r.nometipo, faixas: [] });
+    }
+    if (r.idfaixaplano != null) {
+      mapa.get(r.idtipoplanosaude).faixas.push({
+        de: r.de, ate: r.ate, valor: r.valor != null ? Number(r.valor) : null,
+      });
+    }
+  }
+  return { nome: nomeplano, tipos: [...mapa.values()] };
+}
+
+// ---- Listar planos (nomes distintos + qtd de tipos) ----
 router.get("/", verificarPermissao('PlanoSaude', 'pesquisar'), async (req, res) => {
   try {
-    // Por padrao lista so os ativos; ?incluirInativos=1 traz todos.
     const incluirInativos = req.query.incluirInativos === '1' || req.query.incluirInativos === 'true';
     const { rows } = await pool.query(
-      `SELECT idplanosaude, nome, tipos, ativo
-         FROM planosaude
-        WHERE idempresa = $1
-          AND ($2::boolean OR ativo = true)
-        ORDER BY lower(nome)`,
+      `SELECT nomeplano AS nome, COUNT(*)::int AS qtdtipos
+         FROM tipoplanosaude
+        WHERE idempresa = $1 AND ($2::boolean OR ativo = true)
+        GROUP BY nomeplano
+        ORDER BY lower(nomeplano)`,
       [req.idempresa, incluirInativos]
     );
-    res.json(rows.map((r) => ({ ...r, tipos: normalizarTiposLidos(r.tipos) })));
+    res.json(rows);
   } catch (err) {
     console.error("Erro ao listar planos de saude:", err);
     res.status(500).json({ erro: "Erro ao listar planos de saude." });
   }
 });
 
-// ---- Buscar um ----
-router.get("/:id", verificarPermissao('PlanoSaude', 'pesquisar'), async (req, res) => {
+// ---- Buscar um plano pelo nome ----
+router.get("/:nome", verificarPermissao('PlanoSaude', 'pesquisar'), async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT idplanosaude, nome, tipos, ativo
-         FROM planosaude
-        WHERE idplanosaude = $1 AND idempresa = $2`,
-      [req.params.id, req.idempresa]
-    );
-    if (!rows.length) return res.status(404).json({ erro: "Plano nao encontrado." });
-    const r = rows[0];
-    res.json({ ...r, tipos: normalizarTiposLidos(r.tipos) });
+    const plano = await carregarPlano(req.idempresa, req.params.nome);
+    if (!plano) return res.status(404).json({ erro: "Plano nao encontrado." });
+    plano.nome = req.params.nome;
+    res.json(plano);
   } catch (err) {
     console.error("Erro ao buscar plano de saude:", err);
     res.status(500).json({ erro: "Erro ao buscar plano de saude." });
@@ -84,93 +122,97 @@ router.post("/",
     const dados = normalizarPlano(req.body);
     if (dados.erro) return res.status(400).json({ erro: dados.erro });
 
+    const client = await pool.connect();
     try {
-      const { rows } = await pool.query(
-        `INSERT INTO planosaude (idempresa, nome, tipos)
-         VALUES ($1, $2, $3::jsonb[])
-         RETURNING idplanosaude, nome, tipos`,
-        [req.idempresa, dados.nome, paraJsonbArray(dados.tipos)]
+      await client.query('BEGIN');
+
+      const existe = await client.query(
+        `SELECT 1 FROM tipoplanosaude
+          WHERE idempresa = $1 AND lower(nomeplano) = lower($2) AND ativo = true LIMIT 1`,
+        [req.idempresa, dados.nome]
       );
-      const novo = rows[0];
-      res.locals.idregistroalterado = novo.idplanosaude;
-      res.status(201).json({ ...novo, tipos: normalizarTiposLidos(novo.tipos) });
-    } catch (err) {
-      if (err.code === '23505') { // unique_violation
+      if (existe.rows.length) {
+        await client.query('ROLLBACK');
         return res.status(409).json({ erro: "Ja existe um plano com esse nome." });
       }
+
+      await inserirPlano(client, req.idempresa, dados.nome, dados.tipos);
+      await client.query('COMMIT');
+      res.locals.acao = 'cadastrou';
+      res.status(201).json({ nome: dados.nome, tipos: dados.tipos });
+    } catch (err) {
+      await client.query('ROLLBACK');
       console.error("Erro ao criar plano de saude:", err);
       res.status(500).json({ erro: "Erro ao criar plano de saude." });
+    } finally {
+      client.release();
     }
   }
 );
 
-// ---- Atualizar ----
-router.put("/:id",
+// ---- Atualizar (substitui tudo do plano; :nome e o nome ORIGINAL) ----
+router.put("/:nome",
   verificarPermissao('PlanoSaude', 'alterar'),
-  logMiddleware('PlanoSaude', {
-    acao: 'editou',
-    buscarDadosAnteriores: async (req) => {
-      const { rows } = await pool.query(
-        `SELECT * FROM planosaude WHERE idplanosaude = $1 AND idempresa = $2`,
-        [req.params.id, req.idempresa]
-      );
-      return { dadosanteriores: rows[0] || null, idregistroalterado: req.params.id };
-    }
-  }),
+  logMiddleware('PlanoSaude', { acao: 'editou' }),
   async (req, res) => {
     const dados = normalizarPlano(req.body);
     if (dados.erro) return res.status(400).json({ erro: dados.erro });
 
+    const nomeOriginal = req.params.nome;
+    const client = await pool.connect();
     try {
-      // ativo e opcional: quando enviado, permite reativar/inativar junto da edicao.
-      const ativo = typeof req.body?.ativo === 'boolean' ? req.body.ativo : null;
-      const { rows } = await pool.query(
-        `UPDATE planosaude
-            SET nome = $1, tipos = $2::jsonb[],
-                ativo = COALESCE($3::boolean, ativo), atualizadoem = now()
-          WHERE idplanosaude = $4 AND idempresa = $5
-        RETURNING idplanosaude, nome, tipos, ativo`,
-        [dados.nome, paraJsonbArray(dados.tipos), ativo, req.params.id, req.idempresa]
-      );
-      if (!rows.length) return res.status(404).json({ erro: "Plano nao encontrado." });
-      const atualizado = rows[0];
-      res.json({ ...atualizado, tipos: normalizarTiposLidos(atualizado.tipos) });
-    } catch (err) {
-      if (err.code === '23505') {
-        return res.status(409).json({ erro: "Ja existe um plano com esse nome." });
+      await client.query('BEGIN');
+
+      // Se renomeou, garante que o novo nome nao colide com outro plano ativo.
+      if (dados.nome.toLowerCase() !== nomeOriginal.toLowerCase()) {
+        const colide = await client.query(
+          `SELECT 1 FROM tipoplanosaude
+            WHERE idempresa = $1 AND lower(nomeplano) = lower($2) AND ativo = true LIMIT 1`,
+          [req.idempresa, dados.nome]
+        );
+        if (colide.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ erro: "Ja existe um plano com esse nome." });
+        }
       }
+
+      // Remove os tipos atuais do plano (cascata apaga as faixas) e reinsere.
+      const del = await client.query(
+        `DELETE FROM tipoplanosaude
+          WHERE idempresa = $1 AND lower(nomeplano) = lower($2)`,
+        [req.idempresa, nomeOriginal]
+      );
+      if (!del.rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ erro: "Plano nao encontrado." });
+      }
+
+      await inserirPlano(client, req.idempresa, dados.nome, dados.tipos);
+      await client.query('COMMIT');
+      res.json({ nome: dados.nome, tipos: dados.tipos });
+    } catch (err) {
+      await client.query('ROLLBACK');
       console.error("Erro ao atualizar plano de saude:", err);
       res.status(500).json({ erro: "Erro ao atualizar plano de saude." });
+    } finally {
+      client.release();
     }
   }
 );
 
-// ---- Inativar (soft delete) ----
-// Nao apaga o registro: marca ativo = false, preservando historico e vinculos.
-router.delete("/:id",
+// ---- Inativar (soft delete) todos os tipos do plano ----
+router.delete("/:nome",
   verificarPermissao('PlanoSaude', 'apagar'),
-  logMiddleware('PlanoSaude', {
-    acao: 'inativou',
-    buscarDadosAnteriores: async (req) => {
-      const { rows } = await pool.query(
-        `SELECT * FROM planosaude WHERE idplanosaude = $1 AND idempresa = $2`,
-        [req.params.id, req.idempresa]
-      );
-      return { dadosanteriores: rows[0] || null, idregistroalterado: req.params.id };
-    }
-  }),
+  logMiddleware('PlanoSaude', { acao: 'inativou' }),
   async (req, res) => {
     try {
-      const { rows } = await pool.query(
-        `UPDATE planosaude
-            SET ativo = false, atualizadoem = now()
-          WHERE idplanosaude = $1 AND idempresa = $2
-        RETURNING idplanosaude, nome, tipos, ativo`,
-        [req.params.id, req.idempresa]
+      const { rowCount } = await pool.query(
+        `UPDATE tipoplanosaude SET ativo = false, atualizadoem = now()
+          WHERE idempresa = $1 AND lower(nomeplano) = lower($2) AND ativo = true`,
+        [req.idempresa, req.params.nome]
       );
-      if (!rows.length) return res.status(404).json({ erro: "Plano nao encontrado." });
-      const r = rows[0];
-      res.json({ ...r, tipos: normalizarTiposLidos(r.tipos) });
+      if (!rowCount) return res.status(404).json({ erro: "Plano nao encontrado." });
+      res.json({ nome: req.params.nome, inativado: true });
     } catch (err) {
       console.error("Erro ao inativar plano de saude:", err);
       res.status(500).json({ erro: "Erro ao inativar plano de saude." });

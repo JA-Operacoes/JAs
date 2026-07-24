@@ -73,7 +73,7 @@ function fecharModalPlano() {
 // ---- Estado em memória ----
 // tipos: [{ id, nome, faixas: [{ de, ate, valor }] }]
 const estado = {
-  id: null, // idplanosaude quando editando um plano existente; null = novo
+  nomeOriginal: null, // nome do plano ao abrir pela pesquisa (chave p/ editar); null = novo
   nome: "",
   tipos: [],
   tipoSelecionadoId: null, // id do tipo atualmente exibido na tabela
@@ -193,8 +193,8 @@ async function salvar() {
     tipos: estado.tipos.map((t) => ({ nome: t.nome, faixas: t.faixas })),
   };
 
-  const editando = estado.id != null;
-  const url = editando ? `/planosaude/${estado.id}` : "/planosaude";
+  const editando = estado.nomeOriginal != null;
+  const url = editando ? `/planosaude/${encodeURIComponent(estado.nomeOriginal)}` : "/planosaude";
   const method = editando ? "PUT" : "POST";
 
   try {
@@ -210,7 +210,7 @@ async function salvar() {
 // Preenche o formulário com um plano vindo do backend (modo edição).
 function carregarPlano(plano) {
   limpar();
-  estado.id = plano.idplanosaude;
+  estado.nomeOriginal = plano.nome || "";
   estado.nome = plano.nome || "";
   estado.tipos = (plano.tipos || []).map((t) => ({
     id: ++seqTipo,
@@ -223,7 +223,7 @@ function carregarPlano(plano) {
 }
 
 function limpar() {
-  estado.id = null;
+  estado.nomeOriginal = null;
   estado.nome = "";
   estado.tipos = [];
   estado.tipoSelecionadoId = null;
@@ -234,6 +234,8 @@ function limpar() {
   renderTipos();
 }
 
+// Pesquisar no mesmo estilo do Funcionarios.js: lista suspensa ancorada no campo
+// "Nome do Plano", com filtro ao vivo enquanto digita, clique carrega o plano.
 async function pesquisar() {
   let lista;
   try {
@@ -245,21 +247,92 @@ async function pesquisar() {
   if (!lista || !lista.length) {
     return aviso("info", "Nenhum plano", "Ainda não há planos de saúde cadastrados.");
   }
+  limpar();
+  ativarModoBusca(lista);
+}
 
-  const opcoes = Object.fromEntries(lista.map((p) => [String(p.idplanosaude), p.nome]));
-  const { value: id } = await Swal.fire({
-    title: "Planos de saúde",
-    input: "select",
-    inputOptions: opcoes,
-    inputPlaceholder: "Selecione um plano",
-    showCancelButton: true,
-    confirmButtonText: "Abrir",
-    cancelButtonText: "Cancelar",
+function ativarModoBusca(planos) {
+  const campoNome = $("nmPlano");
+  if (!campoNome) return;
+
+  const wrapper = campoNome.parentNode; // .form2
+  wrapper.style.position = "relative";
+  let lista = document.getElementById("plano-busca-lista");
+  if (!lista) {
+    lista = document.createElement("ul");
+    lista.id = "plano-busca-lista";
+    lista.className = "plano-busca-lista";
+    lista.style.cssText =
+      "position:absolute; left:0; right:0; top:100%; z-index:50;" +
+      "background:#fff; border:1px solid #ccc; border-radius:6px; max-height:220px;" +
+      "overflow-y:auto; margin:0; padding:4px; list-style:none;" +
+      "box-shadow:0 4px 12px rgba(0,0,0,.15);";
+    wrapper.appendChild(lista);
+  }
+
+  lista.innerHTML = "";
+  planos.forEach((p) => {
+    const li = document.createElement("li");
+    li.dataset.nome = p.nome || "";
+    li.textContent = `${p.nome} (${p.qtdtipos} tipo${p.qtdtipos == 1 ? "" : "s"})`;
+    li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px; color:#000;";
+    li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+    li.addEventListener("mouseout", () => { li.style.background = ""; });
+    // mousedown dispara antes do blur do campo, evitando que a lista suma antes do clique.
+    li.addEventListener("mousedown", async (e) => {
+      e.preventDefault();
+      sairModoBusca();
+      try {
+        const plano = await fetchComToken(`/planosaude/${encodeURIComponent(li.dataset.nome)}`);
+        if (plano) carregarPlano(plano);
+      } catch (err) {
+        console.error("Erro ao carregar plano de saúde:", err);
+        aviso("error", "Erro", err?.message || "Não foi possível abrir o plano.");
+      }
+    });
+    lista.appendChild(li);
   });
-  if (!id) return;
 
-  const plano = lista.find((p) => String(p.idplanosaude) === String(id));
-  if (plano) carregarPlano(plano);
+  campoNome.addEventListener("input", filtrarBusca);
+  campoNome.addEventListener("focus", mostrarBusca);
+  filtrarBusca();
+  campoNome.focus();
+  document.addEventListener("mousedown", fecharBuscaSeFora);
+}
+
+function mostrarBusca() {
+  const lista = document.getElementById("plano-busca-lista");
+  if (lista) lista.style.display = "block";
+}
+
+function filtrarBusca() {
+  const lista = document.getElementById("plano-busca-lista");
+  if (!lista) return;
+  const termo = ($("nmPlano")?.value || "").toUpperCase().trim();
+  lista.querySelectorAll("li").forEach((li) => {
+    const nome = (li.dataset.nome || "").toUpperCase();
+    li.style.display = (!termo || nome.includes(termo)) ? "block" : "none";
+  });
+  lista.style.display = "block";
+}
+
+function fecharBuscaSeFora(e) {
+  const lista = document.getElementById("plano-busca-lista");
+  if (!lista) return;
+  const campoNome = $("nmPlano");
+  if (e.target === campoNome || lista.contains(e.target)) return;
+  lista.style.display = "none";
+}
+
+function sairModoBusca() {
+  const lista = document.getElementById("plano-busca-lista");
+  if (lista) lista.remove();
+  document.removeEventListener("mousedown", fecharBuscaSeFora);
+  const campoNome = $("nmPlano");
+  if (campoNome) {
+    campoNome.removeEventListener("input", filtrarBusca);
+    campoNome.removeEventListener("focus", mostrarBusca);
+  }
 }
 
 // ---- Ligação dos eventos (elementos já existem no DOM) ----
