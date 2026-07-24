@@ -351,3 +351,12 @@ $("Enviar")?.addEventListener("click", salvar);
 $("Limpar")?.addEventListener("click", limpar);
 $("Pesquisar")?.addEventListener("click", pesquisar);
 $("Fechar")?.addEventListener("click", fecharModalPlano);
+
+// Registra o handler do modulo (o Index.js chama desinicializar ao fechar o modal;
+// sem esse registro window.moduloHandlers fica undefined e o fecharModal quebra).
+window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers['PlanoSaude'] = {
+  desinicializar: () => {
+    sairModoBusca(); // remove a lista de busca e seus listeners globais, se abertos
+  },
+};

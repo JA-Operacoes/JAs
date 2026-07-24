@@ -462,6 +462,14 @@ input#dataNasc:not([value=""]) ~ label, input#admisao:not([value=""]) ~ label{
   input#codBanco,#banco,#agencia,#digitoAgencia,#nConta,#digitoConta,#pix,.form-control.input{
     width: 170px;
   }
+  
+input#funcao{
+    width: 355px;
+}
+
+input#cep{
+  width: 315px;
+}
 
   input#Pix {
     width: 250px;
@@ -689,10 +697,12 @@ input#dataNasc:not([value=""]) ~ label, input#admisao:not([value=""]) ~ label{
 
 .checkbox-container {
   display: flex;
+  justify-content: center;
   gap: 20px;
   padding: 20px;
   background: transparent;
 }
+
 
 .ios-checkbox {
   --checkbox-size: 28px;
