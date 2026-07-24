@@ -1695,12 +1695,21 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     'idsolicitacao', sol.idsolicitacao,
                     'status', sol.status,
                     'noOrcamento', EXISTS (
+                        -- Não escopa por idorcamento: quando há mais de um orçamento pro
+                        -- mesmo evento/cliente, a inclusão pode acontecer em qualquer um
+                        -- deles, não só no orçamento onde a solicitação nasceu.
                         SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
                     )
                 )
                 FROM solicitacoes sol
                 WHERE sol.idregistroalterado = se.idstaffevento
                 AND sol.categoria_log = 'aditivoextra'
+                -- Amarrações extras (não só o ID): garante que a solicitação
+                -- realmente pertence a este mesmo orçamento/funcionário/função,
+                -- não apenas a um idregistroalterado numericamente coincidente.
+                AND sol.idorcamento = se.idorcamento
+                AND sol.idfuncionario = se.idfuncionario
+                AND sol.idfuncao = se.idfuncao
                 ORDER BY sol.dtsolicitacao DESC
                 LIMIT 1
             ) AS solicitacao_aditivo

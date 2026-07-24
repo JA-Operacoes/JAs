@@ -270,6 +270,7 @@ async function carregarLocalMontOrc() {
         option.setAttribute("data-idMontagem", local.idmontagem);
         option.setAttribute("data-descmontagem", local.descmontagem);
         option.setAttribute("data-ufmontagem", local.ufmontagem);
+        option.setAttribute("data-cidademontagem", local.cidademontagem);
         select.appendChild(option);
 
         locaisDeMontagem = montagem;
@@ -2858,10 +2859,21 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 }
 
-// Evento "fora de São Paulo": UF do local de montagem preenchida e diferente de 'SP'.
+// Evento "fora de São Paulo": mesma regra do Staff.js — só é "dentro de SP" quando
+// UF = 'SP' E a cidade do local de montagem é exatamente "SÃO PAULO".
 function eventoForaDeSP() {
-  const uf = (document.getElementById("ufmontagem")?.value || "").trim().toUpperCase();
-  return uf !== "" && uf !== "SP";
+  const selectMontagem = document.getElementById("idMontagem");
+  const selectedOption = selectMontagem?.options?.[selectMontagem.selectedIndex];
+  if (!selectedOption || !selectedOption.value) return false;
+
+  const uf = (selectedOption.getAttribute("data-ufmontagem") || "").trim().toUpperCase();
+  const cidade = (selectedOption.getAttribute("data-cidademontagem") || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // remove acentos
+    .toUpperCase();
+
+  return uf !== "SP" || cidade !== "SAO PAULO";
 }
 
 // Fator de alimentação quando fora de SP — fórmula da Viagem 2 (café + almoço + jantar = 2,5x).
@@ -5132,7 +5144,19 @@ export async function limparOrcamento() {
     document.getElementById("percentCustoFixo").value = "0%";
     document.getElementById("valorCliente").value = "R$ 0,00";
 
-    adicionarLinhaAdicional();
+    // Limpa o aviso de reajuste (ex.: "Aplicado índice de X% ... sobre o valor do
+    // orçamento Y") — é um <div>, não um input/textarea, por isso não é limpo
+    // pelo loop de inputs acima.
+    const avisoReajusteEl = document.getElementById("avisoReajusteMensagem");
+    if (avisoReajusteEl) {
+        avisoReajusteEl.textContent = "";
+    }
+    const inputAvisoReajusteEl = document.getElementById("inputAvisoReajuste");
+    if (inputAvisoReajusteEl) {
+        inputAvisoReajusteEl.value = "false";
+    }
+
+    adicionarLinhaOrc();
 
     // Sempre alterar o status para "A" (Aberto)
     const statusInput = document.getElementById("Status");
@@ -5645,6 +5669,31 @@ function atualizarEstadoLiberaStaff(status) {
     bloquearCamposSeFechado();
   }
   // ========================================================
+
+  if (orcamento.idorcamento) {
+    carregarLucroEstimado(orcamento.idorcamento);
+  }
+}
+
+// Busca o lucro estimado (informativo) com base no custo médio histórico real por função,
+// em vez do custo teto usado no orçamento salvo. Não altera lucroreal/percentlucroreal.
+async function carregarLucroEstimado(idOrcamento) {
+  const lucroRealEstimadoInput = document.getElementById("lucroRealEstimado");
+  const percentRealEstimadoInput = document.getElementById("percentRealEstimado");
+  if (!lucroRealEstimadoInput || !percentRealEstimadoInput) return;
+
+  lucroRealEstimadoInput.value = "Calculando...";
+  percentRealEstimadoInput.value = "";
+
+  try {
+    const resultado = await fetchComToken(`/orcamentos/${idOrcamento}/lucro-estimado`);
+    lucroRealEstimadoInput.value = formatarMoeda(resultado.lucrorealEstimado || 0);
+    percentRealEstimadoInput.value = formatarPercentual(resultado.percentlucrorealEstimado || 0);
+  } catch (error) {
+    console.error("Erro ao carregar lucro estimado histórico:", error);
+    lucroRealEstimadoInput.value = "—";
+    percentRealEstimadoInput.value = "";
+  }
 }
 
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
@@ -7668,6 +7717,7 @@ async function rehidrateItemsForNewYear(itens) {
       //    Sempre recalcula pelo MAIOR custo atual da função (Sênior > Pleno > Junior > Base),
       //    igual ao comportamento de uma linha nova. Itens sem função (equip/suprimento)
       //    mantêm o custo gravado.
+      const funcMestra = item.idfuncao ? funcMap[String(item.idfuncao)] : null;
       let ctoReferencia = funcMestra
         ? custoMaiorFuncao(funcMestra)
         : parseFloat(item.ctodiaria || 0);
@@ -7677,7 +7727,22 @@ async function rehidrateItemsForNewYear(itens) {
         vlrReferencia = parseFloat(funcMestra.vdafuncao) || 0;
       }
 
-      // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
+      // AJUDA DE CUSTO: mesma lógica do custo acima — para itens de função, NÃO
+      // reajusta o valor gravado no ano anterior (que pode estar zerado/desatualizado
+      // se nunca foi recalculado). Sempre recalcula do zero a partir da categoriafuncao
+      // atual, respeitando a regra de local de montagem (fora de SP = alimentação x2.5,
+      // transporte zerado; dentro de SP = valores normais da categoriafuncao).
+      if (funcMestra) {
+        const foraSPRef = typeof eventoForaDeSP === 'function' ? eventoForaDeSP() : false;
+        const transpBaseRef = (parseFloat(funcMestra.ctofuncaosenior) > 0 && parseFloat(funcMestra.transpsenior) > 0)
+          ? parseFloat(funcMestra.transpsenior) || 0
+          : parseFloat(funcMestra.transporte) || 0;
+        const alimBaseRef = parseFloat(funcMestra.alimentacao) || 0;
+        item.vlrajdctoalimentacao = foraSPRef ? alimBaseRef * FATOR_ALIMENTACAO_FORA_SP : alimBaseRef;
+        item.vlrajdctotransporte = foraSPRef ? 0 : transpBaseRef;
+      }
+
+      // APLICAÇÃO DO REAJUSTE (O "8% + 8%")
       // Se bProximoAno está ativo, pegamos o valor que veio do banco (que já tinha os primeiros 8%)
       // e aplicamos o novo percentual em cima.
       if (typeof bProximoAno !== 'undefined' && bProximoAno) {
@@ -7688,11 +7753,20 @@ async function rehidrateItemsForNewYear(itens) {
         vlrReferencia = vlrReferencia * fatorGeral;
         ctoReferencia = ctoReferencia * fatorGeral;
 
-        if (item.vlrajdctoalimentacao) {
-            item.vlrajdctoalimentacao = parseFloat(item.vlrajdctoalimentacao) * fatorAjuda;
-        }
-        if (item.vlrajdctotransporte) {
-            item.vlrajdctotransporte = parseFloat(item.vlrajdctotransporte) * fatorAjuda;
+        if (funcMestra) {
+          // Ajuda de custo já veio fresca da categoriafuncao acima — aplica o
+          // reajuste deste ano em cima dela, igual ao custo.
+          item.vlrajdctoalimentacao = item.vlrajdctoalimentacao * fatorAjuda;
+          item.vlrajdctotransporte = item.vlrajdctotransporte * fatorAjuda;
+        } else {
+          // Sem função (equipamento/suprimento): não há categoriafuncao de referência,
+          // mantém o comportamento antigo de reajustar o valor gravado.
+          if (item.vlrajdctoalimentacao) {
+              item.vlrajdctoalimentacao = parseFloat(item.vlrajdctoalimentacao) * fatorAjuda;
+          }
+          if (item.vlrajdctotransporte) {
+              item.vlrajdctotransporte = parseFloat(item.vlrajdctotransporte) * fatorAjuda;
+          }
         }
       }
 
