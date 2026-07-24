@@ -254,7 +254,7 @@ router.put("/:id",
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para um
@@ -430,7 +430,7 @@ router.post("/",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
             complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para array.
