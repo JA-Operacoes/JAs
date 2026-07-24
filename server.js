@@ -119,6 +119,7 @@ app.use("/contas", autenticarToken(), contextoEmpresa, require("./routes/rotaCon
 app.use("/centrocusto", autenticarToken(), contextoEmpresa, require("./routes/rotaCentroCusto"));
 app.use("/lancamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaLancamento"));
 app.use("/pagamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaPagamento"));
+app.use("/planosaude", autenticarToken(), contextoEmpresa, require("./routes/rotaPlanoSaude"));
 
 app.use("/Contrato",require("./routes/rotaContrato"));
 
@@ -127,6 +128,7 @@ app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
 app.use("/ceo", autenticarToken(), contextoEmpresa, require("./routes/rotaCeo"));
 app.use("/rh", autenticarToken(), contextoEmpresa, exigirFlag('rh', 'supremo'), require("./routes/rotaRH"));
+
 
 // Logo após as outras rotas protegidas, no mesmo padrão:
 app.use("/notificacoes", autenticarToken(), contextoEmpresa, require("./routes/rotaNotificacao"));

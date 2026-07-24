@@ -49,6 +49,7 @@ let diasUteisSel = 0;
 
 const VA_DESC = "Vale-Alimentação";
 const VT_DESC = "Vale-Transporte";
+const PLANO_SAUDE_DESC = "Plano de Saúde";
 
 // Monta as linhas de benefício VA/VT a partir do valor/dia × dias úteis.
 function presetBeneficiosVAVT(diaVA, diaVT, dias) {
@@ -311,6 +312,9 @@ async function carregarHolerite(idfuncionario) {
         if (preset.length) holeriteAtual.itens = preset;
       }
     }
+    // Plano de saúde é desconto RECORRENTE: garante a linha em todo rascunho mensal de
+    // quem aderiu (holerite ainda não salvo). Holerites já salvos mantêm o valor gravado.
+    aplicarDescontoPlanoSaude();
     renderHolerite(holeriteAtual);
     // Holerite já salvo: já traz as bases (FGTS/INSS/IRRF) preenchidas, pois já foram calculadas.
     if (holeriteAtual.idholerite) atualizarBasesCalculadas();
@@ -498,6 +502,18 @@ function renderHolerite(h) {
         <button type="button" id="rh-add-desconto">+ Desconto</button>
         ${h.tipo === "rescisao" ? "" : `<button type="button" id="rh-calcular" class="secundario">⚙️ Calcular INSS/IRRF</button>`}
         <small id="rh-calc-info" class="rh-calc-info"></small>
+        ${descontos.some((i) => String(i.descricao) === PLANO_SAUDE_DESC) && h.planoSaude && h.planoSaude.itens && h.planoSaude.itens.length ? `
+        <div class="rh-plano-detalhe">
+          <strong>Plano de Saúde — cobrança por faixa etária</strong>
+          <ul>
+            ${h.planoSaude.itens.map((p) => `<li>${p.nome} — ${p.idade} anos: <strong>${formatarReaisInput(p.valor)}</strong>${
+              p.titular
+                ? ` <em>(faixa ${formatarReaisInput(p.valorFaixa)}; empresa paga ${Math.round((h.planoSaude.empresaPctTitular || 0) * 100)}% = ${formatarReaisInput(p.parteEmpresa)})</em>`
+                : ""
+            }</li>`).join("")}
+          </ul>
+          <div class="rh-plano-total">Total descontado do funcionário: <strong>${formatarReaisInput(h.planoSaude.total)}</strong></div>
+        </div>` : ""}
       </div>
 
       <div class="rh-totais">
@@ -533,6 +549,7 @@ function renderHolerite(h) {
         <input type="file" id="rh-comprovante-input" accept="image/*,application/pdf,.jfif" style="display:none">` : `
         <button type="button" id="rh-comprovante-ver">Ver comprovante</button>
         ${podeAlterarComprovante ? `<button type="button" id="rh-comprovante-rm" class="secundario">Remover comprovante</button>` : ""}`) : ""}
+        ${pago ? `<button type="button" id="rh-imprimir" class="secundario">🖨️ Imprimir (2 vias)</button>` : ""}
       </div>
     </div>
   `;
@@ -589,6 +606,180 @@ function renderHolerite(h) {
   });
   const btnCompRm = document.getElementById("rh-comprovante-rm");
   if (btnCompRm) btnCompRm.addEventListener("click", removerComprovante);
+  const btnImprimir = document.getElementById("rh-imprimir");
+  if (btnImprimir) btnImprimir.addEventListener("click", imprimirHolerite);
+}
+
+// Rótulo do tipo de holerite para o cabeçalho do documento impresso.
+const TIPO_LABEL = { mensal: "Mensal", ferias: "Férias", "13": "13º Salário", rescisao: "Rescisão" };
+
+// Monta o HTML de UMA via do holerite (read-only) no formato clássico de recibo de
+// pagamento: tabela única com colunas Vencimentos × Descontos, rodapé com bases e
+// líquido, e linha de assinatura de ciência do funcionário.
+function montarViaImpressao(h, t, titulo) {
+  const esc = (s) => String(s || "").replace(/</g, "&lt;");
+  const proventos = (h.itens || []).filter((i) => i.tipo === "P");
+  const beneficios = (h.itens || []).filter((i) => i.tipo === "B");
+  const descontos = (h.itens || []).filter((i) => i.tipo === "D");
+
+  // Cada linha ocupa a coluna Vencimentos OU Descontos.
+  let cod = 0;
+  const linha = (desc, ref, venc, desc2) => `
+    <tr>
+      <td class="c">${String(++cod).padStart(3, "0")}</td>
+      <td class="d">${esc(desc)}</td>
+      <td class="r">${ref || ""}</td>
+      <td class="v">${venc != null ? formatarReaisInput(venc) : ""}</td>
+      <td class="v">${desc2 != null ? formatarReaisInput(desc2) : ""}</td>
+    </tr>`;
+
+  const linhasVenc = [linha("Salário base", "30 dias", h.salariobase, null)]
+    .concat(proventos.map((i) => linha(i.descricao, "", i.valor, null)));
+  const linhasDesc = descontos.map((i) => linha(i.descricao, "", null, i.valor));
+
+  // Benefícios (VA/VT) não integram o líquido — vão numa nota informativa.
+  const benefInfo = beneficios.length
+    ? `<div class="benef"><strong>Benefícios (não integram o líquido)</strong>: ${
+        beneficios.map((i) => `${esc(i.descricao)} ${formatarReaisInput(i.valor)}`).join(" · ")}</div>`
+    : "";
+
+  // Detalhe do plano de saúde só quando há a linha de desconto correspondente.
+  const temPlano = descontos.some((i) => String(i.descricao) === PLANO_SAUDE_DESC);
+  const planoDet = (temPlano && h.planoSaude && h.planoSaude.itens && h.planoSaude.itens.length)
+    ? `<div class="benef"><strong>Plano de Saúde (faixa etária)</strong>: ${
+        h.planoSaude.itens.map((p) => `${esc(p.nome)} ${p.idade}a ${formatarReaisInput(p.valor)}${
+          p.titular ? ` (empresa ${formatarReaisInput(p.parteEmpresa)})` : ""}`).join(" · ")}</div>`
+    : "";
+
+  return `
+  <section class="via">
+    <div class="via-tag">${titulo}</div>
+    <table class="cab">
+      <tr>
+        <td class="emp">
+          <strong>${esc(empresaAtual?.razaosocial || empresaAtual?.nmfantasia || "—")}</strong><br>
+          CNPJ: ${esc(empresaAtual?.cnpj || "—")}<br>
+          ${esc(empresaAtual?.endereco || "")} ${esc(empresaAtual?.numero || "")} — ${esc(empresaAtual?.cidade || "")}/${esc(empresaAtual?.estado || "")}
+        </td>
+        <td class="doc">
+          <div class="doc-titulo">Recibo de Pagamento de Salário</div>
+          <div>Competência: <strong>${String(mesSel).padStart(2, "0")}/${anoSel}</strong></div>
+          <div>Tipo: ${TIPO_LABEL[h.tipo] || "Mensal"}</div>
+        </td>
+      </tr>
+    </table>
+
+    <table class="func">
+      <tr><th>Código</th><th>Nome do Funcionário</th><th>Função</th><th>CBO</th><th>Admissão</th></tr>
+      <tr><td>${esc(h.idfuncionario)}</td><td>${esc(h.nome)}</td><td>${esc(h.funcao || "—")}</td><td>${esc(h.cbo || "—")}</td><td>${formatData(h.admissao)}</td></tr>
+    </table>
+
+    <table class="itens">
+      <thead>
+        <tr><th class="c">Cód.</th><th class="d">Descrição</th><th class="r">Ref.</th><th class="v">Vencimentos</th><th class="v">Descontos</th></tr>
+      </thead>
+      <tbody>
+        ${linhasVenc.join("")}
+        ${linhasDesc.join("")}
+      </tbody>
+      <tfoot>
+        <tr class="tot">
+          <td colspan="3">Totais</td>
+          <td class="v">${formatarReaisInput(t.proventos)}</td>
+          <td class="v">${formatarReaisInput(t.descontos)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${benefInfo}
+    ${planoDet}
+
+    <table class="bases">
+      <tr>
+        <td><span>Salário base</span><strong>${formatarReaisInput(h.salariobase)}</strong></td>
+        <td><span>Base de cálculo</span><strong>${formatarReaisInput(t.proventos)}</strong></td>
+        <td><span>Total de descontos</span><strong>${formatarReaisInput(t.descontos)}</strong></td>
+        <td class="liq"><span>Líquido a receber</span><strong>${formatarReaisInput(t.liquido)}</strong></td>
+      </tr>
+    </table>
+
+    <div class="assinatura">
+      <div class="linha"></div>
+      <div>Assinatura do funcionário — ${esc(h.nome)}<br><small>Declaro estar ciente dos valores e descontos acima.</small></div>
+    </div>
+  </section>`;
+}
+
+// Imprime 2 vias (Funcionário e Empresa) do holerite pago, cada uma com assinatura.
+function imprimirHolerite() {
+  const h = lerHolerite();
+  const t = totaisHolerite(h, incluirBeneficios);
+  const win = window.open("", "_blank");
+  if (!win) return Swal.fire("Bloqueado", "Permita pop-ups para imprimir.", "warning");
+
+  const css = `
+    @page { size: A4 portrait; margin: 10mm; }
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; color: #111; }
+    /* As 2 vias cabem na MESMA página (cada uma usa ~metade da folha). */
+    .via { padding: 6px 4px; break-inside: avoid; page-break-inside: avoid; }
+    .via-tag { text-align: right; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .corte { border-top: 1px dashed #999; text-align: center; font-size: 10px; color: #999; margin: 10px 0; padding-top: 2px; letter-spacing: 1px; }
+
+    table { border-collapse: collapse; width: 100%; }
+    table.cab { border: 1px solid #333; }
+    table.cab td { padding: 8px 10px; vertical-align: top; font-size: 12px; }
+    table.cab .emp { width: 62%; border-right: 1px solid #333; line-height: 1.5; }
+    table.cab .doc { font-size: 12px; line-height: 1.6; }
+    table.cab .doc-titulo { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+
+    table.func { border: 1px solid #333; border-top: none; font-size: 12px; }
+    table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    table.func th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; }
+    table.func th:last-child, table.func td:last-child { border-right: none; }
+
+    table.itens { border: 1px solid #333; border-top: none; font-size: 12px; }
+    table.itens th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; padding: 5px 8px; border-right: 1px solid #ccc; text-align: left; }
+    table.itens td { padding: 4px 8px; border-right: 1px solid #eee; }
+    table.itens th.v, table.itens td.v { text-align: right; white-space: nowrap; }
+    table.itens th:last-child, table.itens td:last-child { border-right: none; }
+    table.itens td.c { color: #888; width: 42px; }
+    table.itens td.r { color: #666; width: 70px; }
+    table.itens tbody tr:nth-child(even) { background: #fafafa; }
+    table.itens tfoot .tot td { border-top: 2px solid #333; font-weight: bold; padding: 6px 8px; text-transform: uppercase; font-size: 11px; }
+
+    .benef { font-size: 11px; color: #555; margin-top: 8px; }
+    .benef strong { color: #333; }
+
+    table.bases { margin-top: 12px; border: 1px solid #333; }
+    table.bases td { padding: 8px 10px; border-right: 1px solid #ccc; text-align: center; }
+    table.bases td:last-child { border-right: none; }
+    table.bases span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #666; margin-bottom: 3px; }
+    table.bases strong { font-size: 14px; }
+    table.bases td.liq { background: #f2f2f2; }
+    table.bases td.liq strong { font-size: 16px; }
+
+    .assinatura { margin-top: 26px; font-size: 12px; }
+    .assinatura .linha { border-top: 1px solid #333; width: 340px; margin: 0 auto 4px; }
+    .assinatura > div:last-child { text-align: center; }
+    .assinatura small { color: #666; }
+  `;
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Holerite — ${h.nome} — ${mesSel}/${anoSel}</title><style>${css}</style></head>
+  <body>${montarViaImpressao(h, t, "Via do Funcionário")}<div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>${montarViaImpressao(h, t, "Via da Empresa")}</body></html>`);
+  win.document.close();
+  win.focus();
+  // Fecha a guia depois de imprimir OU cancelar (afterprint dispara nos dois casos).
+  win.onafterprint = () => win.close();
+  // Dispara a impressão UMA única vez (guarda contra onload + fallback duplicarem).
+  let jaImprimiu = false;
+  const imprimirUmaVez = () => {
+    if (jaImprimiu) return;
+    jaImprimiu = true;
+    try { win.print(); } catch (e) {}
+  };
+  win.onload = imprimirUmaVez;
+  // fallback caso o onload já tenha disparado antes do handler ser registrado
+  setTimeout(imprimirUmaVez, 400);
 }
 
 function addLinha(containerId) {
@@ -614,6 +805,23 @@ function lerHolerite() {
     })).filter((i) => i.descricao);
   const itens = [...ler("rh-proventos", "P"), ...ler("rh-beneficios", "B"), ...ler("rh-descontos", "D")];
   return { ...holeriteAtual, salariobase, itens, tipo: tipoSel };
+}
+
+// Garante o desconto RECORRENTE de plano de saúde no rascunho mensal de quem aderiu.
+// Só age em holerite ainda NÃO salvo (idholerite null) — os salvos preservam o valor
+// gravado, igual VA/VT. Atualiza o valor se as faixas/idades mudarem e remove a linha
+// se o total zerar (ex.: adesão desmarcada ou sem faixas cadastradas).
+function aplicarDescontoPlanoSaude() {
+  if (!holeriteAtual || tipoSel !== "mensal" || holeriteAtual.idholerite) return;
+  const total = Number(holeriteAtual.planoSaude?.total) || 0;
+  const itens = holeriteAtual.itens || (holeriteAtual.itens = []);
+  const idx = itens.findIndex((i) => i.tipo === "D" && String(i.descricao) === PLANO_SAUDE_DESC);
+  if (total > 0) {
+    if (idx >= 0) itens[idx].valor = total;
+    else itens.push({ tipo: "D", descricao: PLANO_SAUDE_DESC, valor: total });
+  } else if (idx >= 0) {
+    itens.splice(idx, 1);
+  }
 }
 
 // Recalcula VA/VT (valor/dia × dias úteis) nos campos da seção Benefícios, sem
