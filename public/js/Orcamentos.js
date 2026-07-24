@@ -2166,23 +2166,6 @@ async function adicionarLinhaAdicional(isBonificado = false) {
         });
     }
 
-    if (incrementButton && quantityInput) {
-        incrementButton.addEventListener("click", function () {
-            quantityInput.value = parseInt(quantityInput.value) + 1;
-            recalcularLinha(this.closest("tr"));
-        });
-    }
-
-    if (decrementButton && quantityInput) {
-        decrementButton.addEventListener("click", function () {
-            let currentValue = parseInt(quantityInput.value);
-            if (currentValue > 0) {
-                quantityInput.value = currentValue - 1;
-                recalcularLinha(this.closest("tr"));
-            }
-        });
-    }
-
     // Inputs Gerais que disparam recálculo
     novaLinha.querySelectorAll('input').forEach(input => {
         input.addEventListener('input', () => recalcularLinha(novaLinha));
