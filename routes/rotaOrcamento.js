@@ -619,6 +619,29 @@ router.post(
 
       // 3. Inserir os itens na tabela 'orcamentoitens'
       if (itens && itens.length > 0) {
+        // Determina, uma única vez, se este orçamento (próximo ano) é "fora de SP" —
+        // mesma regra usada no Staff.js e no Orcamentos.js: só é "dentro de SP" quando
+        // UF = 'SP' E a cidade do local de montagem é exatamente "SÃO PAULO".
+        let foraSPEspelho = false;
+        if (geradoAnoPosterior === true || nrOrcamentoOriginal) {
+          try {
+            const localRes = await client.query(
+              `SELECT ufmontagem, cidademontagem FROM localmontagem WHERE idmontagem = $1 LIMIT 1`,
+              [idMontagem]
+            );
+            const local = localRes.rows[0];
+            const uf = (local?.ufmontagem || '').trim().toUpperCase();
+            const cidade = (local?.cidademontagem || '')
+              .trim()
+              .normalize('NFD')
+              .replace(/[̀-ͯ]/g, '')
+              .toUpperCase();
+            foraSPEspelho = !(uf === 'SP' && cidade === 'SAO PAULO');
+          } catch (err) {
+            console.warn('[GERAR_ESPELHO] Falha ao verificar local de montagem para regra fora de SP:', err.message);
+          }
+        }
+
         for (const item of itens) {
           // Se este for um orçamento gerado para o ano seguinte (espelho),
           // re-hidratar valores canônicos (VDA / CTO) a partir das tabelas mestres
@@ -632,15 +655,36 @@ router.post(
               // 1) Função
               if (item.idfuncao) {
                 const funcRes = await client.query(
-                  `SELECT f.vdafuncao AS vda, cf.ctofuncaobase AS cto
+                  `SELECT f.vdafuncao AS vda,
+                          cf.ctofuncaobase AS ctobase, cf.ctofuncaojunior AS ctojunior,
+                          cf.ctofuncaopleno AS ctopleno, cf.ctofuncaosenior AS ctosenior,
+                          cf.alimentacao AS alimentacao, cf.transporte AS transporte, cf.transpsenior AS transpsenior
                    FROM funcao f
                    LEFT JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
                    WHERE f.idfuncao = $1 LIMIT 1`,
                   [item.idfuncao]
                 );
-                if (funcRes.rows && funcRes.rows[0]) {
-                  vlrdiaria = parseFloat(funcRes.rows[0].vda) || vlrdiaria;
-                  ctodiaria = parseFloat(funcRes.rows[0].cto) || ctodiaria;
+                const funcRow = funcRes.rows && funcRes.rows[0];
+                if (funcRow) {
+                  vlrdiaria = parseFloat(funcRow.vda) || vlrdiaria;
+
+                  // Custo: maior valor cadastrado (Sênior > Pleno > Junior > Base) —
+                  // mesma cascata usada ao adicionar uma linha nova.
+                  const ctoSenior = parseFloat(funcRow.ctosenior) || 0;
+                  const ctoPleno = parseFloat(funcRow.ctopleno) || 0;
+                  const ctoJunior = parseFloat(funcRow.ctojunior) || 0;
+                  const ctoBase = parseFloat(funcRow.ctobase) || 0;
+                  ctodiaria = ctoSenior > 0 ? ctoSenior : ctoPleno > 0 ? ctoPleno : ctoJunior > 0 ? ctoJunior : ctoBase;
+
+                  // Ajuda de custo: NÃO reajusta o valor gravado no ano anterior (pode
+                  // estar zerado/desatualizado) — sempre recalcula do zero a partir da
+                  // categoriafuncao atual, respeitando a regra de local de montagem.
+                  const transpBase = (ctoSenior > 0 && parseFloat(funcRow.transpsenior) > 0)
+                    ? parseFloat(funcRow.transpsenior) || 0
+                    : parseFloat(funcRow.transporte) || 0;
+                  const alimBase = parseFloat(funcRow.alimentacao) || 0;
+                  item.vlrajdctoalimentacao = foraSPEspelho ? alimBase * 2.5 : alimBase;
+                  item.vlrajdctotransporte = foraSPEspelho ? 0 : transpBase;
                 }
               }
 
@@ -2039,6 +2083,123 @@ router.post('/verificar-duplicidade', async (req, res) => {
     } catch (err) {
         console.error('Erro na verificação de duplicidade:', err);
         res.status(500).send('Erro interno ao verificar duplicidade');
+    }
+});
+
+// GET /orcamentos/:idorcamento/lucro-estimado
+// Lucro estimado informativo: usa o custo médio histórico real por função
+// (nivelexperiencia em staffeventos, escopo da empresa atual) em vez do custo teto
+// usado no orçamento. Não persiste nada e não altera lucroreal/percentlucroreal salvos.
+router.get('/:idorcamento/lucro-estimado', autenticarToken(), contextoEmpresa, async (req, res) => {
+    const idempresa = req.idempresa;
+    const idOrcamento = parseInt(req.params.idorcamento, 10);
+    const AMOSTRA_MINIMA = 5;
+
+    if (!idOrcamento || isNaN(idOrcamento)) {
+        return res.status(400).json({ message: 'idorcamento inválido.' });
+    }
+
+    try {
+        const orcResult = await pool.query(
+            `SELECT o.totgeralvda, o.totajdcto, o.vlrimposto, o.vlrctofixo
+             FROM orcamentos o
+             JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+             WHERE o.idorcamento = $1 AND oe.idempresa = $2`,
+            [idOrcamento, idempresa]
+        );
+        if (orcResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Orçamento não encontrado.' });
+        }
+        const orcamento = orcResult.rows[0];
+
+        const itensResult = await pool.query(
+            `SELECT oi.idorcamentoitem, oi.idfuncao, oi.qtditens, oi.qtddias, oi.totctodiaria,
+                    cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior
+             FROM orcamentoitens oi
+             LEFT JOIN funcao f ON f.idfuncao = oi.idfuncao
+             LEFT JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
+             WHERE oi.idorcamento = $1`,
+            [idOrcamento]
+        );
+
+        let totgeralctoEstimado = 0;
+        const detalheItens = [];
+
+        for (const item of itensResult.rows) {
+            if (!item.idfuncao) {
+                // Equipamento/Suprimento: custo não varia por tier, mantém o valor atual do item
+                totgeralctoEstimado += parseFloat(item.totctodiaria) || 0;
+                continue;
+            }
+
+            const histResult = await pool.query(
+                `SELECT se.nivelexperiencia, COUNT(*)::int AS qtd
+                 FROM staffeventos se
+                 JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
+                 WHERE oe.idempresa = $1 AND se.idfuncao = $2
+                   AND se.nivelexperiencia IN ('Base','Junior','Pleno','Senior')
+                 GROUP BY se.nivelexperiencia`,
+                [idempresa, item.idfuncao]
+            );
+
+            const tiers = {};
+            let totalAmostras = 0;
+            histResult.rows.forEach(r => {
+                tiers[r.nivelexperiencia] = r.qtd;
+                totalAmostras += r.qtd;
+            });
+
+            const base = parseFloat(item.ctofuncaobase) || 0;
+            const junior = parseFloat(item.ctofuncaojunior) || base;
+            const pleno = parseFloat(item.ctofuncaopleno) || base;
+            const senior = parseFloat(item.ctofuncaosenior) || base;
+            const custoTeto = Math.max(senior, pleno, junior, base);
+
+            const temAmostra = totalAmostras >= AMOSTRA_MINIMA;
+            const custoEstimado = temAmostra
+                ? (
+                    (tiers.Base || 0) * base +
+                    (tiers.Junior || 0) * junior +
+                    (tiers.Pleno || 0) * pleno +
+                    (tiers.Senior || 0) * senior
+                  ) / totalAmostras
+                : custoTeto; // fallback conservador: sem amostra suficiente, mantém o teto
+
+            const qtditens = parseFloat(item.qtditens) || 0;
+            const qtddias = parseFloat(item.qtddias) || 0;
+            const totCtoItemEstimado = custoEstimado * qtditens * qtddias;
+
+            totgeralctoEstimado += totCtoItemEstimado;
+            detalheItens.push({
+                idorcamentoitem: item.idorcamentoitem,
+                totalAmostras,
+                temAmostra,
+                custoTeto,
+                custoEstimado: parseFloat(custoEstimado.toFixed(2))
+            });
+        }
+
+        const totgeralvda = parseFloat(orcamento.totgeralvda) || 0;
+        const totajdcto = parseFloat(orcamento.totajdcto) || 0; // ajuda de custo não varia por tier, usa o valor já salvo
+        const vlrimposto = parseFloat(orcamento.vlrimposto) || 0;
+        const vlrctofixo = parseFloat(orcamento.vlrctofixo) || 0;
+
+        const lucrobrutoEstimado = totgeralvda - totgeralctoEstimado - totajdcto;
+        const percentlucroEstimado = totgeralvda > 0 ? (lucrobrutoEstimado / totgeralvda) * 100 : 0;
+        const lucrorealEstimado = lucrobrutoEstimado - vlrimposto - vlrctofixo;
+        const percentlucrorealEstimado = totgeralvda > 0 ? (lucrorealEstimado / totgeralvda) * 100 : 0;
+
+        res.json({
+            totgeralctoEstimado: parseFloat(totgeralctoEstimado.toFixed(2)),
+            lucrobrutoEstimado: parseFloat(lucrobrutoEstimado.toFixed(2)),
+            percentlucroEstimado: parseFloat(percentlucroEstimado.toFixed(2)),
+            lucrorealEstimado: parseFloat(lucrorealEstimado.toFixed(2)),
+            percentlucrorealEstimado: parseFloat(percentlucrorealEstimado.toFixed(2)),
+            itens: detalheItens
+        });
+    } catch (err) {
+        console.error('Erro ao calcular lucro estimado histórico:', err);
+        res.status(500).json({ message: 'Erro ao calcular lucro estimado.' });
     }
 });
 
