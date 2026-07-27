@@ -17181,6 +17181,13 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
         const saldoAtual = limiteTotal - totalJaEscaladoSemEsteRegistro;
         const temSaldoDisponivel = saldoAtual >= totalDiariasSolicitadas; // 🔥 Agora compara diárias com diárias
 
+        // Se está apenas RETIRANDO diária(s) deste registro (nenhuma data nova além das já salvas),
+        // a edição libera vaga — não faz sentido bloquear por "vagas excedidas" nesse caso.
+        const datasAtuaisSet = new Set(datasAtuaisNoBanco.map(d => String(d).trim().substring(0, 10)));
+        const apenasRemovendoDiarias = diasAtuaisDoRegistro > 0
+            && totalDiariasSolicitadas < diasAtuaisDoRegistro
+            && datasReaisParaValidar.every(d => datasAtuaisSet.has(String(d).trim().substring(0, 10)));
+
         console.log("📊 [DEBUG FINAL DE VAGAS]:", {
             limiteTotal,
             totalJaEscalado,
@@ -19209,7 +19216,9 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
         // -----------------------------------------------------------
         // EXCEÇÃO 2: As datas estão OK (dentro do período), mas as VAGAS ESTOURARAM!
         // -----------------------------------------------------------
-        if (!temSaldoDisponivel) {
+        if (!temSaldoDisponivel && apenasRemovendoDiarias) {
+            console.warn(`ℹ️ [Vagas Excedidas ignorado] Edição está apenas removendo diária(s) deste registro (${diasAtuaisDoRegistro} → ${totalDiariasSolicitadas}), liberando vaga em vez de consumir.`);
+        } else if (!temSaldoDisponivel) {
             console.warn(`🛑 [Bloqueio] Vagas Excedidas detectado! Limite: ${limiteTotal}, Já Escalado: ${totalJaEscalado}, Solicitado: ${totalDiariasSolicitadas}`);
 
             // Fatiamento das datas excedidas
