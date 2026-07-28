@@ -12,7 +12,7 @@
   header{
     width: 100%;
     /* background-color:  rgb(70, 67, 67); */
-    background: linear-gradient(to right, #942123, rgb(43, 42, 42)  );  
+    background: var(--header-color);  
     position: fixed; /* Mantém o header fixo no topo */
       top: 0;
       left: 0;
@@ -32,7 +32,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding:5px 10px;
+    padding:10px 10px;
     gap:10px;
   }
   
@@ -269,8 +269,8 @@ input#search-aside {
     padding: 10px;
   }
   #lista-dados:hover{
-    background-color: var(--primary-color);
-    color: white;
+    background-color: var(--hover-color);
+    color: var(--font-color);
     border: 2px solid black;
     border-radius: 10px;
   }
@@ -359,7 +359,7 @@ input#search-aside {
   }
   
   ul[id^="lista-dados"] li:hover {
-    background-color: var(--primary-color);
+    background-color: var(--hover-color);
     border: 2px solid black;
     border-radius: 10px;
   }
