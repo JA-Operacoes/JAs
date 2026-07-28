@@ -7314,9 +7314,10 @@ async function verificaStaff() {
                             if(document.getElementById('imgFuncionario')) document.getElementById('imgFuncionario').src = 'img/sem-foto.png';
                         }
 
-                        // Limpa as datas para o próximo funcionário selecionar as suas
-                        if (picker) {
-                            picker.clear();
+                        // Mantém o período de contratação preenchido para o próximo funcionário
+                        // (a limpeza total continua disponível via "Cadastrar novo staff (Limpar tudo)")
+                        if (picker && datasParaValidar.length > 0) {
+                            picker.setDate(datasParaValidar, true);
                         }
 
                         // Atualiza a exibição do orçamento sem disparar validação de limites.
@@ -9511,8 +9512,18 @@ function controlarBotaoSalvarStaff(temOrcamento) {
             btnSalvar.title = 'Pronto para Salvar';
         } else {
             btnSalvar.disabled = true;
-            btnSalvar.textContent = 'Não existe orçamento válido.'
-            btnSalvar.title = 'É necessário ter um orçamento válido para salvar o Staff.'; 
+
+            const idFuncionario = document.getElementById('idFuncionario')?.value;
+            const niveisMarcados = ['Seniorcheck', 'Seniorcheck2', 'Plenocheck', 'Juniorcheck', 'Basecheck', 'Fechadocheck', 'Liberadocheck']
+                .some(id => document.getElementById(id)?.checked);
+
+            if (!idFuncionario || !niveisMarcados) {
+                btnSalvar.textContent = 'Registro incompleto';
+                btnSalvar.title = 'Selecione o funcionário e o nível de experiência para continuar.';
+            } else {
+                btnSalvar.textContent = 'Não existe orçamento válido.'
+                btnSalvar.title = 'É necessário ter um orçamento válido para salvar o Staff.';
+            }
         }
     }
 }
