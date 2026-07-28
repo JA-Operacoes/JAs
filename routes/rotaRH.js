@@ -441,12 +441,12 @@ router.get("/funcionarios", async (req, res) => {
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
 
     const { rows } = await pool.query(
-      `SELECT f.idfuncionario, f.nome, f.perfil, f.funcao, f.cbo, f.admissao, f.salario, f.dependentes
+      `SELECT f.idfuncionario, f.nome, fe.perfil, fe.funcao, fe.cbo, fe.admissao, fe.salario, fe.dependentes
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE fe.idempresa = $1
-         AND f.perfil = ANY($2)
-         AND COALESCE(f.ativo, true) = true
+         AND fe.perfil = ANY($2)
+         AND COALESCE(fe.ativo, true) = true
        ORDER BY f.nome ASC`,
       [idempresa, PERFIS_FOLHA]
     );
@@ -495,8 +495,8 @@ router.put("/funcionario/:id/salario", async (req, res) => {
     if (dono.rowCount === 0) return res.status(404).json({ error: "Funcionário não encontrado nesta empresa." });
 
     await pool.query(
-      `UPDATE funcionarios SET salario = $1, dependentes = $2 WHERE idfuncionario = $3`,
-      [salariobase, dependentes, idfuncionario]
+      `UPDATE funcionarioempresas SET salario = $1, dependentes = $2 WHERE idfuncionario = $3 AND idempresa = $4`,
+      [salariobase, dependentes, idfuncionario, idempresa]
     );
     res.json({ ok: true, salariobase, dependentes });
   } catch (error) {
@@ -564,7 +564,7 @@ router.post("/holerite/calcular", async (req, res) => {
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
     const func = await pool.query(
-      `SELECT *
+      `SELECT f.idfuncionario, f.nome, fe.dependentes
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -614,7 +614,7 @@ router.post("/rescisao/calcular", async (req, res) => {
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
     const func = await pool.query(
-      `SELECT f.*
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.admissao
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -657,8 +657,8 @@ router.get("/holerite", async (req, res) => {
     if (!idfuncionario || !mes || !ano) return res.status(400).json({ error: "idfuncionario, mes e ano obrigatórios." });
 
     const func = await pool.query(
-      `SELECT f.idfuncionario, f.nome, f.salario, f.dependentes, f.funcao, f.cbo, f.admissao,
-              f.valealim, f.valetrnsp
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.funcao, fe.cbo, fe.admissao,
+              fe.valealim, fe.valetrnsp
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -947,12 +947,12 @@ router.get("/folha", async (req, res) => {
     const diasUteis = contarDiasUteis(ano, mes);
 
     const funcs = (await pool.query(
-      `SELECT f.idfuncionario, f.nome, f.salario, f.dependentes, f.valealim, f.valetrnsp
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
          FROM funcionarios f
          JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
         WHERE fe.idempresa = $1
-          AND f.perfil = ANY($2)
-          AND COALESCE(f.ativo, true) = true
+          AND fe.perfil = ANY($2)
+          AND COALESCE(fe.ativo, true) = true
         ORDER BY f.nome ASC`,
       [idempresa, PERFIS_FOLHA]
     )).rows;

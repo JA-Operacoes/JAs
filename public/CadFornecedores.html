@@ -20,18 +20,7 @@
             <legend>Informações do Fornecedor</legend>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
-                <label for="nmFantasia"> Nome Fantasia</label>
-              </div>
-
-              <div class="form2">
-                <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
-                <label for="razaoSocial"> Razão Social</label>
-              </div>
-            </div>
-            <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" name="cnpj" id="cnpj" maxlength="20" required oninput="formatCNPJ(this)">
+                <input type="text" name="cnpj" id="cnpj" maxlength="20" required oninput="formatCNPJ(this)" autofocus>
                 <!-- maxlength="20" oninput="formatCNPJ(this)" required > -->
                 <label for="cnpj">CPF/CNPJ</label>
               </div>
@@ -39,6 +28,17 @@
                 <input type="text" class="uppercase" name="inscEstadual" id="inscEstadual" required
                   oninput="formatIE(this)">
                 <label for="inscEstadual">Inscrição Estadual</label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
+                <label for="nmFantasia"> Nome Fantasia</label>
+              </div>
+
+              <div class="form2">
+                <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
+                <label for="razaoSocial"> Razão Social</label>
               </div>
             </div>
             <div class="form-2colunas">

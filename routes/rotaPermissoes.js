@@ -8,6 +8,9 @@ const logMiddleware = require('../middlewares/logMiddleware');
 // Listar todas permissões
 router.get('/', autenticarToken({ verificarEmpresa: false }), permissoesController.listarPermissoes);
 
+// Grade com todos os módulos de uma empresa + permissões do usuário (base do grid de permissões)
+router.get('/grade/:idusuario', autenticarToken({ verificarEmpresa: false }), permissoesController.listarGradePermissoes);
+
 // Listar permissões de um usuário
 router.get('/:idusuario', autenticarToken({ verificarEmpresa: false }), permissoesController.listarPermissoesPorUsuario);
 
@@ -33,6 +36,27 @@ router.post('/cadastro', autenticarToken({ verificarEmpresa: false }),
         }
     }),
     permissoesController.cadastrarOuAtualizarPermissoes);
+
+// Cadastrar ou atualizar as permissões de TODOS os módulos de uma vez (grid de permissões)
+router.post('/cadastro-lote', autenticarToken({ verificarEmpresa: false }),
+    logMiddleware('permissoes', {
+        buscarDadosAnteriores: async (req) => {
+            const { idusuario, permissoes } = req.body;
+            const idempresa = req.headers.idempresa;
+            const modulos = Array.isArray(permissoes) ? permissoes.map((p) => p.modulo) : [];
+
+            const result = await db.query(
+                'SELECT idusuario, modulo, cadastrar, alterar, pesquisar, acesso, master, financeiro, supremo, comercial, devs, rh FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND modulo = ANY($3::text[])',
+                [idusuario, idempresa, modulos]
+            );
+            return {
+                dadosanteriores: result.rows,
+                idregistroalterado: null
+            };
+        }
+    }),
+    permissoesController.cadastrarOuAtualizarPermissoesLote);
+
 // Deletar uma permissão específica
 //router.delete('/:idpermissao', autenticarToken({ verificarEmpresa: false }), deletarPermissao);
 

@@ -63,38 +63,16 @@
 
           <fieldset>
             <legend> Informações Pessoais </legend>
-            <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
-                <label for ="idFuncionario">Codigo</label>
-              </div>
-              <div class="form2">
-                <input type="text" name="nome" id="nome" class="uppercase" required >
-                <label for="nome">Nome do Funcionário</label>
-              </div>
-
-              <div class="form2">
-                <input type="text" name="apelido" id="apelido" class="uppercase" required >
-                <label for="apelido">Apelido</label>
-              </div>
-
-              <div class="form2">
-                <input type="date" name="dataNasc" id="dataNasc" required >
-                <label for="dataNasc">Data de Nasc</label>
-              </div>
-            
-            </div>
-
             <div class="form-3colunas">
               <div class="form2">
-                <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
+                <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required autofocus>
                 <label for="cpf">CPF</label>
               </div>
-              
+
               <div class="form2">
                 <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="13" spellcheck="false" required >
                 <label for="rg">RG</label>
-              </div>   
+              </div>
 
               <div class="checkbox-container">
                 <label class="ios-checkbox blue">
@@ -175,7 +153,29 @@
 
             <div class="form-2colunas">
               <div class="form2">
-                <select id="Linguas">            
+                <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
+                <label for ="idFuncionario">Codigo</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="nome" id="nome" class="uppercase" required >
+                <label for="nome">Nome do Funcionário</label>
+              </div>
+
+              <div class="form2">
+                <input type="text" name="apelido" id="apelido" class="uppercase" required >
+                <label for="apelido">Apelido</label>
+              </div>
+
+              <div class="form2">
+                <input type="date" name="dataNasc" id="dataNasc" required >
+                <label for="dataNasc">Data de Nasc</label>
+              </div>
+
+            </div>
+
+            <div class="form-2colunas">
+              <div class="form2">
+                <select id="Linguas">
                   <option value="" selected disabled> Selecione o nível de fluência </option>
                   <option value="Monolingue">Monolíngue</option>
                   <option value="Bilingue">Bilíngue</option>

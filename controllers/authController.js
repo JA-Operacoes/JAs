@@ -306,7 +306,8 @@ async function verificarNomeCompleto(req, res) {
 
   try {
     const resultado = await db.query(`
-      SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 LIMIT 1
+      SELECT idusuario, nome, sobrenome, email, ativo, idempresadefault
+      FROM usuarios WHERE nome = $1 AND sobrenome = $2 LIMIT 1
     `, [nome, sobrenome]);
 
     console.log("Resultado da consulta nome completo:", resultado.rows);

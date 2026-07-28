@@ -14287,6 +14287,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             nomesOrdenados.forEach(nome => {
                 const registros = grupos[nome];
 
+                // Ajustes financeiros (crédito/débito) pendentes anexados a qualquer
+                // registro deste funcionário neste evento — contam pro rowspan da
+                // célula de nome, mas são renderizados uma única vez por registro.
+                const totalAjustesGrupo = registros.reduce(
+                    (acc, r) => acc + (r.ajustes_financeiros ? r.ajustes_financeiros.length : 0), 0
+                );
+
                 // registros.forEach((f, idxF) => {
                 //     const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
                 //     const ehUltimoRegistro = (idxF === registros.length - 1);
@@ -14495,7 +14502,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 return `<small style="display:block; color:#2563eb; font-weight:500; margin-top:3px;">• ${r.funcao}</small>`;
                             }).join('');
 
-                            celulaNome = '<td rowspan="' + (rowspanTotal * registros.length) + '" '
+                            celulaNome = '<td rowspan="' + (rowspanTotal * registros.length + totalAjustesGrupo) + '" '
                                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb; padding: 10px;">'
                                 + '<strong>' + f.nome + '</strong><br>'
                                 + '<div style="margin-top:5px; line-height:1.2;">'
@@ -14549,6 +14556,39 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             + '<td class="comprovantes-cell">' + conteudoComprovante + '</td>'
                             + '<td class="status-celula status-' + classeStatus + '">' + status + '</td>'
                             + `<td class="valor-celula ${classeValorRejeitado}" style="text-align:right;">${formatarMoeda(valor)}</td>`
+                            + '</tr>';
+                    });
+
+                    // Crédito/Débito de funcionário (staffajustefinanceiro) — anexado pelo
+                    // backend à ocorrência mais próxima. Reaproveita os mesmos botões
+                    // Pagar/Susp./Rejeitar via renderConteudoAcao(id, 'AjusteFin', status).
+                    (f.ajustes_financeiros || []).forEach((a, idxAjuste) => {
+                        const statusAjuste = formatarStatusFront(a.status || 'Pendente');
+                        const classeStatusAjuste = statusAjuste.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                        const ehUltimaLinhaAjuste = (idxAjuste === f.ajustes_financeiros.length - 1);
+                        const estiloLinhaAjuste = ehUltimaLinhaAjuste
+                            ? 'style="border-bottom: 2px dashed #bbbbbb !important;"'
+                            : 'style="border-bottom: 1px dotted #e0e0e0 !important;"';
+                        const corAjuste = a.tipo === 'Credito' ? '#16a34a' : '#dc2626';
+                        const labelAjuste = a.tipo === 'Credito' ? 'Crédito' : 'Débito';
+                        const justificativa = a.justificativa || '';
+                        const justificativaEscapada = justificativa.replace(/"/g, '&quot;');
+                        const justificativaResumida = justificativa.length > 30 ? justificativa.slice(0, 30) + '…' : justificativa;
+
+                        const celulaAcoesAjuste = podeVerAcoes
+                            ? '<td style="text-align:center;">' + renderConteudoAcao(a.idajustefinanceiro, 'AjusteFin', statusAjuste) + '</td>'
+                            : '';
+
+                        linhasCats += `<tr ${estiloLinhaAjuste}>`
+                            + '<td style="text-align:center;">'
+                                + `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${corAjuste};">${labelAjuste}</span>`
+                            + '</td>'
+                            + '<td style="text-align:center;">—</td>'
+                            + `<td style="text-align:center;" title="${justificativaEscapada}"><small>${justificativaResumida}</small></td>`
+                            + celulaAcoesAjuste
+                            + '<td class="comprovantes-cell"><span style="font-size:9px; color:#bbb;">—</span></td>'
+                            + '<td class="status-celula status-' + classeStatusAjuste + '">' + statusAjuste + '</td>'
+                            + `<td class="valor-celula" style="text-align:right;">${formatarMoeda(a.valor)}</td>`
                             + '</tr>';
                     });
 
@@ -14716,8 +14756,17 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     return f.statuscaixinha === 'Rejeitado' ? s : s + parseFloat(f.totalcaixinha_full || 0);
                 }, 0);
 
+                // Crédito soma ao total (empresa deve ao funcionário), Débito subtrai (funcionário deve à empresa)
+                const totalAjustesFinanceiros = registros.reduce((s, f) => {
+                    return s + (f.ajustes_financeiros || []).reduce((sa, a) => {
+                        if (a.status === 'Rejeitado') return sa;
+                        const valor = parseFloat(a.valor) || 0;
+                        return sa + (a.tipo === 'Credito' ? valor : -valor);
+                    }, 0);
+                }, 0);
+
                 // O total geral do funcionário somando tudo
-                const totalGeralFuncionario = totalAjuda + totalCache + totalCaixinha;
+                const totalGeralFuncionario = totalAjuda + totalCache + totalCaixinha + totalAjustesFinanceiros;
 
                 // Monta a linha de total (Agora sem a trava de registros.length > 1)
                 linhasHtml += `
@@ -14749,6 +14798,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                         <span style="color: #065f46;">
                                             <small style="font-weight: normal; color: #666;">Caixinha: </small>
                                             ${formatarMoeda(totalCaixinha)}
+                                        </span>
+                                    ` : ''}
+
+                                    ${totalAjustesFinanceiros !== 0 ? `
+                                        <span style="color: ${totalAjustesFinanceiros >= 0 ? '#16a34a' : '#dc2626'};">
+                                            <small style="font-weight: normal; color: #666;">Créd/Déb: </small>
+                                            ${formatarMoeda(totalAjustesFinanceiros)}
                                         </span>
                                     ` : ''}
 
@@ -18008,6 +18064,12 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                         if (tipo === 'Cache') func.statuspgto = statusParaEnviar;
                         else if (tipo === 'Ajuda') func.statuspgtoajdcto = statusParaEnviar;
                         else if (tipo === 'Caixinha') func.statuscaixinha = statusParaEnviar;
+                    }
+                    if (tipo === 'AjusteFin') {
+                        ev.funcionarios.forEach(f => {
+                            const ajuste = (f.ajustes_financeiros || []).find(a => a.idajustefinanceiro === idStaff);
+                            if (ajuste) ajuste.status = statusParaEnviar;
+                        });
                     }
                 });
             }

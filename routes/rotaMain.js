@@ -2119,9 +2119,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             // 3. BUSCA O REGISTRO MESTRE DO STAFF (Ex: ID 3028)
             const { rows: rowsMestre } = await pool.query(`
-                SELECT se.*, f.perfil
+                SELECT se.*, fe.perfil
                 FROM staffeventos se
                 INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
+                INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = $2
                 WHERE se.idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
                 AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
             `, [idpedido, idempresa]);
@@ -2871,9 +2872,10 @@ router.get("/vencimentos", async (req, res) => {
     const queryDetalhes = `
       SELECT * FROM (
         SELECT DISTINCT ON (tse.idstaffevento)
-          tse.idstaffevento, 
-          tse.idevento, 
-          tse.nmfuncionario AS nome, 
+          tse.idstaffevento,
+          tse.idevento,
+          tse.idfuncionario,
+          tse.nmfuncionario AS nome,
           tse.nmfuncao AS funcao,
           calc.qtd AS qtddiarias_filtradas, 
           calc.min_dt AS periodo_eventoini, 
@@ -3019,6 +3021,87 @@ router.get("/vencimentos", async (req, res) => {
             funcionarios: staffsProcessados
         };
     });
+
+    // --- Ajustes financeiros pendentes (crédito/débito de funcionário) ---
+    // Enquanto o status não for 'Pago' nem 'Rejeitado', o lançamento aparece em TODAS
+    // as ocorrências ainda abertas a pagar do funcionário dentro da janela consultada —
+    // o financeiro não necessariamente acerta no evento em que o crédito/débito foi
+    // lançado, pode acertar em qualquer próximo pagamento. Some da lista assim que
+    // o status vira 'Pago' ou 'Rejeitado'.
+    const { rows: ajustesPendentes } = await pool.query(
+        `SELECT idajustefinanceiro, idfuncionario, tipo, valor, justificativa, status
+         FROM staffajustefinanceiro
+         WHERE idempresa = $1 AND status NOT IN ('Pago', 'Rejeitado')`,
+        [idempresa]
+    );
+
+    if (ajustesPendentes.length > 0) {
+        const ajustesPorFuncionario = new Map();
+        ajustesPendentes.forEach(a => {
+            if (!ajustesPorFuncionario.has(a.idfuncionario)) ajustesPorFuncionario.set(a.idfuncionario, []);
+            ajustesPorFuncionario.get(a.idfuncionario).push(a);
+        });
+
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        const statusFechado = (status) => {
+            const s = String(status || '').toLowerCase();
+            return s.startsWith('pago') || s === 'rejeitado';
+        };
+
+        // Ocorrência "aberta a pagar": tem algum valor em Cachê/Ajuda/Caixinha cujo status
+        // ainda não é Pago nem Rejeitado.
+        const ocorrenciaAberta = (f) => {
+            const temCache = (parseFloat(f.totalcache_full) || 0) > 0;
+            const temAjuda = (parseFloat(f.totalajudacusto_full) || 0) > 0;
+            const temCaixinha = (parseFloat(f.totalcaixinha_full) || 0) > 0;
+            return (temCache && !statusFechado(f.statuspgto))
+                || (temAjuda && !statusFechado(f.statuspgtoajdcto))
+                || (temCaixinha && !statusFechado(f.statuscaixinha));
+        };
+
+        ajustesPorFuncionario.forEach((listaAjustes, idfuncionario) => {
+            const ocorrencias = [];
+            resultado.forEach(ev => {
+                ev.funcionarios.forEach(f => {
+                    if (f.idfuncionario === idfuncionario) ocorrencias.push(f);
+                });
+            });
+            if (ocorrencias.length === 0) return; // funcionário não aparece nesta janela
+
+            let alvos = ocorrencias.filter(ocorrenciaAberta);
+
+            // Nenhuma ocorrência aberta na janela (ex: tudo já pago aqui) — cai no
+            // fallback antigo, anexando só na ocorrência mais próxima, pra não sumir o lançamento.
+            if (alvos.length === 0) {
+                const comData = ocorrencias.map(f => ({
+                    f,
+                    data: normalizarParaDate(f.periodo_eventoini_all) || normalizarParaDate(f.periodo_eventofim_all)
+                }));
+                const futuras = comData.filter(o => o.data && o.data >= hoje);
+
+                const alvo = futuras.length > 0
+                    ? futuras.reduce((min, o) => (o.data < min.data ? o : min)).f
+                    : (comData.filter(o => o.data).length > 0
+                        ? comData.filter(o => o.data).reduce((max, o) => (o.data > max.data ? o : max))
+                        : comData[0]).f;
+
+                alvos = [alvo];
+            }
+
+            const ajustesFormatados = listaAjustes.map(a => ({
+                idajustefinanceiro: a.idajustefinanceiro,
+                tipo: a.tipo,
+                valor: parseFloat(a.valor) || 0,
+                justificativa: a.justificativa,
+                status: a.status
+            }));
+
+            alvos.forEach(f => { f.ajustes_financeiros = ajustesFormatados; });
+        });
+    }
+
     res.json({ eventos: resultado });
 
   } catch (error) {
@@ -3042,6 +3125,32 @@ router.post("/vencimentos/update-status",
         const idempresa = req.idempresa; 
         if (!idempresa) {
             return res.status(400).json({ success: false, error: "idempresa obrigatório na requisição." });
+        }
+
+        // 0. Crédito/Débito de funcionário não é uma coluna de staffeventos —
+        // vive na tabela própria staffajustefinanceiro.
+        if (tipo === 'AjusteFin') {
+            try {
+                const resultAjuste = await pool.query(
+                    `UPDATE staffajustefinanceiro
+                     SET status = $1, dtpagamento = CASE WHEN $1 = 'Pago' THEN now() ELSE dtpagamento END
+                     WHERE idajustefinanceiro = $2 AND idempresa = $3
+                     RETURNING *`,
+                    [novoStatus, idStaff, idempresa]
+                );
+
+                if (resultAjuste.rowCount > 0) {
+                    res.locals.idlog_origem = idlog_origem;
+                    res.locals.acao = 'atualizou';
+                    res.locals.idregistroalterado = idStaff;
+                    res.locals.dadosnovos = resultAjuste.rows[0];
+                    return res.json({ success: true, statusSalvo: novoStatus });
+                }
+                return res.status(404).json({ success: false, error: "Ajuste financeiro não encontrado." });
+            } catch (error) {
+                console.error("Erro ao atualizar status do ajuste financeiro:", error);
+                return res.status(500).json({ success: false, error: error.message });
+            }
         }
 
         // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)

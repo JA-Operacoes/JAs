@@ -7,6 +7,8 @@ import { fetchComToken, aplicarTema } from '../utils/utils.js';
 //         aplicarTema(tema);
 //     }
 // });
+let nomeEmpresaAtual = '';
+
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
 
@@ -17,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(empresa => {
                 // Usa o nome fantasia como tema
                 const tema = empresa.nmfantasia;
+                nomeEmpresaAtual = empresa.nmfantasia || '';
                 aplicarTema(tema);
             })
             .catch(error => {
@@ -31,6 +34,7 @@ let btnLimparListener = null;
 let btnPesquisarListener = null;
 let selectFornecedoresChangeListener = null;
 let nmFantasiaBlurListener = null;
+let cnpjBlurListener = null;
 
 if (typeof window.fornecedorOriginal === "undefined") {
     window.fornecedorOriginal = {
@@ -217,6 +221,89 @@ const preencherFormulario = (fornecedor) => {
     }
     campoCodigo.readOnly = true; // bloqueia o campo
 };
+
+// Preenche os dados de um fornecedor já existente (achado por CPF/CNPJ em outra
+// empresa). Propositalmente NÃO preenche `idFornecedor` — o formulário continua em
+// modo de novo cadastro (POST), que no backend detecta o CPF/CNPJ já existente e
+// apenas vincula o fornecedor à empresa atual, em vez de duplicar o registro.
+const preencherDadosImportadosFornecedor = (fornecedor) => {
+    Object.entries(campos).forEach(([key]) => {
+        if (key === "idFornecedor") return;
+        if (key === "telefone") maskTelefone.value = fornecedor.telefone || '';
+        else if (key === "cnpj") maskCNPJ.value = fornecedor.cnpj || '';
+        else if (key === "cep") maskCEP.value = fornecedor.cep || '';
+        else if (key === "celContato") maskCelContato.value = fornecedor.celcontato || '';
+        else setCampo(key, fornecedor[key.toLowerCase()]);
+    });
+
+    if (fornecedor.codbanco) {
+        buscarENomearBanco(fornecedor.codbanco);
+    }
+};
+
+// ===== Verificação de CPF/CNPJ já cadastrado (em qualquer empresa) =====
+// Ao sair do campo CNPJ (campo aceita CPF ou CNPJ), verifica se já existe um
+// fornecedor com esse documento. Mesma lógica usada em Funcionários.
+function configurarVerificacaoCnpj() {
+    const inputCnpj = document.getElementById("cnpj");
+    if (!inputCnpj) return;
+
+    if (cnpjBlurListener) {
+        inputCnpj.removeEventListener("blur", cnpjBlurListener);
+    }
+
+    cnpjBlurListener = async function () {
+        const cnpj = (maskCNPJ?.unmaskedValue || this.value.replace(/\D/g, ''));
+        if (!cnpj || (cnpj.length !== 11 && cnpj.length !== 14)) return;
+
+        const idAtual = document.getElementById("idFornecedor")?.value;
+        if (idAtual) return; // já está editando um fornecedor carregado
+
+        try {
+            const resposta = await fetchComToken(`/fornecedores/verificar-cnpj/${encodeURIComponent(cnpj)}`);
+
+            // fetchComToken devolve [] em 404 (documento novo, ninguém encontrado)
+            if (!resposta || Array.isArray(resposta) || !resposta.idfornecedor) {
+                return;
+            }
+
+            if (resposta.existeNaEmpresaAtual) {
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Fornecedor já cadastrado nesta empresa',
+                    text: 'Os dados deste fornecedor foram carregados para edição.',
+                    confirmButtonText: 'OK'
+                });
+                preencherFormulario(resposta.dados);
+                return;
+            }
+
+            const { isConfirmed } = await Swal.fire({
+                icon: 'question',
+                title: 'Fornecedor já cadastrado em outra empresa do grupo empresarial',
+                text: `Deseja importar os dados para a empresa "${nomeEmpresaAtual || 'atual'}"?`,
+                showCancelButton: true,
+                confirmButtonText: 'Sim, importar',
+                cancelButtonText: 'Não',
+                reverseButtons: true
+            });
+
+            if (isConfirmed) {
+                preencherDadosImportadosFornecedor(resposta.dados);
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Dados importados',
+                    text: 'Os dados vieram como sugestão de outra empresa do grupo — confira e ajuste o que for diferente nesta empresa antes de salvar.',
+                    confirmButtonText: 'OK, entendi'
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao verificar CPF/CNPJ do fornecedor:", error);
+        }
+    };
+
+    inputCnpj.addEventListener("blur", cnpjBlurListener);
+}
 
 const limparFormulario = () => {
     form.reset();
@@ -558,7 +645,13 @@ async function buscarENomearBanco(codigo) {
         nmFantasiaBlurListener = null;
     }
 
-    // Limpar o estado original do fornecedor  
+    const inputCnpj = document.getElementById("cnpj");
+    if (inputCnpj && cnpjBlurListener) {
+        inputCnpj.removeEventListener("blur", cnpjBlurListener);
+        cnpjBlurListener = null;
+    }
+
+    // Limpar o estado original do fornecedor
     window.FornecedorOriginal = { // <-- Acesse diretamente a variável do módulo
         idFornecedor: "",
         nmFantasia: "",
@@ -952,6 +1045,7 @@ function configurarEventosFornecedores() {
     console.log("Configurando eventos para o modal de fornecedors...");
     carregarFornecedores();
     adicionarEventoBlurFornecedor() ;
+    configurarVerificacaoCnpj(); // detecta CPF/CNPJ já cadastrado (nesta ou em outra empresa)
 }
 window.configurarEventosFornecedores = configurarEventosFornecedores;
 
