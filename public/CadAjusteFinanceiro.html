@@ -1,0 +1,87 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadAjusteFinanceiro.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalAjusteFinanceiro" class="modal">
+    <div class="modal-content">
+
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id="form-ajustefinanceiro">
+            <div class="title">
+                <h1>Crédito / Débito de Funcionário</h1>
+            </div>
+
+            <form id="form" name="form">
+                <fieldset>
+                    <legend>Novo Lançamento</legend>
+
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <select name="idFuncionario" id="idFuncionarioSelect" required>
+                                <option value="" disabled selected>Selecione o Funcionário...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <select name="idStaffEventoOrigem" id="idParticipacaoSelect">
+                                <option value="">Sem vínculo com participação específica</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-2colunas">
+                        <div class="form">
+                            <select name="tipo" id="tipoSelect" required>
+                                <option value="" disabled selected>Tipo...</option>
+                                <option value="Credito">Crédito (empresa deve ao funcionário)</option>
+                                <option value="Debito">Débito (funcionário deve à empresa)</option>
+                            </select>
+                        </div>
+                        <div class="form">
+                            <input type="text" name="valor" id="valorInput" placeholder="0,00" required>
+                            <label for="valorInput">Valor (R$)</label>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <textarea name="justificativa" id="justificativaInput" rows="3" required placeholder="Justificativa..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="previa-lancamentos">
+                        <h3>Lançamentos deste Funcionário</h3>
+                        <div class="table-container">
+                            <table class="table-previa">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Valor</th>
+                                        <th>Justificativa</th>
+                                        <th>Origem</th>
+                                        <th>Status</th>
+                                        <th>Data</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corpoHistoricoAjustes">
+                                    <tr><td colspan="7" style="text-align:center; color:#999;">Selecione um funcionário</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+
+        <div class="BTNs">
+            <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
+            <button type="button" id="Enviar" onclick="salvarAjusteFinanceiro(event)">Enviar</button>
+        </div>
+    </div>
+</div>

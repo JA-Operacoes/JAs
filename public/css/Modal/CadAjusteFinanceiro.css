@@ -1,0 +1,289 @@
+.modal-open main,
+.modal-open header,
+.modal-open #content,
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
+}
+
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%;
+  max-width: 700px;
+  display: none;
+  z-index: 1000;
+}
+
+#cadModalAjusteFinanceiro.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #4d4d4d;
+  padding: 5px;
+  margin-top: 10px;
+  width: 700px;
+  height: auto;
+  max-height: 90vh;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+.modal-open #modal-overlay,
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto;
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#form-ajustefinanceiro {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px;
+  background-color: #cacaca;
+  border-radius: 10px;
+  position: relative;
+  overflow-y: auto;
+  max-height: 85vh;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: transparent;
+  border-color: var(--dark-color);
+  margin: 0 auto;
+}
+
+legend {
+  margin-left: 20px;
+  padding: 0 10px;
+}
+
+.form-1coluna,
+.form-2colunas {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.form, .form-checkbox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 12px;
+  gap: 5px;
+  flex: 1;
+}
+
+.form input,
+.form select,
+.form textarea {
+  font-family: var(--Font-primary);
+  width: 100%;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 12px;
+  border: 1px solid #000000;
+  background: #fff;
+  color: #000000;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.form textarea {
+  height: auto;
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+.form label {
+  font-size: 13px;
+  color: #333;
+}
+
+/* --- Histórico de Lançamentos --- */
+
+.previa-lancamentos {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.previa-lancamentos h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #333;
+  text-align: center;
+}
+
+.table-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  background: white;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 6px;
+}
+.table-container::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 10px;
+}
+
+.table-previa {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table-previa thead th {
+  position: sticky;
+  top: 0;
+  background-color: #e9e9e9;
+  color: #555;
+  font-size: 12px;
+  z-index: 2;
+  padding: 8px 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.table-previa td {
+  text-align: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.table-previa tr:hover {
+  background-color: #f1f1f1;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  display: inline-block;
+  color: #fff;
+}
+
+.status-badge.pendente { background-color: #ffc107; color: #212529; }
+.status-badge.pago { background-color: #28a745; }
+.status-badge.suspenso { background-color: #6c757d; }
+.status-badge.rejeitado { background-color: #dc3545; }
+
+.tipo-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  display: inline-block;
+}
+.tipo-badge.credito { background-color: #16a34a; }
+.tipo-badge.debito { background-color: #dc2626; }
+
+.btn-editar-ajuste {
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #6c757d;
+  border-radius: 6px;
+}
+.btn-editar-ajuste:hover {
+  background-color: #545b62;
+}
+
+button.close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 200px;
+  height: 30px;
+  margin: 0;
+}
+
+.Close {
+  display: flex;
+  justify-content: center;
+  height: 25px;
+}
+
+button {
+  font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
+  font-size: 18px;
+  background-color: var(--primary-color);
+  width: 25%;
+  color: var(--font-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+
+.BTNs {
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.BTNs button:hover {
+  background-color: var(--hover-color);
+}
