@@ -1,5 +1,7 @@
 import { fetchComToken, aplicarTema  } from '../utils/utils.js';
 
+let nomeEmpresaAtual = '';
+
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
 
@@ -10,6 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(empresa => {
                 // Usa o nome fantasia como tema
                 const tema = empresa.nmfantasia;
+                nomeEmpresaAtual = empresa.nmfantasia || '';
                 aplicarTema(tema);
             })
             .catch(error => {
@@ -28,8 +31,9 @@ let selectNomeFuncionarioChangeListener = null;
 let selectApelidoFuncionarioChangeListener = null; 
 let inputNomeFuncionarioBlurListener = null; 
 let inputApelidoFuncionarioBlurListener = null; 
-let inputNomeFuncionarioInputListener = null; 
-let inputApelidoFuncionarioInputListener = null; 
+let inputNomeFuncionarioInputListener = null;
+let inputApelidoFuncionarioInputListener = null;
+let cpfBlurListener = null;
 
 if (typeof window.funcionarioriginal === "undefined") {
     window.funcionarioOriginal = {
@@ -308,6 +312,214 @@ function configurarBuscaCBO() {
     });
 }
 
+// ===== Verificação de CPF já cadastrado (em qualquer empresa) =====
+// Ao sair do campo CPF, verifica se já existe um funcionário com esse CPF.
+// - Se já pertence à empresa atual: carrega os dados para edição (como no fluxo por nome).
+// - Se pertence a outra empresa: oferece importar os dados pessoais para a empresa atual,
+//   economizando a digitação. Os campos específicos do vínculo empregatício (Função, CBO,
+//   Salário, Admissão, Ativo, Bonificado, VA/VT, Plano de Saúde, Dependentes) NÃO são
+//   importados — cada empresa pode ter condições diferentes para a mesma pessoa.
+function configurarVerificacaoCpf() {
+    const inputCpf = document.getElementById("cpf");
+    if (!inputCpf) return;
+
+    if (cpfBlurListener) {
+        inputCpf.removeEventListener("blur", cpfBlurListener);
+    }
+
+    cpfBlurListener = async function () {
+        const cpf = this.value.trim();
+        if (!cpf || cpf.length < 14) return; // CPF incompleto (formato 000.000.000-00)
+
+        const idAtual = document.getElementById("idFuncionario")?.value;
+        if (idAtual) return; // já está editando um funcionário carregado
+
+        try {
+            const resposta = await fetchComToken(`/funcionarios/verificar-cpf/${encodeURIComponent(cpf)}`);
+
+            // fetchComToken devolve [] quando a rota responde 404 (CPF novo, ninguém encontrado)
+            if (!resposta || Array.isArray(resposta) || !resposta.idfuncionario) {
+                return;
+            }
+
+            if (resposta.existeNaEmpresaAtual) {
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Funcionário já cadastrado nesta empresa',
+                    text: 'Os dados deste funcionário foram carregados para edição.',
+                    confirmButtonText: 'OK'
+                });
+                await carregarFuncionarioDescricao(resposta.dados.nome);
+                return;
+            }
+
+            const { isConfirmed } = await Swal.fire({
+                icon: 'question',
+                title: 'Funcionário já cadastrado em outra empresa do grupo empresarial',
+                text: `Deseja importar os dados para a empresa "${nomeEmpresaAtual || 'atual'}"?`,
+                showCancelButton: true,
+                confirmButtonText: 'Sim, importar',
+                cancelButtonText: 'Não',
+                reverseButtons: true
+            });
+
+            if (isConfirmed) {
+                preencherDadosImportadosFuncionario(resposta.dados);
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Dados importados',
+                    text: 'Os dados de vínculo (perfil, função, salário, admissão, dependentes, etc.) vieram como sugestão de outra empresa do grupo — confira e ajuste o que for diferente nesta empresa antes de salvar.',
+                    confirmButtonText: 'OK, entendi'
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao verificar CPF do funcionário:", error);
+        }
+    };
+
+    inputCpf.addEventListener("blur", cpfBlurListener);
+}
+
+// Preenche os dados PESSOAIS de um funcionário já existente (achado por CPF em outra
+// empresa). Propositalmente NÃO preenche `idFuncionario` — o formulário continua em modo
+// de novo cadastro (POST), que no backend detecta o CPF já existente e apenas vincula o
+// funcionário à empresa atual, em vez de duplicar o registro.
+function preencherDadosImportadosFuncionario(funcionario) {
+    // Foto é dado pessoal (mora em `funcionarios`, não em `funcionarioempresas`) — já
+    // está associada ao mesmo idfuncionario que será vinculado à empresa atual, só
+    // faltava mostrar a pré-visualização aqui (o dado em si já estava correto).
+    const previewFoto = document.getElementById('previewFoto');
+    const fileNameSpan = document.getElementById('fileName');
+    const uploadHeader = document.getElementById('uploadHeader');
+    if (previewFoto && fileNameSpan && uploadHeader) {
+        if (funcionario.foto) {
+            previewFoto.src = `/${funcionario.foto}`;
+            previewFoto.style.display = 'block';
+            uploadHeader.style.display = 'none';
+            fileNameSpan.textContent = funcionario.foto.split('/').pop() || 'Foto carregada';
+        } else {
+            previewFoto.src = '#';
+            previewFoto.style.display = 'none';
+            uploadHeader.style.display = 'block';
+            fileNameSpan.textContent = 'Nenhum arquivo selecionado';
+        }
+    }
+
+    document.getElementById("nome").value = funcionario.nome || '';
+    document.getElementById("apelido").value = funcionario.apelido || '';
+    document.getElementById("rg").value = funcionario.rg || '';
+    document.getElementById("dataNasc").value = funcionario.datanascimento?.split('T')[0] || '';
+
+    const checkboxPcd = document.getElementById("pcd");
+    if (checkboxPcd) checkboxPcd.checked = funcionario.pcd === true;
+
+    // Perfil/Ativo/Bonificado/MEI: sugestão editável vinda de um vínculo já existente
+    // (não são "verdade" pra empresa nova — o backend manda o mais recente encontrado
+    // como ponto de partida). O usuário revisa e ajusta se for diferente nesta empresa.
+    if (funcionario.perfil) {
+        document.querySelectorAll('input[name="perfil"]').forEach((radio) => {
+            radio.checked = radio.value === funcionario.perfil;
+        });
+        if (typeof atualizarFieldsetFinanceiro === 'function') atualizarFieldsetFinanceiro();
+    }
+
+    const checkboxAtivo = document.getElementById("ativo");
+    if (checkboxAtivo) checkboxAtivo.checked = funcionario.ativo === true;
+
+    const checkboxBonificado = document.getElementById("bonificado");
+    if (checkboxBonificado) checkboxBonificado.checked = funcionario.bonificado === true;
+
+    const checkboxMei = document.getElementById("mei");
+    if (checkboxMei) checkboxMei.checked = funcionario.mei === true;
+
+    const selectLinguas = document.getElementById('Linguas');
+    if (selectLinguas) {
+        selectLinguas.value = funcionario.fluencia || '';
+        atualizarCamposLinguas();
+        if (funcionario.idiomasadicionais) {
+            try {
+                const idiomasSalvos = JSON.parse(funcionario.idiomasadicionais);
+                const inputsIdioma = document.querySelectorAll('#idiomasContainer .idiomaInput');
+                inputsIdioma.forEach((input, index) => {
+                    if (idiomasSalvos[index]) input.value = idiomasSalvos[index];
+                });
+            } catch (e) { /* ignora idiomas inválidos */ }
+        }
+    }
+
+    document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
+    document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
+    document.getElementById("email").value = funcionario.email || '';
+    document.getElementById("site").value = funcionario.site || '';
+    document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
+
+    document.getElementById("codBanco").value = funcionario.codigobanco || '';
+    if (funcionario.codigobanco) preencherDadosBancoPeloCodigo(funcionario.codigobanco);
+    document.getElementById("pix").value = funcionario.pix || '';
+    document.getElementById("agencia").value = funcionario.agencia || '';
+    document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
+    document.getElementById("nConta").value = funcionario.numeroconta || '';
+    document.getElementById("digitoConta").value = funcionario.digitoconta || '';
+    const selectTipoConta = document.getElementById('tpConta');
+    if (selectTipoConta) selectTipoConta.value = funcionario.tipoconta || '';
+
+    document.getElementById("cep").value = funcionario.cep || '';
+    document.getElementById("rua").value = funcionario.rua || '';
+    document.getElementById("numero").value = funcionario.numero || '';
+    document.getElementById("complemento").value = funcionario.complemento || '';
+    document.getElementById("bairro").value = funcionario.bairro || '';
+    document.getElementById("cidade").value = funcionario.cidade || '';
+    document.getElementById("estado").value = funcionario.estado || '';
+    document.getElementById("pais").value = funcionario.pais || '';
+
+    // Dados de RH (função, cbo, admissão, salário, dependentes, VA/VT, plano de saúde):
+    // mesma lógica de sugestão editável — vêm do vínculo mais recente já existente.
+    const inputFuncao = document.getElementById("funcao");
+    if (inputFuncao) inputFuncao.value = funcionario.funcao || '';
+    const inputCbo = document.getElementById("cbo");
+    if (inputCbo) inputCbo.value = funcionario.cbo || '';
+    const inputAdmissao = document.getElementById("admissao");
+    if (inputAdmissao) inputAdmissao.value = funcionario.admissao?.split('T')[0] || '';
+
+    const inputSalario = document.getElementById("salario");
+    if (inputSalario) {
+        let valorSalario = parseFloat(funcionario.salario) || 0;
+        if (valorSalario > 100000) valorSalario = valorSalario / 100;
+        inputSalario.value = valorSalario.toFixed(2);
+        if (typeof formatReais === 'function') formatReais(inputSalario);
+    }
+    const inputVA = document.getElementById("valealim");
+    if (inputVA) {
+        inputVA.value = (parseFloat(funcionario.valealim) || 0).toFixed(2);
+        if (typeof formatReais === 'function') formatReais(inputVA);
+    }
+    const inputVT = document.getElementById("valetrnsp");
+    if (inputVT) {
+        inputVT.value = (parseFloat(funcionario.valetrnsp) || 0).toFixed(2);
+        if (typeof formatReais === 'function') formatReais(inputVT);
+    }
+
+    const inputDependentes = document.getElementById("dependentes");
+    if (inputDependentes) {
+        inputDependentes.value = funcionario.dependentes || '0';
+        let dependentesDadosSugeridos = funcionario.dependentesdados;
+        if (typeof dependentesDadosSugeridos === 'string') {
+            try { dependentesDadosSugeridos = JSON.parse(dependentesDadosSugeridos || '[]'); }
+            catch (e) { dependentesDadosSugeridos = []; }
+        }
+        if (!Array.isArray(dependentesDadosSugeridos)) dependentesDadosSugeridos = [];
+        gerarCamposDependentes(funcionario.dependentes || 0, dependentesDadosSugeridos);
+    }
+
+    const checkboxAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
+    if (checkboxAdesaoPlanoSaude) {
+        checkboxAdesaoPlanoSaude.checked = funcionario.adesaoplanosaude === true;
+        if (typeof atualizarTipoPlanoSaude === 'function') atualizarTipoPlanoSaude();
+    }
+    const selectTipoPlanoSaude = document.getElementById("tipoPlanoSaude");
+    if (selectTipoPlanoSaude) selectTipoPlanoSaude.value = funcionario.tipoplanosaude || '';
+}
+
 
 async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
@@ -366,6 +578,7 @@ async function verificaFuncionarios() {
     atualizarFieldsetFinanceiro(); // estado inicial
 
     configurarBuscaCBO(); // autocomplete de CBO pela Função
+    configurarVerificacaoCpf(); // detecta CPF já cadastrado (nesta ou em outra empresa)
 
     botaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();
@@ -750,14 +963,21 @@ function mostrarBuscaFuncionarios() {
     if (lista) lista.style.display = "block";
 }
 
+// Remove acentos pra comparação (ex.: "Márcia" e "Marcia" batem na busca), mas
+// nunca é usado pra exibir nada — o texto mostrado no <li> continua com o
+// acento salvo de verdade (li.textContent vem direto de f.nome/f.apelido).
+function removerAcentosBusca(str) {
+    return String(str || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 function filtrarBuscaFuncionarios() {
     const lista = document.getElementById("func-busca-lista");
     if (!lista) return;
-    const termoNome = (document.getElementById("nome")?.value || "").toUpperCase().trim();
-    const termoApelido = (document.getElementById("apelido")?.value || "").toUpperCase().trim();
+    const termoNome = removerAcentosBusca((document.getElementById("nome")?.value || "").toUpperCase().trim());
+    const termoApelido = removerAcentosBusca((document.getElementById("apelido")?.value || "").toUpperCase().trim());
     lista.querySelectorAll("li").forEach((li) => {
-        const nome = (li.dataset.nome || "").toUpperCase();
-        const apelido = (li.dataset.apelido || "").toUpperCase();
+        const nome = removerAcentosBusca((li.dataset.nome || "").toUpperCase());
+        const apelido = removerAcentosBusca((li.dataset.apelido || "").toUpperCase());
         const okNome = !termoNome || nome.includes(termoNome);
         const okApelido = !termoApelido || apelido.includes(termoApelido);
         li.style.display = (okNome && okApelido) ? "block" : "none";
@@ -889,6 +1109,12 @@ function desinicializarFuncionariosModal() {
         codBancoInput.removeEventListener("blur", codBancoBlurListener);
         codBancoBlurListener = null;
         console.log("Listener de blur do codBanco removido.");
+    }
+    const inputCpf = document.getElementById("cpf");
+    if (inputCpf && cpfBlurListener) {
+        inputCpf.removeEventListener("blur", cpfBlurListener);
+        cpfBlurListener = null;
+        console.log("Listener de blur do CPF removido.");
     }
     if (selectLinguas && selectLinguasChangeListener) {
         selectLinguas.removeEventListener("change", selectLinguasChangeListener);
@@ -1158,7 +1384,22 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
     try {
         console.log("nome:", nome);
         const funcionario = await fetchComToken(`/funcionarios?nome=${encodeURIComponent(nome)}`);
-        
+
+        if (funcionario && funcionario.ambiguous) {
+            // Mais de um funcionário bateu ignorando acento (ex.: "Marcia" e "Márcia" são
+            // pessoas diferentes) — não adivinha qual é, pede pra usar o Pesquisar.
+            const lista = funcionario.opcoes
+                .map(o => `• ${o.nome}${o.apelido ? ' — ' + o.apelido : ''}`)
+                .join('\n');
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Mais de um funcionário encontrado',
+                text: `Encontrei mais de um funcionário parecido com "${nome}" (ignorando acento). Use o botão "Pesquisar" pra escolher o certo:\n${lista}`,
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
         if (!funcionario || !funcionario.idfuncionario) throw new Error("Evento não encontrado");
         //if (funcionario) {
 

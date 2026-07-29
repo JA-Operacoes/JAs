@@ -29,34 +29,39 @@ router.get("/planocontas", autenticarToken(), async (req, res) => {
 
 
 async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa, perfil = null) {
-    
+
     console.log("🔍 Buscando Vínculo:", { tabelaPrincipal, idempresa, perfil });
-    
+
+    // Para funcionários, fornecedores e clientes, `ativo` (e `perfil`, só p/
+    // funcionário) moraram pra tabela de vínculo (funcionarioempresas/
+    // fornecedorempresas/clienteempresas) nas migrações de campos por-empresa.
+    const aliasVinculo = ['funcionarios', 'fornecedores', 'clientes'].includes(tabelaPrincipal) ? 'r' : 'p';
+
     let query = `
-        SELECT p.${idCol} AS id, p.${nomeCol} AS nome 
+        SELECT p.${idCol} AS id, p.${nomeCol} AS nome
         FROM ${tabelaPrincipal} p
         INNER JOIN ${tabelaRelacao} r ON p.${idCol} = r.${fkCol}
-        WHERE r.idempresa = $1 AND p.ativo = true
+        WHERE r.idempresa = $1 AND ${aliasVinculo}.ativo = true
     `;
-    
+
     const params = [idempresa];
 
     if (perfil) {
         // Normaliza para minúsculas e remove espaços para comparação segura
         const p = perfil.toLowerCase().trim();
 
-        if (p.includes('func')) { 
+        if (p.includes('func')) {
             // Se o valor do rádio for "funcionário", busca Interno ou Externo
             // O ILIKE garante que encontre "Interno" ou "interno" no banco
-            query += ` AND (p.perfil ILIKE 'Interno' OR p.perfil ILIKE 'Externo')`;
+            query += ` AND (${aliasVinculo}.perfil ILIKE 'Interno' OR ${aliasVinculo}.perfil ILIKE 'Externo')`;
         } else if (p.includes('free') || p.includes('sem')) {
             // Se o valor for "free-lancer", busca Freelancer ou Lote
-            query += ` AND (p.perfil ILIKE 'Freelancer' OR p.perfil ILIKE 'Lote')`;
+            query += ` AND (${aliasVinculo}.perfil ILIKE 'Freelancer' OR ${aliasVinculo}.perfil ILIKE 'Lote')`;
         }
     }
 
     query += ` ORDER BY nome`;
-    
+
     const result = await pool.query(query, params);
     return result.rows;
 }

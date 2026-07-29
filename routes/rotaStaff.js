@@ -176,10 +176,19 @@ router.get("/funcionarios",  async (req, res) => {
   try {         
       // Busca TODOS os funcionários associados à empresa do usuário logado
       const result = await pool.query(
-      `SELECT func.*, s.avaliacao FROM funcionarios func
+      `SELECT func.idfuncionario, func.foto, func.nome, func.cpf, func.rg, func.fluencia, func.idiomasadicionais,
+              func.celularpessoal, func.celularfamiliar, func.email, func.site, func.codigobanco, func.pix,
+              func.numeroconta, func.digitoconta, func.agencia, func.digitoagencia, func.tipoconta,
+              func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
+              func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
+              funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
+              funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+              funce.tipoplanosaude, funce.dependentesdados,
+              s.avaliacao
+      FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
       LEFT JOIN staff s ON s.idfuncionario = func.idfuncionario
-      WHERE funce.idempresa = $1 AND func.ativo = 'true' ORDER BY func.nome ASC`,
+      WHERE funce.idempresa = $1 AND funce.ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
       return result.rows.length
@@ -201,7 +210,9 @@ router.get('/clientes', async (req, res) => {
   try {    
   console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
   const result = await pool.query(
-    `SELECT c.* 
+    `SELECT c.idcliente, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.emailcliente, c.site, c.telefone,
+            c.cep, c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.pais, c.tpcliente,
+            ce.ativo, ce.nmcontato, ce.celcontato, ce.emailcontato, ce.emailnfe, ce.responsavelcontrato
     FROM clientes c
     INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
     WHERE ce.idempresa = $1 ORDER BY nmfantasia`
@@ -1860,11 +1871,12 @@ router.put("/:idStaffEvento",
 
             // 1. BUSCA DADOS ANTIGOS
             const oldResult = await client.query(`
-                SELECT se.*, f.perfil 
-                FROM staffeventos se 
-                JOIN staffempresas sme ON se.idstaff = sme.idstaff 
+                SELECT se.*, fe.perfil
+                FROM staffeventos se
+                JOIN staffempresas sme ON se.idstaff = sme.idstaff
                 JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-                WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, 
+                JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = sme.idempresa
+                WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
                 [idStaffEvento, idempresa]
             );
             

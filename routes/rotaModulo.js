@@ -143,37 +143,80 @@ router.put("/:id",
   async (req, res) => {
   const id = req.params.id;
   const idempresa = req.idempresa;
-  const { nmModulo} = req.body;
+  const { nmModulo, empresas } = req.body;
 
   if (isNaN(id)) {
-      return res.status(400).json({ message: "ID do módulo inválido. Por favor, corrija o front-end." });
-  }
+      return res.status(400).json({ message: "ID do módulo inválido. Por favor, corrija o front-end." });
+  }
 
+  let client;
   try {
-      const result = await pool.query(
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      const result = await client.query(
         `UPDATE modulos m
           SET modulo = $1
           FROM moduloempresas me
           WHERE m.idmodulo = $2 AND me.idmodulo = m.idmodulo AND me.idempresa = $3
-          RETURNING m.idmodulo`, 
+          RETURNING m.idmodulo`,
         [nmModulo, id, idempresa]
       );
 
-      if (result.rowCount) {
-        const moduloAtualizadoId = result.rows[0].idmodulo; 
-        
-        res.locals.acao = 'atualizou';
-        res.locals.idregistroalterado = moduloAtualizadoId; 
-        res.locals.idusuarioAlvo = null; 
-        res.locals.dadosnovos = req.body;
-
-        return res.json({ message: "Módulo atualizado com sucesso!", modulos: result.rows[0] });
-      } else {
+      if (!result.rowCount) {
+          await client.query('ROLLBACK');
           return res.status(404).json({ message: "Módulo não encontrado para atualizar." });
       }
+
+      const moduloAtualizadoId = result.rows[0].idmodulo;
+
+      // Sincroniza as empresas vinculadas ao módulo com o que veio do front-end
+      // (antes esta rota só trocava o nome do módulo e ignorava o array `empresas`).
+      let empresasAdicionadas = [];
+      if (Array.isArray(empresas)) {
+          const empresasNovasIds = empresas.map((e) => parseInt(e)).filter((e) => !isNaN(e));
+
+          const atuaisResult = await client.query(
+              `SELECT idempresa FROM moduloempresas WHERE idmodulo = $1`,
+              [moduloAtualizadoId]
+          );
+          const atuaisIds = atuaisResult.rows.map((r) => r.idempresa);
+
+          empresasAdicionadas = empresasNovasIds.filter((e) => !atuaisIds.includes(e));
+          const paraRemover = atuaisIds.filter((e) => !empresasNovasIds.includes(e));
+
+          for (const idEmpresaNova of empresasAdicionadas) {
+              await client.query(
+                  `INSERT INTO moduloempresas (idmodulo, idempresa) VALUES ($1, $2)`,
+                  [moduloAtualizadoId, idEmpresaNova]
+              );
+          }
+          if (paraRemover.length > 0) {
+              await client.query(
+                  `DELETE FROM moduloempresas WHERE idmodulo = $1 AND idempresa = ANY($2::int[])`,
+                  [moduloAtualizadoId, paraRemover]
+              );
+          }
+      }
+
+      await client.query('COMMIT');
+
+      res.locals.acao = 'atualizou';
+      res.locals.idregistroalterado = moduloAtualizadoId;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = req.body;
+
+      return res.json({
+          message: "Módulo atualizado com sucesso!",
+          modulos: { idmodulo: moduloAtualizadoId, modulo: nmModulo },
+          empresasAdicionadas
+      });
     } catch (error) {
+            if (client) await client.query('ROLLBACK');
             console.error("Erro ao atualizar módulo:", error);
             res.status(500).json({ message: "Erro ao atualizar módulos." });
+    } finally {
+            if (client) client.release();
     }
 });
 
@@ -214,16 +257,16 @@ router.post("/", verificarPermissao('Modulos', 'cadastrar'),
       //     [idmodulo, idempresa]
       // );
 
-      const insertPromises = empresas.map(id => {
-          // Garante que o ID é um número (segurança)
-          const idEmpresaNum = parseInt(id); 
-          if (isNaN(idEmpresaNum)) return null; 
+      const empresasAdicionadas = empresas
+          .map(id => parseInt(id))
+          .filter(idEmpresaNum => !isNaN(idEmpresaNum));
 
+      const insertPromises = empresasAdicionadas.map(idEmpresaNum => {
           return client.query(
               "INSERT INTO moduloempresas (idmodulo, idempresa) VALUES ($1, $2) ON CONFLICT DO NOTHING",
               [idmodulo, idEmpresaNum]
           );
-      }).filter(p => p !== null); // Remove promessas nulas (se o ID não for válido)
+      });
 
       // Executa todas as inserções
       await Promise.all(insertPromises);
@@ -232,11 +275,15 @@ router.post("/", verificarPermissao('Modulos', 'cadastrar'),
 
       const novoModuloId = idmodulo; // ID do módulo recém-criado
       res.locals.acao = 'cadastrou';
-      res.locals.idregistroalterado = novoModuloId; 
+      res.locals.idregistroalterado = novoModuloId;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = { ...novoModulo, empresas };
 
-      res.status(201).json({ mensagem: "Módulos salvo com sucesso!", modulos: novoModuloId }); // Status 201 para criação
+      res.status(201).json({
+          mensagem: "Módulos salvo com sucesso!",
+          modulos: novoModuloId,
+          empresasAdicionadas
+      }); // Status 201 para criação
   } catch (error) {
       if (client) { // Se a conexão foi estabelecida, faz o rollback
           await client.query('ROLLBACK');
