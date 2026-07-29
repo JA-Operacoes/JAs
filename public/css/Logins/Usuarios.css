@@ -94,7 +94,7 @@ body{
 
 .user-box{
   width: 100%;
-  max-width: 300px;
+  max-width: 250px;
   position: relative;
   margin-bottom: 20px;
 }
@@ -382,8 +382,9 @@ option{
 
 
 .form-3colunas {
-  max-width: 300px;
+  width: 900px;
   display: flex;
+  justify-content: center;
   gap: 20px;
 }
 
@@ -393,7 +394,6 @@ option{
 }
 
 .checkbox-coluna {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: flex-start;

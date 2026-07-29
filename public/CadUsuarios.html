@@ -61,6 +61,29 @@
               <label for="sobrenome">Sobrenome</label>
             </div>
           </div>
+          <div class="user-box">
+            <input type="email" id="email" name="email" required="">
+            <input type="hidden" id="email_original">
+            <label for="email">Email</label>
+          </div>
+        </div>
+
+        <div class="form-3colunas">
+          <div class="user-box camposenha">
+            <input type="password" id="senha" name="senha" required="">
+            <label>Senha</label>
+            <span toggle="#senha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-senha"></i>
+            </span>
+          </div>
+
+          <div class="user-box camposenha">
+            <input type="password" id="confirmasenha" name="confirmasenha" required="">
+            <label> Confirmar senha</label>
+            <span toggle="#confirmasenha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
+            </span>
+          </div>
 
           <!-- Checkbox -->
           <div class="checkbox-wrapper-33 checkbox-coluna">
@@ -74,14 +97,7 @@
               </span>              
             </label>
           </div>
-        </div>
-        
-    
-          
-        <div class="user-box">
-          <input type="email" id="email" name="email" required="">
-          <input type="hidden" id="email_original">
-          <label for="email">Email</label>
+
         </div>
 
         <div class="user-box dupla select">
@@ -96,21 +112,7 @@
             </div>
         </div>
 
-        <div class="user-box camposenha">
-          <input type="password" id="senha" name="senha" required="">
-          <label>Senha</label>
-          <span toggle="#senha" class="toggle-senha">
-            <i class="fa-regular fa-eye" id="icone-senha"></i>
-          </span>
-        </div>
-
-        <div class="user-box camposenha">
-          <input type="password" id="confirmasenha" name="confirmasenha" required="">
-          <label> Confirmar senha</label>
-          <span toggle="#confirmasenha" class="toggle-senha">
-            <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
-          </span>
-        </div>
+        
 
         <div class="bts">
           <!-- <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>-->
