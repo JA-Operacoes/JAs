@@ -206,6 +206,40 @@ router.get("/verificar-cpf/:cpf", verificarPermissao('Funcionarios', 'cadastrar'
         console.error("Erro ao verificar CPF do funcionário:", error);
         res.status(500).json({ message: "Erro ao verificar CPF." });
     }
+// Planos de saude para o cadastro de funcionarios. Usa a permissao de Funcionarios
+// (quem cadastra funcionario pode listar planos/tipos, sem precisar do modulo PlanoSaude).
+router.get("/planos-saude", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT nomeplano AS nome, COUNT(*)::int AS qtdtipos
+         FROM tipoplanosaude
+        WHERE idempresa = $1 AND ativo = true
+        GROUP BY nomeplano
+        ORDER BY lower(nomeplano)`,
+      [req.idempresa]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Erro ao listar planos de saude (funcionarios):", error);
+    res.status(500).json({ message: "Erro ao listar planos de saude." });
+  }
+});
+
+// Tipos (com id) de um plano especifico, para o segundo select.
+router.get("/planos-saude/:nome/tipos", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT idtipoplanosaude, nometipo
+         FROM tipoplanosaude
+        WHERE idempresa = $1 AND lower(nomeplano) = lower($2) AND ativo = true
+        ORDER BY lower(nometipo)`,
+      [req.idempresa, req.params.nome]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Erro ao listar tipos de plano (funcionarios):", error);
+    res.status(500).json({ message: "Erro ao listar tipos de plano." });
+  }
 });
 
 // GET todas ou por descrição
@@ -231,11 +265,14 @@ router.get("/", verificarPermissao("Funcionarios", "pesquisar"), async (req, res
             // (ex.: "Marcia" e "Márcia" cadastradas separadamente), não adivinha qual é —
             // devolve as opções pro front pedir pra escolher em vez de carregar a errada.
             const result = await pool.query(
-                `SELECT ${camposSelect} FROM funcionarios func
+                `SELECT func.*, tp.nomeplano AS nomeplanosaude, tp.nometipo AS nometiposaude
+                 FROM funcionarios func
                  INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-                 WHERE funce.idempresa = $1 AND unaccent(func.nome) ILIKE unaccent($2)
+                 LEFT JOIN tipoplanosaude tp ON tp.idtipoplanosaude = func.idtipoplanosaude
+                 WHERE funce.idempresa = $1 AND  unaccent(func.nome) ILIKE unaccent($2)
                  ORDER BY func.nome ASC`,
-                [idempresa, nome]
+                [idempresa, nome] // Use % para pesquisa parcial se for o caso
+                // [idempresa, `%${nome}%`]
             );
 
             if (result.rows.length === 0) {
@@ -317,7 +354,7 @@ router.put("/:id",
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para um
@@ -394,10 +431,10 @@ router.put("/:id",
             // 2. Atualiza os dados PESSOAIS em `funcionarios`
             const queryPessoal = `
                 UPDATE funcionarios func
-                SET foto = $1, nome = $2, cpf = $3, rg = $4, fluencia = $5, idiomasadicionais = $6,
-                    celularpessoal = $7, celularfamiliar = $8, email = $9, site = $10, codigobanco = $11,
-                    pix = $12, numeroconta = $13, digitoConta = $14, agencia = $15, digitoAgencia = $16, tipoconta = $17, cep = $18, rua = $19, numero = $20,
-                    complemento = $21, bairro = $22, cidade = $23, estado = $24, pais = $25, datanascimento = $26, nomefamiliar = $27, apelido = $28, pcd = $29
+                SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
+                    celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
+                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, mei = $34, salario = $35 , funcao = $36, cbo = $37, dependentes = $38, admissao = $39, valealim = $40, valetrnsp = $41, adesaoplanosaude = $42, tipoplanosaude = $43, dependentesdados = $44, idtipoplanosaude = $47
                 FROM funcionarioempresas fe
                 WHERE func.idfuncionario = $30 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $31
                 RETURNING func.idfuncionario, func.foto;
@@ -408,8 +445,11 @@ router.put("/:id",
                 celularPessoal, celularFamiliar, email, site, codigoBanco,
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
-                dataNascimento, nomeFamiliar, apelido, pcd,
-                id, idempresa
+                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
+                vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
+                adesaoPlanoSaude, vazioParaNull(tipoPlanoSaude), dependentesDadosJson,
+                id, idempresa, // ID do funcionário para a cláusula WHERE
+                vazioParaNull(idTipoPlanoSaude) // $47
             ];
 
             const result = await client.query(queryPessoal, valuesPessoal);
@@ -503,7 +543,7 @@ router.post("/",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
             complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para array.
@@ -607,14 +647,17 @@ router.post("/",
                     foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
-                RETURNING idFuncionario, foto`,
+                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
+                    adesaoplanosaude, tipoplanosaude, dependentesdados, idtipoplanosaude
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45)
+                RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
+                    vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
+                    adesaoPlanoSaude, vazioParaNull(tipoPlanoSaude), dependentesDadosJson, vazioParaNull(idTipoPlanoSaude)
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];

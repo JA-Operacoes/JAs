@@ -204,6 +204,68 @@ function calcularTotais(salariobase, itens) {
 // ===== Motor de cálculo da rescisão =====
 function round2(v) { return Math.round((Number(v) || 0) * 100) / 100; }
 
+// Extrai {y,m,d} de uma data vinda do banco (Date) ou string 'YYYY-MM-DD',
+// sem depender de fuso (evita o típico off-by-one de new Date('YYYY-MM-DD')).
+function partesData(v) {
+  if (!v) return null;
+  const s = String(v.toISOString ? v.toISOString() : v).slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return { y: +m[1], m: +m[2] - 1, d: +m[3] };
+}
+
+// Idade (anos completos) de 'nascimento' na data de referência {y,m,d}.
+function idadeEmParts(nascimento, ref) {
+  const n = partesData(nascimento);
+  if (!n || !ref) return null;
+  let idade = ref.y - n.y;
+  if (ref.m < n.m || (ref.m === n.m && ref.d < n.d)) idade--;
+  return Math.max(0, idade);
+}
+
+// Percentual do plano do TITULAR custeado pela empresa (o funcionário paga o resto).
+// Dependentes são cobrados integralmente do funcionário.
+const PLANO_EMPRESA_PCT_TITULAR = 0.40;
+
+// Desconto de plano de saúde: soma a parte do FUNCIONÁRIO da faixa etária do titular
+// (empresa paga 40%, funcionário 60%) + o valor CHEIO de cada dependente.
+// Cada item traz valorFaixa (cheio), parteEmpresa e valor (o que o funcionário paga).
+function calcularPlanoSaude(funcionario, faixas, ref) {
+  if (!Array.isArray(faixas) || !faixas.length) return { total: 0, itens: [] };
+  const valorDaFaixa = (idade) => {
+    if (idade == null) return null;
+    const f = faixas.find((fx) =>
+      (fx.de == null || idade >= fx.de) && (fx.ate == null || idade <= fx.ate));
+    return f ? (Number(f.valor) || 0) : null;
+  };
+
+  const itens = [];
+  const idadeTit = idadeEmParts(funcionario.datanascimento, ref);
+  const vTit = valorDaFaixa(idadeTit);
+  if (vTit != null) {
+    const parteEmpresa = round2(vTit * PLANO_EMPRESA_PCT_TITULAR);
+    const parteFunc = round2(vTit - parteEmpresa);
+    itens.push({
+      nome: `${funcionario.nome} (titular)`, idade: idadeTit, titular: true,
+      valorFaixa: vTit, parteEmpresa, valor: parteFunc,
+    });
+  }
+
+  let deps = funcionario.dependentesdados;
+  if (typeof deps === "string") { try { deps = JSON.parse(deps); } catch { deps = []; } }
+  (Array.isArray(deps) ? deps : []).forEach((dep) => {
+    const idade = idadeEmParts(dep.nascimento, ref);
+    const v = valorDaFaixa(idade);
+    if (v != null) itens.push({
+      nome: dep.nome || "Dependente", idade, titular: false,
+      valorFaixa: v, parteEmpresa: 0, valor: v,
+    });
+  });
+
+  const total = round2(itens.reduce((s, i) => s + i.valor, 0));
+  return { total, itens, empresaPctTitular: PLANO_EMPRESA_PCT_TITULAR };
+}
+
 // Anos completos de serviço entre admissão e desligamento (p/ aviso prévio proporcional).
 function anosCompletosEntre(adm, fim) {
   let anos = fim.getFullYear() - adm.getFullYear();
@@ -657,8 +719,9 @@ router.get("/holerite", async (req, res) => {
     if (!idfuncionario || !mes || !ano) return res.status(400).json({ error: "idfuncionario, mes e ano obrigatórios." });
 
     const func = await pool.query(
-      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.funcao, fe.cbo, fe.admissao,
-              fe.valealim, fe.valetrnsp
+      `SELECT f.idfuncionario, f.nome, f.salario, f.dependentes, f.funcao, f.cbo, f.admissao,
+              f.valealim, f.valetrnsp, f.datanascimento, f.dependentesdados,
+              f.adesaoplanosaude, f.idtipoplanosaude
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -670,11 +733,23 @@ router.get("/holerite", async (req, res) => {
     const valealimDia = Number(funcionario.valealim) || 0;
     const valetrnspDia = Number(funcionario.valetrnsp) || 0;
     const diasUteis = contarDiasUteis(ano, mes);
+
+    // Plano de saúde: desconto por faixa etária (titular + dependentes) na competência.
+    let planoSaude = { total: 0, itens: [] };
+    if (funcionario.adesaoplanosaude && funcionario.idtipoplanosaude) {
+      const faixas = (await pool.query(
+        `SELECT de, ate, valor FROM faixasplanosaude WHERE idtipoplanosaude = $1 ORDER BY de NULLS FIRST`,
+        [funcionario.idtipoplanosaude]
+      )).rows;
+      const ref = { y: ano, m: mes - 1, d: new Date(ano, mes, 0).getDate() }; // último dia da competência
+      planoSaude = calcularPlanoSaude(funcionario, faixas, ref);
+    }
+
     // Dados do cadastro do funcionário interligados ao holerite (cabeçalho do empregado).
     const dadosFunc = {
       funcao: funcionario.funcao, cbo: funcionario.cbo,
       admissao: funcionario.admissao, dependentes: funcionario.dependentes,
-      valealimDia, valetrnspDia, diasUteis,
+      valealimDia, valetrnspDia, diasUteis, planoSaude,
     };
 
     const head = await pool.query(

@@ -3042,16 +3042,18 @@ async function abrirTelaEquipesEvento(evento) {
             const dobras_pendentes = Number(f.dobras_pendentes ?? 0);
             const dobras_autorizadas = Number(f.dobras_autorizadas ?? 0);
 
-            if (qtd_orcamento === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
-
             // Identifica se o cache está fechado
-            const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" || 
+            const isCacheFechado = f.cache_fechado === true || f.cache_fechado === "true" ||
                                 f.cachefechado === true || f.cachefechado === "true" ||
                                 f.tem_cache_fechado === true || f.tem_cache_fechado === "true";
 
             // Obtém a quantidade de dias vinda do banco
             const qtdDiasOrcados = Number(f.qtddias ?? f.qtddias_orcamento ?? 1);
-            
+
+            // No cachê fechado o orçado real é qtddias (qtditens é irrelevante e pode vir 0)
+            const orcadoBase = isCacheFechado ? qtdDiasOrcados : qtd_orcamento;
+            if (orcadoBase === 0 && qtd_cadastrada === 0 && qtd_pendente === 0 && diarias_consumidas === 0) return null;
+
             // 🚀 NOVA REGRA DE CÁLCULO:
             // Se cache fechado for true: assume qtddias.
             // Se cache fechado for false: multiplica qtditens (qtd_orcamento) * qtddias.
@@ -3213,9 +3215,15 @@ async function abrirTelaEquipesEvento(evento) {
         const confirmados  = pessoasCadastradas - pendentes;
 
         let cor = "#4caf50";
-        if (qtdItensOrcados === 0)             cor = "#aaa";
-        else if (confirmados === 0)            cor = "#e53935";
-        else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+        if (isCacheFechado) {
+            if (vagasOrcadas === 0)        cor = "#aaa";
+            else if (confirmados === 0)    cor = "#e53935";
+            else if (disponiveis > 0)      cor = "#ff9800";
+        } else {
+            if (qtdItensOrcados === 0)             cor = "#aaa";
+            else if (confirmados === 0)            cor = "#e53935";
+            else if (confirmados < qtdItensOrcados) cor = "#ff9800";
+        }
 
         const sufixo = "diárias";
         
@@ -5372,7 +5380,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     }
 
     function abrirStaffModal() {
-        if (concluido || bloqueadoPorPendente) return;
+        if (concluido || bloqueadoPorPendente || func.contratarstaff === false) return;
 
         const params = new URLSearchParams();
         params.set("idfuncao", func.idfuncao ?? func.idFuncao);
@@ -10594,8 +10602,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             } else {
                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                             }
-                            // Ajuste de custo positivo impacta o saldo da equipe
-                            if (campo === 'statusajustecusto' && valor > 0) vlrSolBadge = valor;
+                            // Ajuste de custo e Caixinha positivos impactam o saldo da equipe (exibição informativa)
+                            if ((campo === 'statusajustecusto' || campo === 'statuscaixinha') && valor > 0) vlrSolBadge = valor;
                         } else {
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                         }
@@ -10638,14 +10646,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                     // Badge financeiro — apenas pendentes (valores são sempre atuais, não históricos)
                     // isAditivoExtra já renderizou o badge interno (antes do DETALHAMENTO) — evita duplicata
-                    if (window.ehMasterOuSupremo && pedido.vlrOrcadoEquipe > 0 && !campo.includes('caixinha') && statusLower === STATUS_PENDENTE_LOWER && !isAditivoExtra) {
+                    if (window.ehMasterOuSupremo && pedido.vlrOrcadoEquipe > 0 && statusLower === STATUS_PENDENTE_LOWER && !isAditivoExtra) {
                         const orcado = pedido.vlrOrcadoEquipe;
                         const gasto = pedido.vlrGastoEquipe || 0;
                         const pendente = pedido.vlrPendenteEquipe || 0;
-                        // Para Ajuste de Custo: vlrajustecusto já está em vlr_gasto (route inclui mesmo pendente).
-                        // saldoAtual do route = saldo pós-ajuste; precisamos do pré-ajuste para exibição correta.
-                        const ehAjusteCusto = campo === 'statusajustecusto';
-                        const saldoAtual = ehAjusteCusto ? (orcado - gasto + vlrSolBadge) : (orcado - gasto);
+                        // vlr_gasto da rota não soma mais vlrajustecusto à parte (já embutido em vlrtotcache
+                        // quando Autorizado) — não precisa mais de compensação manual pra Ajuste de Custo.
+                        const saldoAtual = orcado - gasto;
                         const saldoApos = saldoAtual - vlrSolBadge;
                         const outrasPendentes = pendente - vlrSolBadge;
                         const fmt = v => {

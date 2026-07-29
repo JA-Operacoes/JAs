@@ -126,7 +126,7 @@ window.gerarCamposDependentes = function gerarCamposDependentes(quantidade, dado
         item.className = "form-2colunas dependente-item";
         item.innerHTML = `
             <div class="form2">
-                <input type="text" class="uppercase" name="depNome[]" id="depNome_${i}" value="${nome}" spellcheck="false">
+                <input type="text" class="uppercase" name="depNome[]" id="depNome_${i}" value="${nome}" spellcheck="false" style="width:535.5px;">
                 <label for="depNome_${i}">Nome do ${i + 1}º dependente</label>
             </div>
             <div class="form2">
@@ -181,19 +181,69 @@ function atualizarFieldsetFinanceiro() {
   });
 }
 
-// Habilita/mostra o select de acomodação (Enfermaria A/B, Apartamento A/B) somente
-// quando o checkbox 'Adesão Plano de Saúde' está marcado. Desmarcado, desabilita e
-// limpa o valor selecionado para não enviar uma acomodação sem adesão.
+// Plano de saúde: 1º escolhe o PLANO (nomeplano), 2º escolhe o TIPO daquele plano.
+// Os dois selects só ficam habilitados quando 'Adesão Plano de Saúde' está marcado.
+// Salvamos o idtipoplanosaude (value do select de tipo).
 function atualizarTipoPlanoSaude() {
   const checkbox = document.getElementById("adesaoPlanoSaude");
-  const select = document.getElementById("tipoPlanoSaude");
-  if (!checkbox || !select) return;
+  const selectPlano = document.getElementById("nomePlanoSaude");
+  const selectTipo = document.getElementById("tipoPlanoSaude");
+  if (!checkbox || !selectPlano || !selectTipo) return;
 
   const habilitado = checkbox.checked === true;
-  select.disabled = !habilitado;
+  // As caixas dos selects só aparecem quando há adesão. A do tipo aparece
+  // apenas depois de escolher um plano.
+  const boxPlano = selectPlano.closest(".select-plano-saude-box");
+  const boxTipo = selectTipo.closest(".select-plano-saude-box");
+  if (boxPlano) boxPlano.style.display = habilitado ? "" : "none";
+  if (boxTipo) boxTipo.style.display = (habilitado && selectPlano.value) ? "" : "none";
+
+  selectPlano.disabled = !habilitado;
+  selectTipo.disabled = !habilitado || !selectPlano.value;
   if (!habilitado) {
-    select.value = "";
+    selectPlano.value = "";
+    selectTipo.value = "";
   }
+}
+
+// Preenche o select de planos (nomeplano) a partir do backend.
+async function carregarPlanosSaude() {
+  const selectPlano = document.getElementById("nomePlanoSaude");
+  if (!selectPlano) return;
+  try {
+    const planos = await fetchComToken("/funcionarios/planos-saude");
+    selectPlano.querySelectorAll("option:not([value=''])").forEach((o) => o.remove());
+    (planos || []).forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.nome;
+      opt.textContent = p.nome;
+      selectPlano.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Erro ao carregar planos de saúde:", err);
+  }
+}
+
+// Preenche o select de tipos do plano escolhido; opcionalmente pré-seleciona um id.
+async function carregarTiposPlanoSaude(nomePlano, idSelecionar = null) {
+  const selectTipo = document.getElementById("tipoPlanoSaude");
+  if (!selectTipo) return;
+  selectTipo.querySelectorAll("option:not([value=''])").forEach((o) => o.remove());
+  selectTipo.value = "";
+  if (!nomePlano) { atualizarTipoPlanoSaude(); return; }
+  try {
+    const tipos = await fetchComToken(`/funcionarios/planos-saude/${encodeURIComponent(nomePlano)}/tipos`);
+    (tipos || []).forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = String(t.idtipoplanosaude);
+      opt.textContent = t.nometipo;
+      selectTipo.appendChild(opt);
+    });
+    if (idSelecionar != null) selectTipo.value = String(idSelecionar);
+  } catch (err) {
+    console.error("Erro ao carregar tipos do plano:", err);
+  }
+  atualizarTipoPlanoSaude();
 }
 
 // ===== Autocomplete de CBO por Função =====
@@ -509,7 +559,12 @@ async function verificaFuncionarios() {
     if (checkboxAdesaoPlanoSaude) {
         checkboxAdesaoPlanoSaude.addEventListener("change", atualizarTipoPlanoSaude);
     }
-    atualizarTipoPlanoSaude(); // estado inicial
+    const selectNomePlanoSaude = document.getElementById("nomePlanoSaude");
+    if (selectNomePlanoSaude) {
+        selectNomePlanoSaude.addEventListener("change", () => carregarTiposPlanoSaude(selectNomePlanoSaude.value));
+    }
+    carregarPlanosSaude();      // popula o select de planos
+    atualizarTipoPlanoSaude();  // estado inicial (habilita/desabilita)
 
     botaoLimpar.addEventListener("click", (e) => {
         e.preventDefault();
@@ -582,9 +637,12 @@ async function verificaFuncionarios() {
 
         const campoAdesaoPlanoSaude = document.getElementById("adesaoPlanoSaude");
         const adesaoPlanoSaude = campoAdesaoPlanoSaude?.checked === true;
-        const tipoPlanoSaude = adesaoPlanoSaude
+        // O select de tipo guarda o idtipoplanosaude (FK). O texto antigo (tipoPlanoSaude)
+        // nao e mais usado; enviamos vazio para a coluna legada ficar null.
+        const idTipoPlanoSaude = adesaoPlanoSaude
             ? (document.getElementById("tipoPlanoSaude")?.value.trim() || '')
             : '';
+        const tipoPlanoSaude = '';
         const salario = desformatarReais(document.getElementById("salario")?.value) || '';
         const valealim = desformatarReais(document.getElementById("valealim")?.value) || '';
         const valetrnsp = desformatarReais(document.getElementById("valetrnsp")?.value) || '';
@@ -657,6 +715,7 @@ async function verificaFuncionarios() {
         formData.append("mei", mei);
         formData.append("adesaoPlanoSaude", adesaoPlanoSaude);
         formData.append("tipoPlanoSaude", tipoPlanoSaude);
+        formData.append("idTipoPlanoSaude", idTipoPlanoSaude);
         formData.append("salario", salario);
         formData.append("funcao", funcao);
         formData.append("cbo", cbo);
@@ -1373,10 +1432,12 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             if (checkboxAdesaoPlanoSaude) {
                 checkboxAdesaoPlanoSaude.checked = funcionario.adesaoplanosaude === true;
             }
-            const selectTipoPlanoSaude = document.getElementById("tipoPlanoSaude");
-            if (selectTipoPlanoSaude) {
-                selectTipoPlanoSaude.value = funcionario.tipoplanosaude || '';
+            // Pré-seleciona o plano salvo e carrega seus tipos, marcando o idtipoplanosaude.
+            const selectNomePlanoSaude = document.getElementById("nomePlanoSaude");
+            if (selectNomePlanoSaude) {
+                selectNomePlanoSaude.value = funcionario.nomeplanosaude || '';
             }
+            await carregarTiposPlanoSaude(funcionario.nomeplanosaude || '', funcionario.idtipoplanosaude || null);
             atualizarTipoPlanoSaude();
 
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
@@ -1815,7 +1876,12 @@ function limparCamposFuncionarios(){
     if (campoAdesaoPlanoSaude && campoAdesaoPlanoSaude.type === "checkbox") {
         campoAdesaoPlanoSaude.checked = false;
     }
-    atualizarTipoPlanoSaude(); // desabilita e limpa o select de acomodação
+    // Remove os tipos herdados de um plano anterior (mantém só o placeholder).
+    const selectTipoPlanoSaudeLimpar = document.getElementById("tipoPlanoSaude");
+    if (selectTipoPlanoSaudeLimpar) {
+        selectTipoPlanoSaudeLimpar.querySelectorAll("option:not([value=''])").forEach((o) => o.remove());
+    }
+    atualizarTipoPlanoSaude(); // desabilita e limpa os selects de plano/acomodação
 
     // 🎯 CAMPO ATIVO: Garante que o checkbox 'ativo' é MARCADO (true por padrão)
     const campoAtivo = document.getElementById("ativo");

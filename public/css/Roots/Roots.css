@@ -17,8 +17,8 @@
     --EA-color:#554aa8;
     --EA-dark:#302961;
 
-    --EP-color: #a4a5a2;
-    --EP-dark: #6e6e6e;
+    --EP-color: #808080;
+    --EP-dark: #4e4e4e;
     --EP-full-dark: #000000;
 
     --SN-color:#ea5b19;
@@ -43,11 +43,13 @@
 
 
 .tema-JA-OPER{
+    --header-color: linear-gradient(to right, #942123, rgb(43, 42, 42)  );
+
     --primary-color: #942123;
     --primary-color20: #9421237c;
     --primary-color10: #9421235d;
     --border-color:#ce0303;
-    --hover-color: #641516;
+    --hover-color: #75191a;
     --background-color: #942123;
     --font-color: #ffffff;
     --black-color: black;
@@ -55,6 +57,8 @@
     --font-weight: none;
 }
 .tema-ES{
+    --header-color: linear-gradient(to right, #326902, rgb(43, 42, 42)  );
+
     --primary-color: #80cd3b;
     --primary-color20: #80cd3b7c;
     --primary-color10: #7fcd3b3f;
@@ -67,6 +71,8 @@
     --border-color:#4ece03;
 }
 .tema-EA{
+    --header-color: linear-gradient(to right, #302961, rgb(43, 42, 42)  );
+
     --primary-color: #554aa8;
     --primary-color20: #554aa87c;
     --primary-color10: #554aa859;
@@ -79,18 +85,22 @@
     --border-color:#2e3192;
 }
 .tema-EP{
-    --primary-color: #a4a5a2;
-    --primary-color20: #a4a5a27c;
-    --primary-color10: #a4a5a25b;
-    --hover-color: #6e6e6e;
-    --background-color: #a4a5a2;
-    --font-color: #000000;
+    --header-color: linear-gradient(to right, #4e4e4e, rgb(43, 42, 42)  );
+
+    --primary-color: #000000;
+    --primary-color20: #6e6f6c7c;
+    --primary-color10: #6e6f6c5b;
+    --hover-color: #45463f;
+    --background-color: #6e6f6c;
+    --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
     --grey-color: #7e7e7e;
-    --border-color:#696969;
+    --border-color:#2e2f2c;
 }
 .tema-SN-FOODS{
+    --header-color: linear-gradient(to right, #a53603, rgb(43, 42, 42)  );
+
     --primary-color: #ea5b19;
     --primary-color20: #ea5b197c;
     --primary-color10: #ea5b194f;
@@ -103,6 +113,8 @@
     --border-color:#b34918;
 }
 .tema-TSD{
+    --header-color: linear-gradient(to right, #000000, rgb(43, 42, 42)  );
+    
     --primary-color: #303030;
     --primary-color20: #3030307c;
     --primary-color10: #30303044;
