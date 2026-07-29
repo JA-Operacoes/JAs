@@ -9,9 +9,80 @@ const logMiddleware = require('../middlewares/logMiddleware');
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
+// Campos cadastrais (globais, mesmo CNPJ em todas as empresas) vêm de `c` (clientes).
+// Campos de vínculo (ativo/contato/nfe/responsável, por empresa) vêm de `ce` (clienteempresas).
+const CAMPOS_SELECT = `
+    c.idcliente, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.emailcliente, c.site, c.telefone,
+    c.cep, c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.pais, c.tpcliente,
+    ce.ativo, ce.nmcontato, ce.celcontato, ce.emailcontato, ce.emailnfe, ce.responsavelcontrato`;
+
+// GET verifica se o CPF/CNPJ já existe (em qualquer empresa) — cliente pode ser
+// pessoa física ou jurídica (tpcliente F/J) — usado no cadastro para detectar
+// cliente já cadastrado em outra empresa e oferecer importação dos dados.
+router.get("/verificar-cnpj/:cnpj", verificarPermissao('Clientes', 'cadastrar'), async (req, res) => {
+    const { cnpj } = req.params;
+    const idempresa = req.idempresa;
+
+    try {
+        const result = await pool.query(
+            `SELECT idcliente, nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, site, telefone,
+                    cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
+             FROM clientes WHERE cnpj = $1`,
+            [cnpj]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "CPF/CNPJ não encontrado." });
+        }
+
+        const cliente = result.rows[0];
+
+        const vinculoAtual = await pool.query(
+            `SELECT ${CAMPOS_SELECT}
+             FROM clientes c
+             INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
+             WHERE c.idcliente = $1 AND ce.idempresa = $2`,
+            [cliente.idcliente, idempresa]
+        );
+
+        if (vinculoAtual.rowCount > 0) {
+            return res.json({
+                existeNaEmpresaAtual: true,
+                idcliente: cliente.idcliente,
+                dados: vinculoAtual.rows[0]
+            });
+        }
+
+        const empresasVinculadas = await pool.query(
+            `SELECT e.nmfantasia FROM clienteempresas ce
+             INNER JOIN empresas e ON e.idempresa = ce.idempresa
+             WHERE ce.idcliente = $1`,
+            [cliente.idcliente]
+        );
+
+        // Sugestão de vínculo (ativo/contato/nfe/responsável) vinda de um vínculo já
+        // existente — não é "verdade" pra empresa nova, é só ponto de partida editável.
+        const vinculoExemplo = await pool.query(
+            `SELECT ativo, nmcontato, celcontato, emailcontato, emailnfe, responsavelcontrato
+             FROM clienteempresas WHERE idcliente = $1 ORDER BY id DESC LIMIT 1`,
+            [cliente.idcliente]
+        );
+
+        return res.json({
+            existeNaEmpresaAtual: false,
+            idcliente: cliente.idcliente,
+            empresasVinculadas: empresasVinculadas.rows.map(r => r.nmfantasia),
+            dados: { ...cliente, ...(vinculoExemplo.rows[0] || {}) }
+        });
+    } catch (error) {
+        console.error("Erro ao verificar CPF/CNPJ do cliente:", error);
+        res.status(500).json({ message: "Erro ao verificar CPF/CNPJ." });
+    }
+});
+
 // GET todas ou por descrição
 router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) => {
-    
+
   const { nmFantasia } = req.query;
   const idempresa = req.idempresa;
   console.log("nmFantasia na Rota:", nmFantasia); // Log do valor de nmFantasia
@@ -19,7 +90,7 @@ router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) =>
     if (nmFantasia) {
       console.log("🔍 Buscando cliente por nmFantasia:", nmFantasia, idempresa);
       const result = await pool.query(
-        `SELECT c.* 
+        `SELECT ${CAMPOS_SELECT}
         FROM clientes c
         INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
         WHERE ce.idempresa = $1 AND c.nmfantasia ILIKE $2
@@ -33,7 +104,7 @@ router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) =>
     } else {
       console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
       const result = await pool.query(
-        `SELECT c.* 
+        `SELECT ${CAMPOS_SELECT}
         FROM clientes c
         INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
         WHERE ce.idempresa = $1 ORDER BY nmfantasia`
@@ -65,7 +136,7 @@ router.put(
 
       try {
         const result = await pool.query(
-          `SELECT c.*
+          `SELECT ${CAMPOS_SELECT}
            FROM clientes c
            INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
            WHERE c.idcliente = $1
@@ -101,10 +172,14 @@ router.put(
 
     console.log("DADOS RECEBIDOS", req.body);
 
+    let client;
+
     try {
+      client = await pool.connect();
+      await client.query('BEGIN');
 
       // 🔒 Validação: impede CNPJ duplicado NA MESMA EMPRESA
-      const verificaCnpj = await pool.query(
+      const verificaCnpj = await client.query(
         `SELECT 1
          FROM clientes c
          INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
@@ -115,75 +190,90 @@ router.put(
       );
 
       if (verificaCnpj.rowCount > 0) {
+        await client.query('ROLLBACK');
         return res.status(409).json({
           message: "Já existe outro cliente com este CNPJ nesta empresa."
         });
       }
 
-      // ✅ Atualização protegida por empresa
-      const result = await pool.query(
+      // ✅ Atualiza os dados CADASTRAIS (globais, mesmo CNPJ em todas as empresas)
+      const resultPessoal = await client.query(
         `UPDATE clientes c
          SET nmfantasia = $1,
              razaosocial = $2,
              cnpj = $3,
              inscestadual = $4,
              emailcliente = $5,
-             emailnfe = $6,
-             site = $7,
-             telefone = $8,
-             nmcontato = $9,
-             celcontato = $10,
-             emailcontato = $11,
-             cep = $12,
-             rua = $13,
-             numero = $14,
-             complemento = $15,
-             bairro = $16,
-             cidade = $17,
-             estado = $18,
-             pais = $19,
-             ativo = $20,
-             tpcliente = $21,
-             responsavelcontrato = $22
+             site = $6,
+             telefone = $7,
+             cep = $8,
+             rua = $9,
+             numero = $10,
+             complemento = $11,
+             bairro = $12,
+             cidade = $13,
+             estado = $14,
+             pais = $15,
+             tpcliente = $16
          FROM clienteempresas ce
-         WHERE c.idcliente = $23
+         WHERE c.idcliente = $17
            AND ce.idcliente = c.idcliente
-           AND ce.idempresa = $24
+           AND ce.idempresa = $18
          RETURNING c.idcliente`,
         [
           nmFantasia, razaoSocial, cnpj, inscEstadual,
-          emailCliente, emailNfe, site, telefone,
-          nmContato, celContato, emailContato,
+          emailCliente, site, telefone,
           cep, rua, numero, complemento, bairro,
-          cidade, estado, pais, ativo,
-          tpcliente, responsavelContrato,
+          cidade, estado, pais, tpcliente,
           id, idempresa
         ]
       );
 
-      if (!result.rowCount) {
+      if (!resultPessoal.rowCount) {
+        await client.query('ROLLBACK');
         return res.status(404).json({
           message: "Cliente não encontrado ou você não tem permissão para atualizá-lo."
         });
       }
 
+      // ✅ Atualiza os dados de VÍNCULO (por empresa: ativo, contato, nfe, responsável)
+      await client.query(
+        `UPDATE clienteempresas
+         SET ativo = $1,
+             nmcontato = $2,
+             celcontato = $3,
+             emailcontato = $4,
+             emailnfe = $5,
+             responsavelcontrato = $6
+         WHERE idcliente = $7 AND idempresa = $8`,
+        [
+          ativo, nmContato, celContato, emailContato, emailNfe, responsavelContrato,
+          id, idempresa
+        ]
+      );
+
+      await client.query('COMMIT');
+
       // 🔹 Dados para o log
       res.locals.acao = 'atualizou';
-      res.locals.idregistroalterado = result.rows[0].idcliente;
+      res.locals.idregistroalterado = resultPessoal.rows[0].idcliente;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = req.body;
 
       return res.json({
         message: "Cliente atualizado com sucesso!",
-        cliente: result.rows[0]
+        cliente: resultPessoal.rows[0]
       });
 
     } catch (error) {
+      if (client) await client.query('ROLLBACK');
       console.error("❌ Erro ao atualizar cliente:", error);
       res.status(500).json({
         message: "Erro ao atualizar cliente.",
         detail: error.message
       });
+    } finally {
+      if (client) client.release();
     }
   }
 );
@@ -229,7 +319,7 @@ router.post(
 
         // 2️⃣ Verifica se já está vinculado à empresa
         const vinculoExistente = await client.query(
-          `SELECT 1 FROM clienteempresas 
+          `SELECT 1 FROM clienteempresas
            WHERE idcliente = $1 AND idempresa = $2`,
           [idcliente, idempresa]
         );
@@ -242,11 +332,15 @@ router.post(
           });
         }
 
-        // 3️⃣ Apenas vincula o cliente existente à nova empresa
+        // 3️⃣ Vincula o cliente existente à nova empresa, já com os dados de
+        // vínculo (ativo/contato/nfe/responsável) preenchidos neste formulário —
+        // antes esses valores eram descartados silenciosamente (só as duas FKs
+        // eram gravadas).
         await client.query(
-          `INSERT INTO clienteempresas (idcliente, idempresa)
-           VALUES ($1, $2)`,
-          [idcliente, idempresa]
+          `INSERT INTO clienteempresas (
+            idcliente, idempresa, ativo, nmcontato, celcontato, emailcontato, emailnfe, responsavelcontrato
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [idcliente, idempresa, ativo, nmContato, celContato, emailContato, emailNfe, responsavelContrato]
         );
 
         await client.query('COMMIT');
@@ -261,34 +355,30 @@ router.post(
         });
       }
 
-      // 4️⃣ Cliente NÃO existe → cria novo
+      // 4️⃣ Cliente NÃO existe → cria novo (dados cadastrais globais)
       const resultCliente = await client.query(
         `INSERT INTO clientes (
-          nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, emailnfe,
-          site, telefone, nmcontato, celcontato, emailcontato,
-          cep, rua, numero, complemento, bairro, cidade, estado, pais,
-          ativo, tpcliente, responsavelcontrato
+          nmfantasia, razaosocial, cnpj, inscestadual, emailcliente,
+          site, telefone, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
         )
         VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-          $12,$13,$14,$15,$16,$17,$18,$19,
-          $20,$21,$22
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
         )
         RETURNING idcliente, nmfantasia`,
         [
-          nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe,
-          site, telefone, nmContato, celContato, emailContato,
-          cep, rua, numero, complemento, bairro, cidade, estado, pais,
-          ativo, tpcliente, responsavelContrato
+          nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente,
+          site, telefone, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
         ]
       );
 
       idcliente = resultCliente.rows[0].idcliente;
 
+      // Vínculo (por empresa: ativo, contato, nfe, responsável)
       await client.query(
-        `INSERT INTO clienteempresas (idcliente, idempresa)
-         VALUES ($1, $2)`,
-        [idcliente, idempresa]
+        `INSERT INTO clienteempresas (
+          idcliente, idempresa, ativo, nmcontato, celcontato, emailcontato, emailnfe, responsavelcontrato
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [idcliente, idempresa, ativo, nmContato, celContato, emailContato, emailNfe, responsavelContrato]
       );
 
       await client.query('COMMIT');

@@ -7,6 +7,8 @@ import { fetchComToken, aplicarTema } from '../utils/utils.js';
 //         aplicarTema(tema);
 //     }
 // });
+let nomeEmpresaAtual = '';
+
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
 
@@ -17,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(empresa => {
                 // Usa o nome fantasia como tema
                 const tema = empresa.nmfantasia;
+                nomeEmpresaAtual = empresa.nmfantasia || '';
                 aplicarTema(tema);
             })
             .catch(error => {
@@ -31,6 +34,7 @@ let btnLimparListener = null;
 let btnPesquisarListener = null;
 let selectClientesChangeListener = null;
 let nmFantasiaBlurListener = null;
+let cnpjBlurListener = null;
 
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
@@ -194,6 +198,85 @@ const preencherFormulario = (cliente) => {
     }
     campoCodigo.readOnly = true; // bloqueia o campo
 };
+
+// Preenche os dados de um cliente já existente (achado por CPF/CNPJ em outra
+// empresa). Propositalmente NÃO preenche `idCliente` — o formulário continua em
+// modo de novo cadastro (POST), que no backend detecta o CPF/CNPJ já existente e
+// apenas vincula o cliente à empresa atual, em vez de duplicar o registro.
+const preencherDadosImportadosCliente = (cliente) => {
+    Object.entries(campos).forEach(([key]) => {
+        if (key === "idCliente") return;
+        if (key === "telefone") maskTelefone.value = cliente.telefone || '';
+        else if (key === "cnpj") maskCNPJ.value = cliente.cnpj || '';
+        else if (key === "cep") maskCEP.value = cliente.cep || '';
+        else if (key === "celContato") maskCelContato.value = cliente.celcontato || '';
+        else setCampo(key, cliente[key.toLowerCase()]);
+    });
+};
+
+// ===== Verificação de CPF/CNPJ já cadastrado (em qualquer empresa) =====
+// Ao sair do campo CNPJ (campo aceita CPF ou CNPJ), verifica se já existe um
+// cliente com esse documento. Mesma lógica usada em Funcionários/Fornecedores.
+function configurarVerificacaoCnpj() {
+    const inputCnpj = document.getElementById("cnpj");
+    if (!inputCnpj) return;
+
+    if (cnpjBlurListener) {
+        inputCnpj.removeEventListener("blur", cnpjBlurListener);
+    }
+
+    cnpjBlurListener = async function () {
+        const cnpj = (maskCNPJ?.unmaskedValue || this.value.replace(/\D/g, ''));
+        if (!cnpj || (cnpj.length !== 11 && cnpj.length !== 14)) return;
+
+        const idAtual = document.getElementById("idCliente")?.value;
+        if (idAtual) return; // já está editando um cliente carregado
+
+        try {
+            const resposta = await fetchComToken(`/clientes/verificar-cnpj/${encodeURIComponent(cnpj)}`);
+
+            // fetchComToken devolve [] em 404 (documento novo, ninguém encontrado)
+            if (!resposta || Array.isArray(resposta) || !resposta.idcliente) {
+                return;
+            }
+
+            if (resposta.existeNaEmpresaAtual) {
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Cliente já cadastrado nesta empresa',
+                    text: 'Os dados deste cliente foram carregados para edição.',
+                    confirmButtonText: 'OK'
+                });
+                preencherFormulario(resposta.dados);
+                return;
+            }
+
+            const { isConfirmed } = await Swal.fire({
+                icon: 'question',
+                title: 'Cliente já cadastrado em outra empresa do grupo empresarial',
+                text: `Deseja importar os dados para a empresa "${nomeEmpresaAtual || 'atual'}"?`,
+                showCancelButton: true,
+                confirmButtonText: 'Sim, importar',
+                cancelButtonText: 'Não',
+                reverseButtons: true
+            });
+
+            if (isConfirmed) {
+                preencherDadosImportadosCliente(resposta.dados);
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'Dados importados',
+                    text: 'Os dados vieram como sugestão de outra empresa do grupo — confira e ajuste o que for diferente nesta empresa antes de salvar.',
+                    confirmButtonText: 'OK, entendi'
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao verificar CPF/CNPJ do cliente:", error);
+        }
+    };
+
+    inputCnpj.addEventListener("blur", cnpjBlurListener);
+}
 
 const limparFormulario = () => {
     form.reset();
@@ -456,7 +539,13 @@ function carregarClientes() {
         nmFantasiaBlurListener = null;
     }
 
-    // Limpar o estado original do cliente  
+    const inputCnpj = document.getElementById("cnpj");
+    if (inputCnpj && cnpjBlurListener) {
+        inputCnpj.removeEventListener("blur", cnpjBlurListener);
+        cnpjBlurListener = null;
+    }
+
+    // Limpar o estado original do cliente
     window.ClienteOriginal = { // <-- Acesse diretamente a variável do módulo
         idCliente: "",
         nmFantasia: "",
@@ -793,6 +882,7 @@ function configurarEventosClientes() {
     console.log("Configurando eventos para o modal de clientes...");
     carregarClientes();
     adicionarEventoBlurCliente() ;
+    configurarVerificacaoCnpj(); // detecta CPF/CNPJ já cadastrado (nesta ou em outra empresa)
 }
 window.configurarEventosClientes = configurarEventosClientes;
 

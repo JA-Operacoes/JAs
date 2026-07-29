@@ -871,12 +871,13 @@ router.get(
                 SELECT 
                     o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
                     o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
-                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.responsavelcontrato AS cliente_responsavel,
+                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, ce2.responsavelcontrato AS cliente_responsavel,
                     c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
                 FROM orcamentos o
                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN clienteempresas ce2 ON ce2.idcliente = c.idcliente AND ce2.idempresa = oe.idempresa
                 LEFT JOIN eventos e ON o.idevento = e.idevento
                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
                 WHERE o.nrorcamento = $1 AND oe.idempresa = $2
@@ -1430,12 +1431,13 @@ router.get("/:nrOrcamento/proposta",
                     o.dtinidesmontagem AS inicio_desmontagem, o.dtfimdesmontagem AS fim_desmontagem, 
                     o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual,
-                    c.nmcontato AS cliente_responsavel, c.celcontato AS cliente_celular, c.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
+                    ce2.nmcontato AS cliente_responsavel, ce2.celcontato AS cliente_celular, ce2.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
                     c.complemento AS cliente_complemento, c.cep AS cliente_cep,
                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem, STRING_AGG(lp.nmpavilhao, ', ') AS pavilhoes
                 FROM orcamentos o
                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN clienteempresas ce2 ON ce2.idcliente = c.idcliente AND ce2.idempresa = oe.idempresa
                 LEFT JOIN eventos e ON o.idevento = e.idevento
                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
                 LEFT JOIN orcamentopavilhoes op ON o.idorcamento = op.idorcamento
@@ -1444,8 +1446,8 @@ router.get("/:nrOrcamento/proposta",
                 GROUP BY 
                 o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura,
                 o.dtinirealizacao, o.dtfimrealizacao, o.formapagamento, o.obsproposta,
-                c.razaosocial, c.cnpj, c.inscestadual, c.nmcontato, c.celcontato, 
-                c.emailcontato, c.rua, c.numero, c.complemento, c.cep,
+                c.razaosocial, c.cnpj, c.inscestadual, ce2.nmcontato, ce2.celcontato, 
+                ce2.emailcontato, c.rua, c.numero, c.complemento, c.cep,
                 e.nmevento, lm.descmontagem
                 LIMIT 1
             `;
@@ -1646,12 +1648,13 @@ router.get("/:nrOrcamento/proposta/adicionais",
                     o.dtinidesmontagem AS inicio_desmontagem, o.dtfimdesmontagem AS fim_desmontagem, 
                     o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual,
-                    c.nmcontato AS cliente_responsavel, c.celcontato AS cliente_celular, c.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
+                    ce2.nmcontato AS cliente_responsavel, ce2.celcontato AS cliente_celular, ce2.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
                     c.complemento AS cliente_complemento, c.cep AS cliente_cep,
                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem, STRING_AGG(lp.nmpavilhao, ', ') AS pavilhoes
                 FROM orcamentos o
                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN clienteempresas ce2 ON ce2.idcliente = c.idcliente AND ce2.idempresa = oe.idempresa
                 LEFT JOIN eventos e ON o.idevento = e.idevento
                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
                 LEFT JOIN orcamentopavilhoes op ON o.idorcamento = op.idorcamento
@@ -1660,8 +1663,8 @@ router.get("/:nrOrcamento/proposta/adicionais",
                 GROUP BY 
                 o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura,
                 o.dtinirealizacao, o.dtfimrealizacao, o.formapagamento, o.obsproposta,
-                c.razaosocial, c.cnpj, c.inscestadual, c.nmcontato, c.celcontato, 
-                c.emailcontato, c.rua, c.numero, c.complemento, c.cep,
+                c.razaosocial, c.cnpj, c.inscestadual, ce2.nmcontato, ce2.celcontato, 
+                ce2.emailcontato, c.rua, c.numero, c.complemento, c.cep,
                 e.nmevento, lm.descmontagem
                 LIMIT 1
             `;
@@ -1875,12 +1878,13 @@ router.post(
                     o.dtinidesmontagem AS inicio_desmontagem, o.dtfimdesmontagem AS fim_desmontagem, 
                     o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual,
-                    c.nmcontato AS cliente_responsavel, c.celcontato AS cliente_celular, c.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
+                    ce2.nmcontato AS cliente_responsavel, ce2.celcontato AS cliente_celular, ce2.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
                     c.complemento AS cliente_complemento, c.cep AS cliente_cep,
                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem, STRING_AGG(lp.nmpavilhao, ', ') AS pavilhoes
                 FROM orcamentos o
                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN clienteempresas ce2 ON ce2.idcliente = c.idcliente AND ce2.idempresa = oe.idempresa
                 LEFT JOIN eventos e ON o.idevento = e.idevento
                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
                 LEFT JOIN orcamentopavilhoes op ON o.idorcamento = op.idorcamento
@@ -1889,8 +1893,8 @@ router.post(
                 GROUP BY 
                 o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura,
                 o.dtinirealizacao, o.dtfimrealizacao, o.formapagamento, o.obsproposta,
-                c.razaosocial, c.cnpj, c.inscestadual, c.nmcontato, c.celcontato, 
-                c.emailcontato, c.rua, c.numero, c.complemento, c.cep,
+                c.razaosocial, c.cnpj, c.inscestadual, ce2.nmcontato, ce2.celcontato, 
+                ce2.emailcontato, c.rua, c.numero, c.complemento, c.cep,
                 e.nmevento, lm.descmontagem
                 LIMIT 1
             `;

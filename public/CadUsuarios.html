@@ -40,7 +40,7 @@
 
         <div class="user-box camposenha">
           <input type="text" id="buscaUsuario" autocomplete="off" spellcheck="false">
-          <label for="buscaUsuario">buscar Usuário</label>
+          <label for="buscaUsuario">Buscar Usuário</label>
           <input type="hidden" id="idusuario">
           <span toggle="#senha" class="toggle-senha">
             <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i>
@@ -130,107 +130,96 @@
           <h1>Definir Permissões</h1>
         </div>
             
-        <div class="user-box camposenha">
-          <input type="text" id="nome_usuario" value="" spellcheck="false" >
-          <label for="nome_usuario"> Usuário:</label>    
-        </div>
-     
-        <div class = "form-3colunas">
-          <div class="user-box dupla select">       
+        <div class="linha-usuario-empresa">
+          <div class="user-box camposenha">
+            <input type="text" id="nome_usuario" value="" spellcheck="false" >
+            <label for="nome_usuario"> Usuário:</label>
+          </div>
+
+          <div class="user-box dupla select">
             <div class="user-box-select">
               <label for="listaEmpresas">Empresa:</label>
             </div>
             <div class="user-box">
               <select id="listaEmpresas">
-                <option value="" selected disabled>Selecione Empresa</option>                
+                <option value="" selected disabled>Selecione Empresa</option>
                 <!-- <option value="all">Todas as empresas</option> -->
-                <!-- Empresas serão adicionadas aqui via JavaScript -->                
+                <!-- Empresas serão adicionadas aqui via JavaScript -->
               </select>
-            </div>     
-                
+            </div>
+
           </div>
           <div class="checkbox-wrapper-33 checkbox-coluna">
               <label class="checkbox">
-                <p class="checkbox__textwrapper">Empresa Ativa</p>
+                <p class="checkbox__textwrapper">Ativo na Empresa</p>
                 <input class="checkbox__trigger visuallyhidden" type="checkbox" id="empresaAtiva" name="empresaAtiva">
                 <span class="checkbox__symbol">
                   <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                     <path d="M4 14l8 7L24 7"></path>
                   </svg>
-                </span>              
+                </span>
               </label>
-            </div>     
+            </div>
         </div>
 
-        <div class="user-box dupla select">
+        <div class="copiar-permissoes-row">
           <div class="user-box-select">
-            <label for="modulo">Módulo:</label>
+            <label for="empresaOrigemCopia">Copiar permissões de:</label>
           </div>
-            <div class="user-box">
-              <select name="modulo" id="modulo" >
-                <option value="choose" selected disabled>Escolha o Modulo</option>
-               </select>
-            </div>
+          <select id="empresaOrigemCopia">
+            <option value="" selected disabled>Selecione empresa de origem</option>
+            <!-- Empresas em que o usuário já é ativo serão adicionadas aqui via JavaScript -->
+          </select>
+          <a type="button" id="btnCopiarPermissoes" class="btn-discreto">Copiar<span></span></a>
+          <a type="button" id="btnLimparTudoPermissoes" class="btn-discreto">Limpar Tudo<span></span></a>
         </div>
-        
 
-        <div class="grid">
-          <div class="Permissions">
-            <div><h4 for="Acesso Padrão" class="categoria-titulo">ACESSOS PADRÕES</h4></div>
-            <div>
-              <input id="Acesso" type="checkbox" />
-              <label for="Acesso">Acesso ao Módulo</label>
-            </div>
-            <div>
-              <input id="Cadastrar" type="checkbox" disabled />
-              <label for="Cadastrar">Cadastrar</label>
-            </div>
-            <div>
-              <input  id="Alterar" type="checkbox" disabled />
-              <label for="Alterar">Alterar</label>
-            </div>
-            <div>
-              <input id="Pesquisar" type="checkbox" disabled />
-              <label for="Pesquisar">Pesquisar</label>
-            </div>
-            <div>
-              <input id="Apagar" type="checkbox" disabled />
-              <label for="Apagar">Apagar</label>
-            </div>
-                </div>
-            <div class="Permissions2">
-              <div><h4 for="Acesso Especial" class="categoria-titulo">ACESSOS ESPECIAIS</h4></div>
-              <div>
-                <input id="AdminSupremo" type="checkbox" disabled />
-                <label for="AdminSupremo">ADMINISTRADOR SUPREMO</label>
-              </div>
-              <div>
-                <input id="Master" type="checkbox" disabled />
-                <label for="Master">MASTER</label>
-              </div>
-              <div>
-                <input id="Financeiro" type="checkbox" disabled />
-                <label for="Financeiro">FINANCEIRO</label>
-              </div>
-              <div>
-                <input id="Comercial" type="checkbox" disabled />
-                <label for="Comercial">COMERCIAL</label>
-              </div>
-              <div>
-                <input id="Devs" type="checkbox" disabled />
-                <label for="Devs">DEVS</label>
-              </div>
-              <div>
-                <input id="rh" type="checkbox" disabled />
-                <label for="rh">RH</label>
-              </div>
-            </div>
+        <div class="grid-permissoes-wrapper">
+          <table id="tabelaPermissoes" class="tabela-permissoes">
+            <colgroup>
+              <col style="width: 130px"> <!-- Módulo -->
+              <col style="width: 55px">  <!-- Acesso -->
+              <col style="width: 60px">  <!-- Cadastrar -->
+              <col style="width: 50px">  <!-- Alterar -->
+              <col style="width: 60px">  <!-- Pesquisar -->
+              <col style="width: 50px">  <!-- Apagar -->
+              <col style="width: 60px">  <!-- Admin Supremo -->
+              <col style="width: 50px">  <!-- Master -->
+              <col style="width: 60px">  <!-- Financeiro -->
+              <col style="width: 60px">  <!-- Comercial -->
+              <col style="width: 40px">  <!-- RH -->
+              <col class="col-devs" style="width: 50px"> <!-- Devs -->
+              <col style="width: 60px">  <!-- Limpar -->
+            </colgroup>
+            <thead>
+              <tr>
+                <th rowspan="2">Módulo</th>
+                <th colspan="5">Acessos Padrões</th>
+                <th colspan="6">Acessos Especiais</th>
+                <th rowspan="2">Limpar</th>
+              </tr>
+              <tr>
+                <th>Acesso</th>
+                <th>Cadastrar</th>
+                <th>Alterar</th>
+                <th>Pesquisar</th>
+                <th>Apagar</th>
+                <th>Admin Supremo</th>
+                <th>Master</th>
+                <th>Financeiro</th>
+                <th>Comercial</th>
+                <th>RH</th>
+                <th data-col="devs">Devs</th>
+              </tr>
+            </thead>
+            <tbody id="corpoTabelaPermissoes">
+              <!-- Uma linha por módulo disponível na empresa selecionada, gerada via JavaScript -->
+            </tbody>
+          </table>
         </div>
-          
-        
-    
+
         <div class="bts">
-          <a type="button" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>
+          <a type="button" id="btnsalvarPermissao">SALVAR TODAS AS PERMISSÕES<span></span></a>
             <button type="button" id="btnPermissaoReal" style="display: none;"></button>
 
             <a type="button" id="btnVoltar">Voltar<span></span></a>

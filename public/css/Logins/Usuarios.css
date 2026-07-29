@@ -75,7 +75,7 @@ body{
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 500px;
+  width: 960px;
   height: 700px;
   transform: translate(-50%, -50%);
   background: rgba(58, 51, 51, 0.987);
@@ -271,7 +271,7 @@ option{
   transform-style: preserve-3d;
 }
 
-.login-box a:hover {
+.login-box a:not(:has(img)):hover {
   background: #f40303;
   color: #fff;
   border-radius: 5px;
@@ -542,7 +542,7 @@ option{
 
 #formPermissao{
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   margin: 0 auto;
   flex-direction: column;
@@ -711,7 +711,7 @@ option{
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 30px;
+  gap: 200px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -845,5 +845,196 @@ input:-webkit-autofill {
 
 .checkbox-group input[type="checkbox"] {
   accent-color: #e63946;
+}
+
+/* Grid de permissões (CadUsuarios, verso): "copiar de" + tabela com todos os módulos */
+
+#formPermissao {
+  /* Fixo em px (não %): .back fica com altura computada 0 quando o cartão
+     vira, porque o rotateY em .flipper vira containing block do .back e
+     nenhum ancestral tem altura própria definida. max-height:100% herdaria
+     esse 0 e, com overflow-y:auto, sumiria com todo o conteúdo. */
+  max-height: 680px;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+/* Usuário + Empresa + Empresa Ativa numa linha só, agora que o cartão está mais largo. */
+.linha-usuario-empresa {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 900px;
+  flex-wrap: nowrap;
+}
+
+.linha-usuario-empresa > .user-box.camposenha {
+  flex: 0 0 240px;
+  max-width: 240px;
+  margin-bottom: 0;
+}
+
+.linha-usuario-empresa > .user-box.dupla.select {
+  flex: 0 0 260px;
+  max-width: 260px;
+}
+
+/* "Empresa:" discreto, igual ao rótulo pequeno/cinza que "Usuário:" já assume
+   quando o campo tem valor (.login-box .user-box input:valid ~ label). */
+.linha-usuario-empresa .user-box-select label {
+  font-size: 12px;
+  color: #bdb8b8;
+}
+
+.linha-usuario-empresa > .checkbox-wrapper-33 {
+  flex: 0 0 auto;
+}
+
+.copiar-permissoes-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 900px;
+  margin: 10px 0;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+}
+
+/* .user-box-select normalmente é um bloco vertical (width:100%) usado nos campos
+   do formulário principal; aqui reaproveitamos só o texto do rótulo numa linha
+   horizontal, então precisa encolher em vez de ocupar a linha toda. */
+.copiar-permissoes-row .user-box-select {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: #fff;
+}
+
+.copiar-permissoes-row select {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 0;
+  font-size: 14px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #fff;
+}
+
+/* Botões secundários (Copiar, Limpar Tudo): tamanho mais discreto que os botões de
+   ação principais (Salvar, Voltar, Cadastrar...) — sem caixa alta, fonte menor — mas
+   mantêm a mesma animação de hover (brilho vermelho) dos demais botões. */
+.login-box form a.btn-discreto {
+  margin-top: 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #ddd;
+  white-space: nowrap;
+}
+
+.grid-permissoes-wrapper {
+  width: 100%;
+  max-width: 900px;
+  max-height: 400px;
+  overflow: auto;
+  margin: 10px 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+
+.tabela-permissoes {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #fff;
+}
+
+.tabela-permissoes thead th {
+  
+  background: #551212;
+  color: #fff;
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Duas linhas de cabeçalho empilhadas: a de categoria (Acessos Padrões / Acessos
+   Especiais) fica presa no topo, a de colunas individuais fica presa logo abaixo dela. */
+.tabela-permissoes thead tr:first-child th {
+  top: 0;
+  background: #151515;
+}
+
+.tabela-permissoes thead tr:last-child th {
+  top: 33px;
+}
+
+.tabela-permissoes thead tr:first-child th:nth-child(2),
+.tabela-permissoes thead tr:last-child th:nth-child(5),
+.tabela-permissoes tbody tr td:nth-child(6) {
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.tabela-permissoes td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Última coluna (Limpar): flex garante centralização nas duas direções
+   independente da altura da linha, e width fixo deixa o botão uniforme
+   em todas as linhas — sem isso, o botão ficava "solto" e desalinhado. */
+.tabela-permissoes td:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-limpar-linha {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10px;
+  width: 100%;
+  max-width: 52px;
+  padding: 3px 0;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.btn-limpar-linha:hover {
+  background: #f40303;
+  border-color: #f40303;
+}
+
+.tabela-permissoes .celula-modulo {
+  text-align: left;  
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabela-permissoes input[type="checkbox"] {
+  accent-color: #f33131;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.tabela-permissoes input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 

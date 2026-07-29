@@ -96,34 +96,39 @@ router.get("/contas", autenticarToken(), async (req, res) => {
 });
 
 async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa, perfil = null) {
-    
+
     console.log("🔍 Buscando Vínculo:", { tabelaPrincipal, idempresa, perfil });
-    
+
+    // Para funcionários, fornecedores e clientes, `ativo` (e `perfil`, só p/
+    // funcionário) moraram pra tabela de vínculo (funcionarioempresas/
+    // fornecedorempresas/clienteempresas) nas migrações de campos por-empresa.
+    const aliasVinculo = ['funcionarios', 'fornecedores', 'clientes'].includes(tabelaPrincipal) ? 'r' : 'p';
+
     let query = `
-        SELECT p.${idCol} AS id, p.${nomeCol} AS nome 
+        SELECT p.${idCol} AS id, p.${nomeCol} AS nome
         FROM ${tabelaPrincipal} p
         INNER JOIN ${tabelaRelacao} r ON p.${idCol} = r.${fkCol}
-        WHERE r.idempresa = $1 AND p.ativo = true
+        WHERE r.idempresa = $1 AND ${aliasVinculo}.ativo = true
     `;
-    
+
     const params = [idempresa];
 
     if (perfil) {
         // Normaliza para minúsculas e remove espaços para comparação segura
         const p = perfil.toLowerCase().trim();
 
-        if (p.includes('func')) { 
+        if (p.includes('func')) {
             // Se o valor do rádio for "funcionário", busca Interno ou Externo
             // O ILIKE garante que encontre "Interno" ou "interno" no banco
-            query += ` AND (p.perfil ILIKE 'Interno' OR p.perfil ILIKE 'Externo')`;
+            query += ` AND (${aliasVinculo}.perfil ILIKE 'Interno' OR ${aliasVinculo}.perfil ILIKE 'Externo')`;
         } else if (p.includes('free') || p.includes('sem')) {
             // Se o valor for "free-lancer", busca Freelancer ou Lote
-            query += ` AND (p.perfil ILIKE 'Freelancer' OR p.perfil ILIKE 'Lote')`;
+            query += ` AND (${aliasVinculo}.perfil ILIKE 'Freelancer' OR ${aliasVinculo}.perfil ILIKE 'Lote')`;
         }
     }
 
     query += ` ORDER BY nome`;
-    
+
     const result = await pool.query(query, params);
     return result.rows;
 }
@@ -188,10 +193,10 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
 
     try {
         let query = `
-            SELECT 
+            SELECT
                 l.*,
-                -- Busca o perfil se for funcionário
-                f.perfil,
+                -- Busca o perfil se for funcionário (perfil é por vínculo empresa+funcionário)
+                fe.perfil,
                 -- Busca o nome do vínculo dependendo do tipo (COALESCE pega o primeiro não nulo)
                 COALESCE(f.nome, forn.nmfantasia, c.nmfantasia) AS nome_vinculo,
                 -- Dados extras das tabelas relacionadas
@@ -201,6 +206,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
             FROM lancamentos l
             -- Joins para Vínculos
             LEFT JOIN funcionarios f ON l.idvinculo = f.idfuncionario AND l.tipovinculo = 'funcionario'
+            LEFT JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = l.idempresa
             LEFT JOIN fornecedores forn ON l.idvinculo = forn.idfornecedor AND l.tipovinculo = 'fornecedor'
             LEFT JOIN clientes c ON l.idvinculo = c.idcliente AND l.tipovinculo = 'cliente'
             -- Joins para Auxiliares Financeiros

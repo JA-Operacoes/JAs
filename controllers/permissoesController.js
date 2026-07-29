@@ -78,129 +78,223 @@ async function listarPermissoesPorUsuario(req, res) {
   }
 }
 
+// Verifica se o solicitante já possui a flag 'devs' em algum módulo/empresa.
+// A permissão "devs" é forte (dados sensíveis): só quem já é devs pode concedê-la.
+async function solicitanteEhDevs(client, solicitanteId) {
+  const { rows } = await client.query(
+    'SELECT 1 FROM permissoes WHERE idusuario = $1 AND devs = true LIMIT 1',
+    [solicitanteId]
+  );
+  return rows.length > 0;
+}
+
+// Insere ou atualiza a linha de permissão de um usuário para um módulo+empresa.
+// `client` pode ser o pool (fora de transação) ou um client de `pool.connect()` (dentro de transação em lote).
+async function upsertPermissao(client, idusuario, modulo, idempresa, flags, devsPermitido) {
+  const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
+  const {
+    acesso, cadastrar, alterar, pesquisar, apagar,
+    master, financeiro, supremo, comercial, devs, rh
+  } = flags;
+
+  const devsEfetivo = devs && devsPermitido ? true : false;
+  const devsNegado = Boolean(devs) && !devsPermitido;
+  if (devsNegado) {
+    console.warn(`Tentativa de conceder permissão 'devs' sem possuí-la foi ignorada (módulo ${moduloFormatado}).`);
+  }
+
+  const { rows } = await client.query(
+    'SELECT id FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
+    [idusuario, moduloFormatado, idempresa]
+  );
+
+  if (rows.length > 0) {
+    const updateResult = await client.query(`
+      UPDATE permissoes
+      SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11
+      WHERE idusuario = $12 AND modulo = $13 AND idempresa = $14
+      RETURNING id;
+    `, [!!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, devsEfetivo, !!rh, idusuario, moduloFormatado, idempresa]);
+
+    return { idpermissao: updateResult.rows[0]?.id || null, acao: 'atualizou', devsNegado };
+  }
+
+  const insertResult = await client.query(`
+    INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, idempresa)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    RETURNING id;
+  `, [idusuario, moduloFormatado, !!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, devsEfetivo, !!rh, idempresa]);
+
+  return { idpermissao: insertResult.rows[0].id, acao: 'cadastrou', devsNegado };
+}
+
+// Garante o vínculo do usuário com a empresa em `usuarioempresas` (cria ou atualiza o status `ativo`).
+async function garantirVinculoEmpresa(client, idusuario, idempresa, ativo) {
+  const { rowCount } = await client.query(
+    'SELECT 1 FROM usuarioempresas WHERE idusuario = $1 AND idempresa = $2',
+    [idusuario, idempresa]
+  );
+
+  if (rowCount === 0) {
+    await client.query(
+      'INSERT INTO usuarioempresas (idusuario, idempresa, ativo) VALUES ($1, $2, $3)',
+      [idusuario, idempresa, ativo]
+    );
+  } else {
+    await client.query(
+      'UPDATE usuarioempresas SET ativo = $1 WHERE idusuario = $2 AND idempresa = $3',
+      [ativo, idusuario, idempresa]
+    );
+  }
+}
+
 async function cadastrarOuAtualizarPermissoes(req, res) {
   const {
-    idusuario, 
+    idusuario,
     modulo,
     acesso,
-    cadastrar, 
-    alterar, 
-    pesquisar, 
+    cadastrar,
+    alterar,
+    pesquisar,
     apagar,
-    master, 
-    financeiro, 
-    supremo, 
+    master,
+    financeiro,
+    supremo,
     comercial,
     devs,
     rh
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
-  const idempresa = req.headers.idempresa; 
+  const idempresa = req.headers.idempresa;
 
   console.log("ENTROU NA ROTA CADASTRAR PERMISSAO", req.body, req.headers);
   console.log("ATIVO", ativo);
-  
 
-
-  // if (!idusuario || !modulo || !Array.isArray(empresas) || empresas.length === 0) {
-  //   return res.status(400).json({ erro: 'Dados inválidos ou incompletos.' });
-  // }
   if (!idusuario || !modulo || !idempresa)  {
     return res.status(400).json({ erro: 'Dados inválidos ou incompletos.' });
   }
 
   try {
-    // Normaliza o nome do módulo (capitaliza)
-    const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
+    const solicitanteId = req.usuario?.idusuario;
+    const devsPermitido = devs ? await solicitanteEhDevs(db, solicitanteId) : false;
 
-    // Segurança: a permissão "devs" é forte (dados sensíveis). Só quem já é devs
-    // pode concedê-la. Se o solicitante não for devs, a tentativa é ignorada (força false).
-    let devsEfetivo = devs;
-    if (devs) {
-      const solicitanteId = req.usuario?.idusuario;
-      const { rows: devsRows } = await db.query(
-        'SELECT 1 FROM permissoes WHERE idusuario = $1 AND devs = true LIMIT 1',
-        [solicitanteId]
-      );
-      if (devsRows.length === 0) {
-        devsEfetivo = false;
-        console.warn(`Usuário ${solicitanteId} tentou conceder permissão 'devs' sem possuí-la. Ignorado.`);
-      }
-    }
+    const { idpermissao, acao, devsNegado } = await upsertPermissao(
+      db, idusuario, modulo, idempresa,
+      { acesso, cadastrar, alterar, pesquisar, apagar, master, financeiro, supremo, comercial, devs, rh },
+      devsPermitido
+    );
 
-    //for (const idempresa of empresas) {
-      // Verifica se já existe permissão para este usuário, empresa e módulo
- 
-      const { rows } = await db.query(
-        'SELECT 1 FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
-        [idusuario, moduloFormatado, idempresa]
-      );
+    await garantirVinculoEmpresa(db, idusuario, idempresa, ativo);
 
-      let idpermissao = null;
-      let acao = '';
-
-      console.log("ROWS", rows);
-
-      if (rows.length > 0) {
-        // Atualiza
-        const updateResult = await db.query(`
-          UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11
-          WHERE idusuario = $12 AND modulo = $13 AND idempresa = $14
-          RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devsEfetivo, rh, idusuario, moduloFormatado, idempresa]);
-        
-  
-        idpermissao = updateResult.rows[0]?.id || null;
-        
-        acao = 'atualizou';
-      } else {
-        // Insere nova permissão
-        const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-          RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devsEfetivo, rh, idempresa]);
-        idpermissao = insertResult.rows[0].id;
-        acao = 'cadastrou';
-      }
-
-      // Garante vínculo em usuarioempresas
-      const { rowCount } = await db.query(
-        'SELECT 1 FROM usuarioempresas WHERE idusuario = $1 AND idempresa = $2',
-        [idusuario, idempresa]
-      );
-
-      // if (rowCount === 0) {
-      //   await db.query(
-      //     'INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)',
-      //     [idusuario, idempresa]
-      //   );
-      // }
-      console.log('rowCount', rowCount, idusuario, idempresa, ativo);
-      if (rowCount === 0) {
-            // Se o vínculo não existe, insere com o status recebido
-            await db.query(
-                'INSERT INTO usuarioempresas (idusuario, idempresa, ativo) VALUES ($1, $2, $3)',
-                [idusuario, idempresa, ativo]
-            );
-      } else {
-          // Se o vínculo já existe, apenas atualiza o status
-          await db.query(
-              'UPDATE usuarioempresas SET ativo = $1 WHERE idusuario = $2 AND idempresa = $3',
-              [ativo, idusuario, idempresa]
-          );
-      }
-    //}
     res.locals.acao = acao;
     res.locals.idregistroalterado = idpermissao;
     res.locals.idusuarioAlvo = idusuario;
 
-    res.status(200).json({ sucesso: true, mensagem: 'Permissões salvas com sucesso.' });
+    res.status(200).json({
+      sucesso: true,
+      mensagem: 'Permissões salvas com sucesso.',
+      avisoDevsNegado: devsNegado
+    });
   } catch (erro) {
     console.error('Erro ao salvar permissões:', erro);
     res.status(500).json({ erro: 'Erro ao salvar permissões no banco de dados.' });
+  }
+}
+
+// Retorna, para um usuário e uma empresa, TODOS os módulos cadastrados (tabela
+// `modulos`) já com as flags de permissão do usuário (ou tudo false se ainda não
+// houver linha em `permissoes` para aquele módulo). É a base do grid de permissões:
+// usada tanto para a empresa de destino quanto, ao "copiar", para a empresa de
+// origem (mesma consulta, idempresa diferente).
+//
+// Não filtra por `moduloempresas`: a tela não tem mais um seletor de módulo — se o
+// módulo existe no cadastro de Módulos, ele deve poder receber permissão em
+// qualquer empresa.
+async function listarGradePermissoes(req, res) {
+  const { idusuario } = req.params;
+  const idempresa = req.idempresa;
+
+  if (!idusuario || !idempresa) {
+    return res.status(400).json({ erro: 'Usuário e empresa são obrigatórios.' });
+  }
+
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        m.idmodulo,
+        m.modulo,
+        COALESCE(p.acesso, false)      AS acesso,
+        COALESCE(p.cadastrar, false)   AS cadastrar,
+        COALESCE(p.alterar, false)     AS alterar,
+        COALESCE(p.pesquisar, false)   AS pesquisar,
+        COALESCE(p.apagar, false)      AS apagar,
+        COALESCE(p.master, false)      AS master,
+        COALESCE(p.financeiro, false)  AS financeiro,
+        COALESCE(p.supremo, false)     AS supremo,
+        COALESCE(p.comercial, false)   AS comercial,
+        COALESCE(p.devs, false)        AS devs,
+        COALESCE(p.rh, false)          AS rh
+      FROM modulos m
+      LEFT JOIN permissoes p ON LOWER(p.modulo) = LOWER(m.modulo) AND p.idusuario = $1 AND p.idempresa = $2
+      ORDER BY m.modulo
+    `, [idusuario, idempresa]);
+
+    res.status(200).json(rows);
+  } catch (erro) {
+    console.error('Erro ao buscar grade de permissões:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar grade de permissões.' });
+  }
+}
+
+// Salva de uma vez as permissões de TODOS os módulos informados, para um usuário+empresa.
+// Substitui o fluxo de salvar módulo a módulo: o front-end manda o grid inteiro e aqui
+// tudo é gravado numa única transação.
+async function cadastrarOuAtualizarPermissoesLote(req, res) {
+  const { idusuario, permissoes } = req.body;
+  const ativo = req.body.ativo !== undefined ? req.body.ativo : false;
+  const idempresa = req.headers.idempresa;
+
+  if (!idusuario || !idempresa || !Array.isArray(permissoes)) {
+    return res.status(400).json({ erro: 'Dados inválidos ou incompletos.' });
+  }
+
+  const solicitanteId = req.usuario?.idusuario;
+  const temAlgumDevs = permissoes.some((item) => item.devs);
+  const devsPermitido = temAlgumDevs ? await solicitanteEhDevs(db, solicitanteId) : false;
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const idsAlterados = [];
+    let algumDevsNegado = false;
+    for (const item of permissoes) {
+      if (!item.modulo) continue;
+      const { idpermissao, devsNegado } = await upsertPermissao(client, idusuario, item.modulo, idempresa, item, devsPermitido);
+      idsAlterados.push(idpermissao);
+      if (devsNegado) algumDevsNegado = true;
+    }
+
+    await garantirVinculoEmpresa(client, idusuario, idempresa, ativo);
+
+    await client.query('COMMIT');
+
+    res.locals.acao = 'atualizou-lote';
+    res.locals.idregistroalterado = idsAlterados.filter(Boolean).join(',');
+    res.locals.idusuarioAlvo = idusuario;
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: 'Permissões salvas com sucesso.',
+      avisoDevsNegado: algumDevsNegado
+    });
+  } catch (erro) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao salvar permissões em lote:', erro);
+    res.status(500).json({ erro: 'Erro ao salvar permissões no banco de dados.' });
+  } finally {
+    client.release();
   }
 }
 
@@ -257,6 +351,8 @@ module.exports = {
   listarPermissoes,
   listarPermissoesPorUsuario,
   cadastrarOuAtualizarPermissoes,
+  listarGradePermissoes,
+  cadastrarOuAtualizarPermissoesLote,
   // deletarPermissao,
   atualizarEmpresasDoUsuario
 };
