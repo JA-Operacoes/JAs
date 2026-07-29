@@ -206,6 +206,7 @@ router.get("/verificar-cpf/:cpf", verificarPermissao('Funcionarios', 'cadastrar'
         console.error("Erro ao verificar CPF do funcionário:", error);
         res.status(500).json({ message: "Erro ao verificar CPF." });
     }
+});
 // Planos de saude para o cadastro de funcionarios. Usa a permissao de Funcionarios
 // (quem cadastra funcionario pode listar planos/tipos, sem precisar do modulo PlanoSaude).
 router.get("/planos-saude", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
