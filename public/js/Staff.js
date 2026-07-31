@@ -1481,6 +1481,12 @@ function bloquearFormularioVisualizacao(motivo, tipo) {
     if (btnEnviar) {
 
         if (btnEnviar.getAttribute('data-modo') === 'comprovante') return;
+
+        // Dev precisa conseguir reverter um registro Inativo/Deletado (desmarcando o checkbox
+        // correspondente) — não trava o Enviar nesses dois casos quando o usuário é dev. Os
+        // demais campos continuam travados (readOnly/disabled) pelo carregarDadosParaEditar.
+        if (temPermissaoDevs && (tipo === 'deletado' || tipo === 'inativo')) return;
+
         btnEnviar.disabled = true;
         btnEnviar.style.opacity = '0.5';
         btnEnviar.style.cursor = 'not-allowed';
@@ -1510,6 +1516,123 @@ function desbloquearFormulario() {
     }
 }
 
+// Atualiza o widget da imagem da solicitação de Inativar/Deletar ao lado dos checkboxes.
+// Com algo anexado: todos veem o link de visualização; Substituir/Remover só aparecem pra devs.
+// Sem nada anexado: devs veem um link "+ Anexar imagem da solicitação" (ex.: depois de remover uma);
+// quem não é dev não vê nada, já que não tem como anexar mesmo.
+function atualizarWidgetComprovanteInativarDeletar(filePathSalvo) {
+    const container      = document.getElementById('containerComprovanteInativarDeletar');
+    const link           = document.getElementById('linkVerComprovanteInativarDeletar');
+    const textoNovo       = document.getElementById('textoNovoComprovanteInativarDeletar');
+    const btnSubstituir   = document.getElementById('btnSubstituirComprovanteInativarDeletar');
+    const btnRemover      = document.getElementById('btnRemoverComprovanteInativarDeletar');
+    const fileInput       = document.getElementById('fileInativarDeletar');
+    if (!container || !link || !textoNovo || !btnSubstituir || !btnRemover || !fileInput) return;
+
+    const arquivoNovo = fileInput.files?.[0] || null;
+
+    // Reset visual básico
+    link.style.display = 'none';
+    textoNovo.style.display = 'none';
+    btnSubstituir.style.display = 'none';
+    btnRemover.style.display = 'none';
+    btnSubstituir.innerHTML = '<i class="fas fa-sync-alt"></i>';
+    btnSubstituir.title = 'Substituir imagem da solicitação';
+
+    if (arquivoNovo) {
+        // Arquivo escolhido agora, ainda não salvo — mostra confirmação local.
+        // Nome truncado (o container é apertado, ao lado dos checkboxes) — nome completo fica no title (tooltip).
+        const tamanhoKb = (arquivoNovo.size / 1024).toFixed(0);
+        const nomeTruncado = arquivoNovo.name.length > 40 ? arquivoNovo.name.slice(0, 37) + '…' : arquivoNovo.name;
+        textoNovo.innerHTML = `✅ <b>${nomeTruncado}</b> (${tamanhoKb} KB)`;
+        textoNovo.title = `${arquivoNovo.name} (${tamanhoKb} KB) — será salvo ao enviar`;
+        textoNovo.style.display = 'inline-block';
+        if (temPermissaoDevs) {
+            btnSubstituir.style.display = 'inline-block';
+            btnRemover.style.display = 'inline-block';
+        }
+        container.style.display = 'flex';
+        return;
+    }
+
+    if (filePathSalvo) {
+        const fileName  = filePathSalvo.split('/').pop();
+        const ehImagem  = /\.(jpeg|jpg|png|gif|webp|bmp|svg|jfif)$/i.test(filePathSalvo);
+        link.href = filePathSalvo;
+        link.title = fileName;
+        link.textContent = ehImagem ? '📎 Ver imagem da solicitação' : '📎 Ver arquivo da solicitação (PDF)';
+        link.style.display = 'inline-block';
+        if (temPermissaoDevs) {
+            btnSubstituir.style.display = 'inline-block';
+            btnRemover.style.display = 'inline-block';
+        }
+        container.style.display = 'flex';
+        return;
+    }
+
+    // Nada anexado. Dev: deixa um link pra anexar (ex.: acabou de remover e quer trocar).
+    // Quem não é dev: some por completo, já que não tem como anexar mesmo.
+    if (temPermissaoDevs) {
+        btnSubstituir.innerHTML = '<i class="fas fa-paperclip"></i> Anexar imagem da solicitação';
+        btnSubstituir.title = 'Anexar imagem da solicitação';
+        btnSubstituir.style.display = 'inline-block';
+        container.style.display = 'flex';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Mostra, de forma somente-leitura, os créditos/débitos (staffajustefinanceiro) relevantes
+// pra este evento. Enquanto não pago, o backend já manda o mesmo lançamento em todos os
+// eventos abertos do funcionário; uma vez pago, só vem no evento onde foi de fato quitado.
+function atualizarAjustesFinanceirosStaff(eventData) {
+    const container = document.getElementById('containerAjustesFinanceiros');
+    const lista = document.getElementById('listaAjustesFinanceiros');
+    if (!container || !lista) return;
+
+    const ajustes = Array.isArray(eventData?.ajustes_financeiros) ? eventData.ajustes_financeiros : [];
+    if (ajustes.length === 0) {
+        container.style.display = 'none';
+        lista.innerHTML = '';
+        return;
+    }
+
+    const idEventoAtual = eventData.idstaffevento;
+    const statusCores = { Pendente: '#f39c12', Autorizado: '#3498db', Pago: '#16a34a', Rejeitado: '#dc2626' };
+
+    lista.innerHTML = ajustes.map(a => {
+        const cor = a.tipo === 'Credito' ? '#16a34a' : '#dc2626';
+        const label = a.tipo === 'Credito' ? 'Crédito' : 'Débito';
+        const valorFmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(a.valor || 0);
+        const statusTexto = a.status || 'Pendente';
+        const statusCor = statusCores[statusTexto] || '#888';
+
+        const origemDiferente = a.idstaffeventoorigem && String(a.idstaffeventoorigem) !== String(idEventoAtual);
+        const origemHtml = origemDiferente
+            ? `<div style="font-size:0.76em; color:#888; margin-top:2px;">Gerado no evento: ${a.nmevento_origem || '—'}</div>`
+            : '';
+
+        const comprovanteHtml = a.comprovante
+            ? `<a href="${a.comprovante}" target="_blank" style="font-size:0.76em; margin-left:10px; white-space:nowrap;">📎 Ver comprovante</a>`
+            : '';
+
+        return `
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px dotted #ddd;">
+                <div>
+                    <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${cor};">${label}</span>
+                    <span style="font-weight:600; margin-left:8px;">${valorFmt}</span>
+                    <span style="margin-left:8px; font-size:0.85em; color:#555;">${(a.justificativa || '').replace(/</g, '&lt;')}</span>
+                    ${origemHtml}
+                </div>
+                <div style="text-align:right; white-space:nowrap;">
+                    <span style="font-size:0.78em; font-weight:700; color:${statusCor};">${statusTexto}</span>
+                    ${comprovanteHtml}
+                </div>
+            </div>`;
+    }).join('');
+    container.style.display = 'block';
+}
+
 const carregarDadosParaEditar = (eventData, bloquear) => {
     console.log('🔴 carregarDadosParaEditar CHAMADO - currentEditingStaffEvent será setado!');
     console.trace(); // Mostra a pilha completa de quem chamou
@@ -1526,7 +1649,11 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     // 1. Lógica do Botão Enviar
     if (btn) {
         const precisaComprovante = verificarNecessidadeComprovante(eventData);
-        if (bloquear && !precisaComprovante) {
+        // Dev precisa do botão visível mesmo num registro Deletado/Inativo bloqueado — é o único
+        // jeito de reverter o status (desmarcando o checkbox correspondente e reenviando).
+        const statusStaffAtualBtn = (eventData.statusstaff || '').trim();
+        const devPrecisaReverter = temPermissaoDevs && (statusStaffAtualBtn === 'Inativo' || statusStaffAtualBtn === 'Deletado');
+        if (bloquear && !precisaComprovante && !devPrecisaReverter) {
             btn.style.display = 'none';
             btn.disabled = true;
         } else {
@@ -1745,6 +1872,49 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     const statusStaff = (eventData.statusstaff || '').trim();
     if (ckbInativo)  ckbInativo.checked  = statusStaff === 'Inativo';
     if (ckbDeletado) ckbDeletado.checked = statusStaff === 'Deletado';
+
+    // Reforça a trava de permissão: o loop de destravamento de campos logo acima
+    // (querySelectorAll de input/select/checkbox) reabilita TODOS os campos quando o
+    // registro não está bloqueado — incluindo estes dois. Sem reaplicar aqui, quem não
+    // é dev volta a poder clicar assim que o registro fica editável.
+    // NÃO compõe com `bloquear`: um dev precisa conseguir reverter um registro Inativo/Deletado
+    // (que fica em modo view-only pros demais campos) — só a permissão de devs e as travas de
+    // pagamento abaixo decidem se estes dois checkboxes ficam acessíveis.
+    const statusPgtoCacheUpperDel = (eventData.statuspgto || '').trim().toUpperCase();
+    const statusPgtoAjdUpperDel   = (eventData.statuspgtoajdcto || '').trim().toUpperCase();
+
+    // Cachê E ajuda de custo pagos = evento concluído: nem Inativar faz mais sentido nesse ponto
+    const bloqueiaInativoPorPagamentoCompleto = statusPgtoCacheUpperDel === 'PAGO' && statusPgtoAjdUpperDel === 'PAGO';
+    if (ckbInativo) {
+        ckbInativo.disabled = !temPermissaoDevs || bloqueiaInativoPorPagamentoCompleto;
+        ckbInativo.title = bloqueiaInativoPorPagamentoCompleto
+            ? 'Não é possível inativar: cachê e ajuda de custo já pagos — evento concluído.'
+            : '';
+        // O loop de bloqueio acima (bloquear=true) deixa o cursor 'not-allowed' mesmo em campos
+        // que acabamos de reabilitar pra devs — restaura o cursor padrão quando de fato habilitado.
+        ckbInativo.style.cursor = ckbInativo.disabled ? 'not-allowed' : '';
+    }
+
+    // Com pagamento (cachê ou ajuda de custo) já realizado, só Inativar é permitido — Deletado fica desabilitado
+    const bloqueiaDeletadoPorPagamento = statusPgtoCacheUpperDel === 'PAGO'
+        || statusPgtoAjdUpperDel === 'PAGO' || statusPgtoAjdUpperDel === 'PAGO50';
+    if (ckbDeletado) {
+        ckbDeletado.disabled = !temPermissaoDevs || bloqueiaDeletadoPorPagamento;
+        ckbDeletado.title = bloqueiaDeletadoPorPagamento
+            ? 'Não é possível deletar: já existe pagamento (cachê ou ajuda de custo) registrado para este staff. Utilize Inativar.'
+            : '';
+        ckbDeletado.style.cursor = ckbDeletado.disabled ? 'not-allowed' : '';
+    }
+
+    // Comprovante de inativação/deleção já anexado (print do WhatsApp etc.) — widget de fácil acesso
+    const fileInativarDeletarInput = document.getElementById('fileInativarDeletar');
+    const limparComprovanteInativarDeletarInput = document.getElementById('limparComprovanteInativarDeletar');
+    if (fileInativarDeletarInput) fileInativarDeletarInput.value = '';
+    if (limparComprovanteInativarDeletarInput) limparComprovanteInativarDeletarInput.value = 'false';
+    atualizarWidgetComprovanteInativarDeletar(eventData.compinativardeletar);
+
+    // Crédito/Débito do funcionário (staffajustefinanceiro) — somente leitura
+    atualizarAjustesFinanceirosStaff(eventData);
 
     // Lógica para Comprovantes 50% e 100%
     if (temPermissaoFinanceiro) {
@@ -3511,6 +3681,37 @@ async function verificaStaff() {
     // Visível para todos, editável apenas por devs
     ckbInativo.disabled  = !temPermissaoDevs;
     ckbDeletado.disabled = !temPermissaoDevs;
+
+    // Widget de comprovante de Inativar/Deletar: substituir/remover (DOM é recriado a cada
+    // abertura do modal, então religar os listeners aqui não duplica handlers antigos)
+    const fileInativarDeletarInputWire = document.getElementById('fileInativarDeletar');
+    const btnSubstituirComprovanteCascata = document.getElementById('btnSubstituirComprovanteInativarDeletar');
+    const btnRemoverComprovanteCascata = document.getElementById('btnRemoverComprovanteInativarDeletar');
+
+    btnSubstituirComprovanteCascata?.addEventListener('click', () => fileInativarDeletarInputWire?.click());
+
+    fileInativarDeletarInputWire?.addEventListener('change', () => {
+        const limparInput = document.getElementById('limparComprovanteInativarDeletar');
+        if (limparInput) limparInput.value = 'false';
+        atualizarWidgetComprovanteInativarDeletar(currentEditingStaffEvent?.compinativardeletar);
+    });
+
+    btnRemoverComprovanteCascata?.addEventListener('click', async () => {
+        const confirmaRemocao = await Swal.fire({
+            title: 'Remover imagem da solicitação?',
+            text: 'A imagem anexada será removida ao salvar o registro.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, remover',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#c0392b'
+        });
+        if (!confirmaRemocao.isConfirmed) return;
+        if (fileInativarDeletarInputWire) fileInativarDeletarInputWire.value = '';
+        const limparInput = document.getElementById('limparComprovanteInativarDeletar');
+        if (limparInput) limparInput.value = 'true';
+        atualizarWidgetComprovanteInativarDeletar(null);
+    });
 
     qtdPessoasInput           = document.getElementById('qtdPessoas');
     idEquipeInput             = document.getElementById('idEquipe');
@@ -5499,6 +5700,8 @@ async function verificaStaff() {
             // 10. CÁLCULO DE STATUS
             // =========================================================
             const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
+            const vlrTransporteNumerico = parseFloat(String(transporte).replace(',', '.')) || 0;
+            const vlrAlimentacaoNumerico = parseFloat(String(alimentacao).replace(',', '.')) || 0;
 
             let statusPgto = document.querySelector("#statusPgto")?.value || '';
             let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || '';
@@ -5521,17 +5724,20 @@ async function verificaStaff() {
                 statusAjusteCusto = (vlrAjusteNum !== 0 || (descAjusteTxt !== '' && descAjusteTxt !== '-')) ? 'Pendente' : '';
             }
 
-            console.log("STATUSCUSTOFECHADO ANTES DE TRATAR", statusFechado, "Check:", fechadoCheck.checked, "Valor:", vlrCustoNumerico);
+            console.log("STATUSCUSTOFECHADO ANTES DE TRATAR", statusFechado, "Check:", fechadoCheck.checked, "Valor:", vlrCustoNumerico, "Transporte:", vlrTransporteNumerico, "Alimentação:", vlrAlimentacaoNumerico);
             // Status Custo Fechado/Liberado
             // if (!statusFechado || statusFechado.trim() === '') {
             //     statusFechado = ((fechadoCheck.checked || liberadoCheck.checked) && vlrCustoNumerico > 0) ? 'Pendente' : '';
             // }
-            
+
 
             // Só define 'Pendente' se statusFechado estiver realmente vazio
+            // Considera não só o cachê, mas também alimentação/transporte: qualquer adicional > 0
+            // com Fechado/Liberado marcado também deve gerar solicitação de aprovação.
             if (!statusFechado || statusFechado.trim() === '' || statusFechado === 'none') {
-                statusFechado = ((fechadoCheck.checked || liberadoCheck.checked) && vlrCustoNumerico > 0) 
-                    ? 'Pendente' 
+                statusFechado = ((fechadoCheck.checked || liberadoCheck.checked)
+                    && (vlrCustoNumerico > 0 || vlrTransporteNumerico > 0 || vlrAlimentacaoNumerico > 0))
+                    ? 'Pendente'
                     : '';
             }
 
@@ -5588,6 +5794,13 @@ async function verificaStaff() {
             if (fileNotaFiscalInput.files?.[0]) { compnotafiscalDoForm = 'novo-arquivo'; }
             else if (hiddenRemoverNotaFiscalInput.value === 'true') { compnotafiscalDoForm = ''; }
             else { compnotafiscalDoForm = currentEditingStaffEvent?.compnotafiscal || ''; }
+
+            const fileInativarDeletarInputChk = document.getElementById('fileInativarDeletar');
+            const hiddenRemoverInativarDeletarInputChk = document.getElementById('limparComprovanteInativarDeletar');
+            let compinativardeletarDoForm;
+            if (fileInativarDeletarInputChk?.files?.[0]) { compinativardeletarDoForm = 'novo-arquivo'; }
+            else if (hiddenRemoverInativarDeletarInputChk?.value === 'true') { compinativardeletarDoForm = ''; }
+            else { compinativardeletarDoForm = currentEditingStaffEvent?.compinativardeletar || ''; }
 
 
             // =========================================================
@@ -5873,6 +6086,15 @@ async function verificaStaff() {
                 console.log("🔍 currentEditingStaffEvent keys:", Object.keys(currentEditingStaffEvent || {}));
                 
 
+                // Se nenhum checkbox está marcado mas o registro ERA Inativo/Deletado, é reversão
+                // intencional (usuário desmarcou pra voltar a Ativo) — não deve comparar contra o
+                // próprio status antigo, senão a reversão nunca é detectada como alteração.
+                const statusStaffAntigoParaComparacao = (currentEditingStaffEvent?.statusstaff || 'Ativo').trim();
+                const statusStaffNovoParaComparacao = ckbDeletado?.checked ? 'Deletado'
+                    : ckbInativo?.checked ? 'Inativo'
+                    : (statusStaffAntigoParaComparacao === 'Inativo' || statusStaffAntigoParaComparacao === 'Deletado') ? 'Ativo'
+                    : statusStaffAntigoParaComparacao;
+
                 const houveAlteracao =
                     logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
                     //logAndCheck('ID Equipe', idEquipeOriginal, idEquipe, idEquipeOriginal !== idEquipe)
@@ -5906,6 +6128,7 @@ async function verificaStaff() {
                     logAndCheck('Comprovante Caixinha', normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha), normalizeEmptyValue(comppgtocaixinhaDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)) ||
                     logAndCheck('Comprovante ControleGastos', normalizeEmptyValue(currentEditingStaffEvent.compcontrolegastos), normalizeEmptyValue(compcontrolegastosDoForm), normalizeEmptyValue(currentEditingStaffEvent.compcontrolegastos) !== normalizeEmptyValue(compcontrolegastosDoForm)) ||
                     logAndCheck('Comprovante NotaFiscal', normalizeEmptyValue(currentEditingStaffEvent.compnotafiscal), normalizeEmptyValue(compnotafiscalDoForm), normalizeEmptyValue(currentEditingStaffEvent.compnotafiscal) !== normalizeEmptyValue(compnotafiscalDoForm)) ||
+                    logAndCheck('Comprovante InativarDeletar', normalizeEmptyValue(currentEditingStaffEvent.compinativardeletar), normalizeEmptyValue(compinativardeletarDoForm), normalizeEmptyValue(currentEditingStaffEvent.compinativardeletar) !== normalizeEmptyValue(compinativardeletarDoForm)) ||
                     logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginalLimpa), JSON.stringify(periodoDobrado), JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(periodoDobrado)) ||
                     logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginalLimpa), JSON.stringify(periodoMeiaDiaria), JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(periodoMeiaDiaria)) ||
                     //logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase(), (statusDiariaDobrada || '').trim().toUpperCase(), (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase() != (statusDiariaDobrada || '').trim().toUpperCase()) ||
@@ -5924,7 +6147,7 @@ async function verificaStaff() {
                     ) ||
                     logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
                     logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0)) ||
-                    logAndCheck('StatusStaff', (currentEditingStaffEvent.statusstaff || '').trim(), ckbDeletado?.checked ? 'Deletado' : ckbInativo?.checked ? 'Inativo' : (currentEditingStaffEvent?.statusstaff || 'Ativo').trim(), (currentEditingStaffEvent.statusstaff || '').trim() !== (ckbDeletado?.checked ? 'Deletado' : ckbInativo?.checked ? 'Inativo' : (currentEditingStaffEvent?.statusstaff || 'Ativo').trim())) ||
+                    logAndCheck('StatusStaff', statusStaffAntigoParaComparacao, statusStaffNovoParaComparacao, statusStaffAntigoParaComparacao !== statusStaffNovoParaComparacao) ||
                     nivelFoiTrocado; // ← Se houve troca de nível, força alteração
 
                 if (!houveAlteracao) {
@@ -6714,37 +6937,139 @@ async function verificaStaff() {
             // Inativo e Deletado são os únicos valores que os checkboxes podem setar.
             // Se nenhum estiver marcado, preserva o statusstaff original (pode ser Pendente, Ativo, etc.)
             const statusStaffAtual = (currentEditingStaffEvent?.statusstaff || 'Ativo').trim();
+            // Se nenhum dos dois está marcado mas o registro ERA Inativo/Deletado, é reversão
+            // intencional (dev desmarcou pra voltar a Ativo) — não deve preservar o status antigo.
             const statusStaffEnvio = ckbDeletado?.checked ? 'Deletado'
                                    : ckbInativo?.checked  ? 'Inativo'
+                                   : (statusStaffAtual === 'Inativo' || statusStaffAtual === 'Deletado') ? 'Ativo'
                                    : statusStaffAtual;
 
             // Se está mudando para Inativo/Deletado exige confirmação + justificativa obrigatória.
             // Solicitações pendentes (aditivo/extra) serão rejeitadas automaticamente no backend.
             if ((statusStaffEnvio === 'Inativo' || statusStaffEnvio === 'Deletado') && statusStaffAtual !== statusStaffEnvio) {
-                const tipoAcao  = statusStaffEnvio === 'Deletado' ? 'Deleção'  : 'Inativação';
+                const tipoAcao  = statusStaffEnvio === 'Deletado' ? 'Deletado'  : 'Inativo';
                 const acaoLabel = statusStaffEnvio === 'Deletado' ? 'deletar'  : 'inativar';
                 const swalConf = await Swal.fire({
                     icon: 'warning',
-                    title: `Confirmar ${tipoAcao}`,
+                    title: `Confirmar alteração do status do staff para "${tipoAcao}"?`,
                     html: `<div style="text-align:left; font-size:0.93em; line-height:1.6;">
-                             Esta ação irá <b>${acaoLabel}</b> o registro.<br>
+                             Esta ação irá trocar o status do staff para "${tipoAcao}".<br>
                              Caso existam solicitações pendentes, elas serão <b>rejeitadas automaticamente</b>.
+                           </div>
+                           <textarea id="swal-justificativa-cascata" class="swal2-textarea"
+                               placeholder="Justificativa para ${acaoLabel} este registro..."
+                               style="height:80px; width:400px; margin-top:8px; font-size:0.92em;"></textarea>
+                           <div style="text-align:left; margin-top:10px;">
+                               <label for="swal-comprovante-cascata" style="font-size:0.85em; font-weight:600; display:block; margin-bottom:4px;">
+                                   Imagem da solicitação (print do WhatsApp etc., opcional):
+                               </label>
+                               <input type="file" id="swal-comprovante-cascata" accept="image/*,application/pdf" style="width:100%; font-size:0.85em;">
+                               <div id="swal-comprovante-nome-arquivo" style="margin-top:6px; font-size:0.82em; color:#888;">Nenhum arquivo selecionado</div>
                            </div>`,
-                    input: 'textarea',
-                    inputPlaceholder: `Justificativa para ${acaoLabel} este registro...`,
-                    inputAttributes: { style: 'height:80px; margin-top:8px; font-size:0.92em;' },
                     showCancelButton: true,
                     confirmButtonText: `Confirmar ${tipoAcao}`,
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#c0392b',
-                    inputValidator: (v) => !v?.trim() ? `A justificativa é obrigatória para ${acaoLabel} o registro.` : null
+                    focusConfirm: false,
+                    didOpen: () => {
+                        const inputArquivoCascata = document.getElementById('swal-comprovante-cascata');
+                        const nomeArquivoCascataEl = document.getElementById('swal-comprovante-nome-arquivo');
+                        inputArquivoCascata?.addEventListener('change', () => {
+                            const arquivo = inputArquivoCascata.files?.[0];
+                            if (arquivo) {
+                                const tamanhoKb = (arquivo.size / 1024).toFixed(0);
+                                nomeArquivoCascataEl.innerHTML = `✅ <b>${arquivo.name}</b> (${tamanhoKb} KB) anexado`;
+                                nomeArquivoCascataEl.style.color = '#198754';
+                            } else {
+                                nomeArquivoCascataEl.textContent = 'Nenhum arquivo selecionado';
+                                nomeArquivoCascataEl.style.color = '#888';
+                            }
+                        });
+                    },
+                    preConfirm: () => {
+                        const justificativa = document.getElementById('swal-justificativa-cascata')?.value?.trim() || '';
+                        if (!justificativa) {
+                            Swal.showValidationMessage(`A justificativa é obrigatória para ${acaoLabel} o registro.`);
+                            return false;
+                        }
+                        const arquivo = document.getElementById('swal-comprovante-cascata')?.files?.[0] || null;
+                        return { justificativa, arquivo };
+                    }
                 });
                 if (!swalConf.isConfirmed) {
                     if (statusStaffEnvio === 'Deletado') ckbDeletado.checked = false;
                     else ckbInativo.checked = false;
                     return;
                 }
-                formData.append('justificativaCascata', swalConf.value.trim());
+                formData.append('justificativaCascata', swalConf.value.justificativa);
+                if (swalConf.value.arquivo) {
+                    // Alimenta o input do widget (fonte única do arquivo no envio) em vez de
+                    // anexar direto ao formData, pra não duplicar o campo se o widget também tiver um arquivo pendente
+                    const dtCascata = new DataTransfer();
+                    dtCascata.items.add(swalConf.value.arquivo);
+                    const fileInputWidgetCascata = document.getElementById('fileInativarDeletar');
+                    if (fileInputWidgetCascata) {
+                        fileInputWidgetCascata.files = dtCascata.files;
+        document.getElementById('limparComprovanteInativarDeletar').value = 'false';
+                        atualizarWidgetComprovanteInativarDeletar(currentEditingStaffEvent?.compinativardeletar);
+                    }
+                }
+            } else if (statusStaffEnvio === 'Ativo' && statusStaffAtual !== statusStaffEnvio &&
+                       (statusStaffAtual === 'Inativo' || statusStaffAtual === 'Deletado')) {
+                // Reversão: registro estava Inativo/Deletado e voltou a ser Ativo. Exige justificativa
+                // também — sem ela, a justificativa original de por que foi inativado/deletado fica sem
+                // sentido no histórico (não dá pra saber por que reverteram depois).
+                const tipoAcaoAnterior = statusStaffAtual === 'Deletado' ? 'Deletado' : 'Inativo';
+                const swalReversao = await Swal.fire({
+                    icon: 'question',
+                    title: `Reverter status de "${tipoAcaoAnterior}" para "Ativo"?`,
+                    html: `<div style="text-align:left; font-size:0.93em; line-height:1.6;">
+                             O registro estava <b>${tipoAcaoAnterior}</b> e vai voltar a ser <b>Ativo</b>.
+                           </div>
+                           <textarea id="swal-justificativa-reversao" class="swal2-textarea"
+                               placeholder="Motivo da reversão..."
+                               style="height:80px; width:400px; margin-top:8px; font-size:0.92em;"></textarea>`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Confirmar Reversão',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#198754',
+                    focusConfirm: false,
+                    preConfirm: () => {
+                        const justificativa = document.getElementById('swal-justificativa-reversao')?.value?.trim() || '';
+                        if (!justificativa) {
+                            Swal.showValidationMessage('A justificativa é obrigatória para reverter este status.');
+                            return false;
+                        }
+                        return { justificativa };
+                    }
+                });
+                if (!swalReversao.isConfirmed) {
+                    if (statusStaffAtual === 'Deletado') ckbDeletado.checked = true;
+                    else ckbInativo.checked = true;
+                    return;
+                }
+                formData.append('justificativaCascata', swalReversao.value.justificativa);
+
+                // Se havia imagem anexada à solicitação de Deletado/Inativo, pergunta se quer removê-la também
+                const jaTinhaImagemAnexada = !!currentEditingStaffEvent?.compinativardeletar
+                    && document.getElementById('limparComprovanteInativarDeletar')?.value !== 'true';
+                if (jaTinhaImagemAnexada) {
+                    const swalRemoverImagemReversao = await Swal.fire({
+                        icon: 'question',
+                        title: 'Remover a imagem da solicitação?',
+                        text: 'Havia uma imagem anexada à solicitação de Deletado/Inativo. Deseja removê-la também?',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, remover',
+                        cancelButtonText: 'Não, manter',
+                        confirmButtonColor: '#c0392b'
+                    });
+                    if (swalRemoverImagemReversao.isConfirmed) {
+                        const fileInativarDeletarReversao = document.getElementById('fileInativarDeletar');
+                        if (fileInativarDeletarReversao) fileInativarDeletarReversao.value = '';
+                        document.getElementById('limparComprovanteInativarDeletar').value = 'true';
+                        atualizarWidgetComprovanteInativarDeletar(null);
+                    }
+                }
             }
 
             formData.append('statusstaff', statusStaffEnvio);
@@ -6802,6 +7127,13 @@ async function verificaStaff() {
 
             if (fileNotaFiscalInput.files?.[0]) formData.append('compnotafiscal', fileNotaFiscalInput.files[0]);
             else if (hiddenRemoverNotaFiscalInput.value === 'true') formData.append('limparComprovanteNotaFiscal', 'true');
+
+            // Comprovante de Inativar/Deletar: fonte única é o input do widget (o swal de
+            // confirmação, quando anexa um arquivo, alimenta este mesmo input via DataTransfer)
+            const fileInativarDeletarParaEnvio = document.getElementById('fileInativarDeletar');
+            const hiddenRemoverInativarDeletarParaEnvio = document.getElementById('limparComprovanteInativarDeletar');
+            if (fileInativarDeletarParaEnvio?.files?.[0]) formData.append('compinativardeletar', fileInativarDeletarParaEnvio.files[0]);
+            else if (hiddenRemoverInativarDeletarParaEnvio?.value === 'true') formData.append('limparComprovanteInativarDeletar', 'true');
 
             console.log("Chega aqui antes do try do envio...");
 
@@ -10711,7 +11043,9 @@ async function carregarFuncionarioStaff() {
                                 title: '🚫 Troca de Funcionário Bloqueada',
                                 html: `Não é possível trocar o funcionário pois:<br><br>
                                     ${motivosBloqueio.join('<br>')}<br><br>
-                                    Para trocar o funcionário, o pagamento deve ser estornado primeiro.`,
+                                    Para trocar o funcionário, o pagamento deve ser estornado primeiro.<br>
+                                    Pode solicitar ao <strong>setor de Desenvolvimento</strong> a <strong>Inativação</strong> do Funcionário no Evento, caso necessário, sendo que esta inativação
+                                    gerará uma solicitação ao Financeiro para estorno do pagamento.`,
                                 icon: 'error',
                                 confirmButtonColor: '#d33',
                                 confirmButtonText: 'Entendido'
@@ -11489,6 +11823,22 @@ function limparCamposStaff() {
         const cb = document.getElementById(id);
         if (cb) cb.checked = false;
     });
+
+    // Reset do bloqueio de Inativo/Deletado (payment-lock) e do widget de comprovante de um registro anterior
+    if (ckbInativo) {
+        ckbInativo.disabled = !temPermissaoDevs;
+        ckbInativo.title = '';
+    }
+    if (ckbDeletado) {
+        ckbDeletado.disabled = !temPermissaoDevs;
+        ckbDeletado.title = '';
+    }
+    const fileInativarDeletarInputReset = document.getElementById('fileInativarDeletar');
+    const limparComprovanteInativarDeletarInputReset = document.getElementById('limparComprovanteInativarDeletar');
+    if (fileInativarDeletarInputReset) fileInativarDeletarInputReset.value = '';
+    if (limparComprovanteInativarDeletarInputReset) limparComprovanteInativarDeletarInputReset.value = 'false';
+    if (typeof atualizarWidgetComprovanteInativarDeletar === 'function') atualizarWidgetComprovanteInativarDeletar(null);
+    if (typeof atualizarAjustesFinanceirosStaff === 'function') atualizarAjustesFinanceirosStaff(null);
 
     // 5. Ocultar Textareas e torná-los não obrigatórios (Incluindo Custo Fechado)
     const textareasParaOcultar = [
@@ -17274,7 +17624,14 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                             return { allowed: true };
                         }
 
-                        const datasAditivo = datasReaisParaValidar.length > 0 ? datasReaisParaValidar : [];
+                        // Fatia as datas: só as que realmente excedem o saldo financeiro entram no aditivo
+                        // (mesma lógica de capacidadeFinanceira/limiteEfetivo usada no remanejamento de vaga da mesma função)
+                        const vlrPorDiaChk = vlrCacheChk + vlrAlimChk + vlrTranspChk;
+                        const saldoParaDiariasChk = Math.max(0, saldoEqChk - vlrAjusteChk - vlrCaixinhaChk);
+                        const capacidadeFinanceiraChk = vlrPorDiaChk > 0 ? Math.floor(saldoParaDiariasChk / vlrPorDiaChk) : 0;
+                        const limiteEfetivoChk = Math.max(0, Math.min(totalDiariasSolicitadas, capacidadeFinanceiraChk));
+                        const datasOrdenadasChk = [...datasReaisParaValidar].sort((a, b) => new Date(a) - new Date(b));
+                        const datasAditivo = vlrPorDiaChk > 0 ? datasOrdenadasChk.slice(limiteEfetivoChk) : datasOrdenadasChk;
                         const idOrcChk = dadosOrcamento?.idorcamento || dadosOrcamento?.idOrcamento || 0;
 
                         // ── Verificar se já existe solicitação Pendente para esta função ──
@@ -19198,19 +19555,28 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
             });
 
             if (acaoFinEq === 'ADITIVO') {
+                // Fatia as datas: só as que realmente excedem o saldo financeiro entram no aditivo
+                // (mesma lógica de capacidadeFinanceira/limiteEfetivo usada no remanejamento de vaga da mesma função)
+                const vlrPorDiaPer = vlrCacheFormPer + vlrAlimFormPer + vlrTranspFormPer;
+                const saldoParaDiariasPer = Math.max(0, saldoEqPer - vlrAjusteFormPer - vlrCaixinhaFormPer);
+                const capacidadeFinanceiraPer = vlrPorDiaPer > 0 ? Math.floor(saldoParaDiariasPer / vlrPorDiaPer) : 0;
+                const limiteEfetivoPer = Math.max(0, Math.min(totalDiariasSolicitadas, capacidadeFinanceiraPer));
+                const datasOrdenadasPer = [...datasReaisParaValidar].sort((a, b) => new Date(a) - new Date(b));
+                const datasExcedentesPer = vlrPorDiaPer > 0 ? datasOrdenadasPer.slice(limiteEfetivoPer) : datasOrdenadasPer;
+
                 const dadosExcecao = await solicitarDadosExcecao(
                     'Aditivo - Limite Financeiro da Equipe Excedido',
                     dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento || 0,
                     nmFuncao,
                     idFuncaoProcurado,
                     idFuncionario,
-                    datasReaisParaValidar
+                    datasExcedentesPer
                 );
                 if (dadosExcecao?.confirmado) {
                     window.tipoExcecaoAtual = 'Aditivo - Limite Financeiro da Equipe Excedido';
                     window.justificativaParaSalvar = dadosExcecao.justificativa;
                     window.bSalvarComoInativo = true;
-                    window.datasParaSalvarNoBanco = datasReaisParaValidar;
+                    window.datasParaSalvarNoBanco = datasExcedentesPer;
                     const btnSalvarPrincipal = document.getElementById('Enviar');
                     if (btnSalvarPrincipal) {
                         btnSalvarPrincipal.disabled = false;
