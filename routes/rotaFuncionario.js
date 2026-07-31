@@ -650,17 +650,15 @@ router.post("/",
                     foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
-                    adesaoplanosaude, tipoplanosaude, dependentesdados, idtipoplanosaude
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45)
+                    cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, idtipoplanosaude
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
                 RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
-                    vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
-                    adesaoPlanoSaude, vazioParaNull(tipoPlanoSaude), dependentesDadosJson, vazioParaNull(idTipoPlanoSaude)
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd,
+                    vazioParaNull(idTipoPlanoSaude)
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];
