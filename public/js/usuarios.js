@@ -15,11 +15,11 @@ const campos = {
 
 let clicouNaLista = false; // Flag de clique
 
-// Colunas de permissão renderizadas no grid, na ordem em que aparecem na tabela.
-const CAMPOS_PERMISSAO = [
-  'acesso', 'cadastrar', 'alterar', 'pesquisar', 'apagar',
-  'supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs'
-];
+// Colunas de permissão renderizadas por módulo no grid (uma célula por linha).
+// Os acessos especiais (supremo/master/financeiro/comercial/rh/devs) não são mais
+// por módulo — viram um único controle global (ver CAMPOS_ESPECIAIS_GLOBAL) aplicado
+// a todos os módulos com "Acesso" marcado no momento de salvar.
+const CAMPOS_PADRAO = ['acesso', 'cadastrar', 'alterar', 'pesquisar', 'apagar'];
 
 // Nomes de módulo são gravados no banco "grudados" (ex.: "Ajustefinanceiro"), sem
 // como separar as palavras algoritmicamente com segurança — por isso um mapa manual
@@ -50,10 +50,49 @@ function aplicarRegraAcessoNaLinha(linha) {
   });
 }
 
-// A coluna Devs fica sempre visível pra quem acessa esta tela (senão ninguém sem devs
-// conseguiria conceder devs a um novo usuário). A restrição de segurança continua no
-// backend: só quem já é devs consegue de fato gravar devs=true em outro usuário —
-// se alguém sem devs tentar, o salvamento avisa que foi ignorado (ver btnsalvarPermissao).
+// Qualquer usuário com acesso a esta tela pode conceder a permissão Devs a outro
+// usuário — não há mais restrição de "só quem já é devs pode conceder devs".
+
+// Acessos especiais (Admin Supremo, Master, Financeiro, Comercial, RH, Devs) não são
+// mais por módulo — é um único controle (ver CadUsuarios.html,
+// .acessos-especiais-global-row) aplicado, no momento de salvar, a todos os módulos
+// que estiverem com "Acesso" marcado (ver btnsalvarPermissao). Não liga o Acesso
+// sozinho (decisão: acesso especial não deve dar acesso ao módulo).
+const CAMPOS_ESPECIAIS_GLOBAL = ['supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs'];
+
+function configurarAcessosEspeciaisGlobal() {
+  CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {
+    const chkGlobal = document.getElementById(`global-${campo}`);
+    if (!chkGlobal) return;
+
+    chkGlobal.addEventListener('change', () => {
+      if (!chkGlobal.checked) return;
+
+      const existeModuloComAcesso = Array.from(document.querySelectorAll('#corpoTabelaPermissoes tr'))
+        .some(linha => linha.querySelector('input[data-campo="acesso"]')?.checked);
+
+      if (!existeModuloComAcesso) {
+        chkGlobal.checked = false;
+        Swal.fire({
+          icon: 'warning',
+          title: 'Atenção',
+          text: 'Nenhum módulo com "Acesso" marcado. Marque o Acesso do módulo antes de aplicar acessos especiais.'
+        });
+      }
+    });
+  });
+}
+
+// Reseta os checkboxes globais sempre que a grade é recarregada (nova empresa,
+// novo usuário) — evita que um estado marcado de uma consulta anterior confunda.
+function resetarAcessosEspeciaisGlobal() {
+  CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {
+    const chkGlobal = document.getElementById(`global-${campo}`);
+    if (chkGlobal) chkGlobal.checked = false;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', configurarAcessosEspeciaisGlobal);
 
 
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
@@ -752,6 +791,7 @@ async function verificarNomeCompleto() {
                 if (selectFrente) {
                     selectFrente.value = idPadrao;
                 }
+                atualizarLogoEmpresaDefault(idPadrao);
 
                 // Seleciona no select do VERSO (Permissões)
                 const selectVerso = document.getElementById("listaEmpresas");
@@ -962,6 +1002,7 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
             // Select da Frente
             const selectFrente = document.querySelector('#empresaDefaultSelect');
             if (selectFrente) selectFrente.value = idEmpresaPadrao;
+            atualizarLogoEmpresaDefault(idEmpresaPadrao);
 
             // Select do Verso
             const selectVerso = document.querySelector('#listaEmpresas');
@@ -1154,13 +1195,13 @@ console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefau
       if (empresas.length === 0) {
         // Nenhuma empresa vinculada → vira flipbox
         document.querySelector('.flip-container').classList.add('flip');
-        
+
       } else {
         // Marca checkboxes das empresas vinculadas
         empresas.forEach(emp => {
           console.log("ID Empresa no forEach de PERMISSAO:", emp.idempresa, emp.ativo );
           const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
-          
+
           if (checkbox) checkbox.checked = true;
           //if (checkbox) checkbox.checked = emp.ativo;
           console.log("Checkbox encontrado para empresa ID:", emp.idempresa, checkbox);
@@ -1168,7 +1209,7 @@ console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefau
 
         // Mostra o lado de permissões
         document.querySelector('.flip-container').classList.add('flip');
-   
+
       }
 
     } catch (erro) {
@@ -1207,8 +1248,9 @@ function limparCampos() {
       listaEmpresasSelect.value = ""; // Volta para a opção de "Todas as empresas"     
   }
   if (empresaDefaultSelect) {
-      empresaDefaultSelect.value = ""; // Volta para a opção "Selecione"     
+      empresaDefaultSelect.value = ""; // Volta para a opção "Selecione"
   }
+  atualizarLogoEmpresaDefault(null);
  
 }
 
@@ -1454,10 +1496,19 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     return;
   }
 
+  // Os acessos especiais vêm do controle único (global-supremo, global-master, ...)
+  // e são aplicados a todo módulo com "Acesso" marcado — não existem mais como
+  // checkbox por linha (ver .acessos-especiais-global-row em CadUsuarios.html).
+  const especiaisGlobais = {};
+  CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {
+    especiaisGlobais[campo] = document.getElementById(`global-${campo}`)?.checked || false;
+  });
+
   const permissoes = Array.from(linhas).map(linha => {
     const lerCampo = campo => linha.querySelector(`input[data-campo="${campo}"]`)?.checked || false;
     const flags = { modulo: linha.dataset.modulo, idmodulo: linha.dataset.idmodulo };
-    CAMPOS_PERMISSAO.forEach(campo => { flags[campo] = lerCampo(campo); });
+    CAMPOS_PADRAO.forEach(campo => { flags[campo] = lerCampo(campo); });
+    CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => { flags[campo] = flags.acesso && especiaisGlobais[campo]; });
     return flags;
   });
 
@@ -1476,15 +1527,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     });
 
     if (dados && dados.sucesso) {
-      if (dados.avisoDevsNegado) {
-        Swal.fire(
-          "Salvo, com uma ressalva",
-          "As demais permissões foram salvas, mas a concessão de DEVS foi ignorada: só quem já tem a permissão devs pode concedê-la a outro usuário.",
-          "warning"
-        );
-      } else {
-        Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
-      }
+      Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
 
       // Garante que a empresa recém-salva conste em empresasOriginais com o status atual
       empresasOriginais = empresasOriginais.filter(emp => emp.idempresa !== String(idEmpresaAtual));
@@ -1632,6 +1675,7 @@ function renderizarGradePermissoes(modulos) {
   const corpo = document.getElementById('corpoTabelaPermissoes');
   if (!corpo) return;
   corpo.innerHTML = '';
+  resetarAcessosEspeciaisGlobal();
 
   (modulos || []).forEach(m => {
     const linha = document.createElement('tr');
@@ -1643,12 +1687,17 @@ function renderizarGradePermissoes(modulos) {
     celModulo.className = 'celula-modulo';
     linha.appendChild(celModulo);
 
-    CAMPOS_PERMISSAO.forEach(campo => {
+    CAMPOS_PADRAO.forEach(campo => {
       const td = document.createElement('td');
       td.dataset.col = campo;
 
+      const container = document.createElement('div');
+      container.className = 'checkbox-container';
+
       const chk = document.createElement('input');
       chk.type = 'checkbox';
+      chk.className = 'checkbox-input';
+      chk.id = `chk-${m.idmodulo}-${campo}`;
       chk.dataset.campo = campo;
       chk.checked = Boolean(m[campo]);
       chk.disabled = campo !== 'acesso' && !m.acesso;
@@ -1656,7 +1705,14 @@ function renderizarGradePermissoes(modulos) {
         chk.addEventListener('change', () => aplicarRegraAcessoNaLinha(linha));
       }
 
-      td.appendChild(chk);
+      const label = document.createElement('label');
+      label.className = 'checkbox-permission';
+      label.htmlFor = chk.id;
+      label.innerHTML = '<span class="line line1"></span><span class="line line2"></span>';
+
+      container.appendChild(chk);
+      container.appendChild(label);
+      td.appendChild(container);
       linha.appendChild(td);
     });
 
@@ -1670,6 +1726,13 @@ function renderizarGradePermissoes(modulos) {
     linha.appendChild(tdLimpar);
 
     corpo.appendChild(linha);
+  });
+
+  // Reflete no controle único de "Acessos Especiais" o que já está salvo no banco:
+  // marca cada checkbox global se ALGUM módulo já tiver aquele campo true.
+  CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {
+    const chkGlobal = document.getElementById(`global-${campo}`);
+    if (chkGlobal) chkGlobal.checked = (modulos || []).some(m => Boolean(m[campo]));
   });
 }
 
@@ -1725,6 +1788,7 @@ function preencherEmpresaDefault(idEmpresaDefault) {
     console.log(`Tentando setar select.value para: '${valorParaSelecionar}'`);
 
     selectEmpresa.value = valorParaSelecionar;
+    atualizarLogoEmpresaDefault(valorParaSelecionar);
 
     const selectedOption = selectEmpresa.options[selectEmpresa.selectedIndex];
     if (selectedOption && selectedOption.value === valorParaSelecionar) {
@@ -1784,10 +1848,73 @@ function preencherEmpresaDefault(idEmpresaDefault) {
 //     }
 // }
 
+let empresasCarregadas = [];
+
+// Remove acentos/espaços/prefixo "JA" para comparar o alt da logo com o nmfantasia do banco
+function normalizarNomeEmpresa(texto) {
+    return String(texto || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toUpperCase()
+        .replace(/^JA[_\-\s]*/, '')
+        .replace(/[^A-Z0-9]/g, '');
+}
+
+function getIdEmpresaPorAlt(alt) {
+    const codigo = normalizarNomeEmpresa(alt);
+    const empresa = empresasCarregadas.find(emp => {
+        const nome = normalizarNomeEmpresa(emp.nmfantasia);
+        return nome === codigo || nome.includes(codigo) || codigo.includes(nome);
+    });
+    return empresa ? String(empresa.idempresa) : null;
+}
+
+// Tira a classe "minilogos" da empresa padrão (fica em destaque, maior) e devolve às demais
+function atualizarLogoEmpresaDefault(idempresa) {
+    const logos = document.querySelectorAll('#logotipoEmpresas > div');
+    logos.forEach(div => {
+        const img = div.querySelector('img');
+        const idLogo = img ? getIdEmpresaPorAlt(img.alt) : null;
+        div.classList.toggle('minilogos', !(idempresa && idLogo === String(idempresa)));
+    });
+}
+
+// Define a empresa padrão a partir do clique na logo, refletindo no select e disparando o change
+function selecionarEmpresaDefaultPorId(idempresa) {
+    if (!idempresa) return;
+
+    const selectFrente = document.getElementById('empresaDefaultSelect');
+    if (selectFrente) {
+        selectFrente.value = idempresa;
+        selectFrente.dispatchEvent(new Event('change'));
+    }
+
+    const selectVerso = document.getElementById('listaEmpresas');
+    if (selectVerso) {
+        selectVerso.value = idempresa;
+        selectVerso.dispatchEvent(new Event('change'));
+    }
+
+    atualizarLogoEmpresaDefault(idempresa);
+}
+
+document.querySelectorAll('#logotipoEmpresas > div').forEach(div => {
+    div.addEventListener('click', function () {
+        const img = this.querySelector('img');
+        const idempresa = img ? getIdEmpresaPorAlt(img.alt) : null;
+        if (!idempresa) {
+            console.warn('Não foi possível identificar a empresa pela logo clicada:', img?.alt);
+            return;
+        }
+        selecionarEmpresaDefaultPorId(idempresa);
+    });
+});
+
 async function carregarEmpresas(selectIds = ['empresaDefaultSelect', 'listaEmpresas']) {
     try {
         const empresas = await fetchComToken('auth/empresas');
         if (!empresas) return;
+
+        empresasCarregadas = empresas;
 
         selectIds.forEach(id => {
             const selectElement = document.getElementById(id);
