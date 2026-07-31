@@ -1906,6 +1906,10 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         ckbDeletado.style.cursor = ckbDeletado.disabled ? 'not-allowed' : '';
     }
 
+    // Fora da permissão de dev, o bloco Inativo/Deletado não deve nem aparecer.
+    const wrapperInativoDeletado = ckbInativo?.closest('.checkbox') || ckbDeletado?.closest('.checkbox');
+    if (wrapperInativoDeletado) wrapperInativoDeletado.style.display = temPermissaoDevs ? '' : 'none';
+
     // Comprovante de inativação/deleção já anexado (print do WhatsApp etc.) — widget de fácil acesso
     const fileInativarDeletarInput = document.getElementById('fileInativarDeletar');
     const limparComprovanteInativarDeletarInput = document.getElementById('limparComprovanteInativarDeletar');
@@ -3678,9 +3682,11 @@ async function verificaStaff() {
     ckbInativo.addEventListener('change', () => { if (ckbInativo.checked) ckbDeletado.checked = false; });
     ckbDeletado.addEventListener('change', () => { if (ckbDeletado.checked) ckbInativo.checked = false; });
 
-    // Visível para todos, editável apenas por devs
+    // Visível e editável apenas por devs — para os demais usuários o bloco nem aparece
     ckbInativo.disabled  = !temPermissaoDevs;
     ckbDeletado.disabled = !temPermissaoDevs;
+    const wrapperInativoDeletadoInit = ckbInativo.closest('.checkbox');
+    if (wrapperInativoDeletadoInit) wrapperInativoDeletadoInit.style.display = temPermissaoDevs ? '' : 'none';
 
     // Widget de comprovante de Inativar/Deletar: substituir/remover (DOM é recriado a cada
     // abertura do modal, então religar os listeners aqui não duplica handlers antigos)
@@ -11833,6 +11839,8 @@ function limparCamposStaff() {
         ckbDeletado.disabled = !temPermissaoDevs;
         ckbDeletado.title = '';
     }
+    const wrapperInativoDeletadoReset = ckbInativo?.closest('.checkbox') || ckbDeletado?.closest('.checkbox');
+    if (wrapperInativoDeletadoReset) wrapperInativoDeletadoReset.style.display = temPermissaoDevs ? '' : 'none';
     const fileInativarDeletarInputReset = document.getElementById('fileInativarDeletar');
     const limparComprovanteInativarDeletarInputReset = document.getElementById('limparComprovanteInativarDeletar');
     if (fileInativarDeletarInputReset) fileInativarDeletarInputReset.value = '';

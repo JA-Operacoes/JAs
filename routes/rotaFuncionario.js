@@ -266,7 +266,7 @@ router.get("/", verificarPermissao("Funcionarios", "pesquisar"), async (req, res
             // (ex.: "Marcia" e "Márcia" cadastradas separadamente), não adivinha qual é —
             // devolve as opções pro front pedir pra escolher em vez de carregar a errada.
             const result = await pool.query(
-                `SELECT func.*, tp.nomeplano AS nomeplanosaude, tp.nometipo AS nometiposaude
+                `SELECT ${camposSelect}, tp.nomeplano AS nomeplanosaude, tp.nometipo AS nometiposaude
                  FROM funcionarios func
                  INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                  LEFT JOIN tipoplanosaude tp ON tp.idtipoplanosaude = func.idtipoplanosaude
