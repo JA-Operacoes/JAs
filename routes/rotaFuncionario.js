@@ -430,14 +430,18 @@ router.put("/:id",
 
 
             // 2. Atualiza os dados PESSOAIS em `funcionarios`
+            // (perfil/lote/ativo/bonificado/mei/salario/funcao/cbo/dependentes/admissao/
+            // valealim/valetrnsp/adesaoplanosaude/tipoplanosaude/dependentesdados moram em
+            // `funcionarioempresas` desde a migration 20260727_140000 e foram removidas de
+            // `funcionarios` na 20260727_150000 — quem grava esses campos é o UPDATE abaixo.)
             const queryPessoal = `
                 UPDATE funcionarios func
-                SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
-                    celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
-                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, mei = $34, salario = $35 , funcao = $36, cbo = $37, dependentes = $38, admissao = $39, valealim = $40, valetrnsp = $41, adesaoplanosaude = $42, tipoplanosaude = $43, dependentesdados = $44, idtipoplanosaude = $47
-                FROM funcionarioempresas fe
-                WHERE func.idfuncionario = $30 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $31
+                SET foto = $1, nome = $2, cpf = $3, rg = $4, fluencia = $5, idiomasadicionais = $6,
+                    celularpessoal = $7, celularfamiliar = $8, email = $9, site = $10, codigobanco = $11,
+                    pix = $12, numeroconta = $13, digitoConta = $14, agencia = $15, digitoAgencia = $16, tipoconta = $17, cep = $18, rua = $19, numero = $20,
+                    complemento = $21, bairro = $22, cidade = $23, estado = $24, pais = $25, datanascimento = $26, nomefamiliar = $27, apelido = $28, pcd = $29, idtipoplanosaude = $30
+                WHERE func.idfuncionario = $31
+                  AND EXISTS (SELECT 1 FROM funcionarioempresas fe WHERE fe.idfuncionario = func.idfuncionario AND fe.idempresa = $32)
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -446,11 +450,9 @@ router.put("/:id",
                 celularPessoal, celularFamiliar, email, site, codigoBanco,
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
-                dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
-                vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
-                adesaoPlanoSaude, vazioParaNull(tipoPlanoSaude), dependentesDadosJson,
-                id, idempresa, // ID do funcionário para a cláusula WHERE
-                vazioParaNull(idTipoPlanoSaude) // $47
+                dataNascimento, nomeFamiliar, apelido, pcd,
+                vazioParaNull(idTipoPlanoSaude),
+                id, idempresa, // ID do funcionário e empresa para a cláusula WHERE
             ];
 
             const result = await client.query(queryPessoal, valuesPessoal);

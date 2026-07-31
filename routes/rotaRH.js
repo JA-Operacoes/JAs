@@ -719,9 +719,9 @@ router.get("/holerite", async (req, res) => {
     if (!idfuncionario || !mes || !ano) return res.status(400).json({ error: "idfuncionario, mes e ano obrigatórios." });
 
     const func = await pool.query(
-      `SELECT f.idfuncionario, f.nome, f.salario, f.dependentes, f.funcao, f.cbo, f.admissao,
-              f.valealim, f.valetrnsp, f.datanascimento, f.dependentesdados,
-              f.adesaoplanosaude, f.idtipoplanosaude
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.funcao, fe.cbo, fe.admissao,
+              fe.valealim, fe.valetrnsp, f.datanascimento, fe.dependentesdados,
+              fe.adesaoplanosaude, f.idtipoplanosaude
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
