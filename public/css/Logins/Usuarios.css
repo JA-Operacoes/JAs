@@ -4,8 +4,6 @@
 
 body{
   background: radial-gradient(circle, rgba(64,64,64,1) 42%, rgb(145, 14, 14) 100%);
-  width: 100%;
-  height: 100vh;
 }
 
 #login{
@@ -20,7 +18,7 @@ body{
   font-size: 15px;
   color: rgb(255, 255, 255);
   margin: 0 auto;
-  margin-top: 40px;
+  margin-top: 50px;
 }
 
 #Registrar{
@@ -58,6 +56,7 @@ body{
 .minilogos{
   display: flex;
   align-items: center;
+  cursor: pointer;
 }
 
 .minilogos img{
@@ -68,6 +67,15 @@ body{
   justify-content: flex-start;
   object-fit: contain;
   align-items: center;
+  transition: max-width 0.2s ease;
+}
+
+#logotipoEmpresas > div{
+  cursor: pointer;
+}
+
+.checkbox-permissao{
+  cursor: pointer;
 }
 
 /* Container principal */
@@ -92,9 +100,14 @@ body{
   position: relative;
 }
 
+.user-box.camposenha {
+    margin: 50px;
+}
+
 .user-box{
   width: 100%;
-  max-width: 250px;
+  max-width: 700px;
+  color: #fff;
   position: relative;
   margin-bottom: 20px;
 }
@@ -126,7 +139,7 @@ body{
   font-size: 16px;
   color: #fff;
   border: none;
-  border-bottom: 1px solid #fff;
+  border-bottom: 1px solid #ff0000;
   outline: none;
   background: transparent;
   margin-bottom: 0;
@@ -139,7 +152,7 @@ body{
   font-size: 16px;
   color: #ffffff;
   border: none;
-  border-bottom: 1px solid #fff;
+  border-bottom: 1px solid #ff0000;
   outline: none;
   background: transparent;
   margin-bottom: 0;
@@ -161,6 +174,16 @@ option{
 .camposenha input {
   width: 100%;
   padding-right: 35px;
+}
+
+.label-select {
+    display: flex;
+    align-items: center;
+    width: 500px;
+    gap: 12px;
+}
+.label-select p {
+color: #fff;
 }
 
 .toggle-senha {
@@ -225,10 +248,12 @@ option{
 .autocomplete-list li {
   padding: 10px;
   cursor: pointer;
+  color: white;
+  background: darkred;
 }
 
 .autocomplete-list li:hover {
-  background: #f8dfdf;
+  background: #550404;
 }
 
 .login-box .user-box label {
@@ -311,6 +336,7 @@ option{
 /* Nome e Sobrenome lado a lado */
 .user-box.dupla {
   display: flex;
+  align-items: center;
   gap: 20px;
 }
 
@@ -411,7 +437,7 @@ option{
   --s-xsmall: 0.625em;
   --s-small: 1.2em;
   --border-width: 3px;
-  --c-primary: #0c6400;
+  --c-primary: #39ff00;
   --c-primary-20-percent-opacity: rgba(17, 232, 35, 0.2);
   --c-primary-10-percent-opacity: rgba(42, 232, 17, 0.1);
   --t-base: 0.4s;
@@ -436,6 +462,7 @@ option{
   align-items: center;
   justify-content: flex-start;
   color: rgb(255, 255, 255);
+  margin: 50px 0 0;
 }
 
 .checkbox-wrapper-33 .checkbox + .checkbox {
@@ -538,6 +565,69 @@ option{
     opacity: 0;
     transform: scale(20);
   }
+}
+
+.checkbox-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Hidden Checkbox Input */
+.checkbox-input {
+  display: none;
+}
+
+/* Checkbox Label */
+.checkbox-permission {
+  position: relative;
+  width: 25px;
+  height: 25px;
+  background: #e0e0e0;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+  box-shadow:
+    inset -4px -4px 8px #ffffff,
+    inset 4px 4px 8px #b0b0b0;
+}
+
+/* X Mark Lines */
+.line {
+  position: absolute;
+  width: 15px;
+  height: 4px;
+  background: #a0a0a0; /* Disabled color */
+  border-radius: 2px;
+  transition: all 0.3s ease-in-out;
+}
+
+/* X Mark Line 1 */
+.line1 {
+  transform: rotate(45deg);
+}
+
+/* X Mark Line 2 */
+.line2 {
+  transform: rotate(-45deg);
+}
+
+/* Checked State */
+.checkbox-input:checked + .checkbox-permission {
+  background: #d4e9d4; /* Light green background */
+}
+
+.checkbox-input:checked + .checkbox-permission .line1 {
+  transform: rotate(50deg) translateX(-1px) translateY(4px) scaleX(0.6);
+  background: #169c1fff;
+}
+
+.checkbox-input:checked + .checkbox-permission .line2 {
+  transform: rotate(-50deg) translateX(2px) translateY(2px); /* Second line in tick's opposite direction */
+  background: #169c1fff;
 }
 
 #formPermissao{
@@ -865,7 +955,7 @@ input:-webkit-autofill {
   align-items: center;
   gap: 24px;
   width: 100%;
-  max-width: 900px;
+  max-width: 1000px;
   flex-wrap: nowrap;
 }
 
@@ -959,18 +1049,20 @@ input:-webkit-autofill {
 }
 
 .tabela-permissoes thead th {
-  
+  position: sticky;
+  z-index: 2;
   background: #551212;
   color: #fff;
   padding: 6px 4px;
+  height: 21px;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.25);
   white-space: normal;
   word-break: break-word;
 }
 
-/* Duas linhas de cabeçalho empilhadas: a de categoria (Acessos Padrões / Acessos
-   Especiais) fica presa no topo, a de colunas individuais fica presa logo abaixo dela. */
+/* Duas linhas de cabeçalho empilhadas: a de categoria (Acessos Padrões) fica
+   presa no topo, a de colunas individuais fica presa logo abaixo dela. */
 .tabela-permissoes thead tr:first-child th {
   top: 0;
   background: #151515;
@@ -980,10 +1072,32 @@ input:-webkit-autofill {
   top: 33px;
 }
 
-.tabela-permissoes thead tr:first-child th:nth-child(2),
-.tabela-permissoes thead tr:last-child th:nth-child(5),
-.tabela-permissoes tbody tr td:nth-child(6) {
-  border-right: 1px solid rgba(255, 255, 255, 0.35);
+/* Acessos Especiais agora é um controle único (fora da tabela) que se aplica a
+   todos os módulos com Acesso marcado, em vez de repetir 6 checkboxes por linha. */
+.acessos-especiais-global-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 8px 12px;
+  background: #2a0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+.acessos-especiais-global-titulo {
+  color: #fff;
+  font-size: 13px;
+  margin-right: 4px;
+}
+
+.acesso-especial-global-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 12px;
 }
 
 .tabela-permissoes td {
@@ -992,16 +1106,8 @@ input:-webkit-autofill {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Última coluna (Limpar): flex garante centralização nas duas direções
-   independente da altura da linha, e width fixo deixa o botão uniforme
-   em todas as linhas — sem isso, o botão ficava "solto" e desalinhado. */
-.tabela-permissoes td:last-child {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .btn-limpar-linha {
+  display: inline-block;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 4px;
