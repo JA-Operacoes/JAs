@@ -4,11 +4,56 @@ const pool = require("../db/conexaoDB");
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
 const parseFloatOrNull = (v) => {
     if (v === undefined || v === null || v === '' || v === 'NaN' || v === 'null') return 0;
     const n = parseFloat(String(v).replace(',', '.'));
     return Number.isNaN(n) ? 0 : n;
 };
+
+// Reaproveita a mesma pasta dos demais comprovantes do sistema (staffeventos)
+const comprovantesUploadDir = path.join(__dirname, '../uploads/staff_comprovantes');
+if (!fs.existsSync(comprovantesUploadDir)) {
+    fs.mkdirSync(comprovantesUploadDir, { recursive: true });
+}
+
+const deletarArquivoAntigo = (relativePath) => {
+    if (!relativePath) return;
+    const absolutePath = path.join(__dirname, '..', relativePath);
+    fs.unlink(absolutePath, (err) => {
+        if (err && err.code !== 'ENOENT') console.error('Erro ao deletar comprovante antigo:', err);
+    });
+};
+
+const storageComprovanteAjuste = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, comprovantesUploadDir),
+    filename: (req, file, cb) => {
+        const id = req.params.idAjusteFinanceiro || 'novo';
+        const nomeOriginalLimpo = path.parse(file.originalname).name
+            .replace(/\s+/g, '')
+            .replace(/[^a-zA-Z0-9]/g, '');
+        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `comprovanteajuste-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`);
+    }
+});
+
+const fileFilterComprovanteAjuste = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        cb(null, true);
+    } else {
+        cb(new Error('Tipo de arquivo não suportado! Apenas imagens e PDFs são permitidos.'), false);
+    }
+};
+
+const uploadComprovanteAjuste = multer({
+    storage: storageComprovanteAjuste,
+    fileFilter: fileFilterComprovanteAjuste,
+    limits: { fileSize: 10 * 1024 * 1024 }
+}).single('comprovanteajuste');
 
 // GET /ajustefinanceiro/:idFuncionario — histórico de lançamentos do funcionário
 router.get("/:idFuncionario",
@@ -20,12 +65,14 @@ router.get("/:idFuncionario",
         try {
             const result = await pool.query(
                 `SELECT
-                    a.idajustefinanceiro, a.idfuncionario, a.idstaffevento_origem,
-                    a.tipo, a.valor, a.justificativa, a.status,
+                    a.idajustefinanceiro, a.idfuncionario, a.idstaffeventoorigem, a.idstaffeventopago,
+                    a.tipo, a.valor, a.justificativa, a.status, a.comprovante,
                     a.dtlancamento, a.dtpagamento,
-                    se.nmcliente, se.nmevento, se.nmlocalmontagem, se.nmfuncao
+                    se.nmcliente, se.nmevento, se.nmlocalmontagem, se.nmfuncao,
+                    sePago.nmevento AS nmevento_pago
                  FROM staffajustefinanceiro a
-                 LEFT JOIN staffeventos se ON se.idstaffevento = a.idstaffevento_origem
+                 LEFT JOIN staffeventos se ON se.idstaffevento = a.idstaffeventoorigem
+                 LEFT JOIN staffeventos sePago ON sePago.idstaffevento = a.idstaffeventopago
                  WHERE a.idfuncionario = $1 AND a.idempresa = $2
                  ORDER BY a.dtlancamento DESC`,
                 [idFuncionario, idempresa]
@@ -41,13 +88,14 @@ router.get("/:idFuncionario",
 // POST /ajustefinanceiro — cria um lançamento de crédito ou débito
 router.post("/",
     verificarPermissao('AjusteFinanceiro', 'cadastrar'),
+    uploadComprovanteAjuste,
     logMiddleware('AjusteFinanceiro', {
         buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
     }),
     async (req, res) => {
         const idempresa = req.idempresa;
         const idUsuarioLogado = req.usuario.idusuario;
-        const { idfuncionario, idstaffevento_origem, tipo, valor, justificativa } = req.body;
+        const { idfuncionario, idstaffeventoorigem, tipo, valor, justificativa } = req.body;
 
         if (!idfuncionario || !tipo || !['Credito', 'Debito'].includes(tipo)) {
             return res.status(400).json({ erro: "Funcionário e tipo (Credito/Debito) são obrigatórios." });
@@ -69,12 +117,14 @@ router.post("/",
                 return res.status(404).json({ erro: "Funcionário não encontrado nesta empresa." });
             }
 
+            const comprovantePath = req.file ? `/uploads/staff_comprovantes/${req.file.filename}` : null;
+
             const result = await pool.query(
                 `INSERT INTO staffajustefinanceiro
-                    (idfuncionario, idempresa, idstaffevento_origem, tipo, valor, justificativa, idusuariolancamento)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    (idfuncionario, idempresa, idstaffeventoorigem, tipo, valor, justificativa, idusuariolancamento, comprovante)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                  RETURNING *`,
-                [idfuncionario, idempresa, idstaffevento_origem || null, tipo, valorNumerico, String(justificativa).trim(), idUsuarioLogado]
+                [idfuncionario, idempresa, idstaffeventoorigem || null, tipo, valorNumerico, String(justificativa).trim(), idUsuarioLogado, comprovantePath]
             );
 
             const novoAjuste = result.rows[0];
@@ -94,6 +144,7 @@ router.post("/",
 // PUT /ajustefinanceiro/:idAjusteFinanceiro — edita um lançamento ainda Pendente
 router.put("/:idAjusteFinanceiro",
     verificarPermissao('AjusteFinanceiro', 'alterar'),
+    uploadComprovanteAjuste,
     logMiddleware('AjusteFinanceiro', {
         buscarDadosAnteriores: async (req) => {
             const idAjusteFinanceiro = req.params.idAjusteFinanceiro;
@@ -109,39 +160,72 @@ router.put("/:idAjusteFinanceiro",
     }),
     async (req, res) => {
         const idempresa = req.idempresa;
+        const idUsuarioLogado = req.usuario.idusuario;
         const idAjusteFinanceiro = req.params.idAjusteFinanceiro;
-        const { idfuncionario, idstaffevento_origem, tipo, valor, justificativa } = req.body;
-
-        if (!idfuncionario || !tipo || !['Credito', 'Debito'].includes(tipo)) {
-            return res.status(400).json({ erro: "Funcionário e tipo (Credito/Debito) são obrigatórios." });
-        }
-        const valorNumerico = parseFloatOrNull(valor);
-        if (!valorNumerico || valorNumerico <= 0) {
-            return res.status(400).json({ erro: "Valor deve ser maior que zero." });
-        }
-        if (!justificativa || !String(justificativa).trim()) {
-            return res.status(400).json({ erro: "Justificativa é obrigatória." });
-        }
+        const { idfuncionario, idstaffeventoorigem, tipo, valor, justificativa, limparComprovante } = req.body;
 
         try {
             const atual = await pool.query(
-                `SELECT status FROM staffajustefinanceiro WHERE idajustefinanceiro = $1 AND idempresa = $2`,
+                `SELECT status, comprovante FROM staffajustefinanceiro WHERE idajustefinanceiro = $1 AND idempresa = $2`,
                 [idAjusteFinanceiro, idempresa]
             );
             if (atual.rowCount === 0) {
                 return res.status(404).json({ erro: "Lançamento não encontrado." });
             }
-            if (atual.rows[0].status !== 'Pendente') {
-                return res.status(409).json({ erro: "Só é possível editar lançamentos com status Pendente." });
+            const statusAtual = atual.rows[0].status;
+
+            if (statusAtual !== 'Pendente' && statusAtual !== 'Pago') {
+                return res.status(409).json({ erro: "Só é possível editar lançamentos com status Pendente, ou anexar comprovante em um já Pago." });
             }
 
-            const result = await pool.query(
-                `UPDATE staffajustefinanceiro
-                    SET idfuncionario = $1, idstaffevento_origem = $2, tipo = $3, valor = $4, justificativa = $5
-                 WHERE idajustefinanceiro = $6 AND idempresa = $7
-                 RETURNING *`,
-                [idfuncionario, idstaffevento_origem || null, tipo, valorNumerico, String(justificativa).trim(), idAjusteFinanceiro, idempresa]
+            // Devs, Admin Supremo e Master podem alterar tudo mesmo com o lançamento já Pago;
+            // os demais usuários, uma vez Pago, só têm permissão de anexar/trocar o comprovante.
+            const { rows: acessoTotalRows } = await pool.query(
+                `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND (devs = true OR supremo = true OR master = true) LIMIT 1`,
+                [idUsuarioLogado, idempresa]
             );
+            const temAcessoTotal = acessoTotalRows.length > 0;
+            const somenteComprovante = statusAtual === 'Pago' && !temAcessoTotal;
+
+            if (!somenteComprovante) {
+                if (!idfuncionario || !tipo || !['Credito', 'Debito'].includes(tipo)) {
+                    return res.status(400).json({ erro: "Funcionário e tipo (Credito/Debito) são obrigatórios." });
+                }
+                if (!justificativa || !String(justificativa).trim()) {
+                    return res.status(400).json({ erro: "Justificativa é obrigatória." });
+                }
+            }
+
+            const comprovanteAntigo = atual.rows[0].comprovante;
+            const comprovantePath = req.file
+                ? `/uploads/staff_comprovantes/${req.file.filename}`
+                : (limparComprovante === 'true' ? null : comprovanteAntigo);
+
+            if (req.file || limparComprovante === 'true') {
+                deletarArquivoAntigo(comprovanteAntigo);
+            }
+
+            let result;
+            if (somenteComprovante) {
+                result = await pool.query(
+                    `UPDATE staffajustefinanceiro SET comprovante = $1
+                     WHERE idajustefinanceiro = $2 AND idempresa = $3
+                     RETURNING *`,
+                    [comprovantePath, idAjusteFinanceiro, idempresa]
+                );
+            } else {
+                const valorNumerico = parseFloatOrNull(valor);
+                if (!valorNumerico || valorNumerico <= 0) {
+                    return res.status(400).json({ erro: "Valor deve ser maior que zero." });
+                }
+                result = await pool.query(
+                    `UPDATE staffajustefinanceiro
+                        SET idfuncionario = $1, idstaffeventoorigem = $2, tipo = $3, valor = $4, justificativa = $5, comprovante = $6
+                     WHERE idajustefinanceiro = $7 AND idempresa = $8
+                     RETURNING *`,
+                    [idfuncionario, idstaffeventoorigem || null, tipo, valorNumerico, String(justificativa).trim(), comprovantePath, idAjusteFinanceiro, idempresa]
+                );
+            }
 
             const ajusteAtualizado = result.rows[0];
 

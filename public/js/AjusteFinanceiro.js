@@ -1,5 +1,12 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
+// Devs, Admin Supremo e Master podem alterar um lançamento já Pago por completo; os
+// demais usuários, uma vez Pago, só podem anexar/trocar o comprovante (valor/tipo/
+// justificativa ficam travados). Mesma regra reforçada no backend (rotaAjusteFinanceiro.js).
+const temPermissaoTotalAjuste = typeof temPermissao === 'function'
+    ? (temPermissao('AjusteFinanceiro', 'devs') || temPermissao('AjusteFinanceiro', 'supremo') || temPermissao('AjusteFinanceiro', 'master'))
+    : false;
+
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
     if (idempresa) {
@@ -88,11 +95,53 @@ async function carregarParticipacoes(idFuncionario) {
 
 let idAjusteEmEdicao = null;
 let ajustesCache = [];
+let comprovanteAjusteSalvoAtual = null;
+
+// Atualiza o widget de comprovante do Ajuste Financeiro (Anexar / Ver / Substituir / Remover).
+// Sem nada (nem salvo, nem recém-escolhido): mostra só "Anexar comprovante".
+// Com algo (salvo no banco OU escolhido agora, ainda não salvo): mostra Ver (se salvo) + Substituir + Remover.
+function atualizarWidgetComprovanteAjuste(comprovanteSalvo) {
+    const container = document.getElementById('containerComprovanteAjuste');
+    const btnAnexar = document.getElementById('btnAnexarComprovanteAjuste');
+    const linkVer = document.getElementById('linkVerComprovanteAjuste');
+    const btnSubstituir = document.getElementById('btnSubstituirComprovanteAjuste');
+    const btnRemover = document.getElementById('btnRemoverComprovanteAjuste');
+    const fileInput = document.getElementById('fileComprovanteAjuste');
+    const nomeArquivo = document.getElementById('nomeComprovanteAjusteEscolhido');
+    if (!container || !btnAnexar || !linkVer || !btnSubstituir || !btnRemover || !fileInput || !nomeArquivo) return;
+
+    const arquivoNovo = fileInput.files?.[0] || null;
+
+    btnAnexar.style.display = 'none';
+    linkVer.style.display = 'none';
+    btnSubstituir.style.display = 'none';
+    btnRemover.style.display = 'none';
+    container.classList.toggle('tem-arquivo', !!(arquivoNovo || comprovanteSalvo));
+
+    if (arquivoNovo) {
+        nomeArquivo.textContent = arquivoNovo.name;
+        btnSubstituir.style.display = 'inline-flex';
+        btnRemover.style.display = 'inline-flex';
+        return;
+    }
+
+    nomeArquivo.textContent = 'Nenhum arquivo selecionado';
+
+    if (comprovanteSalvo) {
+        linkVer.href = comprovanteSalvo;
+        linkVer.style.display = 'inline-flex';
+        btnSubstituir.style.display = 'inline-flex';
+        btnRemover.style.display = 'inline-flex';
+        return;
+    }
+
+    btnAnexar.style.display = 'inline-flex';
+}
 
 async function carregarHistoricoAjustes(idFuncionario) {
     const tbody = document.getElementById('corpoHistoricoAjustes');
     if (!idFuncionario) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999;">Selecione um funcionário</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">Selecione um funcionário</td></tr>';
         return;
     }
 
@@ -100,31 +149,37 @@ async function carregarHistoricoAjustes(idFuncionario) {
         const ajustes = await fetchComToken(`/ajustefinanceiro/${idFuncionario}`);
         ajustesCache = ajustes || [];
         if (!ajustes || ajustes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999;">Nenhum lançamento ainda</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">Nenhum lançamento ainda</td></tr>';
             return;
         }
 
         tbody.innerHTML = ajustes.map(a => {
-            const origem = a.idstaffevento_origem
+            const origem = a.idstaffeventoorigem
                 ? `${a.nmevento || '—'} (${a.nmfuncao || '—'})`
                 : '—';
             const dataFmt = a.dtlancamento ? new Date(a.dtlancamento).toLocaleDateString('pt-BR') : '—';
-            const acoes = a.status === 'Pendente'
-                ? `<button type="button" class="btn-editar-ajuste" title="Editar lançamento" onclick="editarAjusteFinanceiro(${a.idajustefinanceiro})"><i class="fas fa-pencil-alt"></i></button>`
+            const podeAbrirParaEdicao = a.status === 'Pendente' || a.status === 'Pago';
+            const tituloAcao = a.status === 'Pago' ? 'Anexar/trocar comprovante' : 'Editar lançamento';
+            const acoes = podeAbrirParaEdicao
+                ? `<button type="button" class="btn-editar-ajuste" title="${tituloAcao}" onclick="editarAjusteFinanceiro(${a.idajustefinanceiro})"><i class="fas fa-pencil-alt"></i></button>`
                 : '';
+            const comprovanteCel = a.comprovante
+                ? `<a href="${a.comprovante}" target="_blank" class="comprovante-salvo-link btn-success" style="font-size:0.8em;">📎 Ver</a>`
+                : '<span style="font-size:9px; color:#bbb;">—</span>';
             return `<tr>
                 <td>${formatarTipoBadge(a.tipo)}</td>
                 <td>${formatarMoedaAjuste(a.valor)}</td>
                 <td class="celula-obs" title="${(a.justificativa || '').replace(/"/g, '&quot;')}">${a.justificativa || ''}</td>
                 <td>${origem}</td>
                 <td>${formatarStatusBadge(a.status)}</td>
+                <td style="text-align:center;">${comprovanteCel}</td>
                 <td>${dataFmt}</td>
                 <td style="text-align:center;">${acoes}</td>
             </tr>`;
         }).join('');
     } catch (error) {
         console.error('Erro ao carregar histórico de ajustes:', error);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#c00;">Erro ao carregar histórico</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#c00;">Erro ao carregar histórico</td></tr>';
     }
 }
 
@@ -134,10 +189,46 @@ function editarAjusteFinanceiro(idAjusteFinanceiro) {
 
     idAjusteEmEdicao = ajuste.idajustefinanceiro;
 
-    document.getElementById('idParticipacaoSelect').value = ajuste.idstaffevento_origem || '';
+    document.getElementById('idParticipacaoSelect').value = ajuste.idstaffeventoorigem || '';
     document.getElementById('tipoSelect').value = ajuste.tipo;
     document.getElementById('valorInput').value = Number(ajuste.valor).toFixed(2).replace('.', ',');
     document.getElementById('justificativaInput').value = ajuste.justificativa || '';
+
+    // Lançamento já Pago: quem não é dev só pode mexer no comprovante — os demais campos
+    // ficam travados (o backend também reforça essa regra, isso aqui é só o front).
+    const travaSomenteComprovante = ajuste.status === 'Pago' && !temPermissaoTotalAjuste;
+    ['idParticipacaoSelect', 'tipoSelect', 'valorInput', 'justificativaInput'].forEach(id => {
+        document.getElementById(id).disabled = travaSomenteComprovante;
+    });
+
+    let avisoPago = document.getElementById('avisoAjustePago');
+    if (ajuste.status === 'Pago') {
+        if (!avisoPago) {
+            avisoPago = document.createElement('div');
+            avisoPago.id = 'avisoAjustePago';
+            avisoPago.style.cssText = 'font-size:0.85em; font-weight:600; margin:6px 0; padding:8px 12px; border-radius:6px;';
+            document.getElementById('justificativaInput').closest('.form-1coluna').insertAdjacentElement('beforebegin', avisoPago);
+        }
+        if (travaSomenteComprovante) {
+            avisoPago.textContent = '🔒 Lançamento já Pago — só é possível anexar/trocar o comprovante.';
+            avisoPago.style.background = '#fff3cd';
+            avisoPago.style.color = '#856404';
+        } else {
+            avisoPago.textContent = '⚠️ Lançamento já Pago — seu nível de acesso permite alterar todos os campos.';
+            avisoPago.style.background = '#f8d7da';
+            avisoPago.style.color = '#721c24';
+        }
+        avisoPago.style.display = 'block';
+    } else if (avisoPago) {
+        avisoPago.style.display = 'none';
+    }
+
+    // Input de arquivo não pode ser preenchido via JS — o widget mostra Ver/Substituir/Remover
+    // com base no que já está salvo. Escolher um novo arquivo substitui o atual ao salvar.
+    document.getElementById('fileComprovanteAjuste').value = '';
+    document.getElementById('limparComprovanteAjuste').value = 'false';
+    comprovanteAjusteSalvoAtual = ajuste.comprovante || null;
+    atualizarWidgetComprovanteAjuste(comprovanteAjusteSalvoAtual);
 
     const botaoEnviar = document.getElementById('Enviar');
     if (botaoEnviar) botaoEnviar.textContent = 'Salvar Alteração';
@@ -159,6 +250,15 @@ function limparCamposLancamento() {
     document.getElementById('tipoSelect').value = '';
     document.getElementById('valorInput').value = '';
     document.getElementById('justificativaInput').value = '';
+    ['idParticipacaoSelect', 'tipoSelect', 'valorInput', 'justificativaInput'].forEach(id => {
+        document.getElementById(id).disabled = false;
+    });
+    const avisoPago = document.getElementById('avisoAjustePago');
+    if (avisoPago) avisoPago.style.display = 'none';
+    document.getElementById('fileComprovanteAjuste').value = '';
+    document.getElementById('limparComprovanteAjuste').value = 'false';
+    comprovanteAjusteSalvoAtual = null;
+    atualizarWidgetComprovanteAjuste(null);
 
     idAjusteEmEdicao = null;
     const botaoEnviar = document.getElementById('Enviar');
@@ -190,13 +290,18 @@ async function salvarAjusteFinanceiro(event) {
         return Swal.fire('Atenção', 'A justificativa é obrigatória.', 'warning');
     }
 
-    const corpo = {
-        idfuncionario: idFuncionario,
-        idstaffevento_origem: idStaffEventoOrigem || null,
-        tipo,
-        valor: valorNumerico,
-        justificativa
-    };
+    const corpo = new FormData();
+    corpo.append('idfuncionario', idFuncionario);
+    corpo.append('idstaffeventoorigem', idStaffEventoOrigem || '');
+    corpo.append('tipo', tipo);
+    corpo.append('valor', valorNumerico);
+    corpo.append('justificativa', justificativa);
+    const arquivoComprovante = document.getElementById('fileComprovanteAjuste').files?.[0];
+    if (arquivoComprovante) {
+        corpo.append('comprovanteajuste', arquivoComprovante);
+    } else if (document.getElementById('limparComprovanteAjuste').value === 'true') {
+        corpo.append('limparComprovante', 'true');
+    }
 
     try {
         if (idAjusteEmEdicao) {
@@ -236,6 +341,29 @@ function inicializarAjusteFinanceiro() {
 
     const botaoLimpar = document.getElementById('Limpar');
     botaoLimpar.addEventListener('click', limparCamposLancamento);
+
+    const fileComprovanteAjuste = document.getElementById('fileComprovanteAjuste');
+    fileComprovanteAjuste.addEventListener('change', () => {
+        document.getElementById('limparComprovanteAjuste').value = 'false';
+        atualizarWidgetComprovanteAjuste(comprovanteAjusteSalvoAtual);
+    });
+
+    document.getElementById('btnRemoverComprovanteAjuste').addEventListener('click', async () => {
+        const confirmacao = await Swal.fire({
+            title: 'Remover comprovante?',
+            text: 'O comprovante será removido ao salvar o lançamento.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, remover',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#c0392b'
+        });
+        if (!confirmacao.isConfirmed) return;
+        fileComprovanteAjuste.value = '';
+        document.getElementById('limparComprovanteAjuste').value = 'true';
+        comprovanteAjusteSalvoAtual = null;
+        atualizarWidgetComprovanteAjuste(null);
+    });
 }
 
 function configurarEventosEspecificos(modulo) {

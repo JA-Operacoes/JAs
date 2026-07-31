@@ -149,6 +149,64 @@ legend {
   color: #333;
 }
 
+/* Label flutuante: some enquanto o campo está vazio (o placeholder já indica o que é),
+   e aparece por cima da borda superior assim que o usuário preenche ou foca o campo —
+   pra não perder a referência de qual campo é depois de digitar. */
+.campo-flutuante {
+  position: relative;
+}
+
+.label-flutuante {
+  position: absolute;
+  top: -8px;
+  left: 14px;
+  background: #cacaca;
+  padding: 0 6px;
+  font-size: 12px !important;
+  font-weight: 600;
+  color: #333;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.campo-flutuante textarea:focus ~ .label-flutuante,
+.campo-flutuante textarea:not(:placeholder-shown) ~ .label-flutuante,
+.campo-flutuante select:focus ~ .label-flutuante,
+.campo-flutuante select:valid ~ .label-flutuante {
+  opacity: 1;
+}
+
+/* Comprovante não tem estado nativo de "preenchido" pra usar :valid (o campo é opcional,
+   sem required) — o JS liga a classe .tem-arquivo no container ao escolher um arquivo. */
+.campo-flutuante.tem-arquivo .label-flutuante {
+  opacity: 1;
+}
+
+.btn-upload-comprovante {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 8px 14px;
+  background: var(--primary-color, #8B0000);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+/* Especificidade maior que ".form label" (que deixaria o texto cinza escuro e ilegível
+   em cima do fundo vermelho) */
+.form .btn-upload-comprovante {
+  color: #fff;
+}
+
+.btn-upload-comprovante:hover {
+  background: var(--hover-color, #a83232);
+}
+
 /* --- Histórico de Lançamentos --- */
 
 .previa-lancamentos {
