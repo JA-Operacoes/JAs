@@ -24,18 +24,6 @@
           <h1>Cadastro/Alteração de Usuários</h1>
         </div>
 
-        <div class="Empresas">
-          <div class="logotipo">
-            <div class="minilogos" href="EXPO-index.html"><img src="img/JA_Expo.png" alt="JA_EXPO"></div>
-            <div class="minilogos" href="ES-index.html"><img src="img/JA_ES.png" alt="JA_ES"></div>
-            <!-- <div href="OPER-index.html"><img src="img/JA_Oper.png" alt="JA_Oper"></div> -->
-            <a><img src="img/JA_Oper.png" alt="JA_Oper"></a>
-            <div class="minilogos" href="EA-index.html"><img src="img/JA_EA.png" alt="JA_EA"></div>
-            <div class="minilogos" href="ED-index.html"><img src="img/JA_ED.png" alt="JA_ED"></div>
-            <div class="minilogos" href="EP-index.html"><img src="img/JA_EP.png" alt="JA_EP"></div>
-          </div>
-        </div>
-
         <br>
 
         <div class="user-box camposenha">
@@ -48,18 +36,43 @@
           <ul id="listaUsuarios" class="autocomplete-list"></ul>
         </div>
 
+        <br>
+
         <div class="form-3colunas">
-          <div class="user-box dupla">
             <!-- Nome -->
-            <div class="user-box2">
+            <div class="user-box">
               <input type="text" id="nome" name="nome" required>
               <label for="nome">Nome</label>
             </div>
             <!-- Sobrenome -->
-            <div class="user-box2">
+            <div class="user-box">
               <input type="text" id="sobrenome" name="sobrenome" required>
               <label for="sobrenome">Sobrenome</label>
             </div>
+
+            <div class="user-box">
+              <input type="email" id="email" name="email" required="">
+              <input type="hidden" id="email_original">
+              <label for="email">Email</label>
+            </div>
+
+        </div>
+
+        <div class="form-3colunas">
+          <div class="user-box camposenha">
+            <input type="password" id="senha" name="senha" required="">
+            <label>Senha</label>
+            <span toggle="#senha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-senha"></i>
+            </span>
+          </div>
+
+          <div class="user-box camposenha">
+            <input type="password" id="confirmasenha" name="confirmasenha" required="">
+            <label> Confirmar senha</label>
+            <span toggle="#confirmasenha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
+            </span>
           </div>
 
           <!-- Checkbox -->
@@ -74,20 +87,24 @@
               </span>              
             </label>
           </div>
-        </div>
-        
-    
-          
-        <div class="user-box">
-          <input type="email" id="email" name="email" required="">
-          <input type="hidden" id="email_original">
-          <label for="email">Email</label>
+
         </div>
 
         <div class="user-box dupla select">
-          <div class="user-box-select">
-            <label for="empresaDefaultSelect">Empresa Padrão</label>
+          <div class="user-box">
+            <p>Empresa Padrão:</p>
           </div>
+          <div class="Empresas">
+              <div class="logotipo" id="logotipoEmpresas">
+                <div class="minilogos" style="display: none;"><img src="img/JA_Expo.png" alt="JA_EXPO"></div>
+                <div class="minilogos" style="display: none;"><img src="img/JA_ES.png" alt="JA_ES"></div>
+                <div class="minilogos"><img src="img/JA_Oper.png" alt="JA_Oper"></div>
+                <div class="minilogos"><img src="img/JA_EA.png" alt="JA_EA"></div>
+                <div class="minilogos" style="display: none;"><img src="img/JA_ED.png" alt="JA_ED"></div>
+                <div class="minilogos"><img src="img/JA_EP.png" alt="JA_EP"></div>
+              </div>
+            </div>
+
             <div class="user-box">
               <select id="empresaDefaultSelect">
                 <option value="" selected disabled>Selecione Empresa</option>                   
@@ -96,21 +113,7 @@
             </div>
         </div>
 
-        <div class="user-box camposenha">
-          <input type="password" id="senha" name="senha" required="">
-          <label>Senha</label>
-          <span toggle="#senha" class="toggle-senha">
-            <i class="fa-regular fa-eye" id="icone-senha"></i>
-          </span>
-        </div>
-
-        <div class="user-box camposenha">
-          <input type="password" id="confirmasenha" name="confirmasenha" required="">
-          <label> Confirmar senha</label>
-          <span toggle="#confirmasenha" class="toggle-senha">
-            <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
-          </span>
-        </div>
+        
 
         <div class="bts">
           <!-- <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>-->
@@ -136,11 +139,7 @@
             <label for="nome_usuario"> Usuário:</label>
           </div>
 
-          <div class="user-box dupla select">
-            <div class="user-box-select">
-              <label for="listaEmpresas">Empresa:</label>
-            </div>
-            <div class="user-box">
+            <div class="user-box camposenha">
               <select id="listaEmpresas">
                 <option value="" selected disabled>Selecione Empresa</option>
                 <!-- <option value="all">Todas as empresas</option> -->
@@ -148,7 +147,6 @@
               </select>
             </div>
 
-          </div>
           <div class="checkbox-wrapper-33 checkbox-coluna">
               <label class="checkbox">
                 <p class="checkbox__textwrapper">Ativo na Empresa</p>
@@ -174,28 +172,68 @@
           <a type="button" id="btnLimparTudoPermissoes" class="btn-discreto">Limpar Tudo<span></span></a>
         </div>
 
+        <div class="acessos-especiais-global-row" title="Aplica o acesso especial a todos os módulos que já têm 'Acesso' marcado">
+          <span class="acessos-especiais-global-titulo">Acessos Especiais (aplica a todos os módulos com Acesso marcado):</span>
+
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-supremo">
+              <label class="checkbox-permission" for="global-supremo"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>Admin Supremo</span>
+          </div>
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-master">
+              <label class="checkbox-permission" for="global-master"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>Master</span>
+          </div>
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-financeiro">
+              <label class="checkbox-permission" for="global-financeiro"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>Financeiro</span>
+          </div>
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-comercial">
+              <label class="checkbox-permission" for="global-comercial"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>Comercial</span>
+          </div>
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-rh">
+              <label class="checkbox-permission" for="global-rh"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>RH</span>
+          </div>
+          <div class="acesso-especial-global-item">
+            <div class="checkbox-container">
+              <input class="checkbox-input" type="checkbox" id="global-devs">
+              <label class="checkbox-permission" for="global-devs"><span class="line line1"></span><span class="line line2"></span></label>
+            </div>
+            <span>Devs</span>
+          </div>
+        </div>
+
         <div class="grid-permissoes-wrapper">
           <table id="tabelaPermissoes" class="tabela-permissoes">
             <colgroup>
               <col style="width: 130px"> <!-- Módulo -->
-              <col style="width: 55px">  <!-- Acesso -->
-              <col style="width: 60px">  <!-- Cadastrar -->
-              <col style="width: 50px">  <!-- Alterar -->
-              <col style="width: 60px">  <!-- Pesquisar -->
-              <col style="width: 50px">  <!-- Apagar -->
-              <col style="width: 60px">  <!-- Admin Supremo -->
-              <col style="width: 50px">  <!-- Master -->
-              <col style="width: 60px">  <!-- Financeiro -->
-              <col style="width: 60px">  <!-- Comercial -->
-              <col style="width: 40px">  <!-- RH -->
-              <col class="col-devs" style="width: 50px"> <!-- Devs -->
+              <col style="width: 55px; height: 30px;">  <!-- Acesso -->
+              <col style="width: 60px; height: 30px;">  <!-- Cadastrar -->
+              <col style="width: 50px; height: 30px;">  <!-- Alterar -->
+              <col style="width: 60px; height: 30px;">  <!-- Pesquisar -->
+              <col style="width: 50px; height: 30px;">  <!-- Apagar -->
               <col style="width: 60px">  <!-- Limpar -->
             </colgroup>
             <thead>
               <tr>
                 <th rowspan="2">Módulo</th>
                 <th colspan="5">Acessos Padrões</th>
-                <th colspan="6">Acessos Especiais</th>
                 <th rowspan="2">Limpar</th>
               </tr>
               <tr>
@@ -204,12 +242,6 @@
                 <th>Alterar</th>
                 <th>Pesquisar</th>
                 <th>Apagar</th>
-                <th>Admin Supremo</th>
-                <th>Master</th>
-                <th>Financeiro</th>
-                <th>Comercial</th>
-                <th>RH</th>
-                <th data-col="devs">Devs</th>
               </tr>
             </thead>
             <tbody id="corpoTabelaPermissoes">
