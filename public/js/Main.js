@@ -440,8 +440,113 @@ const cardFinanceiro = document.querySelector(".card-financeiro");
 if (cardFinanceiro) {
   cardFinanceiro.addEventListener("click", async () => {
   await mostrarPedidosUsuario();
+  await carregarSaldosInativacaoPendentes();
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Saldos de Inativação Pendentes — seção própria, fora do painel
+// genérico de Pedidos e Solicitações (aquele é todo baseado em
+// colunas do staffeventos; saldoinativacao não tem coluna correspondente).
+// Autorizar gera o Débito automático em Ajuste Financeiro; Rejeitar só encerra.
+// ─────────────────────────────────────────────────────────────
+function getOrCriarSecaoSaldosInativacao() {
+    let secao = document.getElementById('secaoSaldosInativacao');
+    if (!secao) {
+        const painel = document.getElementById('painelDetalhes');
+        if (!painel || !painel.parentNode) return null;
+        secao = document.createElement('div');
+        secao.className = 'detalhes-panel';
+        secao.id = 'secaoSaldosInativacao';
+        secao.style.marginTop = '16px';
+        painel.parentNode.insertBefore(secao, painel.nextSibling);
+    }
+    return secao;
+}
+
+function escaparHtmlSaldoInativacao(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+async function carregarSaldosInativacaoPendentes() {
+    const secao = getOrCriarSecaoSaldosInativacao();
+    if (!secao) return;
+
+    const ehMaster = usuarioTemPermissao();
+    const ehSupremo = usuarioTemPermissaoSupremo();
+    if (!(ehMaster || ehSupremo)) { secao.innerHTML = ''; return; }
+
+    try {
+        const dados = await fetchComToken('/main/saldos-inativacao-pendentes');
+        const itens = Array.isArray(dados?.itens) ? dados.itens : [];
+        if (itens.length === 0) { secao.innerHTML = ''; return; }
+
+        let html = '<div class="titulo-pedidos">Saldos de Inativação Pendentes</div>';
+        itens.forEach(item => {
+            const valorFmt = (parseFloat(item.vlrsolicitado) || 0).toFixed(2).replace('.', ',');
+            const justificativaEscapada = escaparHtmlSaldoInativacao(item.justificativa || '').replace(/\n/g, '<br>');
+            html += `
+                <div class="pedido-card">
+                    <div class="infoPedido">
+                        <div class="event-info">
+                            <strong>Evento:</strong> ${escaparHtmlSaldoInativacao(item.nmevento || '—')} - <strong>Funcionário:</strong> ${escaparHtmlSaldoInativacao(item.nomefuncionario || '—')}
+                        </div><br>
+                        <strong>Valor do Débito sugerido:</strong> R$ ${valorFmt}<br>
+                        <span class="text-xs text-gray-600" style="display:block;margin:2px 0 6px;line-height:1.5;"><strong>Detalhes:</strong> ${justificativaEscapada}</span>
+                        <div class="AcoesPedido" data-id="${item.idsolicitacao}">
+                            <button class="aprovar-saldo-inativacao aprovar">Autorizar</button>
+                            <button class="negar-saldo-inativacao negar">Rejeitar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        secao.innerHTML = html;
+    } catch (err) {
+        console.error('Erro ao carregar saldos de inativação pendentes:', err);
+    }
+}
+
+document.addEventListener('click', async function(event) {
+    const target = event.target;
+    if (!target.classList.contains('aprovar-saldo-inativacao') && !target.classList.contains('negar-saldo-inativacao')) return;
+
+    const isAprovar = target.classList.contains('aprovar-saldo-inativacao');
+    const idSolicitacao = target.closest('[data-id]')?.getAttribute('data-id');
+    if (!idSolicitacao) return;
+
+    const htmlConfirmacao = isAprovar
+        ? 'Ao <strong>autorizar</strong>, será lançado automaticamente um <strong>Débito</strong> para o funcionário em Ajuste Financeiro, no valor calculado pela inativação — ficará <strong>Pendente</strong> de pagamento, visível em Vencimentos.'
+        : '<strong>Atenção:</strong> ao <strong>rejeitar</strong>, a solicitação será encerrada e nenhum lançamento financeiro será criado.';
+
+    const result = await Swal.fire({
+        title: isAprovar ? 'Autorizar Saldo de Inativação?' : 'Rejeitar Saldo de Inativação?',
+        html: htmlConfirmacao,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
+        confirmButtonText: 'Confirmar'
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+        const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idpedido: idSolicitacao, categoria: 'saldoinativacao', acao: isAprovar ? 'Autorizado' : 'Rejeitado' })
+        });
+        if (!resp?.sucesso) {
+            Swal.fire('Erro', resp?.error || 'Falha na atualização', 'error');
+            return;
+        }
+        Swal.fire({ icon: 'success', title: isAprovar ? 'Débito gerado!' : 'Rejeitado!', timer: 900, showConfirmButton: false });
+        carregarSaldosInativacaoPendentes();
+    } catch (err) {
+        Swal.fire('Erro', 'Falha ao comunicar com o servidor', 'error');
+    }
+});
 
 // =========================
 //   Atividades
@@ -10593,11 +10698,16 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         htmlBody += htmlBodyAditivoAgrupado;
                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
                         const valor = parseFloat(infoItem.valor) || 0;
-                        if (valor !== 0) {
+                        const valorAliment = parseFloat(infoItem.vlralimentacao) || 0;
+                        const valorTransp = parseFloat(infoItem.vlrtransporte) || 0;
+                        const ehCustoFechado = pedido.categoria === 'statuscustofechado' || pedido.categoria === 'statuscacheliberado';
+                        // Cachê Fechado/Liberado pode ser solicitado com cachê zerado (só alimentação/transporte),
+                        // então aqui não basta olhar o "valor" (que é o cachê) — precisa checar os adicionais também.
+                        if (valor !== 0 || (ehCustoFechado && (valorAliment !== 0 || valorTransp !== 0))) {
                             const valorFmt = valor.toFixed(2).replace('.', ',');
-                            if (pedido.categoria === 'statuscustofechado' || pedido.categoria === 'statuscacheliberado') {
-                                const valorAlimentFmt = infoItem.vlralimentacao?.toFixed(2).replace('.', ',') || '0,00';
-                                const valorTranspFmt = infoItem.vlrtransporte?.toFixed(2).replace('.', ',') || '0,00';
+                            if (ehCustoFechado) {
+                                const valorAlimentFmt = valorAliment.toFixed(2).replace('.', ',');
+                                const valorTranspFmt = valorTransp.toFixed(2).replace('.', ',');
                                 htmlBody += `<strong>Valor Cachê:</strong> R$ ${valorFmt} - <strong>Valor Alimentação:</strong> R$ ${valorAlimentFmt} - <strong>Valor Transporte:</strong> R$ ${valorTranspFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                             } else {
                                 htmlBody += `<strong>Valor:</strong> R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
@@ -12355,6 +12465,17 @@ window.criarHTMLComprovantes = function(f, tipo) {
         
         html += '</div>';
         return html;
+    }
+
+    if (tipo === 'ajustefin') {
+        if (f.comprovante) {
+            const url = encodeURIComponent(f.comprovante);
+            return `
+                <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url}')">
+                    <i class="fas fa-file-pdf"></i> Ver Comp.
+                </button>`;
+        }
+        return '';
     }
 
     // Para Cache ou Caixinha
@@ -14581,20 +14702,36 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         const justificativa = a.justificativa || '';
                         const justificativaEscapada = justificativa.replace(/"/g, '&quot;');
                         const justificativaResumida = justificativa.length > 30 ? justificativa.slice(0, 30) + '…' : justificativa;
+                        // Nunca refere o próprio evento que já está sendo exibido — só o "outro": se
+                        // este é o evento de origem (e foi pago em outro lugar), mostra onde pagou;
+                        // se este é um evento diferente da origem (pago aqui, ou ainda pendente em
+                        // broadcast), mostra de onde veio.
+                        const nota = a.notaEventoRelacionado;
+                        const notaEventoAjusteHtml = !nota ? '' : (nota.tipo === 'pago'
+                            ? `<br><small style="color:#198754; font-size:0.80em; font-weight: bold;" title="Pagamento confirmado em outro evento">Pago no evento: ${nota.nomeEvento || '—'}</small>`
+                            : `<br><small style="color:#e91818; font-size:0.80em; font-weight: bold;" title="Evento de origem da solicitação">Origem: ${nota.nomeEvento || '—'}</small>`);
 
                         const celulaAcoesAjuste = podeVerAcoes
-                            ? '<td style="text-align:center;">' + renderConteudoAcao(a.idajustefinanceiro, 'AjusteFin', statusAjuste) + '</td>'
+                            ? '<td style="text-align:center;">' + renderConteudoAcao(a.idajustefinanceiro, 'AjusteFin', statusAjuste, f.idstaffevento) + '</td>'
                             : '';
+
+                        const pagoAjuste = statusAjuste.toLowerCase().startsWith('pago');
+                        const rejeitadoAjuste = statusAjuste === 'Rejeitado';
+                        const conteudoComprovanteAjuste = rejeitadoAjuste
+                            ? '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>'
+                            : pagoAjuste
+                                ? gerarHTMLComprovanteDinamico(a.idajustefinanceiro, 'ajustefin', statusAjuste, criarHTMLComprovantes(a, 'ajustefin'))
+                                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
 
                         linhasCats += `<tr ${estiloLinhaAjuste}>`
                             + '<td style="text-align:center;">'
                                 + `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${corAjuste};">${labelAjuste}</span>`
                             + '</td>'
                             + '<td style="text-align:center;">—</td>'
-                            + `<td style="text-align:center;" title="${justificativaEscapada}"><small>${justificativaResumida}</small></td>`
+                            + `<td style="text-align:center;" title="${justificativaEscapada}"><small>${justificativaResumida}</small>${notaEventoAjusteHtml}</td>`
                             + celulaAcoesAjuste
-                            + '<td class="comprovantes-cell"><span style="font-size:9px; color:#bbb;">—</span></td>'
-                            + '<td class="status-celula status-' + classeStatusAjuste + '">' + statusAjuste + '</td>'
+                            + '<td class="comprovantes-cell">' + conteudoComprovanteAjuste + '</td>'
+                            + `<td class="status-celula status-${classeStatusAjuste}">${statusAjuste}</td>`
                             + `<td class="valor-celula" style="text-align:right;">${formatarMoeda(a.valor)}</td>`
                             + '</tr>';
                     });
@@ -14763,10 +14900,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     return f.statuscaixinha === 'Rejeitado' ? s : s + parseFloat(f.totalcaixinha_full || 0);
                 }, 0);
 
-                // Crédito soma ao total (empresa deve ao funcionário), Débito subtrai (funcionário deve à empresa)
+                // Crédito soma ao total (empresa deve ao funcionário), Débito subtrai (funcionário deve à empresa).
+                // Só conta se ainda estiver Pendente/Suspenso (em aberto), ou se Pago E este for o evento
+                // onde de fato foi pago — quando é só a referência no evento de origem (notaEventoRelacionado
+                // do tipo 'pago', indicando que foi quitado em outro evento), não soma aqui pra não contar em dobro.
                 const totalAjustesFinanceiros = registros.reduce((s, f) => {
                     return s + (f.ajustes_financeiros || []).reduce((sa, a) => {
                         if (a.status === 'Rejeitado') return sa;
+                        if (a.notaEventoRelacionado?.tipo === 'pago') return sa;
                         const valor = parseFloat(a.valor) || 0;
                         return sa + (a.tipo === 'Credito' ? valor : -valor);
                     }, 0);
@@ -18022,7 +18163,7 @@ function exibirToastSucesso(mensagem = 'Status atualizado!') {
     Toast.fire({ icon: 'success', title: mensagem });
 }
 
-async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
+async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEventoContexto = null) {
     const btnClicado = elementoBotao;
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
     let statusParaEnviar = novoStatus;
@@ -18057,7 +18198,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}` 
             },
-            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar })
+            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar, idEventoContexto })
         });
 
         if (response.ok) {
@@ -18266,8 +18407,11 @@ async function atualizarCardsResumoSilencioso() {
 }
 
 
-function renderConteudoAcao(id, tipo, statusAtual) {
+function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null) {
     const statusLimpo = (statusAtual || "").trim();
+    // idEventoContexto: só usado por AjusteFin (crédito/débito), pra registrar em qual
+    // evento o pagamento foi de fato confirmado (idstaffeventopago no backend).
+    const argEventoContexto = idEventoContexto != null ? `, ${idEventoContexto}` : '';
 
     // 1. Caso Comum: Já está Pago ou Finalizado
     if (statusLimpo === 'Pago' || statusLimpo === 'Pago 100%'|| statusLimpo === 'Rejeitado') {
@@ -18309,13 +18453,13 @@ function renderConteudoAcao(id, tipo, statusAtual) {
     // Pendente / Suspenso para Staff
     return `
         <div class="btn-group-acoes">
-            <button class="btn-pago" onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago', this)">
+            <button class="btn-pago" onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago', this${argEventoContexto})">
                 <i class="fas fa-check"></i> Pago
             </button>
-            <button class="btn-suspenso" onclick="alterarStatusStaff(${id}, '${tipo}', 'Suspenso', this)">
+            <button class="btn-suspenso" onclick="alterarStatusStaff(${id}, '${tipo}', 'Suspenso', this${argEventoContexto})">
                 <i class="fas fa-pause"></i> Susp.
             </button>
-            <button class="btn-rejeitado" onclick="alterarStatusStaff(${id}, '${tipo}', 'Rejeitado', this)">
+            <button class="btn-rejeitado" onclick="alterarStatusStaff(${id}, '${tipo}', 'Rejeitado', this${argEventoContexto})">
                 <i class="fas fa-xmark"></i> Rejeitar
             </button>
         </div>`;
