@@ -19390,10 +19390,9 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         return { allowed: true, solicitouAutorizacao: false };
                     }
 
-                    // Aditivo ou Extra Bonificado
-                    const tipoEscolhido = decisaoComSaldo === 'ADITIVO'
-                        ? 'Aditivo - Datas fora do Orçamento'
-                        : 'Extra Bonificado - Datas fora do Orçamento';
+                    // Aditivo ou Extra Bonificado — decisaoComSaldo já vem com o texto final
+                    // certo, gravado no clique do botão (linhas acima); não precisa reconstruir.
+                    const tipoEscolhido = decisaoComSaldo;
 
                     const datasParaSolicitar = datasForaDoPeriodo.filter(d => d != null && d !== '');
 

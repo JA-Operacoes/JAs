@@ -2497,6 +2497,32 @@ router.put("/:idStaffEvento",
                 [idStaffEvento, idUsuarioLogado]
             );
 
+            // 🎯 VÍNCULO DE ADITIVO / EXTRA — mesma função usada no POST (ver
+            // registrarSolicitacoesAditivoExtra). Até 2026-07-31 essa gravação em
+            // `solicitacoes` só existia no POST, então editar um staffevento já existente
+            // pra pedir Aditivo/Extra atualizava o obslogsistema mas nunca criava a
+            // solicitação de fato.
+            await registrarSolicitacoesAditivoExtra(client, {
+                idempresa,
+                idorcamento: body.idorcamento,
+                idfuncionario: body.idfuncionario,
+                idfuncao: body.idfuncao,
+                idevento: body.idevento,
+                idusuariosolicitante: idUsuarioLogado,
+                idregistroalterado: idStaffEvento,
+                statusStaff: novoStatusStaff,
+                tipoSolicitacaoAditivo: body.tipoSolicitacaoAditivo,
+                justificativaAditivo: body.justificativaAditivo,
+                datasExcecao: body.datasExcecao,
+                datasExcecaoFuncOnlyRaw: body.datasExcecaoFuncOnly,
+                datasExcecaoVagaOnlyRaw: body.datasExcecaoVagaOnly,
+                datasExcecaoComboRaw: body.datasExcecaoCombo,
+                vlrcache: body.vlrcache,
+                obsgeral: body.obsgeral,
+                jsonVagasReaproveitadas: null,
+                datasArrayFallback: datasevento
+            });
+
             // Sem isso, o logMiddleware cai no fallback 'modificou' e descarta os dadosanteriores
             // (só usa o antes/depois quando a ação é 'atualizou'/'deletou') — toda alteração feita
             // por aqui, incluindo Inativar/Deletar via ckbInativo/ckbDeletado, ficava sem histórico
@@ -2580,6 +2606,165 @@ async function registrarSolicitacao(client, dados) {
                 formatarParaJsonB(dados.datas),
                 statusNovo
             ]);
+        }
+    }
+}
+
+// Grava as solicitações de Aditivo/Extra Bonificado/FuncExcedido em `solicitacoes` quando
+// um staffevento (novo ou existente) é salvo com status Pendente e uma exceção pendente de
+// autorização. Compartilhada entre o POST (criação) e o PUT (edição) pra não voltar a
+// divergir: até 2026-07-31 essa lógica só existia no POST, então editar um staffevento
+// já existente pra pedir um Aditivo/Extra nunca gravava a solicitação (o front mostrava
+// sucesso porque o UPDATE do staffevento em si funcionava, só a solicitação ficava de fora).
+async function registrarSolicitacoesAditivoExtra(client, dados) {
+    const {
+        idempresa, idorcamento, idfuncionario, idfuncao, idevento,
+        idusuariosolicitante, idregistroalterado,
+        statusStaff, tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao,
+        datasExcecaoFuncOnlyRaw, datasExcecaoVagaOnlyRaw, datasExcecaoComboRaw,
+        vlrcache, obsgeral, jsonVagasReaproveitadas, datasArrayFallback
+    } = dados;
+
+    if (statusStaff !== 'Pendente' || !tipoSolicitacaoAditivo) return;
+
+    console.log(`\n➕ [ADITIVO/EXTRA DETECTADO]: ${tipoSolicitacaoAditivo}`);
+
+    const _parseDatasExcecao = (val, fallback) => {
+        try {
+            if (!val) return fallback;
+            return (Array.isArray(val) ? val : JSON.parse(val)).filter(d => d).map(d => String(d).split('T')[0]);
+        } catch { return fallback; }
+    };
+
+    const datasArrayFb = datasArrayFallback || [];
+
+    let datasSolicitadasArray = [];
+    try {
+        const fonteDatas = datasExcecao
+            ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
+            : datasArrayFb;
+        datasSolicitadasArray = fonteDatas.filter(d => d).map(d => String(d).split('T')[0]);
+    } catch (e) {
+        datasSolicitadasArray = datasArrayFb.map(d => String(d).split('T')[0]);
+    }
+
+    // Monta índice de justificativa por data a partir de vagasreaproveitadas (quando disponível)
+    const vagasReaproveitadasParsed = jsonVagasReaproveitadas ? JSON.parse(jsonVagasReaproveitadas) : [];
+    const justificativaPorData = {};
+    vagasReaproveitadasParsed.forEach(v => {
+        if (v.data && v.justificativa) justificativaPorData[String(v.data).split('T')[0]] = v.justificativa;
+    });
+
+    const queryAditivo = `
+        INSERT INTO public.solicitacoes (
+            idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao,
+            qtdsolicitada, vlrsolicitado, status, justificativa,
+            idusuariosolicitante, dtsolicitada, ideventosolicitado,
+            categoria_log, idregistroalterado
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    `;
+
+    // Natureza da vaga extra (Aditivo ou Extra Bonificado) para os dois fluxos que precisam
+    const naturezaVagaTipoGlobal = tipoSolicitacaoAditivo.includes('Extra Bonificado')
+        ? 'Extra Bonificado - Vaga Excedida'
+        : 'Aditivo - Vaga Excedida';
+
+    // ① Datas com APENAS restrição de FuncExcedido (há vaga no orçamento)
+    //    → 1 solicitação: FuncExcedido (categoria statusvagaexcedida)
+    const datasFuncOnly = _parseDatasExcecao(datasExcecaoFuncOnlyRaw, []);
+    for (const dataUnica of datasFuncOnly) {
+        const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+        console.log(`  💾 [FUNC-ONLY] Gravando FuncExcedido para data: ${dataUnica}`);
+        await client.query(queryAditivo, [
+            idorcamento, idfuncionario, idfuncao, idempresa,
+            'FuncExcedido',
+            1, parseFloat(vlrcache) || 0, 'Pendente', just, idusuariosolicitante,
+            `{${dataUnica}}`, idevento, 'statusvagaexcedida', idregistroalterado
+        ]);
+    }
+
+    // ② Datas com APENAS restrição de VagaExcedida (fora do período orçado, funcionário NÃO excedido)
+    //    → 1 solicitação: Aditivo ou Extra Bonificado (categoria aditivoextra)
+    const datasVagaOnly = _parseDatasExcecao(datasExcecaoVagaOnlyRaw, []);
+    for (const dataUnica of datasVagaOnly) {
+        const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+        console.log(`  💾 [VAGA-ONLY] Gravando VagaExcedida (${naturezaVagaTipoGlobal}) para data: ${dataUnica}`);
+        await client.query(queryAditivo, [
+            idorcamento, idfuncionario, idfuncao, idempresa,
+            naturezaVagaTipoGlobal,
+            1, parseFloat(vlrcache) || 0, 'Pendente', just, idusuariosolicitante,
+            `{${dataUnica}}`, idevento, 'aditivoextra', idregistroalterado
+        ]);
+    }
+
+    // ④ Datas FORA do orçamento E com conflito de funcionário → card vinculado
+    //    → 2 solicitações: VagaExcedida (Seção 1) + FuncExcedido + Vaga Excedida (Seção 2, bloqueada)
+    const datasCombo = _parseDatasExcecao(datasExcecaoComboRaw, []);
+    for (const dataUnica of datasCombo) {
+        const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+        console.log(`  💾 [COMBO] Gravando VagaExcedida+FuncExcedido vinculados para data: ${dataUnica}`);
+        await client.query(queryAditivo, [
+            idorcamento, idfuncionario, idfuncao, idempresa,
+            naturezaVagaTipoGlobal,
+            1, parseFloat(vlrcache) || 0, 'Pendente', just, idusuariosolicitante,
+            `{${dataUnica}}`, idevento, 'aditivoextra', idregistroalterado
+        ]);
+        await client.query(queryAditivo, [
+            idorcamento, idfuncionario, idfuncao, idempresa,
+            'FuncExcedido + Vaga Excedida',
+            1, parseFloat(vlrcache) || 0, 'Pendente', just, idusuariosolicitante,
+            `{${dataUnica}}`, idevento, 'statusvagaexcedida', idregistroalterado
+        ]);
+    }
+
+    // ③ Fluxo legado: só roda se os novos arrays não foram usados (backward compat)
+    const usouNovaSeparacao = datasFuncOnly.length > 0 || datasVagaOnly.length > 0 || datasCombo.length > 0;
+    if (!usouNovaSeparacao) {
+        const ehFuncExcedidoComEstouro = tipoSolicitacaoAditivo === 'FuncExcedido + Estouro Financeiro';
+        const ehFuncExcedidoComVaga = typeof tipoSolicitacaoAditivo === 'string'
+            && tipoSolicitacaoAditivo.startsWith('FuncExcedido + Vaga Excedida');
+        const naturezaVagaTipo = ehFuncExcedidoComVaga && tipoSolicitacaoAditivo.includes('Extra Bonificado')
+            ? 'Extra Bonificado - Vaga Excedida'
+            : 'Aditivo - Vaga Excedida';
+
+        for (const dataUnica of datasSolicitadasArray) {
+            const justificativaParaData = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
+            console.log(`  💾 [LEGADO] Gravando exceção para data: ${dataUnica} | tipo: ${tipoSolicitacaoAditivo}`);
+
+            if (ehFuncExcedidoComEstouro) {
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    'Aditivo - Limite Financeiro da Equipe Excedido',
+                    1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idusuariosolicitante,
+                    `{${dataUnica}}`, idevento, 'aditivoextra', idregistroalterado
+                ]);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    'FuncExcedido + Estouro Financeiro',
+                    1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idusuariosolicitante,
+                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', idregistroalterado
+                ]);
+            } else if (ehFuncExcedidoComVaga) {
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    naturezaVagaTipo,
+                    1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idusuariosolicitante,
+                    `{${dataUnica}}`, idevento, 'aditivoextra', idregistroalterado
+                ]);
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa,
+                    'FuncExcedido + Vaga Excedida',
+                    1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idusuariosolicitante,
+                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', idregistroalterado
+                ]);
+            } else {
+                await client.query(queryAditivo, [
+                    idorcamento, idfuncionario, idfuncao, idempresa, tipoSolicitacaoAditivo,
+                    1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idusuariosolicitante,
+                    `{${dataUnica}}`, idevento, 'aditivoextra', idregistroalterado
+                ]);
+            }
         }
     }
 }
@@ -3443,146 +3628,15 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         }
 
         // 🎯 6. VÍNCULO DE ADITIVO / EXTRA
-        if (statusStaff === 'Pendente' && tipoSolicitacaoAditivo) {
-            console.log(`\n➕ [ADITIVO/EXTRA DETECTADO]: ${tipoSolicitacaoAditivo}`);
-
-            const _parseDatasExcecao = (val, fallback) => {
-                try {
-                    if (!val) return fallback;
-                    return (Array.isArray(val) ? val : JSON.parse(val)).filter(d => d).map(d => String(d).split('T')[0]);
-                } catch { return fallback; }
-            };
-
-            let datasSolicitadasArray = [];
-            try {
-                const fonteDatas = datasExcecao
-                    ? (Array.isArray(datasExcecao) ? datasExcecao : JSON.parse(datasExcecao))
-                    : datasArray;
-                datasSolicitadasArray = fonteDatas.filter(d => d).map(d => String(d).split('T')[0]);
-            } catch (e) {
-                datasSolicitadasArray = datasArray.map(d => String(d).split('T')[0]);
-            }
-
-            // Monta índice de justificativa por data a partir de vagasreaproveitadas (quando disponível)
-            const vagasReaproveitadasParsed = jsonVagasReaproveitadas ? JSON.parse(jsonVagasReaproveitadas) : [];
-            const justificativaPorData = {};
-            vagasReaproveitadasParsed.forEach(v => {
-                if (v.data && v.justificativa) justificativaPorData[String(v.data).split('T')[0]] = v.justificativa;
-            });
-
-            const queryAditivo = `
-                INSERT INTO public.solicitacoes (
-                    idorcamento, idfuncionario, idfuncao, idempresa, tiposolicitacao,
-                    qtdsolicitada, vlrsolicitado, status, justificativa,
-                    idusuariosolicitante, dtsolicitada, ideventosolicitado,
-                    categoria_log, idregistroalterado
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            `;
-
-            // Natureza da vaga extra (Aditivo ou Extra Bonificado) para os dois fluxos que precisam
-            const naturezaVagaTipoGlobal = tipoSolicitacaoAditivo.includes('Extra Bonificado')
-                ? 'Extra Bonificado - Vaga Excedida'
-                : 'Aditivo - Vaga Excedida';
-
-            // ① Datas com APENAS restrição de FuncExcedido (há vaga no orçamento)
-            //    → 1 solicitação: FuncExcedido (categoria statusvagaexcedida)
-            const datasFuncOnly = _parseDatasExcecao(datasExcecaoFuncOnlyRaw, []);
-            for (const dataUnica of datasFuncOnly) {
-                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
-                console.log(`  💾 [FUNC-ONLY] Gravando FuncExcedido para data: ${dataUnica}`);
-                await client.query(queryAditivo, [
-                    idorcamento, idfuncionario, idfuncao, idempresa,
-                    'FuncExcedido',
-                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
-                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
-                ]);
-            }
-
-            // ② Datas com APENAS restrição de VagaExcedida (fora do período orçado, funcionário NÃO excedido)
-            //    → 1 solicitação: Aditivo ou Extra Bonificado (categoria aditivoextra)
-            const datasVagaOnly = _parseDatasExcecao(datasExcecaoVagaOnlyRaw, []);
-            for (const dataUnica of datasVagaOnly) {
-                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
-                console.log(`  💾 [VAGA-ONLY] Gravando VagaExcedida (${naturezaVagaTipoGlobal}) para data: ${dataUnica}`);
-                await client.query(queryAditivo, [
-                    idorcamento, idfuncionario, idfuncao, idempresa,
-                    naturezaVagaTipoGlobal,
-                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
-                    `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                ]);
-            }
-
-            // ④ Datas FORA do orçamento E com conflito de funcionário → card vinculado
-            //    → 2 solicitações: VagaExcedida (Seção 1) + FuncExcedido + Vaga Excedida (Seção 2, bloqueada)
-            const datasCombo = _parseDatasExcecao(datasExcecaoComboRaw, []);
-            for (const dataUnica of datasCombo) {
-                const just = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
-                console.log(`  💾 [COMBO] Gravando VagaExcedida+FuncExcedido vinculados para data: ${dataUnica}`);
-                await client.query(queryAditivo, [
-                    idorcamento, idfuncionario, idfuncao, idempresa,
-                    naturezaVagaTipoGlobal,
-                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
-                    `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                ]);
-                await client.query(queryAditivo, [
-                    idorcamento, idfuncionario, idfuncao, idempresa,
-                    'FuncExcedido + Vaga Excedida',
-                    1, parseFloat(vlrcache) || 0, 'Pendente', just, idUsuarioLogado,
-                    `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
-                ]);
-            }
-
-            // ③ Fluxo legado: só roda se os novos arrays não foram usados (backward compat)
-            const usouNovaSeparacao = datasFuncOnly.length > 0 || datasVagaOnly.length > 0 || datasCombo.length > 0;
-            if (!usouNovaSeparacao) {
-                const ehFuncExcedidoComEstouro = tipoSolicitacaoAditivo === 'FuncExcedido + Estouro Financeiro';
-                const ehFuncExcedidoComVaga = typeof tipoSolicitacaoAditivo === 'string'
-                    && tipoSolicitacaoAditivo.startsWith('FuncExcedido + Vaga Excedida');
-                const naturezaVagaTipo = ehFuncExcedidoComVaga && tipoSolicitacaoAditivo.includes('Extra Bonificado')
-                    ? 'Extra Bonificado - Vaga Excedida'
-                    : 'Aditivo - Vaga Excedida';
-
-                for (const dataUnica of datasSolicitadasArray) {
-                    const justificativaParaData = justificativaPorData[dataUnica] || justificativaAditivo || obsgeral;
-                    console.log(`  💾 [LEGADO] Gravando exceção para data: ${dataUnica} | tipo: ${tipoSolicitacaoAditivo}`);
-
-                    if (ehFuncExcedidoComEstouro) {
-                        await client.query(queryAditivo, [
-                            idorcamento, idfuncionario, idfuncao, idempresa,
-                            'Aditivo - Limite Financeiro da Equipe Excedido',
-                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                        ]);
-                        await client.query(queryAditivo, [
-                            idorcamento, idfuncionario, idfuncao, idempresa,
-                            'FuncExcedido + Estouro Financeiro',
-                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                            `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
-                        ]);
-                    } else if (ehFuncExcedidoComVaga) {
-                        await client.query(queryAditivo, [
-                            idorcamento, idfuncionario, idfuncao, idempresa,
-                            naturezaVagaTipo,
-                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                        ]);
-                        await client.query(queryAditivo, [
-                            idorcamento, idfuncionario, idfuncao, idempresa,
-                            'FuncExcedido + Vaga Excedida',
-                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                            `{${dataUnica}}`, idevento, 'statusvagaexcedida', novoIdStaffEvento
-                        ]);
-                    } else {
-                        await client.query(queryAditivo, [
-                            idorcamento, idfuncionario, idfuncao, idempresa, tipoSolicitacaoAditivo,
-                            1, parseFloat(vlrcache) || 0, 'Pendente', justificativaParaData, idUsuarioLogado,
-                            `{${dataUnica}}`, idevento, 'aditivoextra', novoIdStaffEvento
-                        ]);
-                    }
-                }
-            }
-        }
+        await registrarSolicitacoesAditivoExtra(client, {
+            idempresa, idorcamento, idfuncionario, idfuncao, idevento,
+            idusuariosolicitante: idUsuarioLogado,
+            idregistroalterado: novoIdStaffEvento,
+            statusStaff, tipoSolicitacaoAditivo, justificativaAditivo, datasExcecao,
+            datasExcecaoFuncOnlyRaw, datasExcecaoVagaOnlyRaw, datasExcecaoComboRaw,
+            vlrcache, obsgeral, jsonVagasReaproveitadas,
+            datasArrayFallback: datasArray
+        });
 
         await client.query('COMMIT');
         console.log("\n🚀 [COMMIT] - Transação finalizada e salva no banco de dados com sucesso!");
