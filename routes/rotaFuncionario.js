@@ -140,6 +140,73 @@ router.get("/cbo", (req, res) => {
   }
 });
 
+// GET verifica se o CPF já existe (em qualquer empresa) — usado no cadastro para
+// detectar funcionário já cadastrado em outra empresa e oferecer importação dos dados.
+router.get("/verificar-cpf/:cpf", verificarPermissao('Funcionarios', 'cadastrar'), async (req, res) => {
+    const { cpf } = req.params;
+    const idempresa = req.idempresa;
+
+    try {
+        const result = await pool.query(
+            `SELECT idfuncionario, foto, nome, cpf, rg, fluencia, idiomasadicionais,
+                    celularpessoal, celularfamiliar, email, site, codigobanco, pix,
+                    numeroconta, digitoconta, agencia, digitoagencia, tipoconta,
+                    cep, rua, numero, complemento, bairro, cidade, estado, pais,
+                    datanascimento, nomefamiliar, apelido, pcd
+             FROM funcionarios WHERE cpf = $1`,
+            [cpf]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "CPF não encontrado." });
+        }
+
+        const funcionario = result.rows[0];
+
+        const vinculoAtual = await pool.query(
+            `SELECT 1 FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+            [funcionario.idfuncionario, idempresa]
+        );
+
+        if (vinculoAtual.rowCount > 0) {
+            return res.json({
+                existeNaEmpresaAtual: true,
+                idfuncionario: funcionario.idfuncionario,
+                dados: funcionario
+            });
+        }
+
+        const empresasVinculadas = await pool.query(
+            `SELECT e.nmfantasia FROM funcionarioempresas fe
+             INNER JOIN empresas e ON e.idempresa = fe.idempresa
+             WHERE fe.idfuncionario = $1`,
+            [funcionario.idfuncionario]
+        );
+
+        // Sugestão de vínculo (perfil, dados de contrato etc.) vinda do vínculo já
+        // existente mais recente — não é "verdade" pra empresa nova, é só ponto de
+        // partida editável, já que na maioria dos casos esses dados se repetem entre
+        // empresas do grupo. O usuário confere e ajusta antes de salvar.
+        const vinculoExemplo = await pool.query(
+            `SELECT perfil, lote, ativo, bonificado, mei, funcao, cbo, admissao, salario,
+                    dependentes, dependentesdados, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude
+             FROM funcionarioempresas
+             WHERE idfuncionario = $1
+             ORDER BY id DESC LIMIT 1`,
+            [funcionario.idfuncionario]
+        );
+
+        return res.json({
+            existeNaEmpresaAtual: false,
+            idfuncionario: funcionario.idfuncionario,
+            empresasVinculadas: empresasVinculadas.rows.map(r => r.nmfantasia),
+            dados: { ...funcionario, ...(vinculoExemplo.rows[0] || {}) }
+        });
+    } catch (error) {
+        console.error("Erro ao verificar CPF do funcionário:", error);
+        res.status(500).json({ message: "Erro ao verificar CPF." });
+    }
+});
 // Planos de saude para o cadastro de funcionarios. Usa a permissao de Funcionarios
 // (quem cadastra funcionario pode listar planos/tipos, sem precisar do modulo PlanoSaude).
 router.get("/planos-saude", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
@@ -177,30 +244,56 @@ router.get("/planos-saude/:nome/tipos", verificarPermissao('Funcionarios', 'pesq
 });
 
 // GET todas ou por descrição
-router.get("/", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
+router.get("/", verificarPermissao("Funcionarios", "pesquisar"), async (req, res) => {
     const { nome } = req.query;
     const idempresa = req.idempresa;
-    
+
     console.log("ROTA FUNCIONARIOS", nome, idempresa);
     try {
+        const camposSelect = `
+                func.idfuncionario, func.foto, func.nome, func.cpf, func.rg, func.fluencia, func.idiomasadicionais,
+                func.celularpessoal, func.celularfamiliar, func.email, func.site, func.codigobanco, func.pix,
+                func.numeroconta, func.digitoconta, func.agencia, func.digitoagencia, func.tipoconta,
+                func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
+                func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
+                funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
+                funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+                funce.tipoplanosaude, funce.dependentesdados`;
+
         if (nome) {
-            // Busca funcionário por nome na empresa específica, limita 1
+            // Busca funcionário por nome na empresa específica, ignorando acento (unaccent) —
+            // "Marcia" também acha "Márcia". Sem LIMIT: se duas pessoas diferentes baterem
+            // (ex.: "Marcia" e "Márcia" cadastradas separadamente), não adivinha qual é —
+            // devolve as opções pro front pedir pra escolher em vez de carregar a errada.
             const result = await pool.query(
                 `SELECT func.*, tp.nomeplano AS nomeplanosaude, tp.nometipo AS nometiposaude
                  FROM funcionarios func
                  INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                  LEFT JOIN tipoplanosaude tp ON tp.idtipoplanosaude = func.idtipoplanosaude
-                 WHERE funce.idempresa = $1 AND func.nome ILIKE $2 ORDER BY func.nome ASC LIMIT 1`,
+                 WHERE funce.idempresa = $1 AND  unaccent(func.nome) ILIKE unaccent($2)
+                 ORDER BY func.nome ASC`,
                 [idempresa, nome] // Use % para pesquisa parcial se for o caso
                 // [idempresa, `%${nome}%`]
             );
-            return result.rows.length
-                ? res.json(result.rows[0])
-                : res.status(404).json({ message: "Funcionário não encontrado." });
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: "Funcionário não encontrado." });
+            }
+            if (result.rows.length > 1) {
+                return res.json({
+                    ambiguous: true,
+                    opcoes: result.rows.map(r => ({
+                        idfuncionario: r.idfuncionario,
+                        nome: r.nome,
+                        apelido: r.apelido
+                    }))
+                });
+            }
+            return res.json(result.rows[0]);
         } else {
             // Busca TODOS os funcionários associados à empresa do usuário logado
             const result = await pool.query(
-                `SELECT func.* FROM funcionarios func
+                `SELECT ${camposSelect} FROM funcionarios func
                  INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                  WHERE funce.idempresa = $1 ORDER BY func.nome ASC`,
                 [idempresa]
@@ -229,7 +322,15 @@ router.put("/:id",
             }
             try {
                 const result = await pool.query(
-                    `SELECT func.* FROM funcionarios func
+                    `SELECT func.idfuncionario, func.foto, func.nome, func.cpf, func.rg, func.fluencia, func.idiomasadicionais,
+                            func.celularpessoal, func.celularfamiliar, func.email, func.site, func.codigobanco, func.pix,
+                            func.numeroconta, func.digitoconta, func.agencia, func.digitoagencia, func.tipoconta,
+                            func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
+                            func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
+                            funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
+                            funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+                            funce.tipoplanosaude, funce.dependentesdados
+                     FROM funcionarios func
                      INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                      WHERE func.idfuncionario = $1 AND funce.idempresa = $2`,
                     [idFuncionario, idempresa]
@@ -328,22 +429,20 @@ router.put("/:id",
             }
 
 
-            // 2. Executa a atualização no banco de dados
-            const query = `
+            // 2. Atualiza os dados PESSOAIS em `funcionarios`
+            const queryPessoal = `
                 UPDATE funcionarios func
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
                     complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28, apelido = $29, pcd= $30, lote= $31, ativo = $32, bonificado = $33, mei = $34, salario = $35 , funcao = $36, cbo = $37, dependentes = $38, admissao = $39, valealim = $40, valetrnsp = $41, adesaoplanosaude = $42, tipoplanosaude = $43, dependentesdados = $44, idtipoplanosaude = $47
                 FROM funcionarioempresas fe
-                WHERE func.idfuncionario = $45 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $46
+                WHERE func.idfuncionario = $30 AND fe.idfuncionario = func.idfuncionario AND fe.idempresa = $31
                 RETURNING func.idfuncionario, func.foto;
             `;
 
-            const values = [
-                perfil, // O valor de 'perfil' deve ser tratado como string
-                fotoPathParaBD,
-                nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+            const valuesPessoal = [
+                fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                 celularPessoal, celularFamiliar, email, site, codigoBanco,
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
@@ -354,14 +453,29 @@ router.put("/:id",
                 vazioParaNull(idTipoPlanoSaude) // $47
             ];
 
-            const result = await client.query(query, values); // Usa 'client' para a query
+            const result = await client.query(queryPessoal, valuesPessoal);
 
             if (result.rowCount) {
+                // 3. Atualiza os dados de VÍNCULO (por empresa) em `funcionarioempresas`
+                await client.query(
+                    `UPDATE funcionarioempresas
+                     SET perfil = $1, lote = $2, ativo = $3, bonificado = $4, mei = $5, salario = $6, funcao = $7,
+                         cbo = $8, dependentes = $9, admissao = $10, valealim = $11, valetrnsp = $12,
+                         adesaoplanosaude = $13, tipoplanosaude = $14, dependentesdados = $15
+                     WHERE idfuncionario = $16 AND idempresa = $17`,
+                    [
+                        perfil, lote, ativo, bonificado, mei,
+                        vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
+                        adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson,
+                        id, idempresa
+                    ]
+                );
+
                 const funcionarioAtualizadoId = result.rows[0].idfuncionario;
 
-                await client.query('COMMIT'); // Confirma a transação
+                await client.query("COMMIT"); // Confirma a transação
 
-                res.locals.acao = 'atualizou';
+                res.locals.acao = "atualizou";
                 res.locals.idregistroalterado = funcionarioAtualizadoId;
                 res.locals.idusuarioAlvo = null;
                 res.locals.dadosnovos = req.body;
@@ -378,7 +492,7 @@ router.put("/:id",
                         if (err) console.error("Erro ao apagar arquivo de upload (PUT falho):", err);
                     });
                 }
-                await client.query('ROLLBACK'); // Reverte a transação
+                await client.query("ROLLBACK"); // Reverte a transação
                 return res.status(404).json({ message: "Funcionário não encontrado ou você não tem permissão para atualizá-lo." });
             }
         } catch (error) {
@@ -473,9 +587,65 @@ router.post("/",
                 return res.status(400).json({ message: "O campo 'perfil' é obrigatório e não pode ser vazio." });
             }
 
+            // --- Funcionário com este CPF já existe (em qualquer empresa)? ---
+            // A tabela Funcionarios guarda os dados pessoais de forma global (CPF/RG/e-mail
+            // são UNIQUE sem escopo de empresa) — a mesma pessoa pode atuar em várias
+            // empresas. Nesse caso não duplicamos o cadastro: apenas vinculamos o
+            // funcionário já existente à empresa atual via FuncionarioEmpresas.
+            const funcionarioExistente = await client.query(
+                `SELECT idfuncionario FROM funcionarios WHERE cpf = $1`,
+                [cpf]
+            );
+
+            if (funcionarioExistente.rowCount > 0) {
+                const idFuncionarioExistente = funcionarioExistente.rows[0].idfuncionario;
+
+                const vinculoExistente = await client.query(
+                    `SELECT 1 FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+                    [idFuncionarioExistente, idempresa]
+                );
+
+                if (req.file) {
+                    fs.unlink(req.file.path, (err) => {
+                        if (err) console.error("Erro ao apagar upload de POST (funcionário já existente):", err);
+                    });
+                }
+
+                if (vinculoExistente.rowCount > 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(409).json({
+                        message: 'Já existe um funcionário cadastrado com este CPF.',
+                        field: 'cpf'
+                    });
+                }
+
+                await client.query(
+                    `INSERT INTO FuncionarioEmpresas (
+                        idFuncionario, idEmpresa, perfil, lote, ativo, bonificado, mei, salario, funcao, cbo,
+                        dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                    [
+                        idFuncionarioExistente, idempresa,
+                        perfil, lote, ativo, bonificado, mei,
+                        vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
+                        adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson
+                    ]
+                );
+                await client.query('COMMIT');
+
+                res.locals.acao = 'vinculou';
+                res.locals.idregistroalterado = idFuncionarioExistente;
+                res.locals.idusuarioAlvo = null;
+
+                return res.status(201).json({
+                    message: "Funcionário já existente vinculado à empresa com sucesso!",
+                    id: idFuncionarioExistente
+                });
+            }
+
             const resultFuncionario = await client.query(
                 `INSERT INTO Funcionarios (
-                    perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
+                    foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais, datanascimento, nomefamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
@@ -483,7 +653,7 @@ router.post("/",
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45)
                 RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
-                    perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
+                    fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei,
@@ -495,8 +665,16 @@ router.post("/",
             const idNovoFuncionario = novoFuncionario.idfuncionario;
 
             await client.query(
-                "INSERT INTO FuncionarioEmpresas (idFuncionario, idEmpresa) VALUES ($1, $2)",
-                [idNovoFuncionario, idempresa]
+                `INSERT INTO FuncionarioEmpresas (
+                    idFuncionario, idEmpresa, perfil, lote, ativo, bonificado, mei, salario, funcao, cbo,
+                    dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                [
+                    idNovoFuncionario, idempresa,
+                    perfil, lote, ativo, bonificado, mei,
+                    vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
+                    adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson
+                ]
             );
             await client.query('COMMIT');
 

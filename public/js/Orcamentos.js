@@ -5651,6 +5651,7 @@ function atualizarEstadoLiberaStaff(status) {
     console.log("Status 'F' detectado no final da carga. Bloqueando campos.");
     bloquearCamposSeFechado();
   }
+  verificarStatusParaAdicional(); // reforça o travamento por linha (itens normais x adicionais)
   // ========================================================
 
   if (orcamento.idorcamento) {
@@ -5762,11 +5763,11 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     if (isAdicional) {
       newRow.classList.add("liberada", "linhaAdicional", "adicional");
       if (isBonificado) {
-        newRow.style.backgroundColor = "#c5eed0"; // Verde — bonificado
-        newRow.style.borderLeft = "4px solid #48bb78";
-      } else {
-        newRow.style.backgroundColor = "#e48585"; // Vermelho — aditivo
+        newRow.style.backgroundColor = "#e48585"; // Vermelho — bonificado
         newRow.style.borderLeft = "4px solid #dc3545";
+      } else {
+        newRow.style.backgroundColor = "#c5eed0"; // Verde — aditivo
+        newRow.style.borderLeft = "4px solid #48bb78";
       }
     }
     // Datasets para uso em outros lugares
@@ -6665,9 +6666,11 @@ function bloquearCamposSeFechado() {
                     classes.contains('Close') ||
                     classes.contains('btnApagar') || // 🔥 Liberado aqui!
                     classes.contains('pesquisar') ||
-                    classes.contains('Adicional') || 
+                    classes.contains('Adicional') ||
                     classes.contains('Excel') ||
-                    classes.contains('Contrato') ;
+                    classes.contains('Contrato') ||
+                    classes.contains('increment') || // 🔥 Botões +/- de quantidade liberados na linha adicional
+                    classes.contains('decrement') ;
             } else {
               deveContinuarAtivo =
                   id === 'Enviar' ||
@@ -6768,6 +6771,27 @@ function bloquearCamposSeFechado() {
 }
 
 
+
+function bloquearCamposLinha(linha) {
+    linha.querySelectorAll('input, select, textarea').forEach(campo => {
+        if (campo.tagName === 'SELECT') {
+            campo.disabled = true;
+        } else {
+            campo.readOnly = true;
+            campo.style.pointerEvents = 'none';
+        }
+        campo.classList.add('bloqueado');
+    });
+}
+
+function desbloquearCamposLinha(linha) {
+    linha.querySelectorAll('input, select, textarea').forEach(campo => {
+        campo.classList.remove('bloqueado');
+        campo.readOnly = false;
+        campo.disabled = false;
+        campo.style.pointerEvents = 'auto';
+    });
+}
 
 /**
  * Função para tratar o foco nos campos e disparar alerta de bloqueio. (Mantido inalterado)
@@ -6876,10 +6900,12 @@ function verificarStatusParaAdicional() {
         if(tabelaBody) {
              const linhas = tabelaBody.querySelectorAll('tr');
              linhas.forEach(linha => {
-                 const inputAdicional = linha.querySelector('input.adicional-input');
-                 // Se não for um item adicional, bloqueia a edição
-                 if (!inputAdicional || inputAdicional.value !== 'true') {
-                     bloquearCamposLinha(linha); // Assumindo que você tem uma função que bloqueia os campos
+                 const ehAdicional = linha.dataset.adicional === 'true' || linha.classList.contains('linhaAdicional');
+                 // Se não for um item adicional, bloqueia a edição; se for, garante que continue liberado
+                 if (!ehAdicional) {
+                     bloquearCamposLinha(linha);
+                 } else {
+                     desbloquearCamposLinha(linha);
                  }
              });
         }

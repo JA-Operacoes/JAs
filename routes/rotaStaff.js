@@ -85,7 +85,8 @@ const uploadComprovantesMiddleware = multer({
     { name: 'comppgtocaixinha', maxCount: 1 },
     { name: 'comppgtoajdcusto50', maxCount: 1 },
     { name: 'compcontrolegastos', maxCount: 1 },
-    { name: 'compnotafiscal', maxCount: 1 }
+    { name: 'compnotafiscal', maxCount: 1 },
+    { name: 'compinativardeletar', maxCount: 1 }
 ]);
 
 const fileFilter = (req, file, cb) => {
@@ -176,10 +177,19 @@ router.get("/funcionarios",  async (req, res) => {
   try {         
       // Busca TODOS os funcionários associados à empresa do usuário logado
       const result = await pool.query(
-      `SELECT func.*, s.avaliacao FROM funcionarios func
+      `SELECT func.idfuncionario, func.foto, func.nome, func.cpf, func.rg, func.fluencia, func.idiomasadicionais,
+              func.celularpessoal, func.celularfamiliar, func.email, func.site, func.codigobanco, func.pix,
+              func.numeroconta, func.digitoconta, func.agencia, func.digitoagencia, func.tipoconta,
+              func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
+              func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
+              funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
+              funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+              funce.tipoplanosaude, funce.dependentesdados,
+              s.avaliacao
+      FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
       LEFT JOIN staff s ON s.idfuncionario = func.idfuncionario
-      WHERE funce.idempresa = $1 AND func.ativo = 'true' ORDER BY func.nome ASC`,
+      WHERE funce.idempresa = $1 AND funce.ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
       return result.rows.length
@@ -201,7 +211,9 @@ router.get('/clientes', async (req, res) => {
   try {    
   console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
   const result = await pool.query(
-    `SELECT c.* 
+    `SELECT c.idcliente, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.emailcliente, c.site, c.telefone,
+            c.cep, c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.pais, c.tpcliente,
+            ce.ativo, ce.nmcontato, ce.celcontato, ce.emailcontato, ce.emailnfe, ce.responsavelcontrato
     FROM clientes c
     INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
     WHERE ce.idempresa = $1 ORDER BY nmfantasia`
@@ -1632,6 +1644,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.comppgtocaixinha,
           se.compcontgastos,
           se.compnotafiscal,
+          se.compinativardeletar,
           se.setor,
           se.statuspgto,
           se.statusajustecusto,
@@ -1712,7 +1725,28 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                 AND sol.idfuncao = se.idfuncao
                 ORDER BY sol.dtsolicitacao DESC
                 LIMIT 1
-            ) AS solicitacao_aditivo
+            ) AS solicitacao_aditivo,
+            (
+                -- Crédito/Débito do funcionário (staffajustefinanceiro): enquanto não estiver
+                -- 'Pago', aparece em TODOS os eventos deste funcionário (ainda não tem evento
+                -- definitivo). Uma vez pago, só aparece no evento onde idstaffeventopago bateu
+                -- (gravado quando confirmado na tela de Vencimentos do Main).
+                SELECT jsonb_agg(jsonb_build_object(
+                    'idajustefinanceiro', af.idajustefinanceiro,
+                    'tipo', af.tipo,
+                    'valor', af.valor,
+                    'justificativa', af.justificativa,
+                    'status', af.status,
+                    'comprovante', af.comprovante,
+                    'idstaffeventoorigem', af.idstaffeventoorigem,
+                    'nmevento_origem', seOrigem.nmevento
+                ) ORDER BY af.dtlancamento DESC)
+                FROM staffajustefinanceiro af
+                LEFT JOIN staffeventos seOrigem ON seOrigem.idstaffevento = af.idstaffeventoorigem
+                WHERE af.idfuncionario = se.idfuncionario
+                  AND af.idempresa = $1
+                  AND (af.status <> 'Pago' OR af.idstaffeventopago = se.idstaffevento)
+            ) AS ajustes_financeiros
             FROM staffeventos se
             INNER JOIN staff s 
           ON se.idstaff = s.idstaff
@@ -1860,11 +1894,12 @@ router.put("/:idStaffEvento",
 
             // 1. BUSCA DADOS ANTIGOS
             const oldResult = await client.query(`
-                SELECT se.*, f.perfil 
-                FROM staffeventos se 
-                JOIN staffempresas sme ON se.idstaff = sme.idstaff 
+                SELECT se.*, fe.perfil
+                FROM staffeventos se
+                JOIN staffempresas sme ON se.idstaff = sme.idstaff
                 JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-                WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, 
+                JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = sme.idempresa
+                WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
                 [idStaffEvento, idempresa]
             );
             
@@ -1878,7 +1913,10 @@ router.put("/:idStaffEvento",
                 ajd50:  req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto2 === 'true' ? null : old.comppgtoajdcusto50),
                 cx:     req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha     === 'true' ? null : old.comppgtocaixinha),
                 contgastos:  req.files?.compcontrolegastos ? `/uploads/staff_comprovantes/${req.files.compcontrolegastos[0].filename}` : (body.limparComprovanteControleGastos === 'true' ? null : old.compcontgastos),
-                notafiscal:  req.files?.compnotafiscal     ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}`     : (body.limparComprovanteNotaFiscal    === 'true' ? null : old.compnotafiscal)
+                notafiscal:  req.files?.compnotafiscal     ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}`     : (body.limparComprovanteNotaFiscal    === 'true' ? null : old.compnotafiscal),
+                inativardeletar: req.files?.compinativardeletar
+                    ? `/uploads/staff_comprovantes/${req.files.compinativardeletar[0].filename}`
+                    : (body.limparComprovanteInativarDeletar === 'true' ? null : old.compinativardeletar)
             };
 
             if (req.files?.comppgtocache)     deletarArquivoAntigo(old.comppgtocache);
@@ -1887,6 +1925,9 @@ router.put("/:idStaffEvento",
             if (req.files?.comppgtocaixinha)  deletarArquivoAntigo(old.comppgtocaixinha);
             if (req.files?.compcontrolegastos) deletarArquivoAntigo(old.compcontgastos);
             if (req.files?.compnotafiscal)     deletarArquivoAntigo(old.compnotafiscal);
+            if (req.files?.compinativardeletar || body.limparComprovanteInativarDeletar === 'true') {
+                deletarArquivoAntigo(old.compinativardeletar);
+            }
 
             // 2. TRATAMENTO DE VALORES E STRINGS (Recalculo)
             const parseJSON = (val) => {
@@ -1983,18 +2024,112 @@ router.put("/:idStaffEvento",
             const antigoStatusStaff    = (old.statusstaff          || '').trim();
             const justificativaCascata = (body.justificativaCascata || '').trim();
 
+            // Trava de segurança: Inativar/Deletar (e inserir/remover o comprovante dessa ação) é
+            // exclusivo de devs. O front já desabilita os controles pra quem não tem a flag, mas
+            // isso sozinho não impede uma chamada direta à API — por isso a permissão é reconferida
+            // aqui antes de aplicar qualquer uma dessas mudanças.
+            // Cobre os dois sentidos: entrar em Inativo/Deletado E reverter de volta pra Ativo —
+            // só devs mexem nesse status, em qualquer direção.
+            const statusCascataEnvolvido = ['Inativo', 'Deletado'].includes(novoStatusStaff) || ['Inativo', 'Deletado'].includes(antigoStatusStaff);
+            const mudandoStatusCascata = statusCascataEnvolvido && novoStatusStaff !== antigoStatusStaff;
+            const mexendoNoComprovanteCascata = !!req.files?.compinativardeletar || body.limparComprovanteInativarDeletar === 'true';
+
+            if (mudandoStatusCascata || mexendoNoComprovanteCascata) {
+                const { rows: devRows } = await client.query(
+                    `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND devs = true LIMIT 1`,
+                    [idUsuarioLogado, idempresa]
+                );
+                if (devRows.length === 0) {
+                    throw new Error('Apenas usuários com permissão de devs podem Inativar/Deletar ou alterar o comprovante deste registro.');
+                }
+            }
+
+            // Trava de segurança: com pagamento (cachê ou ajuda de custo) já realizado, o registro
+            // não pode ser Deletado — só Inativado. O front já desabilita a opção, isso é defesa em profundidade.
+            const statusPgtoParaCheck    = (body.statuspgto       || old.statuspgto       || '').trim().toUpperCase();
+            const statusPgtoAjdParaCheck = (body.statuspgtoajdcto || old.statuspgtoajdcto || '').trim().toUpperCase();
+            const jaTemPagamentoRealizado = statusPgtoParaCheck === 'PAGO'
+                || statusPgtoAjdParaCheck === 'PAGO' || statusPgtoAjdParaCheck === 'PAGO50';
+
+            if (novoStatusStaff === 'Deletado' && antigoStatusStaff !== 'Deletado' && jaTemPagamentoRealizado) {
+                throw new Error('Não é possível Deletar um registro com pagamento (cachê ou ajuda de custo) já realizado. Utilize Inativar.');
+            }
+
+            // Cachê E ajuda de custo pagos = evento concluído: nem Inativar faz mais sentido nesse ponto.
+            const ambosPagamentosRealizados = statusPgtoParaCheck === 'PAGO' && statusPgtoAjdParaCheck === 'PAGO';
+            if (novoStatusStaff === 'Inativo' && antigoStatusStaff !== 'Inativo' && ambosPagamentosRealizados) {
+                throw new Error('Não é possível Inativar um registro com cachê e ajuda de custo já pagos — o evento está concluído.');
+            }
+
+            // Saldo de Inativação: compara quanto já foi efetivamente pago (com base no status/valores
+            // ANTERIORES a esta edição) contra quanto o funcionário tem direito pelos dias que de fato
+            // trabalhou (valores atuais, já ajustados pelo admin na tela). Se o que já foi pago superar
+            // o devido, não geramos o débito automaticamente — abrimos uma solicitação pro financeiro
+            // investigar e, se confirmar, lançar o Débito manualmente em Ajuste Financeiro.
+            if (novoStatusStaff === 'Inativo' && antigoStatusStaff !== 'Inativo') {
+                const calcPagoBase = (status, amount) => {
+                    if (!status || !String(status).toLowerCase().startsWith('pago')) return 0;
+                    const match = String(status).match(/(\d+)/);
+                    return match ? amount * (Number(match[1]) / 100) : amount;
+                };
+                const oldVlrCache    = parseFloat(old.vlrtotcache) || 0;
+                const oldVlrAjdCusto = parseFloat(old.vlrtotajdcusto) || 0;
+                const oldVlrCaixinha = parseFloat(old.vlrcaixinha) || 0;
+
+                const valorJaPago = calcPagoBase(old.statuspgto, oldVlrCache)
+                    + calcPagoBase(old.statuspgtoajdcto, oldVlrAjdCusto)
+                    + calcPagoBase(old.statuscaixinha, oldVlrCaixinha);
+
+                const valorDevidoPelosDiasTrabalhados = totalCache + totalAjdCusto + vlrCaixinha;
+                const saldoInativacao = valorJaPago - valorDevidoPelosDiasTrabalhados;
+
+                if (saldoInativacao > 0.01) {
+                    const justificativaSaldo = `[Saldo de Inativação] Recebido: R$ ${valorJaPago.toFixed(2)} | `
+                        + `Devido pelos dias trabalhados: R$ ${valorDevidoPelosDiasTrabalhados.toFixed(2)} | `
+                        + `Saldo a favor da empresa: R$ ${saldoInativacao.toFixed(2)}`
+                        + (justificativaCascata ? `\nJustificativa da inativação: ${justificativaCascata}` : '');
+
+                    const datasEventoFormatadas = datasevento.length > 0
+                        ? `{${datasevento.map(d => String(d).trim()).join(',')}}`
+                        : null;
+
+                    await registrarSolicitacao(client, {
+                        idempresa,
+                        idorcamento: body.idorcamento,
+                        idfuncionario: body.idfuncionario,
+                        idfuncao: body.idfuncao,
+                        idstaffevento: idStaffEvento,
+                        idusuariosolicitante: idUsuarioLogado,
+                        tiposolicitacao: 'Saldo de Inativação',
+                        categoria: 'saldoinativacao',
+                        valor: saldoInativacao,
+                        justificativa: justificativaSaldo,
+                        datas: datasEventoFormatadas,
+                        status: 'Pendente'
+                    });
+                }
+            }
+
             // Monta obspospgto final: concatena log de dobra + justificativa de inativação/deleção (sem sobrepor)
             let obsPosPosPgtoBase = obsDobraLogStaff
                 ? ((body.obspospgto ? body.obspospgto.trimEnd() + '\n' : '') + obsDobraLogStaff)
                 : (body.obspospgto || '');
 
-            if (justificativaCascata && novoStatusStaff !== antigoStatusStaff &&
-                (novoStatusStaff === 'Inativo' || novoStatusStaff === 'Deletado')) {
-                const tipoAcaoLabel = novoStatusStaff === 'Deletado' ? 'Deleção' : 'Inativação';
-                const logCascata = `[${tipoAcaoLabel}] ${justificativaCascata}`;
-                obsPosPosPgtoBase = obsPosPosPgtoBase
-                    ? obsPosPosPgtoBase.trimEnd() + '\n' + logCascata
-                    : logCascata;
+            if (justificativaCascata && novoStatusStaff !== antigoStatusStaff) {
+                let tipoAcaoLabel = null;
+                if (novoStatusStaff === 'Inativo' || novoStatusStaff === 'Deletado') {
+                    tipoAcaoLabel = novoStatusStaff === 'Deletado' ? 'Deleção' : 'Inativação';
+                } else if (novoStatusStaff === 'Ativo' && (antigoStatusStaff === 'Inativo' || antigoStatusStaff === 'Deletado')) {
+                    // Reversão: registro estava Inativo/Deletado e voltou a Ativo — mantém no
+                    // histórico o motivo, pra saber por que foi revertido além de por que foi inativado/deletado.
+                    tipoAcaoLabel = `Reversão de ${antigoStatusStaff === 'Deletado' ? 'Deleção' : 'Inativação'}`;
+                }
+                if (tipoAcaoLabel) {
+                    const logCascata = `[${tipoAcaoLabel}] ${justificativaCascata}`;
+                    obsPosPosPgtoBase = obsPosPosPgtoBase
+                        ? obsPosPosPgtoBase.trimEnd() + '\n' + logCascata
+                        : logCascata;
+                }
             }
 
             const obsPosPosPgtoFinal = obsPosPosPgtoBase || null;
@@ -2021,7 +2156,8 @@ router.put("/:idStaffEvento",
                     nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
                     statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45,
                     statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff),
-                    compcontgastos = $52, compnotafiscal = $53, obsgeral = $54, obslogsistema = $55
+                    compcontgastos = $52, compnotafiscal = $53, obsgeral = $54, obslogsistema = $55,
+                    compinativardeletar = $56
                 WHERE idstaffevento = $49
                 AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $50)`,
                 [
@@ -2036,7 +2172,8 @@ router.put("/:idStaffEvento",
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
-                    paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal
+                    paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal,
+                    paths.inativardeletar
                 ]
             );
 
@@ -2229,23 +2366,28 @@ router.put("/:idStaffEvento",
             }
             
 
-            // CASCADE: rejeita solicitações e os status JSONB correspondentes ao Inativar/Deletar
+            // CASCADE: rejeita TODAS as solicitações pendentes deste registro — aditivo/extra,
+            // diária dobrada, meia diária, ajuste de custo, caixinha, custo fechado, vaga
+            // excedida etc. (sem filtrar por categoria_log) — e os status/JSONB correspondentes
+            // em staffeventos, ao Inativar/Deletar o registro.
             if ((novoStatusStaff === 'Inativo' || novoStatusStaff === 'Deletado') &&
                 antigoStatusStaff !== novoStatusStaff && justificativaCascata) {
 
                 const tipoAcaoCascata = novoStatusStaff === 'Deletado' ? 'Deleção' : 'Inativação';
                 const sufixoJust = `Rejeitado por ${tipoAcaoCascata} do registro solicitante. Motivo: ${justificativaCascata}`;
 
-                // 1. Coleta as datas das solicitações ANTES de rejeitar (para uso no JSONB)
+                // 1. Coleta as datas de TODAS as solicitações pendentes ANTES de rejeitar (usadas
+                //    pra sincronizar as entradas por-data em dtdiariadobrada/dtmeiadiaria/vagasreaproveitadas)
                 const pendDates = await client.query(`
-                    SELECT ARRAY_AGG(DISTINCT d::text) AS datas
-                    FROM solicitacoes s, unnest(s.dtsolicitada) d
+                    SELECT ARRAY_AGG(DISTINCT d::text) FILTER (WHERE d IS NOT NULL) AS datas
+                    FROM solicitacoes s
+                    LEFT JOIN LATERAL unnest(s.dtsolicitada) d ON true
                     WHERE s.idregistroalterado = $1 AND s.idempresa = $2
-                      AND s.status = 'Pendente' AND s.categoria_log = 'aditivoextra'
+                      AND s.status = 'Pendente'
                 `, [idStaffEvento, idempresa]);
                 const datasAfetadas = pendDates.rows[0]?.datas || [];
 
-                // 2. Rejeita as solicitacoes pendentes
+                // 2. Rejeita TODAS as solicitacoes pendentes deste registro, qualquer categoria
                 const cascataRes = await client.query(`
                     UPDATE public.solicitacoes
                     SET status = 'Rejeitado',
@@ -2257,11 +2399,12 @@ router.put("/:idStaffEvento",
                         dtresposta = NOW(),
                         idusuarioresponsavel = $2
                     WHERE idregistroalterado = $3 AND idempresa = $4
-                      AND status = 'Pendente' AND categoria_log = 'aditivoextra'
+                      AND status = 'Pendente'
                     RETURNING idsolicitacao
                 `, [sufixoJust, idUsuarioLogado, idStaffEvento, idempresa]);
 
-                // 3. Atualiza apenas as entradas JSONB cujas datas coincidem com as da solicitação
+                // 3. Atualiza as entradas JSONB por-data (aditivo/extra, diária dobrada, meia diária)
+                //    cujas datas coincidem com as das solicitações rejeitadas
                 if (datasAfetadas.length > 0) {
                     await client.query(`
                         UPDATE staffeventos SET
@@ -2277,6 +2420,19 @@ router.put("/:idStaffEvento",
                                     FROM jsonb_array_elements(dtdiariadobrada) elem
                                 )
                                 ELSE dtdiariadobrada
+                            END,
+                            dtmeiadiaria = CASE
+                                WHEN jsonb_typeof(dtmeiadiaria) = 'array'
+                                THEN (
+                                    SELECT COALESCE(jsonb_agg(
+                                        CASE WHEN (elem->>'status') = 'Pendente'
+                                              AND (elem->>'data') = ANY($1::text[])
+                                        THEN jsonb_set(elem, '{status}', '"Rejeitado"')
+                                        ELSE elem END
+                                    ), dtmeiadiaria)
+                                    FROM jsonb_array_elements(dtmeiadiaria) elem
+                                )
+                                ELSE dtmeiadiaria
                             END,
                             vagasreaproveitadas = CASE
                                 WHEN jsonb_typeof(vagasreaproveitadas) = 'array'
@@ -2299,7 +2455,23 @@ router.put("/:idStaffEvento",
                     `, [datasAfetadas, idStaffEvento, idempresa]);
                 }
 
-                console.log(`🔒 [PUT] ${cascataRes.rowCount} sol. rejeitada(s) + ${datasAfetadas.length} data(s) JSONB atualizadas por ${tipoAcaoCascata} — staff ${idStaffEvento}.`);
+                // 4. Atualiza as colunas de status "resumo" (sem granularidade por data) — só quando
+                //    ainda estavam Pendente, pra não sobrescrever uma decisão diferente feita nesta mesma request
+                await client.query(`
+                    UPDATE staffeventos SET
+                        statuscaixinha      = CASE WHEN statuscaixinha      = 'Pendente' THEN 'Rejeitado' ELSE statuscaixinha      END,
+                        statusajustecusto   = CASE WHEN statusajustecusto   = 'Pendente' THEN 'Rejeitado' ELSE statusajustecusto   END,
+                        statuscustofechado  = CASE WHEN statuscustofechado  = 'Pendente' THEN 'Rejeitado' ELSE statuscustofechado  END,
+                        statusdiariadobrada = CASE WHEN statusdiariadobrada = 'Pendente' THEN 'Rejeitado' ELSE statusdiariadobrada END,
+                        statusmeiadiaria    = CASE WHEN statusmeiadiaria    = 'Pendente' THEN 'Rejeitado' ELSE statusmeiadiaria    END
+                    WHERE idstaffevento = $1
+                      AND EXISTS (
+                          SELECT 1 FROM staffempresas sme
+                          WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $2
+                      )
+                `, [idStaffEvento, idempresa]);
+
+                console.log(`🔒 [PUT] ${cascataRes.rowCount} sol. rejeitada(s) (todas categorias) + ${datasAfetadas.length} data(s) JSONB atualizadas por ${tipoAcaoCascata} — staff ${idStaffEvento}.`);
             }
 
             await client.query(
@@ -2324,6 +2496,13 @@ router.put("/:idStaffEvento",
                 `DELETE FROM notificacao WHERE idreferencia = $1 AND idusuario != $2`,
                 [idStaffEvento, idUsuarioLogado]
             );
+
+            // Sem isso, o logMiddleware cai no fallback 'modificou' e descarta os dadosanteriores
+            // (só usa o antes/depois quando a ação é 'atualizou'/'deletou') — toda alteração feita
+            // por aqui, incluindo Inativar/Deletar via ckbInativo/ckbDeletado, ficava sem histórico
+            // de comparação no log.
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idStaffEvento;
 
             await client.query('COMMIT');
             res.json({ message: "Atualizado", id: idStaffEvento });

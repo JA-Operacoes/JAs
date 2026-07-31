@@ -1,0 +1,114 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadAjusteFinanceiro.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalAjusteFinanceiro" class="modal">
+    <div class="modal-content">
+
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id="form-ajustefinanceiro">
+            <div class="title">
+                <h1>Crédito / Débito de Funcionário</h1>
+            </div>
+
+            <form id="form" name="form">
+                <fieldset>
+                    <legend>Novo Lançamento</legend>
+
+                    <div class="form-1coluna">
+                        <div class="form campo-flutuante">
+                            <select name="idFuncionario" id="idFuncionarioSelect" required>
+                                <option value="" disabled selected>Selecione o Funcionário...</option>
+                            </select>
+                            <label for="idFuncionarioSelect" class="label-flutuante">Funcionário</label>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <select name="idStaffEventoOrigem" id="idParticipacaoSelect">
+                                <option value="">Sem vínculo com participação específica</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-2colunas">
+                        <div class="form campo-flutuante">
+                            <select name="tipo" id="tipoSelect" required>
+                                <option value="" disabled selected>Tipo...</option>
+                                <option value="Credito">Crédito (empresa deve ao funcionário)</option>
+                                <option value="Debito">Débito (funcionário deve à empresa)</option>
+                            </select>
+                            <label for="tipoSelect" class="label-flutuante">Tipo</label>
+                        </div>
+                        <div class="form" style="flex-direction: row; align-items: center; gap: 8px;">
+                            <label for="valorInput" style="white-space: nowrap;">Valor (R$)</label>
+                            <input type="text" name="valor" id="valorInput" placeholder="0,00" required>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form campo-flutuante">
+                            <textarea name="justificativa" id="justificativaInput" rows="3" required placeholder="Justificativa..."></textarea>
+                            <label for="justificativaInput" class="label-flutuante">Justificativa</label>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form campo-flutuante" id="containerComprovanteAjuste">
+                            <span class="label-flutuante">Comprovante</span>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <label for="fileComprovanteAjuste" id="btnAnexarComprovanteAjuste" class="btn-upload-comprovante">
+                                    <i class="fas fa-paperclip"></i> Anexar comprovante (opcional)
+                                </label>
+                                <a id="linkVerComprovanteAjuste" href="#" target="_blank" class="btn-upload-comprovante" style="display:none; background:#198754;">
+                                    <i class="fas fa-eye"></i> Ver comprovante
+                                </a>
+                                <label for="fileComprovanteAjuste" id="btnSubstituirComprovanteAjuste" class="btn-upload-comprovante" style="display:none; background:#6c757d;">
+                                    <i class="fas fa-sync-alt"></i> Substituir
+                                </label>
+                                <button type="button" id="btnRemoverComprovanteAjuste" class="btn-upload-comprovante" style="display:none; background:#c0392b; border:none;">
+                                    <i class="fas fa-trash"></i> Remover
+                                </button>
+                            </div>
+                            <input type="file" name="comprovanteajuste" id="fileComprovanteAjuste" accept="image/*,application/pdf" style="display:none;">
+                            <input type="hidden" id="limparComprovanteAjuste" value="false">
+                            <span id="nomeComprovanteAjusteEscolhido" style="font-size:0.82em; color:#555; margin-top:4px; display:block;">Nenhum arquivo selecionado</span>
+                        </div>
+                    </div>
+
+                    <div class="previa-lancamentos">
+                        <h3>Lançamentos deste Funcionário</h3>
+                        <div class="table-container">
+                            <table class="table-previa">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Valor</th>
+                                        <th>Justificativa</th>
+                                        <th>Origem</th>
+                                        <th>Status</th>
+                                        <th>Comprovante</th>
+                                        <th>Data</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corpoHistoricoAjustes">
+                                    <tr><td colspan="8" style="text-align:center; color:#999;">Selecione um funcionário</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+
+        <div class="BTNs">
+            <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
+            <button type="button" id="Enviar" onclick="salvarAjusteFinanceiro(event)">Enviar</button>
+        </div>
+    </div>
+</div>

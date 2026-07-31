@@ -149,6 +149,19 @@
                     <input id="ckbDeletado" type="checkbox" />
                     <label for="ckbDeletado">Deletado (Não trabalhou no evento)</label>
                   </div>
+                  <div id="containerComprovanteInativarDeletar" class="Vertical" style="display:none; flex-direction:row; align-self:center; align-items:center; gap:6px; flex-wrap:nowrap; max-width:100%; min-width:0;">
+                    <a id="linkVerComprovanteInativarDeletar" href="#" target="_blank" class="comprovante-salvo-link btn-success" style="display:none; font-size:0.78em; padding:4px 8px; flex:0 0 250px; width:250px; max-width:250px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-sizing:border-box;">📎 Ver imagem da solicitação</a>
+                    <span id="textoNovoComprovanteInativarDeletar" style="display:none; font-size:0.78em; color:#198754; font-weight:600; flex:0 0 250px; width:250px; max-width:250px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-sizing:border-box;"></span>
+                    <button type="button" id="btnSubstituirComprovanteInativarDeletar" title="Substituir imagem da solicitação" style="display:none; flex:0 0 150px; width:150px; max-width:150px; box-sizing:border-box; padding:2px 6px; font-size:0.78em; cursor:pointer; border:1px solid #c0392b; border-radius:4px; background:#fff; color:#000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><i class="fas fa-sync-alt"></i></button>
+                    <button type="button" id="btnRemoverComprovanteInativarDeletar" title="Remover imagem da solicitação" style="display:none; flex:0 0 150px; width:150px; max-width:150px; box-sizing:border-box; padding:2px 6px; font-size:0.78em; cursor:pointer; border:1px solid #c0392b; color:#c0392b; border-radius:4px; background:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><i class="fas fa-trash"></i></button>
+                    <input type="file" id="fileInativarDeletar" style="display:none;" accept="image/*,application/pdf">
+                    <input type="hidden" id="limparComprovanteInativarDeletar" value="false">
+                  </div>
+                </div>
+
+                <div id="containerAjustesFinanceiros" style="display:none; margin: 8px 0; padding: 8px 14px; background:#f8f9fa; border:1px solid #ce0303; border-radius:6px;">
+                  <div style="font-size:0.78em; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:#666; margin-bottom:4px;">💰 Crédito/Débito do funcionário</div>
+                  <div id="listaAjustesFinanceiros"></div>
                 </div>
 
                 <div class="Selects">                                  

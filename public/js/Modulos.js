@@ -88,11 +88,16 @@ function verificaModulos() {
             empresas: empresasSelecionadas // <--- NOVO
         };
 
-        // Verifica alterações
+        // Verifica alterações (nome do módulo E empresas vinculadas)
+        const empresasOriginaisOrdenadas = (window.ModulosOriginal?.empresas || []).map(String).sort();
+        const empresasAtuaisOrdenadas = empresasSelecionadas.map(String).sort();
+        const empresasIguais = JSON.stringify(empresasOriginaisOrdenadas) === JSON.stringify(empresasAtuaisOrdenadas);
+
         if (
             idModulo &&
             parseInt(idModulo) === parseInt(window.ModulosOriginal?.idModulo) &&
-            nmModulo === window.ModulosOriginal?.nmModulo 
+            nmModulo === window.ModulosOriginal?.nmModulo &&
+            empresasIguais
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -127,6 +132,12 @@ function verificaModulos() {
             });            
 
             await Swal.fire("Sucesso!", respostaApi.message || "Modulos salvo com sucesso.", "success");
+
+            // Se o módulo salvo for "Bancos" e houve empresa(s) recém-adicionada(s),
+            // oferece importar o catálogo de bancos já cadastrado para essas empresas.
+            if (String(nmModulo).trim().toLowerCase() === "bancos" && Array.isArray(respostaApi.empresasAdicionadas) && respostaApi.empresasAdicionadas.length > 0) {
+                await oferecerImportacaoBancos(respostaApi.empresasAdicionadas);
+            }
             limparCamposModulos();
 
         } catch (error) {
@@ -253,6 +264,66 @@ function verificaModulos() {
 //     return idsEmpresas; // Retorna um array de strings ['1', '2', '3']
 // }
 
+// ===== Importação em massa do catálogo de Bancos =====
+// Quando o módulo "Bancos" ganha nova(s) empresa(s), oferece copiar o catálogo já
+// cadastrado (bancoempresas) da empresa com mais bancos vinculados para as novas.
+// Diferente do fluxo de Funcionários (busca + importa só o necessário), aqui é
+// "clonar a tabela inteira", já que Bancos deve ser igual em todas as empresas.
+async function oferecerImportacaoBancos(idsEmpresasAdicionadas) {
+    try {
+        const origem = await fetchComToken("/bancos/origem-importacao");
+
+        // fetchComToken devolve [] em 404 (nenhuma empresa tem bancos cadastrados ainda)
+        if (!origem || Array.isArray(origem) || !origem.idempresaOrigem) return;
+
+        const idsDestino = idsEmpresasAdicionadas
+            .map((id) => parseInt(id))
+            .filter((id) => !isNaN(id) && id !== parseInt(origem.idempresaOrigem));
+
+        if (idsDestino.length === 0) return;
+
+        const empresasApi = await fetchComToken("/empresas");
+        const todasEmpresas = Array.isArray(empresasApi) ? empresasApi : [];
+        const nomesDestino = idsDestino
+            .map((id) => todasEmpresas.find((e) => parseInt(e.idempresa) === id)?.nmfantasia || `Empresa ${id}`)
+            .join(", ");
+
+        const { isConfirmed } = await Swal.fire({
+            icon: "question",
+            title: "Importar bancos cadastrados?",
+            text: `Temos ${origem.totalBancos} bancos cadastrados na empresa "${origem.nomeOrigem}". Deseja importar para: ${nomesDestino}?`,
+            showCancelButton: true,
+            confirmButtonText: "Sim, importar",
+            cancelButtonText: "Não",
+            reverseButtons: true
+        });
+
+        if (!isConfirmed) return;
+
+        const { isConfirmed: confirmouNovamente } = await Swal.fire({
+            icon: "warning",
+            title: "Confirma a importação?",
+            text: `Todos os bancos cadastrados na empresa "${origem.nomeOrigem}" serão vinculados à(s) empresa(s): ${nomesDestino}.`,
+            showCancelButton: true,
+            confirmButtonText: "Sim, tenho certeza",
+            cancelButtonText: "Cancelar",
+            reverseButtons: true
+        });
+
+        if (!confirmouNovamente) return;
+
+        const resultado = await fetchComToken("/bancos/importar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idempresasDestino: idsDestino })
+        });
+
+        Swal.fire("Importação concluída!", resultado.message || "Bancos importados com sucesso.", "success");
+    } catch (error) {
+        console.error("Erro ao oferecer importação de bancos:", error);
+    }
+}
+
 function formatarComoCapitalizada(texto) {
     if (!texto) return '';
     const textoLimpo = texto.trim().toLowerCase();
@@ -295,7 +366,12 @@ function aplicarSelecaoEmpresas(idsEmpresasDoModulo) {
         if (!option.value) return;
 
         const isChecked = idsSet.has(String(option.value));
-        
+        // Mantém o <select> real sincronizado com o estado atual (antes só o checkbox
+        // visual refletia isso; o <select> só era atualizado quando o usuário clicava
+        // em algum checkbox, então empresas já vinculadas "sumiam" do envio se nenhuma
+        // delas fosse clicada — coletarEmpresasSelecionadas() lê o .selected do select).
+        option.selected = isChecked;
+
         const label = document.createElement('label');
         label.style.cssText = 'display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:bold;';
         

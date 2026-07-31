@@ -16,7 +16,7 @@ router.put('/cadastro', autenticarToken({ verificarEmpresa: false }),  cadastrar
 // Rota para verificar se o usuário existe
 router.post('/verificarUsuario',autenticarToken({ verificarEmpresa: false }), verificarUsuarioExistente);
 router.post('/verificarNomeExistente', autenticarToken({ verificarEmpresa: false }), verificarNomeExistente);
-router.post('/verificarNomeCompleto', authController.verificarNomeCompleto);
+router.post('/verificarNomeCompleto', autenticarToken({ verificarEmpresa: false }), authController.verificarNomeCompleto);
 router.get('/usuarios', autenticarToken({ verificarEmpresa: false }), listarUsuarios);
 router.get('/buscarUsuarios', autenticarToken({ verificarEmpresa: false }), buscarUsuariosPorNome);
 

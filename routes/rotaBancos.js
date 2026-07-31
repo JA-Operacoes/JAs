@@ -179,4 +179,105 @@ router.post("/", verificarPermissao('Bancos', 'cadastrar'),
     
 });
 
+// GET a empresa "origem" (a com mais bancos cadastrados) para oferecer a importação
+// de bancos ao habilitar o módulo Bancos para novas empresas (tela de Módulos, dev-only).
+router.get("/origem-importacao", verificarPermissao('Bancos', 'cadastrar'), async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT be.idempresa, e.nmfantasia, COUNT(*) AS total
+             FROM bancoempresas be
+             INNER JOIN empresas e ON e.idempresa = be.idempresa
+             GROUP BY be.idempresa, e.nmfantasia
+             ORDER BY total DESC
+             LIMIT 1`
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Nenhuma empresa possui bancos cadastrados ainda." });
+        }
+
+        const origem = result.rows[0];
+        return res.json({
+            idempresaOrigem: origem.idempresa,
+            nomeOrigem: origem.nmfantasia,
+            totalBancos: parseInt(origem.total, 10)
+        });
+    } catch (error) {
+        console.error("Erro ao buscar empresa de origem para importação de bancos:", error);
+        res.status(500).json({ message: "Erro ao buscar origem para importação." });
+    }
+});
+
+// POST vincula (sem duplicar) todos os bancos da empresa de origem às empresas de
+// destino informadas. `bancoempresas` não tem UNIQUE(idbanco, idempresa), então o
+// "já existe" é checado explicitamente por SELECT em vez de depender de ON CONFLICT.
+router.post("/importar", verificarPermissao('Bancos', 'cadastrar'), async (req, res) => {
+    const { idempresasDestino } = req.body;
+
+    if (!Array.isArray(idempresasDestino) || idempresasDestino.length === 0) {
+        return res.status(400).json({ message: "Informe ao menos uma empresa de destino." });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const origemResult = await client.query(
+            `SELECT idempresa, COUNT(*) AS total
+             FROM bancoempresas
+             GROUP BY idempresa
+             ORDER BY total DESC
+             LIMIT 1`
+        );
+
+        if (origemResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Nenhuma empresa possui bancos cadastrados ainda." });
+        }
+
+        const idempresaOrigem = origemResult.rows[0].idempresa;
+
+        const bancosOrigem = await client.query(
+            `SELECT idbanco FROM bancoempresas WHERE idempresa = $1`,
+            [idempresaOrigem]
+        );
+
+        let totalImportado = 0;
+        for (const idEmpresaDestinoBruto of idempresasDestino) {
+            const idEmpresaDestino = parseInt(idEmpresaDestinoBruto);
+            if (isNaN(idEmpresaDestino) || idEmpresaDestino === idempresaOrigem) continue;
+
+            const jaVinculados = await client.query(
+                `SELECT idbanco FROM bancoempresas WHERE idempresa = $1`,
+                [idEmpresaDestino]
+            );
+            const idsJaVinculados = new Set(jaVinculados.rows.map((r) => r.idbanco));
+
+            for (const { idbanco } of bancosOrigem.rows) {
+                if (idsJaVinculados.has(idbanco)) continue;
+                await client.query(
+                    `INSERT INTO bancoempresas (idbanco, idempresa) VALUES ($1, $2)`,
+                    [idbanco, idEmpresaDestino]
+                );
+                totalImportado++;
+            }
+        }
+
+        await client.query('COMMIT');
+
+        return res.status(201).json({
+            message: "Bancos importados com sucesso!",
+            idempresaOrigem,
+            totalImportado
+        });
+    } catch (error) {
+        if (client) await client.query('ROLLBACK');
+        console.error("Erro ao importar bancos:", error);
+        res.status(500).json({ message: "Erro ao importar bancos." });
+    } finally {
+        if (client) client.release();
+    }
+});
+
 module.exports = router;

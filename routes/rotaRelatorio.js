@@ -132,7 +132,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     queryFechamentoPrincipal = `
                         SELECT
                             tse.idevento AS "idevento",
-                            tbf.perfil AS "PERFIL_STAFF",
+                            fe.perfil AS "PERFIL_STAFF",
                             tse.nmevento AS "nomeEvento",
                             tse.nmfuncao AS "FUNÇÃO",
                             tse.idcliente AS "idcliente",
@@ -186,6 +186,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                         JOIN 
                             staffempresas semp ON tse.idstaff = semp.idstaff
+                        JOIN
+                            funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                         WHERE semp.idempresa = $1
                             ${whereStatus} 
                             ${wherePeriodoFinal} 
@@ -267,7 +269,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         COALESCE((
                             SELECT SUM(
                                 CASE
-                                    WHEN tbf.perfil ILIKE '%Free%' OR tbf.perfil ILIKE '%Lote%'
+                                    WHEN fe.perfil ILIKE '%Free%' OR fe.perfil ILIKE '%Lote%'
                                         THEN COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)
                                     WHEN EXTRACT(DOW FROM d.data::date) IN (0,6) OR d.data::date IN (SELECT data FROM feriados)
                                         THEN COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)
@@ -281,7 +283,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         COALESCE((
                             SELECT SUM(
                                 CASE
-                                    WHEN tbf.perfil ILIKE '%Free%' OR tbf.perfil ILIKE '%Lote%'
+                                    WHEN fe.perfil ILIKE '%Free%' OR fe.perfil ILIKE '%Lote%'
                                         THEN (COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)
                                     WHEN EXTRACT(DOW FROM m.data::date) IN (0,6) OR m.data::date IN (SELECT data FROM feriados)
                                         THEN (COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)
@@ -294,7 +296,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
 
                         FROM staffeventos tse
                         JOIN funcionarios tbf ON tbf.idfuncionario = tse.idfuncionario
-                        JOIN staffempresas semp ON tse.idstaff = semp.idstaff                        
+                        JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                        JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa                        
                         WHERE semp.idempresa = $1 ${wherePeriodoFinal}
                     )
                     SELECT 
@@ -311,7 +314,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     FROM (
                         SELECT
                             tse.idevento,
-                            tbf.perfil AS "PERFIL_STAFF",
+                            fe.perfil AS "PERFIL_STAFF",
                             tse.nmevento AS "nomeEvento",
                             tse.idcliente,
                             tse.nmcliente AS "nomeCliente",
@@ -323,7 +326,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             tse.nivelexperiencia,
                             tbf.nome AS "NOME",
                             tbf.pix AS "PIX",
-                            tbf.perfil AS "PERFIL_FUNC",
+                            fe.perfil AS "PERFIL_FUNC",
                             (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
                             (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
                             
@@ -333,9 +336,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                 AND (
                                     tse.nmfuncao ILIKE '%Ajudante de Marcação%'
-                                    OR tbf.perfil ILIKE '%Free%' 
+                                    OR fe.perfil ILIKE '%Free%' 
                                     OR 
-                                    ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                                    ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%') 
                                     AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
                                 )
                             ) AS "QTD",
@@ -410,9 +413,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                         FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                         WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                         AND (
-                                            tbf.perfil ILIKE '%Free%' 
+                                            fe.perfil ILIKE '%Free%' 
                                             OR 
-                                            ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                                            ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%') 
                                             AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
                                         )
                                     ))
@@ -429,6 +432,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         FROM staffeventos tse
                         JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                         JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                        JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                         LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                         WHERE semp.idempresa = $1 
                             ${whereStatus} 
@@ -503,7 +507,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     )
                     SELECT
                         tse.idevento,
-                        tbf.perfil AS "PERFIL_STAFF",
+                        fe.perfil AS "PERFIL_STAFF",
                         tse.nmevento AS "nomeEvento",
                         tse.idcliente,
                         tse.nmcliente AS "nomeCliente",
@@ -526,9 +530,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         (SELECT COUNT(*) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                         WHERE date_val::date BETWEEN $2::date AND $3::date
                         AND (
-                            tbf.perfil ILIKE '%Free%'
+                            fe.perfil ILIKE '%Free%'
                             OR (
-                                (tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%')
+                                (fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%')
                                 AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados))
                             )
                         )) AS "QTD",
@@ -540,9 +544,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                 WHERE date_val::date BETWEEN $2::date AND $3::date
                                 AND (
-                                    tbf.perfil ILIKE '%Free%' 
+                                    fe.perfil ILIKE '%Free%' 
                                     OR 
-                                    ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                                    ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%') 
                                     AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
                                 )
                             )) +
@@ -561,6 +565,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     FROM staffeventos tse
                     JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                     JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                    JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                     WHERE semp.idempresa = $1
                         ${whereStatus} 
                         ${wherePeriodoFinal} 
@@ -633,7 +638,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE((
                                     SELECT SUM(
                                         CASE
-                                            WHEN tbf.perfil ILIKE '%Free%' OR tbf.perfil ILIKE '%Lote%'
+                                            WHEN fe.perfil ILIKE '%Free%' OR fe.perfil ILIKE '%Lote%'
                                                 THEN COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)
                                             WHEN EXTRACT(DOW FROM d.data::date) IN (0,6) OR d.data::date IN (SELECT data FROM feriados)
                                                 THEN COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)
@@ -646,7 +651,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE((
                                     SELECT SUM(
                                         CASE
-                                            WHEN tbf.perfil ILIKE '%Free%' OR tbf.perfil ILIKE '%Lote%'
+                                            WHEN fe.perfil ILIKE '%Free%' OR fe.perfil ILIKE '%Lote%'
                                                 THEN (COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)
                                             WHEN EXTRACT(DOW FROM m.data::date) IN (0,6) OR m.data::date IN (SELECT data FROM feriados)
                                                 THEN (COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)
@@ -659,6 +664,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             FROM staffeventos tse
                             JOIN funcionarios tbf ON tbf.idfuncionario = tse.idfuncionario
                             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                            JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                             WHERE semp.idempresa = $1 ${wherePeriodoFinal}
                         )
                         SELECT 
@@ -709,7 +715,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE(tse.vlrtotcache, 0) as vlrtotcache,  
                                 COALESCE(tse.vlrtotajdcusto, 0) as vlrtotajdcusto, 
                                 tbf.pix AS "PIX",
-                                tbf.perfil AS "PERFIL_STAFF",
+                                fe.perfil AS "PERFIL_STAFF",
                                 (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
                                 (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
                                 
@@ -723,9 +729,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                     WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                     AND (
-                                        tbf.perfil ILIKE '%Free%' 
-                                        OR tbf.perfil ILIKE '%Lote%'
-                                        OR ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%' OR tbf.perfil ILIKE '%Funcionario%' OR tbf.perfil ILIKE '%Funcionário%') 
+                                        fe.perfil ILIKE '%Free%' 
+                                        OR fe.perfil ILIKE '%Lote%'
+                                        OR ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%' OR fe.perfil ILIKE '%Funcionario%' OR fe.perfil ILIKE '%Funcionário%') 
                                             AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) 
                                                 OR date_val::date IN (SELECT data FROM feriados)))
                                     )
@@ -764,6 +770,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             FROM staffeventos tse
                             JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                            JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                             LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                             WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
                             AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
@@ -1012,6 +1019,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
+            JOIN
                 calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
@@ -1032,6 +1041,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
+            JOIN
                 calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
@@ -1051,6 +1062,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.statusajustecusto = 'Autorizado' 
@@ -1071,6 +1084,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON semp.idstaff = tse.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.statuscaixinha = 'Autorizado' 
@@ -1095,6 +1110,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON semp.idstaff = tse.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.statuscustofechado = 'Autorizado'
@@ -1115,6 +1132,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             CROSS JOIN LATERAL (
                 SELECT f.dt as data_feriado, f.nome as nome_feriado
                 FROM (
@@ -1133,7 +1152,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
             ) d
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
-                AND (tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%')
+                AND (fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%')
             GROUP BY
                 tse.idevento, tbf.nome
 
@@ -1150,6 +1169,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.obspospgto IS NOT NULL
@@ -1170,6 +1191,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.obslogsistema IS NOT NULL
@@ -1195,6 +1218,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
             CROSS JOIN LATERAL
                 jsonb_array_elements(
                     CASE WHEN jsonb_typeof(tse.vagasreaproveitadas) = 'array'

@@ -2,9 +2,7 @@
 import { fetchComToken } from '../../utils/utils.js';
 
 
-const acessoCheckbox = document.getElementById('Acesso');
 const listaEmpresas = document.getElementById('listaEmpresas');
-const moduloSelect = document.getElementById('modulo');
 
 const campos = {
     buscaUsuario: "buscaUsuario",
@@ -17,71 +15,45 @@ const campos = {
 
 let clicouNaLista = false; // Flag de clique
 
-// Obtém todas as outras checkboxes de permissões
-const outrasPermissoes = [
-    document.getElementById('Cadastrar'),
-    document.getElementById('Alterar'),
-    document.getElementById('Pesquisar'),
-    document.getElementById('Apagar'),
-    document.getElementById('Master'),
-    document.getElementById('Financeiro'),
-    document.getElementById('AdminSupremo'),
-    document.getElementById('Comercial'),
-    document.getElementById('Devs'),
-    document.getElementById('rh')
+// Colunas de permissão renderizadas no grid, na ordem em que aparecem na tabela.
+const CAMPOS_PERMISSAO = [
+  'acesso', 'cadastrar', 'alterar', 'pesquisar', 'apagar',
+  'supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs'
 ];
 
+// Nomes de módulo são gravados no banco "grudados" (ex.: "Ajustefinanceiro"), sem
+// como separar as palavras algoritmicamente com segurança — por isso um mapa manual
+// só pra exibição. O nome salvo/comparado (linha.dataset.modulo) continua o original.
+const NOMES_MODULO_EXIBICAO = {
+  'Ajustefinanceiro': 'Ajuste Financeiro',
+  'Categoriafuncao': 'Categoria Função',
+  'Centrocusto': 'Centro Custo',
+  'Indiceanual': 'Índice Anual',
+  'Localmontagem': 'Local Montagem',
+  'Planocontas': 'Plano Contas',
+  'Tipoconta': 'Tipo Conta',
+  'Funcao': 'Função'
+};
 
-function verificarE_HabilitarPermissoes() {
-
-  console.log("ENTROU EM VERIFICARHABILITARPERMISSAO");
-    const empresaPreenchida = listaEmpresas.value !== '' && listaEmpresas.value !== 'Selecione Empresa';
-    const moduloPreenchido = moduloSelect.value !== '' && moduloSelect.value !== 'choose';
-       
-    const podeHabilitarAcesso = empresaPreenchida && moduloPreenchido;
-    acessoCheckbox.disabled = !podeHabilitarAcesso;
-
-    if (!podeHabilitarAcesso) {
-        acessoCheckbox.checked = false;
-    }    
-
-    const acessoMarcado = acessoCheckbox.checked;
-    outrasPermissoes.forEach(checkbox => {
-        checkbox.disabled = !acessoMarcado;
-        if (!acessoMarcado) {
-            checkbox.checked = false;
-        }
-    });
-}
-
-acessoCheckbox.addEventListener('change', verificarE_HabilitarPermissoes);
-listaEmpresas.addEventListener('change', verificarE_HabilitarPermissoes);
-moduloSelect.addEventListener('change', verificarE_HabilitarPermissoes);
-
-document.addEventListener('DOMContentLoaded', verificarE_HabilitarPermissoes);
-
-// Esconde o checkbox "Devs" para quem não possui a própria permissão devs.
-// Devs dá acesso a dados sensíveis/permissão muito forte, então só quem já é devs
-// pode concedê-la a outro usuário. Em caso de falha na verificação, esconde por segurança.
-async function aplicarVisibilidadeDevs() {
-  const chkDevs = document.getElementById('Devs');
-  const wrapper = chkDevs?.closest('div');
-  if (!wrapper) return;
-  try {
-    const permissoesLogado = await fetchComToken('/auth/permissoes');
-    const ehDevs = Array.isArray(permissoesLogado)
-      && permissoesLogado.some(p => !!p.pode_devs);
-    if (!ehDevs) {
-      wrapper.style.display = 'none';
-      chkDevs.checked = false; // nunca concede devs por essa tela
+// Numa linha do grid, as demais permissões só ficam disponíveis se "Acesso ao Módulo"
+// estiver marcado (mesma regra que existia nos checkboxes fixos antigos).
+function aplicarRegraAcessoNaLinha(linha) {
+  const chkAcesso = linha.querySelector('input[data-campo="acesso"]');
+  if (!chkAcesso) return;
+  const acessoMarcado = chkAcesso.checked;
+  linha.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+    if (checkbox === chkAcesso) return;
+    checkbox.disabled = !acessoMarcado;
+    if (!acessoMarcado) {
+      checkbox.checked = false;
     }
-  } catch (err) {
-    console.error('Erro ao verificar permissão devs do usuário logado:', err);
-    wrapper.style.display = 'none';
-    chkDevs.checked = false;
-  }
+  });
 }
-document.addEventListener('DOMContentLoaded', aplicarVisibilidadeDevs);
+
+// A coluna Devs fica sempre visível pra quem acessa esta tela (senão ninguém sem devs
+// conseguiria conceder devs a um novo usuário). A restrição de segurança continua no
+// backend: só quem já é devs consegue de fato gravar devs=true em outro usuário —
+// se alguém sem devs tentar, o salvamento avisa que foi ignorado (ver btnsalvarPermissao).
 
 
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
@@ -1199,7 +1171,6 @@ console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefau
    
       }
 
-      await carregarPermissoesUsuario(idusuario); //novo 02/06/2025
     } catch (erro) {
       console.error('Erro ao buscar empresas do usuário:', erro);
       Swal.fire('Erro', 'Erro ao buscar empresas vinculadas.', 'error');
@@ -1400,15 +1371,7 @@ async function preencherUsuarioPeloEmail(email) {
 
 
 //PERMISSÕES
-let permissoesOriginais = {
-  modulo:   null,
-  acesso:   false,
-  cadastrar:false,
-  alterar:  false,
-  pesquisar:false
-};
-
-let empresasOriginais = []; // Variável global para armazenar as empresas originais
+let empresasOriginais = []; // Variável global para armazenar as empresas do usuário (idempresa, ativo)
 
 async function flipBox() {
   var container = document.getElementById("flip-container");
@@ -1427,71 +1390,33 @@ async function flipBox() {
         nomeUsuarioDisplay.readOnly = true; // Torna somente leitura para não ser editado
     } 
 
-    ////inserido para teste
     if (idusuario) {
       console.log("Vai entrar em carregarEmpresasUsuario IdUsuario", idusuario);
-          // AGORA COM AWAIT DIRETO NA FUNÇÃO ASYNC flipBox
-      await carregarEmpresasUsuario(idusuario); // Espere aqui
-      console.log("carregarEmpresasUsuario CONCLUÍDO. Empresas Originais:", empresasOriginais);
+      await carregarEmpresasUsuario(idusuario); // preenche empresasOriginais e o select "Copiar de"
 
-      // Agora que empresasOriginais está preenchida, e o select está (ou deveria estar) atualizado
-      const selectModuloElement = document.getElementById("modulo");
       const selectEmpresaElement = document.getElementById("listaEmpresas");
+      const empresaAlvoAtual = selectEmpresaElement ? selectEmpresaElement.value : "";
 
-      if (!selectModuloElement || !selectEmpresaElement) {
-          console.error("Elementos de select (modulo ou listaEmpresas) não encontrados no DOM.");
-          return;
-      }
-                  
-      const empresaAlvoAtual = selectEmpresaElement.value;
-      let moduloAtual = "";
-
-      console.log("Modulo Atual para carregarPermissoes:", moduloAtual);
-      console.log("Empresa Alvo Atual para carregarPermissoes:", empresaAlvoAtual);
-
-      if (selectModuloElement.options.length > 1) { // Mais de uma opção (além do "choose")
-          moduloAtual = selectModuloElement.options[1].value; // Pega o valor do primeiro módulo real
-          selectModuloElement.value = moduloAtual; // Pré-seleciona
+      if (empresaAlvoAtual && empresaAlvoAtual !== '' && empresaAlvoAtual !== 'Selecione') {
+          await carregarGradePermissoes(idusuario, empresaAlvoAtual);
       } else {
-          // Caso não haja módulos carregados ainda (menos provável se DOMContentLoaded já chamou carregarModulos)
-          console.warn("Nenhum módulo real disponível para seleção inicial.");
-      }
-      console.log("Módulo Atual (APÓS AJUSTE) para carregarPermissoes:", moduloAtual);
-      console.log("Empresa Alvo Atual (APÓS AJUSTE) para carregarPermissoes:", empresaAlvoAtual);
-
-      // Agora, chame carregarPermissoesUsuario com os valores que *tentamos* pré-selecionar.
-      // A condição agora verifica se temos valores válidos.
-      if (moduloAtual && moduloAtual !== 'choose' && empresaAlvoAtual && empresaAlvoAtual !== '' && empresaAlvoAtual !== 'Selecione') {
-          // Seu backend espera o NOME do módulo, não o value, certo?
-          const nomeModuloParaAPI = selectModuloElement.options[selectModuloElement.selectedIndex].textContent;
-          await carregarPermissoesUsuario(idusuario, empresaAlvoAtual, nomeModuloParaAPI);
-          console.log("carregarPermissoesUsuario CONCLUÍDO.");
-      } else {
-          console.warn("Ainda sem dados suficientes para carregar permissões iniciais. Módulo:", moduloAtual, "Empresa:", empresaAlvoAtual);
-          permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
+          console.warn("Ainda sem empresa selecionada para carregar o grid de permissões.");
+          renderizarGradePermissoes([]);
       }
     } else {
         console.warn("ID de usuário não encontrado ao virar para o verso para carregar permissões/empresas.");
         empresasOriginais = [];
-        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
+        renderizarGradePermissoes([]);
     }
 
-    // Removi selectModulo.disabled = true; daqui. É melhor habilitar/desabilitar baseado na seleção
-    // da empresa e módulo, talvez no `change` listener.
     console.log("Entrou no flipBox - Flipped.");
-    ///fim
-
-
-      selectModulo.disabled = true;
-      //carregarModulos();     
   } else {
     // Se virou para a frente (cadastro de usuário)
     console.log("Voltou para a frente do cadastro de usuário.");
     // Opcional: Limpar campos do verso ao voltar, se necessário.
     limparListaEmpresas(); // Se essa função limpa o HTML do container de empresas
       empresasOriginais = []; // E garante que a variável global esteja vazia
-      permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
-      limparCheckboxesPermissao(); // Limpa os checkboxes de permissão
+      renderizarGradePermissoes([]); // Limpa o grid de permissões
   }
   console.log("Entrou no flipBox");
     
@@ -1511,125 +1436,62 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   document.getElementById("btnPermissaoReal").click();
 
   const idusuario = document.getElementById("idusuario").value;
-  const modulo = document.getElementById("modulo").value;
-  
-  const empresaSelecionada = document.getElementById("listaEmpresas");
-  const idEmpresaAtual = empresaSelecionada.value;
-  //const empresasAtualmenteSelecionadas = [idEmpresaAtual];
+  const idEmpresaAtual = document.getElementById("listaEmpresas").value;
   const empresaAtiva = document.getElementById("empresaAtiva").checked;
 
-  const empresasAtualmenteSelecionadas = [{
-    idempresa: String(idEmpresaAtual), // Use idempresa para ser consistente com o backend
-    ativo: empresaAtiva
-  }];
-  
   if (!idusuario) {
-        Swal.fire("Atenção", "Selecione um usuário primeiro.", "warning");
-        return;
-    }
-    if (modulo === "choose" || !modulo) {
-        Swal.fire("Atenção", "Selecione um módulo.", "warning");
-        return;
-    }
-
-    if (!idEmpresaSelecionada || idEmpresaSelecionada === 'all' || idEmpresaSelecionada === "Selecione") {
-        Swal.fire("Atenção", "Selecione uma empresa válida para aplicar as permissões.", "warning");
-        return;
-    }
-  
- // const empresasSelecionadas = [empresaSelecionadaUnica];
-  
-  console.log("EMPRESA SELECIONADA BT SALVAR", empresaSelecionada);
-
-  // if (!empresaSelecionadas.length) {
-  //   Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
-  //   return;
-  // }
-
-  // Permissões atuais
-  const atuais = {
-    modulo,
-    acesso:       document.getElementById("Acesso").checked,
-    cadastrar:    document.getElementById("Cadastrar").checked,
-    alterar:      document.getElementById("Alterar").checked,
-    pesquisar:    document.getElementById("Pesquisar").checked,
-    apagar:       document.getElementById("Apagar").checked,
-    master:       document.getElementById("Master").checked,
-    financeiro:   document.getElementById("Financeiro").checked,
-    supremo:      document.getElementById("AdminSupremo").checked,
-    comercial:    document.getElementById("Comercial").checked,
-    devs:         document.getElementById("Devs").checked,
-    rh:         document.getElementById("rh").checked
-  };
-
-  // Verifica se há mudança nas permissões
-  const semAlteracaoPermissoes = typeof permissoesOriginais === "object" &&
-    Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
-
-    console.log("Permissões Originais:", permissoesOriginais);
-    console.log("Permissões Atuais:", atuais);
-
-  // const semAlteracaoEmpresas = empresasOriginais.length === empresasAtualmenteSelecionadas.length &&
-  //                              empresasOriginais.every(empId => empresasAtualmenteSelecionadas.includes(empId));
-
-  const semAlteracaoEmpresas = empresasOriginais.length === empresasAtualmenteSelecionadas.length &&
-    empresasOriginais.every(empOriginal => {
-            const empAtual = empresasAtualmenteSelecionadas.find(
-            emp => emp.idempresa === empOriginal.idempresa
-        );                
-        return empAtual && empAtual.ativo === empOriginal.ativo;
-    });
-
-  console.log("Empresas Originais:", empresasOriginais);
-  console.log("Empresas Atualmente Selecionadas:", empresasAtualmenteSelecionadas);
-  console.log("Sem Alteração nas Empresas:", semAlteracaoEmpresas);
-
-  if (semAlteracaoPermissoes && semAlteracaoEmpresas) {
-    return Swal.fire("Aviso", "Nenhuma alteração detectada nas Permissões ou Empresas.", "info");
+    Swal.fire("Atenção", "Selecione um usuário primeiro.", "warning");
+    return;
+  }
+  if (!idEmpresaAtual || idEmpresaAtual === 'all' || idEmpresaAtual === "Selecione") {
+    Swal.fire("Atenção", "Selecione uma empresa válida para aplicar as permissões.", "warning");
+    return;
   }
 
-  const payload = {
-    idusuario,
-    modulo,
-    acesso: atuais.acesso,
-    cadastrar: atuais.cadastrar,
-    alterar: atuais.alterar,
-    pesquisar: atuais.pesquisar,
-    apagar: atuais.apagar,
-    master: atuais.master,
-    financeiro: atuais.financeiro,
-    supremo: atuais.supremo,
-    comercial: atuais.comercial,
-    devs: atuais.devs,
-    rh: atuais.rh,
-    ativo: empresaAtiva
-  };
+  const linhas = document.querySelectorAll('#corpoTabelaPermissoes tr');
+  if (linhas.length === 0) {
+    Swal.fire("Aviso", "Nenhum módulo disponível para salvar nesta empresa.", "info");
+    return;
+  }
 
-  
-  console.log("PAYLOAD", payload);
+  const permissoes = Array.from(linhas).map(linha => {
+    const lerCampo = campo => linha.querySelector(`input[data-campo="${campo}"]`)?.checked || false;
+    const flags = { modulo: linha.dataset.modulo, idmodulo: linha.dataset.idmodulo };
+    CAMPOS_PERMISSAO.forEach(campo => { flags[campo] = lerCampo(campo); });
+    return flags;
+  });
+
+  const payload = { idusuario, ativo: empresaAtiva, permissoes };
+
+  console.log("PAYLOAD LOTE", payload);
 
   try {
-    const dados = await fetchComToken("/permissoes/cadastro", {
+    const dados = await fetchComToken("/permissoes/cadastro-lote", {
       method: "POST",
-      //headers: { "Content-Type": "application/json" },
-      headers: {"Content-Type": "application/json",
-                // Passa o idEmpresaAtual diretamente no cabeçalho para esta requisição
-                'idempresa': idEmpresaAtual
-            },
+      headers: {
+        "Content-Type": "application/json",
+        'idempresa': idEmpresaAtual
+      },
       body: JSON.stringify(payload)
     });
 
     if (dados && dados.sucesso) {
-      Swal.fire("Sucesso", "Permissões e empresas salvas com sucesso!", "success");
+      if (dados.avisoDevsNegado) {
+        Swal.fire(
+          "Salvo, com uma ressalva",
+          "As demais permissões foram salvas, mas a concessão de DEVS foi ignorada: só quem já tem a permissão devs pode concedê-la a outro usuário.",
+          "warning"
+        );
+      } else {
+        Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
+      }
 
-      // Atualiza os dados originais
-      permissoesOriginais = { ...atuais };
-      empresasOriginais = [...empresasAtualmenteSelecionadas];
-       // Atualiza com as empresas atualmente selecionadas
-       console.log("empresasOriginais atualizadas após salvar:", empresasOriginais);
-
+      // Garante que a empresa recém-salva conste em empresasOriginais com o status atual
+      empresasOriginais = empresasOriginais.filter(emp => emp.idempresa !== String(idEmpresaAtual));
+      empresasOriginais.push({ idempresa: String(idEmpresaAtual), ativo: empresaAtiva });
+      atualizarSelectCopiarDe();
     } else {
-      Swal.fire("Erro", dados.erro || "Erro ao salvar permissões.", "error");
+      Swal.fire("Erro", dados?.erro || "Erro ao salvar permissões.", "error");
     }
 
   } catch (err) {
@@ -1637,6 +1499,81 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     Swal.fire("Erro", "Erro inesperado ao salvar permissões.", "error");
   }
 });
+
+// Copia a grade de permissões de uma empresa de origem para a empresa atualmente selecionada,
+// respeitando os módulos disponíveis na empresa de DESTINO (não insere módulo que não existe nela).
+async function copiarPermissoesDeEmpresa(idusuario, idEmpresaOrigem, idEmpresaDestino) {
+  const [modulosOrigem, modulosDestino] = await Promise.all([
+    fetchComToken(`/permissoes/grade/${idusuario}`, { method: 'GET', headers: { idempresa: idEmpresaOrigem } }),
+    fetchComToken(`/permissoes/grade/${idusuario}`, { method: 'GET', headers: { idempresa: idEmpresaDestino } })
+  ]);
+
+  const porModuloOrigem = new Map((modulosOrigem || []).map(m => [m.modulo, m]));
+
+  const modulosCopiados = (modulosDestino || []).map(m => {
+    const origem = porModuloOrigem.get(m.modulo);
+    if (!origem) return m; // módulo não existe na empresa de origem: mantém como estava na de destino
+    return { ...m, ...origem, idmodulo: m.idmodulo, modulo: m.modulo };
+  });
+
+  renderizarGradePermissoes(modulosCopiados);
+}
+
+document.getElementById('btnCopiarPermissoes').addEventListener('click', async function () {
+  const idusuario = document.getElementById('idusuario').value;
+  const idEmpresaOrigem = document.getElementById('empresaOrigemCopia').value;
+  const idEmpresaDestino = document.getElementById('listaEmpresas').value;
+
+  if (!idusuario) {
+    return Swal.fire('Atenção', 'Selecione um usuário primeiro.', 'warning');
+  }
+  if (!idEmpresaDestino || idEmpresaDestino === 'all' || idEmpresaDestino === 'Selecione') {
+    return Swal.fire('Atenção', 'Selecione a empresa de destino antes de copiar.', 'warning');
+  }
+  if (!idEmpresaOrigem) {
+    return Swal.fire('Atenção', 'Selecione a empresa de origem para copiar as permissões.', 'warning');
+  }
+  if (idEmpresaOrigem === idEmpresaDestino) {
+    return Swal.fire('Atenção', 'Selecione uma empresa de origem diferente da empresa atual.', 'warning');
+  }
+
+  try {
+    await copiarPermissoesDeEmpresa(idusuario, idEmpresaOrigem, idEmpresaDestino);
+    Swal.fire('Copiado', 'Permissões copiadas para revisão. Ajuste o que for necessário e clique em "Salvar Todas as Permissões".', 'success');
+  } catch (err) {
+    console.error('Erro ao copiar permissões de outra empresa:', err);
+    Swal.fire('Erro', 'Erro ao copiar permissões da empresa selecionada.', 'error');
+  }
+});
+
+// Popula o select "Copiar permissões de" com as empresas em que o usuário já é ativo,
+// excluindo a empresa atualmente selecionada em "listaEmpresas".
+function atualizarSelectCopiarDe() {
+  const select = document.getElementById('empresaOrigemCopia');
+  if (!select) return;
+
+  const idEmpresaAtual = document.getElementById('listaEmpresas').value;
+  const valorAnterior = select.value;
+  // Nome de exibição vem das <option> já carregadas em #listaEmpresas (por carregarEmpresas()),
+  // não do localStorage.empresas — este só guarda {id, ativo}, sem o nome da empresa.
+  const opcoesListaEmpresas = document.getElementById('listaEmpresas').options;
+
+  select.innerHTML = '<option value="" selected disabled>Selecione empresa de origem</option>';
+
+  empresasOriginais
+    .filter(emp => emp.idempresa !== String(idEmpresaAtual))
+    .forEach(emp => {
+      const opcaoOrigem = Array.from(opcoesListaEmpresas).find(o => o.value === emp.idempresa);
+      const option = document.createElement('option');
+      option.value = emp.idempresa;
+      option.textContent = opcaoOrigem ? opcaoOrigem.textContent : `Empresa ${emp.idempresa}`;
+      select.appendChild(option);
+    });
+
+  if (Array.from(select.options).some(o => o.value === valorAnterior)) {
+    select.value = valorAnterior;
+  }
+}
 
 
 async function carregarEmpresasUsuario(idusuario) {
@@ -1662,32 +1599,17 @@ async function carregarEmpresasUsuario(idusuario) {
                 ativo: emp.ativo 
             }));
             console.log("empresasOriginais inicializada com:", empresasOriginais);
-
-            // Opcional: Se você quiser que o select 'listaEmpresas' (o que tem TODAS as empresas)
-            // selecione a empresa padrão do usuário automaticamente ao carregar:
-            if (empresasOriginais.length > 0) {
-                const selectEmpresa = document.getElementById("listaEmpresas");
-                if (selectEmpresa) {
-                  //  selectEmpresa.value = empresasOriginais[0]; // Seleciona a primeira empresa do usuário como padrão
-                    // Dispare um evento 'change' para acionar a lógica de carregar módulos/permissões se necessário
-                    selectEmpresa.dispatchEvent(new Event('change'));
-                }
-            }
-
         } else {
             empresasOriginais = [];
             console.warn("Formato inesperado para empresas do usuário:", empresasDoUsuario);
         }
 
-        // Se o seu 'listaEmpresas' é um SELECT para escolher UMA empresa para o usuário,
-        // então você não deve criar checkboxes aqui. Sua função 'carregarEmpresas' já preenche esse SELECT.
-        // A sua `carregarEmpresasUsuario` pode ser mais para carregar o *estado* das empresas do usuário
-        // e preencher `empresasOriginais`.
-
     } catch (e) {
         console.error("Erro ao carregar empresas do usuário para inicializar empresasOriginais:", e);
         empresasOriginais = []; // Garante que seja vazio em caso de erro
     }
+
+    atualizarSelectCopiarDe();
 }
 
 // function limparListaEmpresas() {
@@ -1704,101 +1626,86 @@ function limparListaEmpresas() {
   empresasOriginais = []; // Limpa o estado da memória, mas mantém o HTML
 }
 
-async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) {
-  limparCheckboxesPermissao();
-  const selectModulo = document.getElementById("modulo");
- 
-  const chkAcesso    = document.getElementById("Acesso");
-  const chkCadastrar = document.getElementById("Cadastrar");
-  const chkAlterar   = document.getElementById("Alterar");
-  const chkPesquisar = document.getElementById("Pesquisar");
-  const chkApagar    = document.getElementById("Apagar");
-  const chkMaster    = document.getElementById("Master");
-  const chkFinanceiro= document.getElementById("Financeiro");
-  const chkSupremo   = document.getElementById("AdminSupremo");
-  const chkComercial = document.getElementById("Comercial");
-  const chkDevs      = document.getElementById("Devs");
-  const chkRh        = document.getElementById("rh");
+// Renderiza o grid de permissões (uma linha por módulo) a partir dos dados
+// retornados por `/permissoes/grade/:idusuario` (ou de uma cópia de outra empresa).
+function renderizarGradePermissoes(modulos) {
+  const corpo = document.getElementById('corpoTabelaPermissoes');
+  if (!corpo) return;
+  corpo.innerHTML = '';
 
+  (modulos || []).forEach(m => {
+    const linha = document.createElement('tr');
+    linha.dataset.modulo = m.modulo;
+    linha.dataset.idmodulo = m.idmodulo;
 
-  try {
-    console.log("Entrou no carregarPermissoesUsuario", idusuario, "Empresa:", idEmpresaAtual, "Módulo:", nomeModulo);
-    const url = `/permissoes/${idusuario}?modulo=${encodeURIComponent(nomeModulo)}`; 
-    const options = {
-            method: 'GET', // Método GET para consulta
-            headers: {
-                // Passa o idEmpresaAtual diretamente no cabeçalho para esta requisição
-                'idempresa': idEmpresaAtual
-            }
-            // fetchComToken vai adicionar o Authorization e Content-Type, etc.
-        };
-    const permissoes = await fetchComToken(url, options);    
-   
-    console.log("Permissões carregadas:", permissoes);
+    const celModulo = document.createElement('td');
+    celModulo.textContent = NOMES_MODULO_EXIBICAO[m.modulo] || m.modulo;
+    celModulo.className = 'celula-modulo';
+    linha.appendChild(celModulo);
 
-    if (permissoes && permissoes.length > 0) {
-      const p = permissoes[0];       
-      const optionParaSelecionar = Array.from(selectModulo.options).find(
-        option => option.textContent === p.modulo // Compara o texto da opção com o nome do módulo
-      );
+    CAMPOS_PERMISSAO.forEach(campo => {
+      const td = document.createElement('td');
+      td.dataset.col = campo;
 
-      if (optionParaSelecionar) {
-        selectModulo.value = optionParaSelecionar.value; // Atribui o ID (value) da opção
-      } else {
-        console.warn(`Módulo '${p.modulo}' não encontrado nas opções do select.`);
-        // Se o módulo não for encontrado, talvez você queira limpar ou manter "choose"
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.dataset.campo = campo;
+      chk.checked = Boolean(m[campo]);
+      chk.disabled = campo !== 'acesso' && !m.acesso;
+      if (campo === 'acesso') {
+        chk.addEventListener('change', () => aplicarRegraAcessoNaLinha(linha));
       }
-      
-      chkAcesso.checked     = Boolean(p.acesso);
-      chkCadastrar.checked  = Boolean(p.cadastrar);
-      chkAlterar.checked    = Boolean(p.alterar);
-      chkPesquisar.checked  = Boolean(p.pesquisar);
-      chkApagar.checked     = Boolean(p.apagar);
-      chkMaster.checked     = Boolean(p.master);
-      chkFinanceiro.checked = Boolean(p.financeiro);      
-      chkSupremo.checked    = Boolean(p.supremo);
-      chkComercial.checked  = Boolean(p.comercial);
-      chkDevs.checked       = Boolean(p.devs);
-      chkRh.checked         = Boolean(p.rh);
-      verificarE_HabilitarPermissoes();
 
-      permissoesOriginais = {
-        modulo: p.modulo,
-        acesso: Boolean(p.acesso),
-        cadastrar: Boolean(p.cadastrar),
-        alterar: Boolean(p.alterar),
-        pesquisar: Boolean(p.pesquisar),
-        apagar: Boolean(p.apagar),
-        master: Boolean(p.master),
-        financeiro: Boolean(p.financeiro),
-        supremo: Boolean(p.supremo),
-        comercial: Boolean(p.comercial),
-        devs: Boolean(p.devs),
-        rh: Boolean(p.rh)
-       
-      };
-    } else {
-      console.log("16. Nenhuma permissão encontrada. Permissões Originais serão falsas.");
-      permissoesOriginais = {
-        modulo: nomeModulo || null, // Se não houver módulo, mantém null
-        acesso:     false,
-        cadastrar:  false,
-        alterar:    false,
-        pesquisar:  false,
-        apagar:     false,
-        master:     false,
-        financeiro: false,
-        supremo:    false,
-        comercial:  false,
-        devs:       false,
-        rh:         false
-      };
-    }
-    console.log("Permissões originais:", permissoesOriginais);
-    console.log("Permissões", permissoes)
-  } catch (err) {
-    console.error("Erro ao carregar permissões:", err);
+      td.appendChild(chk);
+      linha.appendChild(td);
+    });
+
+    const tdLimpar = document.createElement('td');
+    const btnLimparLinha = document.createElement('button');
+    btnLimparLinha.type = 'button';
+    btnLimparLinha.className = 'btn-limpar-linha';
+    btnLimparLinha.textContent = 'Limpar';
+    btnLimparLinha.addEventListener('click', () => limparLinhaPermissoes(linha));
+    tdLimpar.appendChild(btnLimparLinha);
+    linha.appendChild(tdLimpar);
+
+    corpo.appendChild(linha);
+  });
+}
+
+// Desmarca todas as permissões de uma linha (módulo) do grid.
+function limparLinhaPermissoes(linha) {
+  linha.querySelectorAll('input[type="checkbox"]').forEach(chk => { chk.checked = false; });
+  aplicarRegraAcessoNaLinha(linha);
+}
+
+document.getElementById('btnLimparTudoPermissoes').addEventListener('click', function (e) {
+  e.preventDefault();
+  document.querySelectorAll('#corpoTabelaPermissoes tr').forEach(limparLinhaPermissoes);
+});
+
+// Busca todos os módulos disponíveis na empresa informada + permissões do usuário
+// e renderiza o grid. Base do fluxo normal (empresa já selecionada) e do "copiar de".
+async function carregarGradePermissoes(idusuario, idempresa) {
+  if (!idusuario || !idempresa) {
+    renderizarGradePermissoes([]);
+    return;
   }
+  try {
+    const modulos = await fetchComToken(`/permissoes/grade/${idusuario}`, {
+      method: 'GET',
+      headers: { idempresa }
+    });
+    renderizarGradePermissoes(Array.isArray(modulos) ? modulos : []);
+  } catch (err) {
+    console.error('Erro ao carregar grade de permissões:', err);
+    renderizarGradePermissoes([]);
+  }
+}
+
+//função para limpar o grid de permissões
+function limparCheckboxesPermissao() {
+  renderizarGradePermissoes([]);
 }
 
 
@@ -1912,137 +1819,33 @@ async function carregarEmpresas(selectIds = ['empresaDefaultSelect', 'listaEmpre
 }
 
 document.getElementById('listaEmpresas').addEventListener('change', function () {
-  
   const idempresa = this.value;
   idEmpresaSelecionada = idempresa;
 
   console.log("EMPRESA SELECIONADA NO SELECT PERMISSOES", idEmpresaSelecionada);
-  const selectModulos = document.getElementById('modulo');
 
-
-  const empresasDoUsuario = JSON.parse(localStorage.getItem('empresas'));
-    const empresaInfo = empresasDoUsuario.find(emp => String(emp.id) === idempresa);
-    
-    // 📌 PASSO 2: Acessa o checkbox 'ativo' no formulário
-    const ativoCheckbox = document.getElementById('empresaAtiva');
-
-    // 📌 PASSO 3: Verifica e atualiza o estado do checkbox
-    if (ativoCheckbox && empresaInfo) {
-        ativoCheckbox.checked = empresaInfo.ativo;
-        console.log(`Checkbox 'ativo' para a empresa ${empresaInfo.id} setado como: ${empresaInfo.ativo}`);
-    } else if (ativoCheckbox) {
-        // Se a empresa não for encontrada (o que não deveria acontecer se a lista estiver correta),
-        // desmarca o checkbox por segurança.
-        ativoCheckbox.checked = false;
-    }
-
-  let moduloAnteriorSelecionado = selectModulos.value;
-  if (idempresa && idempresa !== 'all') {
-    selectModulos.disabled = false;   
-  
-    carregarModulos().then(() => {
-        
-      if (moduloAnteriorSelecionado && selectModulos.querySelector(`option[value="${moduloAnteriorSelecionado}"]`)) {
-        selectModulos.value = moduloAnteriorSelecionado;       
-        selectModulos.dispatchEvent(new Event('change'));       
-      } else {        
-        limparCheckboxesPermissao();
-      }
-    });
-  } else {
-   
-    selectModulos.disabled = true;
-    selectModulos.value = ""; // limpa seleção anterior se houver
-    selectModulos.innerHTML = '<option value="" selected>Escolha o Módulo</option>';
-    limparCheckboxesPermissao();
-  } 
-});
-
-async function carregarModulos() {
-  
-  try {
-    
-    const idempresa = idEmpresaSelecionada;
-
-    
-    const modulos = await fetchComToken('/auth/usuarios/modulos');
-    const selectModulo = document.getElementById('modulo');
-    
-    selectModulo.innerHTML = '<option value="choose" selected>Escolha o Módulo</option>';
-
-    console.log("CARREGAR MODULO", idempresa, modulos);
-
-    modulos.forEach(modulo => {
-    
-      const option = document.createElement('option');
-      option.value = modulo.modulo;
-     // option.value = modulo.modulo;
-      option.textContent = modulo.modulo;
-      selectModulo.appendChild(option);
-    });
-
-    selectModulo.disabled = false;
-    
-
-  } catch (error) {
-    console.error('Erro ao carregar módulos:', error);
+  // O checkbox "Empresa Ativa" reflete o vínculo do USUÁRIO com a empresa (usuarioempresas.ativo),
+  // não o cadastro da empresa em si — por isso a fonte é empresasOriginais, não a lista global de empresas.
+  const empresaVinculada = empresasOriginais.find(emp => emp.idempresa === String(idempresa));
+  const ativoCheckbox = document.getElementById('empresaAtiva');
+  if (ativoCheckbox) {
+    ativoCheckbox.checked = empresaVinculada ? empresaVinculada.ativo : false;
   }
-}
 
-//função para limpar todos os checkboxes de permissão
-function limparCheckboxesPermissao() {
-  ['Acesso','Cadastrar','Alterar','Pesquisar','Apagar']
-    .forEach(id => {
-      const chk = document.getElementById(id);
-      if (chk) chk.checked = false;
-    });
-}
+  atualizarSelectCopiarDe();
 
-// const selectModulo = document.getElementById("modulo");
-// selectModulo.addEventListener("change", () => {
-
-//   const idusuarioAtual = document.getElementById("idusuario").value;
-//   const idEmpresaAtual = document.getElementById('listaEmpresas').value
-//   const moduloSelecionado = selectModulo.value; 
-//   const moduloSelecionadoNome = selectModulo.options[selectModulo.selectedIndex].textContent; // Para pegar o nome
-  
-//   console.log("IDEMPRESA DA LISTA DE EMPRESAS", idEmpresaAtual);
-
-//   if (idusuarioAtual && idEmpresaAtual && idEmpresaAtual !== 'all' && moduloSelecionadoNome && moduloSelecionadoNome !== 'Escolha o Módulo') {
-//         carregarPermissoesUsuario(idusuarioAtual, idEmpresaAtual, moduloSelecionadoNome);
-//     } else {
-        
-//         limparCheckboxesPermissao; // Chame sua função para limpar os checkboxes de permissão
-//     }
-// });
-
-const selectModulo = document.getElementById("modulo");
-selectModulo.addEventListener("change", () => {
-  const idusuarioAtual = document.getElementById("idusuario").value;
-  const idEmpresaAtual = document.getElementById('listaEmpresas').value;
-  const moduloSelecionadoNome = selectModulo.options[selectModulo.selectedIndex].textContent;
-
-  // VALIDAÇÃO: Só chama o banco se todos os campos forem válidos
-  const empresaValida = idEmpresaAtual && idEmpresaAtual !== "" && idEmpresaAtual !== "all";
-  const moduloValido = moduloSelecionadoNome && moduloSelecionadoNome !== "Escolha o Modulo" && selectModulo.value !== "choose";
-
-  if (idusuarioAtual && empresaValida && moduloValido) {
-      console.log("Buscando permissões para:", moduloSelecionadoNome);
-      carregarPermissoesUsuario(idusuarioAtual, idEmpresaAtual, moduloSelecionadoNome);
+  const idusuario = document.getElementById('idusuario').value;
+  if (idusuario && idempresa && idempresa !== 'all') {
+    carregarGradePermissoes(idusuario, idempresa);
   } else {
-      console.warn("Dados insuficientes para carregar permissões. Limpando campos.");
-      // Certifique-se de que limparCheckboxesPermissao é uma função ()
-      if(typeof limparCheckboxesPermissao === 'function') {
-          limparCheckboxesPermissao(); 
-      }
+    renderizarGradePermissoes([]);
   }
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DOMContentLoaded disparado. Iniciando carregamento de dados...");
   await carregarEmpresas(['empresaDefaultSelect', 'listaEmpresas']);
-  await carregarModulos();
-  console.log("--> carregarEmpresas() e carregarModulos() concluídos.");
+  console.log("--> carregarEmpresas() concluído.");
 
 
   const btnFechar = document.getElementById('btnFechar');
