@@ -41,7 +41,11 @@ function logMiddleware(modulo, options = {}) {
 
           await registrarLog({
             idexecutor: req.usuario?.idusuario,
-            idempresa: req.headers.idempresa || null,
+            // req.idempresa é o valor já resolvido/validado pelo autenticarToken (funciona mesmo
+            // quando a chamada não manda o header idempresa cru, ex.: fetch() direto em vez de
+            // fetchComToken()) — usar req.headers.idempresa aqui deixava o log sem idempresa
+            // nesses casos, mesmo a ação tendo sido executada corretamente na empresa certa.
+            idempresa: req.idempresa || null,
             acao: acaoFinal,
             data: new Date(),
             modulo: modulo,
