@@ -2047,7 +2047,10 @@ router.get('/saldos-inativacao-pendentes', autenticarToken(), contextoEmpresa, a
         const idempresa = req.idempresa;
         const { rows } = await pool.query(`
             SELECT s.idsolicitacao, s.idfuncionario, s.vlrsolicitado, s.justificativa, s.dtsolicitacao,
-                   f.nome AS nomefuncionario, se.idevento, e.nmevento
+                   f.nome AS nomefuncionario, se.idevento, e.nmevento,
+                   se.datasevento, se.vlrcaixinha,
+                   se.vlrtotcache, se.vlrtotajdcusto,
+                   se.statuspgto, se.statuspgtoajdcto, se.statuscaixinha
             FROM solicitacoes s
             LEFT JOIN funcionarios f ON f.idfuncionario = s.idfuncionario
             LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
@@ -2087,13 +2090,19 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             const statusParaAtualizar0 = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase();
 
-            // Saldo de Inativação: fluxo próprio, fora do mapeamento de colunas de staffeventos —
-            // Autorizar gera o Débito em staffajustefinanceiro; Rejeitar só encerra a solicitação,
-            // sem lançamento nenhum.
+            // Saldo de Inativação: fluxo próprio, fora do mapeamento de colunas de staffeventos.
+            // Autorizar exige que o financeiro tenha marcado quais dias (`diasTrabalhados`) o
+            // funcionário de fato trabalhou — o crédito/débito é calculado aqui, com base nisso,
+            // nunca confiando cegamente em nenhum valor pré-calculado na Inativação.
+            // Rejeitar só encerra a solicitação, sem lançamento nenhum.
             if (categoria === 'saldoinativacao') {
                 const { rows: solRows } = await pool.query(
-                    `SELECT idsolicitacao, idfuncionario, idregistroalterado, vlrsolicitado, justificativa
-                     FROM solicitacoes WHERE idsolicitacao = $1 AND idempresa = $2 AND status = 'Pendente'`,
+                    `SELECT s.idsolicitacao, s.idfuncionario, s.idregistroalterado,
+                            se.datasevento, se.vlrtotcache, se.vlrtotajdcusto, se.vlrcaixinha,
+                            se.statuspgto, se.statuspgtoajdcto, se.statuscaixinha
+                     FROM solicitacoes s
+                     LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
+                     WHERE s.idsolicitacao = $1 AND s.idempresa = $2 AND s.status = 'Pendente'`,
                     [idpedido, idempresa]
                 );
                 if (solRows.length === 0) {
@@ -2108,16 +2117,59 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 );
 
                 let idAjusteGerado = null;
+                let tipoAjusteGerado = null;
+                let valorAjusteGerado = null;
+
                 if (statusParaAtualizar0 === 'Autorizado') {
-                    const { rows: ajusteRows } = await pool.query(
-                        `INSERT INTO staffajustefinanceiro (
-                            idfuncionario, idempresa, idstaffeventoorigem, tipo, valor,
-                            justificativa, status, idusuariolancamento, dtlancamento
-                         ) VALUES ($1, $2, $3, 'Debito', $4, $5, 'Pendente', $6, NOW())
-                         RETURNING idajustefinanceiro`,
-                        [sol.idfuncionario, idempresa, sol.idregistroalterado, sol.vlrsolicitado, sol.justificativa, idUsuarioResponsavel]
-                    );
-                    idAjusteGerado = ajusteRows[0]?.idajustefinanceiro || null;
+                    const calcPagoBase = (status, amount) => {
+                        if (!status || !String(status).toLowerCase().startsWith('pago')) return 0;
+                        const match = String(status).match(/(\d+)/);
+                        return match ? amount * (Number(match[1]) / 100) : amount;
+                    };
+
+                    const datasEvento = Array.isArray(sol.datasevento) ? sol.datasevento : [];
+                    const totalDias = datasEvento.length;
+                    const diasTrabalhadosRecebidos = Array.isArray(req.body.diasTrabalhados) ? req.body.diasTrabalhados : [];
+                    // Só considera dias que de fato pertencem ao evento (evita contaminação por payload externo).
+                    const qtdDiasTrabalhados = diasTrabalhadosRecebidos.filter(d => datasEvento.includes(d)).length;
+
+                    const vlrTotCache = parseFloat(sol.vlrtotcache) || 0;
+                    const vlrTotAjdCusto = parseFloat(sol.vlrtotajdcusto) || 0;
+                    const vlrCaixinha = parseFloat(sol.vlrcaixinha) || 0;
+
+                    const cachePorDia = totalDias > 0 ? vlrTotCache / totalDias : 0;
+                    const ajudaPorDia = totalDias > 0 ? vlrTotAjdCusto / totalDias : 0;
+                    // Caixinha é valor único do evento (não por dia): só devida se houve ao menos 1 dia trabalhado.
+                    const caixinhaDevida = qtdDiasTrabalhados > 0 ? vlrCaixinha : 0;
+
+                    const valorDevido = qtdDiasTrabalhados * (cachePorDia + ajudaPorDia) + caixinhaDevida;
+
+                    const valorJaPago = calcPagoBase(sol.statuspgto, vlrTotCache)
+                        + calcPagoBase(sol.statuspgtoajdcto, vlrTotAjdCusto)
+                        + calcPagoBase(sol.statuscaixinha, vlrCaixinha);
+
+                    // > 0: empresa pagou a mais (Débito do funcionário) | < 0: empresa ainda deve (Crédito ao funcionário)
+                    const saldo = valorJaPago - valorDevido;
+
+                    if (Math.abs(saldo) > 0.01) {
+                        const tipo = saldo > 0 ? 'Debito' : 'Credito';
+                        const valorAjuste = Math.abs(saldo);
+                        const justificativaAjuste = `[Saldo de Inativação] Dias trabalhados confirmados pelo financeiro: ${qtdDiasTrabalhados}/${totalDias}. `
+                            + `Devido: R$ ${valorDevido.toFixed(2)} | Já pago: R$ ${valorJaPago.toFixed(2)} | `
+                            + `${tipo === 'Debito' ? 'Saldo a favor da empresa' : 'Saldo a favor do funcionário'}: R$ ${valorAjuste.toFixed(2)}`;
+
+                        const { rows: ajusteRows } = await pool.query(
+                            `INSERT INTO staffajustefinanceiro (
+                                idfuncionario, idempresa, idstaffeventoorigem, tipo, valor,
+                                justificativa, status, idusuariolancamento, dtlancamento
+                             ) VALUES ($1, $2, $3, $4, $5, $6, 'Pendente', $7, NOW())
+                             RETURNING idajustefinanceiro`,
+                            [sol.idfuncionario, idempresa, sol.idregistroalterado, tipo, valorAjuste, justificativaAjuste, idUsuarioResponsavel]
+                        );
+                        idAjusteGerado = ajusteRows[0]?.idajustefinanceiro || null;
+                        tipoAjusteGerado = tipo;
+                        valorAjusteGerado = valorAjuste;
+                    }
                 }
 
                 res.locals.acao = 'atualizou';
@@ -2125,7 +2177,9 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 return res.json({
                     sucesso: true,
                     idsolicitacao: idpedido,
-                    gerouDebito: statusParaAtualizar0 === 'Autorizado',
+                    gerouAjuste: !!idAjusteGerado,
+                    tipoAjuste: tipoAjusteGerado,
+                    valorAjuste: valorAjusteGerado,
                     idajustefinanceiro: idAjusteGerado
                 });
             }
