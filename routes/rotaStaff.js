@@ -2061,11 +2061,11 @@ router.put("/:idStaffEvento",
                 throw new Error('Não é possível Inativar um registro com cachê e ajuda de custo já pagos — o evento está concluído.');
             }
 
-            // Saldo de Inativação: compara quanto já foi efetivamente pago (com base no status/valores
-            // ANTERIORES a esta edição) contra quanto o funcionário tem direito pelos dias que de fato
-            // trabalhou (valores atuais, já ajustados pelo admin na tela). Se o que já foi pago superar
-            // o devido, não geramos o débito automaticamente — abrimos uma solicitação pro financeiro
-            // investigar e, se confirmar, lançar o Débito manualmente em Ajuste Financeiro.
+            // Saldo de Inativação: o dev que inativa não necessariamente sabe quantos dias o
+            // funcionário de fato trabalhou, então não calculamos o saldo (crédito/débito) aqui —
+            // só detectamos que HÁ dinheiro em jogo (algo já foi pago) e abrimos uma solicitação
+            // pro financeiro decidir, dia a dia, o que foi trabalhado (ver /main/saldos-inativacao-pendentes
+            // e a rota de confirmação, que faz o cálculo real e gera o crédito/débito).
             if (novoStatusStaff === 'Inativo' && antigoStatusStaff !== 'Inativo') {
                 const calcPagoBase = (status, amount) => {
                     if (!status || !String(status).toLowerCase().startsWith('pago')) return 0;
@@ -2080,33 +2080,42 @@ router.put("/:idStaffEvento",
                     + calcPagoBase(old.statuspgtoajdcto, oldVlrAjdCusto)
                     + calcPagoBase(old.statuscaixinha, oldVlrCaixinha);
 
-                const valorDevidoPelosDiasTrabalhados = totalCache + totalAjdCusto + vlrCaixinha;
-                const saldoInativacao = valorJaPago - valorDevidoPelosDiasTrabalhados;
+                if (valorJaPago > 0.01) {
+                    // Trava anti-duplicação: se este idstaffevento já tem um crédito/débito não
+                    // rejeitado em staffajustefinanceiro (ex: uma Saldo de Inativação anterior já
+                    // Autorizada), o saldo já foi tratado — não abre uma nova solicitação. Cobre o
+                    // caso de reverter Inativo->Ativo e inativar de novo, o que reabriria o mesmo caso.
+                    const { rows: ajusteExistente } = await client.query(
+                        `SELECT 1 FROM staffajustefinanceiro WHERE idstaffeventoorigem = $1 AND status <> 'Rejeitado' LIMIT 1`,
+                        [idStaffEvento]
+                    );
 
-                if (saldoInativacao > 0.01) {
-                    const justificativaSaldo = `[Saldo de Inativação] Recebido: R$ ${valorJaPago.toFixed(2)} | `
-                        + `Devido pelos dias trabalhados: R$ ${valorDevidoPelosDiasTrabalhados.toFixed(2)} | `
-                        + `Saldo a favor da empresa: R$ ${saldoInativacao.toFixed(2)}`
-                        + (justificativaCascata ? `\nJustificativa da inativação: ${justificativaCascata}` : '');
+                    if (ajusteExistente.length > 0) {
+                        console.log(`ℹ️ Saldo de Inativação ignorado para staffevento ${idStaffEvento}: já existe crédito/débito não rejeitado.`);
+                    } else {
+                        const justificativaSaldo = `[Saldo de Inativação] Valor já recebido pelo funcionário: R$ ${valorJaPago.toFixed(2)}. `
+                            + `Aguardando o financeiro confirmar os dias efetivamente trabalhados para calcular o crédito/débito.`
+                            + (justificativaCascata ? `\nJustificativa da inativação: ${justificativaCascata}` : '');
 
-                    const datasEventoFormatadas = datasevento.length > 0
-                        ? `{${datasevento.map(d => String(d).trim()).join(',')}}`
-                        : null;
+                        const datasEventoFormatadas = datasevento.length > 0
+                            ? `{${datasevento.map(d => String(d).trim()).join(',')}}`
+                            : null;
 
-                    await registrarSolicitacao(client, {
-                        idempresa,
-                        idorcamento: body.idorcamento,
-                        idfuncionario: body.idfuncionario,
-                        idfuncao: body.idfuncao,
-                        idstaffevento: idStaffEvento,
-                        idusuariosolicitante: idUsuarioLogado,
-                        tiposolicitacao: 'Saldo de Inativação',
-                        categoria: 'saldoinativacao',
-                        valor: saldoInativacao,
-                        justificativa: justificativaSaldo,
-                        datas: datasEventoFormatadas,
-                        status: 'Pendente'
-                    });
+                        await registrarSolicitacao(client, {
+                            idempresa,
+                            idorcamento: body.idorcamento,
+                            idfuncionario: body.idfuncionario,
+                            idfuncao: body.idfuncao,
+                            idstaffevento: idStaffEvento,
+                            idusuariosolicitante: idUsuarioLogado,
+                            tiposolicitacao: 'Saldo de Inativação',
+                            categoria: 'saldoinativacao',
+                            valor: valorJaPago,
+                            justificativa: justificativaSaldo,
+                            datas: datasEventoFormatadas,
+                            status: 'Pendente'
+                        });
+                    }
                 }
             }
 
@@ -2377,17 +2386,21 @@ router.put("/:idStaffEvento",
                 const sufixoJust = `Rejeitado por ${tipoAcaoCascata} do registro solicitante. Motivo: ${justificativaCascata}`;
 
                 // 1. Coleta as datas de TODAS as solicitações pendentes ANTES de rejeitar (usadas
-                //    pra sincronizar as entradas por-data em dtdiariadobrada/dtmeiadiaria/vagasreaproveitadas)
+                //    pra sincronizar as entradas por-data em dtdiariadobrada/dtmeiadiaria/vagasreaproveitadas).
+                //    Exclui 'saldoinativacao': ela só existe POR CAUSA desta inativação e precisa
+                //    sobreviver a este cascade pro financeiro decidir os dias trabalhados.
                 const pendDates = await client.query(`
                     SELECT ARRAY_AGG(DISTINCT d::text) FILTER (WHERE d IS NOT NULL) AS datas
                     FROM solicitacoes s
                     LEFT JOIN LATERAL unnest(s.dtsolicitada) d ON true
                     WHERE s.idregistroalterado = $1 AND s.idempresa = $2
                       AND s.status = 'Pendente'
+                      AND s.categoria_log IS DISTINCT FROM 'saldoinativacao'
                 `, [idStaffEvento, idempresa]);
                 const datasAfetadas = pendDates.rows[0]?.datas || [];
 
-                // 2. Rejeita TODAS as solicitacoes pendentes deste registro, qualquer categoria
+                // 2. Rejeita TODAS as solicitacoes pendentes deste registro, qualquer categoria,
+                //    exceto 'saldoinativacao' (ver nota acima).
                 const cascataRes = await client.query(`
                     UPDATE public.solicitacoes
                     SET status = 'Rejeitado',
@@ -2400,6 +2413,7 @@ router.put("/:idStaffEvento",
                         idusuarioresponsavel = $2
                     WHERE idregistroalterado = $3 AND idempresa = $4
                       AND status = 'Pendente'
+                      AND categoria_log IS DISTINCT FROM 'saldoinativacao'
                     RETURNING idsolicitacao
                 `, [sufixoJust, idUsuarioLogado, idStaffEvento, idempresa]);
 
