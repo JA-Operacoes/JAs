@@ -3198,8 +3198,14 @@ router.get("/vencimentos", async (req, res) => {
                     ? (fimDesmontagem > fimInfraDesmontagem ? fimDesmontagem : fimInfraDesmontagem)
                     : (fimDesmontagem || fimInfraDesmontagem || null);
 
+                // Um funcionário pode ter mais de uma função/registro dentro do MESMO evento
+                // (ex: Fiscal de Marcação + Fiscal Diurno) — o crédito/débito deve aparecer só
+                // uma vez por evento, não uma vez por registro, senão duplica na tela e no total.
+                let jaAtribuidoNesteEvento = false;
+
                 ev.funcionarios.forEach(f => {
                     if (f.idfuncionario !== idfuncionario) return;
+                    if (jaAtribuidoNesteEvento) return;
 
                     const ajustesValidosAqui = listaAjustes.filter(a => {
                         if (a.status === 'Pago') {
@@ -3250,6 +3256,7 @@ router.get("/vencimentos", async (req, res) => {
                             notaEventoRelacionado
                         };
                     });
+                    jaAtribuidoNesteEvento = true;
                 });
             });
         });
