@@ -3201,11 +3201,12 @@ router.get("/vencimentos", async (req, res) => {
                 // Um funcionário pode ter mais de uma função/registro dentro do MESMO evento
                 // (ex: Fiscal de Marcação + Fiscal Diurno) — o crédito/débito deve aparecer só
                 // uma vez por evento, não uma vez por registro, senão duplica na tela e no total.
-                let jaAtribuidoNesteEvento = false;
+                // Fica no ÚLTIMO registro do funcionário no evento (não no primeiro), pra aparecer
+                // depois de todos os pagamentos dele na tela.
+                let fComAjusteNesteEvento = null;
 
                 ev.funcionarios.forEach(f => {
                     if (f.idfuncionario !== idfuncionario) return;
-                    if (jaAtribuidoNesteEvento) return;
 
                     const ajustesValidosAqui = listaAjustes.filter(a => {
                         if (a.status === 'Pago') {
@@ -3224,6 +3225,10 @@ router.get("/vencimentos", async (req, res) => {
                         return dataFimReal >= dtSolicitacao;
                     });
                     if (ajustesValidosAqui.length === 0) return;
+
+                    // Limpa do registro anterior (se houver) antes de mover pro atual —
+                    // ao final do loop, sobra só no último registro deste funcionário no evento.
+                    if (fComAjusteNesteEvento) delete fComAjusteNesteEvento.ajustes_financeiros;
 
                     f.ajustes_financeiros = ajustesValidosAqui.map(a => {
                         const ehOrigemAqui = a.idevento_origem === ev.idevento;
@@ -3256,7 +3261,7 @@ router.get("/vencimentos", async (req, res) => {
                             notaEventoRelacionado
                         };
                     });
-                    jaAtribuidoNesteEvento = true;
+                    fComAjusteNesteEvento = f;
                 });
             });
         });
