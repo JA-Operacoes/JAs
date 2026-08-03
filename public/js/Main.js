@@ -15222,6 +15222,60 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 containerFiltrosRapidos.appendChild(btn);
             });
 
+            // Busca por evento — digite o nome e pressione Enter (ou clique na opção) pra pular
+            // direto pro evento, trocando automaticamente pra aba (Vencidos/Hoje/A Vencer/...) onde ele está.
+            const buscaEventoWrapper = document.createElement("div");
+            buscaEventoWrapper.style = "min-width: 240px;";
+            buscaEventoWrapper.innerHTML = `<select id="buscaEventoVencimentos" style="width:100%;"><option value=""></option></select>`;
+            containerFiltrosRapidos.appendChild(buscaEventoWrapper);
+
+            const selectBuscaEvento = buscaEventoWrapper.querySelector("#buscaEventoVencimentos");
+            dados.forEach(ev => {
+                const option = document.createElement("option");
+                option.value = ev.idevento;
+                option.textContent = ev.nomeEvento;
+                selectBuscaEvento.appendChild(option);
+            });
+
+            if ($(selectBuscaEvento).hasClass('select2-hidden-accessible')) {
+                $(selectBuscaEvento).select2('destroy');
+            }
+            $(selectBuscaEvento).select2({
+                placeholder: 'Buscar evento...',
+                allowClear: true,
+                width: '240px',
+                matcher: function (params, data) {
+                    if ($.trim(params.term) === '') return data;
+                    if (typeof data.text === 'undefined') return null;
+                    if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
+                    return null;
+                }
+            });
+
+            $(selectBuscaEvento).on('select2:select', function (e) {
+                const idEventoSelecionado = parseInt(e.params.data.id, 10);
+                if (!idEventoSelecionado) return;
+
+                const eventoAlvo = dados.find(ev => ev.idevento === idEventoSelecionado);
+                if (!eventoAlvo) return;
+
+                const statusAlvo = eventoAlvo._statusFiltroCalculado || 'todos';
+                const botaoFiltro = containerFiltrosRapidos.querySelector(`.btn-filtro-rapido[data-filter="${statusAlvo}"]`);
+                if (botaoFiltro) botaoFiltro.click();
+
+                const cardAlvo = wrapperEventos.querySelector(`.accordion-item[data-evento-id="${idEventoSelecionado}"]`);
+                if (cardAlvo) {
+                    cardAlvo.style.display = "block";
+                    if (!cardAlvo.classList.contains('active')) {
+                        cardAlvo.querySelector('.accordion-header')?.click();
+                    }
+                    cardAlvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                // Limpa a busca pra já poder digitar a próxima
+                $(selectBuscaEvento).val('').trigger('change');
+            });
+
             wrapperEventos.appendChild(containerFiltrosRapidos);
 
             
@@ -15405,10 +15459,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
 
 
+                // Guarda o status calculado no próprio evento pra busca por evento (mais abaixo)
+                // saber pra qual aba pular sem precisar recalcular tudo de novo.
+                evento._statusFiltroCalculado = statusParaFiltro;
+
                 // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
                 const item = document.createElement("div");
                 item.className = "accordion-item";
-                item.setAttribute("data-status-filtro", statusParaFiltro);            
+                item.setAttribute("data-status-filtro", statusParaFiltro);
+                item.setAttribute("data-evento-id", evento.idevento);
                 
 
         
