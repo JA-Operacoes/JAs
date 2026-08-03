@@ -832,6 +832,61 @@ button.btn-detalhes-orcamento:hover {
   margin: 2px 0;
 }
 
+/* Saldo de Inativação: toggle de dias trabalhados/não trabalhados */
+.card-saldo-inativacao {
+  display: block;
+}
+
+.dias-lista-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.dia-toggle-btn {
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: opacity 0.2s;
+}
+
+.dia-toggle-btn.trabalhou {
+  background-color: #2563eb;
+  color: white;
+}
+
+.dia-toggle-btn.nao-trabalhou {
+  background-color: #9ca3af;
+  color: white;
+}
+
+.dia-toggle-btn:hover {
+  opacity: 0.8;
+}
+
+.resumo-saldo-inativacao {
+  font-size: 13px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 6px 0;
+}
+
+.resumo-saldo-inativacao .valor-credito {
+  color: #16a34a;
+  font-weight: bold;
+}
+
+.resumo-saldo-inativacao .valor-debito {
+  color: #dc2626;
+  font-weight: bold;
+}
+
 .lista-funcionarios {
   height: 100%; /* controla altura total */
   overflow-y: auto;

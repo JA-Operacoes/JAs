@@ -470,6 +470,68 @@ function escaparHtmlSaldoInativacao(str) {
     return div.innerHTML;
 }
 
+// Cache dos itens carregados (por idsolicitacao) e o conjunto de datas marcadas como
+// "trabalhou" por item — usado pra recalcular o resumo ao vivo sem precisar rebuscar o servidor.
+const itensCacheSaldoInativacao = {};
+const diasTrabalhadosSaldoInativacao = {};
+
+function formatarDataSaldoInativacao(iso) {
+    return new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+// Recalcula devido x já pago com base nos dias atualmente marcados como "trabalhou".
+// Mesma fórmula usada no backend (rotaMain.js) — cachê e ajuda são rateados por dia,
+// caixinha é valor único do evento (só devida se houve ao menos 1 dia trabalhado).
+function calcularResumoSaldoInativacao(item, diasTrabalhadosSet) {
+    const totalDias = (item.datasevento || []).length;
+    const qtdTrabalhados = diasTrabalhadosSet.size;
+
+    const vlrTotCache = parseFloat(item.vlrtotcache) || 0;
+    const vlrTotAjdCusto = parseFloat(item.vlrtotajdcusto) || 0;
+    const vlrCaixinha = parseFloat(item.vlrcaixinha) || 0;
+
+    const cachePorDia = totalDias > 0 ? vlrTotCache / totalDias : 0;
+    const ajudaPorDia = totalDias > 0 ? vlrTotAjdCusto / totalDias : 0;
+    const caixinhaDevida = qtdTrabalhados > 0 ? vlrCaixinha : 0;
+
+    const valorDevido = qtdTrabalhados * (cachePorDia + ajudaPorDia) + caixinhaDevida;
+
+    const calcPagoBase = (status, amount) => {
+        if (!status || !String(status).toLowerCase().startsWith('pago')) return 0;
+        const match = String(status).match(/(\d+)/);
+        return match ? amount * (Number(match[1]) / 100) : amount;
+    };
+    const valorJaPago = calcPagoBase(item.statuspgto, vlrTotCache)
+        + calcPagoBase(item.statuspgtoajdcto, vlrTotAjdCusto)
+        + calcPagoBase(item.statuscaixinha, vlrCaixinha);
+
+    return { totalDias, qtdTrabalhados, valorDevido, valorJaPago, saldo: valorJaPago - valorDevido };
+}
+
+function renderResumoSaldoInativacao(idsolicitacao) {
+    const resumoEl = document.getElementById(`resumo-saldo-${idsolicitacao}`);
+    if (!resumoEl) return;
+
+    const item = itensCacheSaldoInativacao[idsolicitacao];
+    const diasSet = diasTrabalhadosSaldoInativacao[idsolicitacao];
+    const { qtdTrabalhados, totalDias, valorDevido, valorJaPago, saldo } = calcularResumoSaldoInativacao(item, diasSet);
+
+    let linhaSaldo;
+    if (Math.abs(saldo) <= 0.01) {
+        linhaSaldo = '<span>Sem crédito ou débito a gerar</span>';
+    } else if (saldo > 0) {
+        linhaSaldo = `<span class="valor-debito">Débito de R$ ${saldo.toFixed(2).replace('.', ',')} (empresa pagou a mais)</span>`;
+    } else {
+        linhaSaldo = `<span class="valor-credito">Crédito de R$ ${Math.abs(saldo).toFixed(2).replace('.', ',')} (empresa ainda deve)</span>`;
+    }
+
+    resumoEl.innerHTML = `
+        <div>Dias trabalhados: <strong>${qtdTrabalhados}/${totalDias}</strong></div>
+        <div>Devido pelos dias trabalhados: R$ ${valorDevido.toFixed(2).replace('.', ',')} | Já pago: R$ ${valorJaPago.toFixed(2).replace('.', ',')}</div>
+        <div>${linhaSaldo}</div>
+    `;
+}
+
 async function carregarSaldosInativacaoPendentes() {
     const secao = getOrCriarSecaoSaldosInativacao();
     if (!secao) return;
@@ -485,16 +547,33 @@ async function carregarSaldosInativacaoPendentes() {
 
         let html = '<div class="titulo-pedidos">Saldos de Inativação Pendentes</div>';
         itens.forEach(item => {
-            const valorFmt = (parseFloat(item.vlrsolicitado) || 0).toFixed(2).replace('.', ',');
+            itensCacheSaldoInativacao[item.idsolicitacao] = item;
+            // Default: todos os dias marcados como "trabalhou" — o financeiro desmarca os que não foram.
+            const datasEvento = Array.isArray(item.datasevento) ? item.datasevento : [];
+            if (!diasTrabalhadosSaldoInativacao[item.idsolicitacao]) {
+                diasTrabalhadosSaldoInativacao[item.idsolicitacao] = new Set(datasEvento);
+            }
+
             const justificativaEscapada = escaparHtmlSaldoInativacao(item.justificativa || '').replace(/\n/g, '<br>');
+            const diasSet = diasTrabalhadosSaldoInativacao[item.idsolicitacao];
+
+            const botoesDias = datasEvento.map(data => {
+                const trabalhou = diasSet.has(data);
+                return `<button type="button" class="dia-toggle-btn ${trabalhou ? 'trabalhou' : 'nao-trabalhou'}" `
+                    + `data-idsolicitacao="${item.idsolicitacao}" data-data="${data}">`
+                    + `${formatarDataSaldoInativacao(data)} ${trabalhou ? '✓' : '✕'}</button>`;
+            }).join('');
+
             html += `
-                <div class="pedido-card">
-                    <div class="infoPedido">
+                <div class="pedido-card card-saldo-inativacao">
+                    <div class="infoPedido" style="width:100%;">
                         <div class="event-info">
                             <strong>Evento:</strong> ${escaparHtmlSaldoInativacao(item.nmevento || '—')} - <strong>Funcionário:</strong> ${escaparHtmlSaldoInativacao(item.nomefuncionario || '—')}
                         </div><br>
-                        <strong>Valor do Débito sugerido:</strong> R$ ${valorFmt}<br>
                         <span class="text-xs text-gray-600" style="display:block;margin:2px 0 6px;line-height:1.5;"><strong>Detalhes:</strong> ${justificativaEscapada}</span>
+                        <div><strong>Todos os dias já vêm marcados como trabalhados — clique para desmarcar os que o funcionário NÃO trabalhou:</strong></div>
+                        <div class="dias-lista-toggle">${botoesDias || '<span style="color:#999;">Sem datas registradas neste evento.</span>'}</div>
+                        <div class="resumo-saldo-inativacao" id="resumo-saldo-${item.idsolicitacao}"></div>
                         <div class="AcoesPedido" data-id="${item.idsolicitacao}">
                             <button class="aprovar-saldo-inativacao aprovar">Autorizar</button>
                             <button class="negar-saldo-inativacao negar">Rejeitar</button>
@@ -504,6 +583,7 @@ async function carregarSaldosInativacaoPendentes() {
             `;
         });
         secao.innerHTML = html;
+        itens.forEach(item => renderResumoSaldoInativacao(item.idsolicitacao));
     } catch (err) {
         console.error('Erro ao carregar saldos de inativação pendentes:', err);
     }
@@ -511,6 +591,29 @@ async function carregarSaldosInativacaoPendentes() {
 
 document.addEventListener('click', async function(event) {
     const target = event.target;
+
+    // Toggle de dia trabalhado/não trabalhado
+    if (target.classList.contains('dia-toggle-btn')) {
+        const idsolicitacao = target.getAttribute('data-idsolicitacao');
+        const data = target.getAttribute('data-data');
+        const diasSet = diasTrabalhadosSaldoInativacao[idsolicitacao];
+        if (!diasSet) return;
+
+        if (diasSet.has(data)) {
+            diasSet.delete(data);
+            target.classList.remove('trabalhou');
+            target.classList.add('nao-trabalhou');
+            target.textContent = `${formatarDataSaldoInativacao(data)} ✕`;
+        } else {
+            diasSet.add(data);
+            target.classList.remove('nao-trabalhou');
+            target.classList.add('trabalhou');
+            target.textContent = `${formatarDataSaldoInativacao(data)} ✓`;
+        }
+        renderResumoSaldoInativacao(idsolicitacao);
+        return;
+    }
+
     if (!target.classList.contains('aprovar-saldo-inativacao') && !target.classList.contains('negar-saldo-inativacao')) return;
 
     const isAprovar = target.classList.contains('aprovar-saldo-inativacao');
@@ -518,7 +621,7 @@ document.addEventListener('click', async function(event) {
     if (!idSolicitacao) return;
 
     const htmlConfirmacao = isAprovar
-        ? 'Ao <strong>autorizar</strong>, será lançado automaticamente um <strong>Débito</strong> para o funcionário em Ajuste Financeiro, no valor calculado pela inativação — ficará <strong>Pendente</strong> de pagamento, visível em Vencimentos.'
+        ? 'Ao <strong>autorizar</strong>, o sistema calcula o crédito ou débito com base nos dias marcados como trabalhados e lança automaticamente em Ajuste Financeiro — ficará <strong>Pendente</strong> de pagamento, visível em Vencimentos. Se não houver diferença, nenhum lançamento é criado.'
         : '<strong>Atenção:</strong> ao <strong>rejeitar</strong>, a solicitação será encerrada e nenhum lançamento financeiro será criado.';
 
     const result = await Swal.fire({
@@ -532,16 +635,35 @@ document.addEventListener('click', async function(event) {
     if (!result.isConfirmed) return;
 
     try {
+        const diasTrabalhados = isAprovar
+            ? Array.from(diasTrabalhadosSaldoInativacao[idSolicitacao] || [])
+            : undefined;
+
         const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idpedido: idSolicitacao, categoria: 'saldoinativacao', acao: isAprovar ? 'Autorizado' : 'Rejeitado' })
+            body: JSON.stringify({
+                idpedido: idSolicitacao,
+                categoria: 'saldoinativacao',
+                acao: isAprovar ? 'Autorizado' : 'Rejeitado',
+                diasTrabalhados
+            })
         });
         if (!resp?.sucesso) {
             Swal.fire('Erro', resp?.error || 'Falha na atualização', 'error');
             return;
         }
-        Swal.fire({ icon: 'success', title: isAprovar ? 'Débito gerado!' : 'Rejeitado!', timer: 900, showConfirmButton: false });
+
+        let mensagemSucesso = 'Rejeitado!';
+        if (isAprovar) {
+            mensagemSucesso = resp.gerouAjuste
+                ? `${resp.tipoAjuste === 'Debito' ? 'Débito' : 'Crédito'} de R$ ${Number(resp.valorAjuste).toFixed(2).replace('.', ',')} gerado!`
+                : 'Autorizado — sem diferença a lançar.';
+        }
+        Swal.fire({ icon: 'success', title: mensagemSucesso, timer: 1500, showConfirmButton: false });
+
+        delete diasTrabalhadosSaldoInativacao[idSolicitacao];
+        delete itensCacheSaldoInativacao[idSolicitacao];
         carregarSaldosInativacaoPendentes();
     } catch (err) {
         Swal.fire('Erro', 'Falha ao comunicar com o servidor', 'error');
