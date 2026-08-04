@@ -5404,8 +5404,29 @@ async function verificaStaff() {
                                     idLocalMontagem: idMontagem, datasSelecionadas: periodoDoEvento
                                 });
 
-                                // Categoriza cada data selecionada para exibição clara no Swal
-                                const _orcSet = new Set(saldoVaga.datasOrcadas || []);
+                                // Categoriza cada data selecionada para exibição clara no Swal.
+                                // Aplica a mesma margem de 30 dias usada no fluxo de edição: datas fora
+                                // do período orçado mas dentro da margem contam como "dentro do orçamento"
+                                // (desde que haja saldo de diárias), pra não exigir Aditivo/Extra indevido.
+                                const _datasOrcadasBase = saldoVaga.datasOrcadas || [];
+                                let _orcSetDatas = [..._datasOrcadasBase];
+                                if (_datasOrcadasBase.length > 0) {
+                                    const _baseDates = _datasOrcadasBase.map(d => new Date(d + 'T00:00:00'));
+                                    const _minData = new Date(Math.min(..._baseDates));
+                                    const _maxData = new Date(Math.max(..._baseDates));
+                                    const _margemInicio = new Date(_minData); _margemInicio.setMonth(_margemInicio.getMonth() - 1);
+                                    const _margemFim   = new Date(_maxData);  _margemFim.setMonth(_margemFim.getMonth() + 1);
+
+                                    const _dentroDaMargem = periodoDoEvento.filter(d => {
+                                        if (_datasOrcadasBase.includes(d)) return false;
+                                        const dt = new Date(d + 'T00:00:00');
+                                        return dt >= _margemInicio && dt <= _margemFim;
+                                    });
+                                    if (_dentroDaMargem.length > 0 && saldoVaga.temSaldoDisponivel) {
+                                        _orcSetDatas = [..._orcSetDatas, ..._dentroDaMargem];
+                                    }
+                                }
+                                const _orcSet = new Set(_orcSetDatas);
                                 const _confSet = new Set(datasConflitantes);
                                 const _fmtD = arr => arr.slice().sort().map(d => { const p = d.split('-'); return `${p[2]}/${p[1]}`; }).join(', ');
                                 const _dNormais    = periodoDoEvento.filter(d => !_confSet.has(d) && _orcSet.has(d));
