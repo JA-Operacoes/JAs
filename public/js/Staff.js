@@ -17523,7 +17523,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
 
             ehExcecaoDeData = datasNovasSelecionadas.some(dataSel => !datasPermitidas.includes(dataSel));
         } else {
-            ehExcecaoDeData = true;
+            ehExcecaoDeData = datasNovasSelecionadas.length > 0;
         }
 
         //const totalDiariasSolicitadas = criterios.datasEvento ? criterios.datasEvento.length : datasSelNormalizadas.length;
@@ -19600,8 +19600,9 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
         // -----------------------------------------------------------
         // EXCEÇÃO 2: As datas estão OK (dentro do período), mas as VAGAS ESTOURARAM!
         // -----------------------------------------------------------
-        if (!temSaldoDisponivel && apenasRemovendoDiarias) {
-            console.warn(`ℹ️ [Vagas Excedidas ignorado] Edição está apenas removendo diária(s) deste registro (${diasAtuaisDoRegistro} → ${totalDiariasSolicitadas}), liberando vaga em vez de consumir.`);
+        const nenhumaDiariaNova = datasNovasSelecionadas.length === 0;
+        if (!temSaldoDisponivel && (apenasRemovendoDiarias || nenhumaDiariaNova)) {
+            console.warn(`ℹ️ [Vagas Excedidas ignorado] Edição não está adicionando diária(s) nova(s) a este registro (já salvas: ${diasAtuaisDoRegistro}, solicitadas: ${totalDiariasSolicitadas}) — exceção já tratada anteriormente.`);
         } else if (!temSaldoDisponivel) {
             console.warn(`🛑 [Bloqueio] Vagas Excedidas detectado! Limite: ${limiteTotal}, Já Escalado: ${totalJaEscalado}, Solicitado: ${totalDiariasSolicitadas}`);
 
@@ -19641,6 +19642,13 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     window.bSalvarComoInativo = true;
                     window.datasParaSalvarNoBanco = datasParaSolicitarVagas;
 
+                    // Exceção puramente de vaga (sem conflito de agenda do funcionário) —
+                    // zera qualquer resíduo de uma verificação anterior de FuncExcedido/Combo
+                    // pra não gravar uma solicitação de FuncExcedido indevida no backend.
+                    window.datasExcecaoFuncOnly = [];
+                    window.datasExcecaoVagaOnly = datasParaSolicitarVagas;
+                    window.datasExcecaoCombo = [];
+
                     return {
                         allowed: false,
                         solicitouAutorizacao: true,
@@ -19678,6 +19686,9 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         window.bSalvarComoInativo          = false;
                         window.tipoExcecaoAtual            = 'Vaga Reaproveitada';
                         window.datasParaSalvarNoBanco      = datasParaSolicitarVagas;
+                        window.datasExcecaoFuncOnly = [];
+                        window.datasExcecaoVagaOnly = [];
+                        window.datasExcecaoCombo = [];
                         return { allowed: true, solicitouAutorizacao: false };
                     }
 
@@ -19702,6 +19713,9 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     window.justificativaParaSalvar = dadosExcecao.justificativa;
                     window.bSalvarComoInativo      = true;
                     window.datasParaSalvarNoBanco  = datasParaSolicitarVagas;
+                    window.datasExcecaoFuncOnly = [];
+                    window.datasExcecaoVagaOnly = [];
+                    window.datasExcecaoCombo = [];
                     window.vagasSobraAcumuladas.forEach(v => { v.justificativa = dadosExcecao.justificativa || ''; });
 
                     return {
@@ -20100,22 +20114,24 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
             }
 
             // Ação de Reaproveitamento original adaptada com o resolvedor do Swal
-            btnReaproveitar.addEventListener('click', () => {
-                const valorSelect = selectVaga.value;
-                if (!valorSelect) {
-                    Swal.showValidationMessage('Selecione uma vaga da lista para fazer o reaproveitamento!');
-                    return;
-                }
-                const [idFuncaoOrigem, idOrcamentoOrigem] = valorSelect.split('-');
-                
-                retornoDados = {
-                    acao: 'REAPROVEITAR',
-                    idFuncaoOrigem: parseInt(idFuncaoOrigem),
-                    idOrcamentoOrigem: parseInt(idOrcamentoOrigem),
-                    vagaTexto: selectVaga.options[selectVaga.selectedIndex].text
-                };
-                Swal.clickConfirm();
-            });
+            if (btnReaproveitar) {
+                btnReaproveitar.addEventListener('click', () => {
+                    const valorSelect = selectVaga.value;
+                    if (!valorSelect) {
+                        Swal.showValidationMessage('Selecione uma vaga da lista para fazer o reaproveitamento!');
+                        return;
+                    }
+                    const [idFuncaoOrigem, idOrcamentoOrigem] = valorSelect.split('-');
+
+                    retornoDados = {
+                        acao: 'REAPROVEITAR',
+                        idFuncaoOrigem: parseInt(idFuncaoOrigem),
+                        idOrcamentoOrigem: parseInt(idOrcamentoOrigem),
+                        vagaTexto: selectVaga.options[selectVaga.selectedIndex].text
+                    };
+                    Swal.clickConfirm();
+                });
+            }
 
             // Seleção de Aditivo original
             btnAditivo.addEventListener('click', () => {
