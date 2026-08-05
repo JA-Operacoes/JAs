@@ -4,6 +4,7 @@ const pool = require("../db/conexaoDB"); // Seu pool de conexão com o PostgreSQ
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
+const registrarLog = require('../utils/logger');
 
 // --- Importações e Configuração do Multer ---
 const multer = require('multer');
@@ -1936,7 +1937,7 @@ router.put("/:idStaffEvento",
                 try { return JSON.parse(val); } catch (e) { return []; }
             };
 
-            const datasevento = parseJSON(body.datasevento);
+            const datasevento = ordenarDatas(parseJSON(body.datasevento));
             //const dtdiariadobrada = parseJSON(body.datadiariadobrada);
             const dtmeiadiaria = parseJSON(body.datameiadiaria);
 
@@ -2185,6 +2186,27 @@ router.put("/:idStaffEvento",
                     paths.inativardeletar
                 ]
             );
+
+            // Ajuda de custo já paga que sobrou ao remover data(s) e não coube no Cachê (o front
+            // trava vlrtotcache em 0 nesse caso, ver calcularValorTotal/REGRA DE OURO) — em vez de
+            // perder essa informação, gera um staffajustefinanceiro de Débito com a justificativa
+            // que o usuário já preencheu no swal de remoção de data (fica registrada em obspospgto).
+            const vlrExcedenteAjusteCache = parseFloat(String(body.vlrexcedenteajustecache || 0).replace(',', '.')) || 0;
+            let ajusteFinanceiroAutoGerado = null;
+            if (vlrExcedenteAjusteCache > 0.01) {
+                const justificativaExcedente = (body.obspospgto || '').trim()
+                    || 'Ajuda de custo já paga excede o cachê restante após remoção de data(s) do evento.';
+                const { rows: ajusteRows } = await client.query(
+                    `INSERT INTO staffajustefinanceiro (
+                        idfuncionario, idempresa, idstaffeventoorigem, tipo, valor,
+                        justificativa, status, idusuariolancamento, dtlancamento
+                     ) VALUES ($1, $2, $3, 'Debito', $4, $5, 'Pendente', $6, NOW())
+                     RETURNING *`,
+                    [body.idfuncionario, idempresa, idStaffEvento, vlrExcedenteAjusteCache, justificativaExcedente, idUsuarioLogado]
+                );
+                ajusteFinanceiroAutoGerado = ajusteRows[0];
+                console.log(`💰 [AJUSTE FINANCEIRO] Débito de R$ ${vlrExcedenteAjusteCache.toFixed(2)} gerado (ajuda de custo excedente na remoção de datas) para idfuncionario=${body.idfuncionario}.`);
+            }
 
             // 4. SINCRONIZAÇÃO DE SOLICITAÇÕES
             const itensFinanceiros = [
@@ -2545,6 +2567,23 @@ router.put("/:idStaffEvento",
             res.locals.idregistroalterado = idStaffEvento;
 
             await client.query('COMMIT');
+
+            // Log separado do ajuste financeiro automático — feito só APÓS o commit (usa o pool
+            // direto, fora da transação) pra nunca registrar uma criação que não vingou. O
+            // logMiddleware da rota já cobre o 'atualizou' do staffevento; isso aqui é a entrada
+            // própria do módulo AjusteFinanceiro, mesmo padrão das rotas manuais em rotaAjusteFinanceiro.js.
+            if (ajusteFinanceiroAutoGerado) {
+                registrarLog({
+                    idexecutor: idUsuarioLogado,
+                    idempresa,
+                    acao: 'cadastrou',
+                    modulo: 'AjusteFinanceiro',
+                    idregistroalterado: ajusteFinanceiroAutoGerado.idajustefinanceiro,
+                    idusuarioalvo: body.idfuncionario,
+                    dadosnovos: ajusteFinanceiroAutoGerado
+                }).catch(errLog => console.error('Erro ao logar ajuste financeiro automático:', errLog));
+            }
+
             res.json({ message: "Atualizado", id: idStaffEvento });
         } catch (e) {
             if (client) await client.query('ROLLBACK');
@@ -3344,7 +3383,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             try { return JSON.parse(val); } catch (e) { return []; }
         };
 
-        const datasArray = parseJSON(datasevento);
+        const datasArray = ordenarDatas(parseJSON(datasevento));
         const dtmeiadiaria = parseJSON(datameiadiaria);
 
         // 🌟 Alimenta a variável que já foi declarada lá fora
