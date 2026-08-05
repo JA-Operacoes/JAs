@@ -441,6 +441,7 @@ if (cardFinanceiro) {
   cardFinanceiro.addEventListener("click", async () => {
   await mostrarPedidosUsuario();
   await carregarSaldosInativacaoPendentes();
+  await carregarNotificacoesAjusteFinanceiro();
   });
 }
 
@@ -456,7 +457,7 @@ function getOrCriarSecaoSaldosInativacao() {
         const painel = document.getElementById('painelDetalhes');
         if (!painel || !painel.parentNode) return null;
         secao = document.createElement('div');
-        secao.className = 'detalhes-panel';
+        secao.className = 'detalhes-panel secao-notificacao-lista';
         secao.id = 'secaoSaldosInativacao';
         secao.style.marginTop = '16px';
         painel.parentNode.insertBefore(secao, painel.nextSibling);
@@ -538,12 +539,15 @@ async function carregarSaldosInativacaoPendentes() {
 
     const ehMaster = usuarioTemPermissao();
     const ehSupremo = usuarioTemPermissaoSupremo();
-    if (!(ehMaster || ehSupremo)) { secao.innerHTML = ''; return; }
+    if (!(ehMaster || ehSupremo)) { secao.innerHTML = ''; secao.style.display = 'none'; return; }
 
     try {
         const dados = await fetchComToken('/main/saldos-inativacao-pendentes');
         const itens = Array.isArray(dados?.itens) ? dados.itens : [];
-        if (itens.length === 0) { secao.innerHTML = ''; return; }
+        // Sem itens: esconde a seção por completo — só o innerHTML='' deixava um card vazio
+        // (com padding/fundo do .detalhes-panel) visível, sem nenhum conteúdo dentro.
+        if (itens.length === 0) { secao.innerHTML = ''; secao.style.display = 'none'; return; }
+        secao.style.display = '';
 
         let html = '<div class="titulo-pedidos">Saldos de Inativação Pendentes</div>';
         itens.forEach(item => {
@@ -588,6 +592,103 @@ async function carregarSaldosInativacaoPendentes() {
         console.error('Erro ao carregar saldos de inativação pendentes:', err);
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Ajustes Financeiros gerados automaticamente (ex: ajuda de custo já paga que excedeu o
+// cachê ao remover data — ver REGRA DE OURO em Staff.js) e ainda não vistos pelo financeiro.
+// Seção própria, mesmo padrão de Saldos de Inativação — "Marcar como Lido" só dispensa o
+// aviso aqui; o lançamento em si continua Pendente até ser processado em Vencimentos.
+// ─────────────────────────────────────────────────────────────
+function getOrCriarSecaoAjustesFinanceirosAutomaticos() {
+    let secao = document.getElementById('secaoAjustesFinanceirosAutomaticos');
+    if (!secao) {
+        const painel = document.getElementById('painelDetalhes');
+        if (!painel || !painel.parentNode) return null;
+        secao = document.createElement('div');
+        secao.className = 'detalhes-panel secao-notificacao-lista';
+        secao.id = 'secaoAjustesFinanceirosAutomaticos';
+        secao.style.marginTop = '16px';
+        painel.parentNode.insertBefore(secao, painel.nextSibling);
+    }
+    return secao;
+}
+
+async function carregarNotificacoesAjusteFinanceiro() {
+    const secao = getOrCriarSecaoAjustesFinanceirosAutomaticos();
+    if (!secao) return;
+
+    const ehMaster = usuarioTemPermissao();
+    const ehSupremo = usuarioTemPermissaoSupremo();
+    const ehFinanceiro = usuarioTemPermissaoFinanceiro();
+    if (!(ehMaster || ehSupremo || ehFinanceiro)) { secao.innerHTML = ''; secao.style.display = 'none'; return; }
+
+    try {
+        const itens = await fetchComToken('/ajustefinanceiro/notificacoes/pendentes');
+        // Sem itens: esconde a seção por completo — só o innerHTML='' deixava um card vazio
+        // (com padding/fundo do .detalhes-panel) visível, sem nenhum conteúdo dentro.
+        if (!Array.isArray(itens) || itens.length === 0) { secao.innerHTML = ''; secao.style.display = 'none'; return; }
+        secao.style.display = '';
+
+        let html = '<div class="titulo-pedidos">Ajustes Financeiros Automáticos</div>';
+        itens.forEach(item => {
+            const cor = item.tipo === 'Credito' ? '#16a34a' : '#dc2626';
+            const label = item.tipo === 'Credito' ? 'Crédito' : 'Débito';
+            const valorFmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor || 0);
+            const justificativaEscapada = escaparHtmlSaldoInativacao(item.justificativa || '').replace(/\n/g, '<br>');
+
+            html += `
+                <div class="pedido-card card-ajuste-financeiro-auto" style="border-left:4px solid ${cor};">
+                    <div class="infoPedido" style="width:100%;">
+                        <div class="title">
+                            <span style="display:inline-block; width:12px; height:12px; background-color:${cor}; margin-right:6px; border-radius:2px;"></span>
+                            <strong>Ajuste Automático — ${label}</strong> de <strong>${valorFmt}</strong>
+                        </div><br>
+                        <div class="event-info">
+                            <strong>Evento:</strong> ${escaparHtmlSaldoInativacao(item.nmevento || '—')} - <strong>Funcionário:</strong> ${escaparHtmlSaldoInativacao(item.nomefuncionario || '—')} <span class="text-xs text-gray-500 font-normal">(${escaparHtmlSaldoInativacao(item.nmfuncao || '')})</span>
+                        </div><br>
+                        <span class="text-xs text-gray-600" style="display:block;margin-bottom:6px;line-height:1.5;"><strong>Justificativa:</strong> ${justificativaEscapada}</span>
+                        <div class="AcoesPedido" data-id="${item.idajustefinanceiro}">
+                            <button class="marcar-lido-ajuste-financeiro aprovar">✓ Marcar como Lido</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        secao.innerHTML = html;
+    } catch (err) {
+        console.error('Erro ao carregar notificações de ajuste financeiro:', err);
+    }
+}
+
+document.addEventListener('click', async function(event) {
+    const targetLido = event.target;
+    if (!targetLido.classList.contains('marcar-lido-ajuste-financeiro')) return;
+
+    const idAjusteFinanceiro = targetLido.closest('[data-id]')?.getAttribute('data-id');
+    if (!idAjusteFinanceiro) return;
+
+    targetLido.disabled = true;
+    try {
+        const resp = await fetchComToken(`/ajustefinanceiro/${idAjusteFinanceiro}/marcar-lido`, { method: 'PATCH' });
+        if (!resp || resp.sucesso === false) {
+            Swal.fire('Erro', resp?.erro || 'Não foi possível marcar como lido.', 'error');
+            targetLido.disabled = false;
+            return;
+        }
+        const secao = targetLido.closest('#secaoAjustesFinanceirosAutomaticos');
+        const card = targetLido.closest('.card-ajuste-financeiro-auto');
+        if (card) card.remove();
+        // Se esse era o último card, esconde a seção (senão fica só o título vermelho vazio).
+        if (secao && !secao.querySelector('.card-ajuste-financeiro-auto')) {
+            secao.innerHTML = '';
+            secao.style.display = 'none';
+        }
+    } catch (err) {
+        console.error('Erro ao marcar ajuste financeiro como lido:', err);
+        Swal.fire('Erro', 'Falha ao comunicar com o servidor.', 'error');
+        targetLido.disabled = false;
+    }
+});
 
 document.addEventListener('click', async function(event) {
     const target = event.target;
@@ -2390,9 +2491,21 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
     subFiltroWrapper.id = "sub-filtro-evt-wrapper";
     subFiltroWrapper.className = "filtro-grupo";
 
+    // --- BUSCA POR EVENTO (todas as edições/anos) ---
+    // Ao escolher, ajusta Status (Abertos/Encerrados) e Período (força Anual + ano do evento)
+    // pra garantir que o evento apareça, recarrega e rola até o card correspondente.
+    const grupoBusca = document.createElement("div");
+    grupoBusca.className = "filtro-grupo";
+    grupoBusca.innerHTML = `
+        <label class="label-select">Buscar Evento</label>
+        <div class="wrapper select-wrapper" style="width: 260px;">
+            <select id="busca-evento-select" style="width:100%;"><option value=""></option></select>
+        </div>`;
+
     wrapperUnificado.appendChild(grupoStatus);
     wrapperUnificado.appendChild(grupoPeriodo);
     wrapperUnificado.appendChild(subFiltroWrapper);
+    wrapperUnificado.appendChild(grupoBusca);
     filtrosContainer.appendChild(wrapperUnificado);
 
     // Lógica para mudar o seletor de data/mês conforme o período
@@ -2449,6 +2562,95 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
             carregarDetalhesEventos(conteudoGeral);
         }));
     });
+
+    // --- Inicialização da busca por evento ---
+    (async () => {
+        const selectBusca = grupoBusca.querySelector("#busca-evento-select");
+        const idempresa = localStorage.getItem("idempresa");
+        let eventosBusca = [];
+
+        try {
+            eventosBusca = await fetchComToken(`/main/eventos-busca`, { headers: { idempresa } }) || [];
+        } catch (err) {
+            console.error("Erro ao carregar eventos para busca:", err);
+        }
+
+        // Um evento pode ter mais de um orçamento no mesmo ano (ex: duas montagens/revisões
+        // diferentes) — só mostra o número do orçamento quando há ambiguidade real, senão o
+        // nome/ano sozinho já basta e fica mais limpo.
+        const contagemNomeAno = eventosBusca.reduce((acc, ev) => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            acc[chave] = (acc[chave] || 0) + 1;
+            return acc;
+        }, {});
+
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const option = document.createElement("option");
+            option.value = ev.idorcamento;
+            option.textContent = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+            selectBusca.appendChild(option);
+        });
+
+        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
+            $(selectBusca).select2('destroy');
+        }
+        $(selectBusca).select2({
+            placeholder: 'Digite o nome do evento...',
+            allowClear: true,
+            width: '260px',
+            matcher: function (params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
+                return null;
+            }
+        });
+
+        $(selectBusca).on('select2:select', async function (e) {
+            const idorcamentoSel = e.params.data.id;
+            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
+            if (!eventoSel) return;
+
+            // 1. Status: Abertos/Encerrados conforme o evento
+            const statusInput = filtrosContainer.querySelector(
+                `input[name="statusEvt"][value="${eventoSel.aberto ? 'abertos' : 'encerrados'}"]`
+            );
+            if (statusInput) statusInput.checked = true;
+
+            // 2. Período: força Anual + o ano do evento, pra garantir que ele apareça
+            // independente da data exata (diário/semanal/mensal/etc. exigiriam saber a data certa).
+            const periodoAnualInput = filtrosContainer.querySelector('input[name="periodoEvt"][value="anual"]');
+            if (periodoAnualInput) periodoAnualInput.checked = true;
+            atualizarSubFiltroInterno("anual");
+
+            const selectAno = document.getElementById("sub-filtro-select-evt");
+            if (selectAno) {
+                if (![...selectAno.options].some(o => o.value === String(eventoSel.ano))) {
+                    const opt = document.createElement("option");
+                    opt.value = eventoSel.ano;
+                    opt.textContent = eventoSel.ano;
+                    selectAno.appendChild(opt);
+                }
+                selectAno.value = String(eventoSel.ano);
+            }
+
+            // 3. Recarrega a lista com os novos filtros
+            await carregarDetalhesEventos(conteudoGeral);
+
+            // 4. Rola até o card do evento encontrado
+            const cardAlvo = conteudoGeral.querySelector(`.evento-card[data-idevento="${eventoSel.idevento}"]`);
+            if (cardAlvo) {
+                cardAlvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                cardAlvo.querySelector('.evento-body')?.classList.add('open');
+            }
+
+            // Limpa a busca pra já poder digitar a próxima
+            $(selectBusca).val('').trigger('change');
+        });
+    })();
 
     atualizarSubFiltroInterno("mensal");
     return filtrosContainer;
@@ -2773,6 +2975,7 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
 
   const card = document.createElement("div");
   card.className = "evento-card";
+  if (evt.idevento != null) card.dataset.idevento = evt.idevento;
 
   const headerEvt = document.createElement("div");
   headerEvt.className = "evento-header";
@@ -3373,7 +3576,15 @@ async function abrirTelaEquipesEvento(evento) {
 
         const totalFuncoes = eq.funcoes?.length || 0;
         const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;    
+        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+
+        // Totais da equipe em DIÁRIAS (soma de todas as funções) — mesma métrica exibida em
+        // cada linha do resumo (ex: "14/14", "2/14"), que é cadastrado/orçado em diárias, não
+        // em itens (vagas de pessoas). Somar itens aqui daria um número incoerente com as linhas.
+        const totalDiariasOrcadas = eq.funcoes?.reduce((s, f) => s + (Number(f.vagas_orcadas) || 0), 0) || 0;
+        const totalDiariasCadastradas = eq.funcoes?.reduce((s, f) => {
+            return s + ((Number(f.diarias_consumidas) || 0) + (Number(f.dobras_pendentes) || 0));
+        }, 0) || 0;
 
         const resumoItens = eq.funcoes?.map(f => {
         // const isCacheFechado = f.tem_cache_fechado === true || f.tem_cache_fechado === "true"
@@ -3389,6 +3600,7 @@ async function abrirTelaEquipesEvento(evento) {
         const dobrasPendentes    = Number(f.dobras_pendentes ?? 0);
         const aditivosPendentes  = Number(f.qtd_aditivo_pendente ?? 0);
         const limitePendentes    = Number(f.qtd_limite_pendente ?? 0);
+        const aguardandoInclusao = Number(f.qtd_aguardando_inclusao ?? 0);
         const orcadoEquipe       = Number(eq.vlr_orcado_equipe ?? 0);
         const saldoEquipe        = Number(eq.saldo_fin_equipe ?? 0);
         const limiteFinExcedido  = orcadoEquipe > 0 && saldoEquipe <= 0;
@@ -3441,16 +3653,13 @@ async function abrirTelaEquipesEvento(evento) {
         const disponiveis  = Math.max(0, vagasOrcadas - (diariasConsumidas + dobrasPendentes));
         const confirmados  = pessoasCadastradas - pendentes;
 
+        // A bolinha reflete a mesma métrica exibida na linha (diárias: "X/Y" + "Disp: N diárias"),
+        // não a de itens (pessoas) — senão diverge do que a própria linha mostra (e do critério de
+        // "concluído" usado nos detalhes, que também é por diárias/disponiveis).
         let cor = "#4caf50";
-        if (isCacheFechado) {
-            if (vagasOrcadas === 0)        cor = "#aaa";
-            else if (confirmados === 0)    cor = "#e53935";
-            else if (disponiveis > 0)      cor = "#ff9800";
-        } else {
-            if (qtdItensOrcados === 0)             cor = "#aaa";
-            else if (confirmados === 0)            cor = "#e53935";
-            else if (confirmados < qtdItensOrcados) cor = "#ff9800";
-        }
+        if (vagasOrcadas === 0)        cor = "#aaa";
+        else if (confirmados === 0)    cor = "#e53935";
+        else if (disponiveis > 0)      cor = "#ff9800";
 
         const sufixo = "diárias";
         
@@ -3515,11 +3724,18 @@ async function abrirTelaEquipesEvento(evento) {
                </div>`
             : '';
 
-        const linhaAguardando = pendentes > 0
-            ? `<div style="padding:1px 6px 4px 24px; ${!textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''} font-size:0.78em; color:#e67e22; font-style:italic;">
-                   ⏳ ${pendentes} aguardando autorização
+        // "Aguardando autorização" só faz sentido enquanto a solicitação em si está Pendente.
+        // Se já foi Autorizada e só falta entrar nos itens do orçamento, o rótulo certo é outro —
+        // senão o usuário lê "aguardando autorização" pra algo que já foi autorizado.
+        const linhaAguardando = aditivosPendentes === 0 && aguardandoInclusao > 0
+            ? `<div style="padding:1px 6px 4px 24px; ${!textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''} font-size:0.78em; color:#2980b9; font-style:italic;">
+                   📋 ${aguardandoInclusao} aguardando inclusão no orçamento
                </div>`
-            : '';
+            : (aditivosPendentes === 0 && pendentes > 0
+                ? `<div style="padding:1px 6px 4px 24px; ${!textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''} font-size:0.78em; color:#e67e22; font-style:italic;">
+                       ⏳ ${pendentes} aguardando autorização
+                   </div>`
+                : '');
 
         return `
             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; font-size:0.82em; ${!aditivosPendentes && !pendentes && !textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''}">
@@ -3548,6 +3764,10 @@ async function abrirTelaEquipesEvento(evento) {
         </div>
         <div class="barra-progresso">
             <div class="progresso" style="width:${perc}%;"></div>
+        </div>
+        <div class="equipe-totais-resumo" style="display:flex; gap:16px; padding:4px 10px; font-size:0.8em; color:#eee; background:rgba(255,255,255,0.08); border-radius:4px; margin:4px 0;">
+            <span><strong>Total Orçado:</strong> ${totalDiariasOrcadas} diárias</span>
+            <span><strong>Total Cadastrado:</strong> ${totalDiariasCadastradas} diárias</span>
         </div>
         <div class="equipe-resumo" style="padding:4px 0;">
             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
@@ -5438,13 +5658,36 @@ function abrirDetalhesEquipe(equipe, evento) {
     </div>`;
   container.appendChild(header);
 
+  // Cabeçalho "cad/orc" das colunas de itens e diárias — uma linha só, acima de toda a lista
+  // (não dentro da primeira função, senão empurra só aquela linha e desalinha com as demais).
+  const headerColunas = document.createElement("div");
+  headerColunas.style = "display:flex; align-items:center; width:100%;";
+  headerColunas.innerHTML = `
+    <div style="flex:1; padding-right:15px; min-width:200px;"></div>
+    <div style="flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: flex-start; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">
+        <div style="min-width: 95px; width: 95px; text-align: left; font-size: 15px; color: #999;">cad/orc</div>
+        <div style="min-width: 100px; width: 100px; text-align: left; font-size: 15px; color: #999;">cad/orc</div>
+        <div style="min-width: 110px; width: 110px;"></div>
+    </div>
+    <div style="flex: 0 0 120px;"></div>
+  `;
+  container.appendChild(headerColunas);
+
   // Painel financeiro ocultado — aviso inline por função quando saldo <= 0
 
   // ===== LISTA DE FUNÇÕES =====
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
-  (equipe.funcoes || []).forEach(func => {
+  // Totais da equipe (soma de todas as funções) — pra saber de relance quantos itens
+  // no total foram orçados x quantos já foram cadastrados, sem precisar somar linha a linha.
+  let totalItensOrcados = 0;
+  let totalItensCadastrados = 0;
+  // Totais em DIÁRIAS (cadastrado/orçado) — vão pro rodapé da lista, no formato TOTAL: cad/orc.
+  let totalDiariasOrcadas = 0;
+  let totalDiariasCadastradas = 0;
+
+  (equipe.funcoes || []).forEach((func, idxFuncao) => {
     // ----------------------------------------------------
     // 🎯 1. CAPTURA DE DADOS REAIS E SEGURANÇA DE CHAVES
     // ----------------------------------------------------
@@ -5462,6 +5705,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     const pendentes = Number(func.qtd_pendente ?? func.pendentes ?? 0);
     const aditivosPendentes = Number(func.qtd_aditivo_pendente ?? 0);
     const limitePendentes   = Number(func.qtd_limite_pendente ?? 0);
+    const aguardandoInclusao = Number(func.qtd_aguardando_inclusao ?? 0);
     const orcadoEquipe      = Number(equipe.vlr_orcado_equipe ?? 0);
     const saldoEquipe       = Number(equipe.saldo_fin_equipe ?? 0);
     const limiteFinExcedido = orcadoEquipe > 0 && saldoEquipe <= 0;
@@ -5488,11 +5732,17 @@ function abrirDetalhesEquipe(equipe, evento) {
             : qtdItensOrcados * qtdDiasOrcados;
     }
 
+    totalItensOrcados += itensOrcados;
+    totalItensCadastrados += pessoasCadastradas;
+
     // ----------------------------------------------------
     // 🎯 3. CONFIRMADOS REAIS E SALDO DISPONÍVEL
     // ----------------------------------------------------
     const exibicaoDiariasVisuais = diáriasConsumidas + dobrasPendentes;
     const disponiveis = Math.max(0, vagasOrcadas - (diáriasConsumidas + dobrasPendentes));
+
+    totalDiariasOrcadas += vagasOrcadas;
+    totalDiariasCadastradas += exibicaoDiariasVisuais;
     
     // 🚀 CORREÇÃO PRINCIPAL: Mesmo que venha true do banco, se houver diárias disponíveis, não está concluído!
     // const concluido = (func.concluido === true) && (disponiveis === 0);
@@ -5533,7 +5783,11 @@ function abrirDetalhesEquipe(equipe, evento) {
             : 'vaga excedida';
         htmlEstado += `    <div style="font-size: 10px; color: #c0392b; font-weight: bold; white-space: nowrap; margin-top: 2px;">⚠️ ${aditivosPendentes} solicitação${aditivosPendentes > 1 ? 'ões' : ''} pendente${aditivosPendentes > 1 ? 's' : ''} (${labelTipoAditivo})</div>`;
     }
-    if (pendentes > 0 && aditivosPendentes === 0) {
+    // "Aguardando autorização" só faz sentido enquanto a solicitação em si está Pendente. Se já
+    // foi Autorizada e só falta entrar nos itens do orçamento, mostra o rótulo certo em vez disso.
+    if (aditivosPendentes === 0 && aguardandoInclusao > 0) {
+        htmlEstado += `    <div style="font-size: 10px; color: #2980b9; font-weight: bold; font-style: italic; white-space: nowrap; margin-top: 2px;">📋 ${aguardandoInclusao} aguardando inclusão no orçamento</div>`;
+    } else if (aditivosPendentes === 0 && pendentes > 0) {
         htmlEstado += `    <div style="font-size: 10px; color: #e67e22; font-weight: bold; font-style: italic; white-space: nowrap; margin-top: 2px;">⏳ ${pendentes} aguardando autorização</div>`;
     }
     htmlEstado += `  </div>`;
@@ -5703,6 +5957,22 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   container.appendChild(lista);
 
+  // Totais da equipe (itens + diárias) — uma única linha no rodapé, cada total alinhado
+  // na mesma coluna da métrica correspondente (👥 itens / 📅 diárias) de cada função.
+  const totaisEquipe = document.createElement("div");
+  totaisEquipe.className = "totais-equipe-detalhe";
+  totaisEquipe.style = "display:flex; align-items:center; width:100%; padding:4px 0;";
+  totaisEquipe.innerHTML = `
+    <div style="flex:1; padding-right:15px; min-width:200px;"></div>
+    <div style="flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: flex-start; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">
+        <div style="min-width: 95px; width: 95px; text-align: left; color: #999; font-size: 11px; font-weight: normal;">TOTAL: ${totalItensCadastrados}/${totalItensOrcados} itens</div>
+        <div style="min-width: 120px; width: 120px; text-align: left; color: #999; font-size: 11px; font-weight: normal;">TOTAL: ${totalDiariasCadastradas}/${totalDiariasOrcadas} diárias</div>
+        <div style="min-width: 110px; width: 110px;"></div>
+    </div>
+    <div style="flex: 0 0 120px;"></div>
+  `;
+  container.appendChild(totaisEquipe);
+
   // ===== RODAPÉ =====
   const rodape = document.createElement("div");
   rodape.className = "rodape-equipes";
@@ -5806,9 +6076,19 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
     subFiltroWrapper.id = "sub-filtro-orc-wrapper";
     subFiltroWrapper.className = "filtro-grupo";
 
+    // 3. Grupo Busca por Evento — mesmo padrão (Select2 + /main/eventos-busca) de Eventos em Aberto
+    const grupoBusca = document.createElement("div");
+    grupoBusca.className = "filtro-grupo";
+    grupoBusca.innerHTML = `
+        <label class="label-select">Buscar Evento</label>
+        <div class="wrapper select-wrapper" style="width: 260px;">
+            <select id="busca-evento-select-orc" style="width:100%;"><option value=""></option></select>
+        </div>`;
+
     wrapperUnificado.appendChild(grupoStatus);
     wrapperUnificado.appendChild(grupoPeriodo);
     wrapperUnificado.appendChild(subFiltroWrapper);
+    wrapperUnificado.appendChild(grupoBusca);
     filtrosContainer.appendChild(wrapperUnificado);
 
     const atualizarSubFiltroInterno = (tipo) => {
@@ -5880,6 +6160,93 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
         }));
     });
 
+    // --- Inicialização da busca por evento (mesmo padrão de Eventos em Aberto) ---
+    (async () => {
+        const selectBusca = grupoBusca.querySelector("#busca-evento-select-orc");
+        const idempresa = localStorage.getItem("idempresa");
+        let eventosBusca = [];
+
+        try {
+            eventosBusca = await fetchComToken(`/main/eventos-busca`, { headers: { idempresa } }) || [];
+        } catch (err) {
+            console.error("Erro ao carregar eventos para busca:", err);
+        }
+
+        // Um evento pode ter mais de um orçamento no mesmo ano (ex: duas montagens/revisões
+        // diferentes) — só mostra o número do orçamento quando há ambiguidade real.
+        const contagemNomeAno = eventosBusca.reduce((acc, ev) => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            acc[chave] = (acc[chave] || 0) + 1;
+            return acc;
+        }, {});
+
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const option = document.createElement("option");
+            option.value = ev.idorcamento;
+            option.textContent = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+            selectBusca.appendChild(option);
+        });
+
+        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
+            $(selectBusca).select2('destroy');
+        }
+        $(selectBusca).select2({
+            placeholder: 'Digite o nome do evento...',
+            allowClear: true,
+            width: '260px',
+            matcher: function (params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
+                return null;
+            }
+        });
+
+        $(selectBusca).on('select2:select', async function (e) {
+            const idorcamentoSel = e.params.data.id;
+            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
+            if (!eventoSel) return;
+
+            // 1. Nível do Orçamento: "Todos", pra achar o orçamento independente do status
+            // (/eventos-busca não devolve o status de 5 vias usado aqui — só aberto/encerrado).
+            const statusInput = filtrosContainer.querySelector('input[name="statusOrc"][value="todos"]');
+            if (statusInput) statusInput.checked = true;
+
+            // 2. Período: força Anual + o ano do evento, pra garantir que ele apareça
+            // independente da data exata.
+            const periodoAnualInput = filtrosContainer.querySelector('input[name="periodoOrc"][value="anual"]');
+            if (periodoAnualInput) periodoAnualInput.checked = true;
+            atualizarSubFiltroInterno("anual");
+
+            const selectAno = document.getElementById("sub-filtro-select-orc");
+            if (selectAno) {
+                if (![...selectAno.options].some(o => o.value === String(eventoSel.ano))) {
+                    const opt = document.createElement("option");
+                    opt.value = eventoSel.ano;
+                    opt.textContent = eventoSel.ano;
+                    selectAno.appendChild(opt);
+                }
+                selectAno.value = String(eventoSel.ano);
+            }
+
+            // 3. Recarrega a lista com os novos filtros
+            await carregarDetalhesOrcamentos(conteudoGeral);
+
+            // 4. Rola até o card do orçamento encontrado e já abre o acordeão
+            const cardAlvo = conteudoGeral.querySelector(`.accordion-item[data-idorcamento="${eventoSel.idorcamento}"]`);
+            if (cardAlvo) {
+                cardAlvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                cardAlvo.classList.add('active');
+            }
+
+            // Limpa a busca pra já poder digitar a próxima
+            $(selectBusca).val('').trigger('change');
+        });
+    })();
+
     atualizarSubFiltroInterno("diario");
     return filtrosContainer;
 }
@@ -5928,6 +6295,7 @@ function renderizarListaOrcamentos(container, lista) {
 
         const item = document.createElement("div");
         item.className = `accordion-item status-border-${statusLower}`; // Borda lateral por status
+        item.dataset.idorcamento = orc.idorcamento;
         item.innerHTML = `
             <div class="accordion-orc-header">
                 <div class="header-main">
@@ -10728,9 +11096,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                 htmlBody += `<strong>Justificativa:</strong> ${justifFex}<br>`;
                             }
                             if (tipoUpper === 'FUNCEXCEDIDO') {
-                                const funcaoSol = pedido.descFuncaoOriginal || pedido.descFuncao || '';
-                                if (funcaoSol) {
-                                    htmlBody += `<strong>Função Solicitada:</strong> ${funcaoSol}<br>`;
+                                // O evento/função no topo do card já é o "Sendo Solicitado" (o próprio
+                                // registro pendente) — mostrar de novo aqui como "Função Solicitada" é
+                                // redundante (mesmo campo) e nunca revela contra o que ele excede.
+                                // Aqui mostramos o outro lado: onde ele JÁ está contratado.
+                                const conflito = pedido.conflitoJaContratado;
+                                if (conflito && (conflito.evento || conflito.funcao)) {
+                                    htmlBody += `<strong>⚠️ Já contratado em:</strong> ${conflito.evento || 'evento não identificado'} - ${conflito.funcao || 'função não identificada'}<br>`;
                                 }
                             }
                             htmlBody += `<strong> Excedido no(s) dia(s):</strong> ${todasAsDatas} - `;
@@ -14501,13 +14873,23 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
             let linhasHtml = '';
 
+            // Status tipo "Pago50" (pagamento parcial em parcelas) só liquidou uma fração do valor —
+            // o que ainda falta cobrar dessa linha é o total menos essa fração já paga.
+            // "Pago" sem número (100%) e demais status (Pendente/Suspenso/Rejeitado) mantêm o valor cheio.
+            const valorConsiderandoParcial = (statusRaw, valorTotal) => {
+                const match = String(statusRaw || '').match(/^Pago(\d+)$/);
+                if (!match) return valorTotal;
+                const percent = Number(match[1]);
+                return percent < 100 ? valorTotal * (1 - percent / 100) : valorTotal;
+            };
+
             const CATEGORIAS = [
                 {
                     key: 'ajuda_custo',
                     label: 'Ajuda de Custo',
                     badgeClass: 'badge-ajuda',
                     getStatus: f => formatarStatusFront(f.statuspgtoajdcto || 'Pendente'),
-                    getValor:  f => parseFloat(f.totalajudacusto_full || 0),
+                    getValor:  f => valorConsiderandoParcial(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0)),
                     getDiarias: f => f.qtddiarias_filtradas || 0,
                     tipoAcao: 'Ajuda',
                 },
@@ -14516,7 +14898,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     label: 'Cachê',
                     badgeClass: 'badge-cache',
                     getStatus: f => formatarStatusFront(f.statuspgto || 'Pendente'),
-                    getValor:  f => parseFloat(f.cache_com_ajuste || 0),
+                    getValor:  f => valorConsiderandoParcial(f.statuspgto, parseFloat(f.cache_com_ajuste || 0)),
                     getDiarias: f => f.qtddiarias_filtradas || 0,
                     tipoAcao: 'Cache',
                 },
@@ -14525,7 +14907,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     label: 'Caixinha',
                     badgeClass: 'badge-caixinha',
                     getStatus: f => formatarStatusFront(f.statuscaixinha || 'Pendente'),
-                    getValor:  f => parseFloat(f.totalcaixinha_full || 0),
+                    getValor:  f => valorConsiderandoParcial(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0)),
                     getDiarias: f => f.qtddiarias_filtradas || 0,
                     tipoAcao: 'Caixinha',
                 },
@@ -15011,15 +15393,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 const totalAjuda = registros.reduce((s, f) => {
                     // Verifica status da ajuda de custo especificamente, se houver um campo próprio
-                    return f.statuspgtoajdcto === 'Rejeitado' ? s : s + parseFloat(f.totalajudacusto_full || 0);
+                    return f.statuspgtoajdcto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0));
                 }, 0);
 
                 const totalCache = registros.reduce((s, f) => {
-                    return f.statuspgto === 'Rejeitado' ? s : s + parseFloat(f.cache_com_ajuste || 0);
+                    return f.statuspgto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
                 }, 0);
 
                 const totalCaixinha = registros.reduce((s, f) => {
-                    return f.statuscaixinha === 'Rejeitado' ? s : s + parseFloat(f.totalcaixinha_full || 0);
+                    return f.statuscaixinha === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0));
                 }, 0);
 
                 // Crédito soma ao total (empresa deve ao funcionário), Débito subtrai (funcionário deve à empresa).

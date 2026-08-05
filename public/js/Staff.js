@@ -2112,17 +2112,23 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     const vlrtotcache = parseFloat(eventData.vlrtotcache || 0);
     const vlrtotajdcusto = parseFloat(eventData.vlrtotajdcusto || 0);
 
-    if (vlrtotcache > 0 && vlrtotajdcusto > 0) {
-        // Banco tem valores → restaura direto sem recalcular
+    // "> 0" tratava 0 como "ainda não calculado", mas 0 é um valor legítimo e salvo (ex: cachê
+    // integralmente consumido pela REGRA DE OURO ao remover data com ajuda de custo paga —
+    // ver calcularValorTotal). O sinal correto de "registro existente, restaura sem recalcular"
+    // é ter um idstaffevento; um formulário em branco não tem.
+    const ehRegistroExistente = eventData.idstaffevento != null;
+
+    if (ehRegistroExistente) {
+        // Banco tem valores (mesmo que 0) → restaura direto sem recalcular
         vlrTotalCacheInput.value = 'R$ ' + vlrtotcache.toFixed(2).replace('.', ',');
         vlrTotalAjdCustoInput.value = 'R$ ' + vlrtotajdcusto.toFixed(2).replace('.', ',');
     }
-    // Se zerados → calcularValorTotal já foi/será chamado pelo inicializarEPreencherCampos
+    // Se for formulário novo → calcularValorTotal já foi/será chamado pelo inicializarEPreencherCampos
 
     // setTimeout garante que, após todos os listeners rodarem, os valores do banco prevalecem
     setTimeout(() => {
         const isCurrentRecord = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === eventData.idstaffevento;
-        if (isCurrentRecord && isFormLoadedFromDoubleClick && parseFloat(eventData.vlrtotcache || 0) > 0) {
+        if (isCurrentRecord && isFormLoadedFromDoubleClick && ehRegistroExistente) {
             vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
             transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');
             alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
@@ -5247,7 +5253,28 @@ async function verificaStaff() {
                 motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia.";
             }
 
-            if (totalConflitosExistentes > 0) {
+            // Se é edição de um registro já existente e as datas do evento não mudaram desde o
+            // carregamento, o conflito de agendamento (se houver) já existia antes desta gravação
+            // — reexecutar essa checagem aqui só bloqueia edições de campos sem nenhuma relação
+            // com data/agendamento (ex: mudar o valor da Caixinha).
+            // NÃO usar isFormLoadedFromDoubleClick aqui: essa flag é resetada por um
+            // setTimeout(1000ms) logo após o carregamento (ver atualizarAjustesFinanceirosStaff),
+            // então já está sempre false na prática por ocasião do salvamento — usuário real
+            // sempre demora mais de 1s pra editar e clicar em Salvar. `metodo` é o sinal
+            // confiável de "isto é uma edição de registro existente" pra ESTE salvamento.
+            const idStaffExistenteParaSkip = document.getElementById('idStaff')?.value;
+            const datasAtuaisChaveSkip = datasParaVerificacao.slice().sort().join(',');
+            const datasOriginaisChaveSkip = (window.datasOriginaisCarregadas || []).slice().sort().join(',');
+            const podeIgnorarConflitoJaExistente = metodo === 'PUT'
+                && idStaffExistenteParaSkip && idStaffExistenteParaSkip !== ""
+                && datasAtuaisChaveSkip === datasOriginaisChaveSkip;
+
+            console.log("🔍 [Conflito Agendamento] Verificando se pode ignorar:", {
+                metodo, idStaffExistenteParaSkip, datasAtuaisChaveSkip, datasOriginaisChaveSkip,
+                podeIgnorarConflitoJaExistente
+            });
+
+            if (totalConflitosExistentes > 0 && !podeIgnorarConflitoJaExistente) {
                 const datasConflitantes = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
                 const aditivoExistente = await verificarStatusAditivoExtra(
                     idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido',
@@ -6906,6 +6933,11 @@ async function verificaStaff() {
             formData.append('vlrtotcache', vlrtotcache.toString());
             formData.append('statuspgto', capitalize(statusPgto));
             formData.append('vlrtotal', total.toString());
+
+            // Ajuda de custo já paga que sobrou ao remover datas e não coube no Cachê (travado em 0) —
+            // o backend usa isso pra gerar um staffajustefinanceiro de Débito, em vez de perder a
+            // informação. Calculado em calcularValorTotal() (REGRA DE OURO).
+            formData.append('vlrexcedenteajustecache', (window.vlrExcedenteAjusteCache || 0).toString());
             
             formData.append('vlrajustecusto', ajusteCusto);
             formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
@@ -13541,6 +13573,10 @@ function isFinalDeSemanaOuFeriado(date) {
 function calcularValorTotal({ statusFechadoOverride = null } = {}) {
     if (!document.getElementById('vlrTotal')) return;
 
+    // Reseta a cada recálculo — só fica diferente de 0 se a remoção de datas com ajuda de
+    // custo paga (REGRA DE OURO abaixo) travar o Cachê em 0 e sobrar excedente a recuperar.
+    window.vlrExcedenteAjusteCache = 0;
+
     const statusPgtoBanco = (window.statusPgtoCacheOriginalDoBanco || "").trim().toLowerCase();
     const datasParaProcessar = window.datasEventoPicker ? window.datasEventoPicker.selectedDates : (datasEventoSelecionadas || []);
     
@@ -13632,7 +13668,16 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
                 const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
 
                 console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<< ", "background: #ff0000; color: #fff");
-                totalCache = totalCache - valorParaDescontar;
+                // Cachê não pode ficar negativo: se a ajuda de custo já paga nos dias removidos
+                // for maior que o cachê restante, o excedente vira ajustefinanceiro (Débito) no
+                // salvamento — ver window.vlrExcedenteAjusteCache, lido no momento do envio.
+                const totalAposDesconto = totalCache - valorParaDescontar;
+                if (totalAposDesconto < 0) {
+                    window.vlrExcedenteAjusteCache = Math.abs(totalAposDesconto);
+                    totalCache = 0;
+                } else {
+                    totalCache = totalAposDesconto;
+                }
 
             } else if (qtdAtuais > qtdOriginais) {
                 // CASO B: INCLUSÃO - O funcionário vai trabalhar dias extras e precisa de ajuda de custo para eles
@@ -13816,9 +13861,27 @@ function registrarLogPosPagamento(msg) {
     }
 }
 
+// Corrige o campo pro formato canônico que o resto do código já espera (vírgula decimal,
+// sem separador de milhar — ex: "1000,00"), disparado no blur pra não incomodar enquanto
+// o usuário ainda está digitando. Os parseFloat(...replace(',', '.')) espalhados pelo
+// arquivo continuam funcionando sem alteração, porque o valor já chega limpo neles.
+// Reaproveita window.desformatarReais (Formataçoes.js) em vez de duplicar a lógica de
+// parsing — mesma função já usada por Funcionarios.js, PlanoSaude.js, RH.js e Aliquotas.js.
+function normalizarCampoMonetario(input) {
+    if (!input || input.value.trim() === '') return;
+    const valor = window.desformatarReais(input.value);
+    if (valor === '' || isNaN(valor)) return;
+    input.value = Number(valor).toFixed(2).replace('.', ',');
+}
+
 ['vlrCusto', 'ajusteCusto', 'transporte',  'alimentacao', 'caixinha'].forEach(function(id) {
     const el = document.getElementById(id);
-    if(el) el.addEventListener('input', calcularValorTotal);
+    if (!el) return;
+    el.addEventListener('input', calcularValorTotal);
+    el.addEventListener('blur', function() {
+        normalizarCampoMonetario(el);
+        calcularValorTotal();
+    });
 });
 
 // // Adiciona listeners para os checkboxes de diária também!
@@ -17544,8 +17607,9 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
 
             ehExcecaoDeData = datasNovasSelecionadas.some(dataSel => !datasPermitidas.includes(dataSel));
         } else {
+            //ehExcecaoDeData = true;
             ehExcecaoDeData = datasNovasSelecionadas.length > 0;
-        }
+        }   
 
         //const totalDiariasSolicitadas = criterios.datasEvento ? criterios.datasEvento.length : datasSelNormalizadas.length;
         const datasReaisParaValidar = 
@@ -21893,15 +21957,22 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 
             // CASO B: Autorizado para este evento específico → LIBERAR
             if (autorizadoEspecifico) {
+                // Já avisamos nesta mesma sessão do formulário (verificaStaff/buscarEPopularOrcamento
+                // rodam mais de uma vez por salvamento) — não repete o aviso, só libera em silêncio.
+                const jaInformadoNestaSessao = bLiberacaoAutorizada;
                 bLiberacaoAutorizada = true;
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Liberação Detectada!',
-                    html: `Autorização de <strong>"Limite Diário Excedido"</strong> detectada.<br>
-                        <hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
-                    timer: 3000,
-                    showConfirmButton: false
-                });
+                if (!jaInformadoNestaSessao) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Liberação Detectada!',
+                        html: `Autorização de <strong>"Limite Diário Excedido"</strong> detectada.<br>
+                            <hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    console.log("ℹ️ Liberação já informada nesta sessão do formulário — pulando aviso repetido (FuncExcedido).");
+                }
                 return { bloqueado: false, autorizado: true };
             }
             
@@ -21954,15 +22025,22 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
         // --- 1. CASO AUTORIZADO ESPECÍFICO ---
         if (autorizadoEspecifico) {
             const mensagemFinal = `Autorização de ${infoMsg.textoBase} detectada.`;
+            // Já avisamos nesta mesma sessão do formulário (verificaStaff/buscarEPopularOrcamento
+            // rodam mais de uma vez por salvamento) — não repete o aviso, só libera em silêncio.
+            const jaInformadoNestaSessao = bLiberacaoAutorizada;
             bLiberacaoAutorizada = true;
-            console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada);
-            await Swal.fire({
-                icon: 'success',
-                title: 'Liberação Detectada!',
-                html: `${mensagemFinal}<hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
-                timer: 3000,
-                showConfirmButton: false
-            });
+            console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada, "| já informado antes?", jaInformadoNestaSessao);
+            if (!jaInformadoNestaSessao) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Liberação Detectada!',
+                    html: `${mensagemFinal}<hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            } else {
+                console.log("ℹ️ Liberação já informada nesta sessão do formulário — pulando aviso repetido (Aditivo/Extra/Reaproveitada).");
+            }
             return { bloqueado: false, autorizado: true };
         }
 

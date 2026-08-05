@@ -331,14 +331,46 @@ document.addEventListener("DOMContentLoaded", function () {
         input.value = "R$ " + valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
-    // Converte o valor exibido ("R$ 1.234,56" ou "1.234,56") em número puro para o banco:
-    // 1234.56. Retorna "" se vazio. Chame antes de enviar ao backend.
+    // Converte o valor exibido em moeda (qualquer formato comum: "R$ 1.234,56", "1234.56",
+    // "1000,00", até "1.000.00" digitado errado) em número puro para o banco: 1234.56.
+    // Retorna "" se vazio. Chame antes de enviar ao backend.
+    //
+    // Regra: o ÚLTIMO separador (. ou ,) só conta como decimal se tiver de 1 a 2 dígitos
+    // depois dele — qualquer separador ANTES desse (ou um com 3+ dígitos depois, tipo
+    // "12.345") é tratado como separador de milhar e descartado. Cobre "1.000.00",
+    // "1,000.00", "1,000,00", "1.000,00", "1000.00" e "1000,00" — todos viram 1000.
     window.desformatarReais = function (valor) {
         if (valor === null || valor === undefined || valor === "") return "";
-        // mantém só dígitos, vírgula e sinal; tira "R$" e os pontos de milhar
-        const limpo = String(valor).replace(/[^\d,-]/g, "").replace(",", ".");
-        const n = parseFloat(limpo);
-        return isNaN(n) ? "" : n;
+        let str = String(valor).trim();
+        if (!str) return "";
+
+        const negativo = str.startsWith('-');
+        str = str.replace(/[^\d.,]/g, ""); // tira "R$", espaços etc — sobra só dígitos/./,
+        if (!str) return "";
+
+        const posSeparadorDecimal = Math.max(str.lastIndexOf('.'), str.lastIndexOf(','));
+
+        let parteInteira, parteDecimal;
+        if (posSeparadorDecimal === -1) {
+            parteInteira = str;
+            parteDecimal = '00';
+        } else {
+            const depoisDoSeparador = str.slice(posSeparadorDecimal + 1);
+            if (depoisDoSeparador.length > 0 && depoisDoSeparador.length <= 2) {
+                parteInteira = str.slice(0, posSeparadorDecimal);
+                parteDecimal = depoisDoSeparador.padEnd(2, '0');
+            } else {
+                // 3+ dígitos depois do último separador (ex: "12.345") → não é decimal,
+                // é separador de milhar mesmo — cai no replace(/[.,]/g,'') abaixo.
+                parteInteira = str;
+                parteDecimal = '00';
+            }
+        }
+
+        parteInteira = parteInteira.replace(/[.,]/g, '') || '0';
+        const n = parseFloat(`${parteInteira}.${parteDecimal}`);
+        if (isNaN(n)) return "";
+        return negativo ? -n : n;
     };
 
     // Converte um número puro vindo do banco (1234.56) para o texto formatado (1.234,56).

@@ -55,6 +55,80 @@ const uploadComprovanteAjuste = multer({
     limits: { fileSize: 10 * 1024 * 1024 }
 }).single('comprovanteajuste');
 
+// GET /ajustefinanceiro/notificacoes/pendentes — ajustes automáticos (ex: gerados na remoção de
+// data com ajuda de custo paga) ainda não vistos pelo financeiro. Alimenta o aviso no card de
+// Pedidos do Main. Precisa vir ANTES de /:idFuncionario, senão "notificacoes" seria capturado
+// como se fosse um idFuncionario.
+router.get("/notificacoes/pendentes",
+    verificarPermissao('AjusteFinanceiro', 'pesquisar'),
+    async (req, res) => {
+        const idempresa = req.idempresa;
+        try {
+            const { rows } = await pool.query(
+                `SELECT
+                    a.idajustefinanceiro, a.idfuncionario, a.tipo, a.valor, a.justificativa, a.dtlancamento,
+                    f.nome AS nomefuncionario,
+                    se.nmevento, se.nmfuncao
+                 FROM staffajustefinanceiro a
+                 LEFT JOIN funcionarios f ON f.idfuncionario = a.idfuncionario
+                 LEFT JOIN staffeventos se ON se.idstaffevento = a.idstaffeventoorigem
+                 WHERE a.idempresa = $1 AND a.status = 'Pendente' AND a.dtvisualizacao IS NULL
+                 ORDER BY a.dtlancamento DESC`,
+                [idempresa]
+            );
+            res.json(rows);
+        } catch (error) {
+            console.error("Erro ao buscar notificações de ajuste financeiro:", error);
+            res.status(500).json({ erro: "Erro ao buscar notificações de ajuste financeiro." });
+        }
+    }
+);
+
+// PATCH /ajustefinanceiro/:idAjusteFinanceiro/marcar-lido — dispensa a notificação sem mexer no
+// status do lançamento (que só muda quando o financeiro processa o pagamento em Vencimentos).
+router.patch("/:idAjusteFinanceiro/marcar-lido",
+    verificarPermissao('AjusteFinanceiro', 'alterar'),
+    logMiddleware('AjusteFinanceiro', {
+        acao: 'visualizou',
+        buscarDadosAnteriores: async (req) => {
+            const result = await pool.query(
+                `SELECT * FROM staffajustefinanceiro WHERE idajustefinanceiro = $1`,
+                [req.params.idAjusteFinanceiro]
+            );
+            return {
+                dadosanteriores: result.rows[0] || null,
+                idregistroalterado: req.params.idAjusteFinanceiro
+            };
+        }
+    }),
+    async (req, res) => {
+        const idempresa = req.idempresa;
+        const idUsuarioLogado = req.usuario.idusuario;
+        const idAjusteFinanceiro = req.params.idAjusteFinanceiro;
+        try {
+            const { rows } = await pool.query(
+                `UPDATE staffajustefinanceiro
+                 SET idusuariovisualizacao = $1, dtvisualizacao = NOW()
+                 WHERE idajustefinanceiro = $2 AND idempresa = $3 AND dtvisualizacao IS NULL
+                 RETURNING *`,
+                [idUsuarioLogado, idAjusteFinanceiro, idempresa]
+            );
+            if (rows.length === 0) {
+                return res.status(404).json({ erro: "Ajuste não encontrado ou já visualizado." });
+            }
+
+            res.locals.idregistroalterado = idAjusteFinanceiro;
+            res.locals.idusuarioAlvo = rows[0].idfuncionario;
+            res.locals.dadosnovos = rows[0];
+
+            res.json({ sucesso: true });
+        } catch (error) {
+            console.error("Erro ao marcar ajuste financeiro como lido:", error);
+            res.status(500).json({ erro: "Erro ao marcar como lido." });
+        }
+    }
+);
+
 // GET /ajustefinanceiro/:idFuncionario — histórico de lançamentos do funcionário
 router.get("/:idFuncionario",
     verificarPermissao('AjusteFinanceiro', 'pesquisar'),
