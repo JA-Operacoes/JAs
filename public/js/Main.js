@@ -2453,7 +2453,6 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
 
     const wrapperUnificado = document.createElement("div");
     wrapperUnificado.style.display = "flex";
-    wrapperUnificado.style.flexWrap = "wrap";
     wrapperUnificado.style.gap = "20px";
 
     // --- FILTRO STATUS (Substitui as abas Abertos/Encerrados) ---
@@ -2498,8 +2497,10 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
     grupoBusca.className = "filtro-grupo";
     grupoBusca.innerHTML = `
         <label class="label-select">Buscar Evento</label>
-        <div class="wrapper select-wrapper" style="width: 260px;">
-            <select id="busca-evento-select" style="width:100%;"><option value=""></option></select>
+        <div class="wrapper select-wrapper busca-evento-wrapper" style="width: 260px;">
+            <input type="text" id="busca-evento-input" class="busca-evento-input" placeholder="Buscar evento..." autocomplete="off">
+            <input type="hidden" id="busca-evento-id">
+            <ul id="busca-evento-lista" class="busca-evento-lista" style="display:none;"></ul>
         </div>`;
 
     wrapperUnificado.appendChild(grupoStatus);
@@ -2563,9 +2564,10 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
         }));
     });
 
-    // --- Inicialização da busca por evento ---
+    // --- Inicialização da busca por evento (mesmo padrão do RH: input + lista suspensa) ---
     (async () => {
-        const selectBusca = grupoBusca.querySelector("#busca-evento-select");
+        const input = grupoBusca.querySelector("#busca-evento-input");
+        const lista = grupoBusca.querySelector("#busca-evento-lista");
         const idempresa = localStorage.getItem("idempresa");
         let eventosBusca = [];
 
@@ -2584,36 +2586,7 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
             return acc;
         }, {});
 
-        eventosBusca.forEach(ev => {
-            const chave = `${ev.nmevento}|${ev.ano}`;
-            const option = document.createElement("option");
-            option.value = ev.idorcamento;
-            option.textContent = contagemNomeAno[chave] > 1
-                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
-                : `${ev.nmevento} (${ev.ano})`;
-            selectBusca.appendChild(option);
-        });
-
-        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
-            $(selectBusca).select2('destroy');
-        }
-        $(selectBusca).select2({
-            placeholder: 'Digite o nome do evento...',
-            allowClear: true,
-            width: '260px',
-            matcher: function (params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
-                return null;
-            }
-        });
-
-        $(selectBusca).on('select2:select', async function (e) {
-            const idorcamentoSel = e.params.data.id;
-            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
-            if (!eventoSel) return;
-
+        const selecionarEvento = async (eventoSel) => {
             // 1. Status: Abertos/Encerrados conforme o evento
             const statusInput = filtrosContainer.querySelector(
                 `input[name="statusEvt"][value="${eventoSel.aberto ? 'abertos' : 'encerrados'}"]`
@@ -2648,7 +2621,41 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
             }
 
             // Limpa a busca pra já poder digitar a próxima
-            $(selectBusca).val('').trigger('change');
+            input.value = "";
+            lista.style.display = "none";
+        };
+
+        lista.innerHTML = "";
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const nomeExibido = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+
+            const li = document.createElement("li");
+            li.dataset.idorcamento = ev.idorcamento;
+            li.dataset.nome = nomeExibido;
+            li.textContent = nomeExibido;
+            li.addEventListener("mousedown", (e) => {
+                e.preventDefault(); // antes do blur, p/ registrar o clique
+                selecionarEvento(ev);
+            });
+            lista.appendChild(li);
+        });
+
+        const filtrar = () => {
+            const termo = input.value.toLowerCase().trim();
+            lista.querySelectorAll("li").forEach((li) => {
+                li.style.display = li.dataset.nome.toLowerCase().includes(termo) ? "block" : "none";
+            });
+            lista.style.display = "block";
+        };
+        input.addEventListener("input", filtrar);
+        input.addEventListener("focus", () => { lista.style.display = "block"; });
+
+        // Esconde ao clicar fora.
+        document.addEventListener("mousedown", (e) => {
+            if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
         });
     })();
 
@@ -6041,7 +6048,6 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
 
     const wrapperUnificado = document.createElement("div");
     wrapperUnificado.style.display = "flex";
-    wrapperUnificado.style.flexWrap = "wrap";
     wrapperUnificado.style.gap = "20px";
 
     // 1. Grupo Status
@@ -6081,8 +6087,10 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
     grupoBusca.className = "filtro-grupo";
     grupoBusca.innerHTML = `
         <label class="label-select">Buscar Evento</label>
-        <div class="wrapper select-wrapper" style="width: 260px;">
-            <select id="busca-evento-select-orc" style="width:100%;"><option value=""></option></select>
+        <div class="wrapper select-wrapper busca-evento-wrapper" style="width: 260px;">
+            <input type="text" id="busca-evento-input-orc" class="busca-evento-input" placeholder="Buscar evento..." autocomplete="off">
+            <input type="hidden" id="busca-evento-id-orc">
+            <ul id="busca-evento-lista-orc" class="busca-evento-lista" style="display:none;"></ul>
         </div>`;
 
     wrapperUnificado.appendChild(grupoStatus);
@@ -6160,16 +6168,17 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
         }));
     });
 
-    // --- Inicialização da busca por evento (mesmo padrão de Eventos em Aberto) ---
+    // --- Inicialização da busca por evento (mesmo padrão do RH: input + lista suspensa) ---
     (async () => {
-        const selectBusca = grupoBusca.querySelector("#busca-evento-select-orc");
+        const input = grupoBusca.querySelector("#busca-evento-input-orc");
+        const lista = grupoBusca.querySelector("#busca-evento-lista-orc");
         const idempresa = localStorage.getItem("idempresa");
-        let eventosBusca = [];
+        let orcamentosBusca = [];
 
         try {
-            eventosBusca = await fetchComToken(`/main/eventos-busca`, { headers: { idempresa } }) || [];
+            orcamentosBusca = await fetchComToken(`/main/orcamentos-busca`, { headers: { idempresa } }) || [];
         } catch (err) {
-            console.error("Erro ao carregar eventos para busca:", err);
+            console.error("Erro ao carregar orcamentos para busca:", err);
         }
 
         // Um evento pode ter mais de um orçamento no mesmo ano (ex: duas montagens/revisões
@@ -6180,36 +6189,7 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             return acc;
         }, {});
 
-        eventosBusca.forEach(ev => {
-            const chave = `${ev.nmevento}|${ev.ano}`;
-            const option = document.createElement("option");
-            option.value = ev.idorcamento;
-            option.textContent = contagemNomeAno[chave] > 1
-                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
-                : `${ev.nmevento} (${ev.ano})`;
-            selectBusca.appendChild(option);
-        });
-
-        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
-            $(selectBusca).select2('destroy');
-        }
-        $(selectBusca).select2({
-            placeholder: 'Digite o nome do evento...',
-            allowClear: true,
-            width: '260px',
-            matcher: function (params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
-                return null;
-            }
-        });
-
-        $(selectBusca).on('select2:select', async function (e) {
-            const idorcamentoSel = e.params.data.id;
-            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
-            if (!eventoSel) return;
-
+        const selecionarEvento = async (eventoSel) => {
             // 1. Nível do Orçamento: "Todos", pra achar o orçamento independente do status
             // (/eventos-busca não devolve o status de 5 vias usado aqui — só aberto/encerrado).
             const statusInput = filtrosContainer.querySelector('input[name="statusOrc"][value="todos"]');
@@ -6243,7 +6223,41 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             }
 
             // Limpa a busca pra já poder digitar a próxima
-            $(selectBusca).val('').trigger('change');
+            input.value = "";
+            lista.style.display = "none";
+        };
+
+        lista.innerHTML = "";
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const nomeExibido = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+
+            const li = document.createElement("li");
+            li.dataset.idorcamento = ev.idorcamento;
+            li.dataset.nome = nomeExibido;
+            li.textContent = nomeExibido;
+            li.addEventListener("mousedown", (e) => {
+                e.preventDefault(); // antes do blur, p/ registrar o clique
+                selecionarEvento(ev);
+            });
+            lista.appendChild(li);
+        });
+
+        const filtrar = () => {
+            const termo = input.value.toLowerCase().trim();
+            lista.querySelectorAll("li").forEach((li) => {
+                li.style.display = li.dataset.nome.toLowerCase().includes(termo) ? "block" : "none";
+            });
+            lista.style.display = "block";
+        };
+        input.addEventListener("input", filtrar);
+        input.addEventListener("focus", () => { lista.style.display = "block"; });
+
+        // Esconde ao clicar fora.
+        document.addEventListener("mousedown", (e) => {
+            if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
         });
     })();
 

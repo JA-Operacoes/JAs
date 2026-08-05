@@ -424,14 +424,24 @@ router.get("/eventos-busca", async (req, res) => {
         // mesmo ano (ex: duas montagens/revisões diferentes) — sem isso, a busca mostraria
         // "Evento X (2026)" duas vezes de forma indistinguível.
         const { rows } = await pool.query(`
-            SELECT o.idorcamento, o.nrorcamento, e.idevento, e.nmevento,
-                   EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
-                   (o.dtfimdesmontagem IS NULL OR o.dtfimdesmontagem >= CURRENT_DATE) AS aberto
-            FROM orcamentos o
-            JOIN eventos e ON e.idevento = o.idevento
-            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-            WHERE oe.idempresa = $1 AND o.status <> 'R'
-            ORDER BY e.nmevento ASC, o.dtinirealizacao DESC
+            SELECT 
+            e.idevento,
+            e.nmevento,
+            EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+            STRING_AGG(o.idorcamento::text, ', ') AS idsorcamento,
+            STRING_AGG(o.nrorcamento::text, ', ') AS nrosorcamento,
+            BOOL_OR(o.dtfimdesmontagem IS NULL OR o.dtfimdesmontagem >= CURRENT_DATE) AS aberto
+        FROM orcamentos o
+        JOIN eventos e ON e.idevento = o.idevento
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        WHERE oe.idempresa = $1 AND o.status <> 'R'
+        GROUP BY 
+            e.idevento,
+            e.nmevento,
+            EXTRACT(YEAR FROM o.dtinirealizacao)
+        ORDER BY 
+            e.nmevento ASC, 
+            ano DESC;
         `, [idempresa]);
 
         res.json(rows);
@@ -1481,6 +1491,10 @@ router.get("/ListarFuncionarios", async (req, res) => {
   }
 });
 
+// =======================================
+// ORCAMENTOS
+// =======================================
+
 router.get("/orcamentos", async (req, res) => {
     try {
         const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -1608,6 +1622,33 @@ router.get("/orcamentos/resumo", async (req, res) => {
     res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
+
+router.get("/orcamentos-busca", async (req, res) => {
+    try {
+        const idempresa = req.headers.idempresa || req.query.idempresa;
+        if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+
+        // nrorcamento entra no retorno porque o mesmo evento pode ter mais de um orçamento no
+        // mesmo ano (ex: duas montagens/revisões diferentes) — sem isso, a busca mostraria
+        // "Evento X (2026)" duas vezes de forma indistinguível.
+        const { rows } = await pool.query(`
+            SELECT o.idorcamento, o.nrorcamento, e.idevento, e.nmevento,
+                   EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+                   (o.dtfimdesmontagem IS NULL OR o.dtfimdesmontagem >= CURRENT_DATE) AS aberto
+            FROM orcamentos o
+            JOIN eventos e ON e.idevento = o.idevento
+            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            WHERE oe.idempresa = $1 AND o.status <> 'R'
+            ORDER BY e.nmevento ASC, o.dtinirealizacao DESC
+        `, [idempresa]);
+
+        res.json(rows);
+    } catch (err) {
+        console.error("Erro em /eventos-busca:", err);
+        res.status(500).json({ error: "Erro interno.", message: err.message });
+    }
+});
+
 
 // =======================================
 
