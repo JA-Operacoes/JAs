@@ -2098,7 +2098,26 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 }
             }
         });
-        const comboPairsEDB = new Map([...comboEDB.entries()].filter(([, v]) => v.bonifItem && v.dobradaItem));
+        // Só forma o combo se as datas das duas solicitações realmente se relacionarem —
+        // duas solicitações do mesmo staffevento podem ser totalmente independentes
+        // (ex.: Aditivo pra um dia isolado + Diária Dobrada pra outros dias, sem nenhum
+        // vínculo). Sem essa checagem, uma rejeição vira "cancelamento automático" de uma
+        // Diária Dobrada que não tem nada a ver com o Aditivo/Bonificado.
+        const extrairDatasItem = (item) => new Set(
+            (item.solicitacoes_individuais || [])
+                .flatMap(s => Array.isArray(s.data) ? s.data : [s.data])
+                .filter(Boolean)
+                .map(d => String(d).substring(0, 10))
+        );
+        const datasSeIntersectam = (a, b) => {
+            const datasA = extrairDatasItem(a);
+            for (const d of extrairDatasItem(b)) if (datasA.has(d)) return true;
+            return false;
+        };
+
+        const comboPairsEDB = new Map([...comboEDB.entries()].filter(([, v]) =>
+            v.bonifItem && v.dobradaItem && datasSeIntersectam(v.bonifItem, v.dobradaItem)
+        ));
         if (comboPairsEDB.size > 0) {
             const comboLogIdsEDB = new Set();
             const comboMergedEDB = [];
