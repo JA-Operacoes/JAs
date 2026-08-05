@@ -596,6 +596,26 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         }
     };
 
+    const montarCelulaPendente = (rotulo, status, valorTotal, considerarPago = true) => {
+        const valor = parseFloat(valorTotal) || 0;
+        const prefixo = rotulo ? `${rotulo}: ` : '';
+        const texto = `${prefixo}${formatarMoeda(valor)}`;
+
+        if (status === 'Rejeitado' || status === 'Recusado') {
+            return `<span style="text-decoration: line-through; color: #d9534f;">${texto}</span>`;
+        }
+        if (status === 'Suspenso') {
+            return `<span style="text-decoration: line-through; color: #888;">${texto}</span>`;
+        }
+        if (considerarPago && (status === 'Pago' || status === 'Pago 100%')) {
+            return `${prefixo}${formatarMoeda(0)}`;
+        }
+        if (considerarPago && (status === 'Pago 50%' || status === 'Pago50')) {
+            return `${prefixo}${formatarMoeda(valor / 2)}`;
+        }
+        return texto;
+    };
+
     const obterClasseCompStatus = (status) => {
         if (!status) return '';
         if (status.includes('Anexado') && !status.includes('Falta')) return 'status-doc-ok';
@@ -691,6 +711,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     subtotalFuncionario.TOT_GERAL   += parseFloat(item["TOT GERAL"]   || 0);
                     subtotalFuncionario.TOT_PAGAR   += parseFloat(item["TOT PAGAR"]   || 0);
 
+
                     const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
                     const nivelExp = item.nivelexperiencia ? item.nivelexperiencia.trim() : '';
 
@@ -722,7 +743,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
                             <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
-                            <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">
+                                ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"], false)}
+                            </td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || 'Pendente'}</td>
@@ -740,7 +763,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
-                            <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], item["TOT PAGAR"], false)}</td>
                             <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
                         `) : `
                             <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
