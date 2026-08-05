@@ -358,14 +358,13 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 ELSE 'Pendente'
                             END AS "COMP CAIXINHA",
 
-                            -- STATUS PGTO com a sua regra para exibir '---' quando não houver valor
+                            -- STATUS PGTO com base no status real de pagamento do cachê
                             CASE
                                 WHEN COALESCE(tse.vlrcache, 0) = 0 THEN '---'
-                                WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
-                                AND (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
-                                    OR (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0 AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')))
-                                THEN 'Pago' ELSE 'Pendente'
-                            END AS "STATUS PGTO",                    
+                                WHEN tse.statuspgto = 'Pago' THEN 'Pago 100%'
+                                WHEN tse.statuspgto = 'Pago50' THEN 'Pago 50%'
+                                ELSE COALESCE(tse.statuspgto, 'Pendente')
+                            END AS "STATUS PGTO",
                             CASE 
                                 -- 1. ISENTO
                                 WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
@@ -406,20 +405,31 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 ELSE 'Comprovantes Pendentes'
                             END AS "COMP STATUS",
                             CAST((
-                                CASE 
-                                    WHEN tse.statuspgto IS DISTINCT FROM 'Pago'
+                                CASE
+                                    WHEN tse.statuspgto = 'Pago' THEN 0
+                                    WHEN tse.statuspgto = 'Pago50'
                                     THEN (COALESCE(tse.vlrcache, 0) * (CASE WHEN COALESCE(tse.qtdpessoaslote, 0) <= 0 THEN 1 ELSE tse.qtdpessoaslote END) * (
                                         SELECT COUNT(*)::int
                                         FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                                         WHERE date_val::date >= $2::date AND date_val::date <= $3::date
                                         AND (
-                                            fe.perfil ILIKE '%Free%' 
-                                            OR 
-                                            ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%') 
+                                            fe.perfil ILIKE '%Free%'
+                                            OR
+                                            ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%')
+                                            AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+                                        )
+                                    )) / 2.0
+                                    ELSE (COALESCE(tse.vlrcache, 0) * (CASE WHEN COALESCE(tse.qtdpessoaslote, 0) <= 0 THEN 1 ELSE tse.qtdpessoaslote END) * (
+                                        SELECT COUNT(*)::int
+                                        FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                                        WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                                        AND (
+                                            fe.perfil ILIKE '%Free%'
+                                            OR
+                                            ((fe.perfil ILIKE '%Interno%' OR fe.perfil ILIKE '%Externo%')
                                             AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
                                         )
                                     ))
-                                    ELSE 0 
                                 END +
                                 CASE WHEN (tse.statuspgto IS DISTINCT FROM 'Pago') AND tse.statusajustecusto = 'Autorizado' THEN COALESCE(tse.vlrajustecusto, 0) ELSE 0 END +
                                 CASE WHEN (tse.statuspgtocaixinha IS DISTINCT FROM 'Pago') AND tse.statuscaixinha = 'Autorizado' THEN COALESCE(tse.vlrcaixinha, 0) ELSE 0 END +
