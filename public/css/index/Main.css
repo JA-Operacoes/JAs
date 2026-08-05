@@ -486,6 +486,12 @@ button#btnVoltarorc {
     flex-direction: column;
     width: 100%;
     gap: 10px;
+    /* Scroll lock: cabeçalho e filtros (fora deste elemento, em .orc-container) ficam
+       fixos; só a lista de orçamentos rola dentro da própria altura, em vez de esticar
+       o .detalhes-panel e forçar a página inteira a rolar. */
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 6px;
 }
 
 .accordion-orc-header {
@@ -830,6 +836,24 @@ button.btn-detalhes-orcamento:hover {
 
 .pedido-card p {
   margin: 2px 0;
+}
+
+/* Padrão visual pra seções de notificação fora do painel genérico de Pedidos (Saldos de
+   Inativação, Ajustes Financeiros Automáticos, e futuras). .detalhes-panel sozinho é
+   flex-column + align-items:center, o que centra cada card pela LARGURA PRÓPRIA dele —
+   como cada card tem uma largura de conteúdo diferente, o resultado é esse efeito de
+   "escada" (cada card levemente deslocado do anterior). Aqui: os cards esticam pra largura
+   cheia, e a seção ganha scroll próprio em vez de crescer a página inteira. */
+.secao-notificacao-lista {
+  align-items: stretch;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.secao-notificacao-lista .pedido-card {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Saldo de Inativação: toggle de dias trabalhados/não trabalhados */
@@ -3006,7 +3030,30 @@ body.dark .indicador-evento {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   width: 100%;
+  /* Dentro de um flex-container com altura travada (.orcamentos-grid, scroll lock), o
+     padrão do flexbox é ENCOLHER os itens pra caber, em vez de deixar o pai rolar — e como
+     este item já tem overflow:hidden (pra animação do acordeão), o conteúdo encolhido
+     simplesmente some (vira uma lasca fina sem texto visível). flex-shrink:0 mantém a
+     altura natural de cada item; quem estoura e rola é o container pai, como deveria. */
+  flex-shrink: 0;
 }
+
+/* Uma cor por status na Gestão de Orçamentos, seguindo a jornada do orçamento:
+   Aberto (azul, neutro) -> Proposta (vermelho, aguardando decisão) ->
+   Em Andamento (âmbar, ativo) -> Fechado (verde, sucesso) / Recusado (cinza, encerrado —
+   deliberadamente diferente do vermelho de Proposta, pra não confundir "precisa agir" com
+   "já acabou"). */
+.orc-badge.status-a  { color: #2563eb; font-weight: 700; }
+.orc-badge.status-p  { color: #dc2626; font-weight: 700; }
+.orc-badge.status-e  { color: #d97706; font-weight: 700; }
+.orc-badge.status-f  { color: #16a34a; font-weight: 700; }
+.orc-badge.status-r  { color: #6b7280; font-weight: 700; }
+
+.accordion-item.status-border-a { border-left: 4px solid #2563eb; }
+.accordion-item.status-border-p { border-left: 4px solid #dc2626; }
+.accordion-item.status-border-e { border-left: 4px solid #d97706; }
+.accordion-item.status-border-f { border-left: 4px solid #16a34a; }
+.accordion-item.status-border-r { border-left: 4px solid #6b7280; }
 .accordion-item.active {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }

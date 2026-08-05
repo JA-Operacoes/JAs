@@ -411,6 +411,36 @@ router.get("/eventos-staff", async (req, res) => {
 // EVENTOS EM ABERTOS E FECHADOS
 // =======================================
 
+// Lista enxuta de TODOS os eventos/edições (uma linha por orçamento) pra alimentar a busca da
+// tela "Eventos em Aberto" — não recalcula vagas/staff (isso é caro), só o necessário pra localizar
+// o evento e já deixar o filtro (Abertos/Encerrados + Anual/ano) apontando pro lugar certo.
+// "Aberto"/"Encerrado" usa a mesma regra de /eventos-abertos: sem dtfimdesmontagem ainda no futuro.
+router.get("/eventos-busca", async (req, res) => {
+    try {
+        const idempresa = req.headers.idempresa || req.query.idempresa;
+        if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+
+        // nrorcamento entra no retorno porque o mesmo evento pode ter mais de um orçamento no
+        // mesmo ano (ex: duas montagens/revisões diferentes) — sem isso, a busca mostraria
+        // "Evento X (2026)" duas vezes de forma indistinguível.
+        const { rows } = await pool.query(`
+            SELECT o.idorcamento, o.nrorcamento, e.idevento, e.nmevento,
+                   EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+                   (o.dtfimdesmontagem IS NULL OR o.dtfimdesmontagem >= CURRENT_DATE) AS aberto
+            FROM orcamentos o
+            JOIN eventos e ON e.idevento = o.idevento
+            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            WHERE oe.idempresa = $1 AND o.status <> 'R'
+            ORDER BY e.nmevento ASC, o.dtinirealizacao DESC
+        `, [idempresa]);
+
+        res.json(rows);
+    } catch (err) {
+        console.error("Erro em /eventos-busca:", err);
+        res.status(500).json({ error: "Erro interno.", message: err.message });
+    }
+});
+
 router.get("/eventos-abertos", async (req, res) => {
     try {
         const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -1197,6 +1227,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
           AND se.idcliente = $2
           AND se.statusstaff IN ('Ativo', 'Pendente')
           AND (vr->>'idfuncao_origem') IS NOT NULL
+          AND COALESCE(vr->>'status', 'Pendente') <> 'Rejeitado'
         GROUP BY
             (vr->>'idfuncao_origem')::int,
             UPPER(TRIM(COALESCE(vr->>'setor_origem', ''))),
@@ -1234,28 +1265,62 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         });
     }
 
-    // 5️⃣-C Solicitações de aditivo pendentes por função/orçamento
+    // 5️⃣-C Solicitações de aditivo pendentes por função/orçamento/SETOR — precisa do setor (via join
+    // com staffeventos, já que solicitacoes não guarda essa coluna), senão a mesma contagem é
+    // replicada em toda variação de setor da função (PAV 1, PAV 2, CERTIFICADO etc.), que é o bug
+    // relatado: a solicitação é de UM staffevento específico, não da função inteira.
     const { rows: aditivosPendentesRows } = await pool.query(`
         SELECT
-            idfuncao,
-            idorcamento,
-            COUNT(DISTINCT idregistroalterado) AS qtd_aditivo_pendente,
-            COUNT(DISTINCT CASE WHEN tiposolicitacao ILIKE '%Limite Excedido%' THEN idregistroalterado END) AS qtd_limite_pendente
-        FROM solicitacoes
-        WHERE idorcamento = ANY($1::int[])
-          AND idempresa = $2
-          AND categoria_log = 'aditivoextra'
-          AND status = 'Pendente'
-          AND (tiposolicitacao ILIKE '%Aditivo%' OR tiposolicitacao ILIKE '%Bonificado%')
-        GROUP BY idfuncao, idorcamento
+            sol.idfuncao,
+            sol.idorcamento,
+            UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, ''))) AS setor_solicitacao,
+            COUNT(DISTINCT sol.idregistroalterado) AS qtd_aditivo_pendente,
+            COUNT(DISTINCT CASE WHEN sol.tiposolicitacao ILIKE '%Limite Excedido%' THEN sol.idregistroalterado END) AS qtd_limite_pendente
+        FROM solicitacoes sol
+        LEFT JOIN staffeventos se ON se.idstaffevento = sol.idregistroalterado
+        WHERE sol.idorcamento = ANY($1::int[])
+          AND sol.idempresa = $2
+          AND sol.categoria_log = 'aditivoextra'
+          AND sol.status = 'Pendente'
+          AND (sol.tiposolicitacao ILIKE '%Aditivo%' OR sol.tiposolicitacao ILIKE '%Bonificado%')
+        GROUP BY sol.idfuncao, sol.idorcamento, UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))
     `, [idsOrcamentos, idempresa]);
 
     const aditivosPendentesMap = aditivosPendentesRows.reduce((acc, row) => {
-        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}`;
+        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${row.setor_solicitacao}`;
         acc[key] = {
             qtd: Number(row.qtd_aditivo_pendente || 0),
             qtd_limite: Number(row.qtd_limite_pendente || 0)
         };
+        return acc;
+    }, {});
+
+    // 5️⃣-C-bis Aditivos já Autorizados mas ainda não incluídos nos itens do orçamento — enquanto
+    // isso não acontece, o staffevento continua com statusstaff='Pendente' (por isso ainda soma em
+    // qtd_pendente), mas a solicitação em si já foi decidida — não é mais "aguardando autorização".
+    // Também precisa do setor, pelo mesmo motivo do bloco de aditivos pendentes acima.
+    const { rows: aguardandoInclusaoRows } = await pool.query(`
+        SELECT
+            sol.idfuncao,
+            sol.idorcamento,
+            UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, ''))) AS setor_solicitacao,
+            COUNT(DISTINCT sol.idregistroalterado) AS qtd_aguardando_inclusao
+        FROM solicitacoes sol
+        LEFT JOIN staffeventos se ON se.idstaffevento = sol.idregistroalterado
+        WHERE sol.idorcamento = ANY($1::int[])
+          AND sol.idempresa = $2
+          AND sol.categoria_log = 'aditivoextra'
+          AND sol.status = 'Autorizado'
+          AND (sol.tiposolicitacao ILIKE '%Aditivo%' OR sol.tiposolicitacao ILIKE '%Bonificado%')
+          AND NOT EXISTS (
+              SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
+          )
+        GROUP BY sol.idfuncao, sol.idorcamento, UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))
+    `, [idsOrcamentos, idempresa]);
+
+    const aguardandoInclusaoMap = aguardandoInclusaoRows.reduce((acc, row) => {
+        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${row.setor_solicitacao}`;
+        acc[key] = Number(row.qtd_aguardando_inclusao || 0);
         return acc;
     }, {});
 
@@ -1333,8 +1398,9 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         tem_cache_fechado: item.tem_cache_fechado,
         contratarstaff: item.contratarstaff,
         vagas_usadas_em: reaproveitadasMap[`${Number(item.idfuncao)}_${String(item.setor_orcamento || '').trim().toUpperCase()}_${Number(item.idorcamento)}`] || [],
-        qtd_aditivo_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}`]?.qtd || 0,
-        qtd_limite_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}`]?.qtd_limite || 0,
+        qtd_aditivo_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd || 0,
+        qtd_limite_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd_limite || 0,
+        qtd_aguardando_inclusao: aguardandoInclusaoMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`] || 0,
         vlrdiaria: parseFloat(item.vlrdiaria || 0),
         vlrajdctoalimentacao: parseFloat(item.vlrajdctoalimentacao || 0),
         vlrajdctotransporte: parseFloat(item.vlrajdctotransporte || 0)
@@ -1632,6 +1698,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                                        'status', s.status,
                                        'justificativa', s.justificativa,
                                        'tiposolicitacao', s.tiposolicitacao)
+                    ORDER BY s.dtsolicitada
                 ) AS dtsolicitada_agrupada,
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
                 s.idfuncionario        AS idusuarioalvo,
@@ -1665,6 +1732,51 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         `;
 
         const { rows } = await pool.query(queryBase, params);
+
+        // Enriquecimento FuncExcedido: descobre a OUTRA alocação ativa do funcionário que
+        // realmente colide nas mesmas datas (evento/função "Já Contratado"). Sem isso o card
+        // só tem o evento/função do próprio registro pendente (o "Sendo Solicitado") e acaba
+        // repetindo essa mesma informação, sem nunca revelar contra o que ele está excedendo.
+        const conflitoFuncExcedidoPorGrupo = new Map(); // idstaffevento (registro mestre) -> { evento, funcao }
+        const linhasFuncExcedido = rows.filter(r => (r.tiposolicitacao || '').toLowerCase().includes('funcexcedido'));
+        if (linhasFuncExcedido.length > 0) {
+            const idsFuncionarios = [...new Set(linhasFuncExcedido.map(r => r.idusuarioalvo).filter(Boolean))];
+            const idsStaffEventoExcluir = [...new Set(linhasFuncExcedido.map(r => r.idstaffevento).filter(Boolean))];
+            try {
+                const { rows: outrasAlocacoes } = await pool.query(`
+                    SELECT se2.idstaffevento, se2.idfuncionario, se2.datasevento,
+                           ev2.nmevento, fn2.descfuncao AS nmfuncao
+                    FROM staffeventos se2
+                    LEFT JOIN eventos ev2 ON ev2.idevento = se2.idevento
+                    LEFT JOIN funcao fn2  ON fn2.idfuncao = se2.idfuncao
+                    WHERE se2.idfuncionario = ANY($1::int[])
+                      AND se2.idstaffevento <> ALL($2::int[])
+                      AND se2.ativo = true
+                `, [idsFuncionarios, idsStaffEventoExcluir]);
+
+                linhasFuncExcedido.forEach(r => {
+                    const datasExcedidas = new Set(
+                        (r.dtsolicitada_agrupada || [])
+                            .flatMap(sol => Array.isArray(sol.data) ? sol.data : [sol.data])
+                            .filter(Boolean)
+                            .map(d => String(d).substring(0, 10))
+                    );
+                    const conflito = outrasAlocacoes.find(oa => {
+                        if (oa.idfuncionario !== r.idusuarioalvo) return false;
+                        const datasOA = (Array.isArray(oa.datasevento) ? oa.datasevento : []).map(d => String(d).substring(0, 10));
+                        return datasOA.some(d => datasExcedidas.has(d));
+                    });
+                    if (conflito) {
+                        conflitoFuncExcedidoPorGrupo.set(r.idstaffevento, {
+                            evento: conflito.nmevento || '',
+                            funcao: conflito.nmfuncao || ''
+                        });
+                    }
+                });
+            } catch (errConflitoFuncExcedido) {
+                console.error('⚠️ Erro ao buscar alocação conflitante do FuncExcedido:', errConflitoFuncExcedido);
+            }
+        }
 
         // Saldo financeiro por equipe — para Ajuste de Custo positivo e Extra Bonificado
         const saldoEquipeMap = new Map();
@@ -1822,6 +1934,11 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 // Campos auxiliares para merge de combo FuncExcedido + Estouro Financeiro
                 idstaffevento: r.idstaffevento,
                 tiposolicitacao_raw: r.tiposolicitacao,
+
+                // Evento/função onde o funcionário JÁ está contratado e que colide com esta
+                // solicitação de FuncExcedido (distinto do evento/função "Sendo Solicitado"
+                // acima, que é o próprio registro pendente).
+                conflitoJaContratado: conflitoFuncExcedidoPorGrupo.get(r.idstaffevento) || null,
 
                 // Custo por diária — staffevento direto ou fallback no JSON de vagasreaproveitadas
                 vlrCacheSol:  parseFloat(r.vlrcache  || 0) || vlrCacheJson,
@@ -2292,6 +2409,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             // Variável local para acumular strings JSON processadas sem sofrer mutação ou quebra de const
             let varObjetoJsonFinal = null;
+            // Só usada pelo FLUXO B/statusvagasreaproveitadas: quando a data reaproveitada
+            // é Rejeitada, essa data precisa sair de datasevento também (ela entrou lá de
+            // forma otimista, junto com a criação/edição do staffevento, antes da aprovação).
+            let novoDatasEventoJson = null;
 
             // ==========================================
             // 🔥 FLUXO A: TRATAMENTO CASO SEJA ADITIVO OU VAGA EXCEDIDA
@@ -2517,6 +2638,38 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     }
                 }
 
+                // Cascata: rejeitar Aditivo/Extra Bonificado/Vaga Reaproveitada também rejeita
+                // a(s) solicitação(ões) de FuncExcedido vinculada(s) (mesmo staffevento + mesma
+                // data) que ainda estejam Pendentes. Sem isso, o FuncExcedido fica esquecido como
+                // Pendente pra sempre — a vaga/aditivo que o gerou já foi cancelada, então não há
+                // mais o que autorizar. Roda no backend (não depende do front chamar 2 endpoints
+                // em sequência) pra não divergir se a segunda chamada falhar no meio do caminho.
+                // Direção inversa (rejeitar só o FuncExcedido) NÃO cascateia de volta — o
+                // funcionário fica inativo, mas a vaga já criada no orçamento permanece válida.
+                if (statusParaAtualizar === 'Rejeitado'
+                    && !tipoSolicitacaoOriginal.toLowerCase().includes('funcexcedido')
+                    && datasParaProcessar.length > 0) {
+                    try {
+                        const { rows: funcExcedidoRejeitados } = await pool.query(`
+                            UPDATE public.solicitacoes
+                            SET status = 'Rejeitado', idusuarioresponsavel = $1, dtresposta = NOW()
+                            WHERE idregistroalterado = $2
+                              AND idempresa = $3
+                              AND status = 'Pendente'
+                              AND tiposolicitacao ILIKE '%funcexcedido%'
+                              AND dtsolicitada && $4::date[]
+                            RETURNING idsolicitacao, tiposolicitacao, dtsolicitada
+                        `, [idUsuarioResponsavel, idStaffAlvo, idempresa, datasParaProcessar]);
+
+                        if (funcExcedidoRejeitados.length > 0) {
+                            console.log(`🔗 [CASCATA FUNCEXCEDIDO] ${funcExcedidoRejeitados.length} solicitação(ões) de FuncExcedido rejeitada(s) junto com "${tipoSolicitacaoOriginal}":`,
+                                funcExcedidoRejeitados.map(r => r.idsolicitacao));
+                        }
+                    } catch (errCascataFuncExcedido) {
+                        console.error('[FLUXO A] Erro ao cascatear rejeição para FuncExcedido:', errCascataFuncExcedido);
+                    }
+                }
+
                 res.locals.idlog_origem = idlog_origem;
                 res.locals.acao = 'atualizou';
                 res.locals.idregistroalterado = idStaffAlvo;
@@ -2568,11 +2721,27 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 const novoArrayVagas = arrayVagasTratado.map(item => {
                     const deveAtualizar = dataEspecifica ? (item.data === dataEspecifica) : listaDatasProc.includes(item.data);
                     if (deveAtualizar) {
-                        return { ...item, status: statusParaAtualizar }; 
+                        return { ...item, status: statusParaAtualizar };
                     }
                     return item;
                 });
                 varObjetoJsonFinal = JSON.stringify(novoArrayVagas);
+
+                // A data de uma Vaga Reaproveitada entra em datasevento de forma otimista,
+                // já na criação/edição do staffevento, antes de qualquer aprovação — ao
+                // contrário do Aditivo/Extra (FLUXO A), que só entra quando Autorizado.
+                // Por isso, ao Rejeitar, precisa sair de datasevento explicitamente aqui;
+                // não existe um "nunca foi adicionado" pra essa categoria.
+                if (statusParaAtualizar === 'Rejeitado') {
+                    const datasRejeitadasSet = new Set(dataEspecifica ? [dataEspecifica] : listaDatasProc);
+                    const datasEventoAtuais = (Array.isArray(registro.datasevento) ? registro.datasevento : [])
+                        .map(d => String(d).split('T')[0]);
+                    const datasEventoFiltradas = datasEventoAtuais.filter(d => !datasRejeitadasSet.has(d));
+                    if (datasEventoFiltradas.length !== datasEventoAtuais.length) {
+                        novoDatasEventoJson = JSON.stringify(datasEventoFiltradas);
+                        console.log(`🗑️ [VAGA REAPROVEITADA REJEITADA] Removendo de datasevento:`, [...datasRejeitadasSet]);
+                    }
+                }
             }
 
             let totalCache = parseFloat(registro.vlrtotcache) || 0;
@@ -2720,7 +2889,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 SET ${colunaDestinoBanco} = $1,
                     vlrtotal = $2, vlrtotcache = $3, vlrtotajdcusto = $4,
                     statusstaff = $5, obspospgto = $7,
-                    ativo = ($8 OR ativo)
+                    ativo = ($8 OR ativo),
+                    datasevento = CASE WHEN $9::jsonb IS NOT NULL THEN $9::jsonb ELSE datasevento END
                 WHERE se.idstaffevento = $6
                 RETURNING se.*;
             `;
@@ -2735,7 +2905,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 statusStaffCalculado,
                 idStaffAlvo,
                 novaObsPosPgto,
-                ativoCalculado
+                ativoCalculado,
+                novoDatasEventoJson
             ]);
             
             console.log(`✅ [FLUXO B] Linhas alteradas com sucesso no staffeventos: ${finalResult.rowCount}`);
