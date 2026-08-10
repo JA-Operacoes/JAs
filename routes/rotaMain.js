@@ -3734,11 +3734,17 @@ router.get('/contas-pagar', async (req, res) => {
                 l.qtdeparcelas,
                 l.indeterminado,
                 l.dttermino,
-                COALESCE(l.idempresapagadora, 0) AS idempresapagadora,
-                COALESCE(e.nmfantasia, 'Empresa Não Informada') AS empresapagadora,
                 -- -------------------------------------------
                 COALESCE(p.dtvcto, l.vctobase) AS data_referencia,
-                COALESCE(NULLIF(LOWER(TRIM(l.tipovinculo)), ''), 'outros') AS tipovinculo,
+                -- Lançamento tipovinculo='funcionario' só entra no grupo especial "funcionario"
+                -- (com toda a lógica de holerite/RH) se o perfil do funcionário for Interno ou
+                -- Externo — Freelancer não tem direito a 13º/holerite e cai no grupo "outros",
+                -- como qualquer outro lançamento genérico.
+                CASE
+                    WHEN LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') NOT IN ('Interno', 'Externo')
+                        THEN 'outros'
+                    ELSE COALESCE(NULLIF(LOWER(TRIM(l.tipovinculo)), ''), 'outros')
+                END AS tipovinculo,
                 CAST(L.vlrestimado AS FLOAT) AS vlrestimado,
                 p.idpagamento, 
                 p.numparcela,
@@ -3750,13 +3756,16 @@ router.get('/contas-pagar', async (req, res) => {
                 p.status,
                 p.comprovantepgto,
                 p.imagemconta,
-                COALESCE(forn.nmfantasia, func.nome, cli.nmfantasia, 'Lançamento Geral') AS nome_vinculo
+                COALESCE(forn.nmfantasia, func.nome, cli.nmfantasia, 'Lançamento Geral') AS nome_vinculo,
+                -- Id do funcionário vinculado (quando tipovinculo = funcionário), pra casar
+                -- com o holerite do mês efetivamente exibido/projetado no Front-end.
+                func.idfuncionario AS idfuncionario_vinculo
             FROM lancamentos l
             LEFT JOIN pagamentos p ON l.idlancamento = p.idlancamento
             LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor' AND l.idvinculo = forn.idfornecedor)
             LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND l.idvinculo = func.idfuncionario)
+            LEFT JOIN funcionarioempresas fe ON (fe.idfuncionario = func.idfuncionario AND fe.idempresa = l.idempresa)
             LEFT JOIN clientes cli ON (LOWER(TRIM(l.tipovinculo)) = 'cliente' AND l.idvinculo = cli.idcliente)
-            LEFT JOIN empresas e ON l.idempresapagadora = e.idempresa
             WHERE l.ativo = true AND l.idempresa = $1
             AND (
       -- Filtra pelo ano passado como parâmetro ($2)
@@ -3769,7 +3778,66 @@ router.get('/contas-pagar', async (req, res) => {
 
         const { rows } = await pool.query(query, [idEmpresa, anoFiltro]);
         // console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
-        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows });
+
+        // Holerites (RH) do ano inteiro, por funcionário/mês — sempre uma linha por
+        // competência (real quando já existe holerite salvo, ou PREVISÃO calculada na hora,
+        // igual ao /rh/folha) pra casar com o mês efetivamente projetado na tela de Vencimentos.
+        const { obterParametros, contarDiasUteis, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA } = require('./rotaRH').helpersFolha;
+
+        const funcsFolha = (await pool.query(
+            `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
+               FROM funcionarios f
+               JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
+              WHERE fe.idempresa = $1
+                AND fe.perfil = ANY($2)
+                AND COALESCE(fe.ativo, true) = true`,
+            [idEmpresa, PERFIS_FOLHA]
+        )).rows;
+
+        const paramsFolha = await obterParametros(anoFiltro);
+
+        const holerites = [];
+        for (const f of funcsFolha) {
+            for (let mes = 1; mes <= 12; mes++) {
+                const diasUteis = contarDiasUteis(anoFiltro, mes);
+                // Gera e persiste o holerite mensal automaticamente (réplica do mês anterior +
+                // INSS/IRRF recalculado) — o RH não precisa mais entrar todo mês pra salvar; só
+                // quando precisar ajustar algo. Meses sequenciais dentro do mesmo loop (await),
+                // então o mês N já pode replicar o mês N-1 recém-persistido.
+                await garantirHoleriteMensal(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
+                const linha = await computarLinhaFolha(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
+                holerites.push({ ...linha, mes, ano: anoFiltro });
+            }
+        }
+
+        // 13º salário: geral e no mesmo período pra todo mundo, por isso é gerado
+        // automaticamente pra todo o ano filtrado (1ª parcela, vence 20/11; 2ª parcela,
+        // vence 30/12) — diferente de férias/rescisão, que só aparecem quando o RH gera
+        // manualmente na tela de RH. Não depende mais da data real do servidor: quem
+        // filtrar novembro/dezembro em qualquer época do ano já vê (e persiste) o 13º
+        // daquela competência — o filtro de período (mensal/semanal/etc) na tela é quem
+        // decide se a linha aparece ou não, não a data de hoje.
+
+        const eventos13 = [];
+        for (const f of funcsFolha) {
+            await garantirHolerite13(idEmpresa, f, 11, anoFiltro, "1", paramsFolha);
+            const parcela1 = await computarLinha13(idEmpresa, f, 11, anoFiltro, "1", paramsFolha);
+            if (parcela1.idholerite) {
+                eventos13.push({
+                    ...parcela1, mes: 11, ano: anoFiltro, dtvcto: `${anoFiltro}-11-20`,
+                });
+            }
+
+            await garantirHolerite13(idEmpresa, f, 12, anoFiltro, "2", paramsFolha);
+            const parcela2 = await computarLinha13(idEmpresa, f, 12, anoFiltro, "2", paramsFolha);
+            if (parcela2.idholerite) {
+                eventos13.push({
+                    ...parcela2, mes: 12, ano: anoFiltro, dtvcto: `${anoFiltro}-12-30`,
+                });
+            }
+        }
+
+        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13 });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });
     }
@@ -3957,7 +4025,9 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
     }
 });
 
-
+// =======================================
+// AGENDA DE EVENTOS (Agenda)
+// =======================================
 router.get("/agenda", async (req, res) => {
   try {
   // Tenta obter o idusuario do objeto de requisição (middleware de autenticação) ou do header
