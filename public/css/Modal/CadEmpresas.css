@@ -35,22 +35,27 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+/* Altura fixa em px, com folga pra caber em telas menores (notebook com
+   768px de altura, descontando barra de tarefas/navegador) sem cortar.
+   NÃO uso flex aqui de propósito: o Index.js (código genérico de abertura de
+   modal) seta `modal.style.display = "block"` via JS (inline style), que
+   sempre vence um "display:flex" escrito aqui no CSS — então depender de
+   flex nesse elemento nunca funciona de verdade. Em vez disso, quem rola é
+   só o #form-content, com altura própria independente (mesmo padrão já
+   usado e funcionando em CadNotaFiscal.css). */
 #cadModalEmpresas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
-  left: 50%; /* Alinha horizontalmente ao centro */   
+  left: 50%; /* Alinha horizontalmente ao centro */
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
   width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 580px;
+  max-height: 600px;
+  overflow: hidden;
   font-size: 16px;
   z-index: 9999;
-}
-
-#cadModalEmpresas.modal-content{
-  height: 590px;
 }
 
 #cadModalEmpresas.modal-open{
@@ -85,24 +90,23 @@ body{
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 70px;
+    margin-top: 20px; /* era 70px — sobrava pouco espaço já com 3 fieldsets */
 }
 
 
-#form-content {
+#cadModalEmpresas #form-content {
   font-family: "Abel", sans-serif;
-  display: flex;                
-  flex-direction: column; 
-  justify-content: center;
+  display: flex;
+  flex-direction: column;
   background-color: white;
-  max-width: 700px;   
-  width: 100%;  
-  height: 490px; 
-  margin: 0 auto;         
-  padding: 10px;                
-  background-color: #cacaca; 
-  border: #ce0303;    
-  border-radius: 10px;      
+  max-width: 700px;
+  width: 100%;
+  max-height: 480px; /* .modal (600px) menos Close/BTNs/paddings — o que passar disso, rola aqui dentro */
+  margin: 0 auto;
+  padding: 10px;
+  background-color: #cacaca;
+  border: #ce0303;
+  border-radius: 10px;
   position: relative;
   overflow-y: auto;
 }
@@ -134,6 +138,13 @@ legend{
   align-items: center;
   max-width: 300;
   gap: 0,5px;
+}
+
+.nf-aviso-empresa {
+  font-size: 13px;
+  color: #555;
+  text-align: center;
+  margin: -6px 0 10px;
 }
 
 .form, .form2, .form3, .form-checkbox{
@@ -259,6 +270,19 @@ input:not([value=""]) ~ label {
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
 
+/* <select> sempre mostra algum texto dentro da caixa (placeholder ou opção
+   escolhida) — diferente de <input>, não existe um estado "vazio" pra
+   comparar via :not([value=""]) (select não reflete value como atributo).
+   Por isso o label dele já nasce flutuando em cima, sempre, em vez de
+   depender de :focus/:valid/conteúdo como os inputs. */
+.form2 select ~ label {
+  top: -5px;
+  left: 2%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
 input[type=date]{
   width: 111px;
   height: 30px;
@@ -269,8 +293,12 @@ input[type=file]{
   display: none;
 }
 
-input#numero, input#estado, input#pais, input#complemento{
+input#numero, input#estado, input#pais, input#complemento, input#agencia, input#digitoAgencia, input#numeroConta, input#digitoConta{
   width: 120px;
+}
+
+input#pix{
+  width: 590px;
 }
 
 input#id{

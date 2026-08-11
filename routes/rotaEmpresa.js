@@ -77,12 +77,25 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
   }),
   async (req, res) => {
   const ativo = req.body.ativo === "on" ? true : false;
-  const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais  } = req.body;
+  const {
+    nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
+    regimeTributario, inscricaoMunicipal,
+    idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix
+  } = req.body;
   const idempresaDoUsuarioLogado = req.idempresa;
   try {
     const result = await pool.query(
-      'INSERT INTO empresas (nmfantasia, razaosocial, cnpj, inscricaoestadual, emailemp, emailnf, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *',
-      [nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo ]
+      `INSERT INTO empresas (
+         nmfantasia, razaosocial, cnpj, inscricaoestadual, emailemp, emailnf, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
+         regimetributario, inscricaomunicipal,
+         idbanco, agencia, digitoagencia, numeroconta, digitoconta, tipoconta, pix
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+       RETURNING *`,
+      [
+        nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
+        regimeTributario || null, inscricaoMunicipal || null,
+        idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null
+      ]
     );
     const novaEmpresa = result.rows[0];
           
@@ -134,15 +147,26 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
 
   console.log(`Atualizando empresa com ID: ${id} para a empresa do usuário logado: ${idempresa}`);
 
-  const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais} = req.body;
+  const {
+    nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
+    regimeTributario, inscricaoMunicipal,
+    idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix
+  } = req.body;
   try {
     const result = await pool.query(
-      `UPDATE empresas 
-       SET nmfantasia = $1, razaosocial = $2, cnpj = $3, inscricaoestadual = $4, 
+      `UPDATE empresas
+       SET nmfantasia = $1, razaosocial = $2, cnpj = $3, inscricaoestadual = $4,
         emailemp = $5, emailnf = $6, site = $7, telefone = $8, cep = $9, endereco = $10,
-        numero = $11, complemento = $12, bairro = $13, cidade= $14, estado = $15, pais = $16, ativo = $17 
-      WHERE idempresa = $18 RETURNING idempresa`,
-      [nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo, id]
+        numero = $11, complemento = $12, bairro = $13, cidade= $14, estado = $15, pais = $16, ativo = $17,
+        regimetributario = $18, inscricaomunicipal = $19,
+        idbanco = $20, agencia = $21, digitoagencia = $22, numeroconta = $23, digitoconta = $24, tipoconta = $25, pix = $26
+      WHERE idempresa = $27 RETURNING idempresa`,
+      [
+        nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
+        regimeTributario || null, inscricaoMunicipal || null,
+        idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null,
+        id
+      ]
     );
     if (result.rowCount) {
         const empresaAtualizada = result.rows[0];
