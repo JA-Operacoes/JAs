@@ -2306,7 +2306,7 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
           LEFT JOIN orcamentos o ON o.idorcamento = s.idorcamento
           WHERE s.idorcamento = $1
             ${filtroItem}
-            AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Aditivo - Limite Excedido', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Vaga Excedida', 'Extra Bonificado - Datas fora do Orçamento', 'Aditivo - Limite Financeiro da Equipe Excedido', 'Dobrada - Estouro Financeiro')
+            AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Datas fora do Orçamento','Extra Bonificado - Limite Excedido', 'Aditivo - Limite Excedido')
             AND s.status = 'Autorizado'
             AND NOT EXISTS (
                 SELECT 1 FROM orcamentoitens oi

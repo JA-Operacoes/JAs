@@ -1434,7 +1434,8 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
                 s.idstaff, s.avaliacao, se.comppgtoajdcusto50, se.compcontgastos
             FROM staffeventos se
             INNER JOIN staff s ON se.idstaff = s.idstaff
-            WHERE se.idfuncionario = $1 
+            WHERE se.idfuncionario = $1
+                AND se.statusstaff NOT IN ('Inativo', 'Deletado')
         `;
 
         const queryValues = [idFuncionario];
@@ -1545,9 +1546,10 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
             INNER JOIN 
                 staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
             
-            WHERE 
+            WHERE
                 se.idfuncionario = $1
                 AND se_emp.idEmpresa = $2
+                AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                 AND EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements_text(se.datasevento) AS existing_date

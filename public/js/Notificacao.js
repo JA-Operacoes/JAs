@@ -122,7 +122,7 @@ function montarAbas() {
 // ─────────────────────────────────────────────
 async function buscarNotificacoes() {
   try {
-    const [resNotif, resAgenda, resSol, resPag, resInclusao, resRetornoInclusao] = await Promise.all([
+    const [resNotif, resAgenda, resSol, resPag, resInclusao, resRetornoInclusao,resPag] = await Promise.all([
       apiFetch(`/notificacoes?status=${abaAtiva === 'Todas' ? '' : abaAtiva}`),
       apiFetch('/notificacoes/agenda-notificacao'),
       apiFetch('/notificacoes/solicitacoes-notificacao'),
