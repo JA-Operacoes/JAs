@@ -2924,7 +2924,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 const scache = (eventData.statuspgto || '').toLowerCase().trim();
                 const spanCache = document.createElement('span');
 
-                spanCache.textContent = (scache === 'pago50') ? 'PAGO 50%' : (scache === "" ? "PENDENTE" : scache.toUpperCase());
+                spanCache.textContent = (scache === 'pago50') ? 'PAGO50' : (scache === "" ? "PENDENTE" : scache.toUpperCase());
 
                 // CORREÇÃO: Prevenção contra token vazio
                 spanCache.classList.add('status-pgto');

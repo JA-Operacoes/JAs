@@ -2453,7 +2453,6 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
 
     const wrapperUnificado = document.createElement("div");
     wrapperUnificado.style.display = "flex";
-    wrapperUnificado.style.flexWrap = "wrap";
     wrapperUnificado.style.gap = "20px";
 
     // --- FILTRO STATUS (Substitui as abas Abertos/Encerrados) ---
@@ -2498,8 +2497,10 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
     grupoBusca.className = "filtro-grupo";
     grupoBusca.innerHTML = `
         <label class="label-select">Buscar Evento</label>
-        <div class="wrapper select-wrapper" style="width: 260px;">
-            <select id="busca-evento-select" style="width:100%;"><option value=""></option></select>
+        <div class="wrapper select-wrapper busca-evento-wrapper" style="width: 260px;">
+            <input type="text" id="busca-evento-input" class="busca-evento-input" placeholder="Buscar evento..." autocomplete="off">
+            <input type="hidden" id="busca-evento-id">
+            <ul id="busca-evento-lista" class="busca-evento-lista" style="display:none;"></ul>
         </div>`;
 
     wrapperUnificado.appendChild(grupoStatus);
@@ -2563,9 +2564,10 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
         }));
     });
 
-    // --- Inicialização da busca por evento ---
+    // --- Inicialização da busca por evento (mesmo padrão do RH: input + lista suspensa) ---
     (async () => {
-        const selectBusca = grupoBusca.querySelector("#busca-evento-select");
+        const input = grupoBusca.querySelector("#busca-evento-input");
+        const lista = grupoBusca.querySelector("#busca-evento-lista");
         const idempresa = localStorage.getItem("idempresa");
         let eventosBusca = [];
 
@@ -2584,36 +2586,7 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
             return acc;
         }, {});
 
-        eventosBusca.forEach(ev => {
-            const chave = `${ev.nmevento}|${ev.ano}`;
-            const option = document.createElement("option");
-            option.value = ev.idorcamento;
-            option.textContent = contagemNomeAno[chave] > 1
-                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
-                : `${ev.nmevento} (${ev.ano})`;
-            selectBusca.appendChild(option);
-        });
-
-        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
-            $(selectBusca).select2('destroy');
-        }
-        $(selectBusca).select2({
-            placeholder: 'Digite o nome do evento...',
-            allowClear: true,
-            width: '260px',
-            matcher: function (params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
-                return null;
-            }
-        });
-
-        $(selectBusca).on('select2:select', async function (e) {
-            const idorcamentoSel = e.params.data.id;
-            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
-            if (!eventoSel) return;
-
+        const selecionarEvento = async (eventoSel) => {
             // 1. Status: Abertos/Encerrados conforme o evento
             const statusInput = filtrosContainer.querySelector(
                 `input[name="statusEvt"][value="${eventoSel.aberto ? 'abertos' : 'encerrados'}"]`
@@ -2648,7 +2621,41 @@ function criarFiltrosEventoCompletos(conteudoGeral) {
             }
 
             // Limpa a busca pra já poder digitar a próxima
-            $(selectBusca).val('').trigger('change');
+            input.value = "";
+            lista.style.display = "none";
+        };
+
+        lista.innerHTML = "";
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const nomeExibido = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+
+            const li = document.createElement("li");
+            li.dataset.idorcamento = ev.idorcamento;
+            li.dataset.nome = nomeExibido;
+            li.textContent = nomeExibido;
+            li.addEventListener("mousedown", (e) => {
+                e.preventDefault(); // antes do blur, p/ registrar o clique
+                selecionarEvento(ev);
+            });
+            lista.appendChild(li);
+        });
+
+        const filtrar = () => {
+            const termo = input.value.toLowerCase().trim();
+            lista.querySelectorAll("li").forEach((li) => {
+                li.style.display = li.dataset.nome.toLowerCase().includes(termo) ? "block" : "none";
+            });
+            lista.style.display = "block";
+        };
+        input.addEventListener("input", filtrar);
+        input.addEventListener("focus", () => { lista.style.display = "block"; });
+
+        // Esconde ao clicar fora.
+        document.addEventListener("mousedown", (e) => {
+            if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
         });
     })();
 
@@ -6041,7 +6048,6 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
 
     const wrapperUnificado = document.createElement("div");
     wrapperUnificado.style.display = "flex";
-    wrapperUnificado.style.flexWrap = "wrap";
     wrapperUnificado.style.gap = "20px";
 
     // 1. Grupo Status
@@ -6081,8 +6087,10 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
     grupoBusca.className = "filtro-grupo";
     grupoBusca.innerHTML = `
         <label class="label-select">Buscar Evento</label>
-        <div class="wrapper select-wrapper" style="width: 260px;">
-            <select id="busca-evento-select-orc" style="width:100%;"><option value=""></option></select>
+        <div class="wrapper select-wrapper busca-evento-wrapper" style="width: 260px;">
+            <input type="text" id="busca-evento-input-orc" class="busca-evento-input" placeholder="Buscar evento..." autocomplete="off">
+            <input type="hidden" id="busca-evento-id-orc">
+            <ul id="busca-evento-lista-orc" class="busca-evento-lista" style="display:none;"></ul>
         </div>`;
 
     wrapperUnificado.appendChild(grupoStatus);
@@ -6160,16 +6168,17 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
         }));
     });
 
-    // --- Inicialização da busca por evento (mesmo padrão de Eventos em Aberto) ---
+    // --- Inicialização da busca por evento (mesmo padrão do RH: input + lista suspensa) ---
     (async () => {
-        const selectBusca = grupoBusca.querySelector("#busca-evento-select-orc");
+        const input = grupoBusca.querySelector("#busca-evento-input-orc");
+        const lista = grupoBusca.querySelector("#busca-evento-lista-orc");
         const idempresa = localStorage.getItem("idempresa");
-        let eventosBusca = [];
+        let orcamentosBusca = [];
 
         try {
-            eventosBusca = await fetchComToken(`/main/eventos-busca`, { headers: { idempresa } }) || [];
+            orcamentosBusca = await fetchComToken(`/main/orcamentos-busca`, { headers: { idempresa } }) || [];
         } catch (err) {
-            console.error("Erro ao carregar eventos para busca:", err);
+            console.error("Erro ao carregar orcamentos para busca:", err);
         }
 
         // Um evento pode ter mais de um orçamento no mesmo ano (ex: duas montagens/revisões
@@ -6180,36 +6189,7 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             return acc;
         }, {});
 
-        eventosBusca.forEach(ev => {
-            const chave = `${ev.nmevento}|${ev.ano}`;
-            const option = document.createElement("option");
-            option.value = ev.idorcamento;
-            option.textContent = contagemNomeAno[chave] > 1
-                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
-                : `${ev.nmevento} (${ev.ano})`;
-            selectBusca.appendChild(option);
-        });
-
-        if ($(selectBusca).hasClass('select2-hidden-accessible')) {
-            $(selectBusca).select2('destroy');
-        }
-        $(selectBusca).select2({
-            placeholder: 'Digite o nome do evento...',
-            allowClear: true,
-            width: '260px',
-            matcher: function (params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) return data;
-                return null;
-            }
-        });
-
-        $(selectBusca).on('select2:select', async function (e) {
-            const idorcamentoSel = e.params.data.id;
-            const eventoSel = eventosBusca.find(ev => String(ev.idorcamento) === String(idorcamentoSel));
-            if (!eventoSel) return;
-
+        const selecionarEvento = async (eventoSel) => {
             // 1. Nível do Orçamento: "Todos", pra achar o orçamento independente do status
             // (/eventos-busca não devolve o status de 5 vias usado aqui — só aberto/encerrado).
             const statusInput = filtrosContainer.querySelector('input[name="statusOrc"][value="todos"]');
@@ -6243,7 +6223,41 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             }
 
             // Limpa a busca pra já poder digitar a próxima
-            $(selectBusca).val('').trigger('change');
+            input.value = "";
+            lista.style.display = "none";
+        };
+
+        lista.innerHTML = "";
+        eventosBusca.forEach(ev => {
+            const chave = `${ev.nmevento}|${ev.ano}`;
+            const nomeExibido = contagemNomeAno[chave] > 1
+                ? `${ev.nmevento} (${ev.ano}) — Orç. ${ev.nrorcamento}`
+                : `${ev.nmevento} (${ev.ano})`;
+
+            const li = document.createElement("li");
+            li.dataset.idorcamento = ev.idorcamento;
+            li.dataset.nome = nomeExibido;
+            li.textContent = nomeExibido;
+            li.addEventListener("mousedown", (e) => {
+                e.preventDefault(); // antes do blur, p/ registrar o clique
+                selecionarEvento(ev);
+            });
+            lista.appendChild(li);
+        });
+
+        const filtrar = () => {
+            const termo = input.value.toLowerCase().trim();
+            lista.querySelectorAll("li").forEach((li) => {
+                li.style.display = li.dataset.nome.toLowerCase().includes(termo) ? "block" : "none";
+            });
+            lista.style.display = "block";
+        };
+        input.addEventListener("input", filtrar);
+        input.addEventListener("focus", () => { lista.style.display = "block"; });
+
+        // Esconde ao clicar fora.
+        document.addEventListener("mousedown", (e) => {
+            if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
         });
     })();
 
@@ -16396,6 +16410,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 }
             });
 
+            // Holerites (RH) do ano, indexados por funcionário+mês, pra anexar na competência
+            // efetivamente projetada (a data do lançamento não reflete o mês da folha).
+            const mapaHolerites = new Map();
+            (resContas.holerites || []).forEach(h => {
+                if (!h.idfuncionario) return;
+                mapaHolerites.set(`${h.idfuncionario}-${h.ano}-${h.mes}`, h);
+            });
+            // Rastreia quais holerites mensais foram "encontrados" por algum lançamento
+            // projetado — sobra disso vira linha própria mais abaixo (funcionário sem
+            // lançamento cadastrado em Vencimentos, ex: cadastro criado só pelo RH).
+            const holeritesUsados = new Set();
+
             const mesesProcessadosNoLoop = new Set();
 
             resContas.contas.forEach(c => {
@@ -16408,8 +16434,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 let maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
 
                 for (let i = 0; i < maxLoop; i++) {
-                    let dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
-                    
+                    let dProj;
+                    if (ehFixo) {
+                        // Indeterminado/FIXO: projeta direto nos 12 meses do ANO FILTRADO, não a
+                        // partir do ano do vctobase original — senão um lançamento antigo (ex:
+                        // vctobase de 2025) nunca alcança anos futuros (2026, 2027...), já que o
+                        // loop só teria 12 iterações a partir do próprio ano do vctobase.
+                        dProj = new Date(anoFiltro, i, vctoBase.getDate(), 12, 0, 0);
+                        if (dProj < vctoBase) continue; // não mostra competência anterior ao início do lançamento
+                    } else {
+                        dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+                    }
+
                     if (dProj.getFullYear() !== anoFiltro) {
                         if (dProj.getFullYear() > anoFiltro) break;
                         continue;
@@ -16459,20 +16495,106 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         valorPago = 0;
                     }
 
+                    const chaveHolerite = c.idfuncionario_vinculo
+                        ? `${c.idfuncionario_vinculo}-${dProj.getFullYear()}-${dProj.getMonth() + 1}`
+                        : null;
+                    const holeriteMes = chaveHolerite ? mapaHolerites.get(chaveHolerite) : null;
+                    if (chaveHolerite && holeriteMes) holeritesUsados.add(chaveHolerite);
+
                     contasProjetadas.push({
                         ...(dadoReal || c), // Prioriza os dados do registro real (ID 16, etc)
-                        idempresapagadora: c.idempresapagadora, 
-                        empresapagadora: c.empresapagadora,
                         vencimento: dProj.toLocaleDateString('pt-BR'),
                         dtvcto: dProj.toISOString().split('T')[0],
                         valorTotal: valorTotal,
                         valorPago: valorPago,
                         status: statusFinal,
-                        statusFiltro: statusFiltro
+                        statusFiltro: statusFiltro,
+                        idholerite: holeriteMes ? holeriteMes.idholerite : null,
+                        holerite_mes: holeriteMes ? holeriteMes.mes : (dProj.getMonth() + 1),
+                        holerite_ano: holeriteMes ? holeriteMes.ano : dProj.getFullYear(),
+                        holerite_origem: holeriteMes ? holeriteMes.origem : null,
+                        status_holerite: holeriteMes ? holeriteMes.status : null,
+                        holerite_dtpagamento: holeriteMes ? holeriteMes.dtpagamento : null,
+                        holerite_comprovante: holeriteMes ? holeriteMes.comprovante : null,
+                        holerite_proventos: holeriteMes ? parseFloat(holeriteMes.proventos || 0) : null,
+                        holerite_descontos: holeriteMes ? parseFloat(holeriteMes.descontos || 0) : null,
+                        holerite_liquido: holeriteMes ? parseFloat(holeriteMes.liquido || 0) : null
                     });
 
                     mesesProcessadosNoLoop.add(chaveMes);
                 }
+            });
+
+            // 13º salário: geral e no mesmo período pra todo mundo, por isso entra direto como
+            // conta (1ª parcela 20/11, 2ª parcela 30/12) — não existe lançamento recorrente
+            // pra ele, então essas linhas vêm prontas do back-end (eventos13), não da projeção
+            // de lançamentos acima. Férias/rescisão não entram aqui: só aparecem quando o RH
+            // já gerou o holerite manualmente na tela de RH.
+            (resContas.eventos13 || []).forEach(ev => {
+                const statusFinalTreze = ev.status === 'Pago' ? 'pago' : 'pendente';
+                contasProjetadas.push({
+                    idlancamento: `13-${ev.idfuncionario}-${ev.mes}-${ev.ano}`,
+                    idpagamento: null,
+                    tipovinculo: 'funcionario',
+                    holerite_tipo13: true,
+                    nome_vinculo: ev.nome,
+                    observacao: ev.mes === 11 ? '13º salário (1ª parcela)' : '13º salário (2ª parcela)',
+                    idfuncionario_vinculo: ev.idfuncionario,
+                    vencimento: ev.dtvcto.split('-').reverse().join('/'),
+                    dtvcto: ev.dtvcto,
+                    valorTotal: parseFloat(ev.liquido || 0),
+                    valorPago: statusFinalTreze === 'pago' ? parseFloat(ev.liquido || 0) : 0,
+                    status: statusFinalTreze,
+                    statusFiltro: statusFinalTreze,
+                    idholerite: ev.idholerite,
+                    holerite_mes: ev.mes,
+                    holerite_ano: ev.ano,
+                    holerite_origem: ev.origem,
+                    status_holerite: ev.status,
+                    holerite_dtpagamento: ev.dtpagamento,
+                    holerite_comprovante: ev.comprovante,
+                    holerite_proventos: parseFloat(ev.proventos || 0),
+                    holerite_descontos: parseFloat(ev.descontos || 0),
+                    holerite_liquido: parseFloat(ev.liquido || 0)
+                });
+            });
+
+            // Funcionário de folha fixa (Interno/Externo) SEM lançamento cadastrado em
+            // Vencimentos (ex: cadastro feito só pelo RH, sem gerar a conta recorrente) — o
+            // holerite dele existe (computado pelo backend), mas nunca é "encontrado" pelo loop
+            // acima porque não há lançamento pra projetar. Entra aqui direto, igual ao 13º,
+            // senão o funcionário simplesmente some da tela mesmo tendo folha ativa.
+            mapaHolerites.forEach((h, chave) => {
+                if (holeritesUsados.has(chave)) return;
+                const statusHol = (h.status || 'Previsão');
+                const statusFinalMensal = h.origem === 'real'
+                    ? (String(statusHol).toLowerCase() === 'pago' ? 'pago' : 'pendente')
+                    : 'projecao';
+                contasProjetadas.push({
+                    idlancamento: `salario-${h.idfuncionario}-${h.mes}-${h.ano}`,
+                    idpagamento: null,
+                    tipovinculo: 'funcionario',
+                    holerite_tipo13: false,
+                    nome_vinculo: h.nome,
+                    observacao: 'Salário',
+                    idfuncionario_vinculo: h.idfuncionario,
+                    vencimento: `05/${String(h.mes).padStart(2, '0')}/${h.ano}`,
+                    dtvcto: `${h.ano}-${String(h.mes).padStart(2, '0')}-05`,
+                    valorTotal: parseFloat(h.liquido || 0),
+                    valorPago: statusFinalMensal === 'pago' ? parseFloat(h.liquido || 0) : 0,
+                    status: statusFinalMensal,
+                    statusFiltro: statusFinalMensal === 'pago' ? 'liquidado' : (statusFinalMensal === 'pendente' ? 'a_vencer' : 'a_vencer'),
+                    idholerite: h.idholerite,
+                    holerite_mes: h.mes,
+                    holerite_ano: h.ano,
+                    holerite_origem: h.origem,
+                    status_holerite: h.status,
+                    holerite_dtpagamento: h.dtpagamento,
+                    holerite_comprovante: h.comprovante,
+                    holerite_proventos: parseFloat(h.proventos || 0),
+                    holerite_descontos: parseFloat(h.descontos || 0),
+                    holerite_liquido: parseFloat(h.liquido || 0)
+                });
             });
 
             // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
@@ -16540,6 +16662,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // 5. Lógica de Suspensos: Queremos que eles apareçam se forem do período ou se estiverem "pendentes" (atrás)
                 // Se você quer que suspensos antigos continuem aparecendo na lista:
                 const ehSuspensoRelevante = (ehSuspenso && dataVcto <= dFimComp);
+
+                // Funcionário (salário/13º) é previsão automática pra TODOS os meses do ano, não
+                // uma dívida real — não deve "vazar" por estar em atraso; respeita só o período
+                // selecionado no card (mensal/semanal/diário etc), igual a qualquer outro filtro.
+                if ((c.tipovinculo || '').toLowerCase() === 'funcionario') return estaNoPeriodo;
 
                 return estaNoPeriodo || ehAtrasado || ehPagoAnterior || ehSuspensoRelevante;
             });
@@ -16612,45 +16739,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     wrapperContas.style.display = isVisible ? 'none' : 'block';
                 });
 
-                // --- NOVO: CAPTURAR EMPRESAS PAGADORAS ---
-                
-                const empresasMap = new Map();
-                contasParaExibir.forEach(c => {
-                    // Só adiciona ao mapa se houver um ID válido e for diferente de 0
-                    if (c.idempresapagadora && c.idempresapagadora !== 0) { 
-                        empresasMap.set(c.idempresapagadora, c.empresapagadora);
-                    } else {
-                        // Opcional: Agrupar tudo que não tem empresa em um ID fictício
-                        empresasMap.set("nulo", "Sem Empresa Definida");
-                    }
-                });
-
-                // --- NOVO: FILTRO DE EMPRESAS PAGADORAS ---
-                const containerFiltroEmpresas = document.createElement("div");
-                containerFiltroEmpresas.className = "filtro-empresas-contas";
-                containerFiltroEmpresas.style = "margin: 10px; display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;";
-
-                containerFiltroEmpresas.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #555;">Filtrar Empresa:</span>`;
-
-                const selectEmpresa = document.createElement("select");
-                selectEmpresa.id = "select-empresa-pagadora";
-                selectEmpresa.style = "padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 13px; flex: 1;";
-                selectEmpresa.innerHTML = `<option value="todas">Todas as Empresas</option>`;
-
-                // Preenche o select com as empresas encontradas nas contas
-                empresasMap.forEach((nome, id) => {
-                    selectEmpresa.innerHTML += `<option value="${id}">${nome}</option>`;
-                });
-
-                selectEmpresa.onchange = () => {
-                    const idSelecionado = selectEmpresa.value;
-                    filtrarPorEmpresaNaTela(idSelecionado);
-                };
-
-                containerFiltroEmpresas.appendChild(selectEmpresa);
-                wrapperContas.appendChild(containerFiltroEmpresas); // Adiciona antes dos botões de status
-
-
                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
                 const containerFiltrosContas = document.createElement("div");
                 containerFiltrosContas.className = "filtros-rapidos-contas";
@@ -16697,7 +16785,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 ['FORNECEDOR', 'FUNCIONARIO', 'CLIENTE', 'OUTROS'].forEach(t => {
                     // Passamos 'hojeRelativo' em vez de 'hoje' para manter a consistência do ano
-                    if (agrupados[t]) wrapperContas.appendChild(criarAccordionVinculo(t, agrupados[t], hojeRelativo));
+                    // Funcionário é projetado pra TODO funcionário de folha fixa, mesmo sem
+                    // salário cadastrado ainda (valor 0) — nesse caso o accordion "Funcionários"
+                    // não deve aparecer, senão mostra um grupo vazio (0/0) sem utilidade. O valor
+                    // real do funcionário é holerite_liquido, não valorTotal (que pode vir de um
+                    // lançamento antigo com vlrestimado desatualizado — mesma lógica usada no
+                    // resumo do header em criarAccordionVinculo).
+                    const grupo = agrupados[t];
+                    const temValor = grupo && grupo.some(c => parseFloat(t === 'FUNCIONARIO' ? (c.holerite_liquido || 0) : (c.valorTotal || 0)) > 0);
+                    if (grupo && (t !== 'FUNCIONARIO' || temValor)) wrapperContas.appendChild(criarAccordionVinculo(t, grupo, hojeRelativo));
                 });
 
                 setTimeout(atualizarContadoresFiltrosContas, 300);
@@ -16748,9 +16844,18 @@ function filtrarEventosNaTela(statusAlvo) {
     console.log(`Filtrando por: ${statusAlvo}`);
 
     itens.forEach(item => {
+        // Funcionário usa rowspan (célula de nome mesclada) — esconder linhas no meio do
+        // grupo via display:none quebra o rowspan no Chrome. Esse grupo sempre mostra
+        // todas as linhas, independente do filtro rápido ativo.
+        if (item.classList.contains("sem-filtro-rapido-por-linha")) {
+            item.style.display = "block";
+            item.querySelectorAll(".item-financeiro-linha").forEach(linha => { linha.style.display = ""; });
+            return;
+        }
+
         // Verifica se este item é um grupo do financeiro (tem linhas dentro)
         const linhasInternas = item.querySelectorAll(".item-financeiro-linha");
-        
+
         if (linhasInternas.length > 0) {
             // --- LÓGICA PARA CONTAS A PAGAR (GRUPOS) ---
             let temFilhoVisivel = false;
@@ -17437,7 +17542,16 @@ function converterData(dataStr) {
 
 
 function criarAccordionVinculo(tipo, lista, hoje) {
+    const ehFuncionario = (tipo || '').toUpperCase() === 'FUNCIONARIO';
     const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+    // Coluna AÇÕES (pagar/suspender/reverter) só aparece pra quem tem nível master, supremo
+    // ou devs — mesmo padrão já usado em AjusteFinanceiro.js. Os demais nem veem a coluna.
+    const podeVerAcoesFinanceiro = temPermissao("Pagamentos", "devs")
+        || temPermissao("Pagamentos", "supremo")
+        || temPermissao("Pagamentos", "master");
+    // Total de colunas da tabela, considerando se a coluna AÇÕES está sendo exibida — usado
+    // pra manter os colspan (header do mês, "nenhum registro", linha de total) sempre certos.
+    const totalColunas = (ehFuncionario ? 8 : 7) + (podeVerAcoesFinanceiro ? 1 : 0);
     const hojeISO = hoje.toLocaleDateString('sv-SE');
     const hojeBR = hoje.toLocaleDateString('pt-BR');
 
@@ -17455,7 +17569,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
         const vPago = Math.max(0, parseFloat(c.vlrpago || 0));
         const vSaldo = Math.max(0, parseFloat(c.saldo || 0));
-        const vTotalItem = parseFloat(c.valorTotal || c.vlrreal || c.vlrestimado || 0);
+        // Funcionário: o valor real é o líquido calculado do holerite (mesmo usado por linha na
+        // tabela) — não o valor genérico do lançamento (vlrestimado), que não reflete o salário
+        // de fato cadastrado e pode inflar o total do card (ex: cadastro sem salário = R$0 real,
+        // mas vlrestimado do lançamento continua com um valor antigo/estimado).
+        const vTotalItem = ehFuncionario
+            ? parseFloat(c.holerite_liquido || 0)
+            : parseFloat(c.valorTotal || c.vlrreal || c.vlrestimado || 0);
 
         const dataVctoStr = c.dtvcto || (c.vencimento ? c.vencimento.split('/').reverse().join('-') : "");
         const dParcela = dataVctoStr ? new Date(dataVctoStr + "T12:00:00") : null;
@@ -17517,7 +17637,11 @@ function criarAccordionVinculo(tipo, lista, hoje) {
         : `<small style="color:#28a745; font-weight: bold; display:block; margin-top:4px;">✓ LIQUIDADO</small>`;
 
     const item = document.createElement("div");
-    item.className = "accordion-item item-financeiro"; 
+    // Funcionário usa rowspan (célula de nome mesclada) na sua tabela — o filtro rápido
+    // (Hoje/Vencidos/Todos) esconde linhas via display:none, e o Chrome não recalcula
+    // corretamente um rowspan quando uma linha do meio do grupo é escondida/mostrada.
+    // Por isso esse grupo fica de fora do filtro por linha (ver filtrarEventosNaTela).
+    item.className = "accordion-item item-financeiro" + (ehFuncionario ? " sem-filtro-rapido-por-linha" : "");
     
     let statusParaFiltro = "a_vencer";
     if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
@@ -17547,8 +17671,15 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                 <div class="fin-resumo-item orcado">
                     <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
                     <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
-                </div>                   
+                </div>
             </div>
+            ${ehFuncionario ? `
+            <button type="button" class="btn-imprimir-todos-holerites" title="Imprime todos os holerites que estão sendo mostrados aqui (respeita o filtro de período ativo)" style="
+                margin-left: 10px; padding: 6px 12px; background-color: #2E8B57; color: white;
+                border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;
+                white-space: nowrap;">
+                <i class="fas fa-print" style="margin-right: 5px;"></i> Imprimir todos
+            </button>` : ''}
         </div>
         <button type="button" class="btn-foco-contas" style="
             margin-left: 10px; 
@@ -17576,19 +17707,19 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                     <thead>
                         <tr>
                             <th>VÍNCULO / DESCRIÇÃO</th>
+                            ${ehFuncionario ? '<th style="text-align:center">CATEGORIA</th>' : ''}
                             <th style="text-align:center">VENCIMENTO</th>
-                            <th style="text-align:center">IMAGEM CONTA</th>
-                            <th style="text-align:center">AÇÕES</th>
+                            ${podeVerAcoesFinanceiro ? '<th style="text-align:center">AÇÕES</th>' : ''}
                             <th style="text-align:center">STATUS</th>
-                            <th style="text-align:center">EMPRESA PAGADORA</th>
                             <th style="text-align:center">DATA PAGAMENTO</th>
+                            <th style="text-align:center">${ehFuncionario ? 'HOLERITE' : 'IMAGEM CONTA'}</th>
                             <th style="text-align:center">COMPROVANTE</th>
                             <th style="text-align:right">VALOR</th>
                         </tr>
                     </thead>
                     <tbody>
                     ${(() => {
-                        if (!lista || lista.length === 0) return '<tr><td colspan="8" style="text-align:center;">Nenhum registro encontrado.</td></tr>';
+                        if (!lista || lista.length === 0) return `<tr><td colspan="${totalColunas}" style="text-align:center;">Nenhum registro encontrado.</td></tr>`;
 
                         const gruposPorMes = lista.reduce((acc, curr) => {
                             const dStr = curr.dtvcto || curr.vencimento || "";
@@ -17605,9 +17736,9 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                         return Object.keys(gruposPorMes).map(mesAno => {
                             const itens = gruposPorMes[mesAno];
-                            const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="8" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
+                            const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="${totalColunas}" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
 
-                            const linhas = itens.map(c => {
+                            const linhasObjs = itens.map(c => {
                                 const statusC = (c.status || 'pendente').toLowerCase();
                                 const ehSuspenso = statusC === 'suspenso';
                                 
@@ -17640,56 +17771,221 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 const obsParaJs = (c.observacao || c.descricao || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
+                                // Grupo Funcionário: vencimento/pagamento/valor vêm do Holerite Virtual (RH), não
+                                // do plano de contas — o pagamento é feito dentro do próprio holerite.
+                                const statusHolerite = (c.status_holerite || 'previsao').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                                const dtPagtoHolerite = c.holerite_dtpagamento ? String(c.holerite_dtpagamento).substring(0, 10).split('-').reverse().join('/') : '---';
+                                const idFuncBotao = c.idfuncionario_vinculo || '';
+                                const mesHolerite = c.holerite_mes || (dProj.getMonth() + 1);
+                                const anoHolerite = c.holerite_ano || dProj.getFullYear();
+
+                                // Imprimir só libera depois que o comprovante já foi anexado — a impressão
+                                // agora inclui o comprovante junto (ver imprimirHoleriteExterno em RH.js),
+                                // então sem comprovante anexado não tem o que juntar na impressão ainda.
+                                const temComprovanteHolerite = !!(c.holerite_comprovante && c.holerite_comprovante !== '---');
+                                const celulaHolerite = ehFuncionario ? `
+                                    <td class="celula-holerite-imprimir" style="text-align:center;">
+                                        ${temComprovanteHolerite ? `
+                                        <a href="javascript:void(0)"
+                                            onclick="imprimirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite})"
+                                            style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                            <i class="fas fa-print" style="font-size: 18px;"></i>
+                                            <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
+                                        </a>` : `
+                                        <small style="color:#999; font-style: italic;" title="Disponível após anexar o comprovante">Aguardando Comprovante</small>`}
+                                    </td>` : `
+                                    <td style="text-align:center;">
+                                        ${c.imagemconta && c.imagemconta !== '---'
+                                            ? `<a href="javascript:void(0)"
+                                                onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
+                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
+                                                <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
+                                            </a>`
+                                            : `<div>
+                                                <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
+                                                <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
+                                            </div>`
+                                        }
+                                    </td>`;
+
+                                // Fecha o modo tela cheia (se estiver aberto) antes de navegar pro RH —
+                                // senão a barra/overlay de tela cheia fica presa por cima da tela do RH.
+                                const btnAbrirHolerite = `<button type="button" onclick="document.getElementById('btn-fechar-tela-cheia')?.click(); abrirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite})" title="Abrir Holerite" style="cursor:pointer; background:#0d6efd; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-file-invoice" style="color:#fff;"></i></button>`;
+
+                                // Funcionário (mensal OU 13º) não tem "pagamento" no fluxo de contas — o
+                                // pagamento é sempre do HOLERITE do RH (PUT /rh/holerite/:id/pagar),
+                                // nunca do lançamento/conta genérico (que nem reflete o valor real do
+                                // holerite, como visto com salários desatualizados/duplicados).
+                                const jaPagoHolerite = statusHolerite === 'pago';
+                                const btnPagarHolerite = jaPagoHolerite
+                                    ? '<i class="fas fa-lock"></i>'
+                                    : c.idholerite
+                                        ? `<button type="button" onclick="pagarHoleriteFuncionario(${c.idholerite}, this)" class="btn-pago"><i class="fas fa-money-bill-wave"></i> PAGAR</button>`
+                                        : `<span title="Abra o holerite pra gerar antes de pagar" style="color:#999; font-size:11px; font-style:italic;">Gerar no holerite</span>`;
+
+                                // Coluna inteira (header + célula) só existe pra quem tem permissão
+                                // master/supremo/devs — ver podeVerAcoesFinanceiro no topo da função.
+                                const celulaAcoes = !podeVerAcoesFinanceiro ? '' : (ehFuncionario ? `
+                                    <td style="text-align:center;">
+                                        <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                                            ${btnPagarHolerite}
+                                            ${btnAbrirHolerite}
+                                        </div>
+                                    </td>` : `
+                                    <td style="text-align:center;">
+                                        ${ehSuspenso
+                                            ? `<button onclick="${temPermissaoSupremo ? `reverterSuspensao('${c.idlancamento}', '${c.idpagamento}', '${vctoISO}', '${obsParaJs}')` : `Swal.fire('Negado','Acesso Supremo Requerido','warning')`}" class="btn-reverter-suspensao" style="cursor: ${temPermissaoSupremo ? 'pointer' : 'not-allowed'}; background: ${temPermissaoSupremo ? '#6c757d' : '#eee'}; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-unlock-alt" style="color:${temPermissaoSupremo ? '#fff' : '#ccc'}"></i></button>`
+                                            : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : (typeof renderBotaoPagamento === 'function' ? renderBotaoPagamento(c) : ''))}
+                                    </td>`);
+
+                                const celulaStatus = ehFuncionario
+                                    ? `<td style="text-align:center;"><span class="status-pilula status-${statusHolerite}">${(c.status_holerite || 'Previsão').toUpperCase()}</span></td>`
+                                    : `<td style="text-align:center;"><span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span></td>`;
+
+                                const celulaDataPagamento = ehFuncionario
+                                    ? `<td class="celula-data-pagamento" style="text-align:center;">${dtPagtoHolerite}</td>`
+                                    : `<td style="text-align:center;">${pgtoExibicao}</td>`;
+
+                                const celulaComprovante = ehFuncionario ? `
+                                    <td class="celula-comprovante-holerite" style="text-align:center;">
+                                        ${(c.holerite_comprovante && c.holerite_comprovante !== '---')
+                                            ? `<a href="javascript:void(0)"
+                                                onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/rh/comprovantes/${c.holerite_comprovante}'))"
+                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                <i class="fas fa-receipt" style="font-size: 18px;"></i>
+                                                <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
+                                            </a>`
+                                            : (statusHolerite === 'pago'
+                                                ? `<div>
+                                                    <input type="file" style="display:none" id="up_comp_hol_${c.idholerite}" onchange="uploadComprovanteHolerite(this, ${c.idholerite})">
+                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_hol_${c.idholerite}').click()"></i>
+                                                </div>`
+                                                : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+                                            )
+                                        }
+                                    </td>` : `
+                                    <td style="text-align:center;">
+                                        ${(c.comprovantepgto && c.comprovantepgto !== '---')
+                                            ? `<a href="javascript:void(0)"
+                                                onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
+                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                <i class="fas fa-receipt" style="font-size: 18px;"></i>
+                                                <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
+                                            </a>`
+                                            : (statusC === 'pago'
+                                                ? `<div>
+                                                    <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
+                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
+
+                                                </div>`
+                                                : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+                                            )
+                                        }
+                                    </td>`;
+
+                                const valorLinha = ehFuncionario ? parseFloat(c.holerite_liquido || 0) : vExibicao;
+
+                                // Funcionário: célula de nome mesclada (rowspan) + pill de categoria por
+                                // linha. Guardamos as peças soltas pra montar o rowspan DEPOIS deste map,
+                                // já sabendo o tamanho real do grupo (categorias + linha de total).
+                                if (ehFuncionario) {
+                                    const categoriaLabel = c.holerite_tipo13 ? (c.observacao || '13º salário') : 'Salário';
+                                    const categoriaClasse = c.holerite_tipo13
+                                        ? (c.holerite_mes === 11 ? 'badge-13-1' : 'badge-13-2')
+                                        : 'badge-salario';
+                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
+                                    // border-bottom fixo no inline style: a célula (rowspan) pertence
+                                    // fisicamente à 1ª <tr> do grupo, que leva a classe "sem borda" pra
+                                    // tirar a linha ENTRE as categorias — sem isso ela também perderia a
+                                    // borda de fechamento do grupo. Inline sempre vence a regra de classe.
+                                    const nomeCel = (rowspanAttr) => `<td${rowspanAttr} style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
+                                                <strong>${c.nome_vinculo || '---'}</strong>
+                                            </td>`;
+                                    const restoCels = `
+                                            <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
+                                            <td style="text-align:center;">${dataExibicao}</td>
+                                            ${celulaAcoes}
+                                            ${celulaStatus}
+                                            ${celulaDataPagamento}
+                                            ${celulaHolerite}
+                                            ${celulaComprovante}
+                                            <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(valorLinha)}</strong></td>
+                                        </tr>`;
+                                    return {
+                                        // abreLinha/restoCels fixos por linha; a célula de nome (1ª linha,
+                                        // com rowspan) é decidida depois deste map, já sabendo o total de
+                                        // linhas reais do grupo (categorias + total).
+                                        abreLinha, nomeCel, restoCels,
+                                        idfunc: c.idfuncionario_vinculo || c.nome_vinculo || '',
+                                        valorLinha,
+                                    };
+                                }
+
                                 return `
-                                    <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-id-empresa="${c.idempresapagadora || 'nulo'}">
+                                    <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
                                         </td>
                                         <td style="text-align:center;">${dataExibicao}</td>
-                                        <td style="text-align:center;">
-                                            ${c.imagemconta && c.imagemconta !== '---' 
-                                                ? `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
-                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                                                    <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
-                                                    <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
-                                                </a>` 
-                                                : `<div>
-                                                    <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
-                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
-                                                </div>`
-                                            }
-                                        </td>
-                                        <td style="text-align:center;">
-                                            ${ehSuspenso 
-                                                ? `<button onclick="${temPermissaoSupremo ? `reverterSuspensao('${c.idlancamento}', '${c.idpagamento}', '${vctoISO}', '${obsParaJs}')` : `Swal.fire('Negado','Acesso Supremo Requerido','warning')`}" class="btn-reverter-suspensao" style="cursor: ${temPermissaoSupremo ? 'pointer' : 'not-allowed'}; background: ${temPermissaoSupremo ? '#6c757d' : '#eee'}; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-unlock-alt" style="color:${temPermissaoSupremo ? '#fff' : '#ccc'}"></i></button>` 
-                                                : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : (typeof renderBotaoPagamento === 'function' ? renderBotaoPagamento(c) : ''))}
-                                        </td>
-                                        <td style="text-align:center;"><span class="badge-status-${statusC}">${statusC.toUpperCase()}</span></td>
-                                        <td style="text-align:center;">${c.empresapagadora}</td>
-                                        <td style="text-align:center;">${pgtoExibicao}</td>
-                                        <td style="text-align:center;">
-                                            ${(c.comprovantepgto && c.comprovantepgto !== '---')
-                                                ? `<a href="javascript:void(0)" 
-                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
-                                                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                                                    <i class="fas fa-receipt" style="font-size: 18px;"></i>
-                                                    <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
-                                                </a>`
-                                                : (statusC === 'pago' 
-                                                    ? `<div>
-                                                        <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
-                                                        <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
-                                                                                                                
-                                                    </div>` 
-                                                    : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
-                                                )
-                                            }
-                                        </td>                                    
-                                        <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(vExibicao)}</strong></td>
+                                        ${celulaAcoes}
+                                        ${celulaStatus}
+                                        ${celulaDataPagamento}
+                                        ${celulaHolerite}
+                                        ${celulaComprovante}
+                                        <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(valorLinha)}</strong></td>
                                     </tr>`;
-                            }).join('');
+                            });
+
+                            if (ehFuncionario) {
+                                // Agrupa as linhas (já computadas como objetos) por funcionário, preservando
+                                // a ordem de aparição: a célula de nome vem UMA VEZ, com rowspan calculado
+                                // a partir do tamanho REAL do próprio array `grupo` (nunca um número
+                                // "adivinhado" separadamente) — cobre as linhas de categoria + a linha de
+                                // total, então nunca fica dessincronizado com o número de <tr> emitidos.
+                                const porFunc = new Map();
+                                linhasObjs.forEach((l) => {
+                                    if (!porFunc.has(l.idfunc)) porFunc.set(l.idfunc, []);
+                                    porFunc.get(l.idfunc).push(l);
+                                });
+
+                                const linhasAgrupadas = Array.from(porFunc.values()).map((grupo) => {
+                                    const temTotal = grupo.length > 1;
+                                    const totalFunc = grupo.reduce((soma, l) => soma + (l.valorLinha || 0), 0);
+
+                                    // Célula de nome MESCLADA (rowspan) cobrindo só as linhas de CATEGORIA
+                                    // (não a linha de total) — o total precisa ocupar a largura inteira da
+                                    // tabela, do nome até o valor, então não pode ficar "atrás" do rowspan.
+                                    // Essa tabela fica de fora do filtro rápido por linha (ver
+                                    // "sem-filtro-rapido-por-linha" em filtrarEventosNaTela) justamente pra
+                                    // não quebrar esse rowspan escondendo linhas do meio do grupo.
+                                    // Sem borda entre as linhas de categoria do MESMO funcionário — quando
+                                    // há total, ele fecha o grupo (border-top); sem total, a própria (única)
+                                    // linha leva a borda de fechamento reforçada, pra separar bem do próximo
+                                    // funcionário.
+                                    const linhasCategorias = grupo.map((l, idx) => {
+                                        const cel = idx === 0 ? l.nomeCel(grupo.length > 1 ? ` rowspan="${grupo.length}"` : '') : '';
+                                        const linha = l.abreLinha + cel + l.restoCels;
+                                        return temTotal
+                                            ? linha.replace('class="item-financeiro-linha', 'class="item-financeiro-linha grupo-funcionario-sem-borda')
+                                            : linha.replace('class="item-financeiro-linha', 'class="item-financeiro-linha grupo-funcionario-fechamento');
+                                    }).join('');
+
+                                    const linhaTotal = temTotal ? `
+                                        <tr class="item-financeiro-linha linha-total-funcionario grupo-funcionario-fechamento">
+                                            <td colspan="${totalColunas - 1}" style="text-align:right; padding:8px;">TOTAL DO FUNCIONÁRIO</td>
+                                            <td style="text-align:right; padding:8px;"><strong>${formatarMoeda(totalFunc)}</strong></td>
+                                        </tr>` : '';
+
+                                    return linhasCategorias + linhaTotal;
+                                }).join('');
+
+                                return headerMes + linhasAgrupadas;
+                            }
+
+                            const linhas = linhasObjs.join('');
                             return headerMes + linhas;
                         }).join('');
                     })()}
@@ -17717,7 +18013,31 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
     // 3. Evento Único
     header.onclick = (e) => {
-     
+
+        const clicouImprimirTodos = e.target.closest('.btn-imprimir-todos-holerites');
+        if (clicouImprimirTodos) {
+            e.stopPropagation();
+            // Só imprime quem está PAGO e já tem comprovante anexado — mesma condição que
+            // libera o "Imprimir (2 vias)" individual de cada linha.
+            const linhas = item.querySelectorAll('tr[data-print-idfunc][data-print-pronto="1"]');
+            const lista = Array.from(linhas).map(tr => ({
+                idfuncionario: tr.dataset.printIdfunc,
+                mes: tr.dataset.printMes,
+                ano: tr.dataset.printAno,
+                tipo: tr.dataset.printTipo,
+            }));
+            if (!lista.length) {
+                Swal.fire("Nada pra imprimir", "Nenhum holerite pago e com comprovante anexado nessa lista.", "warning");
+                return;
+            }
+            if (typeof window.imprimirHoleritesEmLote === "function") {
+                window.imprimirHoleritesEmLote(lista);
+            } else {
+                Swal.fire("Indisponível", "Abra a tela de RH ao menos uma vez nesta sessão pra habilitar a impressão em lote.", "warning");
+            }
+            return;
+        }
+
         const clicouNoBotaoTelaCheia = e.target.closest('.btn-foco-contas');
 
         if (clicouNoBotaoTelaCheia) {
@@ -17803,6 +18123,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
             // 6. BOTÃO VOLTAR
             const botaoVoltar = document.createElement("button");
+            botaoVoltar.id = "btn-fechar-tela-cheia";
             botaoVoltar.innerHTML = '✕ FECHAR';
             Object.assign(botaoVoltar.style, {
                 position: "fixed", top: "25px", right: "20px", zIndex: "100000",
@@ -17858,56 +18179,21 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
 
 function aplicarFiltrosFinanceiros() {
-    const empresaSel = document.querySelector("#select-empresa-pagadora")?.value || "todas";
     // Busca qual botão de status está "ativo" (precisamos adicionar a classe 'active' no clique)
     const statusSel = document.querySelector(".btn-filtro-financeiro.active")?.getAttribute("data-filtro-id") || "todos";
 
-    const todasAsLinhas = document.querySelectorAll(".wrapper-contas-financeiro tr[data-id-empresa]");
+    const todasAsLinhas = document.querySelectorAll(".wrapper-contas-financeiro tr[data-status-filtro]");
 
     todasAsLinhas.forEach(linha => {
-        const idEmpresa = linha.getAttribute("data-id-empresa");
         const statusFiltro = linha.getAttribute("data-status-filtro");
 
-        const bateEmpresa = (empresaSel === "todas" || idEmpresa === empresaSel);
         const bateStatus = (statusSel === "todos" || statusFiltro === statusSel);
 
-        // Só exibe se passar pelos dois filtros
-        linha.style.display = (bateEmpresa && bateStatus) ? "" : "none";
+        // Só exibe se passar pelo filtro de status
+        linha.style.display = bateStatus ? "" : "none";
     });
     
     // Opcional: Se uma categoria (ex: FORNECEDORES) ficar vazia, você pode esconder o accordion dela aqui
-}
-
-function filtrarPorEmpresaNaTela(idSelecionado) {
-    // 1. Seleciona todas as linhas de contas que possuem o atributo de empresa
-    const linhas = document.querySelectorAll(".item-financeiro-linha[data-id-empresa]");
-    
-    linhas.forEach(linha => {
-        const idEmpresaLinha = linha.getAttribute("data-id-empresa");
-        
-        // Lógica: Se for "todas" ou o ID bater, mostra. Senão, esconde.
-        if (idSelecionado === "todas" || idEmpresaLinha === String(idSelecionado)) {
-            linha.style.display = "";
-        } else {
-            linha.style.display = "none";
-        }
-    });
-
-    // 2. Opcional: Esconder os headers de Meses que ficarem sem nenhuma conta visível
-    document.querySelectorAll('tr[style*="background: #f8f9fa"]').forEach(headerMes => {
-        let proximaLinha = headerMes.nextElementSibling;
-        let temVisivel = false;
-        
-        // Verifica se há alguma conta visível até o próximo header de mês
-        while (proximaLinha && !proximaLinha.style.background.includes('#f8f9fa')) {
-            if (proximaLinha.style.display !== "none") {
-                temVisivel = true;
-                break;
-            }
-            proximaLinha = proximaLinha.nextElementSibling;
-        }
-        headerMes.style.display = temVisivel ? "" : "none";
-    });
 }
 
 function headerClickHandler(item) {
@@ -18034,7 +18320,7 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 <div class="swal-row">
                     <div class="swal-col">
                         <label>Valor Original (R$):</label>
-                        <input id="swal-vlr-original" class="swal2-input" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
+                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
                     </div>
                     <div class="swal-col">
                         <label>Vencimento Original:</label>
@@ -18046,20 +18332,20 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                     ${eAtrasado ? `
                     <div class="swal-col">
                         <label style="color: #d9534f;">Atraso (Juros/Multa):</label>
-                        <input id="swal-vlr-atraso" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #d9534f;">
+                        <input id="swal-vlr-atraso" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #d9534f;">
                     </div>
                     ` : `<input id="swal-vlr-atraso" type="hidden" value="0">`}
                     
                     <div class="swal-col">
                         <label style="color: #0275d8;">Desconto (R$):</label>
-                        <input id="swal-vlr-desconto" class="swal2-input" type="number" step="0.01" value="0" style="border-color: #0275d8;">
+                        <input id="swal-vlr-desconto" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #0275d8;">
                     </div>
                 </div>
 
                 <div class="swal-row">
                     <div class="swal-col">
                         <label style="color: #28a745;">Valor Total Pago (R$):</label>
-                        <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
+                        <input id="swal-vlrpago" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
                     </div>
                     <div class="swal-col">
                         <label>Data do Pagamento:</label>
@@ -18363,6 +18649,123 @@ function verificarSeAccordionVazio(container) {
 //             Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
 //         }
 //     }
+
+// Marca como Pago um holerite (ex: parcela do 13º) direto da tela de Vencimentos > Contas a
+// Pagar > Funcionário — usa o endpoint do RH (PUT /rh/holerite/:id/pagar), não o fluxo de
+// pagamento de lançamento (essas linhas não têm lançamento por trás).
+async function pagarHoleriteFuncionario(idholerite, btnEl) {
+    if (!idholerite) return;
+    const conf = await Swal.fire({
+        title: 'Confirmar pagamento?',
+        text: 'O holerite será marcado como PAGO.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    try {
+        const res = await fetchComToken(`/rh/holerite/${idholerite}/pagar`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pago: true })
+        });
+        if (res && res.ok) {
+            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+
+            // Atualiza a linha no lugar (sem recarregar a página — perderia o scroll, o
+            // acordeão aberto e o modo tela cheia). Mesmo padrão do fluxo normal de pagamento
+            // de contas (ver enviarBaixaPagamento).
+            const linha = btnEl ? btnEl.closest('tr') : null;
+            if (linha) {
+                const acoesDiv = btnEl.parentElement;
+                if (acoesDiv) {
+                    btnEl.outerHTML = '<i class="fas fa-lock"></i>';
+                }
+                const pilulaStatus = linha.querySelector('.status-pilula');
+                if (pilulaStatus) {
+                    pilulaStatus.className = 'status-pilula status-pago';
+                    pilulaStatus.textContent = 'PAGO';
+                }
+                const celulaData = linha.querySelector('.celula-data-pagamento');
+                if (celulaData) {
+                    celulaData.textContent = (res.dtpagamento ? String(res.dtpagamento).substring(0, 10) : new Date().toISOString().substring(0, 10)).split('-').reverse().join('/');
+                }
+                // Libera o upload de comprovante agora que foi pago — o "Imprimir (2 vias)" só
+                // libera depois de anexar o comprovante (ver uploadComprovanteHolerite).
+                const celulaComp = linha.querySelector('.celula-comprovante-holerite');
+                if (celulaComp) {
+                    celulaComp.innerHTML = `<div>
+                        <input type="file" style="display:none" id="up_comp_hol_${idholerite}" onchange="uploadComprovanteHolerite(this, ${idholerite})">
+                        <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_hol_${idholerite}').click()"></i>
+                    </div>`;
+                }
+                linha.style.transition = 'background-color 0.5s ease';
+                linha.style.backgroundColor = '#f0fff4';
+            }
+        } else {
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível confirmar o pagamento.', 'error');
+        }
+    } catch (err) {
+        Swal.fire('Erro', 'Não foi possível confirmar o pagamento.', 'error');
+    }
+}
+
+// Envia o comprovante de pagamento de um holerite (Salário/13º) direto da tela de Vencimentos
+// > Contas a Pagar > Funcionário — só aparece depois de pago (ver celulaComprovante).
+async function uploadComprovanteHolerite(inputEl, idholerite) {
+    const arquivo = inputEl.files[0];
+    if (!arquivo) return;
+
+    // Captura a linha ANTES de mexer no innerHTML — depois disso inputEl fica desanexado do
+    // DOM (innerHTML destrói os filhos antigos), e inputEl.closest('tr') pararia de funcionar.
+    const linha = inputEl.closest('tr');
+    const container = inputEl.parentElement;
+    const htmlOriginal = container.innerHTML;
+    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color:#007bff; font-size:18px;"></i>`;
+
+    const formData = new FormData();
+    formData.append('comprovante', arquivo);
+
+    try {
+        const res = await fetchComToken(`/rh/holerite/${idholerite}/comprovante`, {
+            method: 'POST',
+            body: formData,
+        });
+        if (res && res.ok) {
+            container.innerHTML = `<a href="javascript:void(0)"
+                onclick="abrirComprovanteSwal(encodeURIComponent('${res.url}'))"
+                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                <i class="fas fa-receipt" style="font-size: 18px;"></i>
+                <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
+            </a>`;
+            Swal.fire({ icon: 'success', title: 'Comprovante anexado', timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+
+            // Libera o "Imprimir (2 vias)" agora que já tem comprovante pra juntar na impressão.
+            const celulaHol = linha ? linha.querySelector('.celula-holerite-imprimir') : null;
+            if (celulaHol) {
+                celulaHol.innerHTML = `<a href="javascript:void(0)"
+                    onclick="imprimirHoleriteRH(${linha.dataset.printIdfunc}, ${linha.dataset.printMes}, ${linha.dataset.printAno})"
+                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                    <i class="fas fa-print" style="font-size: 18px;"></i>
+                    <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
+                </a>`;
+            }
+        } else {
+            container.innerHTML = htmlOriginal;
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível anexar o comprovante.', 'error');
+        }
+    } catch (err) {
+        container.innerHTML = htmlOriginal;
+        Swal.fire('Erro', 'Não foi possível anexar o comprovante.', 'error');
+    }
+}
+window.uploadComprovanteHolerite = uploadComprovanteHolerite;
+
+// Main.js é carregado como <script type="module">, então funções declaradas aqui não ficam
+// no escopo global sozinhas — precisam ser expostas em window pra funcionar em onclick inline.
+window.pagarHoleriteFuncionario = pagarHoleriteFuncionario;
 // }
 
 async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
@@ -18656,10 +19059,13 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
     // --- PROCESSAR CONTAS ---
     contasVisiveis.forEach(c => {
         const status = (c.status || '').toLowerCase();
-        const vBase = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
-        
+        // Funcionário (salário/13º) usa valorTotal/valorPago, não vlrestimado/vlrreal/vlrpago
+        // (esses são só dos lançamentos normais) — sem isso o custo do funcionário some do
+        // resumo (soma 0) mesmo com o holerite certo e pago.
+        const vBase = parseFloat(c.vlrreal || c.valor || c.vlrestimado || c.valorTotal || 0);
+
         if (status === 'pago') {
-            cPago += parseFloat(c.vlrpago || vBase);
+            cPago += parseFloat(c.vlrpago || c.valorPago || vBase);
         } else {
             const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
             if (dStr) {
@@ -19184,8 +19590,11 @@ async function carregarDadosVencimentos(anoFiltro) {
             ocupacaoMensal[chave] = true;
 
             const status = (c.status || "").toLowerCase();
-            const vTotal = Number(c.vlrreal || c.valor || c.vlrestimado || 0);
-            const vPago = Number(c.vlrpago || 0);
+            // Funcionário (salário/13º) usa valorTotal/valorPago, não vlrestimado/vlrreal/vlrpago
+            // (esses são só dos lançamentos normais) — sem isso o custo do funcionário some do
+            // total anual (soma 0) mesmo com o holerite certo e pago.
+            const vTotal = Number(c.vlrreal || c.valor || c.vlrestimado || c.valorTotal || 0);
+            const vPago = Number(c.vlrpago || c.valorPago || 0);
 
             if (status === 'pago') soma.contasPagos += (vPago || vTotal);
             else {
@@ -19198,7 +19607,7 @@ async function carregarDadosVencimentos(anoFiltro) {
             if (!(c.tiporepeticao === "FIXO" || c.indeterminado === true)) return;
             const dStr = (c.vctobase || c.dtvcto || "").substring(0, 10);
             const vctoBase = new Date(dStr + "T12:00:00");
-            const vProj = Number(c.vlrreal || c.valor || c.vlrestimado || 0);
+            const vProj = Number(c.vlrreal || c.valor || c.vlrestimado || c.valorTotal || 0);
 
             for (let i = 1; i < 12; i++) {
                 const dParcela = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
@@ -19211,6 +19620,30 @@ async function carregarDadosVencimentos(anoFiltro) {
                     }
                 }
             }
+        });
+
+        // --- 2.5 PROCESSAR HOLERITES (SALÁRIO/13º) ---
+        // Folha de funcionário fixo (Interno/Externo) NÃO vem em resContas.contas (isso é só
+        // lançamento manual) — ela é calculada aparte pelo back (GET /contas-pagar já devolve
+        // holerites/eventos13 prontos, real ou previsão), então precisa somar aqui também,
+        // senão o custo de funcionário nunca entra no total anual.
+        (resContas?.holerites || []).forEach(h => {
+            if (h.ano !== ano) return;
+            const vTotal = Number(h.liquido || 0);
+            if (vTotal <= 0) return;
+            const pago = h.origem === 'real' && String(h.status || '').toLowerCase() === 'pago';
+            if (pago) { soma.contasPagos += vTotal; return; }
+            const dVcto = new Date(ano, h.mes - 1, 5, 12, 0, 0);
+            if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+        });
+        (resContas?.eventos13 || []).forEach(ev => {
+            if (ev.ano !== ano) return;
+            const vTotal = Number(ev.liquido || 0);
+            if (vTotal <= 0) return;
+            const pago = ev.origem === 'real' && String(ev.status || '').toLowerCase() === 'pago';
+            if (pago) { soma.contasPagos += vTotal; return; }
+            const dVcto = new Date((ev.dtvcto || "") + "T12:00:00");
+            if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
         });
 
         // --- 3. ATUALIZAÇÃO DA UI (STAFF + CONTAS) ---
