@@ -1547,7 +1547,8 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
             
             WHERE 
                 se.idfuncionario = $1
-                AND se_emp.idEmpresa = $2
+                AND se_emp.idEmpresa = $2                
+                AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                 AND EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements_text(se.datasevento) AS existing_date
