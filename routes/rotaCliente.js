@@ -122,6 +122,33 @@ router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) =>
 
 
 // PUT atualizar cliente
+// PATCH /:id/inscricao-municipal — atualiza SÓ esse campo (dado de cadastro
+// global, não por-empresa). Rota dedicada de propósito: o PUT "/:id" abaixo
+// espera o formulário inteiro de CadClientes.html e reescreve todas as
+// colunas a partir do body, sem COALESCE — mandar um body parcial ali
+// apagaria o resto do cadastro do cliente.
+router.patch("/:id/inscricao-municipal", verificarPermissao('Clientes', 'alterar'), async (req, res) => {
+  const { id } = req.params;
+  const { inscricaomunicipal } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE clientes SET inscricaomunicipal = $1 WHERE idcliente = $2 RETURNING idcliente, inscricaomunicipal`,
+      [inscricaomunicipal || null, id]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
+    }
+    res.locals.acao = 'atualizou';
+    res.locals.idregistroalterado = id;
+    res.locals.dadosnovos = result.rows[0];
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao atualizar inscrição municipal do cliente:", error);
+    res.status(500).json({ message: "Erro ao atualizar inscrição municipal." });
+  }
+});
+
 router.put(
   "/:id",
   verificarPermissao('Clientes', 'alterar'),
