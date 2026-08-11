@@ -315,9 +315,14 @@ body.modal-open .notif-conteudo {
     justify-content:space-around;
     align-items: center;
     flex-direction: row;
+    flex-wrap: wrap; /* Empresa Emissora entrou nessa linha (nome+CNPJ é
+      texto comprido) — sem wrap, se não couber tudo, a linha espremeria ou
+      estouraria a largura do card. Com wrap, o que não couber cai pra
+      próxima linha em vez de quebrar o layout. */
+    row-gap: 10px;
     margin: 5px;
   }
-  
+
   .select, .selectFuncao, .selectEquip, .selectSup, .selectPav{
     display: flex;
     justify-content: center;
@@ -492,7 +497,18 @@ body.modal-open .notif-conteudo {
   .Norcamento{
     display: flex;
     justify-content: center;
+    align-items: center; /* sem isso, o .select (label+select empilhados,
+      mais alto que os .form/.form2 com label flutuante) fica fora de
+      esquadro com o resto da linha — align-items padrão é stretch. */
     margin: 0 auto;
+  }
+
+  .Norcamento .select {
+    margin: 0 10px;
+  }
+  .Norcamento .select label {
+    font-size: 13px;
+    margin-bottom: 2px;
   }
 
   .form-2colunas{
@@ -971,6 +987,86 @@ span.pavilhao-tag {
     gap: 8px;
     justify-content: center;
     align-items: center;
+  }
+
+  /* Filtro por produto + tela cheia da tabela de itens. */
+  .itens-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  /* Combo "estilo Excel": clique no campo mostra os produtos já lançados na
+     tabela (sem repetir o mesmo idfuncao/idequipamento/idsuprimento) — o
+     usuário escolhe da lista em vez de digitar, sem risco de errar o nome.
+     Digitar continua funcionando como filtro livre por texto (ver JS). */
+  .itens-filtro-combo { position: relative; width: 320px; }
+  #filtroProdutoItens {
+    width: 100%;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #000;
+    font-family: "Abel", sans-serif;
+    font-size: 14px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .itens-filtro-lista {
+    display: none;
+    position: absolute;
+    left: 0; right: 0; top: 100%;
+    z-index: 50;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 4px 0 0;
+    padding: 4px;
+    list-style: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  .itens-filtro-lista.aberta { display: block; }
+  .itens-filtro-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+  .itens-filtro-lista li:hover { background: #f0f2f5; }
+  .itens-filtro-lista li.itens-filtro-todos { font-weight: bold; border-bottom: 1px solid #eee; margin-bottom: 4px; border-radius: 4px 4px 0 0; }
+  .itens-filtro-lista li.itens-filtro-vazio { color: #999; cursor: default; }
+  .itens-filtro-lista li.itens-filtro-vazio:hover { background: none; }
+  #btnTelaCheiaItens {
+    width: auto;
+    font-size: 14px;
+    padding: 7px 16px;
+  }
+
+  /* #itensSecaoCompleta.tela-cheia cobre a tela toda de verdade (inset 0,
+     sem margem) por cima do resto do modal (position:fixed não precisa
+     esconder as outras seções via JS — só sobrepõe visualmente). Vira um
+     flex-column: Selects/addLinha/toolbar mantêm o tamanho natural no topo
+     e a .table (flex:1) cresce pra ocupar todo o espaço restante — sem isso
+     a tabela ficava travada em max-height:350px sobrando cinza em volta. */
+  #itensSecaoCompleta.tela-cheia {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99999;
+    background: #cacaca;
+    padding: 20px;
+    overflow-y: hidden;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+  }
+  #itensSecaoCompleta.tela-cheia > .Selects,
+  #itensSecaoCompleta.tela-cheia > .addLinha,
+  #itensSecaoCompleta.tela-cheia > .itens-toolbar {
+    flex-shrink: 0;
+  }
+  #itensSecaoCompleta.tela-cheia > .table {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
   }
 
   .Close{
@@ -1875,5 +1971,181 @@ display: none;
   }
 }
 
+/* ===== Parcelas de pagamento (definidas no fechamento do orçamento) ===== */
+.parcelas-wrap {
+  font-family: "Abel", sans-serif;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 10px;
+}
+.parcelas-check {
+  /* inline-flex (não flex) pra não esticar a largura toda do card — o
+     Orcamento.css tem um "label { display:flex; justify-content:center }"
+     global que, com o container ocupando 100% da largura, empurra o
+     checkbox e o texto pras pontas opostas. Sem esticar não tem espaço
+     pra isso acontecer. */
+  display: inline-flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: auto;
+  gap: 8px;
+  font-size: 16px;
+  color: #171616;
+  cursor: pointer;
+}
+.parcelas-check input[type="checkbox"] { width: 18px; height: 18px; }
+
+/* Linha do topo (checkbox + vencimento à vista) — .form2 fora de um
+   container flex vira bloco normal (width:auto = 100% do pai), por isso
+   precisa dessa linha pra virar item flex e encolher pro tamanho certo. */
+.parcelas-linha-topo {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.parcelas-vencimento-avista { margin: 0; }
+.parcelas-vencimento-avista input { width: 130px; }
+
+/* Empresa Emissora aqui é menor que o padrão do .select (que ficava do
+   tamanho da opção mais comprida, tipo "JA-EXPO — 39.781.313/0001-60") —
+   nessa linha compacta junto do checkbox, não precisa de tanto espaço. */
+.parcelas-empresa-emissora { margin: 0; }
+.parcelas-empresa-emissora label { width: auto; font-size: 13px; margin-bottom: 2px; }
+.parcelas-empresa-emissora select { max-width: 550px; font-size: 13px; }
+
+.parcelas-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+.parcelas-dividir {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+}
+.parcelas-dividir input[type="number"] {
+  width: 55px;
+  font-family: "Abel", sans-serif;
+  font-size: 15px;
+  border: 1.5px solid #9e9e9e;
+  border-radius: 6px;
+  padding: 5px 8px;
+  text-align: center;
+}
+.parcelas-dividir button,
+.parcelas-add {
+  font-family: "Abel", sans-serif;
+  font-size: 14.5px;
+  background-color: var(--primary-color, #942123);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.parcelas-dividir button:hover,
+.parcelas-add:hover { background-color: var(--hover-color, #75191a); }
+
+.parcelas-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.parcelas-add { margin: 0; }
+.parcelas-add.parcelas-secundario {
+  background-color: transparent;
+  color: var(--primary-color, #942123);
+  border: 1.5px solid var(--primary-color, #942123);
+}
+.parcelas-add.parcelas-secundario:hover {
+  background-color: var(--primary-color, #942123);
+  color: #fff;
+}
+
+.parcelas-soma {
+  font-size: 14.5px;
+  font-weight: bold;
+  color: #046800;
+}
+.parcelas-soma.parcelas-soma-erro { color: #B50000; }
+
+.parcelas-tabela-wrap { overflow-x: auto; border-radius: 8px; }
+table.parcelas-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 15px;
+  min-width: 620px;
+}
+table.parcelas-tabela th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #444;
+  padding: 8px 10px;
+  border-bottom: 1px solid #b9b9b9;
+}
+table.parcelas-tabela td { padding: 6px 8px; border-bottom: 1px solid #d8d8d8; }
+table.parcelas-tabela tr:last-child td { border-bottom: none; }
+
+table.parcelas-tabela input {
+  font-family: "Abel", sans-serif;
+  font-size: 15px;
+  border: 1.5px solid #9e9e9e;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #171616;
+  width: 100%;
+  box-sizing: border-box;
+}
+table.parcelas-tabela input.parc-percentual,
+table.parcelas-tabela input.parc-vencimento { min-width: 90px; }
+table.parcelas-tabela input.parc-valor { min-width: 110px; }
+table.parcelas-tabela input.parc-descricao { min-width: 120px; }
+table.parcelas-tabela input[readonly] {
+  background: #e9e9e9;
+  color: #555;
+  border-color: #c7c7c7;
+}
+
+.parc-remover {
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  background: var(--Reject, #B50000);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  line-height: 1;
+}
+.parc-remover:disabled { background: #aaa; cursor: not-allowed; }
+
+.parc-status-chip {
+  display: inline-block;
+  font-size: 11.5px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
+.parc-status-chip.aberta { background: var(--Pending, #FFBD29); color: #4a3300; }
+.parc-status-chip.faturada { background: var(--Aproved, #046800); }
+.parc-status-chip.cancelada { background: var(--Reject, #B50000); }
 
 

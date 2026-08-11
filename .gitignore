@@ -1,2 +1,6 @@
 node_modules/
 .env
+
+# Certificado digital (A1) usado pra assinar XML de Nota Fiscal — nunca versionar.
+certs/*
+!certs/.gitkeep

@@ -48,7 +48,7 @@ router.get(
             o.vlrimposto, o.percentimposto, o.vlrcliente, o.nomenclatura,
             o.formapagamento, o.edicao, o.geradoanoposterior,
             o.indicesaplicados, o.vlrctofixo, o.percentctofixo,
-            o.contratourl, o.contratarstaff  
+            o.contratourl, o.contratarstaff, o.idempresaemissora
         FROM orcamentos o
         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
         LEFT JOIN clientes c ON o.idcliente = c.idcliente
@@ -164,6 +164,25 @@ router.get("/clientes", async (req, res) => {
   } catch (error) {
     console.error("❌ Erro ao buscar clientes:", error);
     res.status(500).json({ message: "Erro ao buscar nome fantasia" });
+  }
+});
+
+// GET /orcamento/empresas — empresas ativas da tabela `empresas`, pra
+// escolher quem emite a Nota Fiscal deste orçamento. Rota própria (em vez
+// de reusar GET /empresas) pra não depender da permissão do módulo
+// Empresas — quem cadastra orçamento só precisa da permissão de Orçamentos.
+router.get("/empresas", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT idempresa, nmfantasia, razaosocial, cnpj
+       FROM empresas
+       WHERE ativo = true
+       ORDER BY nmfantasia`
+    );
+    return res.json(result.rows);
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresas emissoras:", error);
+    res.status(500).json({ message: "Erro ao buscar empresas." });
   }
 });
 
@@ -449,7 +468,9 @@ router.post(
       vlrCtoFixo,
       percentCtoFixo,
       itens,
-      contratarstaff
+      contratarstaff,
+      parcelas,
+      idEmpresaEmissora
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -478,6 +499,12 @@ router.post(
         detail: "O campo 'Edição' é obrigatório e não pode ser nulo.",
       });
     }
+    if (!idEmpresaEmissora) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Empresa Emissora da NF' é obrigatório e não pode ser nulo.",
+      });
+    }
 
     try {
       await client.query("BEGIN");
@@ -491,15 +518,16 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura,
                     formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento,
-                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff
+                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff,
+                    idempresaemissora
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 
-                    $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-                    $41, $42, $43, $44, $45, $46
+                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+                    $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+                    $41, $42, $43, $44, $45, $46, $47
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -550,7 +578,8 @@ router.post(
         nrOrcamentoOriginal || null,
         vlrCtoFixo,
         percentCtoFixo,
-        contratarstaff
+        contratarstaff,
+        idEmpresaEmissora || null
       ];
 
       const resultOrcamento = await client.query(
@@ -795,6 +824,33 @@ router.post(
         }
       }
 
+      // Parcelas de pagamento (orcamentoparcelas) — mesma regra do PUT /:id,
+      // só grava enquanto o orçamento não nasce já fechado.
+      if (status !== 'F' && Array.isArray(parcelas) && parcelas.length > 0) {
+        const somaParcelas = parcelas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
+        const vlrClienteNum = parseFloat(vlrCliente || 0);
+        if (Math.abs(somaParcelas - vlrClienteNum) > 0.01) {
+          throw new Error(
+            `A soma das parcelas (R$ ${somaParcelas.toFixed(2)}) não bate com o valor do orçamento (R$ ${vlrClienteNum.toFixed(2)}).`
+          );
+        }
+
+        for (let i = 0; i < parcelas.length; i++) {
+          const p = parcelas[i];
+          if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
+            throw new Error(`Parcela ${i + 1} está sem valor.`);
+          }
+          if (!p.dtvencimento) {
+            throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
+          }
+          await client.query(
+            `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [idorcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
+          );
+        }
+      }
+
       await client.query("COMMIT"); // Confirma a transação
 
       // Define os dados para o log middleware
@@ -802,30 +858,12 @@ router.post(
       res.locals.idregistroalterado = idorcamento;
       res.locals.idusuarioAlvo = null;
 
-      res.locals.dadosNovos = {
-        idorcamento,
-        nrorcamento,
-        status,
-        idCliente,
-        idEvento,
-        idMontagem,
-        edicao,
-        totGeralVda,
-        totGeralCto,
-        vlrCliente,
-        desconto,
-        acrescimo,
-        lucroBruto,
-        percentLucro,
-        lucroReal,
-        percentLucroReal,
-        vlrImposto,
-        percentImposto,
-        nomenclatura,
-        formaPagamento,
-        contratarstaff,
-        qtdItens: itens?.length ?? 0,
-      };
+      // Body completo (itens, pavilhões, parcelas com valor/vencimento,
+      // tudo que o front mandou) + os dois campos que só existem depois do
+      // INSERT (idorcamento/nrorcamento são gerados aqui, não vêm no body).
+      // Um resumo com só alguns campos (como tinha antes) esconderia
+      // justamente parcela/pavilhão — e é isso que precisa aparecer no log.
+      res.locals.dadosnovos = { ...req.body, idorcamento, nrorcamento };
 
 
       // Retorne o nrOrcamento gerado para o frontend
@@ -2728,7 +2766,7 @@ router.get('/solicitacoes/verificar',autenticarToken(), async (req, res) => {
 
 //       res.locals.acao = 'atualizou';
 //       res.locals.idregistroalterado = idOrcamento;
-//       res.locals.dadosNovos = {
+//       res.locals.dadosnovos = {
 //         idorcamento: idOrcamento,
 //         status,
 //         idCliente,
@@ -2776,7 +2814,9 @@ router.put("/:id",
         const result = await client.query(`SELECT
                         o.*,
                         oe.idempresa,
-                        json_agg(oi.*) AS itens
+                        json_agg(oi.*) AS itens,
+                        (SELECT json_agg(op.idpavilhao) FROM orcamentopavilhoes op WHERE op.idorcamento = o.idorcamento) AS pavilhoes,
+                        (SELECT json_agg(opc.*) FROM orcamentoparcelas opc WHERE opc.idorcamento = o.idorcamento) AS parcelas
                  FROM orcamentos o
                  JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
                  LEFT JOIN orcamentoitens oi ON o.idorcamento = oi.idorcamento
@@ -2809,10 +2849,45 @@ router.put("/:id",
       desconto, percentDesconto, acrescimo, percentAcrescimo,
       lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura,
       formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento,
-      dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff 
+      dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff,
+      parcelas, idEmpresaEmissora
     } = req.body;
 
     const idempresa = req.idempresa;
+
+    // Mesmas validações do POST / (criação) — faltavam aqui, então dava pra
+    // salvar uma edição sem Montagem/Cliente/Evento/Edição/Empresa Emissora
+    // mesmo esses sendo obrigatórios na criação.
+    if (!idCliente) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Cliente' é obrigatório e não pode ser nulo.",
+      });
+    }
+    if (!idEvento) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Evento' é obrigatório e não pode ser nulo.",
+      });
+    }
+    if (!idMontagem) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Montagem' é obrigatório e não pode ser nulo.",
+      });
+    }
+    if (!edicao) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Edição' é obrigatório e não pode ser nulo.",
+      });
+    }
+    if (!idEmpresaEmissora) {
+      return res.status(400).json({
+        error: "Erro de validação.",
+        detail: "O campo 'Empresa Emissora da NF' é obrigatório e não pode ser nulo.",
+      });
+    }
 
     // Antes de ativar um staffevento (statusstaff = 'Ativo') na inclusão no orçamento,
     // verifica se ainda existe OUTRA solicitação Pendente pro mesmo staffevento (de
@@ -2842,10 +2917,10 @@ router.put("/:id",
                         totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                         desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
                         lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, 
-                        nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
+                        nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38,
                         dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42, vlrctofixo = $43,
-                        percentctofixo = $44, contratarstaff = $45
-                 WHERE idorcamento = $46  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $46) =$47 ;`;
+                        percentctofixo = $44, contratarstaff = $45, idempresaemissora = $46
+                 WHERE idorcamento = $47  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $47) =$48 ;`;
 
       const orcamentoValues = [
         status, idCliente, idEvento, idMontagem,
@@ -2857,7 +2932,7 @@ router.put("/:id",
         desconto, percentDesconto, acrescimo, percentAcrescimo,
         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
         formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
-        avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, contratarstaff,
+        avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, contratarstaff, idEmpresaEmissora || null,
         idOrcamento, idempresa
       ];
 
@@ -3424,33 +3499,47 @@ router.put("/:id",
         }
       }
 
+      // 4. Parcelas de pagamento (orcamentoparcelas) — substitui por completo
+      // a cada salvamento, igual pavilhões/itens acima. Só roda enquanto o
+      // orçamento ainda não foi fechado: depois de 'F' não é mais editável
+      // (a rota /fechar/:id só confere consistência, não grava parcela).
+      if (status !== 'F') {
+        await client.query(`DELETE FROM orcamentoparcelas WHERE idorcamento = $1`, [idOrcamento]);
+
+        if (Array.isArray(parcelas) && parcelas.length > 0) {
+          const somaParcelas = parcelas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
+          const vlrClienteNum = parseFloat(vlrCliente || 0);
+          if (Math.abs(somaParcelas - vlrClienteNum) > 0.01) {
+            throw new Error(
+              `A soma das parcelas (R$ ${somaParcelas.toFixed(2)}) não bate com o valor do orçamento (R$ ${vlrClienteNum.toFixed(2)}).`
+            );
+          }
+
+          for (let i = 0; i < parcelas.length; i++) {
+            const p = parcelas[i];
+            if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
+              throw new Error(`Parcela ${i + 1} está sem valor.`);
+            }
+            if (!p.dtvencimento) {
+              throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
+            }
+            await client.query(
+              `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
+            );
+          }
+        }
+      }
+
       await client.query("COMMIT");
 
       res.locals.acao = 'atualizou';
       res.locals.idregistroalterado = idOrcamento;
-      res.locals.dadosNovos = {
-        idorcamento: idOrcamento,
-        status,
-        idCliente,
-        idEvento,
-        idMontagem,
-        edicao,
-        totGeralVda,
-        totGeralCto,
-        vlrCliente,
-        desconto,
-        acrescimo,
-        lucroBruto,
-        percentLucro,
-        lucroReal,
-        percentLucroReal,
-        vlrImposto,
-        percentImposto,
-        nomenclatura,
-        formaPagamento,
-        contratarstaff,
-        qtdItens: itens?.length ?? 0,
-      };
+      // Mesmo raciocínio do POST /: body completo (itens, pavilhões,
+      // parcelas com valor/vencimento) em vez de um resumo que esconderia
+      // justamente o que precisa aparecer no log.
+      res.locals.dadosnovos = { ...req.body, idorcamento: idOrcamento };
 
 
 
@@ -3505,7 +3594,7 @@ router.put(
         WHERE idorcamento = $1
         AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $1) = $2
         AND status != 'F'
-        RETURNING idorcamento;
+        RETURNING idorcamento, vlrcliente;
       `;
       const result = await client.query(updateQuery, [idOrcamento, idempresa]);
 
@@ -3515,11 +3604,27 @@ router.put(
         );
       }
 
+      // As parcelas em si já foram gravadas antes disso, ao salvar o
+      // orçamento (PUT/POST /orcamentos — só lá é editável). Aqui só
+      // confere se o que já está gravado bate com o valor final antes de
+      // travar tudo: depois de fechado não tem mais como corrigir.
+      const vlrCliente = parseFloat(result.rows[0].vlrcliente);
+      const parcelasExistentes = await client.query(
+        `SELECT COALESCE(SUM(vlrparcela), 0) AS soma FROM orcamentoparcelas WHERE idorcamento = $1`,
+        [idOrcamento]
+      );
+      const somaParcelas = parseFloat(parcelasExistentes.rows[0].soma);
+      if (somaParcelas > 0 && Math.abs(somaParcelas - vlrCliente) > 0.01) {
+        throw new Error(
+          `A soma das parcelas salvas (R$ ${somaParcelas.toFixed(2)}) não bate com o valor do orçamento (R$ ${vlrCliente.toFixed(2)}). Corrija as parcelas e salve antes de fechar.`
+        );
+      }
+
       await client.query("COMMIT");
 
       res.locals.acao = "fechou"; // Nova ação para o log
       res.locals.idregistroalterado = idOrcamento;
-      res.locals.dadosNovos = {
+      res.locals.dadosnovos = {
         status: 'F'
       };
 
@@ -3532,6 +3637,34 @@ router.put(
         .json({ error: "Erro ao fechar o orçamento.", detail: error.message });
     } finally {
       client.release();
+    }
+  }
+);
+
+// GET /orcamentos/:id/parcelas — parcelas de pagamento definidas no fechamento
+// (vazio quando o orçamento é à vista / ainda não foi fechado com parcelamento)
+router.get(
+  "/:id/parcelas",
+  autenticarToken(),
+  contextoEmpresa,
+  verificarPermissao("Orcamentos", "pesquisar"),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const { id } = req.params;
+
+    try {
+      const result = await pool.query(
+        `SELECT op.*
+           FROM orcamentoparcelas op
+           JOIN orcamentoempresas oe ON oe.idorcamento = op.idorcamento AND oe.idempresa = $2
+          WHERE op.idorcamento = $1
+          ORDER BY op.numparcela`,
+        [id, idempresa]
+      );
+      return res.json(result.rows);
+    } catch (error) {
+      console.error("Erro ao buscar parcelas do orçamento:", error);
+      res.status(500).json({ message: "Erro ao buscar parcelas do orçamento." });
     }
   }
 );
@@ -3643,7 +3776,7 @@ router.delete(
       res.locals.acao = "deletou";
       res.locals.idregistroalterado = idorcamentoitem;
       res.locals.idusuarioAlvo = null;
-      res.locals.dadosNovos = {
+      res.locals.dadosnovos = {
         itens: itensRestantes.rows
       };
 
@@ -3787,7 +3920,7 @@ router.patch(
       // Configuração para o log (se o logMiddleware estiver ativo)
       res.locals.acao = "espelhou";
       res.locals.idregistroalterado = idorcamento;
-      res.locals.dadosNovos = {
+      res.locals.dadosnovos = {
         geradoanoposterior: geradoAnoPosterior // ✅ Só o campo que mudou
       };
 
@@ -3893,7 +4026,7 @@ router.patch(
       // Configuração para o log (logMiddleware)
       res.locals.acao = "atualizou status";
       res.locals.idregistroalterado = idorcamento;   
-      res.locals.dadosNovos = {
+      res.locals.dadosnovos = {
         status // ✅ Só o campo que mudou
       };
 

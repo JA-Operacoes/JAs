@@ -45,7 +45,16 @@ if (typeof window.empresaOriginal === "undefined") {
         cidade: "",
         estado: "",
         pais: "",
-        ativo: ""      
+        ativo: "",
+        regimeTributario: "",
+        inscricaoMunicipal: "",
+        idBanco: "",
+        agencia: "",
+        digitoAgencia: "",
+        numeroConta: "",
+        digitoConta: "",
+        tipoConta: "",
+        pix: ""
     };
 }
 
@@ -110,8 +119,17 @@ const campos = {
         bairro: "#bairro",
         cidade: "#cidade",
         estado: "#estado",
-        pais: "#pais",     
-        ativo: "#ativo"
+        pais: "#pais",
+        ativo: "#ativo",
+        regimeTributario: "#regimeTributario",
+        inscricaoMunicipal: "#inscricaoMunicipal",
+        idBanco: "#idBanco",
+        agencia: "#agencia",
+        digitoAgencia: "#digitoAgencia",
+        numeroConta: "#numeroConta",
+        digitoConta: "#digitoConta",
+        tipoConta: "#tipoConta",
+        pix: "#pix"
 };
 
 const getCampo = (key) => document.querySelector(campos[key]);
@@ -186,7 +204,16 @@ const preencherFormulario = (empresa) => {
         cidade: empresa.cidade || "",
         estado: empresa.estado || "",
         pais: empresa.pais || "",
-        ativo: empresa.ativo || false
+        ativo: empresa.ativo || false,
+        regimeTributario: empresa.regimetributario || "",
+        inscricaoMunicipal: empresa.inscricaomunicipal || "",
+        idBanco: empresa.idbanco || "",
+        agencia: empresa.agencia || "",
+        digitoAgencia: empresa.digitoagencia || "",
+        numeroConta: empresa.numeroconta || "",
+        digitoConta: empresa.digitoconta || "",
+        tipoConta: empresa.tipoconta || "",
+        pix: empresa.pix || ""
     };
 
     // 2. Itera sobre os dados mapeados para preencher o formulário
@@ -245,17 +272,45 @@ const obterDadosFormulario = () => {
         estado: valor("estado").toUpperCase(),
         pais: valor("pais").toUpperCase(),
         ativo: getCampo("ativo")?.checked,
-       
+        regimeTributario: valor("regimeTributario"),
+        inscricaoMunicipal: valor("inscricaoMunicipal"),
+        idBanco: valor("idBanco"),
+        agencia: valor("agencia"),
+        digitoAgencia: valor("digitoAgencia"),
+        numeroConta: valor("numeroConta"),
+        digitoConta: valor("digitoConta"),
+        tipoConta: valor("tipoConta"),
+        pix: valor("pix"),
     };
     console.log("Dados do formulário prontos para envio:", dados);
     return dados;
 };
 
 
+// Select de Banco — lista vem de /bancos (cadastro já existente, usado no
+// financeiro), escopada pela empresa logada via bancoempresas.
+async function carregarBancosSelect() {
+    const select = document.getElementById('idBanco');
+    if (!select) return;
+    try {
+        const bancos = await fetchComToken('/bancos');
+        if (!bancos.length) {
+            select.innerHTML = '<option value="">Nenhum banco cadastrado — cadastre em Bancos</option>';
+            return;
+        }
+        select.innerHTML = '<option value="">Selecione...</option>' +
+            bancos.map((b) => `<option value="${b.idbanco}">${b.nmbanco}${b.codbanco ? ' (' + b.codbanco + ')' : ''}</option>`).join('');
+    } catch (err) {
+        console.error('Erro ao carregar bancos:', err);
+        select.innerHTML = '<option value="">Erro ao carregar bancos</option>';
+    }
+}
+
 function carregarEmpresas() {
     console.log("Configurando eventos para o modal de empresas");
-   
-    aplicarMascaras();  
+
+    aplicarMascaras();
+    carregarBancosSelect();
 
     const tpEmpresaInput = document.getElementById('tpempresa');
     if(tpEmpresaInput){
@@ -649,6 +704,15 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#pais").value = empresa.pais || "";
         document.querySelector("#ativo").checked =
             empresa.ativo === true || empresa.ativo === "true" || empresa.ativo === 1;
+        document.querySelector("#regimeTributario").value = empresa.regimetributario || "";
+        document.querySelector("#inscricaoMunicipal").value = empresa.inscricaomunicipal || "";
+        document.querySelector("#idBanco").value = empresa.idbanco || "";
+        document.querySelector("#agencia").value = empresa.agencia || "";
+        document.querySelector("#digitoAgencia").value = empresa.digitoagencia || "";
+        document.querySelector("#numeroConta").value = empresa.numeroconta || "";
+        document.querySelector("#digitoConta").value = empresa.digitoconta || "";
+        document.querySelector("#tipoConta").value = empresa.tipoconta || "";
+        document.querySelector("#pix").value = empresa.pix || "";
         empresaOriginal = { ...empresa };
 
         const novoInput = document.createElement("input");
@@ -712,12 +776,21 @@ function limparEmpresaOriginal() {
         cidade: "",
         estado: "",
         pais: "",
-        ativo: ""
+        ativo: "",
+        regimeTributario: "",
+        inscricaoMunicipal: "",
+        idBanco: "",
+        agencia: "",
+        digitoAgencia: "",
+        numeroConta: "",
+        digitoConta: "",
+        tipoConta: "",
+        pix: ""
     };
 }
 
 function limparCamposEmpresa(){
-    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais"];  
+    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais", "regimeTributario", "inscricaoMunicipal", "idBanco", "agencia", "digitoAgencia", "numeroConta", "digitoConta", "tipoConta", "pix"];
    
     campos.forEach(id => {
         const campo = document.getElementById(id);

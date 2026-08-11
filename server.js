@@ -121,6 +121,8 @@ app.use("/lancamentos", autenticarToken(), contextoEmpresa, require("./routes/ro
 app.use("/pagamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaPagamento"));
 app.use("/ajustefinanceiro", autenticarToken(), contextoEmpresa, require("./routes/rotaAjusteFinanceiro"));
 app.use("/planosaude", autenticarToken(), contextoEmpresa, require("./routes/rotaPlanoSaude"));
+app.use("/servicos", autenticarToken(), contextoEmpresa, require("./routes/rotaServicos"));
+app.use("/notafiscal", autenticarToken(), contextoEmpresa, require("./routes/rotaNotaFiscal"));
 
 app.use("/Contrato", autenticarToken(), contextoEmpresa, require("./routes/rotaContrato"));
 
