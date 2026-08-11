@@ -1,0 +1,150 @@
+/* Tela de Cadastro de Serviços — mesmo padrão de modal usado em CadAliquotas/
+   CadNotaFiscal (moldura escura, form cinza, .Close, .BTNs), escopado em
+   #cadModalServicos. */
+
+/* Faltava isto — presente no CadFornecedores.css (que funciona). Ver nota
+   equivalente em CadNotaFiscal.css. */
+.modal-open main,
+.modal-open header,
+.modal-open #content,
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
+}
+
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 800px;
+  z-index: 1000;
+}
+
+body { font-family: "Abel", sans-serif; }
+
+/* Trava o scroll da página de fundo enquanto o modal está aberto (seletor
+   certo — ver nota em CadNotaFiscal.css sobre o typo que existe na maioria
+   dos outros CadXxx.css do sistema). */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* CAUSA RAIZ (ver CadNotaFiscal.css): Index.js força modal.style.display =
+   "block" depois de injetar o HTML, então "display:flex" aqui nunca
+   funciona de verdade — a cascata flex:1/min-height:0 abaixo era inerte.
+   #form-servicos ganha altura fixa em px + overflow-y:auto em vez disso. */
+#cadModalServicos.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #4d4d4d;
+  padding: 6px;
+  width: 760px;
+  /* Era 620px com a tabela de serviços (removida — a busca no formulário
+     virou o jeito de achar/editar). 440px = 34px (.Close) + altura fixa do
+     #form-servicos + ~50px (.BTNs) + folga, dentro do overflow:hidden do
+     .modal — mesma conta de antes, só com menos conteúdo pra caber. */
+  height: 530px;
+  overflow: hidden;
+  border-radius: 10px;
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+#cadModalServicos .modal-content { overflow: hidden; }
+#cadModalServicos .title {
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #b9b9b9;
+}
+#cadModalServicos .Close { display: flex; justify-content: center; align-items: center; height: 34px; }
+#cadModalServicos button.close { width: 200px; height: 28px; margin: 0; }
+
+#cadModalServicos #form-servicos {
+  display: flex; flex-direction: column; gap: 12px;
+  background-color: #cacaca; height: 440px; padding: 14px;
+  border-radius: 10px; overflow-y: auto; box-sizing: border-box;
+}
+
+#cadModalServicos .sv-aviso {
+  font-size: 12.5px;
+  color: #333;
+  margin: 0;
+  font-family: monospace;
+}
+
+#cadModalServicos fieldset {
+  background: rgba(255,255,255,0.45); border: none; border-radius: 10px; padding: 12px 16px;
+}
+#cadModalServicos legend { font-size: 15px; padding: 0 4px; }
+#cadModalServicos .sv-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+#cadModalServicos .sv-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 14px; margin-top: 10px; }
+#cadModalServicos .sv-full { grid-column: 1 / -1; }
+#cadModalServicos .sv-campo { display: flex; flex-direction: column; gap: 3px; }
+#cadModalServicos .sv-campo label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #444; }
+#cadModalServicos .sv-campo input {
+  font-family: "Abel", sans-serif; font-size: 15px; border: 1.5px solid #9e9e9e; border-radius: 8px;
+  padding: 7px 10px; background: #fff; color: #171616;
+}
+
+input#svDescricao { width: 500px; }
+
+#cadModalServicos .sv-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 8px; }
+
+/* Combobox "digitar pra buscar" (Código/Descrição) — mesmo padrão usado no
+   RH e na Nota Fiscal: digitar filtra a lista de serviços já cadastrados;
+   clicar numa opção carrega o serviço inteiro pro formulário (como o
+   "Editar" da tabela). Só fica ativo quando NENHUM serviço está carregado
+   pra edição (ver servicoJaCarregado em Servicos.js) — senão digitar pra
+   corrigir a descrição de um serviço já aberto ia disparar busca à toa. */
+#cadModalServicos .sv-combo { position: relative; }
+#cadModalServicos .sv-combo-lista {
+  display: none;
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+#cadModalServicos .sv-combo-lista.aberta { display: block; }
+#cadModalServicos .sv-combo-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+#cadModalServicos .sv-combo-lista li:hover { background: #f0f2f5; }
+#cadModalServicos .sv-combo-lista li.sv-combo-vazio { color: #999; cursor: default; }
+#cadModalServicos .sv-combo-lista li.sv-combo-vazio:hover { background: none; }
+
+#cadModalServicos .BTNs { display: flex; justify-content: space-between; gap: 8px; }
+#cadModalServicos button {
+  font-family: "Abel", sans-serif; font-size: 18px; background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff); border: none; border-radius: 10px; cursor: pointer;
+}
+#cadModalServicos .BTNs button { flex: 1; padding: 8px 0; }
+#cadModalServicos .BTNs button:hover { background-color: var(--hover-color, #75191a); }
+
+#cadModalServicos ::-webkit-scrollbar { width: 6px; height: 12px; }
+#cadModalServicos ::-webkit-scrollbar-thumb { background-color: #888; border-radius: 10px; }
+#cadModalServicos ::-webkit-scrollbar-track { background-color: transparent; }
