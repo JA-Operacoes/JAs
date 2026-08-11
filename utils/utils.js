@@ -4,6 +4,12 @@ async function fetchComToken(url, options = {}) {
 
     //console.log("Token a ser usado na requisição:", token, idempresaLocalStorage);
 
+    // Sem isso, o navegador pode reaproveitar uma resposta antiga do cache HTTP
+    // pra chamadas de API feitas via fetch() depois do carregamento da página —
+    // um hard-reload (Ctrl+F5) só força recarregar os recursos da navegação
+    // inicial, não os buscados depois por JS.
+    if (!options.cache) options.cache = 'no-store';
+
     if (!options.headers) options.headers = {};
   //  options.headers["Authorization"] = "Bearer " + token;
 
@@ -94,7 +100,11 @@ async function fetchComToken(url, options = {}) {
 
     let responseBody = null;
     try {
-        responseBody = await resposta.json();
+        // .clone() é essencial aqui: o corpo de uma Response só pode ser lido
+        // uma vez. Sem clonar, tentar .json() já consome o stream mesmo
+        // quando falha (resposta não-JSON, como XML) — aí o fallback abaixo
+        // pra .text() tenta ler um corpo já vazio e retorna null.
+        responseBody = await resposta.clone().json();
     } catch (jsonError) {
         try {
             responseBody = await resposta.text();
@@ -123,6 +133,12 @@ async function fetchHtmlComToken(url, options = {}) {
   console.log("FETCH HTML", url, options);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
+
+  // Mesmo motivo do fetchComToken: o HTML de cada modal é buscado via fetch()
+  // depois que a página já carregou, então um hard-reload não garante buscar
+  // de novo — sem "no-store" o navegador pode reaproveitar uma versão antiga
+  // do modal indefinidamente, mesmo depois de editar o arquivo no servidor.
+  if (!options.cache) options.cache = 'no-store';
 
   if (!options.headers) options.headers = {};
   options.headers["Authorization"] = "Bearer " + token;
