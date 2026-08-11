@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ns:PedidoEnvioLoteRPS xmlns:ns="http://www.prefeitura.sp.gov.br/nfe"
+                        xmlns:tipos="http://www.prefeitura.sp.gov.br/nfe/tipos"
+                        xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <Cabecalho Versao="2">
+    <CPFCNPJRemetente><CNPJ>39781313000160</CNPJ></CPFCNPJRemetente>
+    <transacao>true</transacao>
+    <dtInicio>2026-08-10</dtInicio>
+    <dtFim>2026-08-10</dtFim>
+    <QtdRPS>1</QtdRPS>
+  </Cabecalho>
+    <RPS>
+      <Assinatura>Njc2MDU4OTMxICAgIDAwMDAwMDAwMDAwNDIwMjYwODEwVE5OMDAwMDAwMDAxMTU3NTY2MDAwMDAwMDAwMDAwMDAwMDcxOTE2MTUwODY1NzAwMDE1OQ==</Assinatura>
+      <ChaveRPS>
+        <InscricaoPrestador>67605893</InscricaoPrestador>
+        <SerieRPS>1</SerieRPS>
+        <NumeroRPS>4</NumeroRPS>
+      </ChaveRPS>
+      <TipoRPS>RPS</TipoRPS>
+      <DataEmissao>2026-08-10</DataEmissao>
+      <StatusRPS>N</StatusRPS>
+      <TributacaoRPS>T</TributacaoRPS>
+      <ValorDeducoes>0</ValorDeducoes>
+      <ValorPIS>75.24</ValorPIS>
+      <ValorCOFINS>347.27</ValorCOFINS>
+      <ValorINSS>0</ValorINSS>
+      <ValorIR>0</ValorIR>
+      <ValorCSLL>115.76</ValorCSLL>
+      <CodigoServico>07191</CodigoServico>
+      <AliquotaServicos>2.5000</AliquotaServicos>
+      <ISSRetido>false</ISSRetido>
+      <!-- CPFCNPJTomador ou InscricaoMunicipalTomador: com o CNPJ do
+           tomador já preenchido, o próprio sistema da prefeitura ignora
+           Endereco/RazaoSocial/InscEstadual do tomador (busca do cadastro
+           dele) — por isso não mandamos esses campos aqui, mais simples. -->
+      <CPFCNPJTomador><CNPJ>61508657000159</CNPJ></CPFCNPJTomador>
+      
+      <EmailTomador>bruno.victor@amicci.com.br</EmailTomador>
+      <Discriminacao>Nota fiscal referente ao contrato operacional do evento &quot;PL CONNECTION&quot;, realizado em 25/08/2026, conforme condições do Orçamento Nº 1214.
+Depósito bancário — Banco: BRADESCO (237) — Agência: 2833 — Conta: 26468-7 (Corrente)</Discriminacao>
+      <MunicipioPrestacao>3550308</MunicipioPrestacao>
+      <ValorInicialCobrado>11575.66</ValorInicialCobrado>
+      <ValorMulta>0</ValorMulta>
+      <ValorJuros>0</ValorJuros>
+      <ValorIPI>0</ValorIPI>
+      <ExigibilidadeSuspensa>0</ExigibilidadeSuspensa>
+      <NBS>118066300</NBS>
+      <!-- gpPrestacao: escolha entre local no Brasil (cLocPrestacao, código
+           IBGE) ou no exterior (cPaisPrestacao) — sempre Brasil por enquanto. -->
+      <cLocPrestacao>3550308</cLocPrestacao>
+      <IBSCBS>
+        <finNFSe>0</finNFSe>
+        <indFinal>0</indFinal>
+        <cIndOp>040101</cIndOp>
+        <indDest>0</indDest>
+        <valores>
+          <trib>
+            <gIBSCBS>
+              <cClassTrib>000001</cClassTrib>
+            </gIBSCBS>
+          </trib>
+        </valores>
+      </IBSCBS>
+    </RPS>
+  <!-- PENDENTE: <ds:Signature> — assinatura XMLDSig (Enveloped, RSA-SHA1,
+       C14N) do envelope inteiro, com o certificado A1. Sem isso o portal
+       rejeita o arquivo — ver utils/assinarXmlRpsLote.js (a implementar
+       quando o certificado estiver disponível no servidor). -->
+</ns:PedidoEnvioLoteRPS>
