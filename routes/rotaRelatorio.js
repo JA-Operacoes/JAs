@@ -79,9 +79,12 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         const vlrcaixinhaDevido = `(${vlrcaixinhaNumericoSeguro} > 0)`;
                         const vlrcaixinhaNaoDevido = `(${vlrcaixinhaNumericoSeguro} <= 0)`;
 
-                        const comprovanteCachePreenchido = `(tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')`;
-                        const comprovanteCachePendente = `(tse.comppgtocache IS NULL OR tse.comppgtocache = '')`;
-                        
+                        // Mesmo critério do ajuda_custo: comprovante de 50% já conta como "tem
+                        // comprovante" pro filtro Pagos/Pendentes (o "Cachê 50% Anexado" no COMP
+                        // STATUS é quem diferencia visualmente a parcela ainda faltando).
+                        const comprovanteCachePreenchido = `((tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') OR (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != ''))`;
+                        const comprovanteCachePendente = `((tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))`;
+
                         const comprovanteCaixinhaPreenchido = `(tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')`;
                         const comprovanteCaixinhaPendente = `(tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')`;
 
@@ -107,8 +110,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             statusConditions.push(condicaoPendente);
                         }
                         } else if (tipo === 'cache_ajuda') {
-                            const comprovanteCacheOk = `(tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')`;
-                            const comprovanteAjudaOk = `(tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '')`;
+                            const comprovanteCacheOk = `((tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') OR (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != ''))`;
+                            const comprovanteAjudaOk = `((tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') OR (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != ''))`;
 
                             if (incluirPagos) {
                                 statusConditions.push(`(${comprovanteCacheOk} AND ${comprovanteAjudaOk})`);
@@ -365,40 +368,45 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHEN tse.statuspgto = 'Pago50' THEN 'Pago 50%'
                                 ELSE COALESCE(tse.statuspgto, 'Pendente')
                             END AS "STATUS PGTO",
-                            CASE 
+                            CASE
                                 -- 1. ISENTO
                                 WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
 
-                                -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, mas ambos sem comprovante)
-                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+                                -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, sem nenhum comprovante ainda)
+                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))
                                     AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
                                     THEN 'Cachê e Caixinha Pendentes'
 
-                                -- 3. CACHÊ PENDENTE (Mas Caixinha está OK ou é Isenta)
-                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+                                -- 3. CACHÊ PENDENTE (nenhum comprovante ainda; Caixinha está OK ou é Isenta)
+                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))
                                     AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
                                     THEN 'Cachê Pendente'
 
-                                -- 4. CAIXINHA PENDENTE (Mas Cachê está OK ou é Isento)
+                                -- 4. CACHÊ 50% ANEXADO (só a 1ª parcela; Caixinha está OK ou é Isenta)
+                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != '' AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+                                    AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
+                                    THEN 'Cachê 50% Anexado'
+
+                                -- 5. CAIXINHA PENDENTE (Mas Cachê está OK, 50% ou é Isento)
                                 WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
-                                    AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != ''))
+                                    AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') OR (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != ''))
                                     THEN 'Caixinha Pendente'
 
-                                -- 5. AMBOS ANEXADOS
-                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
-                                    AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+                                -- 6. AMBOS ANEXADOS
+                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
+                                    AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
                                     THEN 'Cachê e Caixinha Anexados'
 
-                                -- 6. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
-                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
-                                    THEN CASE 
-                                            WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '') 
+                                -- 7. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
+                                WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
+                                    THEN CASE
+                                            WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')
                                             THEN 'Cachê Anexado (Falta Caixinha)'
                                             ELSE 'Cachê Anexado'
                                         END
 
-                                -- 7. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
-                                WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+                                -- 8. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
+                                WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
                                     AND COALESCE(tse.vlrcache, 0) <= 0
                                     THEN 'Caixinha Anexada'
 
@@ -706,14 +714,21 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
                             AS NUMERIC(10,2)) AS "TOT GERAL",
 
-                            CAST(CASE 
-                                WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0
-                                WHEN (sub."STATUS CACHÊ" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
-                                WHEN (sub."STATUS AJUDA" = 'Pago') THEN COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA"))
-                                ELSE 
-                                    COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) + 
-                                    COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) 
-                            END AS NUMERIC(10,2)) AS "TOT PAGAR"
+                            -- Cachê e Ajuda calculados de forma independente (cada um pode estar
+                            -- Pendente/Pago 50%/Pago 100% sem depender do status do outro).
+                            CAST(
+                                (CASE
+                                    WHEN sub."STATUS CACHÊ" = 'Pago 100%' THEN 0
+                                    WHEN sub."STATUS CACHÊ" = 'Pago 50%' THEN COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA")) / 2.0
+                                    ELSE COALESCE(NULLIF(sub.vlrtotcache, 0), (sub."VLR CACHÊ" * sub."QTD_CALCULADA"))
+                                END)
+                                +
+                                (CASE
+                                    WHEN sub."STATUS AJUDA" = 'Pago 100%' THEN 0
+                                    WHEN sub."STATUS AJUDA" = 'Pago 50%' THEN COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA")) / 2.0
+                                    ELSE COALESCE(NULLIF(sub.vlrtotajdcusto, 0), (sub."VLR AJUDA" * sub."QTD_AJUDA_CALCULADA"))
+                                END)
+                            AS NUMERIC(10,2)) AS "TOT PAGAR"
                         FROM (
                             SELECT 
                                 tse.idevento, 
@@ -759,10 +774,28 @@ router.get("/", autenticarToken(), contextoEmpresa,
 
                                 COALESCE(tse.obspospgto, '') AS "obspospgto",
 
-                                CASE WHEN tse.statuspgto = 'Suspenso' THEN 'Suspenso' ELSE COALESCE(tse.statuspgto, 'Pendente') END AS "STATUS CACHÊ",
-                                CASE WHEN tse.statuspgtoajdcto = 'Suspenso' THEN 'Suspenso' ELSE COALESCE(tse.statuspgtoajdcto, 'Pendente') END AS "STATUS AJUDA",
-                                CASE WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP CACHÊ",
-                                CASE WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP AJUDA",
+                                CASE
+                                    WHEN tse.statuspgto = 'Suspenso' THEN 'Suspenso'
+                                    WHEN tse.statuspgto = 'Pago' THEN 'Pago 100%'
+                                    WHEN tse.statuspgto = 'Pago50' THEN 'Pago 50%'
+                                    ELSE COALESCE(tse.statuspgto, 'Pendente')
+                                END AS "STATUS CACHÊ",
+                                CASE
+                                    WHEN tse.statuspgtoajdcto = 'Suspenso' THEN 'Suspenso'
+                                    WHEN tse.statuspgtoajdcto = 'Pago' THEN 'Pago 100%'
+                                    WHEN tse.statuspgtoajdcto = 'Pago50' THEN 'Pago 50%'
+                                    ELSE COALESCE(tse.statuspgtoajdcto, 'Pendente')
+                                END AS "STATUS AJUDA",
+                                CASE
+                                    WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Anexado'
+                                    WHEN (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != '') THEN '50% Anexado'
+                                    ELSE 'Pendente'
+                                END AS "COMP CACHÊ",
+                                CASE
+                                    WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado'
+                                    WHEN (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '') THEN '50% Anexado'
+                                    ELSE 'Pendente'
+                                END AS "COMP AJUDA",
 
                                 -- ✅ NOVAS COLUNAS CAIXINHA
                                 CAST(COALESCE(tse.vlrcaixinha, 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA",
