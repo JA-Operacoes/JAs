@@ -150,4 +150,24 @@ app.listen(port, () => {
   console.log(`✅ Servidor rodando em http://localhost:${port}`);
 });
 
+// Avisa alto se duas empresas cadastradas gerarem a mesma sigla de
+// certificado (ver utils/certificadoEmpresa.js) — deixar isso passar batido
+// significa assinar nota fiscal com o certificado (CNPJ) errado.
+(async () => {
+  try {
+    const pool = require("./db");
+    const { verificarColisaoDeSiglas } = require("./utils/certificadoEmpresa");
+    const { rows } = await pool.query("SELECT idempresa, nmfantasia, siglacertificado FROM empresas");
+    verificarColisaoDeSiglas(rows).forEach(({ sigla, empresas }) => {
+      console.error(
+        `🚨 COLISÃO DE SIGLA DE CERTIFICADO (${sigla}): ` +
+        empresas.map((e) => `#${e.idempresa} ${e.nmfantasia}`).join(" x ") +
+        ` — ajuste NFE_CERTIFICADO_${sigla}_* manualmente antes de emitir nota fiscal por qualquer uma delas.`
+      );
+    });
+  } catch (err) {
+    console.error("Erro ao verificar colisão de sigla de certificado:", err.message);
+  }
+})();
+
 
