@@ -1320,6 +1320,10 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     }
 
     const statusPgtoAjdCtoValue = statusPgtoAjudaCustoInput.value.toUpperCase();
+    // Guarda o valor "cru" (ex.: PAGO50) separado do texto exibido, que é reformatado
+    // logo abaixo para "PAGO 50%" — sem isso, as checagens de comprovante mais abaixo
+    // (que leem .value) nunca bateriam com 'pago'/'pago50'.
+    statusPgtoAjudaCustoInput.dataset.status = statusPgtoAjdCtoValue;
     statusPgtoAjudaCustoInput.classList.remove('pendente', 'pago', 'pago50', 'suspenso');
     if (statusPgtoAjdCtoValue === "PENDENTE") {
         statusPgtoAjudaCustoInput.classList.add('pendente');
@@ -2866,7 +2870,7 @@ async function verificaStaff() {
             });
         }
 
-        if (statusPgtoAjudaCustoInput.value !== 'Pago') {
+        if ((statusPgtoAjudaCustoInput.dataset.status || statusPgtoAjudaCustoInput.value) !== 'PAGO') {
             event.preventDefault(); // Impede a abertura do modal de upload
             Swal.fire({
                 icon: 'warning',
@@ -2891,7 +2895,7 @@ async function verificaStaff() {
             });
         }
 
-        if (statusPgtoAjudaCustoInput.value !== 'Pago50') {
+        if ((statusPgtoAjudaCustoInput.dataset.status || statusPgtoAjudaCustoInput.value) !== 'PAGO50') {
             event.preventDefault(); // Impede a abertura do modal de upload
             Swal.fire({
                 icon: 'warning',
