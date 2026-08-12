@@ -131,6 +131,7 @@
           <h3>Tomador do serviço</h3>
           <div class="nf-grid2">
             <div class="nf-campo auto"><label>Razão social</label><input id="nfClienteRazao" readonly></div>
+            <div class="nf-campo auto"><label>Nome fantasia</label><input id="nfClienteFantasia" readonly></div>
             <div class="nf-campo auto"><label>CNPJ/CPF</label><input id="nfClienteCnpj" readonly></div>
             <div class="nf-campo"><label>Inscrição municipal</label><input id="nfClienteInscMun" placeholder="Não cadastrada"></div>
             <div class="nf-campo auto"><label>E-mail para NF-e</label><input id="nfClienteEmail" readonly></div>
@@ -240,10 +241,15 @@
       <!-- ===================== ABA — PRONTAS PARA ENVIO ===================== -->
       <div class="nf-view" id="nfViewEnvio">
         <p class="nf-aviso">
-          Todas as notas com XML gerado (de qualquer orçamento) — selecione quais entram no mesmo
+          Todas as notas Prontas para Envio (de qualquer orçamento) — selecione quais entram no mesmo
           arquivo de lote. Todas precisam ser da <strong>mesma empresa emissora</strong> e o máximo
-          por lote é <strong>50 notas</strong> (limite do layout da prefeitura).
+          por lote é <strong>50 notas</strong> (limite do layout da prefeitura). Já vem ordenado por
+          empresa emissora e vencimento.
         </p>
+        <div class="nf-campo">
+          <label>Empresa emissora</label>
+          <select id="nfEnvioFiltroEmpresa" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+        </div>
         <div class="nf-tabela-wrap">
           <table class="nf-tabela">
             <thead>
@@ -256,10 +262,11 @@
                 <th>Vencimento</th>
                 <th class="nf-num">Valor</th>
                 <th>Empresa emissora</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody id="nfEnvioBody">
-              <tr><td colspan="8">Carregando...</td></tr>
+              <tr><td colspan="9">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
