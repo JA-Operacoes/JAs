@@ -43,10 +43,19 @@ erro, antes de tirar o humano da conferência.
 
 ## 4. Só depois disso — construir a automação de verdade
 
-- [ ] Implementar a consulta de situação do lote (`ConsultaSituacaoLoteRPS` /
-      `RetornoConsulta_v02.xsd`) — o envio em si só devolve um protocolo, o
-      resultado real (nota gerada ou rejeitada) só sai numa segunda chamada.
-      Sem isso, o botão automático não tem retorno confiável.
+- [x] ~~Implementar a consulta de situação do lote~~ — CORRIGIDO (2026-08-12):
+      confirmei lendo o próprio manual (`Manual_WebService_SP_v3.3.7.pdf`,
+      seções 3.3.1 e 4.3.3) que "Envio de Lote de RPS" (`EnvioLoteRPS`, o
+      serviço que `gerarXmlRpsLote.js` gera hoje) é o serviço **síncrono** —
+      devolve o número da NF-e (`RetornoEnvioLoteRPS` → `ChaveNFeRPS` →
+      `ChaveNFe.Numero`) na MESMA conexão, sem precisar de consulta depois.
+      A consulta de protocolo só existe pro serviço **assíncrono**
+      (`EnvioLoteRpsAsync`, seção 4.4) — um serviço SEPARADO e opcional, só
+      pra quem manda volumes muito grandes e não precisa do número na hora.
+      Não usamos o assíncrono, então essa etapa não é necessária.
+- [ ] Implementar a chamada HTTP/SOAP de verdade pro Web Service síncrono
+      (`https://nfews.prefeitura.sp.gov.br/lotenfe.asmx` — WSDL público) —
+      hoje o sistema só gera o XML assinado, ainda não manda pra prefeitura.
 - [ ] Decidir o que o sistema faz quando a prefeitura rejeita o lote pela API
       (deixar a nota num status "Rejeitada" pra corrigir e reenviar, avisar
       quem registrou, etc.).
