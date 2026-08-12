@@ -13,20 +13,26 @@
 // caracteres da assinatura por RPS, por exemplo, só existe documentado em
 // prosa dentro do próprio XSD, não como enumeração/pattern).
 //
-// IMPORTANTE — ainda NÃO assina digitalmente. Este módulo só monta a
-// estrutura do XML; os dois pontos que precisam do certificado A1 (a
-// assinatura de 85 caracteres de cada RPS, campo <Assinatura> — ver nota
-// sobre a divergência de tamanho dentro de montarCadeiaAssinaturaRPS —, e
-// o <ds:Signature> XMLDSig do envelope inteiro) ficam marcados como
-// pendentes. Sem os dois, o arquivo NÃO é válido pra importar no portal.
+// Assina digitalmente de verdade (2026-08-12) — ver utils/assinarXmlRpsLote.js:
+// a cadeia de 85 caracteres de cada RPS (campo <Assinatura>, RSA-SHA1 cru) e
+// o <ds:Signature> XMLDSig do envelope inteiro (enveloped, C14N, URI="" —
+// ver nota dentro daquele arquivo sobre por que não pode usar Id no
+// elemento raiz). gerarXmlPedidoEnvioLoteRPS exige um certificado (chave
+// privada + certificado em PEM) pra gerar o XML agora.
 //
-// JÁ VALIDADO (2026-08-07) contra o PedidoEnvioLoteRPS_v02.xsd real, usando
-// libxml2-wasm (ver scratchpad da sessão) — todo o conteúdo de <RPS> (todos
-// os campos obrigatórios, incluindo o bloco <IBSCBS> inteiro) passa na
-// validação de estrutura/ordem/tipo. Testado com um <ds:Signature> fake só
-// pra confirmar que o <RPS> em si está 100% completo — o único erro que
-// sobra depois disso é dentro do próprio <ds:Signature> (precisa de
-// <KeyInfo>), que só é possível montar de verdade com o certificado.
+// JÁ VALIDADO (2026-08-07, e de novo em 2026-08-12 já com assinatura real)
+// contra o PedidoEnvioLoteRPS_v02.xsd real, usando libxml2-wasm — todo o
+// conteúdo de <RPS> (todos os campos obrigatórios, incluindo o bloco
+// <IBSCBS> inteiro) e o <ds:Signature> completo (com <KeyInfo> de verdade)
+// passam na validação de estrutura/ordem/tipo.
+//
+// AINDA PENDENTE (não dá pra validar sem testar contra o portal/homologação
+// de verdade): a divergência de tamanho "85 vs 86" citada no manual da
+// prefeitura pra cadeia de tpAssinatura (ver nota dentro de
+// montarCadeiaAssinaturaRPS), e se o RSA-SHA1/XMLDSig são aceitos sem
+// rejeição — isso só se resolve testando o upload manual no portal.
+
+const { assinarCadeiaRPS, assinarEnvelopeXml } = require("./assinarXmlRpsLote");
 
 const MUNICIPIO_SAO_PAULO_IBGE = "3550308";
 
@@ -164,7 +170,10 @@ function montarCadeiaAssinaturaRPS({
 // `numeroRps` é o número sequencial do RPS pra essa inscrição municipal —
 // usamos o próprio idnotafiscal (único, crescente, nunca reaproveitado,
 // que é exatamente o que o layout pede — não precisa de contador à parte).
-function montarXmlRps(dados) {
+// `chavePrivadaPem` vem do certificado A1 da empresa emissora (ver
+// utils/assinarXmlRpsLote.js) — obrigatório, sem ele não tem como assinar
+// a cadeia de verdade.
+function montarXmlRps(dados, chavePrivadaPem) {
   const {
     idnotafiscal,
     inscricaoMunicipalPrestador,
@@ -204,13 +213,10 @@ function montarXmlRps(dados) {
     cpfCnpjTomador: cnpjTomador,
   });
 
-  // PENDENTE DE VERDADE: isto NÃO é uma assinatura — é só a cadeia crua
-  // (ver montarCadeiaAssinaturaRPS) convertida pra Base64 só pra o campo
-  // ter um valor sintaticamente válido (tpAssinatura = base64Binary) e dar
-  // pra testar/validar a estrutura do XML. Precisa assinar de verdade
-  // (RSA-SHA1 com a chave privada do certificado A1) antes de usar isso
-  // pra valer — ver utils/assinarXmlRpsLote.js (a implementar).
-  const assinaturaBase64 = Buffer.from(assinatura, "ascii").toString("base64");
+  // RSA-SHA1 "cru" da cadeia (tpAssinatura) — diferente do <ds:Signature>
+  // XMLDSig do envelope inteiro, que é aplicado depois, em cima do XML
+  // completo (ver gerarXmlPedidoEnvioLoteRPS / assinarEnvelopeXml).
+  const assinaturaBase64 = assinarCadeiaRPS(assinatura, chavePrivadaPem);
 
   return `
     <RPS>
@@ -267,15 +273,20 @@ function montarXmlRps(dados) {
     </RPS>`;
 }
 
-// Monta o envelope <PedidoEnvioLoteRPS> completo — recebe um array de notas
-// (cada item no mesmo formato aceito por montarXmlRps) e os dados da
-// empresa emissora (prestador). Máximo 50 RPS por lote (limite do XSD).
-function gerarXmlPedidoEnvioLoteRPS({ empresaEmissora, notas }) {
+// Monta o envelope <PedidoEnvioLoteRPS> completo, já assinado — recebe um
+// array de notas (cada item no mesmo formato aceito por montarXmlRps), os
+// dados da empresa emissora (prestador) e o certificado A1 dela (chave
+// privada + certificado, em PEM — ver utils/assinarXmlRpsLote.js
+// carregarCertificado). Máximo 50 RPS por lote (limite do XSD).
+function gerarXmlPedidoEnvioLoteRPS({ empresaEmissora, notas, certificado }) {
   if (!Array.isArray(notas) || !notas.length) {
     throw new Error("Nenhuma nota informada pra gerar o lote.");
   }
   if (notas.length > 50) {
     throw new Error(`Lote com ${notas.length} notas — o máximo permitido pelo layout é 50.`);
+  }
+  if (!certificado?.chavePrivadaPem || !certificado?.certificadoPem) {
+    throw new Error("Certificado digital da empresa emissora não informado — sem ele não é possível assinar o RPS.");
   }
 
   const cnpjRemetente = apenasDigitos(empresaEmissora.cnpj);
@@ -285,10 +296,10 @@ function gerarXmlPedidoEnvioLoteRPS({ empresaEmissora, notas }) {
 
   const rpsXml = notas
     .map((nota) =>
-      montarXmlRps({
-        ...nota,
-        inscricaoMunicipalPrestador: empresaEmissora.inscricaomunicipal,
-      })
+      montarXmlRps(
+        { ...nota, inscricaoMunicipalPrestador: empresaEmissora.inscricaomunicipal },
+        certificado.chavePrivadaPem
+      )
     )
     .join("\n");
 
@@ -301,7 +312,7 @@ function gerarXmlPedidoEnvioLoteRPS({ empresaEmissora, notas }) {
   // validação contra o XSD real). <ds:Signature> é o oposto: é uma
   // referência a elemento GLOBAL de outro schema (xmldsig, que É
   // qualified), por isso continua com prefixo "ds:" mesmo por dentro.
-  return `<?xml version="1.0" encoding="utf-8"?>
+  const envelopeSemAssinatura = `<?xml version="1.0" encoding="utf-8"?>
 <ns:PedidoEnvioLoteRPS xmlns:ns="http://www.prefeitura.sp.gov.br/nfe"
                         xmlns:tipos="http://www.prefeitura.sp.gov.br/nfe/tipos"
                         xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -312,11 +323,9 @@ function gerarXmlPedidoEnvioLoteRPS({ empresaEmissora, notas }) {
     ${elemento("dtFim", dtFim, true)}
     ${elemento("QtdRPS", notas.length, true)}
   </Cabecalho>${rpsXml}
-  <!-- PENDENTE: <ds:Signature> — assinatura XMLDSig (Enveloped, RSA-SHA1,
-       C14N) do envelope inteiro, com o certificado A1. Sem isso o portal
-       rejeita o arquivo — ver utils/assinarXmlRpsLote.js (a implementar
-       quando o certificado estiver disponível no servidor). -->
 </ns:PedidoEnvioLoteRPS>`;
+
+  return assinarEnvelopeXml(envelopeSemAssinatura, certificado.chavePrivadaPem, certificado.certificadoPem);
 }
 
 module.exports = {

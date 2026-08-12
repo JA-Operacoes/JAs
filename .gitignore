@@ -1,6 +1,13 @@
 node_modules/
 .env
+.env.*
 
 # Certificado digital (A1) usado pra assinar XML de Nota Fiscal — nunca versionar.
 certs/*
 !certs/.gitkeep
+
+# 2ª cópia dos XMLs de Nota Fiscal, pensada pra ser compartilhada em rede com
+# a máquina do financeiro — duplicado do que já fica salvo (e versionado) em
+# uploads/notasparaenvio, não precisa entrar no git.
+xmlparaenviar/*
+!xmlparaenviar/.gitkeep

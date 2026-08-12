@@ -22,6 +22,8 @@ const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlew
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 const { gerarXmlPedidoEnvioLoteRPS } = require('../utils/gerarXmlRpsLote');
+const { obterCertificadoEmpresa } = require('../utils/certificadoEmpresa');
+const { carregarCertificado } = require('../utils/assinarXmlRpsLote');
 
 router.use(autenticarToken());
 router.use(contextoEmpresa);
@@ -36,6 +38,27 @@ if (!fs.existsSync(dirNotasFiscais)) {
 const dirNotasParaEnvio = path.join(__dirname, '../uploads/notasparaenvio');
 if (!fs.existsSync(dirNotasParaEnvio)) {
   fs.mkdirSync(dirNotasParaEnvio, { recursive: true });
+}
+
+// --- 2ª cópia, numa pasta separada (fora do uploads/, que é versionado pelo
+// git) pensada pra ser compartilhada em rede com a máquina do financeiro —
+// ele copia o XML direto dali pra subir no portal da prefeitura. Se esse
+// compartilhamento cair ou o arquivo sumir de lá por qualquer motivo, a
+// cópia em uploads/notasparaenvio continua intacta como backup.
+const dirXmlParaEnviarRede = path.join(__dirname, '../xmlparaenviar');
+if (!fs.existsSync(dirXmlParaEnviarRede)) {
+  fs.mkdirSync(dirXmlParaEnviarRede, { recursive: true });
+}
+
+// Só avisa no log se essa 2ª cópia falhar (ex.: pasta de rede fora do ar) —
+// nunca derruba a geração do XML por causa disso, já que uploads/notasparaenvio
+// (gravado separado, ver chamadas abaixo) é a cópia que garante o backup.
+function salvarCopiaParaRede(nomeArquivo, xml) {
+  try {
+    fs.writeFileSync(path.join(dirXmlParaEnviarRede, nomeArquivo), xml, 'utf8');
+  } catch (err) {
+    console.error(`Não consegui salvar cópia de ${nomeArquivo} em xmlparaenviar/:`, err.message);
+  }
 }
 
 const storageNotaFiscal = multer.diskStorage({
@@ -80,7 +103,7 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
     const result = await pool.query(
       `SELECT
          o.idorcamento, o.nrorcamento, o.vlrcliente,
-         o.idcliente, c.razaosocial AS cliente_nome,
+         o.idcliente, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
          o.idevento, e.nmevento AS evento_nome,
          o.idempresaemissora, em.nmfantasia AS emissora_nome,
          o.dtinirealizacao, o.dtfimrealizacao,
@@ -148,7 +171,7 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
       `SELECT
          o.idorcamento, o.nrorcamento, o.vlrcliente, o.formapagamento,
          o.dtinirealizacao, o.dtfimrealizacao,
-         c.idcliente, c.razaosocial, c.cnpj, c.tpcliente, c.inscricaomunicipal,
+         c.idcliente, c.razaosocial, c.nmfantasia AS cliente_nmfantasia, c.cnpj, c.tpcliente, c.inscricaomunicipal,
          c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.cep,
          ce.emailnfe,
          e.nmevento,
@@ -197,7 +220,8 @@ router.get("/orcamento/:idorcamento/historico", verificarPermissao('notafiscal',
 
   try {
     const result = await pool.query(
-      `SELECT nf.*, op.numparcela, op.dtvencimento
+      `SELECT nf.*, op.numparcela, op.dtvencimento,
+              (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas
          FROM notasfiscais nf
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
         WHERE nf.idorcamento = $1 AND nf.idempresa = $2
@@ -309,14 +333,14 @@ router.post("/", verificarPermissao('notafiscal', 'cadastrar'),
         // A parcela em si só vira "Faturada" quando a nota é confirmada
         // Emitida (de propósito, pra não travar à toa por causa de um
         // rascunho descartável) — mas isso abre brecha pra registrar uma
-        // 2ª nota pra mesma parcela enquanto a 1ª ainda está "XML Gerada".
+        // 2ª nota pra mesma parcela enquanto a 1ª ainda está "Pronta para Envio".
         // Bloqueia aqui, direto pela tabela de notas.
         const notaAtivaExistente = await client.query(
           `SELECT idnotafiscal FROM notasfiscais WHERE idparcela = $1 AND status <> 'Cancelada'`,
           [idparcela]
         );
         if (notaAtivaExistente.rowCount) {
-          throw new Error("Essa parcela já tem uma nota registrada (XML Gerada ou Emitida). Cancele a nota existente antes de registrar outra.");
+          throw new Error("Essa parcela já tem uma nota ativa (Pronta para Envio ou Emitida). Cancele a nota existente antes de registrar outra.");
         }
       }
 
@@ -333,7 +357,7 @@ router.post("/", verificarPermissao('notafiscal', 'cadastrar'),
           idempresa, idorcamento, idcliente, idservico || null, idparcela || null, descricaoparcela || null, descricaoservico || null,
           municipioprestacao || null, valorservico, aliquotaiss || null, valoriss || null, valorirrf || null,
           valorpiscofinscsll || null, valorcbs || null, valoribs || null, meiopagamento || null,
-          descricaomeiopagamento || null, observacao || null, status || 'XML Gerada', req.usuario.idusuario
+          descricaomeiopagamento || null, observacao || null, status || 'Pronta para Envio', req.usuario.idusuario
         ]
       );
 
@@ -475,12 +499,17 @@ async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
   const result = await pool.query(
     `SELECT nf.idnotafiscal, nf.descricaoservico, nf.valorservico, nf.aliquotaiss,
             nf.valorpiscofinscsll,
+            o.nrorcamento, op.numparcela,
+            (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
             em.cnpj AS emissora_cnpj, em.inscricaomunicipal AS emissora_inscricaomunicipal,
+            em.nmfantasia AS emissora_nmfantasia, em.siglacertificado AS emissora_siglacertificado,
             cl.cnpj AS cliente_cnpj, cl.inscricaomunicipal AS cliente_inscricaomunicipal,
+            cl.nmfantasia AS cliente_nmfantasia,
             ce.emailnfe AS cliente_email,
             s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria
        FROM notasfiscais nf
        JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+       LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
        LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
        LEFT JOIN clientes cl ON cl.idcliente = nf.idcliente
        LEFT JOIN clienteempresas ce ON ce.idcliente = cl.idcliente AND ce.idempresa = nf.idempresa
@@ -491,16 +520,55 @@ async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
   return result.rows;
 }
 
+// Deixa um texto seguro pra usar num nome de arquivo do Windows (tira
+// \ / : * ? " < > |, acento e espaço) — o portal da prefeitura só lê o
+// conteúdo do XML, nunca o nome do arquivo, então isso é só pra ajudar o
+// financeiro a identificar a nota de relance.
+function nomeArquivoSeguro(texto) {
+  return String(texto || "")
+    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    .replace(/[\\/:*?"<>|]/g, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .slice(0, 40);
+}
+
+// Identifica a nota do jeito que a tela mostra (nº do orçamento + parcela),
+// não pelo idnotafiscal interno — é o que a financeiro vê na tabela, então é
+// isso que precisa aparecer numa mensagem de erro pra ela achar a linha.
+function rotuloNota(nf) {
+  const parcela = nf.numparcela ? ` (parcela ${nf.numparcela}/${nf.totalparcelas})` : '';
+  return `Orçamento #${nf.nrorcamento}${parcela}`;
+}
+
 // Retorna uma mensagem de erro se a nota não tiver os dados mínimos pro XML,
 // ou null se estiver tudo certo.
 function validarNotaParaXml(nf) {
   if (!nf.emissora_cnpj || !nf.emissora_inscricaomunicipal) {
-    return `Nota #${nf.idnotafiscal}: a empresa emissora do orçamento não tem CNPJ/Inscrição Municipal cadastrados (cadastre em Empresas).`;
+    return `${rotuloNota(nf)}: a empresa emissora do orçamento não tem CNPJ/Inscrição Municipal cadastrados (cadastre em Empresas).`;
   }
   if (!nf.codigoservico || !nf.nbs || !nf.cindop || !nf.classificacaotributaria) {
-    return `Nota #${nf.idnotafiscal}: o serviço não tem Código/NBS/CIndOp/Classificação Tributária cadastrados (cadastre em Serviços).`;
+    return `${rotuloNota(nf)}: o serviço não tem Código/NBS/CIndOp/Classificação Tributária cadastrados (cadastre em Serviços).`;
+  }
+  const certificado = obterCertificadoEmpresa({
+    nmfantasia: nf.emissora_nmfantasia,
+    siglacertificado: nf.emissora_siglacertificado,
+  });
+  if (!certificado?.caminho || !certificado?.senha) {
+    return `${rotuloNota(nf)}: a empresa emissora não tem certificado digital configurado (cadastre em Empresas).`;
   }
   return null;
+}
+
+// Carrega o certificado (chave privada + certificado, em PEM) da empresa
+// emissora de uma nota já validada por validarNotaParaXml (ou seja, aqui já
+// se sabe que caminho/senha existem no .env — só falta abrir o arquivo).
+function carregarCertificadoDaNota(nf) {
+  const certificado = obterCertificadoEmpresa({
+    nmfantasia: nf.emissora_nmfantasia,
+    siglacertificado: nf.emissora_siglacertificado,
+  });
+  return carregarCertificado(certificado.caminho, certificado.senha);
 }
 
 function montarNotaParaGerador(nf) {
@@ -537,19 +605,35 @@ router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req
       return res.status(400).json({ message: erro });
     }
 
+    let certificado;
+    try {
+      certificado = carregarCertificadoDaNota(nf);
+    } catch (errCert) {
+      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+    }
+
     const xml = gerarXmlPedidoEnvioLoteRPS({
       empresaEmissora: {
         cnpj: nf.emissora_cnpj,
         inscricaomunicipal: nf.emissora_inscricaomunicipal
       },
-      notas: [montarNotaParaGerador(nf)]
+      notas: [montarNotaParaGerador(nf)],
+      certificado
     });
 
     // Nome fixo por nota (não leva data/hora) — gerar de novo a mesma nota
-    // SOBRESCREVE o arquivo anterior em vez de duplicar na pasta.
-    const nomeArquivo = `RPS-${nf.idnotafiscal}.xml`;
+    // SOBRESCREVE o arquivo anterior em vez de duplicar na pasta. O nome do
+    // cliente é só pra facilitar identificar de relance — se o cliente for
+    // renomeado entre duas gerações da mesma nota, o arquivo antigo (com o
+    // nome velho) fica órfão na pasta em vez de ser sobrescrito; raro, e
+    // inofensivo (só um arquivo extra parado).
+    const sufixoCliente = nomeArquivoSeguro(nf.cliente_nmfantasia);
+    const nomeArquivo = sufixoCliente
+      ? `RPS-${nf.idnotafiscal}-${sufixoCliente}.xml`
+      : `RPS-${nf.idnotafiscal}.xml`;
     const caminhoRelativo = `uploads/notasparaenvio/${nomeArquivo}`;
     fs.writeFileSync(path.join(dirNotasParaEnvio, nomeArquivo), xml, 'utf8');
+    salvarCopiaParaRede(nomeArquivo, xml);
 
     // Grava o caminho pra tela oferecer "Ver XML" (abrir o que já existe)
     // sem precisar gerar de novo — mesmo padrão de arquivopdf.
@@ -567,24 +651,31 @@ router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req
   }
 });
 
-// GET /notafiscal/prontas-envio — todas as notas "XML Gerada" da empresa (de
-// qualquer orçamento), pra escolher quais entram no lote a baixar juntas.
+// GET /notafiscal/prontas-envio — todas as notas "Pronta para Envio" da
+// empresa (de qualquer orçamento), pra escolher quais entram no lote a
+// baixar juntas. Traz arquivoxml/arquivopdf/numeronota também — a tela usa
+// isso pra mostrar os mesmos botões (Marcar emitida/Cancelar/Baixar
+// XML/Anexar PDF) que já existem em "Notas registradas", sem precisar abrir
+// o orçamento pra agir sobre a nota.
 router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
 
   try {
     const result = await pool.query(
       `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
-              o.nrorcamento, c.razaosocial AS cliente_nome,
+              nf.arquivoxml, nf.arquivopdf, nf.numeronota,
+              o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
+              c.inscricaomunicipal AS cliente_inscricaomunicipal,
               op.numparcela, op.dtvencimento,
+              (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
               em.nmfantasia AS emissora_nome, o.idempresaemissora
          FROM notasfiscais nf
          JOIN orcamentos o ON o.idorcamento = nf.idorcamento
          LEFT JOIN clientes c ON c.idcliente = nf.idcliente
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
          LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
-        WHERE nf.idempresa = $1 AND nf.status = 'XML Gerada'
-        ORDER BY nf.dtregistro ASC`,
+        WHERE nf.idempresa = $1 AND nf.status = 'Pronta para Envio'
+        ORDER BY em.nmfantasia ASC, op.dtvencimento ASC NULLS LAST, nf.dtregistro ASC`,
       [idempresa]
     );
     return res.json(result.rows);
@@ -625,12 +716,20 @@ router.post("/xml-lote", verificarPermissao('notafiscal', 'pesquisar'), async (r
       return res.status(400).json({ message: "As notas selecionadas são de empresas emissoras diferentes — selecione notas de uma única empresa emissora por lote." });
     }
 
+    let certificado;
+    try {
+      certificado = carregarCertificadoDaNota(linhas[0]);
+    } catch (errCert) {
+      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+    }
+
     const xml = gerarXmlPedidoEnvioLoteRPS({
       empresaEmissora: {
         cnpj: linhas[0].emissora_cnpj,
         inscricaomunicipal: linhas[0].emissora_inscricaomunicipal
       },
-      notas: linhas.map(montarNotaParaGerador)
+      notas: linhas.map(montarNotaParaGerador),
+      certificado
     });
 
     // Aqui NÃO dá pra usar um nome fixo (o mesmo conjunto de ids poderia
@@ -640,6 +739,7 @@ router.post("/xml-lote", verificarPermissao('notafiscal', 'pesquisar'), async (r
     const carimbo = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
     const nomeArquivo = `Lote-RPS-${carimbo}-${linhas.length}notas.xml`;
     fs.writeFileSync(path.join(dirNotasParaEnvio, nomeArquivo), xml, 'utf8');
+    salvarCopiaParaRede(nomeArquivo, xml);
 
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${nomeArquivo}"`);

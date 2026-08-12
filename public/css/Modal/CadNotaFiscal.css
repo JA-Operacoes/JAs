@@ -329,6 +329,13 @@ body.modal-open {
   background: none; border: none; font-family: inherit; padding: 0;
 }
 
+/* "Ver XML" quando já existe um arquivo gerado — verde pra destacar visualmente
+   que essa nota já teve XML individual baixado (ver conversa sobre risco de
+   baixar/enviar duas vezes sem perceber). */
+#cadModalNotaFiscal .nf-link-ok {
+  color: #1a7d33;
+}
+
 #cadModalNotaFiscal .nf-row-btn {
   font-family: "Abel", sans-serif;
   background: var(--primary-color, #942123);
