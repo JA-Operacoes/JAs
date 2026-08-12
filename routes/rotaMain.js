@@ -3251,6 +3251,7 @@ router.get("/vencimentos", async (req, res) => {
           tse.statuscaixinha,
           tse.statusstaff,
           tse.comppgtocache,
+          tse.comppgtocache50,
           tse.comppgtocaixinha,
           tse.comppgtoajdcusto50,
           tse.comppgtoajdcusto
@@ -3609,7 +3610,7 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
             );
             return resultAjuste.rows[0] ? { dadosanteriores: resultAjuste.rows[0], idregistroalterado: idStaff } : null;
         }
-        const query = `SELECT idstaffevento, comppgtocache, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto FROM staffeventos WHERE idstaffevento = $1`;
+        const query = `SELECT idstaffevento, comppgtocache, comppgtocache50, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto FROM staffeventos WHERE idstaffevento = $1`;
         const result = await pool.query(query, [idStaff]);
         return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
     }
@@ -3652,15 +3653,18 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
         let coluna = "";
 
         // Mapeamento direto dos tipos vindo do frontend
-        if (tipo === 'cache') {
+        if (tipo === 'cache_50') {
+            coluna = 'comppgtocache50';
+        }
+        else if (tipo === 'cache_100' || tipo === 'cache') {
             coluna = 'comppgtocache';
-        } 
+        }
         else if (tipo === 'caixinha') {
             coluna = 'comppgtocaixinha';
-        } 
+        }
         else if (tipo === 'ajuda_50') {
             coluna = 'comppgtoajdcusto50';
-        } 
+        }
         else if (tipo === 'ajuda_100') {
             coluna = 'comppgtoajdcusto';
         }

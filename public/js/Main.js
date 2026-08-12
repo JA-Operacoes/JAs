@@ -12796,7 +12796,9 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
         return null;
     };
 
-    if (filtro.includes('ajuda')) {
+    // Ajuda de Custo e Cachê usam o mesmo esquema de 2 parcelas (50% + 100%)
+    if (filtro.includes('ajuda') || filtro === 'cache') {
+        const prefixo = filtro === 'cache' ? 'cache' : 'ajuda';
         const btn50 = extrairBotao("50");
         const btn100 = extrairBotao("100");
 
@@ -12805,11 +12807,11 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
                 <div style="display:flex; flex-direction: column; gap:5px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size: 10px; font-weight: bold; min-width: 40px;">1ª Parc:</span>
-                        ${btn50 || renderBotaoUploadUiverse(idStaff, 'ajuda_50')}
+                        ${btn50 || renderBotaoUploadUiverse(idStaff, `${prefixo}_50`)}
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size: 10px; font-weight: bold; min-width: 40px;">2ª Parc:</span>
-                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
+                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, `${prefixo}_100`) : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
                     </div>
                 </div>`;
         }
@@ -12818,7 +12820,7 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
             return `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size: 10px; font-weight: bold;">Total:</span>
-                    ${btn100 || renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
+                    ${btn100 || renderBotaoUploadUiverse(idStaff, `${prefixo}_100`)}
                 </div>`;
         }
         return '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
@@ -12950,27 +12952,31 @@ window.abrirComprovantesStaff = function(idStaffEvento) {
 };
 
 window.criarHTMLComprovantes = function(f, tipo) {
-    if (tipo === 'ajuda_custo') {
+    // Ajuda de Custo e Cachê usam o mesmo esquema de 2 parcelas (50% + 100%)
+    if (tipo === 'ajuda_custo' || tipo === 'cache') {
+        const campo50 = tipo === 'cache' ? f.comppgtocache50 : f.comppgtoajdcusto50;
+        const campo100 = tipo === 'cache' ? f.comppgtocache : f.comppgtoajdcusto;
+
         let html = '<div style="display:flex; flex-direction:column; gap:4px;">';
-        
+
         // Comprovante 50%
-        if (f.comppgtoajdcusto50) {
-            const url50 = encodeURIComponent(f.comppgtoajdcusto50);
+        if (campo50) {
+            const url50 = encodeURIComponent(campo50);
             html += `
                 <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url50}')" title="Ver 50%">
                     <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 50%</small>
                 </button>`;
         }
-        
+
         // Comprovante 100%
-        if (f.comppgtoajdcusto) {
-            const url100 = encodeURIComponent(f.comppgtoajdcusto);
+        if (campo100) {
+            const url100 = encodeURIComponent(campo100);
             html += `
                 <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url100}')" title="Ver 100%">
                     <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 100%</small>
                 </button>`;
         }
-        
+
         html += '</div>';
         return html;
     }
@@ -12986,8 +12992,8 @@ window.criarHTMLComprovantes = function(f, tipo) {
         return '';
     }
 
-    // Para Cache ou Caixinha
-    const campo = (tipo === 'cache') ? f.comppgtocache : f.comppgtocaixinha;
+    // Para Caixinha
+    const campo = f.comppgtocaixinha;
     if (campo) {
         const url = encodeURIComponent(campo);
         return `
@@ -19137,9 +19143,9 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEv
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
     let statusParaEnviar = novoStatus;
 
-    if (tipo === 'Ajuda' && novoStatus === 'Pago') {
+    if ((tipo === 'Ajuda' || tipo === 'Cache') && novoStatus === 'Pago') {
         const { value: opcao } = await Swal.fire({
-            title: 'Pagamento Ajuda de Custo',
+            title: tipo === 'Ajuda' ? 'Pagamento Ajuda de Custo' : 'Pagamento de Cachê',
             text: 'Escolha a modalidade do pagamento:',
             icon: 'question',
             showDenyButton: true,

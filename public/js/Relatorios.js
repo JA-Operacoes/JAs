@@ -618,8 +618,10 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
 
     const obterClasseCompStatus = (status) => {
         if (!status) return '';
-        if (status.includes('Anexado') && !status.includes('Falta')) return 'status-doc-ok';
+        // 50% (ex.: "Cachê 50% Anexado", "50% Anexado") precisa vir antes do check de
+        // "Anexado" — senão cai no branch de "ok" (verde) mesmo faltando a 2ª parcela.
         if (status.includes('50%')) return 'status-doc-alerta';
+        if (status.includes('Anexado') && !status.includes('Falta')) return 'status-doc-ok';
         if (status === 'Isento') return 'status-doc-isento';
         return 'status-doc-erro';
     };
@@ -744,7 +746,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">
-                                ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"], false)}
+                                ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"])}
                             </td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
