@@ -5797,9 +5797,18 @@ async function verificaStaff() {
 
             if (!fechadoCheck.checked && !liberadoCheck.checked) statusFechado = '';
 
-            // Se houve troca de nível, zera statusFechado e descCustoFechado no envio
-            const statusFechadoParaEnvio = nivelFoiTrocado ? null : statusFechado;
-            const descCustoFechadoParaEnvio = nivelFoiTrocado ? null : descCustoFechado;
+            // Se houve troca de nível, zera statusFechado e descCustoFechado no envio — EXCETO
+            // quando o usuário confirmou no Swal (verificarBloqueioStatusAutorizado) que a
+            // solicitação de Cachê Fechado/Liberado em aberto (Autorizada ou Pendente) deve ser
+            // reprovada: nesse caso manda 'Rejeitado' explícito, pro backend fechar a solicitação
+            // corretamente em vez de deixá-la esquecida/nula no banco.
+            const statusFechadoParaEnvio = nivelFoiTrocado
+                ? (window.forcarRejeicaoCustoFechadoNivelPadrao ? 'Rejeitado' : null)
+                : statusFechado;
+            const descCustoFechadoParaEnvio = nivelFoiTrocado
+                ? (window.forcarRejeicaoCustoFechadoNivelPadrao ? descCustoFechado : null)
+                : descCustoFechado;
+            window.forcarRejeicaoCustoFechadoNivelPadrao = false;
 
             console.log("STATUSCUSTOFECHADO DEPOIS DE TRATAR", statusFechado, "Check:", fechadoCheck.checked, "Valor:", vlrCustoNumerico);
 
@@ -6919,6 +6928,12 @@ async function verificaStaff() {
             formData.append('vlrcache', vlrCusto);
             formData.append('desccustofechado', descCustoFechadoParaEnvio || '');
             formData.append('statuscustofechado', statusFechadoParaEnvio || '');
+            // Troca explícita Fechado <-> Liberado confirmada no Swal (verificarBloqueioStatusAutorizado):
+            // avisa o backend pra fechar (Rejeitado) a solicitação ativa anterior — Pendente OU
+            // Autorizada — e abrir uma nova do zero, em vez de reaproveitar a linha antiga (que
+            // manteria o tiposolicitacao do nível anterior).
+            formData.append('forcarNovaSolicitacaoCustoFechado', window.forcarNovaSolicitacaoCustoFechado ? 'true' : 'false');
+            window.forcarNovaSolicitacaoCustoFechado = false;
             formData.append('vlrtransporte', transporte);
             formData.append('vlralimentacao', alimentacao);
             
@@ -12823,36 +12838,166 @@ function restaurarStatusCustoFechado() {
 }
 
 function verificarBloqueioStatusAutorizado(checkboxElement) {
-    const elStatus = document.getElementById('selectStatusCustoFechado') || document.getElementById('statusCustoFechadoTexto');
-    const statusAtual = (elStatus ? elStatus.value : "").toUpperCase();
+    // Permite a passagem única disparada pelo próprio callback de confirmação abaixo
+    // (dispatchEvent de 'change' após o usuário confirmar a troca no Swal).
+    if (window.__bypassBloqueioCustoFechado) return false;
 
-    // Se está AUTORIZADO e NÃO é o carregamento inicial (ou seja, é clique humano)
-    if (statusAtual === "AUTORIZADO" && !isFormLoadedFromDoubleClick) {
-        Swal.fire({
-            title: "Ação Bloqueada!",
-            text: "Este cachê já foi AUTORIZADO. Para alterar o nível, o status deve ser alterado para Pendente ou Rejeitado primeiro.",
-            icon: "error"
-        });
-        
-        // 1. Desmarca o que o usuário clicou errado
+    // 🌟 CORREÇÃO: '#statusCustoFechado' NÃO EXISTE no HTML (CadStaff.html só tem
+    // '#selectStatusCustoFechado' e '#statusCustoFechadoTexto') — ler dele sempre voltava
+    // vazio e o bloqueio nunca disparava pra ninguém. A fonte de verdade real é: o <select>
+    // quando ele tem um valor de fato escolhido (visível só pra Master/Financeiro), OU o
+    // input de texto (visível pros demais usuários) — o mesmo critério já usado no envio do
+    // formulário (ver `statusFechado` no submit, mais abaixo neste arquivo).
+    const selectStatusFechadoEl = document.getElementById('selectStatusCustoFechado');
+    const textoStatusFechadoEl = document.getElementById('statusCustoFechadoTexto');
+    const statusAtual = (
+        (selectStatusFechadoEl && selectStatusFechadoEl.value && selectStatusFechadoEl.value !== 'none')
+            ? selectStatusFechadoEl.value
+            : (textoStatusFechadoEl ? textoStatusFechadoEl.value : '')
+    ).toUpperCase();
+
+    // Nível padrão de experiência (não usa a solicitação de Cachê Fechado/Liberado).
+    const idsNiveisPadrao = ['Seniorcheck2', 'Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck'];
+    const trocandoParaNivelPadrao = idsNiveisPadrao.includes(checkboxElement.id);
+
+    // Intercepta tanto AUTORIZADO quanto PENDENTE, em QUALQUER troca de nível (padrão ou
+    // Fechado <-> Liberado): independente do status atual, trocar o nível tem que reprovar
+    // explicitamente a solicitação em aberto, em vez de deixá-la esquecida/inconsistente no banco.
+    const statusAtivo = statusAtual === "AUTORIZADO" || statusAtual === "PENDENTE";
+
+    // Se há uma solicitação ativa (Autorizado, ou Pendente indo pra nível padrão) e NÃO é o
+    // carregamento inicial (ou seja, é clique humano)
+    if (statusAtivo && !isFormLoadedFromDoubleClick) {
+        const nivelOriginal = (currentEditingStaffEvent.nivelexperiencia || "").trim().toUpperCase();
+        const nivelOriginalLabel = nivelOriginal === "FECHADO" ? "Cachê Fechado" : (nivelOriginal === "LIBERADO" ? "Cachê Liberado" : nivelOriginal);
+        const novoNivelLabel = checkboxElement.id === 'Fechadocheck' ? 'Cachê Fechado'
+            : checkboxElement.id === 'Liberadocheck' ? 'Cachê Liberado'
+            : checkboxElement.id === 'Basecheck' ? 'Base'
+            : checkboxElement.id === 'Juniorcheck' ? 'Junior'
+            : checkboxElement.id === 'Plenocheck' ? 'Pleno'
+            : checkboxElement.id === 'Seniorcheck' ? 'Senior'
+            : checkboxElement.id === 'Seniorcheck2' ? 'Senior 2'
+            : 'outro nível';
+        const statusAtualLabel = statusAtual === "AUTORIZADO" ? "AUTORIZADA" : "PENDENTE";
+
+        console.log("Restaurando para o nível autorizado/pendente enquanto aguarda decisão do usuário:", nivelOriginal);
+
+        // 1. Desmarca o que o usuário clicou, até que ele decida no Swal abaixo
         checkboxElement.checked = false;
 
-        // 2. CORREÇÃO: Usa a variável GLOBAL para saber o que marcar de volta
-        const nivelOriginal = (currentEditingStaffEvent.nivelexperiencia || "").trim().toUpperCase();
-        console.log("Restaurando para o nível autorizado:", nivelOriginal);
+        // nivelOriginal só pode ser FECHADO ou LIBERADO aqui — é a única forma de existir uma
+        // solicitação de Cachê Fechado/Liberado ativa (statusAtivo). Usado nos cancelamentos abaixo.
+        const restaurarNivelOriginal = () => {
+            if (nivelOriginal === "FECHADO") { if (fechadoCheck) fechadoCheck.checked = true; }
+            else if (nivelOriginal === "LIBERADO") { if (liberadoCheck) liberadoCheck.checked = true; }
+        };
 
-        // 3. Remarca o original
-        if (nivelOriginal === "BASE") if (baseCheck) baseCheck.checked = true;
-        if (nivelOriginal === "JUNIOR") if (juniorCheck) juniorCheck.checked = true;
-        if (nivelOriginal === "PLENO") if (plenoCheck) plenoCheck.checked = true;
-        if (nivelOriginal === "SENIOR") if (seniorCheck) seniorCheck.checked = true;
-        if (nivelOriginal === "SENIOR2" || nivelOriginal === "SENIOR 2") if (seniorCheck2) seniorCheck2.checked = true;
-        if (nivelOriginal === "FECHADO") if (fechadoCheck) fechadoCheck.checked = true;
-        if (nivelOriginal === "LIBERADO") if (liberadoCheck) liberadoCheck.checked = true;
+        // 🌟 Troca para NÍVEL PADRÃO (Base/Junior/Pleno/Senior): não existe uma "nova solicitação"
+        // de cachê pra abrir, então basta confirmar e reprovar a que estava em aberto.
+        if (trocandoParaNivelPadrao) {
+            Swal.fire({
+                title: `Solicitação de ${nivelOriginalLabel} ${statusAtualLabel}!`,
+                html: `Este cadastro possui uma solicitação de <b>${nivelOriginalLabel}</b> <b>${statusAtualLabel}</b>.<br><br>` +
+                      `Ao trocar para o nível padrão <b>${novoNivelLabel}</b>, essa solicitação será <b>reprovada automaticamente</b>.<br><br>` +
+                      `Deseja continuar?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Sim, reprovar e trocar de nível",
+                cancelButtonText: "Cancelar"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Marca a solicitação como Rejeitada nos campos visuais (select/input real),
+                    // e sinaliza pro envio do formulário mandar 'Rejeitado' em vez de nulo.
+                    const selectStatusFechado = document.getElementById('selectStatusCustoFechado');
+                    const inputStatusFechadoTexto = document.getElementById('statusCustoFechadoTexto');
+                    if (selectStatusFechado) {
+                        selectStatusFechado.value = 'Rejeitado';
+                        if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectStatusFechado);
+                    }
+                    if (inputStatusFechadoTexto) {
+                        inputStatusFechadoTexto.value = 'Rejeitado';
+                        if (typeof aplicarCorStatusInput === 'function') aplicarCorStatusInput(inputStatusFechadoTexto);
+                    }
+                    window.forcarRejeicaoCustoFechadoNivelPadrao = true;
 
-        return true; 
+                    window.__bypassBloqueioCustoFechado = true;
+                    checkboxElement.checked = true;
+                    checkboxElement.dispatchEvent(new Event('change'));
+                    window.__bypassBloqueioCustoFechado = false;
+                } else {
+                    // Cancelou: mantém marcado o nível originalmente autorizado/pendente
+                    restaurarNivelOriginal();
+                }
+            });
+
+            return true;
+        }
+
+        Swal.fire({
+            title: `Solicitação de ${nivelOriginalLabel} ${statusAtualLabel}!`,
+            html: `Este cadastro já possui uma solicitação de <b>${nivelOriginalLabel}</b> <b>${statusAtualLabel}</b>.<br><br>` +
+                  `Se continuar, o sistema irá <b>recusar automaticamente</b> essa solicitação e enviar uma <b>nova solicitação Pendente</b> para <b>${novoNivelLabel}</b>.<br><br>` +
+                  `Deseja continuar?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Sim, recusar e enviar nova solicitação",
+            cancelButtonText: "Cancelar"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 2. Pede a NOVA justificativa da solicitação (a antiga pertence à solicitação
+                //    que está sendo recusada — não pode simplesmente reaproveitar o texto velho).
+                Swal.fire({
+                    title: `Justificativa da nova solicitação (${novoNivelLabel})`,
+                    input: "textarea",
+                    inputPlaceholder: "Descreva o motivo desta nova solicitação...",
+                    inputValue: "",
+                    showCancelButton: true,
+                    confirmButtonText: "Confirmar solicitação",
+                    cancelButtonText: "Cancelar",
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return "A justificativa é obrigatória para abrir a nova solicitação.";
+                        }
+                    }
+                }).then((justificativaResult) => {
+                    if (justificativaResult.isConfirmed) {
+                        // 3. Atualiza os campos visuais (select/input real) e a justificativa
+                        const selectStatusFechado = document.getElementById('selectStatusCustoFechado');
+                        const inputStatusFechadoTexto = document.getElementById('statusCustoFechadoTexto');
+                        if (selectStatusFechado) {
+                            selectStatusFechado.value = 'Pendente';
+                            if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectStatusFechado);
+                        }
+                        if (inputStatusFechadoTexto) {
+                            inputStatusFechadoTexto.value = 'Pendente';
+                            if (typeof aplicarCorStatusInput === 'function') aplicarCorStatusInput(inputStatusFechadoTexto);
+                        }
+                        if (descCustoFechadoTextarea) descCustoFechadoTextarea.value = justificativaResult.value.trim();
+
+                        // Sinaliza pro envio do formulário: independente do status atual ser
+                        // Autorizado ou Pendente, essa solicitação ativa deve ser recusada e uma
+                        // nova aberta do zero (evita reaproveitar a linha antiga com o tipo errado).
+                        window.forcarNovaSolicitacaoCustoFechado = true;
+
+                        // 4. Refaz a marcação do checkbox, agora liberando a execução normal do handler
+                        window.__bypassBloqueioCustoFechado = true;
+                        checkboxElement.checked = true;
+                        checkboxElement.dispatchEvent(new Event('change'));
+                        window.__bypassBloqueioCustoFechado = false;
+                    } else {
+                        // Cancelou na etapa da justificativa: mantém marcado o nível originalmente autorizado
+                        restaurarNivelOriginal();
+                    }
+                });
+            } else {
+                // Cancelou: mantém marcado o nível originalmente autorizado
+                restaurarNivelOriginal();
+            }
+        });
+
+        return true;
     }
-    return false; 
+    return false;
 }
 
 function validarCamposEssenciais() {

@@ -2211,10 +2211,15 @@ router.put("/:idStaffEvento",
             }
 
             // 4. SINCRONIZAÇÃO DE SOLICITAÇÕES
+            // 🌟 tipo dinâmico: era hardcoded 'Cachê Fechado' mesmo quando o nível era Liberado —
+            // as duas solicitações (uma de Fechado, outra de Liberado) ficavam com o MESMO
+            // tiposolicitacao e a query de notificações (que agrupa por tiposolicitacao) fundia
+            // as duas num card só, escondendo uma delas na tela mesmo com as 2 linhas no banco.
+            const tipoCustoFechadoAtual = (body.nivelexperiencia || '').trim().toUpperCase() === 'LIBERADO' ? 'Cachê Liberado' : 'Cachê Fechado';
             const itensFinanceiros = [
                 { status: body.statuscaixinha, campo: 'statuscaixinha', valor: vlrCaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
                 { status: body.statusajustecusto, campo: 'statusajustecusto', valor: vlrAjuste, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
-                { status: body.statuscustofechado, campo: 'statuscustofechado', valor: vlrCusto, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
+                { status: body.statuscustofechado, campo: 'statuscustofechado', valor: vlrCusto, desc: body.desccustofechado, tipo: tipoCustoFechadoAtual },
                 { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: dtdiariadobrada },
                 { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: dtmeiadiaria }
             ];
@@ -2362,13 +2367,59 @@ router.put("/:idStaffEvento",
             //         }            
             //     } else {
        
+                    // 🌟 Troca explícita Fechado <-> Liberado confirmada pelo usuário no Swal
+                    // (verificarBloqueioStatusAutorizado, tanto vindo de Pendente quanto de
+                    // Autorizado): fecha a solicitação ativa (qualquer status) e abre uma nova do
+                    // zero, em vez de reaproveitar a linha antiga — que manteria o tiposolicitacao
+                    // do nível anterior (ex.: continuar "Cachê Fechado" numa solicitação que agora é
+                    // "Cachê Liberado", já que o UPDATE genérico abaixo não toca em tiposolicitacao).
+                    if (item.campo === 'statuscustofechado' && body.forcarNovaSolicitacaoCustoFechado === 'true' && item.status === 'Pendente') {
+                        const fechamentoRes = await client.query(
+                            `UPDATE public.solicitacoes
+                             SET status = 'Rejeitado',
+                                 justificativa = CASE
+                                     WHEN justificativa IS NOT NULL AND justificativa <> ''
+                                     THEN justificativa || ' | Recusada automaticamente: usuário trocou entre Cachê Fechado/Liberado.'
+                                     ELSE 'Recusada automaticamente: usuário trocou entre Cachê Fechado/Liberado.'
+                                 END,
+                                 dtresposta = NOW(),
+                                 idusuarioresponsavel = $1
+                             WHERE idregistroalterado = $2
+                               AND categoria_log = 'statuscustofechado'
+                               AND idempresa = $3
+                               AND status IN ('Pendente', 'Autorizado')
+                             RETURNING idsolicitacao`,
+                            [idUsuarioLogado, idStaffEvento, idempresa]
+                        );
+                        if (fechamentoRes.rowCount > 0) {
+                            console.log(`🔁 [PUT] ${fechamentoRes.rowCount} solicitação(ões) de Cachê Fechado/Liberado recusada(s) automaticamente por troca de nível — staff ${idStaffEvento}.`);
+                        }
+
+                        await registrarSolicitacao(client, {
+                            idempresa: idempresa,
+                            idorcamento: body.idorcamento,
+                            idfuncionario: body.idfuncionario,
+                            idfuncao: body.idfuncao,
+                            idstaffevento: idStaffEvento,
+                            idusuariosolicitante: idUsuarioLogado,
+                            tiposolicitacao: item.tipo,
+                            categoria: item.campo,
+                            valor: item.valor,
+                            justificativa: item.desc,
+                            datas: item.datas,
+                            status: item.status
+                        });
+
+                        continue;
+                    }
+
                     // 1. Tenta atualizar. Incluímos o idusuariosolicitante no SET para garantir que ele seja gravado.
                     const updateRes = await client.query(
-                        `UPDATE public.solicitacoes 
-                        SET status = $1::varchar, 
-                            dtresposta = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END, 
+                        `UPDATE public.solicitacoes
+                        SET status = $1::varchar,
+                            dtresposta = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END,
                             idusuarioresponsavel = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE $2::integer END,
-                            vlrsolicitado = $3, 
+                            vlrsolicitado = $3,
                             justificativa = $4::text,
                             idusuariosolicitante = $2::integer -- Adicionado para não ficar NULL no update
                         WHERE idregistroalterado = $5::integer
@@ -2377,6 +2428,35 @@ router.put("/:idStaffEvento",
                         AND status = 'Pendente'`,
                         [item.status, idUsuarioLogado, item.valor, item.desc, idStaffEvento, item.campo, idempresa]
                     );
+
+                    // 🌟 GUARDA: Cachê Fechado/Liberado ('statuscustofechado') usa a MESMA categoria_log
+                    // pros dois níveis. O UPDATE acima só afeta status='Pendente', então uma linha
+                    // AUTORIZADA nunca é tocada por ele. Cobre o caso de usuário trocando de
+                    // Fechado/Liberado para um nível padrão (Base/Junior/Pleno/Senior) tendo uma
+                    // solicitação AUTORIZADA ou PENDENTE em aberto (envia 'Rejeitado' explícito, ver
+                    // statusFechadoParaEnvio no Staff.js) — sem isso a Autorizada ficaria intocada.
+                    if (item.campo === 'statuscustofechado' && ['Pendente', 'Rejeitado'].includes(item.status) && updateRes.rowCount === 0) {
+                        const autorizadaAnteriorRes = await client.query(
+                            `UPDATE public.solicitacoes
+                             SET status = 'Rejeitado',
+                                 justificativa = CASE
+                                     WHEN justificativa IS NOT NULL AND justificativa <> ''
+                                     THEN justificativa || ' | Recusada automaticamente: usuário alterou a solicitação/nível de Cachê Fechado/Liberado.'
+                                     ELSE 'Recusada automaticamente: usuário alterou a solicitação/nível de Cachê Fechado/Liberado.'
+                                 END,
+                                 dtresposta = NOW(),
+                                 idusuarioresponsavel = $1
+                             WHERE idregistroalterado = $2
+                               AND categoria_log = 'statuscustofechado'
+                               AND idempresa = $3
+                               AND status = 'Autorizado'
+                             RETURNING idsolicitacao`,
+                            [idUsuarioLogado, idStaffEvento, idempresa]
+                        );
+                        if (autorizadaAnteriorRes.rowCount > 0) {
+                            console.log(`🔁 [PUT] Solicitação de Cachê Fechado/Liberado (id ${autorizadaAnteriorRes.rows[0].idsolicitacao}) recusada automaticamente por nova solicitação — staff ${idStaffEvento}.`);
+                        }
+                    }
 
                     if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(item.status)) {
                         // Certifique-se que a função registrarSolicitacao trata dtsolicitada como array se necessário
@@ -3606,10 +3686,15 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         // ====================================================================
         // 🚀 5. REGISTRAR SOLICITAÇÕES FINANCEIRAS
         // ====================================================================
+        // 🌟 tipo dinâmico: era hardcoded 'Cachê Fechado' mesmo quando o nível era Liberado —
+        // ver mesma correção no PUT (tipoCustoFechadoAtual) — mantém tiposolicitacao coerente
+        // com o nível real, evitando que solicitações de Fechado e Liberado se confundam nas
+        // notificações (que agrupam por tiposolicitacao).
+        const tipoCustoFechadoAtualPost = nivelExperienciaUpper === 'LIBERADO' ? 'Cachê Liberado' : 'Cachê Fechado';
         const itensFinanceiros = [
             { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
             { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
-            { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: 'Cachê Fechado' },
+            { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: tipoCustoFechadoAtualPost },
             { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: descDiariaDobradaFinalText, tipo: 'Diária Dobrada', datas: dtdiariadobrada },
             { status: body.statusmeiadiaria, campo: 'statusmeiadiaria', valor: 0, desc: body.descmeiadiaria, tipo: 'Meia Diária', datas: dtmeiadiaria }
         ];
