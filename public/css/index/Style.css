@@ -446,10 +446,15 @@ input#search-aside {
 
   /* SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
   /* 1. Reset de visibilidade para o Financeiro */
-  .Financeiro:hover .drop, 
+  /* height:auto sobrepõe o height:300px fixo da regra genérica ".Financeiro:hover .drop"
+     lá em cima — com overflow:visible e altura fixa, itens além dos 300px (a lista já
+     passa disso com Ajuste Financeiro + Alíquotas) vazavam pra fora do fundo cinza em
+     vez de simplesmente aumentar a caixa. */
+  .Financeiro:hover .drop,
   .Financeiro:hover .drop-content {
       overflow: visible !important;
       display: block !important;
+      height: auto !important;
   }
 
   /* 2. O item "Cadastros" precisa de ser relativo */
