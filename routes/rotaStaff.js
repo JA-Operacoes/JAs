@@ -82,6 +82,7 @@ const uploadComprovantesMiddleware = multer({
     }
 }).fields([
     { name: 'comppgtocache', maxCount: 1 },
+    { name: 'comppgtocache50', maxCount: 1 },
     { name: 'comppgtoajdcusto', maxCount: 1 },
     { name: 'comppgtocaixinha', maxCount: 1 },
     { name: 'comppgtoajdcusto50', maxCount: 1 },
@@ -1431,7 +1432,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
                 se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
                 se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                 se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
-                s.idstaff, s.avaliacao, se.comppgtoajdcusto50, se.compcontgastos
+                s.idstaff, s.avaliacao, se.comppgtoajdcusto50, se.comppgtocache50, se.compcontgastos
             FROM staffeventos se
             INNER JOIN staff s ON se.idstaff = s.idstaff
             WHERE se.idfuncionario = $1
@@ -1642,6 +1643,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.vlrtotajdcusto,
           se.datasevento,
           se.comppgtocache,
+          se.comppgtocache50,
           se.comppgtoajdcusto,
           se.comppgtoajdcusto50,
           se.comppgtocaixinha,
@@ -1912,6 +1914,7 @@ router.put("/:idStaffEvento",
 
             const paths = {
                 cache:  req.files?.comppgtocache    ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}`    : (body.limparComprovanteCache      === 'true' ? null : old.comppgtocache),
+                cache50: req.files?.comppgtocache50 ? `/uploads/staff_comprovantes/${req.files.comppgtocache50[0].filename}` : (body.limparComprovanteCache2      === 'true' ? null : old.comppgtocache50),
                 ajd:    req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto    === 'true' ? null : old.comppgtoajdcusto),
                 ajd50:  req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto2 === 'true' ? null : old.comppgtoajdcusto50),
                 cx:     req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha     === 'true' ? null : old.comppgtocaixinha),
@@ -1923,6 +1926,7 @@ router.put("/:idStaffEvento",
             };
 
             if (req.files?.comppgtocache)     deletarArquivoAntigo(old.comppgtocache);
+            if (req.files?.comppgtocache50)   deletarArquivoAntigo(old.comppgtocache50);
             if (req.files?.comppgtoajdcusto)  deletarArquivoAntigo(old.comppgtoajdcusto);
             if (req.files?.comppgtoajdcusto50)deletarArquivoAntigo(old.comppgtoajdcusto50);
             if (req.files?.comppgtocaixinha)  deletarArquivoAntigo(old.comppgtocaixinha);
@@ -2051,7 +2055,7 @@ router.put("/:idStaffEvento",
             // não pode ser Deletado — só Inativado. O front já desabilita a opção, isso é defesa em profundidade.
             const statusPgtoParaCheck    = (body.statuspgto       || old.statuspgto       || '').trim().toUpperCase();
             const statusPgtoAjdParaCheck = (body.statuspgtoajdcto || old.statuspgtoajdcto || '').trim().toUpperCase();
-            const jaTemPagamentoRealizado = statusPgtoParaCheck === 'PAGO'
+            const jaTemPagamentoRealizado = statusPgtoParaCheck === 'PAGO' || statusPgtoParaCheck === 'PAGO50'
                 || statusPgtoAjdParaCheck === 'PAGO' || statusPgtoAjdParaCheck === 'PAGO50';
 
             if (novoStatusStaff === 'Deletado' && antigoStatusStaff !== 'Deletado' && jaTemPagamentoRealizado) {
@@ -2169,7 +2173,7 @@ router.put("/:idStaffEvento",
                     statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45,
                     statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff),
                     compcontgastos = $52, compnotafiscal = $53, obsgeral = $54, obslogsistema = $55,
-                    compinativardeletar = $56
+                    compinativardeletar = $56, comppgtocache50 = $57
                 WHERE idstaffevento = $49
                 AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $50)`,
                 [
@@ -2185,7 +2189,7 @@ router.put("/:idStaffEvento",
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
                     paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal,
-                    paths.inativardeletar
+                    paths.inativardeletar, paths.cache50
                 ]
             );
 

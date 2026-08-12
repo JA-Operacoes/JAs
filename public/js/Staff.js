@@ -1944,6 +1944,10 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     else if (statusPgtoCxValue === "SUSPENSO") statusPgtoCaixinhaInput.classList.add('suspenso');
 
     const statusPgtoAjdCtoValue = statusPgtoAjudaCustoInput.value.toUpperCase();
+    // Guarda o valor "cru" (ex.: PAGO50) separado do texto exibido, que é reformatado
+    // logo abaixo para "PAGO 50%" — sem isso, quem lê .value depois (envio do form,
+    // checagem de comprovante) pegaria o texto formatado em vez do status real.
+    statusPgtoAjudaCustoInput.dataset.status = statusPgtoAjdCtoValue;
     statusPgtoAjudaCustoInput.classList.remove('pendente', 'pago', 'pago50', 'suspenso');
     if (statusPgtoAjdCtoValue === "PENDENTE") statusPgtoAjudaCustoInput.classList.add('pendente');
     else if (statusPgtoAjdCtoValue === "PAGO") statusPgtoAjudaCustoInput.classList.add('pago');
@@ -3880,7 +3884,7 @@ async function verificaStaff() {
             });
         }
 
-        const status = statusPgtoAjudaCustoInput.value.toLowerCase();
+        const status = (statusPgtoAjudaCustoInput.dataset.status || statusPgtoAjudaCustoInput.value).toLowerCase();
         if (status !== 'pago') {
             event.preventDefault(); // Impede a abertura do modal de upload
             Swal.fire({
@@ -3906,7 +3910,7 @@ async function verificaStaff() {
             });
         }
 
-        const status50 = statusPgtoAjudaCustoInput.value.toLowerCase();
+        const status50 = (statusPgtoAjudaCustoInput.dataset.status || statusPgtoAjudaCustoInput.value).toLowerCase();
 
         if (status50 !== 'pago50') {
             event.preventDefault(); // Impede a abertura do modal de upload
@@ -6865,8 +6869,8 @@ async function verificaStaff() {
             // statuspgtoajdcto = pagamento da AJUDA DE CUSTO (transporte/alimentação), não do ajuste
             const vlrAjdCustoEnvio = parseFloat(transporteInput?.value?.replace(',', '.') || 0) 
                 + parseFloat(alimentacaoInput?.value?.replace(',', '.') || 0);
-            const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0 
-                ? (statusPgtoAjudaCustoInput?.value || 'Pendente') 
+            const statusPgtoAjdEnvio = vlrAjdCustoEnvio !== 0
+                ? (statusPgtoAjudaCustoInput?.dataset.status || statusPgtoAjudaCustoInput?.value || 'Pendente')
                 : '';
             
 
