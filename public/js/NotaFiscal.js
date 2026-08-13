@@ -21,6 +21,14 @@ const fmtPct = (frac) => ((Number(frac) || 0) * 100).toLocaleString('pt-BR', { m
 // aspas duplas sem escapar fecham o atributo antes da hora e quebram a linha.
 const escaparAtributo = (texto) => String(texto ?? '').replace(/"/g, '&quot;');
 
+// Razão social + nome fantasia entre parênteses (quando existe e é diferente
+// da razão social — evita "Nome (Nome)" redundante quando são iguais).
+const nomeClienteComFantasia = (razaoSocial, nomeFantasia) => {
+  if (!razaoSocial) return nomeFantasia || '';
+  if (!nomeFantasia || nomeFantasia === razaoSocial) return razaoSocial;
+  return `${razaoSocial} (${nomeFantasia})`;
+};
+
 function formatarDataBR(dataStr) {
   if (!dataStr) return '—';
   const d = new Date(dataStr);
@@ -254,7 +262,7 @@ async function carregarPendentes() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${o.nrorcamento}</td>
-        <td>${o.cliente_nome || '—'}</td>
+        <td>${nomeClienteComFantasia(o.cliente_nome, o.cliente_nmfantasia) || '—'}</td>
         <td>${o.evento_nome || '—'}</td>
         <td>${formatarDataBR(o.dtinirealizacao)}${o.dtfimrealizacao ? ' – ' + formatarDataBR(o.dtfimrealizacao) : ''}</td>
         <td>${o.proximovencimento ? formatarDataBR(o.proximovencimento) : '—'}</td>
@@ -383,36 +391,98 @@ async function baixarXmlNota(idnotafiscal, idorcamento) {
       await renderHistorico(idorcamento);
       await carregarParcelasNota(idorcamento);
     }
+    await atualizarProntasParaEnvioSeVisivel();
   } catch (err) {
     console.error('Erro ao gerar XML da nota:', err);
     aviso('error', 'Erro ao gerar XML', err?.message || 'Não foi possível gerar o XML desta nota.');
   }
 }
 
+// idorcamento é opcional em todas as ações abaixo: quando a ação parte da
+// aba "Notas registradas" (dentro de um orçamento aberto), ele existe e
+// recarrega o histórico daquele orçamento; quando parte da aba "Prontas
+// para Envio" (que mistura notas de vários orçamentos), ele não existe —
+// só a lista de prontas para envio é atualizada nesse caso.
+async function atualizarProntasParaEnvioSeVisivel() {
+  if (document.getElementById('nfEnvioBody')) await carregarProntasParaEnvio();
+}
+
 // ---- Aba "Prontas para Envio" ----
+let notasProntasParaEnvioCache = [];
+
 async function carregarProntasParaEnvio() {
   const tbody = document.getElementById('nfEnvioBody');
-  tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9">Carregando...</td></tr>';
   document.getElementById('nfEnvioMarcarTodas').checked = false;
 
   try {
     const notas = await fetchComToken('/notafiscal/prontas-envio');
+    notasProntasParaEnvioCache = notas;
+
+    const filtroSelect = document.getElementById('nfEnvioFiltroEmpresa');
+    const valorFiltroAtual = filtroSelect.value;
+    preencherSelectFiltro('nfEnvioFiltroEmpresa', opcoesUnicasOrdenadas(notas, 'idempresaemissora', 'emissora_nome'), 'Todas', valorFiltroAtual);
+
+    renderizarNotasProntasParaEnvio();
+  } catch (err) {
+    console.error('Erro ao carregar notas prontas para envio:', err);
+    tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
+  }
+}
+
+// Refiltra/redesenha a partir do cache já buscado — trocar o filtro de
+// empresa emissora não precisa ir no servidor de novo, os dados já estão
+// todos aqui (é só a mesma lista de sempre, filtrada na hora).
+function renderizarNotasProntasParaEnvio() {
+  const tbody = document.getElementById('nfEnvioBody');
+  const idEmpresaFiltro = document.getElementById('nfEnvioFiltroEmpresa').value;
+  const notas = idEmpresaFiltro
+    ? notasProntasParaEnvioCache.filter((n) => String(n.idempresaemissora) === idEmpresaFiltro)
+    : notasProntasParaEnvioCache;
+
+  try {
     if (!notas.length) {
-      tbody.innerHTML = '<tr><td colspan="8">Nenhuma nota com XML gerado no momento.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="9">Nenhuma nota Pronta para Envio${idEmpresaFiltro ? ' para essa empresa emissora' : ''} no momento.</td></tr>`;
       atualizarContagemEnvio();
       return;
     }
+    // Toda linha aqui já é "Pronta para Envio" por definição da consulta —
+    // Marcar emitida/Cancelar aparecem sempre, sem precisar checar status
+    // (diferente de "Notas registradas", que mistura vários status juntos).
     tbody.innerHTML = notas.map((n) => `
       <tr>
         <td><input type="checkbox" class="nf-envio-check" data-id="${n.idnotafiscal}"></td>
         <td>${n.nrorcamento}</td>
-        <td>${n.cliente_nome || '—'}</td>
+        <td>
+          ${nomeClienteComFantasia(n.cliente_nome, n.cliente_nmfantasia) || '—'}
+          ${!n.cliente_inscricaomunicipal ? `<br><span class="nf-chip rascunho" title="Preencha na tela de Emitir Nota ou direto no cadastro de Clientes">Falta Insc. Municipal</span>` : ''}
+        </td>
         <td${n.descricaoservico ? ` title="${escaparAtributo(n.descricaoservico)}"` : ''}>${n.descricaoservico ? n.descricaoservico.slice(0, 50) + '…' : '—'}</td>
-        <td>${n.numparcela ? `Parcela ${n.numparcela}` : '—'}</td>
+        <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
         <td>${n.dtvencimento ? formatarDataBR(n.dtvencimento) : '—'}</td>
         <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
         <td>${n.emissora_nome || '—'}</td>
+        <td>
+          <button type="button" class="nf-link" data-marcar="${n.idnotafiscal}">Marcar emitida</button>
+          <button type="button" class="nf-link" data-cancelar="${n.idnotafiscal}">Cancelar</button>
+          ${n.arquivoxml ? `<a class="nf-link nf-link-ok" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
+          <button type="button" class="nf-link" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
+          ${n.arquivopdf ? `<a class="nf-link" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-link" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+        </td>
       </tr>`).join('');
+
+    tbody.querySelectorAll('[data-marcar]').forEach((btn) => {
+      btn.addEventListener('click', () => marcarComoEmitida(btn.dataset.marcar));
+    });
+    tbody.querySelectorAll('[data-cancelar]').forEach((btn) => {
+      btn.addEventListener('click', () => cancelarNota(btn.dataset.cancelar));
+    });
+    tbody.querySelectorAll('[data-idnotafiscal]').forEach((btn) => {
+      btn.addEventListener('click', () => baixarXmlNota(btn.dataset.idnotafiscal));
+    });
+    tbody.querySelectorAll('[data-anexar]').forEach((btn) => {
+      btn.addEventListener('click', () => anexarPdf(btn.dataset.anexar));
+    });
 
     tbody.querySelectorAll('.nf-envio-check').forEach((chk) => {
       chk.addEventListener('change', atualizarContagemEnvio);
@@ -420,7 +490,7 @@ async function carregarProntasParaEnvio() {
     atualizarContagemEnvio();
   } catch (err) {
     console.error('Erro ao carregar notas prontas para envio:', err);
-    tbody.innerHTML = '<tr><td colspan="8">Erro ao carregar notas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
   }
 }
 
@@ -503,6 +573,7 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
     document.getElementById('nfOrigemCondicao').textContent = dados.formapagamento || '—';
 
     document.getElementById('nfClienteRazao').value = dados.razaosocial || '';
+    document.getElementById('nfClienteFantasia').value = dados.cliente_nmfantasia || '';
     document.getElementById('nfClienteCnpj').value = dados.cnpj || '';
     document.getElementById('nfClienteEmail').value = dados.emailnfe || '';
     document.getElementById('nfClienteEndereco').value =
@@ -775,7 +846,7 @@ async function registrarNota() {
     valoribs: valores.valorIbs,
     meiopagamento,
     descricaomeiopagamento: descricaoMeioPagamento,
-    status: 'XML Gerada'
+    status: 'Pronta para Envio'
   };
 
   try {
@@ -783,7 +854,15 @@ async function registrarNota() {
     if (inscMun) {
       // Rota dedicada a esse único campo — o PUT genérico de clientes reescreve
       // o cadastro inteiro a partir do body e apagaria o resto se usado aqui.
-      await fetchComToken(`/clientes/${idcliente}/inscricao-municipal`, { method: 'PATCH', body: { inscricaomunicipal: inscMun } }).catch(() => {});
+      // Não trava o registro da nota se isso falhar, mas avisa em vez de
+      // ficar em silêncio — sem isso o financeiro não teria como saber que
+      // precisa corrigir depois pelo cadastro de Clientes.
+      try {
+        await fetchComToken(`/clientes/${idcliente}/inscricao-municipal`, { method: 'PATCH', body: { inscricaomunicipal: inscMun } });
+      } catch (errInscMun) {
+        console.error('Erro ao salvar inscrição municipal do cliente:', errInscMun);
+        aviso('warning', 'Inscrição municipal não salva', 'A nota foi registrada, mas não consegui salvar a inscrição municipal no cadastro do cliente. Tente preencher direto no cadastro de Clientes.');
+      }
     }
 
     if (idparcela) {
@@ -826,15 +905,15 @@ async function renderHistorico(idorcamento) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td${n.descricaoservico ? ` title="${escaparAtributo(n.descricaoservico)}"` : ''}>${n.descricaoservico ? n.descricaoservico.slice(0, 60) + '…' : `Nota #${n.idnotafiscal}`}</td>
-        <td>${n.numparcela ? `Parcela ${n.numparcela}` : '—'}</td>
+        <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
         <td>${n.dtvencimento ? formatarDataBR(n.dtvencimento) : '—'}</td>
         <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
         <td>${n.numeronota || '—'}</td>
         <td><span class="nf-chip ${chipClasse}">${n.status}</span></td>
         <td>
-          ${n.status === 'XML Gerada' ? `<button type="button" class="nf-link" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
-          ${n.status === 'XML Gerada' ? `<button type="button" class="nf-link" data-cancelar="${n.idnotafiscal}">Cancelar</button>` : ''}
-          ${n.arquivoxml ? `<a class="nf-link" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
+          ${n.status === 'Pronta para Envio' ? `<button type="button" class="nf-link" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
+          ${n.status === 'Pronta para Envio' ? `<button type="button" class="nf-link" data-cancelar="${n.idnotafiscal}">Cancelar</button>` : ''}
+          ${n.arquivoxml ? `<a class="nf-link nf-link-ok" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           ${n.status !== 'Cancelada' ? `<button type="button" class="nf-link" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS (ainda sem assinatura digital)'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML'}</button>` : ''}
           ${n.arquivopdf ? `<a class="nf-link" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-link" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
         </td>`;
@@ -874,7 +953,8 @@ async function marcarComoEmitida(idnotafiscal, idorcamento) {
       method: 'PUT',
       body: { status: 'Emitida', numeronota }
     });
-    await renderHistorico(idorcamento);
+    if (idorcamento) await renderHistorico(idorcamento);
+    await atualizarProntasParaEnvioSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao marcar nota como emitida:', err);
@@ -900,8 +980,11 @@ async function cancelarNota(idnotafiscal, idorcamento) {
       method: 'PUT',
       body: { status: 'Cancelada' }
     });
-    await renderHistorico(idorcamento);
-    await carregarParcelasNota(idorcamento);
+    if (idorcamento) {
+      await renderHistorico(idorcamento);
+      await carregarParcelasNota(idorcamento);
+    }
+    await atualizarProntasParaEnvioSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao cancelar nota:', err);
@@ -919,7 +1002,8 @@ function anexarPdf(idnotafiscal, idorcamento) {
     formData.append('arquivo', input.files[0]);
     try {
       await fetchComToken(`/notafiscal/${idnotafiscal}/anexo`, { method: 'POST', body: formData });
-      await renderHistorico(idorcamento);
+      if (idorcamento) await renderHistorico(idorcamento);
+      await atualizarProntasParaEnvioSeVisivel();
     } catch (err) {
       console.error('Erro ao anexar arquivo:', err);
       aviso('error', 'Erro', 'Não foi possível anexar o arquivo.');
@@ -941,6 +1025,7 @@ function configurarEventosNotaFiscal() {
   document.getElementById('nfBtnInserirDadosBancarios').addEventListener('click', inserirDadosBancariosNaDescricao);
 
   document.getElementById('nfBtnBaixarLote').addEventListener('click', baixarLoteXml);
+  document.getElementById('nfEnvioFiltroEmpresa').addEventListener('change', renderizarNotasProntasParaEnvio);
   document.getElementById('nfEnvioMarcarTodas').addEventListener('change', (e) => {
     document.querySelectorAll('.nf-envio-check').forEach((chk) => { chk.checked = e.target.checked; });
     atualizarContagemEnvio();

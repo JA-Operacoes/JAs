@@ -123,7 +123,13 @@ async function fetchComToken(url, options = {}) {
         } else {
             errorMessage = resposta.statusText;
         }
-        throw new Error(`Erro na requisição: ${errorMessage}`);
+        const erro = new Error(`Erro na requisição: ${errorMessage}`);
+        // Guarda o corpo original (JSON) e o status da resposta no próprio erro —
+        // quem chamar pode precisar de campos além da mensagem (ex.: um flag
+        // tipo "precisaSiglaManual" pra decidir o que fazer, não só exibir texto).
+        erro.corpo = responseBody;
+        erro.status = resposta.status;
+        throw erro;
     }
 
     return responseBody;
