@@ -6924,8 +6924,10 @@ function bloquearCamposSeFechado() {
     const orcamentoAtual = getOrcamentoAtualCarregado();
     const bProximoAnoCarregado = orcamentoAtual?.geradoanoposterior === true; 
 
-    // Campos que podem ser editados mesmo em status 'F' (Observações)
-    const idsPermitidos = ['ObservacaoProposta', 'Observacao'];
+    // Campos que podem ser editados mesmo em status 'F' (Observações, e os
+    // dados de emissão/cobrança — empresa emissora, vencimento e parcelamento
+    // — que costumam ser preenchidos só depois do orçamento já fechado).
+    const idsPermitidos = ['ObservacaoProposta', 'Observacao', 'dtVencimentoAvista', 'chkParcelado', 'qtdParcelasDividir'];
 
     const tabela = document.querySelector('table');
 
@@ -6937,10 +6939,14 @@ function bloquearCamposSeFechado() {
         campos.forEach(campo => {
             const id = campo.id;
             const dentroDeAdicional = campo.closest('.linhaAdicional');
+            const dentroDeParcelas = campo.closest('#parcelasConteudo');
+            const isEmpresaEmissora = campo.classList.contains('idEmpresaEmissora');
 
             if (
                 idsPermitidos.includes(id) ||
-                dentroDeAdicional
+                dentroDeAdicional ||
+                dentroDeParcelas ||
+                isEmpresaEmissora
             ) return;
 
             // Bloqueio Seletivo:
@@ -6994,10 +7000,14 @@ function bloquearCamposSeFechado() {
                     classes.contains('increment') || // 🔥 Botões +/- de quantidade liberados na linha adicional
                     classes.contains('decrement') ;
             } else {
+              const dentroDeParcelas = botao.closest('#parcelasConteudo');
               deveContinuarAtivo =
                   id === 'Enviar' ||
                   id === 'Close' ||
                   id === 'Limpar' ||
+                  id === 'btnDividirParcelas' ||
+                  id === 'btnAdicionarParcela' ||
+                  dentroDeParcelas ||
                   classes.contains('Close') ||
                   classes.contains('pesquisar') ||
                   classes.contains('Adicional') || 
@@ -7123,7 +7133,8 @@ function handleCampoFocus(event) {
     const fechado = statusInput?.value === "F";
     const campo = event.currentTarget;
 
-    // Campos permitidos para edição mesmo se fechado (Desconto, Acrescimo, etc.)
+    // Campos permitidos para edição mesmo se fechado (Desconto, Acrescimo, etc.,
+    // e os dados de emissão/cobrança preenchidos só depois do fechamento).
     const idsPermitidos = [
         "Desconto",
         "perCentDesc",
@@ -7131,10 +7142,14 @@ function handleCampoFocus(event) {
         "perCentAcresc",
         "ObservacaoProposta",
         "Observacao",
+        "dtVencimentoAvista",
+        "chkParcelado",
+        "qtdParcelasDividir",
     ];
-    
-    // Verifica se o campo está dentro de uma linha adicional
+
+    // Verifica se o campo está dentro de uma linha adicional ou da área de parcelas
     const dentroDeAdicional = campo.closest(".linhaAdicional");
+    const dentroDeParcelas = campo.closest("#parcelasConteudo");
 
     // Se estiver fechado E NÃO for campo permitido OU NÃO for campo de adicional
     if (
@@ -7142,8 +7157,10 @@ function handleCampoFocus(event) {
         !campo.classList.contains("idFuncao") &&
         !campo.classList.contains("idEquipamento") &&
         !campo.classList.contains("idSuprimento") &&
+        !campo.classList.contains("idEmpresaEmissora") &&
         !idsPermitidos.includes(campo.id) &&
-        !dentroDeAdicional 
+        !dentroDeAdicional &&
+        !dentroDeParcelas
     ) {
         Swal.fire(
             "Orçamento fechado",
@@ -7654,23 +7671,11 @@ async function carregarParcelasDoOrcamento(idOrcamento, fechado) {
     if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = "none";
 
     parcelas.forEach((p) => {
-      tbody.appendChild(criarLinhaParcela(p, { bloqueada: fechado }));
+      tbody.appendChild(criarLinhaParcela(p));
     });
 
     renumerarParcelas();
     atualizarSomaParcelas();
-
-    // Orçamento já fechado: parcelas ficam só de referência, não dá pra
-    // editar o parcelamento combinado depois (mesma regra de bloquearCamposSeFechado).
-    if (fechado) {
-      const btnDividir = document.getElementById("btnDividirParcelas");
-      const qtdDividir = document.getElementById("qtdParcelasDividir");
-      const btnAdd = document.getElementById("btnAdicionarParcela");
-      if (btnDividir) btnDividir.style.display = "none";
-      if (qtdDividir) qtdDividir.style.display = "none";
-      if (btnAdd) btnAdd.style.display = "none";
-      chk.disabled = true;
-    }
   } catch (error) {
     console.error("Erro ao carregar parcelas do orçamento:", error);
   }

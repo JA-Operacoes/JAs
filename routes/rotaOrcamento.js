@@ -3500,35 +3500,34 @@ router.put("/:id",
       }
 
       // 4. Parcelas de pagamento (orcamentoparcelas) — substitui por completo
-      // a cada salvamento, igual pavilhões/itens acima. Só roda enquanto o
-      // orçamento ainda não foi fechado: depois de 'F' não é mais editável
-      // (a rota /fechar/:id só confere consistência, não grava parcela).
-      if (status !== 'F') {
-        await client.query(`DELETE FROM orcamentoparcelas WHERE idorcamento = $1`, [idOrcamento]);
+      // a cada salvamento, igual pavilhões/itens acima. Roda mesmo com o
+      // orçamento já fechado: empresa emissora, vencimento e parcelamento
+      // costumam ser preenchidos só depois do fechamento (a rota /fechar/:id
+      // só confere consistência, não grava parcela).
+      await client.query(`DELETE FROM orcamentoparcelas WHERE idorcamento = $1`, [idOrcamento]);
 
-        if (Array.isArray(parcelas) && parcelas.length > 0) {
-          const somaParcelas = parcelas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
-          const vlrClienteNum = parseFloat(vlrCliente || 0);
-          if (Math.abs(somaParcelas - vlrClienteNum) > 0.01) {
-            throw new Error(
-              `A soma das parcelas (R$ ${somaParcelas.toFixed(2)}) não bate com o valor do orçamento (R$ ${vlrClienteNum.toFixed(2)}).`
-            );
-          }
+      if (Array.isArray(parcelas) && parcelas.length > 0) {
+        const somaParcelas = parcelas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
+        const vlrClienteNum = parseFloat(vlrCliente || 0);
+        if (Math.abs(somaParcelas - vlrClienteNum) > 0.01) {
+          throw new Error(
+            `A soma das parcelas (R$ ${somaParcelas.toFixed(2)}) não bate com o valor do orçamento (R$ ${vlrClienteNum.toFixed(2)}).`
+          );
+        }
 
-          for (let i = 0; i < parcelas.length; i++) {
-            const p = parcelas[i];
-            if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
-              throw new Error(`Parcela ${i + 1} está sem valor.`);
-            }
-            if (!p.dtvencimento) {
-              throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
-            }
-            await client.query(
-              `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
-            );
+        for (let i = 0; i < parcelas.length; i++) {
+          const p = parcelas[i];
+          if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
+            throw new Error(`Parcela ${i + 1} está sem valor.`);
           }
+          if (!p.dtvencimento) {
+            throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
+          }
+          await client.query(
+            `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
+          );
         }
       }
 
