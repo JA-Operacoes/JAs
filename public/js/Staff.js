@@ -10938,7 +10938,7 @@ async function carregarFuncaoStaff() {
                 }
 
                 // 2. CONTROLE DE NÍVEIS E CUSTOS
-                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO";
+                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO" || perfilSelecionado === "EXTERNOH";
 
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     // Sempre trava Senior, Pleno, Junior — independente do perfil
@@ -11040,15 +11040,16 @@ async function carregarFuncionarioStaff() {
                 $(select).select2('destroy');
             }
 
-           
+
             $(select).select2({
+
                 placeholder: "Digite para buscar o funcionário...",
                 allowClear: true,
                 width: '100%',
                 matcher: function(params, data) {
                     if ($.trim(params.term) === '') return data;
                     if (typeof data.text === 'undefined') return null;
-                    
+
                     // Busca ignorando maiúsculas/minúsculas
                     if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
                         return data;
@@ -11067,6 +11068,13 @@ async function carregarFuncionarioStaff() {
                 this.value = "";
                 this.dispatchEvent(new Event('change', { bubbles: true }));
             });
+
+            // O Select2 continua rodando por baixo dos panos (várias partes do código
+            // dependem de $(select).val()/.trigger('change.select2')), mas escondemos a
+            // interface dele e colocamos por cima o mesmo padrão de busca do cadastro de
+            // Funcionários: um único input onde já dá pra digitar, sem caixa de busca
+            // separada dentro do dropdown.
+            configurarBuscaTextoFuncionarioStaff(select, funcionariofetch);
 
             select.addEventListener("change", function () {
                 //limparCamposStaffParcial();
@@ -11221,6 +11229,89 @@ async function carregarFuncionarioStaff() {
     }
 }
 
+// Mesmo padrão de busca do cadastro de Funcionários (CadFuncionarios): um único
+// input onde já dá pra digitar o nome, com uma lista suspensa embaixo — sem abrir
+// uma segunda caixa de busca dentro do dropdown como o Select2 faz por padrão.
+// O <select> original continua no DOM e com o Select2 rodando por baixo dos panos
+// (só escondido), porque várias partes do código dependem de $(select).val() e
+// .trigger('change.select2') pra funcionar.
+function configurarBuscaTextoFuncionarioStaff(select, funcionarios) {
+    const instanciaSelect2 = $(select).data('select2');
+    if (instanciaSelect2 && instanciaSelect2.$container) {
+        instanciaSelect2.$container.hide();
+    }
+    select.style.display = "none";
+
+    const wrapper = select.parentNode;
+    wrapper.style.position = "relative";
+
+    let input = wrapper.querySelector(".nmFuncionario-busca-input");
+    if (!input) {
+        input = document.createElement("input");
+        input.type = "text";
+        input.className = "nmFuncionario-busca-input";
+        input.setAttribute("autocomplete", "off");
+        wrapper.insertBefore(input, select);
+    }
+    input.placeholder = "Digite para buscar o funcionário...";
+
+    let lista = wrapper.querySelector(".nmFuncionario-busca-lista");
+    if (!lista) {
+        lista = document.createElement("ul");
+        lista.className = "nmFuncionario-busca-lista";
+        lista.style.cssText = "display:none; position:absolute; left:0; right:0; top:100%; z-index:50;" +
+            "background:#fff; border:1px solid #ccc; border-radius:6px; max-height:220px;" +
+            "overflow-y:auto; margin:0; padding:4px; list-style:none;" +
+            "box-shadow:0 4px 12px rgba(0,0,0,.15);";
+        wrapper.appendChild(lista);
+    }
+
+    const removerAcentosBuscaStaff = (str) => String(str || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    const sincronizarInputComSelect = () => {
+        const opcaoAtual = select.options[select.selectedIndex];
+        input.value = (opcaoAtual && opcaoAtual.value) ? opcaoAtual.textContent.trim() : "";
+    };
+    sincronizarInputComSelect();
+    // Se o valor do select mudar por código (ex.: reverter pro funcionário
+    // anterior num Swal de conflito), o input reflete o novo texto também.
+    select.addEventListener("change", sincronizarInputComSelect);
+
+    function renderizarLista(termoDigitado) {
+        const termo = removerAcentosBuscaStaff(termoDigitado.toUpperCase().trim());
+        lista.innerHTML = "";
+        funcionarios
+            .filter((f) => !termo || removerAcentosBuscaStaff((f.nome || "").toUpperCase()).includes(termo))
+            .forEach((f) => {
+                const li = document.createElement("li");
+                li.textContent = f.apelido ? `${f.nome} — ${f.apelido}` : (f.nome || "");
+                li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
+                li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                li.addEventListener("mouseout", () => { li.style.background = ""; });
+                // mousedown dispara antes do blur do input, evitando que a lista suma antes do clique.
+                li.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    input.value = li.textContent;
+                    lista.style.display = "none";
+                    // dispatchEvent nativo (não $(...).trigger) porque o handler que
+                    // busca os dados/eventos do funcionário foi registrado com
+                    // addEventListener puro, e o .trigger('change') do jQuery não
+                    // chega até esses handlers nativos.
+                    select.value = String(f.idfuncionario);
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                lista.appendChild(li);
+            });
+        lista.style.display = "block";
+    }
+
+    input.addEventListener("focus", () => renderizarLista(""));
+    input.addEventListener("input", () => renderizarLista(input.value));
+    document.addEventListener("mousedown", (e) => {
+        if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
+    });
+}
+
 function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSelecionado) {
     document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
     document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
@@ -11250,7 +11341,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             isLote = false;
             labelFuncionario.textContent = "FREE-LANCER";
             labelFuncionario.style.color = "red";
-        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo") || (perfilSelecionado.toLowerCase() === "externoh")) {
             isLote = false;
             labelFuncionario.textContent = "FUNCIONÁRIO";
             labelFuncionario.style.color = "green";           
@@ -11271,7 +11362,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
             const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
 
-            if (perfilSelecionado.toLowerCase() === "externo")
+            if (perfilSelecionado.toLowerCase() === "externo" || perfilSelecionado.toLowerCase() === "externoh")
             {
                 document.getElementById("vlrCusto").value = "0,00";
                 descBeneficioTextarea.value = "Funcionário externo Não recebe Cachê, apenas benefícios (alimentação e transporte) conforme função";
