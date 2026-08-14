@@ -1304,7 +1304,7 @@ const contingenciaFormatada = resultContingencia.rows.map(linha => {
     const dataObj = new Date(linha.Data);
     const diaSemana = dataObj.getUTCDay();
     const perfilSrt = (linha.Perfil || linha.perfil || '').toLowerCase();
-    const isFuncionario = perfilSrt === 'funcionário' || perfilSrt === 'interno' || perfilSrt === 'externo';
+    const isFuncionario = perfilSrt === 'funcionário' || perfilSrt === 'interno' || perfilSrt === 'externo' || perfilSrt === 'externoh';
 
     if (isFuncionario && diaSemana === 0 && (linha.is_feriado || linha.Feriado === 'Sim')) {
         linha.Observacao = (linha.Observacao || '') + " (Feriado em Domingo - Mantido 1 cachê padrão)";
