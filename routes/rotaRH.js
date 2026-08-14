@@ -60,7 +60,7 @@ const uploadComprovanteRH = multer({
 }).single("comprovante");
 
 // Perfis considerados "salário fixo" (entram na folha).
-const PERFIS_FOLHA = ["Interno", "Externo"];
+const PERFIS_FOLHA = ["Interno", "ExternoH"];
 
 // Parâmetros fiscais padrão de 2026 (Receita Federal / Portaria Interm. MPS-MF nº 13;
 // Leis 15.191/2025 e 15.270/2025). Fixos no código (sem tabela de parâmetros).

@@ -3742,10 +3742,10 @@ router.get('/contas-pagar', async (req, res) => {
                 COALESCE(p.dtvcto, l.vctobase) AS data_referencia,
                 -- Lançamento tipovinculo='funcionario' só entra no grupo especial "funcionario"
                 -- (com toda a lógica de holerite/RH) se o perfil do funcionário for Interno ou
-                -- Externo — Freelancer não tem direito a 13º/holerite e cai no grupo "outros",
-                -- como qualquer outro lançamento genérico.
+                -- Externo C/Holerite (ExternoH) — Externo comum e Freelancer não têm direito a
+                -- 13º/holerite e caem no grupo "outros", como qualquer outro lançamento genérico.
                 CASE
-                    WHEN LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') NOT IN ('Interno', 'Externo')
+                    WHEN LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') NOT IN ('Interno', 'ExternoH')
                         THEN 'outros'
                     ELSE COALESCE(NULLIF(LOWER(TRIM(l.tipovinculo)), ''), 'outros')
                 END AS tipovinculo,
