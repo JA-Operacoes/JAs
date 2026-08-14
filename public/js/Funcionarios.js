@@ -152,7 +152,7 @@ window.coletarDependentes = function coletarDependentes() {
 function usuarioTemPermissaoFinanceiro() {
   if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
   console.log("Usuário tem permissão Financeiro no staff");
-  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
+  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "funcionarios");
   if (!permissaoStaff) return false;
 
   // A flag que você usa para determinar o acesso ao financeiro
@@ -167,7 +167,7 @@ function atualizarFieldsetFinanceiro() {
   if (!fieldset) return;
 
   const perfil = document.querySelector('input[name="perfil"]:checked')?.value || "";
-  const perfilElegivel = perfil === "Interno" || perfil === "Externo";
+  const perfilElegivel = perfil === "Interno" || perfil === "ExternoH";
   const mostrar = perfilElegivel && usuarioTemPermissaoFinanceiro();
 
   fieldset.style.display = mostrar ? "" : "none";
