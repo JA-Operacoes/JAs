@@ -996,6 +996,17 @@ select, input[type="text"] {
   color: #000;
 }
 
+input.nmFuncionario-busca-input{
+  height: 30px;
+  width: 250px;
+  font-size: 15px;
+  padding: 0 10px;
+  border: 1px solid #000;
+  border-radius: 6px;
+  background: transparent;
+  color: #000;
+}
+
 
  .form2 { 
   display: flex;
