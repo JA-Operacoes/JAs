@@ -1,0 +1,85 @@
+<link rel="stylesheet" href="css/Modal/ConsultaLogs.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="ConsultaLogs" class="modal">
+  <div class="modal-content">
+    <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+    <div id="form-content">
+      <div class="title">
+        <h1>Consulta de Logs</h1>
+      </div>
+
+      <fieldset class="logs-filtros">
+        <legend>Filtros</legend>
+        <div class="logs-filtros-grid">
+          <div class="form2">
+            <select id="logModulo">
+              <option value="">Todos</option>
+            </select>
+            <label for="logModulo">Módulo</label>
+          </div>
+          <div class="form2">
+            <select id="logExecutor">
+              <option value="">Todos</option>
+            </select>
+            <label for="logExecutor">Executor</label>
+          </div>
+          <div class="form2">
+            <select id="logEmpresa">
+              <option value="">Todas</option>
+            </select>
+            <label for="logEmpresa">Empresa</label>
+          </div>
+          <div class="form2">
+            <input type="number" id="logIdRegistro" min="1">
+            <label for="logIdRegistro">ID Registro Alterado</label>
+          </div>
+          <div class="form2">
+            <input type="date" id="logDataInicio">
+            <label for="logDataInicio">Data Início</label>
+          </div>
+          <div class="form2">
+            <input type="date" id="logDataFim">
+            <label for="logDataFim">Data Fim</label>
+          </div>
+        </div>
+
+        <div class="logs-filtros-botoes">
+          <button type="button" id="btnLimparLogs" class="btn-secundario">Limpar</button>
+          <button type="button" id="btnBuscarLogs" class="btn-primario">Buscar</button>
+        </div>
+      </fieldset>
+
+      <div class="logs-resultado-info">
+        <span id="logsTotalInfo"></span>
+      </div>
+
+      <div class="logs-tabela-wrapper">
+        <table class="report-table" id="tabelaLogs">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Empresa</th>
+              <th>Módulo</th>
+              <th>Ação</th>
+              <th>Executor</th>
+              <th>Registro Alterado</th>
+              <th>Usuário Alvo</th>
+              <th>Dados</th>
+            </tr>
+          </thead>
+          <tbody id="logsTbody">
+            <tr><td colspan="8" class="logs-vazio">Use os filtros acima e clique em Buscar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="logs-paginacao">
+        <button type="button" id="btnLogsAnterior" class="btn-secundario">‹ Anterior</button>
+        <span id="logsPaginaAtual">Página 1</span>
+        <button type="button" id="btnLogsProxima" class="btn-secundario">Próxima ›</button>
+      </div>
+    </div>
+  </div>
+</div>
