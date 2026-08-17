@@ -713,19 +713,23 @@ router.post("/orcamento/consultar",
                 LEFT JOIN diarias_normais_funcao dnf ON
                     dnf.idorcamento = o.idorcamento
                     AND dnf.idfuncao = oi.idfuncao
-                    AND (dnf.setor = oi.setor OR (oi.setor IS NULL AND dnf.setor IS NULL))
+                    AND regexp_replace(upper(unaccent(trim(COALESCE(dnf.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                        = regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
                 LEFT JOIN diarias_reaproveitadas_origem dro ON
                     dro.idorcamento = o.idorcamento
                     AND dro.idfuncao_origem = oi.idfuncao
-                    AND (dro.setor_origem = oi.setor OR (oi.setor IS NULL AND (dro.setor_origem IS NULL OR dro.setor_origem = '')))
+                    AND regexp_replace(upper(unaccent(trim(COALESCE(dro.setor_origem,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                        = regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
                 LEFT JOIN total_orcado_por_funcao tof ON
                     tof.idorcamento = o.idorcamento
                     AND tof.idfuncao = oi.idfuncao
-                    AND (tof.setor = oi.setor OR (oi.setor IS NULL AND tof.setor IS NULL))
+                    AND regexp_replace(upper(unaccent(trim(COALESCE(tof.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                        = regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
                 LEFT JOIN dobradas_financeiras df ON
                     df.idorcamento = o.idorcamento
                     AND df.idfuncao = oi.idfuncao
-                    AND (df.setor = oi.setor OR (oi.setor IS NULL AND df.setor IS NULL))
+                    AND regexp_replace(upper(unaccent(trim(COALESCE(df.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                        = regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
                 WHERE
                     oe.idempresa = $1
                     AND o.idevento = $2
@@ -733,7 +737,9 @@ router.post("/orcamento/consultar",
                     AND o.idmontagem = $4
                     AND o.status != 'R'
                     AND oi.idfuncao = $6
-                    AND (NOT $9::boolean OR NULLIF(oi.setor, '') IS NOT DISTINCT FROM NULLIF($7::text, ''))
+                    AND (NOT $9::boolean OR
+                         regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                         = regexp_replace(upper(unaccent(trim(COALESCE($7::text,'')))), '^PAV(ILHAO)?\.?\s*', ''))
                     AND ($8 = true OR dto.periodos_disponiveis && $5::date[])
                 GROUP BY
                     oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia,
@@ -1095,7 +1101,7 @@ router.post("/orcamento/vagas-disponiveis",
                     SELECT 
                         oi.idorcamento,
                         oi.idfuncao,
-                        COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '') AS setor_normalizado,
+                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
                         MAX(COALESCE(NULLIF(TRIM(oi.setor), ''),'')) AS setor_original, --'Geral / Sem Setor')) AS setor_original,
                         -- Período informativo consolidado
                         MAX(COALESCE(TO_CHAR(oi.periododiariasinicio, 'DD/MM') || ' a ' || TO_CHAR(oi.periododiariasfim, 'DD/MM'), 'Período não definido')) AS periodo_item,
@@ -1112,20 +1118,20 @@ router.post("/orcamento/vagas-disponiveis",
                     WHERE oi.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
                       AND oi.categoria = 'Produto(s)'
                     -- 🌟 CORREÇÃO 2: Removemos datas do GROUP BY para consolidar o saldo total por Função/Setor
-                    GROUP BY oi.idorcamento, oi.idfuncao, COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '')
+                    GROUP BY oi.idorcamento, oi.idfuncao, regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(oi.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
                 ),
                 consumo_consolidado AS (
                     -- 1. Dias normais escalados na função original (Contratação Padrão)
-                    SELECT 
+                    SELECT
                         se.idorcamento,
                         se.idfuncao,
-                        COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '') AS setor_normalizado,
+                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
                         COALESCE(SUM(jsonb_array_length(se.datasevento)), 0) AS qtd_diarias
                     FROM staffeventos se
                     WHERE (se.ativo = true OR se.statusstaff = 'Pendente')
                       AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                       AND se.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
-                    GROUP BY se.idorcamento, se.idfuncao, COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')
+                    GROUP BY se.idorcamento, se.idfuncao, regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
 
                     UNION ALL
 
@@ -1134,7 +1140,7 @@ router.post("/orcamento/vagas-disponiveis",
                     COALESCE((dd->>'idorcamento')::int, se.idorcamento) AS idorcamento,
                     (dd->>'idfuncaodobra')::int AS idfuncao,
                     -- 🌟 CORREÇÃO: Pega o setor real da dobra de dentro do JSON, se não existir usa o do staff
-                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')) AS setor_normalizado, 
+                    regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), ''))), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
                     COUNT(*) AS qtd_diarias
                 FROM staffeventos se,
                 jsonb_array_elements(
@@ -1149,10 +1155,10 @@ router.post("/orcamento/vagas-disponiveis",
                 AND (dd->>'status') IN ('Pendente', 'Autorizado')
                 AND (dd->>'idfuncaodobra') IS NOT NULL
                 AND (dd->>'idfuncaodobra') <> 'null'
-                GROUP BY 
-                    COALESCE((dd->>'idorcamento')::int, se.idorcamento), 
-                    (dd->>'idfuncaodobra')::int, 
-                    COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), ''))
+                GROUP BY
+                    COALESCE((dd->>'idorcamento')::int, se.idorcamento),
+                    (dd->>'idfuncaodobra')::int,
+                    regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(dd->>'setordobra')), ''), COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), ''))), '^PAV(ILHAO)?\.?\s*', '')
                     
 
                     UNION ALL
@@ -1161,7 +1167,7 @@ router.post("/orcamento/vagas-disponiveis",
                     SELECT 
                         (vr->>'idorcamento_origem')::int AS idorcamento,
                         (vr->>'idfuncao_origem')::int AS idfuncao,
-                        COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '') AS setor_normalizado,
+                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
                         COUNT(*) AS qtd_diarias
                     FROM staffeventos se,
                     jsonb_array_elements(
@@ -1180,7 +1186,7 @@ router.post("/orcamento/vagas-disponiveis",
                     GROUP BY
                         (vr->>'idorcamento_origem')::int,
                         (vr->>'idfuncao_origem')::int,
-                        COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')
+                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
 
                     UNION ALL
 
@@ -1189,7 +1195,7 @@ router.post("/orcamento/vagas-disponiveis",
                     SELECT
                         se.idorcamento,
                         se.idfuncao,
-                        COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '') AS setor_normalizado,
+                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
                         -COUNT(*) AS qtd_diarias
                     FROM staffeventos se
                     CROSS JOIN LATERAL jsonb_array_elements(
@@ -1204,7 +1210,7 @@ router.post("/orcamento/vagas-disponiveis",
                     AND (vr->>'idfuncao_origem') IS NOT NULL
                     AND (vr->>'idfuncao_origem') <> 'null'
                     AND (vr->>'status') IN ('Pendente', 'Autorizado')
-                    GROUP BY se.idorcamento, se.idfuncao, COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')
+                    GROUP BY se.idorcamento, se.idfuncao, regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
                ),
                 escalado_por_funcao AS (
                     SELECT

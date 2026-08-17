@@ -2248,7 +2248,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
             const produtoNome = novaLinha.querySelector('.produto-input')?.value ||
                               novaLinha.querySelector('.produto')?.value || "Item";
             if (idFuncaoVal) {
-                const ehAdicional = novaLinha?.querySelector('.isAdicional')?.value === 'true';
+                const ehAdicional = linhaEhAdicional(novaLinha);
                 console.log(`[setor-change] setor="${setor}" isAdicional HTML=${novaLinha?.querySelector('.isAdicional')?.value} → ehAdicional=${ehAdicional}`);
                 await verificarDuplicidadeInstantanea(idFuncaoVal, setor, produtoNome, this, ehAdicional);
             }
@@ -2264,6 +2264,16 @@ async function adicionarLinhaAdicional(isBonificado = false) {
 // Arquivo: verificarSolicitacao.js (ou inclua no seu JS de orçamentos)
 // ─────────────────────────────────────────────
 
+// Fonte única de verdade para "esta linha está vinculada a uma solicitação
+// de aditivo/bonificado?". Antes disso existiam 3 checagens divergentes
+// (.isAdicional, dataset.adicional, dataset.idsolicitacao) espalhadas pelo
+// código, o que fazia a exigência de setor aparecer de forma inconsistente.
+function linhaEhAdicional(linha) {
+    if (!linha) return false;
+    return linha.querySelector('.isAdicional')?.value === 'true'
+        || linha.dataset.adicional === 'true'
+        || !!linha.dataset.idsolicitacao;
+}
 
 async function verificarSolicitacaoPendente(idOrcamento, idFuncao, idEquipamento, idSuprimento, linha) {
     if (!idOrcamento) return null;
@@ -4007,6 +4017,28 @@ async function verificaOrcamento() {
     btnEnviar.disabled = true;
     btnEnviar.textContent = "Salvando...";
 
+    // Se alguma linha ainda está aguardando a resposta da verificação de
+    // solicitação pendente (verificarSolicitacaoPendente), espera terminar
+    // antes de coletar os itens. Sem isso, um clique rápido em "Salvar" logo
+    // após escolher o produto podia coletar a linha como "não adicional"
+    // mesmo quando havia uma solicitação vinculável, pulando a exigência de
+    // setor de forma imprevisível para o usuário.
+    const existeLinhaVerificandoSolicitacao = () =>
+        Array.from(document.querySelectorAll('#tabela tbody tr'))
+            .some((l) => l.dataset.verificandoSol === 'true');
+    if (existeLinhaVerificandoSolicitacao()) {
+        btnEnviar.textContent = "Verificando solicitações...";
+        await new Promise((resolve) => {
+            const intervalo = setInterval(() => {
+                if (!existeLinhaVerificandoSolicitacao()) {
+                    clearInterval(intervalo);
+                    resolve();
+                }
+            }, 100);
+        });
+        btnEnviar.textContent = "Salvando...";
+    }
+
     try {
       const form = document.getElementById("form");
       const formData = new FormData(form);
@@ -4318,8 +4350,7 @@ async function verificaOrcamento() {
       linhas.forEach((linha) => {
       // 1. CORREÇÃO DE LEITURA (MAIS ROBUSTA):
       // Prioriza o input hidden; usa dataset.adicional como fallback (setado por carregarSolicitacao)
-        const isAdicionalInput = linha.querySelector(".isAdicional");
-        const isAdicional = isAdicionalInput?.value === "true" || linha.dataset.adicional === 'true';
+        const isAdicional = linhaEhAdicional(linha);
 
         // O console.log agora reflete o resultado da nova e mais robusta lógica
         console.log("Processando linha. É adicional?", isAdicional, linha);
@@ -4541,9 +4572,7 @@ async function verificaOrcamento() {
           const produtoNome = linha.querySelector('.produto-input')?.value?.trim()
                            || linha.querySelector('.produto')?.textContent?.trim()
                            || 'Item';
-          const ehAdicionalLinha = linha.querySelector('.isAdicional')?.value === 'true'
-                              || linha.dataset.adicional === 'true'
-                              || !!linha.dataset.idsolicitacao;
+          const ehAdicionalLinha = linhaEhAdicional(linha);
 
           // Bloqueia save se linha de solicitação está sem setor
           if (ehAdicionalLinha && !setorVal) {

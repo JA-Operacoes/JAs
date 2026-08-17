@@ -2973,7 +2973,12 @@ router.put("/:id",
       }
 
       for (const item of itens) {
-        const isAdicional = item.adicional === true;
+        // Não confia apenas na flag 'adicional' enviada pelo cliente: se o item
+        // veio vinculado a alguma solicitação (ids_solicitacoes), trata como
+        // adicional mesmo que o frontend tenha enviado adicional=false — evita
+        // que uma falha/corrida no cliente pule a exigência de setor no backend.
+        const isAdicional = item.adicional === true
+            || (Array.isArray(item.ids_solicitacoes) && item.ids_solicitacoes.filter(Boolean).length > 0);
         // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
         const valorBase = item.vlrbase ?? item.vlrdiaria;
         let setorItem = (item.setor || '').trim();
@@ -3111,8 +3116,8 @@ router.put("/:id",
                     WHERE se.idorcamento = $1
                       AND se.idfuncao = $2
                       AND (
-                          se.setor = $3
-                          OR (se.setor IS NULL AND $3 = '')
+                          regexp_replace(upper(unaccent(trim(COALESCE(se.setor,'')))), '^PAV(ILHAO)?\.?\s*', '')
+                              = regexp_replace(upper(unaccent(trim(COALESCE($3::text,'')))), '^PAV(ILHAO)?\.?\s*', '')
                           OR (
                               $3 ~* '(ADITIVO|BONIFICADO)([[:space:]]+[[:digit:]]+)?$'
                               AND se.setor = trim(regexp_replace(

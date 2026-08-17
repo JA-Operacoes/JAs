@@ -6,6 +6,20 @@ function getUrlParameter(name) {
     return urlParams.get(name);
 }
 
+// Normaliza "setor" (texto livre do orçamento, ex: "1") e "pavilhão" (nome
+// oficial do local, ex: "Pavilhão 1") para o mesmo formato antes de comparar
+// — remove acentos, caixa e o prefixo "PAV"/"PAVILHAO" — para que slots do
+// mesmo setor não sejam tratados como diferentes só por causa da grafia.
+function normalizarSetorPavilhao(valor) {
+    const SEM_ACENTO = new RegExp('[̀-ͯ]', 'g');
+    return (valor || '')
+        .normalize('NFD').replace(SEM_ACENTO, '')
+        .toUpperCase()
+        .trim()
+        .replace(/^PAV(ILHAO)?\.?\s*/, '')
+        .trim();
+}
+
 const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
@@ -18450,12 +18464,12 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                 // Exclui apenas a combinação atual (mesma função + mesmo orcamento + mesmo setor)
                 // Outras vagas da mesma função com setor/orcamento diferente (ex: EXCEDIDO) devem aparecer
                 const idOrcamentoAtualProc = String(dadosOrcamento?.idorcamento || dadosOrcamento?.idOrcamento || '');
-                const setorAtualProc = (criterios.pavilhao || criterios.setor || '').trim();
+                const setorAtualProc = normalizarSetorPavilhao(criterios.pavilhao || criterios.setor || '');
                 const vagasOutrasFuncoes = Array.isArray(vagasDisponiveis)
                     ? vagasDisponiveis.filter(v =>
                         !(String(v.idfuncao) === String(idFuncaoProcurado) &&
                           String(v.idorcamento) === idOrcamentoAtualProc &&
-                          (v.setor || '').trim() === setorAtualProc) &&
+                          normalizarSetorPavilhao(v.setor) === setorAtualProc) &&
                         parseInt(v.saldo_disponivel) > 0
                       )
                     : [];
@@ -19511,7 +19525,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 })
                             });
 
-                            const normalizarSetorLocal = (s) => (s || '').trim();
+                            const normalizarSetorLocal = normalizarSetorPavilhao;
                             const idOrcamentoAtual = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
                             //const setorAtualLocal  = normalizarSetorLocal(dadosOrcamento.itensOrcamentoDetail?.[0]?.setor);
 
@@ -19788,11 +19802,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
             if (Array.isArray(vagasDisponiveis)) {
                 const idOrcAtualFin  = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
                 const idFnAtualFin   = criterios.idFuncao || criterios.idfuncao;
-                const setorAtualFin  = (criterios.pavilhao || criterios.setor || '').trim();
+                const setorAtualFin  = normalizarSetorPavilhao(criterios.pavilhao || criterios.setor || '');
                 vagasDisponiveis = vagasDisponiveis.filter(v =>
                     !(String(v.idfuncao)    === String(idFnAtualFin) &&
                       String(v.idorcamento) === String(idOrcAtualFin) &&
-                      (v.setor || '').trim() === setorAtualFin)
+                      normalizarSetorPavilhao(v.setor) === setorAtualFin)
                 );
             }
         } catch (e) {
