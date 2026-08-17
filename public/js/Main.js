@@ -5840,6 +5840,8 @@ function abrirDetalhesEquipe(equipe, evento) {
         htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
     } else if (func.contratarstaff === false) {
         htmlBotao = '<span style="color: #999; font-weight: bold;" title="Orçamento não habilitado para contratação de staff">🚫 Não disponível para Cadastro</span>';
+    } else if (func.liberarcontratacao === false) {
+        htmlBotao = '<span style="color: #999; font-weight: bold;" title="Contratação desabilitada para este item específico (ex.: aditivo/bonificado ainda não autorizado)">🚫 Item não liberado para Cadastro</span>';
     } else {
         htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
     }
@@ -5857,7 +5859,7 @@ function abrirDetalhesEquipe(equipe, evento) {
         </div>
     `;
 
-    if (!concluido && !bloqueadoPorPendente && func.contratarstaff !== false) {
+    if (!concluido && !bloqueadoPorPendente && func.contratarstaff !== false && func.liberarcontratacao !== false) {
         const botao = li.querySelector(".btn-abrir-staff");
         if (botao) {
             botao.addEventListener("click", (e) => {
@@ -5868,7 +5870,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     }
 
     function abrirStaffModal() {
-        if (concluido || bloqueadoPorPendente || func.contratarstaff === false) return;
+        if (concluido || bloqueadoPorPendente || func.contratarstaff === false || func.liberarcontratacao === false) return;
 
         const params = new URLSearchParams();
         params.set("idfuncao", func.idfuncao ?? func.idFuncao);

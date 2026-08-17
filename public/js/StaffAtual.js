@@ -1405,6 +1405,20 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
  * Se o setor informado não está cadastrado nos pavilhões, bloqueia a seleção de pavilhões.
  * Se o setor for compatível com um pavilhão, mostra apenas esse pavilhão e força sua seleção.
  */
+// Normaliza "setor" (texto livre do orçamento, ex: "1") e "nome de pavilhão"
+// (catálogo oficial do local, ex: "Pavilhão 1") para o mesmo formato antes de
+// comparar — remove acentos, caixa e o prefixo "PAV"/"PAVILHAO", sem exigir
+// que o usuário digite o nome oficial do pavilhão no setor do orçamento.
+function normalizarSetorPavilhao(valor) {
+    const SEM_ACENTO = new RegExp('[̀-ͯ]', 'g');
+    return (valor || '')
+        .normalize('NFD').replace(SEM_ACENTO, '')
+        .toUpperCase()
+        .trim()
+        .replace(/^PAV(ILHAO)?\.?\s*/, '')
+        .trim();
+}
+
 function validarEFiltrarSetorPavilhao() {
     const inputSetor = document.getElementById("setor");
     const selectPav = document.getElementById("nmPavilhao");
@@ -1425,6 +1439,7 @@ function validarEFiltrarSetorPavilhao() {
     }
     
     const setorInformado = inputSetor.value.toUpperCase().trim();
+    const setorInformadoNorm = normalizarSetorPavilhao(inputSetor.value);
     console.log("[validarEFiltrarSetorPavilhao] Setor informado:", setorInformado || "(vazio)");
     console.log("[validarEFiltrarSetorPavilhao] Opções do select:", Array.from(selectPav.options).map(o => o.textContent));
     
@@ -1475,8 +1490,9 @@ function validarEFiltrarSetorPavilhao() {
         if (option.value === "") continue; // Ignora a opção padrão vazia
         
         const nmPavilhao = option.textContent.toUpperCase().trim();
-        console.log(`[validarEFiltrarSetorPavilhao] Comparando "${setorInformado}" com "${nmPavilhao}"`);
-        if (nmPavilhao === setorInformado) {
+        const nmPavilhaoNorm = normalizarSetorPavilhao(option.textContent);
+        console.log(`[validarEFiltrarSetorPavilhao] Comparando "${setorInformadoNorm}" (setor="${setorInformado}") com "${nmPavilhaoNorm}" (pavilhao="${nmPavilhao}")`);
+        if (nmPavilhaoNorm === setorInformadoNorm) {
             pavilhaoCompaivel = option;
             indiceCompaivel = i;
             console.log(`[validarEFiltrarSetorPavilhao] MATCH encontrado!`);
