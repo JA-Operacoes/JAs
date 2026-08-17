@@ -405,6 +405,12 @@ function fecharModal() {
             window.recarregarListaOrcamentosAside();
         }
         sessionStorage.removeItem("origemAbertura");
+    }else if(origemAbertura === "ceo"){
+        // Orçamento aberto a partir do CeoMode (botão "#nrOrcamento" no dashboard) — o painel
+        // CEO já está montado na própria página, então não há nada pra recarregar, só não
+        // pode dar reload geral (perderia os filtros/posição em que o usuário estava).
+        console.log("Retorno ao CEO Mode: sem refresh.");
+        sessionStorage.removeItem("origemAbertura");
     } else {
         // Se NÃO houver um callback específico (ou seja, foi aberto pelo caminho normal ou outro),
         // faça a recarga geral, se for o comportamento desejado para os outros modais.
