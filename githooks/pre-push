@@ -1,0 +1,6 @@
+#!/bin/sh
+# Hook de aviso (não bloqueia nada): sugere o tipo de bump de versão pra branch que está
+# sendo publicada. Ativado via "git config core.hooksPath githooks" (feito automaticamente
+# pelo script "prepare" do package.json, rodado no "npm install").
+node "$(git rev-parse --show-toplevel)/scripts/sugerir-versao.js"
+exit 0

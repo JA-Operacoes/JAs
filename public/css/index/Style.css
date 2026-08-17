@@ -402,6 +402,7 @@ input#search-aside {
   .Relatorios,
   .Financeiro,
   .Usuarios,
+  .Ceo,
   .Devs{
     position: relative;
     display: flex;
@@ -415,6 +416,7 @@ input#search-aside {
   .Relatorios .drop,
   .Financeiro .drop,
   .Usuarios .drop,
+  .Ceo .drop,
   .Devs .drop{
     position:absolute;
     max-height: none;
@@ -426,12 +428,22 @@ input#search-aside {
     transition: .2s;
   }
 
+  /* Sem top/left explícitos, o navegador usa a "posição estática" do item pra decidir onde
+     a caixa absoluta cai — com só 1 link (a maioria dos outros tem vários), isso calculou
+     errado e a caixa ficou em cima do "CEO MODE" em vez de abaixo. Fixando aqui sem mexer
+     nos outros dropdowns, que já funcionam do jeito que estão. */
+  .Ceo .drop {
+    top: 100%;
+    left: 0;
+  }
+
   /* /submenu/ */
   .Cadastro .drop a,
   .Orcamento .drop a,
   .Relatorios .drop a,
   .Financeiro .drop a,
   .Usuarios .drop a,
+  .Ceo .drop a,
   .Devs .drop a{
     display: block;
     color: white;
@@ -444,8 +456,18 @@ input#search-aside {
   .Relatorios:hover .drop,
   .Financeiro:hover .drop,
   .Usuarios:hover .drop,
+  .Ceo:hover .drop,
   .Devs:hover .drop{
     height: 300px;
+  }
+
+  /* CEO Mode tem só 1 item no dropdown — a altura fixa de 300px (regra genérica acima)
+     deixaria uma caixa vazia enorme; aqui a altura acompanha o conteúdo. */
+  .Ceo:hover .drop,
+  .Ceo:hover .drop-content {
+      overflow: visible !important;
+      display: block !important;
+      height: auto !important;
   }
 
   /* SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
@@ -638,6 +660,7 @@ input#search-aside {
     .Relatorios .drop,
     .Financeiro .drop,
     .Usuarios .drop,
+    .Ceo .drop,
     .Devs .drop{
       position: static;
       width: 100%;
@@ -752,7 +775,8 @@ input#search-aside {
     width: 260px;
     padding: 2px 0;
   }
-  #ceo-panel #ceo-select-ano {
+  #ceo-panel #ceo-select-ano,
+  #ceo-panel #ceo-select-periodo-rapido {
     border: 1px solid #ccc;
     border-radius: 6px;
     padding: 5px 8px;
@@ -824,6 +848,31 @@ input#search-aside {
     color: #2e2e2e;
     margin: 6px 0 14px;
   }
+  #ceo-panel .ceo-titulo-linha { display: flex; align-items: center; gap: 12px; }
+  #ceo-panel .ceo-titulo-linha .ceo-titulo { margin: 6px 0; }
+  #ceo-panel .ceo-btn-voltar {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    color: #555;
+    cursor: pointer;
+  }
+  #ceo-panel .ceo-btn-voltar:hover { background: #f0f2f5; }
+
+  /* Botão de número de orçamento (abre no módulo de Orçamento) */
+  #ceo-panel .ceo-link-orcamento {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1f6fc4;
+    text-decoration: underline;
+    font-size: inherit;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  #ceo-panel .ceo-link-orcamento:hover { color: #14508f; }
 
   /* Filtro de anos (chips) */
   #ceo-panel .ceo-anos-filtro {
@@ -845,6 +894,33 @@ input#search-aside {
     transition: all .15s;
   }
   #ceo-panel .ceo-ano-chip.ativo { background: #942123; border-color: #942123; color: #fff; }
+
+  /* Filtro de status (chips) */
+  #ceo-panel .ceo-status-filtro {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  #ceo-panel .ceo-status-label { font-size: 13px; color: #555; margin-right: 4px; }
+  #ceo-panel .ceo-status-chip {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #999;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+    opacity: .55;
+  }
+  #ceo-panel .ceo-status-chip.ativo {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--font-color);
+    opacity: 1;
+  }
 
   /* Card de evento clicável (abre comparação por ano) */
   #ceo-panel .ceo-evento.clicavel { cursor: pointer; transition: box-shadow .15s, transform .15s; }
@@ -924,10 +1000,19 @@ input#search-aside {
   #ceo-panel .ceo-resumo-card strong.neg { color: #dc2e2e; }
 
   /* Gráficos */
+  #ceo-panel .ceo-graficos-header { justify-content: flex-end; margin-bottom: 10px; }
   #ceo-panel .ceo-graficos {
     grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
     gap: 18px;
     margin-bottom: 28px;
+  }
+  /* Modo expandido (botão "Expandir gráficos"): 1 por linha, ocupando a largura toda —
+     ajuda a ler o eixo/zoom quando o filtro traz muitos eventos (ex.: ano inteiro). */
+  #ceo-panel .ceo-graficos.expandido {
+    grid-template-columns: 1fr;
+  }
+  #ceo-panel .ceo-graficos.expandido .ceo-chart {
+    height: 420px;
   }
   #ceo-panel .ceo-chart-card {
     background: #fff;
