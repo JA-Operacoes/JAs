@@ -2,6 +2,10 @@ node_modules/
 .env
 .env.*
 
+# Gerado pelo hook githooks/pre-push a cada push — sugestão de versão da branch atual,
+# sobrescrito toda vez. Local/informativo, nunca precisa ser versionado.
+SUGESTAO-VERSAO.txt
+
 # Certificado digital (A1) usado pra assinar XML de Nota Fiscal — nunca versionar.
 certs/*
 !certs/.gitkeep

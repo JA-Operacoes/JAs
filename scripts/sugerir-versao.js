@@ -1,9 +1,16 @@
 #!/usr/bin/env node
 // Sugere que tipo de bump de versao (patch/minor/major) cabe nos commits da branch atual,
-// comparados com a branch base (main/master). So AVISA no terminal — nunca altera nada nem
-// bloqueia o push (chamado pelo hook githooks/pre-push, que sempre sai com exit 0).
+// comparados com a branch base (main/master). So AVISA — nunca altera nada nem bloqueia o
+// push (chamado pelo hook githooks/pre-push, que sempre sai com exit 0).
+//
+// Escreve o resultado em SUGESTAO-VERSAO.txt (raiz do projeto, no .gitignore) além do
+// console — programas de git sem console visível (GitHub Desktop, por ex.) não mostram
+// saída de hook que termina sem erro, então o arquivo é a forma confiável de conferir.
 const { execSync } = require("child_process");
+const fs = require("fs");
 const path = require("path");
+
+const ARQUIVO_SAIDA = path.join(__dirname, "..", "SUGESTAO-VERSAO.txt");
 
 function git(cmd) {
   return execSync(`git ${cmd}`, { encoding: "utf8" }).trim();
@@ -41,20 +48,43 @@ function classificarCommit(msg) {
 
 const COMANDO_NPM = { patch: "Bug-fix", minor: "Novidade", major: "Breaking" };
 
+// Imprime no console E grava no arquivo — sempre sobrescreve, pra nunca sobrar sugestão
+// velha de uma branch anterior.
+function registrar(mensagem) {
+  console.log(`\n${mensagem}\n`);
+  try {
+    fs.writeFileSync(ARQUIVO_SAIDA, mensagem + "\n", "utf8");
+  } catch (err) {
+    console.error("⚠️  Não consegui gravar SUGESTAO-VERSAO.txt:", err.message);
+  }
+}
+
 function main() {
+  const agora = new Date().toLocaleString("pt-BR");
   const branchAtual = git("rev-parse --abbrev-ref HEAD");
-  if (branchAtual === "main" || branchAtual === "master" || branchAtual === "HEAD") return;
+
+  if (branchAtual === "main" || branchAtual === "master" || branchAtual === "HEAD") {
+    registrar(`[${agora}] Push direto em "${branchAtual}" — sugestão de versão só se aplica ao publicar uma branch de feature.`);
+    return;
+  }
 
   const base = branchBase();
-  if (!base) return; // repositório sem main/master pra comparar — pula silenciosamente
+  if (!base) {
+    registrar(`[${agora}] Não encontrei uma branch main/master pra comparar — sem sugestão.`);
+    return;
+  }
 
   let commits;
   try {
     commits = git(`log ${base}..HEAD --format=%s`).split("\n").filter(Boolean);
   } catch {
+    registrar(`[${agora}] Não consegui comparar "${branchAtual}" com "${base}" — sem sugestão.`);
     return;
   }
-  if (commits.length === 0) return;
+  if (commits.length === 0) {
+    registrar(`[${agora}] Nenhum commit novo em "${branchAtual}" em relação a "${base}" — sem sugestão.`);
+    return;
+  }
 
   const contagem = { major: 0, minor: 0, patch: 0, semClassificacao: 0 };
   commits.forEach((msg) => {
@@ -74,16 +104,17 @@ function main() {
   };
 
   const baseCurto = base.replace("origin/", "");
-  console.log("");
-  console.log("📦 Sugestão de versão pra essa branch:");
-  console.log(`   ${commits.length} commit(s) desde ${baseCurto} — patch:${contagem.patch} minor:${contagem.minor} major:${contagem.major}${contagem.semClassificacao ? ` (${contagem.semClassificacao} sem palavra-chave reconhecida)` : ""}`);
+  const linhas = [
+    `[${agora}] 📦 Sugestão de versão pra branch "${branchAtual}"`,
+    `${commits.length} commit(s) desde ${baseCurto} — patch:${contagem.patch} minor:${contagem.minor} major:${contagem.major}${contagem.semClassificacao ? ` (${contagem.semClassificacao} sem palavra-chave reconhecida)` : ""}`,
+  ];
   if (bump) {
-    console.log(`   → Sugerido: ${bump.toUpperCase()} (${pkg.version} → ${proximaVersao[bump]})`);
-    console.log(`   Depois do merge, rodar na main: npm run ${COMANDO_NPM[bump]}`);
+    linhas.push(`→ Sugerido: ${bump.toUpperCase()} (${pkg.version} → ${proximaVersao[bump]})`);
+    linhas.push(`Depois do merge, rodar na main: npm run ${COMANDO_NPM[bump]}`);
   } else {
-    console.log("   → Não identifiquei um padrão claro nas mensagens de commit pra sugerir um bump.");
+    linhas.push("→ Não identifiquei um padrão claro nas mensagens de commit pra sugerir um bump.");
   }
-  console.log("");
+  registrar(linhas.join("\n"));
 }
 
 main();
