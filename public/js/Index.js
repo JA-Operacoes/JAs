@@ -298,7 +298,11 @@ async function abrirModal(url, modulo) {
   }
 
   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
-  const scriptSrc = `js/${scriptName}`;
+  // ?t= força o navegador a buscar o arquivo de novo a cada abertura de modal —
+  // sem isso, como é module script, o navegador reaproveita a versão já
+  // carregada nessa sessão (ou do cache HTTP) mesmo depois de salvar o arquivo
+  // no disco, escondendo mudanças recentes até um hard-reload manual.
+  const scriptSrc = `js/${scriptName}?t=${Date.now()}`;
   const script = document.createElement("script");
   script.id = scriptId;
   script.src = scriptSrc;
@@ -324,10 +328,14 @@ async function abrirModal(url, modulo) {
     modal.style.display = "block";
     overlay.style.display = "block";
     document.body.classList.add("modal-open");
-    // Listener para o clique no overlay (fecha o modal)
+    // Listener para o clique no overlay (fecha o modal) — Emissão de Nota
+    // Fiscal e Serviços ficam de fora: são telas de digitação mais longa e
+    // um clique perdido fora do modal não deve descartar o que já foi
+    // preenchido.
+    const MODULOS_SEM_FECHAR_NO_CLIQUE_FORA = ["NotaFiscal", "Servicos"];
          overlay.addEventListener("mousedown", (event) => {
-            if (event.target === overlay) {
-                fecharModal(); 
+            if (event.target === overlay && !MODULOS_SEM_FECHAR_NO_CLIQUE_FORA.includes(window.moduloAtual)) {
+                fecharModal();
                 console.log("Mousedown no overlay do modal detectado. Fechando modal.");
             }
         });

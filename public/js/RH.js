@@ -327,6 +327,10 @@ async function carregarHolerite(idfuncionario) {
 // Itens: 'P' provento tributável, 'B' benefício não-tributável (VA/VT), 'D' desconto.
 // Por padrão os benefícios NÃO entram no líquido (pagos via cartão/vale); o RH pode
 // somá-los ligando o toggle (incluirBeneficios = true).
+// No 13º (h.tipo === "13"), "salariobase" é só a referência do cadastro (mostrada/editável na
+// tela, inclusive salva de volta no cadastro do funcionário via salvarSalarioBase) — o valor
+// da parcela já vem inteiro nos itens (preset13). Somar a referência ao total duplicaria o
+// valor pago, por isso ela entra só como "base" (exibição), não somada em proventos.
 function totaisHolerite(h, incluirBeneficios) {
   const base = Number(h.salariobase) || 0;
   let proventosItens = 0, beneficios = 0, descontos = 0;
@@ -336,7 +340,7 @@ function totaisHolerite(h, incluirBeneficios) {
     else if (i.tipo === "B") beneficios += v;
     else proventosItens += v;
   });
-  const proventos = base + proventosItens; // salário + proventos tributáveis
+  const proventos = (h.tipo === "13" ? 0 : base) + proventosItens; // salário + proventos tributáveis
   const liquido = proventos - descontos + (incluirBeneficios ? beneficios : 0);
   return { base, beneficios, proventos, descontos, liquido };
 }
@@ -500,7 +504,7 @@ function renderHolerite(h) {
         <h4>Descontos</h4>
         <div id="rh-descontos">${descontos.map((i, idx) => linha(i, idx)).join("")}</div>
         <button type="button" id="rh-add-desconto">+ Desconto</button>
-        ${h.tipo === "rescisao" ? "" : `<button type="button" id="rh-calcular" class="secundario">⚙️ Calcular INSS/IRRF</button>`}
+        ${(h.tipo === "rescisao" || h.tipo === "13") ? "" : `<button type="button" id="rh-calcular" class="secundario">⚙️ Calcular INSS/IRRF</button>`}
         <small id="rh-calc-info" class="rh-calc-info"></small>
         ${descontos.some((i) => String(i.descricao) === PLANO_SAUDE_DESC) && h.planoSaude && h.planoSaude.itens && h.planoSaude.itens.length ? `
         <div class="rh-plano-detalhe">
@@ -549,7 +553,7 @@ function renderHolerite(h) {
         <input type="file" id="rh-comprovante-input" accept="image/*,application/pdf,.jfif" style="display:none">` : `
         <button type="button" id="rh-comprovante-ver">Ver comprovante</button>
         ${podeAlterarComprovante ? `<button type="button" id="rh-comprovante-rm" class="secundario">Remover comprovante</button>` : ""}`) : ""}
-        ${pago ? `<button type="button" id="rh-imprimir" class="secundario">🖨️ Imprimir (2 vias)</button>` : ""}
+        ${pago && h.comprovante ? `<button type="button" id="rh-imprimir" class="secundario">🖨️ Imprimir (2 vias)</button>` : ""}
       </div>
     </div>
   `;
@@ -633,7 +637,10 @@ function montarViaImpressao(h, t, titulo) {
       <td class="v">${desc2 != null ? formatarReaisInput(desc2) : ""}</td>
     </tr>`;
 
-  const linhasVenc = [linha("Salário base", "30 dias", h.salariobase, null)]
+  // No 13º o valor da parcela já vem inteiro nos itens (ex.: "13º salário (1ª parcela)") — a
+  // linha "Salário base" aqui é só a referência do cadastro, não soma no total (ver
+  // totaisHolerite), então não entra no recibo pra não sugerir uma soma que não existe.
+  const linhasVenc = (h.tipo === "13" ? [] : [linha("Salário base", "30 dias", h.salariobase, null)])
     .concat(proventos.map((i) => linha(i.descricao, "", i.valor, null)));
   const linhasDesc = descontos.map((i) => linha(i.descricao, "", null, i.valor));
 
@@ -670,9 +677,14 @@ function montarViaImpressao(h, t, titulo) {
     </table>
 
     <table class="func">
+      <colgroup>
+        <col class="col-cod"><col><col><col class="col-cbo"><col class="col-adm">
+      </colgroup>
       <tr><th>Código</th><th>Nome do Funcionário</th><th>Função</th><th>CBO</th><th>Admissão</th></tr>
       <tr><td>${esc(h.idfuncionario)}</td><td>${esc(h.nome)}</td><td>${esc(h.funcao || "—")}</td><td>${esc(h.cbo || "—")}</td><td>${formatData(h.admissao)}</td></tr>
     </table>
+
+    <hr class="rh-separador">
 
     <table class="itens">
       <thead>
@@ -710,8 +722,10 @@ function montarViaImpressao(h, t, titulo) {
   </section>`;
 }
 
-// Imprime 2 vias (Funcionário e Empresa) do holerite pago, cada uma com assinatura.
-function imprimirHolerite() {
+// Imprime 2 vias (Funcionário e Empresa) do holerite pago, cada uma com assinatura, seguidas
+// do comprovante anexado (mesmo comportamento de imprimirHoleriteExterno) — o botão só existe
+// quando já há comprovante (ver renderHolerite), então ele SEMPRE entra na impressão.
+async function imprimirHolerite() {
   const h = lerHolerite();
   const t = totaisHolerite(h, incluirBeneficios);
   const win = window.open("", "_blank");
@@ -733,10 +747,14 @@ function imprimirHolerite() {
     table.cab .doc { font-size: 12px; line-height: 1.6; }
     table.cab .doc-titulo { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
 
-    table.func { border: 1px solid #333; border-top: none; font-size: 12px; }
-    table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    table.func { border: 1px solid #333; border-top: none; font-size: 12px; table-layout: fixed; }
+    table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
     table.func th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; }
     table.func th:last-child, table.func td:last-child { border-right: none; }
+    table.func .col-cod { width: 9%; }
+    table.func .col-cbo { width: 12%; }
+    table.func .col-adm { width: 13%; }
+    hr.rh-separador { border: none; border-top: 1px solid #333; margin: 8px 0; }
 
     table.itens { border: 1px solid #333; border-top: none; font-size: 12px; }
     table.itens th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; padding: 5px 8px; border-right: 1px solid #ccc; text-align: left; }
@@ -763,23 +781,26 @@ function imprimirHolerite() {
     .assinatura .linha { border-top: 1px solid #333; width: 340px; margin: 0 auto 4px; }
     .assinatura > div:last-child { text-align: center; }
     .assinatura small { color: #666; }
+    /* Sem height:100vh — em contexto de impressão isso pode passar da área útil da folha
+       (@page já tem margem de 10mm) e sobrar uma página em branco extra. */
+    .pagina-comprovante { page-break-before: always; text-align: center; }
+    .pagina-comprovante img, .pagina-comprovante canvas { max-width: 100%; max-height: 260mm; }
   `;
+  // Comprovante anexado, na mesma impressão (só existe o botão de imprimir quando já há
+  // comprovante — ver renderHolerite).
+  const paginaComprovante = h.comprovante
+    ? `<div class="pagina-comprovante">${montarPaginaComprovante(`/uploads/rh/comprovantes/${h.comprovante}`)}</div>`
+    : "";
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Holerite — ${h.nome} — ${mesSel}/${anoSel}</title><style>${css}</style></head>
-  <body>${montarViaImpressao(h, t, "Via do Funcionário")}<div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>${montarViaImpressao(h, t, "Via da Empresa")}</body></html>`);
+  <body>${montarViaImpressao(h, t, "Via do Funcionário")}<div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>${montarViaImpressao(h, t, "Via da Empresa")}${paginaComprovante}</body></html>`);
   win.document.close();
   win.focus();
   // Fecha a guia depois de imprimir OU cancelar (afterprint dispara nos dois casos).
   win.onafterprint = () => win.close();
-  // Dispara a impressão UMA única vez (guarda contra onload + fallback duplicarem).
-  let jaImprimiu = false;
-  const imprimirUmaVez = () => {
-    if (jaImprimiu) return;
-    jaImprimiu = true;
-    try { win.print(); } catch (e) {}
-  };
-  win.onload = imprimirUmaVez;
-  // fallback caso o onload já tenha disparado antes do handler ser registrado
-  setTimeout(imprimirUmaVez, 400);
+  // Só imprime depois que o PDF de comprovante (se houver) já virou <canvas> — imprimir um
+  // <iframe> de PDF sai cortado/espremido (ver renderizarPdfsEmComprovantes).
+  await renderizarPdfsEmComprovantes(win);
+  try { win.print(); } catch (e) {}
 }
 
 function addLinha(containerId) {
@@ -1174,6 +1195,309 @@ function selecionarFuncionarioDaFolha(id, nome) {
   if (hidden) hidden.value = id;
   onFuncChange(String(id));
 }
+
+// Monta a "página" do comprovante anexado a um holerite, pra entrar logo depois da via
+// impressa (Holerite → Comprovante, Holerite → Comprovante...). Imagem (jpg/png/jfif) entra
+// direto como <img>; PDF vira um container vazio que renderizarPdfsEmComprovantes() preenche
+// depois (imprimir um <iframe> de PDF sai cortado/espremido — bug conhecido do Chrome).
+function montarPaginaComprovante(url) {
+  // Absoluta: a janela de impressão começa em about:blank (document.write), então uma URL
+  // relativa ("/uploads/...") pode não resolver pro host certo e a imagem/PDF falha em
+  // carregar silenciosamente — aí a página do comprovante sai em branco na impressão.
+  const abs = url.startsWith("http") ? url : `${window.location.origin}${url}`;
+  const ehPdf = /\.pdf(\?|$)/i.test(abs);
+  return ehPdf
+    ? `<div class="pdf-render-container" data-pdf-url="${abs}"><small style="color:#999;">Carregando comprovante...</small></div>`
+    : `<img src="${abs}" style="display:block; margin:0 auto;">`;
+}
+
+// Checa por amostragem (grade de pontos, não pixel a pixel — ficaria lento em canvas grandes
+// renderizados em scale 2) se um canvas não tem nada além de branco/transparente.
+function canvasEstaEmBranco(ctx, width, height) {
+  const passo = 10;
+  for (let y = 0; y < height; y += passo) {
+    for (let x = 0; x < width; x += passo) {
+      const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+      if (a > 0 && (r < 250 || g < 250 || b < 250)) return false;
+    }
+  }
+  return true;
+}
+
+// Renderiza cada PDF de comprovante (dentro da janela de impressão `win`) como <canvas>, via
+// PDF.js — imprimir um PDF direto num <iframe> sai cortado/espremido, mas uma imagem renderizada
+// no tamanho certo imprime normalmente junto com o resto do documento. Precisa rodar (e
+// terminar) ANTES de chamar win.print().
+async function renderizarPdfsEmComprovantes(win) {
+  // Comprovante em imagem (jpg/png/jfif): não tem preparo nenhum, mas o <img> pode ainda
+  // estar carregando quando win.print() for chamado — sem esperar o load, a imagem sai em
+  // branco na impressão mesmo com a URL certa. PDFs não usam <img>, então não entram aqui.
+  const imgs = Array.from(win.document.querySelectorAll(".pagina-comprovante img"));
+  await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise((resolve) => {
+    img.addEventListener("load", resolve, { once: true });
+    img.addEventListener("error", resolve, { once: true }); // não travar a impressão se a imagem falhar
+  })));
+
+  const containers = win.document.querySelectorAll(".pdf-render-container");
+  if (!containers.length) return;
+
+  if (!win.pdfjsLib) {
+    await new Promise((resolve, reject) => {
+      const script = win.document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Falha ao carregar o leitor de PDF."));
+      win.document.head.appendChild(script);
+    }).catch((err) => console.error(err));
+  }
+  if (!win.pdfjsLib) {
+    containers.forEach((c) => { c.innerHTML = '<small style="color:#c00;">Não foi possível carregar o comprovante (PDF).</small>'; });
+    return;
+  }
+  win.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  for (const container of containers) {
+    const url = container.dataset.pdfUrl;
+    try {
+      const pdf = await win.pdfjsLib.getDocument(url).promise;
+      container.innerHTML = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = win.document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.maxWidth = "100%";
+        canvas.style.maxHeight = "100%";
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        // Comprovante bancário exportado como PDF costuma vir com uma 2ª página em branco
+        // (artefato do banco, não do nosso código) — checar operatorList não bastou (o
+        // template do banco pode desenhar bordas/fundo mesmo numa página "vazia"), então a
+        // partir da 2ª página checa os PIXELS de verdade: se não sobrar nada além de
+        // branco/transparente, pula — senão sobra uma página em branco extra na impressão.
+        if (i > 1 && canvasEstaEmBranco(ctx, canvas.width, canvas.height)) continue;
+        container.appendChild(canvas);
+      }
+    } catch (err) {
+      console.error("Erro ao renderizar PDF do comprovante:", url, err);
+      container.innerHTML = '<small style="color:#c00;">Não foi possível carregar o comprovante (PDF).</small>';
+    }
+  }
+}
+
+// ===== Integração externa (chamada de Vencimentos > Contas a Pagar > Funcionário) =====
+// Abre o holerite de um funcionário/competência a partir de outra tela: ativa o modo RH
+// (se ainda não estiver ativo), monta o painel (lazy) e seleciona a competência/funcionário.
+async function abrirHoleriteExterno(idfuncionario, mes, ano, tipo = "mensal") {
+  if (!idfuncionario) return;
+  const link = document.querySelector("li.RH a");
+  const jaAtivo = document.body.classList.contains("rh-mode");
+  if (!jaAtivo && link) link.click(); // dispara o listener de initRH (ativa rh-mode + montarPainel)
+
+  // Carrega os dados do empregador ANTES de renderizar — montarPainel() já dispara isso
+  // sozinho, mas sem aguardar; vindo de fora (Vencimentos), o holerite podia renderizar
+  // antes da resposta chegar, deixando nome/CNPJ/endereço da empresa em branco.
+  if (!empresaAtual) await carregarEmpresa();
+
+  const tentar = () => {
+    const panel = document.getElementById("rh-panel");
+    if (!panel) { requestAnimationFrame(tentar); return; } // aguarda montarPainel (lazy)
+
+    tipoSel = tipo; mesSel = Number(mes); anoSel = Number(ano);
+    const selTipo = document.getElementById("rh-select-tipo"); if (selTipo) selTipo.value = tipoSel;
+    const selMes = document.getElementById("rh-select-mes"); if (selMes) selMes.value = mesSel;
+    const selAno = document.getElementById("rh-select-ano"); if (selAno) selAno.value = anoSel;
+
+    document.getElementById("rh-func-id").value = idfuncionario;
+    onFuncChange(String(idfuncionario));
+  };
+  tentar();
+}
+window.abrirHoleriteRH = abrirHoleriteExterno;
+
+// Imprime em lote os holerites de uma lista de competências (usado pelo botão "Imprimir
+// todos" em Vencimentos > Contas a Pagar > Funcionário — respeita o que já está filtrado
+// na tela, já que a lista vem das linhas efetivamente renderizadas ali). Busca cada holerite
+// e monta tudo num único documento, com quebra de página entre eles.
+async function imprimirHoleritesEmLote(lista) {
+  if (!Array.isArray(lista) || !lista.length) return;
+  try {
+    if (!empresaAtual) await carregarEmpresa();
+    const win = window.open("", "_blank");
+    if (!win) { Swal.fire("Bloqueado", "Permita pop-ups para imprimir.", "warning"); return; }
+
+    const css = `
+      @page { size: A4 portrait; margin: 10mm; }
+      * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+      body { margin: 0; color: #111; }
+      /* Cada página (holerite OU comprovante) começa numa folha nova, exceto a primeira —
+         intercalando Holerite/Comprovante/Holerite/Comprovante na ordem em que forem inseridas. */
+      .pagina-impressao + .pagina-impressao { page-break-before: always; }
+      /* Sem height:100vh — em contexto de impressão isso pode passar da área útil da folha
+         (@page já tem margem de 10mm) e sobrar uma página em branco extra. */
+      .pagina-comprovante { text-align: center; }
+      .pagina-comprovante img, .pagina-comprovante canvas { max-width: 100%; max-height: 260mm; }
+      .via { padding: 6px 4px; break-inside: avoid; page-break-inside: avoid; }
+      .via-tag { text-align: right; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+      .corte { border-top: 1px dashed #999; text-align: center; font-size: 10px; color: #999; margin: 10px 0; padding-top: 2px; letter-spacing: 1px; }
+      table { border-collapse: collapse; width: 100%; }
+      table.cab { border: 1px solid #333; }
+      table.cab td { padding: 8px 10px; vertical-align: top; font-size: 12px; }
+      table.cab .emp { width: 62%; border-right: 1px solid #333; line-height: 1.5; }
+      table.cab .doc { font-size: 12px; line-height: 1.6; }
+      table.cab .doc-titulo { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+      table.func { border: 1px solid #333; border-top: none; font-size: 12px; }
+      table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+      table.func th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; }
+      table.func th:last-child, table.func td:last-child { border-right: none; }
+      table.itens { border: 1px solid #333; border-top: none; font-size: 12px; }
+      table.itens th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; padding: 5px 8px; border-right: 1px solid #ccc; text-align: left; }
+      table.itens td { padding: 4px 8px; border-right: 1px solid #eee; }
+      table.itens th.v, table.itens td.v { text-align: right; white-space: nowrap; }
+      table.itens th:last-child, table.itens td:last-child { border-right: none; }
+      table.itens td.c { color: #888; width: 42px; }
+      table.itens td.r { color: #666; width: 70px; }
+      table.itens tbody tr:nth-child(even) { background: #fafafa; }
+      table.itens tfoot .tot td { border-top: 2px solid #333; font-weight: bold; padding: 6px 8px; text-transform: uppercase; font-size: 11px; }
+      .benef { font-size: 11px; color: #555; margin-top: 8px; }
+      .benef strong { color: #333; }
+      table.bases { margin-top: 12px; border: 1px solid #333; }
+      table.bases td { padding: 8px 10px; border-right: 1px solid #ccc; text-align: center; }
+      table.bases td:last-child { border-right: none; }
+      table.bases span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #666; margin-bottom: 3px; }
+      table.bases strong { font-size: 14px; }
+      table.bases td.liq { background: #f2f2f2; }
+      table.bases td.liq strong { font-size: 16px; }
+      .assinatura { margin-top: 26px; font-size: 12px; }
+      .assinatura .linha { border-top: 1px solid #333; width: 340px; margin: 0 auto 4px; }
+      .assinatura > div:last-child { text-align: center; }
+      .assinatura small { color: #666; }
+    `;
+
+    const mesAntes = mesSel, anoAntes = anoSel;
+    let corpo = "";
+    for (const item of lista) {
+      const { idfuncionario, mes, ano, tipo } = item || {};
+      if (!idfuncionario || !mes || !ano) continue;
+      try {
+        const data = await fetchComToken(`/rh/holerite?idfuncionario=${idfuncionario}&mes=${mes}&ano=${ano}&tipo=${tipo || "mensal"}`);
+        const h = data.holerite;
+        const t = totaisHolerite(h, false);
+        mesSel = Number(mes); anoSel = Number(ano); // usados por montarViaImpressao no cabeçalho
+        // Holerite (2 vias) e, logo em seguida, o comprovante dele — intercalando
+        // Holerite/Comprovante/Holerite/Comprovante conforme a lista vai sendo impressa.
+        corpo += `<div class="pagina-impressao bloco-holerite">${montarViaImpressao(h, t, "Via do Funcionário")}<div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>${montarViaImpressao(h, t, "Via da Empresa")}</div>`;
+        if (h.comprovante) {
+          corpo += `<div class="pagina-impressao pagina-comprovante">${montarPaginaComprovante(`/uploads/rh/comprovantes/${h.comprovante}`)}</div>`;
+        }
+      } catch (err) {
+        console.error("Erro ao carregar holerite p/ impressão em lote:", item, err);
+      }
+    }
+    mesSel = mesAntes; anoSel = anoAntes;
+
+    if (!corpo) {
+      win.close();
+      Swal.fire("Nada para imprimir", "Não foi possível carregar nenhum holerite da lista.", "warning");
+      return;
+    }
+
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Holerites</title><style>${css}</style></head><body>${corpo}</body></html>`);
+    win.document.close();
+    win.focus();
+    win.onafterprint = () => win.close();
+    // Só imprime depois que os PDFs de comprovante (se houver) já viraram <canvas> — imprimir
+    // um <iframe> de PDF sai cortado/espremido (ver renderizarPdfsEmComprovantes).
+    await renderizarPdfsEmComprovantes(win);
+    try { win.print(); } catch (e) {}
+  } catch (err) {
+    console.error("Erro ao imprimir holerites em lote:", err);
+    Swal.fire("Erro", "Não foi possível gerar a impressão em lote.", "error");
+  }
+}
+window.imprimirHoleritesEmLote = imprimirHoleritesEmLote;
+
+// Imprime 2 vias (Funcionário/Empresa) do holerite de um funcionário/competência sem
+// precisar abrir a tela de RH — busca o holerite (real ou prévia) direto da API.
+async function imprimirHoleriteExterno(idfuncionario, mes, ano, tipo = "mensal") {
+  if (!idfuncionario) return;
+  try {
+    if (!empresaAtual) await carregarEmpresa();
+    const data = await fetchComToken(`/rh/holerite?idfuncionario=${idfuncionario}&mes=${mes}&ano=${ano}&tipo=${tipo}`);
+    const h = data.holerite;
+    const t = totaisHolerite(h, false);
+    const mesAntes = mesSel, anoAntes = anoSel;
+    mesSel = Number(mes); anoSel = Number(ano); // usados por montarViaImpressao no cabeçalho
+    const win = window.open("", "_blank");
+    if (!win) { Swal.fire("Bloqueado", "Permita pop-ups para imprimir.", "warning"); return; }
+
+    const css = `
+      @page { size: A4 portrait; margin: 10mm; }
+      * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+      body { margin: 0; color: #111; }
+      .via { padding: 6px 4px; break-inside: avoid; page-break-inside: avoid; }
+      .via-tag { text-align: right; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+      .corte { border-top: 1px dashed #999; text-align: center; font-size: 10px; color: #999; margin: 10px 0; padding-top: 2px; letter-spacing: 1px; }
+      table { border-collapse: collapse; width: 100%; }
+      table.cab { border: 1px solid #333; }
+      table.cab td { padding: 8px 10px; vertical-align: top; font-size: 12px; }
+      table.cab .emp { width: 62%; border-right: 1px solid #333; line-height: 1.5; }
+      table.cab .doc { font-size: 12px; line-height: 1.6; }
+      table.cab .doc-titulo { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+      table.func { border: 1px solid #333; border-top: none; font-size: 12px; }
+      table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+      table.func th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; }
+      table.func th:last-child, table.func td:last-child { border-right: none; }
+      table.itens { border: 1px solid #333; border-top: none; font-size: 12px; }
+      table.itens th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; padding: 5px 8px; border-right: 1px solid #ccc; text-align: left; }
+      table.itens td { padding: 4px 8px; border-right: 1px solid #eee; }
+      table.itens th.v, table.itens td.v { text-align: right; white-space: nowrap; }
+      table.itens th:last-child, table.itens td:last-child { border-right: none; }
+      table.itens td.c { color: #888; width: 42px; }
+      table.itens td.r { color: #666; width: 70px; }
+      table.itens tbody tr:nth-child(even) { background: #fafafa; }
+      table.itens tfoot .tot td { border-top: 2px solid #333; font-weight: bold; padding: 6px 8px; text-transform: uppercase; font-size: 11px; }
+      .benef { font-size: 11px; color: #555; margin-top: 8px; }
+      .benef strong { color: #333; }
+      table.bases { margin-top: 12px; border: 1px solid #333; }
+      table.bases td { padding: 8px 10px; border-right: 1px solid #ccc; text-align: center; }
+      table.bases td:last-child { border-right: none; }
+      table.bases span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #666; margin-bottom: 3px; }
+      table.bases strong { font-size: 14px; }
+      table.bases td.liq { background: #f2f2f2; }
+      table.bases td.liq strong { font-size: 16px; }
+      .assinatura { margin-top: 26px; font-size: 12px; }
+      .assinatura .linha { border-top: 1px solid #333; width: 340px; margin: 0 auto 4px; }
+      .assinatura > div:last-child { text-align: center; }
+      .assinatura small { color: #666; }
+      /* Sem height:100vh — em contexto de impressão isso pode passar da área útil da folha
+         (@page já tem margem de 10mm) e sobrar uma página em branco extra. */
+      .pagina-comprovante { page-break-before: always; text-align: center; }
+      .pagina-comprovante img, .pagina-comprovante canvas { max-width: 100%; max-height: 260mm; }
+    `;
+    // Holerite (2 vias) seguido do comprovante anexado, na mesma impressão — só chega aqui
+    // com comprovante já anexado (ver gate em Main.js/celulaHolerite).
+    const paginaComprovante = h.comprovante
+      ? `<div class="pagina-comprovante">${montarPaginaComprovante(`/uploads/rh/comprovantes/${h.comprovante}`)}</div>`
+      : "";
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Holerite — ${h.nome} — ${mesSel}/${anoSel}</title><style>${css}</style></head>
+    <body>${montarViaImpressao(h, t, "Via do Funcionário")}<div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>${montarViaImpressao(h, t, "Via da Empresa")}${paginaComprovante}</body></html>`);
+    win.document.close();
+    win.focus();
+    win.onafterprint = () => win.close();
+    // Só imprime depois que o PDF de comprovante (se houver) já virou <canvas> — imprimir um
+    // <iframe> de PDF sai cortado/espremido (ver renderizarPdfsEmComprovantes).
+    await renderizarPdfsEmComprovantes(win);
+    try { win.print(); } catch (e) {}
+
+    mesSel = mesAntes; anoSel = anoAntes; // restaura a competência da tela de RH (se estava aberta)
+  } catch (err) {
+    console.error("Erro ao imprimir holerite:", err);
+    Swal.fire("Erro", "Não foi possível carregar o holerite para impressão.", "error");
+  }
+}
+window.imprimirHoleriteRH = imprimirHoleriteExterno;
 
 // ===== Toggle do modo RH =====
 function initRH() {

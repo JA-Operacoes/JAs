@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<link rel="stylesheet" href="css/Modal/Orcamento.css">
+<link rel="stylesheet" href="css/Modal/Orcamento.css?v=1">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 <div id="cadModalOrcamentos" class="modal">
     <div class="modal-content">
@@ -56,7 +56,7 @@
                         <div class="form">
                             <input type="text" class="preenchido" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
                             <label for="nrOrcamento">N° do Orçamento</label>
-                        </div>                   
+                        </div>
 
                         <div class="checkbox-wrapper-33 checkbox-coluna contratarstaff">
                             <p class="checkbox__textwrapper">Liberado Para Contratar Staff</p>
@@ -199,7 +199,8 @@
                         </div> 
                     </div>
                                 
-                    <div class = 'Selects'>                    
+                    <div id="itensSecaoCompleta">
+                    <div class = 'Selects'>
                         <div class="selectFuncao">
                             <label for="idFuncao">Função:</label>
                             <select class="idFuncao" id="selectFuncao"></select>
@@ -215,7 +216,7 @@
                     </div>
 
                     <br>
-                    
+
                     <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
                     <div class="addLinha">
                         <button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button>
@@ -226,7 +227,15 @@
                             <span class="tooltip">Informações</span>
                         </button>
                     </div>
-                    
+
+                    <div class="itens-toolbar">
+                        <div class="itens-filtro-combo">
+                            <input type="text" id="filtroProdutoItens" autocomplete="off" placeholder="Clique pra ver os itens da tabela...">
+                            <ul id="filtroProdutoItensLista" class="itens-filtro-lista"></ul>
+                        </div>
+                        <button type="button" id="btnTelaCheiaItens">Tela cheia</button>
+                    </div>
+
                     <div class="table">
                         <table id="tabela" >
                             <thead>
@@ -262,14 +271,15 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                
+
                             </tbody>
                         </table>
                     </div>
+                    </div> <!-- fim #itensSecaoCompleta -->
                     <br>
                     <!-- <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
                     <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div> -->
-                    
+
                     <div class="Selects">
 
     <!-- CONTAINER PRINCIPAL LADO A LADO -->
@@ -407,6 +417,65 @@
         </div> <!-- fim totais-container -->
 
     </div> <!-- fim conteudo-lateral -->
+
+    <!-- ===================== PARCELAS DE PAGAMENTO ===================== -->
+    <div class="parcelas-wrap" id="parcelasWrap">
+        <div class="parcelas-linha-topo">
+           
+            <!-- Empresa Emissora mora aqui agora — é dado da nota fiscal,
+                 igual vencimento/parcelamento logo ao lado, então fica tudo
+                 junto em vez de misturado com Cliente/Evento/Edição. -->
+            <div class="select parcelas-empresa-emissora">
+                <label for="idEmpresaEmissora">Empresa Emissora da NF:</label>
+                <select class="idEmpresaEmissora" id="idEmpresaEmissora" spellcheck="false"></select>
+            </div>
+            <label class="parcelas-check">
+                <input type="checkbox" id="chkParcelado"> Pagamento parcelado?
+            </label>
+
+            <!-- À vista: 1 vencimento só, guardado como "parcela única" na
+                 mesma orcamentoparcelas (nada de coluna nova em orcamentos) —
+                 some quando marca "Pagamento parcelado?". -->
+            <div id="vencimentoAvistaWrap" class="form2 parcelas-vencimento-avista">
+                <input type="text" id="dtVencimentoAvista" class="preenchido" placeholder="dd/mm/aaaa">
+                <label for="dtVencimentoAvista">Data de vencimento:</label>
+            </div>
+        </div>
+
+        <div id="parcelasConteudo" style="display:none;">
+            <div class="parcelas-toolbar">
+                <div class="parcelas-dividir">
+                    <span>Dividir igualmente em</span>
+                    <input type="number" id="qtdParcelasDividir" min="2" max="24" value="2">
+                    <span>parcelas</span>
+                    <button type="button" id="btnDividirParcelas">Aplicar</button>
+                </div>
+                <span class="parcelas-soma" id="parcelasSomaInfo">Soma: R$ 0,00 de R$ 0,00</span>
+            </div>
+
+            <div class="parcelas-tabela-wrap">
+                <table class="parcelas-tabela">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Descrição</th>
+                            <th>%</th>
+                            <th>Valor</th>
+                            <th>Vencimento</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelasTabelaBody"></tbody>
+                </table>
+            </div>
+
+            <div class="parcelas-footer">
+                <button type="button" id="btnAdicionarParcela" class="parcelas-add">+ Adicionar parcela</button>
+                <button type="button" id="btnParcelasParaTexto" class="parcelas-add parcelas-secundario">Levar para "Forma de pagamento" &raquo;</button>
+            </div>
+        </div>
+    </div>
 
 </div> <!-- fim Selects -->
 

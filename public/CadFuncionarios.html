@@ -21,22 +21,38 @@
           <fieldset>
             <legend>Perfil</legend>                
             <div class="Perfil">              
-              <div class="perfil-radios">
-                <label for="Interno">Interno</label>
-                <input type="radio" name="perfil" id="Interno" value="Interno" >
-              </div>
-              <div class="perfil-radios">
-                <label for="Externo">Externo</label>
-                <input type="radio" name="perfil" id="Externo" value="Externo" >
-              </div>
-              <div class="perfil-radios">
-                <label for="Freelancer">Free-lancer</label>
-                <input type="radio" name="perfil" id="Freelancer" value="Freelancer" >
-              </div>
-              <div class="perfil-radios">
-                <label for="Lote">Lote</label>
-                <input type="radio" name="perfil" id="Lote" value="Lote" >
-              </div>
+              <div class="radio-inputs">
+                  <label>
+                    <input type="radio" name="perfil" id="Interno" class="radio-input" value="Interno" >
+                    <span class="radio-tile">
+                        <span class="radio-label">Interno</span>
+                    </span>
+                  </label>
+                  <label>
+                    <input type="radio" name="perfil" id="ExternoH" value="ExternoH" class="radio-input"/>
+                    <span class="radio-tile">
+                      <span class="radio-label">Externo C/Holerite</span>
+                    </span>
+                  </label>
+                  <label>
+                    <input type="radio" name="perfil" id="Externo" value="Externo" class="radio-input"/>
+                    <span class="radio-tile">
+                      <span class="radio-label">Externo</span>
+                    </span>
+                  </label>
+                  <label>
+                    <input type="radio" name="perfil" id="Freelancer" value="Freelancer" class="radio-input" />
+                    <span class="radio-tile">
+                      <span class="radio-label">Freelancer</span>
+                    </span>
+                  </label>
+                  <label>
+                    <input type="radio" name="perfil" id="Lote" value="Lote" class="radio-input" />
+                    <span class="radio-tile">
+                      <span class="radio-label">Lote</span>
+                    </span>
+                  </label>
+                </div>
               <div class="container">
                 <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
 

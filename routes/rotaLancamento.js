@@ -120,7 +120,7 @@ async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nome
         if (p.includes('func')) {
             // Se o valor do rádio for "funcionário", busca Interno ou Externo
             // O ILIKE garante que encontre "Interno" ou "interno" no banco
-            query += ` AND (${aliasVinculo}.perfil ILIKE 'Interno' OR ${aliasVinculo}.perfil ILIKE 'Externo')`;
+            query += ` AND (${aliasVinculo}.perfil ILIKE 'Interno' OR ${aliasVinculo}.perfil ILIKE 'Externo' OR ${aliasVinculo}.perfil ILIKE 'ExternoH')`;
         } else if (p.includes('free') || p.includes('sem')) {
             // Se o valor for "free-lancer", busca Freelancer ou Lote
             query += ` AND (${aliasVinculo}.perfil ILIKE 'Freelancer' OR ${aliasVinculo}.perfil ILIKE 'Lote')`;

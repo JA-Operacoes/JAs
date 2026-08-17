@@ -49,6 +49,7 @@ if (typeof window.clienteOriginal === "undefined") {
         emailContato: "",
         site: "",
         inscEstadual: "",
+        inscricaoMunicipal: "",
         cep: "",
         rua: "",
         numero: "",
@@ -122,6 +123,7 @@ const campos = {
         razaoSocial: "#razaoSocial",
         cnpj: "#cnpj",
         inscEstadual: "#inscEstadual",
+        inscricaoMunicipal: "#inscricaoMunicipal",
         emailCliente: "#emailCliente",
         emailNfe: "#emailNfe",
         site: "#site",
@@ -177,6 +179,7 @@ const preencherFormulario = (cliente) => {
         emailContato: cliente.emailcontato || "",
         site: cliente.site || "",
         inscEstadual: cliente.inscestadual || "",
+        inscricaoMunicipal: cliente.inscricaomunicipal || "",
         cep: cliente.cep || "",
         rua: cliente.rua || "",
         numero: cliente.numero || "",
@@ -295,6 +298,7 @@ const obterDadosFormulario = () => {
         razaoSocial: valor("razaoSocial").toUpperCase(),
         cnpj: valor("cnpj").replace(/\D/g, ''),
         inscEstadual,
+        inscricaoMunicipal: valor("inscricaoMunicipal"),
         emailCliente: valor("emailCliente"),
         emailNfe: valor("emailNfe"),
         site: valor("site"),
@@ -558,6 +562,7 @@ function carregarClientes() {
         emailContato: "",
         site: "",
         inscEstadual: "",
+        inscricaoMunicipal: "",
         cep: "",
         rua: "",
         numero: "",
@@ -728,6 +733,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         document.querySelector("#razaoSocial").value = cliente.razaosocial || "";
         maskCNPJ.value = cliente.cnpj || '';
         document.querySelector("#inscEstadual").value = cliente.inscestadual || "";
+        document.querySelector("#inscricaoMunicipal").value = cliente.inscricaomunicipal || "";
         document.querySelector("#emailCliente").value = cliente.emailcliente || "";
         document.querySelector("#emailNfe").value = cliente.emailnfe || "";
         document.querySelector("#site").value = cliente.site || "";
@@ -804,6 +810,7 @@ function limparClienteOriginal() {
         site: "",
         telefone: "",
         inscEstadual: "",
+        inscricaoMunicipal: "",
         cep: "",
         rua: "",
         numero: "",
@@ -819,7 +826,7 @@ function limparClienteOriginal() {
 }
 
 function limparCamposCliente(){
-    const campos = ["idCliente", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailCliente", "emailNfe", "site", "telefone", "nmContato", "celContato", "emailContato", "cep", "rua", "numero", "complemento", "bairro", "cidade", "estado", "pais", "tpcliente"];  
+    const campos = ["idCliente", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "inscricaoMunicipal", "emailCliente", "emailNfe", "site", "telefone", "nmContato", "celContato", "emailContato", "cep", "rua", "numero", "complemento", "bairro", "cidade", "estado", "pais", "tpcliente"];
    
     campos.forEach(id => {
         const campo = document.getElementById(id);

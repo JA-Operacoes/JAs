@@ -60,7 +60,7 @@ const uploadComprovanteRH = multer({
 }).single("comprovante");
 
 // Perfis considerados "salário fixo" (entram na folha).
-const PERFIS_FOLHA = ["Interno", "Externo"];
+const PERFIS_FOLHA = ["Interno", "ExternoH"];
 
 // Parâmetros fiscais padrão de 2026 (Receita Federal / Portaria Interm. MPS-MF nº 13;
 // Leis 15.191/2025 e 15.270/2025). Fixos no código (sem tabela de parâmetros).
@@ -185,9 +185,12 @@ function calcularIRRF(bruto, inss, dependentes, params) {
 // Calcula os totais de um holerite a partir do salário base + itens.
 // Itens: 'P' = provento tributável, 'B' = benefício não-tributável (VA/VT — fora da
 // base de impostos e, por padrão, fora do líquido), 'D' = desconto.
-function calcularTotais(salariobase, itens) {
+// No 13º (tipo === "13"), "salariobase" é só a referência do cadastro (mostrada/editável na
+// tela, inclusive salva de volta no cadastro do funcionário) — o valor da parcela já vem
+// inteiro nos itens (preset13). Somar a referência ao total duplicaria o valor pago.
+function calcularTotais(salariobase, itens, tipo) {
   const base = Number(salariobase) || 0;
-  let proventos = base; // salário + proventos tributáveis (P)
+  let proventos = tipo === "13" ? 0 : base; // salário + proventos tributáveis (P)
   let beneficios = 0;   // benefícios não-tributáveis (B), informativos por padrão
   let descontos = 0;
   (itens || []).forEach((i) => {
@@ -544,7 +547,7 @@ router.put("/funcionario/:id/salario", async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idfuncionario = parseInt(req.params.id, 10);
-    const salariobase = Number(req.body.salario) || 0;
+    const salariobase = Number(req.body.salariobase ?? req.body.salario) || 0;
     const dependentes = parseInt(req.body.dependentes, 10) || 0;
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
@@ -554,7 +557,7 @@ router.put("/funcionario/:id/salario", async (req, res) => {
       `SELECT 1 FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
       [idfuncionario, idempresa]
     );
-    if (dono.rowCount === 0) return res.status(404).json({ error: "Funcionário não encontrado nesta empresa." });
+    if (dono.rowCount === 0) return res.status(400).json({ error: "Funcionário não encontrado nesta empresa." });
 
     await pool.query(
       `UPDATE funcionarioempresas SET salario = $1, dependentes = $2 WHERE idfuncionario = $3 AND idempresa = $4`,
@@ -759,14 +762,34 @@ router.get("/holerite", async (req, res) => {
     );
 
     if (head.rowCount === 0) {
-      // Rascunho: salário base puxado do cadastro (funcionarios.salario), sem itens e sem persistir.
+      // Rascunho: salário base puxado do cadastro (funcionarios.salario), sem persistir.
       const salariobase = Number(funcionario.salario) || 0;
+      // 13º: mesmo preset que garantirHolerite13 vai persistir quando a data chegar (parcela
+      // pelo mês: 11=1ª, 12=2ª), incluindo INSS/IRRF da 2ª parcela — pra quem abre a aba
+      // manualmente no RH antes da geração automática já ver o valor certo, não um provisório.
+      let itensRascunho = [];
+      if (tipo === "13") {
+        const s = salariobase;
+        if (mes === 11) {
+          itensRascunho = [{ tipo: "P", descricao: "13º salário (1ª parcela)", valor: s / 2 }];
+        } else {
+          itensRascunho = [
+            { tipo: "P", descricao: "13º salário", valor: s },
+            { tipo: "D", descricao: "Adiantamento 1ª parcela", valor: s / 2 },
+          ];
+          const params = await obterParametros(ano);
+          const inss = calcularINSS(s, params);
+          const ir = calcularIRRF(s, inss, funcionario.dependentes, params);
+          if (inss > 0) itensRascunho.push({ tipo: "D", descricao: "INSS", valor: inss });
+          if (ir.irrf > 0) itensRascunho.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+        }
+      }
       return res.json({
         holerite: {
           idholerite: null, idfuncionario, nome: funcionario.nome, mes, ano, tipo,
           salariobase, ...dadosFunc,
           status: "Pendente", dtpagamento: null, obs: null, comprovante: null,
-          itens: [], ...calcularTotais(salariobase, []),
+          itens: itensRascunho, ...calcularTotais(salariobase, itensRascunho, tipo),
         },
       });
     }
@@ -783,7 +806,7 @@ router.get("/holerite", async (req, res) => {
         mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase: Number(h.salariobase) || 0,
         ...dadosFunc,
         status: h.status, dtpagamento: h.dtpagamento, obs: h.obs, comprovante: h.comprovante || null,
-        itens, ...calcularTotais(h.salariobase, itens),
+        itens, ...calcularTotais(h.salariobase, itens, h.tipo),
       },
     });
   } catch (error) {
@@ -1004,6 +1027,215 @@ router.get("/resumo", async (req, res) => {
 const VA_DESC = "Vale-Alimentação";
 const VT_DESC = "Vale-Transporte";
 
+// Monta a linha de folha de UM funcionário numa competência: se já existe holerite mensal
+// salvo, usa os valores reais; senão, monta uma PREVISÃO não persistida (réplica do último
+// holerite recalculando VA/VT pelos dias úteis, ou do zero com INSS/IRRF sobre o salário
+// base). Reaproveitado por GET /rh/folha e por GET /contas-pagar (routes/rotaMain.js), que
+// precisa da mesma competência sempre "preenchida" (real ou prevista) pra casar com a conta
+// projetada na tela de Vencimentos.
+async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
+  const salariobase = Number(f.salario) || 0;
+
+  const head = (await pool.query(
+    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante
+       FROM folhaholerite h
+      WHERE h.idempresa = $1 AND h.idfuncionario = $2 AND h.mes = $3 AND h.ano = $4
+        AND COALESCE(h.tipo,'mensal') = 'mensal'`,
+    [idempresa, f.idfuncionario, mes, ano]
+  )).rows[0];
+
+  if (head) {
+    const itens = (await pool.query(
+      `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
+      [head.idholerite]
+    )).rows;
+    const t = calcularTotais(salariobase, itens);
+    return {
+      idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
+      origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
+      proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
+    };
+  }
+
+  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis);
+  const t = calcularTotais(salariobase, itens);
+  return {
+    idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
+    origem: "previsao", status: "Previsão", dtpagamento: null, comprovante: null,
+    proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
+  };
+}
+
+// Monta os itens (VA/VT + INSS/IRRF) de uma competência mensal sem holerite salvo ainda —
+// réplica do último holerite anterior (recalculando só VA/VT pelos dias úteis), ou do zero
+// se não há histórico. Compartilhado por computarLinhaFolha (prévia, não persiste) e
+// garantirHoleriteMensal (persiste de verdade).
+async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis) {
+  const salariobase = Number(f.salario) || 0;
+  const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
+  const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
+
+  const ant = (await pool.query(
+    `SELECT idholerite FROM folhaholerite
+      WHERE idempresa = $1 AND idfuncionario = $2 AND COALESCE(tipo,'mensal') = 'mensal'
+        AND (ano < $3 OR (ano = $3 AND mes < $4))
+      ORDER BY ano DESC, mes DESC LIMIT 1`,
+    [idempresa, f.idfuncionario, ano, mes]
+  )).rows[0];
+
+  if (ant) {
+    // Replica os itens do mês anterior; recalcula só VA/VT pelos dias úteis do mês atual.
+    return (await pool.query(
+      `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
+      [ant.idholerite]
+    )).rows.map((i) => {
+      if (i.tipo === "B" && i.descricao === VA_DESC) return { ...i, valor: va };
+      if (i.tipo === "B" && i.descricao === VT_DESC) return { ...i, valor: vt };
+      return i;
+    });
+  }
+
+  // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base).
+  const inss = calcularINSS(salariobase, params);
+  const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
+  return [
+    { tipo: "B", descricao: VA_DESC, valor: va },
+    { tipo: "B", descricao: VT_DESC, valor: vt },
+    { tipo: "D", descricao: "INSS", valor: inss },
+    { tipo: "D", descricao: "IRRF", valor: ir.irrf },
+  ];
+}
+
+// Garante que existe um holerite MENSAL real (persistido) pra competência — cria com o
+// mesmo preset da prévia (montarItensPrevisaoMensal) se ainda não existir. Idempotente
+// (ON CONFLICT DO NOTHING). Com isso, o RH não precisa mais entrar todo mês pra salvar cada
+// holerite: eles já nascem prontos (réplica do mês anterior + INSS/IRRF recalculado), e só
+// precisam ser abertos quando algo mudar (falta, ajuste, novo dependente etc.) — inclusive
+// já dá pra pagar direto pela tela de Vencimentos, sem precisar abrir o holerite antes.
+async function garantirHoleriteMensal(idempresa, f, mes, ano, params, diasUteis) {
+  const salariobase = Number(f.salario) || 0;
+  const criado = await pool.query(
+    `INSERT INTO folhaholerite (idempresa, idfuncionario, mes, ano, salariobase, status, tipo)
+     VALUES ($1, $2, $3, $4, $5, 'Pendente', 'mensal')
+     ON CONFLICT (idempresa, idfuncionario, mes, ano, tipo) DO NOTHING
+     RETURNING idholerite`,
+    [idempresa, f.idfuncionario, mes, ano, salariobase]
+  );
+  const idholerite = criado.rows[0]?.idholerite;
+  if (!idholerite) return; // já existia (ou outra requisição criou primeiro)
+
+  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis);
+  for (const i of itens) {
+    await pool.query(
+      `INSERT INTO folhaitens (idholerite, tipo, descricao, valor) VALUES ($1, $2, $3, $4)`,
+      [idholerite, i.tipo, i.descricao, i.valor]
+    );
+  }
+}
+
+// Monta a linha do 13º salário (1ª ou 2ª parcela) de UM funcionário numa competência: usa o
+// holerite tipo='13' já salvo no mês, se existir; senão monta a PREVISÃO com o mesmo preset
+// usado na tela de RH (preset13, ver public/js/RH.js) — 1ª parcela = metade do salário sem
+// descontos, 2ª parcela = 13º cheio menos o adiantamento da 1ª. Reaproveitado por
+// GET /contas-pagar (routes/rotaMain.js), que gera automaticamente as 2 parcelas do ano
+// (vencimentos fixos 20/11 e 30/12), diferente de férias/rescisão que só aparecem quando o
+// RH já gerou o holerite manualmente na tela de RH.
+async function computarLinha13(idempresa, f, mes, ano, parcela, params) {
+  const salariobase = Number(f.salario) || 0;
+
+  const head = (await pool.query(
+    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante
+       FROM folhaholerite h
+      WHERE h.idempresa = $1 AND h.idfuncionario = $2 AND h.mes = $3 AND h.ano = $4 AND h.tipo = '13'`,
+    [idempresa, f.idfuncionario, mes, ano]
+  )).rows[0];
+
+  if (head) {
+    const itens = (await pool.query(
+      `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
+      [head.idholerite]
+    )).rows;
+    const t = calcularTotais(salariobase, itens, "13");
+    return {
+      idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
+      origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
+      proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
+    };
+  }
+
+  const s = salariobase;
+  let itens;
+  if (parcela === "1") {
+    itens = [{ tipo: "P", descricao: "13º salário (1ª parcela)", valor: s / 2 }];
+  } else {
+    itens = [
+      { tipo: "P", descricao: "13º salário", valor: s },
+      { tipo: "D", descricao: "Adiantamento 1ª parcela", valor: s / 2 },
+    ];
+    // Prévia (holerite ainda não gerado): mesma conta que garantirHolerite13 vai persistir,
+    // pra não mostrar um valor em Vencimentos e gerar outro quando a data realmente chegar.
+    if (params) {
+      const inss = calcularINSS(s, params);
+      const ir = calcularIRRF(s, inss, f.dependentes, params);
+      if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
+      if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+    }
+  }
+
+  const t = calcularTotais(salariobase, itens, "13");
+  return {
+    idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
+    origem: "previsao", status: "Previsão", dtpagamento: null, comprovante: null,
+    proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
+  };
+}
+
+// Garante que existe um holerite REAL (persistido) do 13º de um funcionário/parcela — cria
+// com o preset padrão (preset13) se ainda não existir. Idempotente (ON CONFLICT DO NOTHING),
+// pra suportar corrida entre requisições simultâneas. Usado por GET /contas-pagar a partir de
+// 1/11 (1ª parcela) e 1/12 (2ª parcela): o 13º é geral e no mesmo período pra todo mundo, por
+// isso é gerado automaticamente — diferente de férias/rescisão, que só existem quando o RH
+// gera manualmente na tela de RH.
+// INSS/IRRF do 13º incidem só na 2ª parcela, sobre o valor CHEIO do 13º (não sobre o salário
+// mensal — por isso não reaproveita o botão "Calcular INSS/IRRF" do holerite mensal, que usa
+// a base errada pra esse caso). Usa a mesma tabela progressiva (calcularINSS/calcularIRRF),
+// só que aplicada isoladamente sobre `s` (o 13º cheio). Se o RH precisar ajustar pra alguém
+// (rescisão no meio do ano, afastamento etc.), edita manualmente na tela de RH depois.
+async function garantirHolerite13(idempresa, f, mes, ano, parcela, params) {
+  const s = Number(f.salario) || 0;
+  const criado = await pool.query(
+    `INSERT INTO folhaholerite (idempresa, idfuncionario, mes, ano, salariobase, status, tipo)
+     VALUES ($1, $2, $3, $4, $5, 'Pendente', '13')
+     ON CONFLICT (idempresa, idfuncionario, mes, ano, tipo) DO NOTHING
+     RETURNING idholerite`,
+    [idempresa, f.idfuncionario, mes, ano, s]
+  );
+  const idholerite = criado.rows[0]?.idholerite;
+  if (!idholerite) return; // já existia (ou outra requisição criou primeiro)
+
+  let itens;
+  if (parcela === "1") {
+    itens = [{ tipo: "P", descricao: "13º salário (1ª parcela)", valor: s / 2 }];
+  } else {
+    itens = [
+      { tipo: "P", descricao: "13º salário", valor: s },
+      { tipo: "D", descricao: "Adiantamento 1ª parcela", valor: s / 2 },
+    ];
+    if (params) {
+      const inss = calcularINSS(s, params);
+      const ir = calcularIRRF(s, inss, f.dependentes, params);
+      if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
+      if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+    }
+  }
+  for (const i of itens) {
+    await pool.query(
+      `INSERT INTO folhaitens (idholerite, tipo, descricao, valor) VALUES ($1, $2, $3, $4)`,
+      [idholerite, i.tipo, i.descricao, i.valor]
+    );
+  }
+}
+
 // GET /rh/folha?mes=&ano= — visão geral da folha do mês: TODOS os funcionários de salário
 // fixo (Interno/Externo) da empresa. Quem já tem holerite mensal no mês entra com valores
 // reais; quem não tem entra com uma PREVISÃO (não persistida): réplica do último holerite,
@@ -1034,72 +1266,8 @@ router.get("/folha", async (req, res) => {
 
     const linhas = [];
     for (const f of funcs) {
-      const salariobase = Number(f.salario) || 0;
-
-      // 1) Já existe holerite mensal salvo neste mês? -> valores reais.
-      const head = (await pool.query(
-        `SELECT idholerite, status, dtpagamento FROM folhaholerite
-          WHERE idempresa = $1 AND idfuncionario = $2 AND mes = $3 AND ano = $4
-            AND COALESCE(tipo,'mensal') = 'mensal'`,
-        [idempresa, f.idfuncionario, mes, ano]
-      )).rows[0];
-
-      if (head) {
-        const itens = (await pool.query(
-          `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
-          [head.idholerite]
-        )).rows;
-        const t = calcularTotais(salariobase, itens);
-        linhas.push({
-          idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
-          origem: "real", status: head.status, dtpagamento: head.dtpagamento,
-          proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
-        });
-        continue;
-      }
-
-      // 2) Sem holerite no mês -> PREVISÃO. VA/VT pelos dias úteis do mês selecionado.
-      const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
-      const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
-
-      // Último holerite mensal anterior (réplica das verbas).
-      const ant = (await pool.query(
-        `SELECT idholerite FROM folhaholerite
-          WHERE idempresa = $1 AND idfuncionario = $2 AND COALESCE(tipo,'mensal') = 'mensal'
-            AND (ano < $3 OR (ano = $3 AND mes < $4))
-          ORDER BY ano DESC, mes DESC LIMIT 1`,
-        [idempresa, f.idfuncionario, ano, mes]
-      )).rows[0];
-
-      let itens;
-      if (ant) {
-        // Replica os itens do mês anterior; recalcula só VA/VT pelos dias úteis do mês atual.
-        itens = (await pool.query(
-          `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
-          [ant.idholerite]
-        )).rows.map((i) => {
-          if (i.tipo === "B" && i.descricao === VA_DESC) return { ...i, valor: va };
-          if (i.tipo === "B" && i.descricao === VT_DESC) return { ...i, valor: vt };
-          return i;
-        });
-      } else {
-        // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base).
-        const inss = calcularINSS(salariobase, params);
-        const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
-        itens = [
-          { tipo: "B", descricao: VA_DESC, valor: va },
-          { tipo: "B", descricao: VT_DESC, valor: vt },
-          { tipo: "D", descricao: "INSS", valor: inss },
-          { tipo: "D", descricao: "IRRF", valor: ir.irrf },
-        ];
-      }
-
-      const t = calcularTotais(salariobase, itens);
-      linhas.push({
-        idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
-        origem: "previsao", status: "Previsão", dtpagamento: null,
-        proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
-      });
+      await garantirHoleriteMensal(idempresa, f, mes, ano, params, diasUteis);
+      linhas.push(await computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis));
     }
 
     const totais = linhas.reduce(
@@ -1118,5 +1286,9 @@ router.get("/folha", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helpers reaproveitados por routes/rotaMain.js (GET /contas-pagar) pra casar cada conta de
+// funcionário projetada com a folha (real ou prevista) da mesma competência.
+router.helpersFolha = { obterParametros, contarDiasUteis, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA };
 
 module.exports = router;

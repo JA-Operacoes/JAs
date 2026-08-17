@@ -12,7 +12,7 @@ router.use(contextoEmpresa);
 // Campos cadastrais (globais, mesmo CNPJ em todas as empresas) vêm de `c` (clientes).
 // Campos de vínculo (ativo/contato/nfe/responsável, por empresa) vêm de `ce` (clienteempresas).
 const CAMPOS_SELECT = `
-    c.idcliente, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.emailcliente, c.site, c.telefone,
+    c.idcliente, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.inscricaomunicipal, c.emailcliente, c.site, c.telefone,
     c.cep, c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.pais, c.tpcliente,
     ce.ativo, ce.nmcontato, ce.celcontato, ce.emailcontato, ce.emailnfe, ce.responsavelcontrato`;
 
@@ -25,7 +25,7 @@ router.get("/verificar-cnpj/:cnpj", verificarPermissao('Clientes', 'cadastrar'),
 
     try {
         const result = await pool.query(
-            `SELECT idcliente, nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, site, telefone,
+            `SELECT idcliente, nmfantasia, razaosocial, cnpj, inscestadual, inscricaomunicipal, emailcliente, site, telefone,
                     cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
              FROM clientes WHERE cnpj = $1`,
             [cnpj]
@@ -122,6 +122,33 @@ router.get("/", verificarPermissao('Clientes', 'pesquisar'), async (req, res) =>
 
 
 // PUT atualizar cliente
+// PATCH /:id/inscricao-municipal — atualiza SÓ esse campo (dado de cadastro
+// global, não por-empresa). Rota dedicada de propósito: o PUT "/:id" abaixo
+// espera o formulário inteiro de CadClientes.html e reescreve todas as
+// colunas a partir do body, sem COALESCE — mandar um body parcial ali
+// apagaria o resto do cadastro do cliente.
+router.patch("/:id/inscricao-municipal", verificarPermissao('Clientes', 'alterar'), async (req, res) => {
+  const { id } = req.params;
+  const { inscricaomunicipal } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE clientes SET inscricaomunicipal = $1 WHERE idcliente = $2 RETURNING idcliente, inscricaomunicipal`,
+      [inscricaomunicipal || null, id]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
+    }
+    res.locals.acao = 'atualizou';
+    res.locals.idregistroalterado = id;
+    res.locals.dadosnovos = result.rows[0];
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao atualizar inscrição municipal do cliente:", error);
+    res.status(500).json({ message: "Erro ao atualizar inscrição municipal." });
+  }
+});
+
 router.put(
   "/:id",
   verificarPermissao('Clientes', 'alterar'),
@@ -163,7 +190,7 @@ router.put(
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false;
 
     const {
-      nmFantasia, razaoSocial, cnpj, inscEstadual,
+      nmFantasia, razaoSocial, cnpj, inscEstadual, inscricaoMunicipal,
       emailCliente, emailNfe, site, telefone,
       nmContato, celContato, emailContato,
       cep, rua, numero, complemento, bairro,
@@ -203,25 +230,26 @@ router.put(
              razaosocial = $2,
              cnpj = $3,
              inscestadual = $4,
-             emailcliente = $5,
-             site = $6,
-             telefone = $7,
-             cep = $8,
-             rua = $9,
-             numero = $10,
-             complemento = $11,
-             bairro = $12,
-             cidade = $13,
-             estado = $14,
-             pais = $15,
-             tpcliente = $16
+             inscricaomunicipal = $5,
+             emailcliente = $6,
+             site = $7,
+             telefone = $8,
+             cep = $9,
+             rua = $10,
+             numero = $11,
+             complemento = $12,
+             bairro = $13,
+             cidade = $14,
+             estado = $15,
+             pais = $16,
+             tpcliente = $17
          FROM clienteempresas ce
-         WHERE c.idcliente = $17
+         WHERE c.idcliente = $18
            AND ce.idcliente = c.idcliente
-           AND ce.idempresa = $18
+           AND ce.idempresa = $19
          RETURNING c.idcliente`,
         [
-          nmFantasia, razaoSocial, cnpj, inscEstadual,
+          nmFantasia, razaoSocial, cnpj, inscEstadual, inscricaoMunicipal || null,
           emailCliente, site, telefone,
           cep, rua, numero, complemento, bairro,
           cidade, estado, pais, tpcliente,
@@ -292,7 +320,7 @@ router.post(
 
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false;
     const {
-      nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe,
+      nmFantasia, razaoSocial, cnpj, inscEstadual, inscricaoMunicipal, emailCliente, emailNfe,
       site, telefone, nmContato, celContato, emailContato,
       cep, rua, numero, complemento, bairro, cidade, estado, pais,
       tpcliente, responsavelContrato
@@ -358,15 +386,15 @@ router.post(
       // 4️⃣ Cliente NÃO existe → cria novo (dados cadastrais globais)
       const resultCliente = await client.query(
         `INSERT INTO clientes (
-          nmfantasia, razaosocial, cnpj, inscestadual, emailcliente,
+          nmfantasia, razaosocial, cnpj, inscestadual, inscricaomunicipal, emailcliente,
           site, telefone, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
         )
         VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
         )
         RETURNING idcliente, nmfantasia`,
         [
-          nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente,
+          nmFantasia, razaoSocial, cnpj, inscEstadual, inscricaoMunicipal || null, emailCliente,
           site, telefone, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente
         ]
       );

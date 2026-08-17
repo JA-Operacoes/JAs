@@ -1,22 +1,4 @@
-<!-- <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-    <link rel="stylesheet" href="Css/Modal/CadEmpresas.css">
-    <link rel="stylesheet" href="css/Roots/Roots.css">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    
-    <title>Cadastro de Empresas</title>
-
-</head>
-
-<body data-modulo="Empresas"> -->
-
-  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css">
+  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css?v=4">
     <div id="cadModalEmpresas" class="modal">
       <div class="modal-content">
           
@@ -140,6 +122,79 @@
                     <input type="text" class="uppercase" id="pais" name="pais" required>
                     <label for="pais">Pais</label>
                 </div>
+              </div>
+            </fieldset><br>
+
+            <fieldset>
+              <legend>Dados Fiscais e Bancários</legend>
+              <p class="nf-aviso-empresa">Usados na Emissão de Nota Fiscal. Boleto bancário não entra aqui — é gerado por transação, não é dado fixo da empresa.</p>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <select id="regimeTributario" name="regimeTributario">
+                    <option value="">Selecione...</option>
+                    <option value="Simples Nacional">Simples Nacional</option>
+                    <option value="Lucro Presumido">Lucro Presumido</option>
+                    <option value="Lucro Real">Lucro Real</option>
+                  </select>
+                  <label for="regimeTributario">Regime Tributário</label>
+                </div>
+                <div class="form2">
+                  <input type="text" id="inscricaoMunicipal" name="inscricaoMunicipal">
+                  <label for="inscricaoMunicipal">Inscrição Municipal</label>
+                </div>
+              </div>
+              <div class="form-3colunas">
+                <div class="form2">
+                  <select id="idBanco" name="idBanco">
+                    <option value="">Selecione...</option>
+                  </select>
+                  <label for="idBanco">Banco</label>
+                </div>
+                <div class="form2">
+                  <input type="text" id="agencia" name="agencia" maxlength="20">
+                  <label for="agencia">Agência</label>
+                </div>
+                <div class="form2">
+                  <input type="text" id="digitoAgencia" name="digitoAgencia" maxlength="2">
+                  <label for="digitoAgencia">Dígito Agência</label>
+                </div>
+              </div>
+              <div class="form-3colunas">
+                <div class="form2">
+                  <input type="text" id="numeroConta" name="numeroConta" maxlength="50">
+                  <label for="numeroConta">Número da Conta</label>
+                </div>
+                <div class="form2">
+                  <input type="text" id="digitoConta" name="digitoConta" maxlength="2">
+                  <label for="digitoConta">Dígito Conta</label>
+                </div>
+                <div class="form2">
+                  <select id="tipoConta" name="tipoConta">
+                    <option value="">Selecione...</option>
+                    <option value="Corrente">Corrente</option>
+                    <option value="Poupança">Poupança</option>
+                  </select>
+                  <label for="tipoConta">Tipo de Conta</label>
+                </div>
+              </div>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="text" id="pix" name="pix" maxlength="255">
+                  <label for="pix">Chave PIX</label>
+                </div>
+              </div>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="text" id="certificadoSigla" name="certificadoSigla" readonly>
+                  <label for="certificadoSigla">Sigla do Certificado (NFE_CERTIFICADO_...)</label>
+                </div>
+                <div class="form2">
+                  <input type="text" id="certificadoStatus" name="certificadoStatus" readonly>
+                  <label for="certificadoStatus">Status do Certificado</label>
+                </div>
+              </div>
+              <div class="form-2colunas">
+                <button type="button" id="btnInserirCertificado" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir certificado</button>
               </div>
             </fieldset>
           </div>

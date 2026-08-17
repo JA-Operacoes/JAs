@@ -224,6 +224,44 @@ async function carregarClientesOrc() {
   }
 }
 
+// Empresa emissora da Nota Fiscal deste orçamento (tabela `empresas`) — é
+// quem vai constar como emitente na NFS-e, não necessariamente a mesma
+// empresa vinculada ao contexto do orçamento (orcamentoempresas).
+// Formata só pra exibição (14 dígitos = CNPJ; qualquer outra coisa mostra
+// como veio, sem tentar adivinhar — pode ser CPF de MEI cadastrado assim).
+function formatarCnpjExibicao(cnpj) {
+  if (!cnpj) return "sem CNPJ";
+  const digitos = String(cnpj).replace(/\D/g, "");
+  if (digitos.length !== 14) return cnpj;
+  return digitos.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
+async function carregarEmpresasEmissorasOrc() {
+  try {
+    const empresas = await fetchComToken("orcamentos/empresas");
+
+    let selects = document.querySelectorAll(".idEmpresaEmissora");
+
+    selects.forEach((select) => {
+      const valorSelecionadoAtual = select.value;
+      select.innerHTML = '<option value="">Selecione a empresa emissora</option>';
+
+      empresas.forEach((empresa) => {
+        let option = document.createElement("option");
+        option.value = empresa.idempresa;
+        option.textContent = `${empresa.nmfantasia} — ${formatarCnpjExibicao(empresa.cnpj)}`;
+        select.appendChild(option);
+      });
+
+      if (valorSelecionadoAtual) {
+        select.value = String(valorSelecionadoAtual);
+      }
+    });
+  } catch (error) {
+    console.error("Erro ao carregar empresas emissoras:", error);
+  }
+}
+
 async function carregarEventosOrc() {
   try {
     const eventos = await fetchComToken("/orcamentos/eventos");
@@ -3422,6 +3460,116 @@ function resetarOutrosSelectsOrc(select) {
   });
 }
 
+// Filtro "estilo Excel" da tabela de itens: em vez de digitar o nome do
+// produto (risco de errar), o usuário clica no campo e escolhe entre os
+// produtos que já estão lançados na tabela, sem repetir o mesmo item várias
+// vezes (agrupado por idfuncao/idequipamento/idsuprimento, com fallback pro
+// texto quando a linha ainda não tem nenhum desses ids).
+function obterNomeProdutoLinha(tr) {
+  return (
+    tr.querySelector(".produto-input")?.value ??
+    tr.querySelector(".produto")?.textContent ??
+    ""
+  ).trim();
+}
+
+function obterChaveProdutoLinha(tr) {
+  if (tr.dataset.idfuncao) return `f:${tr.dataset.idfuncao}`;
+  if (tr.dataset.idequipamento) return `e:${tr.dataset.idequipamento}`;
+  if (tr.dataset.idsuprimento) return `s:${tr.dataset.idsuprimento}`;
+  const nome = obterNomeProdutoLinha(tr);
+  return nome ? `p:${nome}` : "";
+}
+
+function listarProdutosUnicosDaTabelaItens() {
+  const vistos = new Map();
+  document.querySelectorAll("#tabela tbody tr").forEach((tr) => {
+    const chave = obterChaveProdutoLinha(tr);
+    const nome = obterNomeProdutoLinha(tr);
+    if (!chave || !nome || vistos.has(chave)) return;
+    vistos.set(chave, nome);
+  });
+  return Array.from(vistos, ([chave, nome]) => ({ chave, nome })).sort((a, b) =>
+    a.nome.localeCompare(b.nome, "pt-BR")
+  );
+}
+
+// Com filtroChave preenchida (item escolhido da lista) filtra por igualdade
+// exata; sem ela, cai pro filtro livre por texto (usuário digitou na mão).
+function aplicarFiltroProdutoItens(input) {
+  const chave = input.dataset.filtroChave || "";
+  const termo = input.value.trim().toLowerCase();
+  document.querySelectorAll("#tabela tbody tr").forEach((tr) => {
+    if (chave) {
+      tr.style.display = obterChaveProdutoLinha(tr) === chave ? "" : "none";
+      return;
+    }
+    tr.style.display = !termo || obterNomeProdutoLinha(tr).toLowerCase().includes(termo) ? "" : "none";
+  });
+}
+
+function renderizarListaFiltroProdutoItens(lista, termo) {
+  const termoNorm = (termo || "").trim().toLowerCase();
+  const opcoes = listarProdutosUnicosDaTabelaItens().filter(
+    (o) => !termoNorm || o.nome.toLowerCase().includes(termoNorm)
+  );
+
+  lista.innerHTML = "";
+
+  const liTodos = document.createElement("li");
+  liTodos.className = "itens-filtro-todos";
+  liTodos.dataset.chave = "";
+  liTodos.textContent = "Mostrar todos os itens";
+  lista.appendChild(liTodos);
+
+  if (!opcoes.length) {
+    const vazio = document.createElement("li");
+    vazio.className = "itens-filtro-vazio";
+    vazio.textContent = "Nenhum item na tabela ainda";
+    lista.appendChild(vazio);
+  } else {
+    opcoes.forEach((op) => {
+      const li = document.createElement("li");
+      li.dataset.chave = op.chave;
+      li.dataset.nome = op.nome;
+      li.textContent = op.nome;
+      lista.appendChild(li);
+    });
+  }
+
+  lista.classList.add("aberta");
+}
+
+// Liga os eventos do combo uma única vez (guard em dataset.filtroLigado evita
+// duplicar listeners se verificaOrcamento() rodar de novo na mesma sessão).
+function ligarFiltroProdutoItens() {
+  const input = document.getElementById("filtroProdutoItens");
+  const lista = document.getElementById("filtroProdutoItensLista");
+  if (!input || !lista || input.dataset.filtroLigado) return;
+  input.dataset.filtroLigado = "true";
+
+  input.addEventListener("input", () => {
+    delete input.dataset.filtroChave; // digitou algo diferente do escolhido -> volta a ser texto livre
+    renderizarListaFiltroProdutoItens(lista, input.value);
+    aplicarFiltroProdutoItens(input);
+  });
+  input.addEventListener("focus", () => renderizarListaFiltroProdutoItens(lista, input.value));
+
+  lista.addEventListener("mousedown", (e) => {
+    const li = e.target.closest("li[data-chave]");
+    if (!li) return;
+    e.preventDefault(); // antes do blur do input, senão a lista some antes do clique registrar
+    input.dataset.filtroChave = li.dataset.chave;
+    input.value = li.dataset.chave ? li.dataset.nome : "";
+    aplicarFiltroProdutoItens(input);
+    lista.classList.remove("aberta");
+  });
+
+  document.addEventListener("mousedown", (e) => {
+    if (e.target !== input && !lista.contains(e.target)) lista.classList.remove("aberta");
+  });
+}
+
 // Função para configurar eventos no modal de orçamento
 async function verificaOrcamento() {
   initializeAllFlatpickrsInModal();
@@ -3430,6 +3578,7 @@ async function verificaOrcamento() {
   carregarFuncaoOrc();
   carregarEventosOrc();
   carregarClientesOrc();
+  carregarEmpresasEmissorasOrc();
   carregarLocalMontOrc();
   carregarEquipamentosOrc();
   carregarSuprimentosOrc();
@@ -3727,6 +3876,107 @@ async function verificaOrcamento() {
     });
   }
 
+  // Parcelas de pagamento (checkbox liga/desliga + adicionar linha + dividir
+  // igualmente) — ver bloco de funções antes de fecharOrcamento().
+  const chkParcelado = document.getElementById("chkParcelado");
+  const parcelasConteudo = document.getElementById("parcelasConteudo");
+  const vencimentoAvistaWrap = document.getElementById("vencimentoAvistaWrap");
+  if (chkParcelado) {
+    chkParcelado.addEventListener("change", function () {
+      if (!parcelasConteudo) return;
+      parcelasConteudo.style.display = this.checked ? "block" : "none";
+      if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = this.checked ? "none" : "";
+      if (this.checked && !document.querySelector("#parcelasTabelaBody tr")) {
+        // Primeira parcela já nasce com o valor total — conforme o usuário
+        // for adicionando outras e informando o valor de cada, essa primeira
+        // vai absorvendo o restante automaticamente (ver
+        // recalcularPrimeiraParcelaComoRestante).
+        document.getElementById("parcelasTabelaBody").appendChild(
+          criarLinhaParcela({ vlrparcela: obterValorClienteOrcamento() })
+        );
+        renumerarParcelas();
+        atualizarSomaParcelas();
+      }
+      if (this.checked) {
+        parcelasConteudo.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
+
+  const inputVencimentoAvista = document.getElementById("dtVencimentoAvista");
+  if (inputVencimentoAvista) {
+    inputVencimentoAvista.addEventListener("input", () => mascararDataDigitada(inputVencimentoAvista));
+    if (window.flatpickr) {
+      flatpickr(inputVencimentoAvista, {
+        mode: "single",
+        dateFormat: "d/m/Y",
+        allowInput: true,
+        locale: currentLocale,
+        appendTo: document.body,
+        parseDate: (datestr) => {
+          const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(datestr);
+          if (!m) return undefined;
+          const [, d, mo, a] = m;
+          const data = new Date(Number(a), Number(mo) - 1, Number(d));
+          return isNaN(data.getTime()) ? undefined : data;
+        },
+      });
+    }
+  }
+
+  // Filtro por produto na tabela de itens (ex.: achar todo mundo cadastrado
+  // como "Coordenador de CAEX") — estilo Excel: clique mostra os produtos já
+  // lançados na tabela pro usuário escolher, sem risco de digitar errado
+  // (ver ligarFiltroProdutoItens/aplicarFiltroProdutoItens).
+  ligarFiltroProdutoItens();
+
+  // Tela cheia da tabela de itens — position:fixed cobre a tela toda por
+  // cima do resto do formulário (ver CSS de #itensSecaoCompleta.tela-cheia),
+  // não precisa esconder as outras seções via JS.
+  const btnTelaCheiaItens = document.getElementById("btnTelaCheiaItens");
+  if (btnTelaCheiaItens) {
+    btnTelaCheiaItens.addEventListener("click", () => {
+      const secao = document.getElementById("itensSecaoCompleta");
+      if (!secao) return;
+      const ativo = secao.classList.toggle("tela-cheia");
+      btnTelaCheiaItens.textContent = ativo ? "Sair da tela cheia" : "Tela cheia";
+
+      // #cadModalOrcamentos E o #modal-container (wrapper genérico onde o
+      // abrirModal() injeta o HTML de qualquer módulo, e que também vira pai
+      // de #cadModalOrcamentos no DOM) usam transform:translate(-50%,-50%)
+      // pra se centralizar — cada um desses cria seu próprio "containing
+      // block" pra qualquer position:fixed dentro deles. Zerar só um não
+      // basta: sem neutralizar os dois, a tela cheia ficava presa na caixa
+      // pequena (~700x500) do #modal-container. Como a tela cheia cobre tudo
+      // por cima (z-index maior), ninguém vê nenhum dos dois se deslocar.
+      const modalOrcamento = document.getElementById("cadModalOrcamentos");
+      const modalContainer = document.getElementById("modal-container");
+      if (modalOrcamento) modalOrcamento.style.transform = ativo ? "none" : "";
+      if (modalContainer) modalContainer.style.transform = ativo ? "none" : "";
+    });
+  }
+
+  const btnAdicionarParcela = document.getElementById("btnAdicionarParcela");
+  if (btnAdicionarParcela) {
+    btnAdicionarParcela.addEventListener("click", function () {
+      document.getElementById("parcelasTabelaBody").appendChild(criarLinhaParcela());
+      renumerarParcelas();
+      atualizarSomaParcelas();
+    });
+  }
+
+  const btnDividirParcelas = document.getElementById("btnDividirParcelas");
+  if (btnDividirParcelas) {
+    btnDividirParcelas.addEventListener("click", function () {
+      dividirParcelasIgualmente(document.getElementById("qtdParcelasDividir")?.value);
+    });
+  }
+
+  const btnParcelasParaTexto = document.getElementById("btnParcelasParaTexto");
+  if (btnParcelasParaTexto) {
+    btnParcelasParaTexto.addEventListener("click", gerarTextoFormaPagamento);
+  }
+
   const percentualImpostoInput = document.getElementById("percentImposto");
   if (percentualImpostoInput) {
     percentualImpostoInput.addEventListener("input", function () {
@@ -3978,6 +4228,8 @@ async function verificaOrcamento() {
           document.querySelector(".idMontagem option:checked")?.value || null, // Se o campo for vazio, será null
         // idPavilhao: document.querySelector(".idPavilhao option:checked")?.value || null, // Se o campo for vazio, será null
         idsPavilhoes: pavilhoesParaEnviar,
+        idEmpresaEmissora:
+          document.querySelector(".idEmpresaEmissora")?.value || null,
         infraMontagem: formData.get("infraMontagem"),
 
         dtIniPreEvento: preEventoDatas.inicio,
@@ -4043,6 +4295,7 @@ async function verificaOrcamento() {
           document.querySelector("#percentCustoFixo").value
         ),
         nrOrcamentoOriginal: nrOrcamentoOriginal,
+        parcelas: coletarParcelasParaEnviar(),
       };
 
       const itensOrcamento = [];
@@ -4308,6 +4561,58 @@ async function verificaOrcamento() {
           if (ehAdicionalLinha) continue; // linha de solicitação com setor OK — pula duplicate check
           const ehDuplicata = await verificarDuplicidadeInstantanea(idFuncaoVal, setorVal, produtoNome, linha.querySelector('.setor-input'), false);
           if (ehDuplicata) return;
+      }
+
+      // Campos obrigatórios pra emitir a Nota Fiscal depois (Empresa
+      // Emissora, vencimento de cada parcela) e Local de Montagem (já era
+      // obrigatório na criação, faltava confirmar/bloquear na edição). Um
+      // swal só, listando tudo que falta, em vez de vários avisos soltos.
+      const camposFaltando = [];
+
+      if (!document.querySelector(".idMontagem option:checked")?.value) {
+        camposFaltando.push("Local de Montagem");
+      }
+      if (!document.querySelector(".idEmpresaEmissora")?.value) {
+        camposFaltando.push("Empresa Emissora da NF");
+      }
+
+      const parcelasParaValidar = coletarParcelasParaEnviar();
+      if (parcelasParaValidar && parcelasParaValidar.some((p) => !p.dtvencimento)) {
+        camposFaltando.push(
+          document.getElementById("chkParcelado")?.checked
+            ? "Vencimento de todas as parcelas"
+            : "Data de vencimento"
+        );
+      }
+
+      if (camposFaltando.length) {
+        await Swal.fire({
+          title: "Faltam campos obrigatórios",
+          html: `Preencha antes de salvar:<br><br><b>${camposFaltando.join("</b><br><b>")}</b>`,
+          icon: "warning",
+          confirmButtonText: "Entendido",
+        });
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "Salvar Orçamento";
+        return;
+      }
+
+      // Bloqueia save se marcou "Pagamento parcelado?" e a soma das parcelas
+      // não bate com o valor do orçamento — as parcelas são salvas junto com
+      // o orçamento aqui (não mais no fechamento, que trava a edição).
+      if (parcelasParaValidar) {
+        const vlrClienteParaValidar = obterValorClienteOrcamento();
+        const somaParcelasParaValidar = parcelasParaValidar.reduce((soma, p) => soma + (p.vlrparcela || 0), 0);
+        if (Math.abs(somaParcelasParaValidar - vlrClienteParaValidar) > 0.01) {
+          await Swal.fire(
+            "Parcelas não conferem",
+            `A soma das parcelas (${formatarMoeda(somaParcelasParaValidar)}) não bate com o valor do orçamento (${formatarMoeda(vlrClienteParaValidar)}). Ajuste antes de salvar.`,
+            "warning"
+          );
+          btnEnviar.disabled = false;
+          btnEnviar.textContent = "Salvar Orçamento";
+          return;
+        }
       }
 
       // Determina o método e a URL com base na existência do ID do orçamento
@@ -5127,6 +5432,8 @@ export async function limparOrcamento() {
     document.getElementById("percentCustoFixo").value = "0%";
     document.getElementById("valorCliente").value = "R$ 0,00";
 
+    limparParcelasUI();
+
     // Limpa o aviso de reajuste (ex.: "Aplicado índice de X% ... sobre o valor do
     // orçamento Y") — é um <div>, não um input/textarea, por isso não é limpo
     // pelo loop de inputs acima.
@@ -5257,6 +5564,11 @@ export async function preencherFormularioComOrcamento(orcamento) {
     clienteSelect.value = orcamento.idcliente || "";
   } else {
     console.warn("Elemento com classe '.idCliente' não encontrado.");
+  }
+
+  const empresaEmissoraSelect = document.querySelector(".idEmpresaEmissora");
+  if (empresaEmissoraSelect) {
+    empresaEmissoraSelect.value = orcamento.idempresaemissora || "";
   }
 
   const eventoSelect = document.querySelector(".idEvento");
@@ -5647,6 +5959,16 @@ function atualizarEstadoLiberaStaff(status) {
   // O status é verificado novamente após todos os campos estarem preenchidos/criados.
   // ========================================================
   const statusFinal = document.getElementById("Status")?.value;
+
+  // Parcelas de pagamento: carrega ANTES do bloqueio genérico abaixo, pra
+  // que as linhas já existam no DOM quando bloquearCamposSeFechado() travar
+  // todo input/select/textarea/button da tela.
+  if (orcamento.idorcamento) {
+    await carregarParcelasDoOrcamento(orcamento.idorcamento, statusFinal === "F");
+  } else {
+    limparParcelasUI();
+  }
+
   if (statusFinal === "F") {
     console.log("Status 'F' detectado no final da carga. Bloqueando campos.");
     bloquearCamposSeFechado();
@@ -6602,8 +6924,10 @@ function bloquearCamposSeFechado() {
     const orcamentoAtual = getOrcamentoAtualCarregado();
     const bProximoAnoCarregado = orcamentoAtual?.geradoanoposterior === true; 
 
-    // Campos que podem ser editados mesmo em status 'F' (Observações)
-    const idsPermitidos = ['ObservacaoProposta', 'Observacao'];
+    // Campos que podem ser editados mesmo em status 'F' (Observações, e os
+    // dados de emissão/cobrança — empresa emissora, vencimento e parcelamento
+    // — que costumam ser preenchidos só depois do orçamento já fechado).
+    const idsPermitidos = ['ObservacaoProposta', 'Observacao', 'dtVencimentoAvista', 'chkParcelado', 'qtdParcelasDividir'];
 
     const tabela = document.querySelector('table');
 
@@ -6615,10 +6939,14 @@ function bloquearCamposSeFechado() {
         campos.forEach(campo => {
             const id = campo.id;
             const dentroDeAdicional = campo.closest('.linhaAdicional');
+            const dentroDeParcelas = campo.closest('#parcelasConteudo');
+            const isEmpresaEmissora = campo.classList.contains('idEmpresaEmissora');
 
             if (
                 idsPermitidos.includes(id) ||
-                dentroDeAdicional
+                dentroDeAdicional ||
+                dentroDeParcelas ||
+                isEmpresaEmissora
             ) return;
 
             // Bloqueio Seletivo:
@@ -6672,10 +7000,14 @@ function bloquearCamposSeFechado() {
                     classes.contains('increment') || // 🔥 Botões +/- de quantidade liberados na linha adicional
                     classes.contains('decrement') ;
             } else {
+              const dentroDeParcelas = botao.closest('#parcelasConteudo');
               deveContinuarAtivo =
                   id === 'Enviar' ||
                   id === 'Close' ||
                   id === 'Limpar' ||
+                  id === 'btnDividirParcelas' ||
+                  id === 'btnAdicionarParcela' ||
+                  dentroDeParcelas ||
                   classes.contains('Close') ||
                   classes.contains('pesquisar') ||
                   classes.contains('Adicional') || 
@@ -6801,7 +7133,8 @@ function handleCampoFocus(event) {
     const fechado = statusInput?.value === "F";
     const campo = event.currentTarget;
 
-    // Campos permitidos para edição mesmo se fechado (Desconto, Acrescimo, etc.)
+    // Campos permitidos para edição mesmo se fechado (Desconto, Acrescimo, etc.,
+    // e os dados de emissão/cobrança preenchidos só depois do fechamento).
     const idsPermitidos = [
         "Desconto",
         "perCentDesc",
@@ -6809,10 +7142,14 @@ function handleCampoFocus(event) {
         "perCentAcresc",
         "ObservacaoProposta",
         "Observacao",
+        "dtVencimentoAvista",
+        "chkParcelado",
+        "qtdParcelasDividir",
     ];
-    
-    // Verifica se o campo está dentro de uma linha adicional
+
+    // Verifica se o campo está dentro de uma linha adicional ou da área de parcelas
     const dentroDeAdicional = campo.closest(".linhaAdicional");
+    const dentroDeParcelas = campo.closest("#parcelasConteudo");
 
     // Se estiver fechado E NÃO for campo permitido OU NÃO for campo de adicional
     if (
@@ -6820,8 +7157,10 @@ function handleCampoFocus(event) {
         !campo.classList.contains("idFuncao") &&
         !campo.classList.contains("idEquipamento") &&
         !campo.classList.contains("idSuprimento") &&
+        !campo.classList.contains("idEmpresaEmissora") &&
         !idsPermitidos.includes(campo.id) &&
-        !dentroDeAdicional 
+        !dentroDeAdicional &&
+        !dentroDeParcelas
     ) {
         Swal.fire(
             "Orçamento fechado",
@@ -6974,6 +7313,445 @@ function ativarTooltipStatus() {
 }
 ativarTooltipStatus();
 
+// ===================== Parcelas de pagamento =====================
+// Salvas junto com o orçamento (PUT/POST /orcamentos), igual itens e
+// pavilhões — não no fechamento, porque depois de fechado o orçamento não
+// é mais editável (rotaOrcamento /fechar/:id só confere se o que já foi
+// salvo bate com o valor final). Só existem quando o orçamento é parcelado;
+// à vista não usa nada disso, e o faturamento manual na Nota Fiscal continua
+// igual. O percentual (%) é só apoio pra digitar: o que é salvo é sempre o
+// valor em R$ (orcamentoparcelas não guarda percentual nenhum).
+let isRecalculandoParcela = false;
+// Some pra true só quando o usuário RECUSA a réplica mensal — enquanto isso
+// não acontece, toda edição completa da data da 1ª parcela pergunta de novo
+// (útil se for só corrigindo um typo e quiser replicar de novo).
+let naoReplicarMaisDataParcela = false;
+
+function obterValorClienteOrcamento() {
+  const el = document.getElementById("valorCliente");
+  return el ? desformatarMoeda(el.value) : 0;
+}
+
+function converterDataBRParaISO(dataBR) {
+  if (!dataBR || !dataBR.includes("/")) return null;
+  const [d, m, a] = dataBR.split("/");
+  if (!d || !m || !a) return null;
+  return `${a}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+function converterDataISOParaBR(dataISO) {
+  if (!dataISO) return "";
+  const data = String(dataISO).slice(0, 10); // corta hora se vier com timestamp
+  const [a, m, d] = data.split("-");
+  if (!a || !m || !d) return "";
+  return `${d}/${m}/${a}`;
+}
+
+// Máscara de digitação dd/mm/aaaa (igual formatCPF/formatReais) — sem
+// flatpickr aqui: o parser dele pra texto digitado sem separador (ex.:
+// "20022027") caía em datas erradas (virava 20/10/2028), então a digitação
+// direta precisa ficar por conta da própria máscara, não da lib.
+function mascararDataDigitada(input) {
+  const digitos = input.value.replace(/\D/g, "").slice(0, 8);
+  if (digitos.length > 4) {
+    input.value = `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
+  } else if (digitos.length > 2) {
+    input.value = `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+  } else {
+    input.value = digitos;
+  }
+}
+
+// Ao completar a data da PRIMEIRA parcela (posição 1 na tabela agora, não
+// necessariamente a linha criada primeiro — se a linha 1 for removida, a
+// que ficar em 1º passa a valer), oferece replicar mês a mês pras demais.
+// Só dispara com data válida e completa, e só pergunta uma vez por sessão
+// do modal se o usuário recusar (ver naoReplicarMaisDataParcela).
+function verificarReplicarPrimeiraDataParcela(tr, inputVencimento) {
+  if (naoReplicarMaisDataParcela) return;
+
+  const linhas = Array.from(document.querySelectorAll("#parcelasTabelaBody tr"));
+  if (linhas[0] !== tr) return;
+
+  const valor = inputVencimento.value;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+  if (!match) return;
+
+  const demais = linhas.slice(1);
+  if (!demais.length) return;
+
+  const [, dia, mes, ano] = match.map(Number);
+
+  Swal.fire({
+    title: "Replicar essa data mensalmente?",
+    text: `Preenche o vencimento das outras ${demais.length} parcela(s), um mês a mais em cada, a partir de ${valor}.`,
+    icon: "question",
+    showCancelButton: true,
+    cancelButtonText: "Não",
+    confirmButtonText: "Sim, replicar",
+    reverseButtons: true,
+  }).then((result) => {
+    if (!result.isConfirmed) {
+      naoReplicarMaisDataParcela = true;
+      return;
+    }
+    demais.forEach((linhaOutra, i) => {
+      const data = new Date(ano, (mes - 1) + (i + 1), dia);
+      const dd = String(data.getDate()).padStart(2, "0");
+      const mm = String(data.getMonth() + 1).padStart(2, "0");
+      const inputOutro = linhaOutra.querySelector(".parc-vencimento");
+      if (inputOutro) inputOutro.value = `${dd}/${mm}/${data.getFullYear()}`;
+    });
+  });
+}
+
+// A 1ª parcela (posição 1 na tabela) funciona como "resto a distribuir":
+// sempre que outra linha tem o valor alterado, a 1ª é recalculada como
+// vlrCliente menos a soma de todas as outras — assim o usuário só digita o
+// valor das parcelas que já sabe (2ª, 3ª...) e a primeira absorve o que
+// sobra, sem precisar bater os centavos na mão. Só entra em ação quando
+// quem mudou NÃO é a própria 1ª linha (editar a 1ª direto é livre).
+function recalcularPrimeiraParcelaComoRestante(trAlterada) {
+  if (isRecalculandoParcela) return;
+
+  const linhas = Array.from(document.querySelectorAll("#parcelasTabelaBody tr"));
+  if (linhas.length < 2 || linhas[0] === trAlterada) return;
+
+  const inputPrimeira = linhas[0].querySelector(".parc-valor");
+  const percentPrimeira = linhas[0].querySelector(".parc-percentual");
+  if (!inputPrimeira) return;
+
+  isRecalculandoParcela = true;
+  const vlrCliente = obterValorClienteOrcamento();
+  const somaDemais = linhas.slice(1).reduce(
+    (soma, tr) => soma + desformatarMoeda(tr.querySelector(".parc-valor")?.value),
+    0
+  );
+  const restante = vlrCliente - somaDemais;
+
+  inputPrimeira.value = formatarMoeda(restante);
+  if (percentPrimeira) {
+    const perc = vlrCliente > 0 ? (restante / vlrCliente) * 100 : 0;
+    percentPrimeira.value = formatarPercentual(perc);
+  }
+  isRecalculandoParcela = false;
+}
+
+function criarLinhaParcela(dadosIniciais = {}, opcoes = {}) {
+  const bloqueada = !!opcoes.bloqueada;
+  const tr = document.createElement("tr");
+  tr.className = "linha-parcela";
+
+  tr.innerHTML = `
+    <td class="parc-num"></td>
+    <td><input type="text" class="parc-descricao" placeholder="Ex.: Ato, Entrada..."></td>
+    <td><input type="text" class="parc-percentual" value="0,00%"></td>
+    <td><input type="text" class="parc-valor" value="R$ 0,00"></td>
+    <td><input type="text" class="parc-vencimento" placeholder="dd/mm/aaaa"></td>
+    <td class="parc-status"></td>
+    <td><button type="button" class="parc-remover" title="Remover parcela">&times;</button></td>
+  `;
+
+  const inputDescricao = tr.querySelector(".parc-descricao");
+  const inputPercentual = tr.querySelector(".parc-percentual");
+  const inputValor = tr.querySelector(".parc-valor");
+  const inputVencimento = tr.querySelector(".parc-vencimento");
+  const tdStatus = tr.querySelector(".parc-status");
+  const btnRemover = tr.querySelector(".parc-remover");
+
+  if (dadosIniciais.descricao) inputDescricao.value = dadosIniciais.descricao;
+  if (dadosIniciais.vlrparcela != null) inputValor.value = formatarMoeda(dadosIniciais.vlrparcela);
+  if (dadosIniciais.dtvencimento) inputVencimento.value = converterDataISOParaBR(dadosIniciais.dtvencimento);
+
+  if (dadosIniciais.status) {
+    const statusClasse = dadosIniciais.status.toLowerCase();
+    tdStatus.innerHTML = `<span class="parc-status-chip ${statusClasse}">${dadosIniciais.status}</span>`;
+  }
+
+  function sincronizarPercentualPeloValor() {
+    if (isRecalculandoParcela) return;
+    isRecalculandoParcela = true;
+    const vlrCliente = obterValorClienteOrcamento();
+    const vlr = desformatarMoeda(inputValor.value);
+    const perc = vlrCliente > 0 ? (vlr / vlrCliente) * 100 : 0;
+    inputPercentual.value = formatarPercentual(perc);
+    isRecalculandoParcela = false;
+  }
+
+  function sincronizarValorPeloPercentual() {
+    if (isRecalculandoParcela) return;
+    isRecalculandoParcela = true;
+    const vlrCliente = obterValorClienteOrcamento();
+    const perc = desformatarPercentual(inputPercentual.value);
+    inputValor.value = formatarMoeda(vlrCliente * (perc / 100));
+    isRecalculandoParcela = false;
+  }
+
+  inputValor.addEventListener("input", () => {
+    sincronizarPercentualPeloValor();
+    recalcularPrimeiraParcelaComoRestante(tr);
+    atualizarSomaParcelas();
+  });
+  inputValor.addEventListener("blur", function () {
+    this.value = formatarMoeda(desformatarMoeda(this.value));
+  });
+
+  inputPercentual.addEventListener("input", () => {
+    sincronizarValorPeloPercentual();
+    atualizarSomaParcelas();
+  });
+  inputPercentual.addEventListener("blur", function () {
+    this.value = formatarPercentual(desformatarPercentual(this.value));
+  });
+
+  btnRemover.addEventListener("click", () => {
+    Swal.fire({
+      title: "Remover esta parcela?",
+      html: 'Os valores das outras parcelas <b>não são recalculados automaticamente</b> — a soma pode ficar divergente do valor do orçamento.<br><br>Pra redistribuir tudo de novo, use "Dividir igualmente" com a nova quantidade, ou ajuste os valores manualmente.',
+      icon: "warning",
+      showCancelButton: true,
+      cancelButtonText: "Cancelar",
+      confirmButtonText: "Sim, remover",
+      reverseButtons: true,
+      focusCancel: true,
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      tr.remove();
+      renumerarParcelas();
+      atualizarSomaParcelas();
+    });
+  });
+
+  if (dadosIniciais.vlrparcela != null) sincronizarPercentualPeloValor();
+
+  // A máscara roda ANTES do listener interno do flatpickr (registrado só
+  // depois, na criação da instância abaixo) — ela sempre decide o texto
+  // primeiro. O flatpickr só entra em ação (calendário/seleção) quando o
+  // parseDate abaixo reconhece uma data "dd/mm/aaaa" completa; qualquer
+  // digitação parcial ele ignora, em vez de tentar "adivinhar" (era isso
+  // que virava "20022027" em 20/10/2028).
+  inputVencimento.addEventListener("input", () => {
+    mascararDataDigitada(inputVencimento);
+    verificarReplicarPrimeiraDataParcela(tr, inputVencimento);
+  });
+
+  if (bloqueada) {
+    [inputDescricao, inputPercentual, inputValor, inputVencimento].forEach((input) => {
+      input.readOnly = true;
+      input.style.pointerEvents = "none";
+    });
+    btnRemover.disabled = true;
+  } else if (window.flatpickr) {
+    flatpickr(inputVencimento, {
+      mode: "single",
+      dateFormat: "d/m/Y",
+      allowInput: true,
+      locale: currentLocale,
+      appendTo: document.body,
+      parseDate: (datestr) => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(datestr);
+        if (!m) return undefined;
+        const [, d, mo, a] = m;
+        const data = new Date(Number(a), Number(mo) - 1, Number(d));
+        return isNaN(data.getTime()) ? undefined : data;
+      },
+      onChange: () => verificarReplicarPrimeiraDataParcela(tr, inputVencimento),
+    });
+  }
+
+  return tr;
+}
+
+function renumerarParcelas() {
+  const linhas = document.querySelectorAll("#parcelasTabelaBody tr");
+  linhas.forEach((tr, i) => {
+    const tdNum = tr.querySelector(".parc-num");
+    if (tdNum) tdNum.textContent = i + 1;
+  });
+
+  // Mantém o campo "dividir em N parcelas" acompanhando a contagem real —
+  // sem isso, remover uma linha deixava o número velho, sugerindo dividir
+  // de novo com uma quantidade que não bate mais com o que está na tela.
+  const qtdDividirInput = document.getElementById("qtdParcelasDividir");
+  if (qtdDividirInput && linhas.length) qtdDividirInput.value = linhas.length;
+}
+
+function atualizarSomaParcelas() {
+  const somaInfo = document.getElementById("parcelasSomaInfo");
+  if (!somaInfo) return;
+
+  const vlrCliente = obterValorClienteOrcamento();
+  let soma = 0;
+  document.querySelectorAll("#parcelasTabelaBody .parc-valor").forEach((input) => {
+    soma += desformatarMoeda(input.value);
+  });
+
+  somaInfo.textContent = `Soma: ${formatarMoeda(soma)} de ${formatarMoeda(vlrCliente)}`;
+  somaInfo.classList.toggle("parcelas-soma-erro", Math.abs(soma - vlrCliente) > 0.01);
+}
+
+function dividirParcelasIgualmente(qtd) {
+  qtd = parseInt(qtd, 10);
+  if (!qtd || qtd < 2) return;
+
+  const vlrCliente = obterValorClienteOrcamento();
+  if (vlrCliente <= 0) {
+    Swal.fire("Atenção", "Preencha o valor do orçamento antes de dividir em parcelas.", "warning");
+    return;
+  }
+
+  const tbody = document.getElementById("parcelasTabelaBody");
+  tbody.innerHTML = "";
+
+  const valorParcela = Math.floor((vlrCliente / qtd) * 100) / 100; // arredonda p/ baixo, 2 casas
+  let somaParcial = 0;
+
+  for (let i = 1; i <= qtd; i++) {
+    const ultima = i === qtd;
+    // Última parcela absorve a diferença de centavos do arredondamento — o
+    // mesmo que o financeiro já faz na mão (ver orçamento #1214).
+    const valor = ultima ? Math.round((vlrCliente - somaParcial) * 100) / 100 : valorParcela;
+    somaParcial += valor;
+
+    tbody.appendChild(
+      criarLinhaParcela({ descricao: i === 1 ? "Ato" : "", vlrparcela: valor })
+    );
+  }
+
+  renumerarParcelas();
+  atualizarSomaParcelas();
+}
+
+function limparParcelasUI() {
+  const chk = document.getElementById("chkParcelado");
+  const conteudo = document.getElementById("parcelasConteudo");
+  const tbody = document.getElementById("parcelasTabelaBody");
+  const vencimentoAvistaWrap = document.getElementById("vencimentoAvistaWrap");
+  const inputVencimentoAvista = document.getElementById("dtVencimentoAvista");
+
+  if (chk) { chk.checked = false; chk.disabled = false; }
+  if (conteudo) conteudo.style.display = "none";
+  if (tbody) tbody.innerHTML = "";
+  if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = "";
+  if (inputVencimentoAvista) inputVencimentoAvista.value = "";
+  atualizarSomaParcelas();
+}
+
+// Carrega as parcelas já definidas (se houver) ao abrir um orçamento existente.
+// Sem nenhuma distinção no banco entre "à vista" e "parcelado" além da
+// quantidade de linhas em orcamentoparcelas (ver decisão no chat — evita
+// coluna nova): 0 ou 1 linha = à vista (a única linha é só a data de
+// vencimento, com o valor cheio); 2+ linhas = parcelado de verdade.
+async function carregarParcelasDoOrcamento(idOrcamento, fechado) {
+  const chk = document.getElementById("chkParcelado");
+  const conteudo = document.getElementById("parcelasConteudo");
+  const tbody = document.getElementById("parcelasTabelaBody");
+  const vencimentoAvistaWrap = document.getElementById("vencimentoAvistaWrap");
+  const inputVencimentoAvista = document.getElementById("dtVencimentoAvista");
+  if (!chk || !conteudo || !tbody) return;
+
+  tbody.innerHTML = "";
+  if (inputVencimentoAvista) inputVencimentoAvista.value = "";
+
+  try {
+    const parcelas = await fetchComToken(`orcamentos/${idOrcamento}/parcelas`);
+
+    if (!Array.isArray(parcelas) || parcelas.length <= 1) {
+      chk.checked = false;
+      conteudo.style.display = "none";
+      if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = "";
+      if (parcelas?.[0] && inputVencimentoAvista) {
+        inputVencimentoAvista.value = converterDataISOParaBR(parcelas[0].dtvencimento);
+      }
+      return;
+    }
+
+    chk.checked = true;
+    conteudo.style.display = "block";
+    if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = "none";
+
+    parcelas.forEach((p) => {
+      tbody.appendChild(criarLinhaParcela(p));
+    });
+
+    renumerarParcelas();
+    atualizarSomaParcelas();
+  } catch (error) {
+    console.error("Erro ao carregar parcelas do orçamento:", error);
+  }
+}
+
+// Monta o array pra enviar junto do salvamento do orçamento. À vista manda
+// UMA "parcela" só (valor total + a data de vencimento única) — reaproveita
+// a mesma orcamentoparcelas em vez de criar uma coluna nova só pra isso (ver
+// decisão no chat: nada distingue "parcelado" de "à vista" no banco além da
+// quantidade de linhas — 1 linha = à vista, 2+ = parcelado de verdade; ver
+// mesmo critério em carregarParcelasDoOrcamento).
+function coletarParcelasParaEnviar() {
+  const chk = document.getElementById("chkParcelado");
+  if (!chk || !chk.checked) {
+    const vencimento = converterDataBRParaISO(document.getElementById("dtVencimentoAvista")?.value.trim());
+    return [{ descricao: null, vlrparcela: obterValorClienteOrcamento(), dtvencimento: vencimento }];
+  }
+
+  const linhas = document.querySelectorAll("#parcelasTabelaBody tr");
+  if (!linhas.length) return null;
+
+  return Array.from(linhas).map((tr) => ({
+    descricao: tr.querySelector(".parc-descricao")?.value.trim() || null,
+    vlrparcela: desformatarMoeda(tr.querySelector(".parc-valor")?.value),
+    dtvencimento: converterDataBRParaISO(tr.querySelector(".parc-vencimento")?.value),
+  }));
+}
+
+// Monta o texto de "Forma de pagamento" a partir das parcelas — no formato
+// que o financeiro já usa na proposta/contrato (ex.: "R$ 11.575,67 – ato").
+function gerarTextoFormaPagamento() {
+  const linhas = document.querySelectorAll("#parcelasTabelaBody tr");
+  if (!linhas.length) {
+    Swal.fire("Sem parcelas", "Marque \"Pagamento parcelado?\" e preencha as parcelas antes.", "warning");
+    return;
+  }
+
+  const texto = Array.from(linhas).map((tr) => {
+    const valor = formatarMoeda(desformatarMoeda(tr.querySelector(".parc-valor")?.value));
+    const descricao = tr.querySelector(".parc-descricao")?.value.trim();
+    const vencimento = tr.querySelector(".parc-vencimento")?.value.trim();
+
+    let complemento;
+    if (descricao && vencimento) complemento = `${descricao} (${vencimento})`;
+    else complemento = descricao || vencimento || "a definir";
+
+    return `${valor} – ${complemento}`;
+  }).join("\n");
+
+  const campoFormaPagamento = document.getElementById("formaPagamento");
+  const textoAtual = campoFormaPagamento.value.trim();
+
+  if (!textoAtual) {
+    campoFormaPagamento.value = texto;
+    return;
+  }
+
+  Swal.fire({
+    title: 'Já tem texto em "Forma de pagamento"',
+    text: "Quer substituir pelo resumo das parcelas, ou manter o que já está e adicionar o resumo no final?",
+    icon: "question",
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: "Substituir",
+    denyButtonText: "Manter e adicionar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+  }).then((result) => {
+    if (result.isConfirmed) {
+      campoFormaPagamento.value = texto;
+    } else if (result.isDenied) {
+      campoFormaPagamento.value = `${campoFormaPagamento.value.trimEnd()}\n${texto}`;
+    }
+  });
+}
+
 document
   .getElementById("fecharOrc")
   .addEventListener("click", function (event) {
@@ -7033,19 +7811,28 @@ function fecharOrcamento() {
           );
           return;
         }
-        // 1. Prepare os dados para enviar ao backend
+        // As parcelas já foram salvas antes disso, ao clicar em "Salvar
+        // Orçamento" — o fechamento só confere consistência (ver rota),
+        // não envia parcela nenhuma.
         const resultado = await fetchComToken(
           `orcamentos/fechar/${orcamentoIdNumerico}`,
-          {
-            method: "PUT",
-            // Não precisa de body, o status 'F' é definido no backend
-          }
+          { method: "PUT" }
         );
 
         // Verifique a resposta e atualize a UI
         if (resultado.message) {
           document.getElementById("Status").value = "F"; // Atualiza o input localmente
           bloquearCamposSeFechado();
+          // Checkbox não respeita readOnly — trava manualmente igual ao resto
+          // dos campos travados por bloquearCamposSeFechado().
+          const chkParceladoFechado = document.getElementById("chkParcelado");
+          if (chkParceladoFechado) chkParceladoFechado.disabled = true;
+          document.getElementById("btnDividirParcelas")?.style.setProperty("display", "none");
+          document.getElementById("qtdParcelasDividir")?.style.setProperty("display", "none");
+          document.getElementById("btnAdicionarParcela")?.style.setProperty("display", "none");
+          document.querySelectorAll("#parcelasTabelaBody .parc-remover").forEach((btn) => {
+            btn.disabled = true;
+          });
           Swal.fire("Fechado!", resultado.message, "success");
         }
       } catch (error) {

@@ -45,7 +45,16 @@ if (typeof window.empresaOriginal === "undefined") {
         cidade: "",
         estado: "",
         pais: "",
-        ativo: ""      
+        ativo: "",
+        regimeTributario: "",
+        inscricaoMunicipal: "",
+        idBanco: "",
+        agencia: "",
+        digitoAgencia: "",
+        numeroConta: "",
+        digitoConta: "",
+        tipoConta: "",
+        pix: ""
     };
 }
 
@@ -110,8 +119,17 @@ const campos = {
         bairro: "#bairro",
         cidade: "#cidade",
         estado: "#estado",
-        pais: "#pais",     
-        ativo: "#ativo"
+        pais: "#pais",
+        ativo: "#ativo",
+        regimeTributario: "#regimeTributario",
+        inscricaoMunicipal: "#inscricaoMunicipal",
+        idBanco: "#idBanco",
+        agencia: "#agencia",
+        digitoAgencia: "#digitoAgencia",
+        numeroConta: "#numeroConta",
+        digitoConta: "#digitoConta",
+        tipoConta: "#tipoConta",
+        pix: "#pix"
 };
 
 const getCampo = (key) => document.querySelector(campos[key]);
@@ -141,8 +159,8 @@ const setCampo = (key, value) => {
 //         nmFantasia: empresa.nmfantasia || "",
 //         razaoSocial: empresa.razaosocial || "",
 //         cnpj: empresa.cnpj || "",   
-//         emailEmpresa: empresa.emailempresa || "",
-//         emailNfe: empresa.emailnfe || "",     
+//         emailEmpresa: empresa.emailemp || "",
+//         emailNfe: empresa.emailnf || "",     
 //         site: empresa.site || "",
 //         inscEstadual: empresa.inscricaoestadual || "",
 //         cep: empresa.cep || "",
@@ -174,8 +192,8 @@ const preencherFormulario = (empresa) => {
         nmFantasia: empresa.nmfantasia || "",
         razaoSocial: empresa.razaosocial || "",
         cnpj: empresa.cnpj || "",   
-        emailEmpresa: empresa.emailempresa || "",
-        emailNfe: empresa.emailnfe || "",     
+        emailEmpresa: empresa.emailemp || "",
+        emailNfe: empresa.emailnf || "",     
         site: empresa.site || "",
         inscEstadual: empresa.inscricaoestadual || "", // CORREÇÃO APLICADA AQUI
         cep: empresa.cep || "",
@@ -186,7 +204,16 @@ const preencherFormulario = (empresa) => {
         cidade: empresa.cidade || "",
         estado: empresa.estado || "",
         pais: empresa.pais || "",
-        ativo: empresa.ativo || false
+        ativo: empresa.ativo || false,
+        regimeTributario: empresa.regimetributario || "",
+        inscricaoMunicipal: empresa.inscricaomunicipal || "",
+        idBanco: empresa.idbanco || "",
+        agencia: empresa.agencia || "",
+        digitoAgencia: empresa.digitoagencia || "",
+        numeroConta: empresa.numeroconta || "",
+        digitoConta: empresa.digitoconta || "",
+        tipoConta: empresa.tipoconta || "",
+        pix: empresa.pix || ""
     };
 
     // 2. Itera sobre os dados mapeados para preencher o formulário
@@ -218,8 +245,15 @@ const limparFormulario = () => {
     form.reset();
     document.querySelector("#idEmpresa").value = "";
     if (typeof limparEmpresaOriginal === "function") limparEmpresaOriginal();
-    
-    
+    const campoSigla = document.querySelector("#certificadoSigla");
+    const campoStatus = document.querySelector("#certificadoStatus");
+    const btnInserir = document.querySelector("#btnInserirCertificado");
+    if (campoSigla) campoSigla.value = "";
+    if (campoStatus) campoStatus.value = "";
+    if (btnInserir) {
+        btnInserir.style.display = "none";
+        btnInserir.onclick = null;
+    }
 };
 
 const obterDadosFormulario = () => {
@@ -245,17 +279,45 @@ const obterDadosFormulario = () => {
         estado: valor("estado").toUpperCase(),
         pais: valor("pais").toUpperCase(),
         ativo: getCampo("ativo")?.checked,
-       
+        regimeTributario: valor("regimeTributario"),
+        inscricaoMunicipal: valor("inscricaoMunicipal"),
+        idBanco: valor("idBanco"),
+        agencia: valor("agencia"),
+        digitoAgencia: valor("digitoAgencia"),
+        numeroConta: valor("numeroConta"),
+        digitoConta: valor("digitoConta"),
+        tipoConta: valor("tipoConta"),
+        pix: valor("pix"),
     };
     console.log("Dados do formulário prontos para envio:", dados);
     return dados;
 };
 
 
+// Select de Banco — lista vem de /bancos (cadastro já existente, usado no
+// financeiro), escopada pela empresa logada via bancoempresas.
+async function carregarBancosSelect() {
+    const select = document.getElementById('idBanco');
+    if (!select) return;
+    try {
+        const bancos = await fetchComToken('/bancos');
+        if (!bancos.length) {
+            select.innerHTML = '<option value="">Nenhum banco cadastrado — cadastre em Bancos</option>';
+            return;
+        }
+        select.innerHTML = '<option value="">Selecione...</option>' +
+            bancos.map((b) => `<option value="${b.idbanco}">${b.nmbanco}${b.codbanco ? ' (' + b.codbanco + ')' : ''}</option>`).join('');
+    } catch (err) {
+        console.error('Erro ao carregar bancos:', err);
+        select.innerHTML = '<option value="">Erro ao carregar bancos</option>';
+    }
+}
+
 function carregarEmpresas() {
     console.log("Configurando eventos para o modal de empresas");
-   
-    aplicarMascaras();  
+
+    aplicarMascaras();
+    carregarBancosSelect();
 
     const tpEmpresaInput = document.getElementById('tpempresa');
     if(tpEmpresaInput){
@@ -347,14 +409,13 @@ function carregarEmpresas() {
                 if (!isConfirmed) return;
             }
 
-            const respostaApi = await fetchComToken(url, {
-                method: metodo,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados)
-            });            
+            const respostaApi = await salvarEmpresaComResolucaoDeSigla(url, metodo, dados);
+            if (!respostaApi) return; // usuário cancelou a resolução do conflito de sigla
 
             await Swal.fire("Sucesso!", respostaApi.message || "Empresa salvo com sucesso.", "success");
+            const idempresaSalva = respostaApi.idempresa || valorIdEmpresa;
             limparFormulario();
+            await verificarCertificadoEmpresa(idempresaSalva);
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -635,8 +696,8 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#razaoSocial").value = empresa.razaosocial || "";
         maskCNPJ.value = empresa.cnpj || '';
         document.querySelector("#inscEstadual").value = empresa.inscricaoestadual || "";
-        document.querySelector("#emailEmpresa").value = empresa.emailempresa || "";
-        document.querySelector("#emailNfe").value = empresa.emailnfe || "";
+        document.querySelector("#emailEmpresa").value = empresa.emailemp || "";
+        document.querySelector("#emailNfe").value = empresa.emailnf || "";
         document.querySelector("#site").value = empresa.site || "";
         maskTelefone.value = empresa.telefone || '';
         maskCEP.value = empresa.cep || '';
@@ -649,7 +710,17 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#pais").value = empresa.pais || "";
         document.querySelector("#ativo").checked =
             empresa.ativo === true || empresa.ativo === "true" || empresa.ativo === 1;
+        document.querySelector("#regimeTributario").value = empresa.regimetributario || "";
+        document.querySelector("#inscricaoMunicipal").value = empresa.inscricaomunicipal || "";
+        document.querySelector("#idBanco").value = empresa.idbanco || "";
+        document.querySelector("#agencia").value = empresa.agencia || "";
+        document.querySelector("#digitoAgencia").value = empresa.digitoagencia || "";
+        document.querySelector("#numeroConta").value = empresa.numeroconta || "";
+        document.querySelector("#digitoConta").value = empresa.digitoconta || "";
+        document.querySelector("#tipoConta").value = empresa.tipoconta || "";
+        document.querySelector("#pix").value = empresa.pix || "";
         empresaOriginal = { ...empresa };
+        verificarCertificadoEmpresa(empresa.idempresa, true);
 
         const novoInput = document.createElement("input");
         novoInput.type = "text";
@@ -691,6 +762,185 @@ function mostrarErro(titulo, texto) {
     });
 }
 
+// Se o backend acusar conflito de sigla de certificado (duas empresas dando
+// a mesma sigla derivada do nome fantasia), pede uma sigla alternativa pro
+// usuário e tenta salvar de novo com ela — em vez de obrigar a renomear a
+// empresa só por causa de uma coincidência técnica no nome fantasia.
+async function salvarEmpresaComResolucaoDeSigla(url, metodo, dados) {
+    let corpo = dados;
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+        try {
+            return await fetchComToken(url, {
+                method: metodo,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(corpo)
+            });
+        } catch (erro) {
+            if (erro.status !== 409 || !erro.corpo?.precisaSiglaManual) throw erro;
+
+            const { value: novaSigla } = await Swal.fire({
+                icon: "warning",
+                title: "Sigla de certificado em conflito",
+                text: erro.corpo.message,
+                input: "text",
+                inputLabel: "Digite uma sigla alternativa (até 6 letras/números)",
+                inputAttributes: { maxlength: "6", autocapitalize: "characters" },
+                showCancelButton: true,
+                confirmButtonText: "Tentar salvar",
+                cancelButtonText: "Cancelar",
+                inputValidator: (valor) => (!valor || !valor.trim()) ? "Digite uma sigla." : undefined,
+            });
+
+            if (!novaSigla) return null; // usuário cancelou, não salva
+
+            corpo = { ...corpo, siglaCertificado: novaSigla };
+        }
+    }
+    throw new Error("Não foi possível encontrar uma sigla de certificado disponível.");
+}
+
+// A checagem que decide o que mostrar (upload pra master / aviso pros
+// demais) é só UX — quem realmente barra é o backend (exigirFlag('master')
+// no POST /empresas/:id/certificado). Aqui é só pra não oferecer um Swal de
+// upload pra quem nem teria permissão de salvar.
+function usuarioTemFlagMaster() {
+    // /auth/permissoes remapeia as colunas do banco pra "pode_master" (ver
+    // authController.js -> listarPermissoes) — não existe "p.master" no
+    // objeto que chega no front. Checa em QUALQUER linha (não só o módulo
+    // "Empresas"), igual o exigirFlag('master') faz no backend.
+    return Array.isArray(window.permissoes) && window.permissoes.some((p) => p.pode_master === true);
+}
+
+// Preenche os campos só-leitura na tela — chamado só quando o formulário
+// está de fato mostrando uma empresa (edição carregada), nunca logo após um
+// cadastro/salvamento, porque nesses casos o formulário some inteiro
+// (limparFormulario) e esses dois campos ficariam "pendente" sozinhos numa
+// tela em branco.
+function atualizarCamposCertificadoNaTela(status, idempresa) {
+    const campoSigla = document.querySelector("#certificadoSigla");
+    const campoStatus = document.querySelector("#certificadoStatus");
+    const btnInserir = document.querySelector("#btnInserirCertificado");
+    if (campoSigla) campoSigla.value = status?.sigla || "";
+    if (campoStatus) campoStatus.value = status?.configurado ? "Configurado ✅" : "Pendente ⚠️";
+
+    // Botão só aparece se estiver pendente E o usuário puder de fato inserir
+    // (master) — sem ele, quem fechou o Swal sem anexar tinha que sair e
+    // entrar de novo na empresa pra ver o Swal aparecer de novo.
+    if (btnInserir) {
+        const mostrarBotao = Boolean(status) && !status.configurado && usuarioTemFlagMaster();
+        btnInserir.style.display = mostrarBotao ? "flex" : "none";
+        btnInserir.onclick = mostrarBotao
+            ? async () => {
+                  await abrirSwalUploadCertificado(idempresa, status.sigla);
+                  const statusAtualizado = await fetchComToken(`/empresas/${idempresa}/certificado`);
+                  atualizarCamposCertificadoNaTela(statusAtualizado, idempresa);
+              }
+            : null;
+    }
+}
+
+// atualizarCampos: true só na tela de edição carregada — no fluxo de
+// salvar (criar/editar), o formulário já foi limpo antes desta chamada, então
+// não faz sentido preencher esses dois campos ali.
+async function verificarCertificadoEmpresa(idempresa, atualizarCampos = false) {
+    if (!idempresa) return;
+    try {
+        const status = await fetchComToken(`/empresas/${idempresa}/certificado`);
+
+        if (atualizarCampos) atualizarCamposCertificadoNaTela(status, idempresa);
+
+        if (status.configurado) return;
+
+        if (usuarioTemFlagMaster()) {
+            await abrirSwalUploadCertificado(idempresa, status.sigla);
+        } else {
+            Swal.fire({
+                icon: "info",
+                title: "Certificado digital pendente",
+                text: "Esta empresa ainda não tem certificado digital (A1) cadastrado para emitir nota fiscal. Solicite ao setor financeiro a inserção do certificado desta empresa.",
+                confirmButtonText: "Ok",
+            });
+        }
+    } catch (erro) {
+        console.error("Erro ao verificar certificado da empresa:", erro);
+    }
+}
+
+async function abrirSwalUploadCertificado(idempresa, sigla) {
+    const { value: dadosCertificado } = await Swal.fire({
+        title: `Cadastrar certificado digital (${sigla})`,
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <label style="display:block; margin-bottom:6px;">Arquivo do certificado (.pfx ou .p12)</label>
+                    <input type="file" id="swalCertArquivo" accept=".pfx,.p12" style="display:none;">
+                    <button type="button" id="swalCertBtnAnexar" style="
+                        width:100%; box-sizing:border-box; margin:0; padding:14px;
+                        display:flex; align-items:center; justify-content:center; gap:8px;
+                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
+                        font-size:15px; cursor:pointer; color:#333;">
+                        <span id="swalCertNomeArquivo">📎 Clique pra anexar o certificado</span>
+                    </button>
+                </div>
+                <div>
+                    <label for="swalCertSenha" style="display:block; margin-bottom:6px;">Senha do certificado</label>
+                    <input type="password" id="swalCertSenha" class="swal2-input" placeholder="Senha" style="margin:0; width:100%; box-sizing:border-box;">
+                </div>
+            </div>
+        `,
+        confirmButtonText: "Salvar certificado",
+        showCancelButton: true,
+        cancelButtonText: "Depois",
+        focusConfirm: false,
+        didOpen: () => {
+            const inputArquivo = document.getElementById("swalCertArquivo");
+            const btnAnexar = document.getElementById("swalCertBtnAnexar");
+            const nomeArquivo = document.getElementById("swalCertNomeArquivo");
+            btnAnexar.addEventListener("click", () => inputArquivo.click());
+            inputArquivo.addEventListener("change", () => {
+                const arquivo = inputArquivo.files[0];
+                if (arquivo) {
+                    nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
+                    btnAnexar.style.borderStyle = "solid";
+                    btnAnexar.style.borderColor = "#28a745";
+                    btnAnexar.style.background = "#eaf7ee";
+                } else {
+                    nomeArquivo.textContent = "📎 Clique pra anexar o certificado";
+                    btnAnexar.style.borderStyle = "dashed";
+                    btnAnexar.style.borderColor = "#999";
+                    btnAnexar.style.background = "#f7f7f7";
+                }
+            });
+        },
+        preConfirm: () => {
+            const arquivo = document.getElementById("swalCertArquivo").files[0];
+            const senha = document.getElementById("swalCertSenha").value;
+            if (!arquivo) {
+                Swal.showValidationMessage("Selecione o arquivo do certificado.");
+                return false;
+            }
+            if (!senha) {
+                Swal.showValidationMessage("Informe a senha do certificado.");
+                return false;
+            }
+            return { arquivo, senha };
+        },
+    });
+
+    if (!dadosCertificado) return;
+
+    try {
+        const formData = new FormData();
+        formData.append("arquivo", dadosCertificado.arquivo);
+        formData.append("senha", dadosCertificado.senha);
+        await fetchComToken(`/empresas/${idempresa}/certificado`, { method: "POST", body: formData });
+        atualizarCamposCertificadoNaTela({ sigla, configurado: true }, idempresa);
+        await Swal.fire("Certificado salvo!", "O certificado digital dessa empresa já está pronto pra assinar nota fiscal.", "success");
+    } catch (erro) {
+        Swal.fire("Erro", erro.message || "Erro ao salvar o certificado.", "error");
+    }
+}
+
 
 function limparEmpresaOriginal() {  
     empresaOriginal = {
@@ -712,12 +962,21 @@ function limparEmpresaOriginal() {
         cidade: "",
         estado: "",
         pais: "",
-        ativo: ""
+        ativo: "",
+        regimeTributario: "",
+        inscricaoMunicipal: "",
+        idBanco: "",
+        agencia: "",
+        digitoAgencia: "",
+        numeroConta: "",
+        digitoConta: "",
+        tipoConta: "",
+        pix: ""
     };
 }
 
 function limparCamposEmpresa(){
-    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais"];  
+    const campos = ["idEmpresa", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailEmpresa", "emailNfe", "site", "telefone", "cep", "rua", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais", "regimeTributario", "inscricaoMunicipal", "idBanco", "agencia", "digitoAgencia", "numeroConta", "digitoConta", "tipoConta", "pix"];
    
     campos.forEach(id => {
         const campo = document.getElementById(id);

@@ -351,7 +351,7 @@ router.get('/inclusao-orcamentos-notificacao', autenticarToken(), async (req, re
     LEFT JOIN funcionarios fn ON s.idfuncionario = fn.idfuncionario  
     LEFT JOIN notificacao n   ON n.idreferencia = s.idsolicitacao AND n.idusuario = $1
     WHERE s.idempresa = $2
-      AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Datas fora do Orçamento')
+      AND s.tiposolicitacao IN ('Aditivo - Vaga Excedida', 'Extra Bonificado - Vaga Excedida', 'Aditivo - Datas fora do Orçamento', 'Extra Bonificado - Datas fora do Orçamento','Extra Bonificado - Limite Excedido', 'Aditivo - Limite Excedido')
       AND s.status = 'Autorizado'
       AND s.dtresposta > NOW() - INTERVAL '7 days'
       AND NOT EXISTS (
