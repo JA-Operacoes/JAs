@@ -33,12 +33,28 @@ function queryAnalise(filtro, ordem) {
       GROUP BY oi.idorcamento
     ),
     staff_real AS (
-      SELECT se.idevento,
+      -- Por idorcamento (não idevento!): um evento recorrente (ex: mesma feira todo ano) repete
+      -- o idevento em orçamentos de anos diferentes — agrupar por idevento vazava staff de OUTRO
+      -- ano/orçamento pro ano filtrado (ex: staff já pago em 2026 aparecendo no 2027 do mesmo evento).
+      SELECT se.idorcamento,
              SUM(COALESCE(se.vlrtotcache, 0)
-               + COALESCE(se.vlrtotajdcusto, 0)
-               + COALESCE(se.vlrcaixinha, 0)) AS custo_staff_real
+               + COALESCE(se.vlrtotajdcusto, 0)) AS custo_staff_real,
+             COUNT(se.idstaffevento) AS qtd_staff_real
       FROM staffeventos se
-      GROUP BY se.idevento
+      GROUP BY se.idorcamento
+    ),
+    ajustes_pagos AS (
+      -- Crédito/Débito avulso (staffajustefinanceiro) só entra no custo real quando 'Pago' —
+      -- antes disso não tem evento definitivo (pode ainda mudar de evento/ser rejeitado).
+      -- Atribuído ao orçamento onde foi de fato confirmado (idstaffeventopago), não ao de origem.
+      -- Crédito = empresa paga a mais ao funcionário (aumenta custo); Débito = funcionário deve
+      -- à empresa (reduz custo).
+      SELECT se.idorcamento,
+             SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END) AS saldo_ajustefinanceiro
+      FROM staffajustefinanceiro af
+      JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
+      WHERE af.status = 'Pago'
+      GROUP BY se.idorcamento
     )
     SELECT
       o.idevento,
@@ -55,15 +71,34 @@ function queryAnalise(filtro, ordem) {
       MIN(o.dtinirealizacao) AS dtinirealizacao,
       MAX(o.dtfimrealizacao) AS dtfimrealizacao,
       SUM(COALESCE(so.custo_staff_orcado, 0)) AS custo_staff_orcado,
-      MAX(COALESCE(sr.custo_staff_real, 0))   AS custo_staff_real
+      SUM(COALESCE(sr.custo_staff_real, 0)) + SUM(COALESCE(aj.saldo_ajustefinanceiro, 0)) AS custo_staff_real,
+      SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real
     FROM orcs o
     JOIN eventos e   ON e.idevento  = o.idevento
     LEFT JOIN clientes c ON c.idcliente = o.idcliente
     LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
-    LEFT JOIN staff_real  sr ON sr.idevento     = o.idevento
+    LEFT JOIN staff_real  sr ON sr.idorcamento  = o.idorcamento
+    LEFT JOIN ajustes_pagos aj ON aj.idorcamento = o.idorcamento
     GROUP BY o.idevento, e.nmevento, c.nmfantasia
     ${ordem};
   `;
+}
+
+// Monta dinamicamente a cláusula AND + params para /filtrar, na mesma convenção
+// de queryAnalise ($1 sempre é idempresa, os demais em ordem de inclusão).
+function buildFiltro(idempresa, { idcliente, idevento, ano, datainicio, datafim }) {
+  const clausulas = [];
+  const params = [idempresa];
+  let i = 2;
+
+  if (idcliente) { clausulas.push(`o.idcliente = $${i++}`); params.push(idcliente); }
+  if (idevento) { clausulas.push(`o.idevento = $${i++}`); params.push(idevento); }
+  if (ano) { clausulas.push(`EXTRACT(YEAR FROM o.dtinirealizacao) = $${i++}`); params.push(ano); }
+  if (datainicio) { clausulas.push(`o.dtfimrealizacao >= $${i++}`); params.push(datainicio); }
+  if (datafim) { clausulas.push(`o.dtinirealizacao <= $${i++}`); params.push(datafim); }
+
+  const filtro = clausulas.length ? `AND ${clausulas.join(" AND ")}` : "";
+  return { filtro, params };
 }
 
 // GET /ceo/clientes — clientes que têm orçamentos não recusados na empresa.
@@ -171,7 +206,8 @@ router.get("/evento-anos", async (req, res) => {
           COALESCE(o.totgeralcto, 0) AS totgeralcto,
           COALESCE(o.totajdcto, 0)   AS totajdcto,
           COALESCE(o.lucroreal, 0)   AS lucroreal,
-          COALESCE(o.vlrcliente, 0)  AS vlrcliente
+          COALESCE(o.vlrcliente, 0)  AS vlrcliente,
+          o.dtinirealizacao, o.dtfimrealizacao
         FROM orcamentos o
         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
         WHERE oe.idempresa = $1
@@ -188,9 +224,18 @@ router.get("/evento-anos", async (req, res) => {
       staff_real AS (
         SELECT se.idorcamento,
                SUM(COALESCE(se.vlrtotcache, 0)
-                 + COALESCE(se.vlrtotajdcusto, 0)
-                 + COALESCE(se.vlrcaixinha, 0)) AS custo_staff_real
+                 + COALESCE(se.vlrtotajdcusto, 0)) AS custo_staff_real,
+               COUNT(se.idstaffevento) AS qtd_staff_real
         FROM staffeventos se
+        GROUP BY se.idorcamento
+      ),
+      ajustes_pagos AS (
+        -- Mesma regra da queryAnalise: só 'Pago', atribuído ao evento onde foi confirmado.
+        SELECT se.idorcamento,
+               SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END) AS saldo_ajustefinanceiro
+        FROM staffajustefinanceiro af
+        JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
+        WHERE af.status = 'Pago'
         GROUP BY se.idorcamento
       )
       SELECT
@@ -204,10 +249,14 @@ router.get("/evento-anos", async (req, res) => {
         SUM(o.vlrcliente)  AS vlrcliente,
         SUM(o.totgeralcto + o.totajdcto) AS custo_previsto,
         SUM(COALESCE(so.custo_staff_orcado, 0)) AS custo_staff_orcado,
-        SUM(COALESCE(sr.custo_staff_real, 0))   AS custo_staff_real
+        SUM(COALESCE(sr.custo_staff_real, 0)) + SUM(COALESCE(aj.saldo_ajustefinanceiro, 0)) AS custo_staff_real,
+        SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real,
+        MIN(o.dtinirealizacao) AS dtinirealizacao,
+        MAX(o.dtfimrealizacao) AS dtfimrealizacao
       FROM orcs o
       LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
       LEFT JOIN staff_real  sr ON sr.idorcamento = o.idorcamento
+      LEFT JOIN ajustes_pagos aj ON aj.idorcamento = o.idorcamento
       GROUP BY o.ano
       ORDER BY o.ano ASC;
     `;
@@ -240,6 +289,54 @@ router.get("/comparar", async (req, res) => {
     res.json({ eventos: rows });
   } catch (error) {
     console.error("ERRO CEO /comparar:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/anos-disponiveis — anos (dtinirealizacao) com orçamento não recusado, p/ seletor de ano.
+router.get("/anos-disponiveis", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+
+    const { rows } = await pool.query(
+      `SELECT DISTINCT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano
+       FROM orcamentos o
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       WHERE oe.idempresa = $1 AND o.status <> 'R' AND o.idevento IS NOT NULL
+         AND o.dtinirealizacao IS NOT NULL
+       ORDER BY ano DESC`,
+      [idempresa]
+    );
+    res.json(rows.map((r) => r.ano));
+  } catch (error) {
+    console.error("ERRO CEO /anos-disponiveis:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/filtrar — dashboard: combina idcliente/idevento/ano/datainicio/datafim (todos opcionais).
+router.get("/filtrar", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+
+    const { idcliente, idevento, ano, datainicio, datafim } = req.query;
+    const { filtro, params } = buildFiltro(idempresa, {
+      idcliente: idcliente ? parseInt(idcliente, 10) : null,
+      idevento: idevento ? parseInt(idevento, 10) : null,
+      ano: ano ? parseInt(ano, 10) : null,
+      datainicio: datainicio || null,
+      datafim: datafim || null,
+    });
+
+    const { rows } = await pool.query(
+      queryAnalise(filtro, "ORDER BY custo_previsto DESC NULLS LAST"),
+      params
+    );
+    res.json({ eventos: rows });
+  } catch (error) {
+    console.error("ERRO CEO /filtrar:", error);
     res.status(500).json({ error: error.message });
   }
 });

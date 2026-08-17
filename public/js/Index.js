@@ -208,6 +208,12 @@ window.temPermissao = function (modulo, acao) {
         botao.style.display = "none";
         return;
       }
+    } else if (modulo === "ConsultaLogs") {
+      if (!temPermissao("Staff", "devs") && !temPermissao("Staff", "supremo")) {
+        botao.style.display = "none";
+        document.querySelector("li.Devs")?.style.setProperty("display", "none");
+        return;
+      }
     } else if (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar")) {
       botao.style.display = "none";
       return;
