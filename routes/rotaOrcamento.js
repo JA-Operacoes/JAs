@@ -88,7 +88,8 @@ router.get(
             descontoitem, percentdescontoitem, acrescimoitem, percentacrescimoitem,
             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
             vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
-            totgeralitem, setor, cachefechado, adicional, idsolicitacao, obsbonificado
+            totgeralitem, setor, cachefechado, adicional, idsolicitacao, obsbonificado,
+            liberarcontratacao
         FROM orcamentoitens
         WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
@@ -2068,6 +2069,35 @@ router.post(
   }
 );
 
+// Checagem instantânea (sem esperar o Salvar) se já existe staff alocado para
+// este item, usada pra impedir/avisar na hora que o usuário desmarca o
+// checkbox de "Liberar Contratação" de um item específico — mesma regra
+// aplicada no PUT /:id ao salvar.
+router.get('/verificar-staff-alocado', autenticarToken(), contextoEmpresa, async (req, res) => {
+    const { idorcamento, idfuncao, setor } = req.query;
+
+    if (!idorcamento || !idfuncao) {
+        return res.status(400).json({ error: "idorcamento e idfuncao são obrigatórios." });
+    }
+
+    try {
+        const { rows } = await pool.query(`
+            SELECT 1 FROM staffeventos
+            WHERE idorcamento = $1 AND idfuncao = $2
+              AND (ativo = true OR statusstaff = 'Pendente')
+              AND statusstaff NOT IN ('Inativo', 'Deletado')
+              AND regexp_replace(upper(unaccent(trim(COALESCE(setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+                  = regexp_replace(upper(unaccent(trim(COALESCE($3::text,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+            LIMIT 1
+        `, [idorcamento, idfuncao, setor ?? '']);
+
+        res.status(200).json({ temStaffAlocado: rows.length > 0 });
+    } catch (error) {
+        console.error("Erro ao verificar staff alocado:", error);
+        res.status(500).json({ error: "Erro ao verificar staff alocado.", detail: error.message });
+    }
+});
+
 // Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
 router.post('/verificar-duplicidade', async (req, res) => {
     const { idOrcamento, idFuncao, setor } = req.body;
@@ -2907,6 +2937,20 @@ router.put("/:id",
     try {
       await client.query("BEGIN");
 
+      // Pega o contratarstaff ANTES de sobrescrever: precisamos saber se o
+      // checkbox de "liberar contratação" do orçamento está sendo LIGADO
+      // agora (transição false/null → true). Só nessa transição é que ele
+      // deve "liberar todos" de fato, resetando qualquer item que o usuário
+      // tenha desmarcado manualmente antes — se o checkbox já estava true e
+      // continua true, itens desmarcados individualmente devem permanecer
+      // desmarcados.
+      const { rows: contratarstaffAntesRows } = await client.query(
+        `SELECT contratarstaff FROM orcamentos WHERE idorcamento = $1`,
+        [idOrcamento]
+      );
+      const contratarstaffAntes = contratarstaffAntesRows[0]?.contratarstaff === true;
+      const liberandoTodosAgora = !contratarstaffAntes && contratarstaff === true;
+
       // 1. Atualizar a tabela 'orcamentos'
       const updateOrcamentoQuery = `UPDATE orcamentos SET
                         "status" = $1, idcliente = $2, idevento = $3, idmontagem = $4,
@@ -3284,6 +3328,36 @@ router.put("/:id",
         }
       
 
+        // Libera/bloqueia contratação de staff PARA ESTE ITEM especificamente.
+        // Se o checkbox do orçamento acabou de ser ligado agora, força true em
+        // todos (reset do "liberar todos"). Caso contrário, respeita o que o
+        // item já tinha e sobrescreve só se o frontend mandou explicitamente
+        // um valor diferente — e nunca permite desmarcar (false) um item que
+        // já tenha staff ativo/pendente alocado, pra não deixar staff já
+        // contratado "pendurado" sem contratação liberada.
+        let liberarContratacaoItem = item.liberarcontratacao !== false;
+        if (liberandoTodosAgora) {
+          liberarContratacaoItem = true;
+        } else if (item.liberarcontratacao === false && item.idfuncao) {
+          const { rows: staffAtivoRows } = await client.query(`
+            SELECT 1 FROM staffeventos
+            WHERE idorcamento = $1 AND idfuncao = $2
+              AND (ativo = true OR statusstaff = 'Pendente')
+              AND statusstaff NOT IN ('Inativo', 'Deletado')
+              AND regexp_replace(upper(unaccent(trim(COALESCE(setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+                  = regexp_replace(upper(unaccent(trim(COALESCE($3::text,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+            LIMIT 1
+          `, [idOrcamento, item.idfuncao, item.setor ?? '']);
+
+          if (staffAtivoRows.length > 0) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({
+              error: "Não é possível desabilitar a contratação deste item.",
+              detail: `Já existe staff contratado para "${item.produto}". Remova o staff primeiro para poder desmarcar este item.`,
+            });
+          }
+        }
+
         if (item.id && existingItemIds.has(Number(item.id))) {
           // UPDATE DO ITEM EXISTENTE
           const updateItemQuery = `
@@ -3295,7 +3369,8 @@ router.put("/:id",
                 tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
                 totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
                 adicional = $28,
-                vlrbase = $29, cachefechado = $30, idsolicitacao = $31, obsbonificado = $32
+                vlrbase = $29, cachefechado = $30, idsolicitacao = $31, obsbonificado = $32,
+                liberarcontratacao = $35
             WHERE idorcamentoitem = $33 AND idorcamento = $34;
           `;
 
@@ -3324,7 +3399,8 @@ router.put("/:id",
             idsArray,   // $31 — coluna integer, guarda só o ID primário
             item.obsbonificado ?? null,      // $32
             item.id,              // $33
-            idOrcamento           // $34
+            idOrcamento,          // $34
+            liberarContratacaoItem, // $35
           ];
 
           await client.query(updateItemQuery, itemValues);
@@ -3343,7 +3419,7 @@ router.put("/:id",
                 vlrajdctotransporte, totajdctoitem,
                 hospedagem, transporte, totgeralitem,
                 setor, adicional,
-                vlrbase, cachefechado, idsolicitacao, obsbonificado
+                vlrbase, cachefechado, idsolicitacao, obsbonificado, liberarcontratacao
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6, $7, $8,
@@ -3354,7 +3430,7 @@ router.put("/:id",
                 $21, $22, $23,
                 $24, $25, $26,
                 $27, $28, $29,
-                $30, $31, $32, $33
+                $30, $31, $32, $33, $34
             )
           `;
 
@@ -3382,7 +3458,8 @@ router.put("/:id",
             vlrBaseInsert,                    // $30
             item.cachefechado,                // $31
             idsArray,                         // $32 — coluna integer, guarda só o ID primário
-            item.obsbonificado ?? null        // $33
+            item.obsbonificado ?? null,       // $33
+            liberarContratacaoItem            // $34
           ];
 
           await client.query(insertItemQuery, itemValues);

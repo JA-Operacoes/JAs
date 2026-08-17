@@ -177,6 +177,40 @@ selects.forEach((select) => {
   select.addEventListener("change", atualizaProdutoOrc);
 });
 
+// Valida a desmarcação do checkbox "Liberar Contratação" NA HORA (sem esperar
+// o Salvar) — se já houver staff alocado para o item, avisa e volta o
+// checkbox pro estado marcado. Delegado em #tabela pra funcionar em qualquer
+// linha, inclusive as adicionadas dinamicamente depois deste script rodar.
+document.getElementById("tabela")?.addEventListener("change", async function (e) {
+  if (!e.target.classList.contains("liberarContratacao-input")) return;
+  const checkbox = e.target;
+  if (checkbox.checked) return; // só valida ao desmarcar
+
+  const linha = checkbox.closest("tr");
+  const idFuncao = linha?.querySelector(".idFuncao")?.value;
+  const idOrcamento = document.getElementById("idOrcamento")?.value;
+  const setor = linha?.querySelector(".setor-input")?.value || "";
+
+  if (!idFuncao || !idOrcamento) return; // orçamento novo/sem função — nada pra checar ainda
+
+  try {
+    const resposta = await fetchComToken(
+      `orcamentos/verificar-staff-alocado?idorcamento=${idOrcamento}&idfuncao=${idFuncao}&setor=${encodeURIComponent(setor)}`
+    );
+    if (resposta?.temStaffAlocado) {
+      await Swal.fire({
+        title: "Não é possível desmarcar este item",
+        html: "Já existe staff contratado para este item. Remova o staff primeiro para poder desmarcar este item.",
+        icon: "warning",
+        confirmButtonText: "Entendido",
+      });
+      checkbox.checked = true; // só volta a marcar depois que o usuário clicar em "Entendido"
+    }
+  } catch (err) {
+    console.error("Erro ao verificar staff alocado:", err);
+  }
+});
+
 const selectFuncao = document.getElementById("selectFuncao");
 if (selectFuncao) {
   selectFuncao.addEventListener("change", function () {
@@ -1550,6 +1584,19 @@ function adicionarLinhaOrc() {
                 </label>
             </div>
         </td>
+        <td class="LiberarContratacao" title="Desmarque para impedir a contratação de staff para este item específico (ex.: aditivo/bonificado ainda não autorizado), mesmo com o orçamento liberado/fechado.">
+            <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                    <input type="checkbox" class="checkbox__trigger visuallyhidden liberarContratacao-input" checked>
+                    <span class="checkbox__symbol">
+                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 14l8 7L24 7"></path>
+                        </svg>
+                    </span>
+                    <p class="checkbox__textwrapper"></p>
+                </label>
+            </div>
+        </td>
         <td class="cacheFechado">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
@@ -2051,6 +2098,18 @@ async function adicionarLinhaAdicional(isBonificado = false) {
               </span>
           </label>
           ${isBonificado ? '<br><span style="font-size: 10px; color: #ff0000; font-weight: bold;">[BONIFICADO]</span>' : '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">[ADITIVO]</span>'}
+        </div>
+      </td>
+      <td class="LiberarContratacao" title="Desmarque para impedir a contratação de staff para este item específico (aditivo/bonificado ainda não autorizado), mesmo com o orçamento liberado/fechado.">
+        <div class="checkbox-wrapper-33">
+          <label class="checkbox">
+            <input type="checkbox" class="checkbox__trigger visuallyhidden liberarContratacao-input" checked>
+            <span class="checkbox__symbol">
+              <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                <path d="M4 14l8 7L24 7"></path>
+              </svg>
+            </span>
+          </label>
         </div>
       </td>
 
@@ -4391,6 +4450,7 @@ async function verificaOrcamento() {
                 linha.querySelector('.Proposta input[type="checkbox"]')?.checked ||
                 false,
             cachefechado: !!linha.querySelector('.cacheFechado input[type="checkbox"]')?.checked || false,
+            liberarcontratacao: linha.querySelector('.liberarContratacao-input')?.checked ?? true,
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
             qtditens:
                 parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
@@ -5023,9 +5083,16 @@ async function verificaOrcamento() {
               swalIcon  = erroData.icon;
               errorMessage = erroData.message;
           } else {
-              errorMessage = erroData?.message || errorMessage || error.message;
+              // Muitas rotas do backend respondem { error, detail } em vez de
+              // { message } (ex.: bloqueio de "liberar contratação" do item).
+              // Sem isso, caía direto no error.message bruto — o JSON inteiro
+              // da resposta, cheio de detalhe técnico irrelevante pro usuário.
+              errorMessage = erroData?.message || erroData?.detail || erroData?.error || errorMessage || error.message;
 
-              if (errorMessage.includes("depende de aprovação") || errorMessage.includes("em análise")) {
+              if (errorMessage.includes("desabilitar a contratação")) {
+                  swalTitle = "Não é possível desmarcar este item";
+                  swalIcon  = "warning";
+              } else if (errorMessage.includes("depende de aprovação") || errorMessage.includes("em análise")) {
                   swalTitle = "Processo em Análise";
                   swalIcon  = "info";
               } else if (errorMessage.includes("foi REJEITADA") || errorMessage.includes("Não autorizado")) {
@@ -5814,6 +5881,20 @@ function atualizarEstadoLiberaStaff(status) {
       }
     });
 
+    // Espelha o estado do checkbox master em TODOS os itens da tabela, na hora
+    // (não só ao salvar). Ao desmarcar, dispara o 'change' de cada item pra
+    // passar pela mesma validação de "já tem staff alocado" — se algum item
+    // não puder ser desmarcado, ele mesmo volta a marcar (com o aviso), sem
+    // travar os demais.
+    checkLiberaStaff.addEventListener("change", function () {
+      const marcarTodos = checkLiberaStaff.checked;
+      document.querySelectorAll("#tabela tbody .liberarContratacao-input").forEach((cb) => {
+        if (cb.checked === marcarTodos) return;
+        cb.checked = marcarTodos;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+
     console.log("Liberado Contratação Staff:", checkLiberaStaff.checked);
   } else {
     console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
@@ -6146,6 +6227,18 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             </span>
           </label>
           ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;"></span>' : ''}
+        </div>
+      </td>
+      <td class="LiberarContratacao" title="Desmarque para impedir a contratação de staff para este item específico, mesmo com o orçamento liberado/fechado.">
+        <div class="checkbox-wrapper-33">
+          <label class="checkbox">
+            <input type="checkbox" class="checkbox__trigger visuallyhidden liberarContratacao-input" ${item.liberarcontratacao === false ? "" : "checked"}>
+            <span class="checkbox__symbol">
+              <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                <path d="M4 14l8 7L24 7"></path>
+              </svg>
+            </span>
+          </label>
         </div>
       </td>
       <td class="cacheFechado">

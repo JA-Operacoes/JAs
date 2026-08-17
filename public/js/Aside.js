@@ -328,19 +328,27 @@ async function carregarOrcamentos(clienteId, eventoId) {
                         linkModal.click();
 
                         // Espera o #nrOrcamento existir, window.preencherFormularioComOrcamento estar
-                        // disponível de novo (prova que o novo módulo terminou o setup síncrono) E o
+                        // disponível de novo (prova que o novo módulo terminou o setup síncrono), o
                         // Flatpickr do período de Marcação já estar de fato anexado ao elemento atual do
-                        // DOM (flatpickr grava a instância em element._flatpickr) — essa terceira checagem
-                        // é o sinal mais confiável, pois é uma propriedade do próprio nó vivo, não de uma
-                        // referência de módulo que pode ficar obsoleta entre aberturas.
+                        // DOM (flatpickr grava a instância em element._flatpickr — sinal mais confiável,
+                        // pois é uma propriedade do próprio nó vivo, não de referência de módulo que pode
+                        // ficar obsoleta entre aberturas) E os selects de Local de Montagem e Empresa
+                        // Emissora já terem suas <option> carregadas (vêm de fetches assíncronos
+                        // separados — carregarLocalMontOrc/carregarEmpresasEmissorasOrc — e
+                        // preencherFormularioComOrcamento só consegue setar select.value se a <option>
+                        // correspondente já existir; sem essa checagem esses dois campos ficavam vazios).
                         const aguardarModalPronto = () => new Promise((resolve) => {
                             const tentativa = setInterval(() => {
                                 const input = document.getElementById("nrOrcamento");
                                 const campoMarcacao = document.getElementById("periodoMarcacao");
+                                const selectMontagem = document.querySelector(".idMontagem");
+                                const selectEmpresaEmissora = document.querySelector(".idEmpresaEmissora");
                                 if (
                                     input &&
                                     typeof window.preencherFormularioComOrcamento === "function" &&
-                                    campoMarcacao && campoMarcacao._flatpickr
+                                    campoMarcacao && campoMarcacao._flatpickr &&
+                                    selectMontagem && selectMontagem.options.length > 1 &&
+                                    selectEmpresaEmissora && selectEmpresaEmissora.options.length > 1
                                 ) {
                                     clearInterval(tentativa);
                                     resolve(input);

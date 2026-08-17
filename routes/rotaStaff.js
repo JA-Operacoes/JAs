@@ -684,6 +684,7 @@ router.post("/orcamento/consultar",
                     o.status,
                     o.idorcamento,
                     o.contratarstaff,
+                    oi.liberarcontratacao,
                     dto.periodos_disponiveis AS datas_totais_orcadas,
                     
                     COALESCE(tof.total, 0) AS quantidade_orcada,
@@ -745,7 +746,7 @@ router.post("/orcamento/consultar",
                     oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia,
                     lm.descmontagem, oi.setor, o.idevento, o.idcliente,
                     o.idmontagem, oi.idfuncao, o.status, o.idorcamento,
-                    o.contratarstaff, dto.periodos_disponiveis,
+                    o.contratarstaff, oi.liberarcontratacao, dto.periodos_disponiveis,
                     dnf.total_normais, dro.total_reaproveitado, tof.total,
                     tof.total_custo_orcado, dnf.total_custo_normal, df.total_custo_dobrado
                 ORDER BY o.contratarstaff DESC, o.dtinirealizacao DESC, oi.idorcamentoitem DESC;`;
@@ -3435,6 +3436,24 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         );
         if (orcCheck.length > 0 && orcCheck[0].contratarstaff === false && tipoSolicitacaoAditivo !== 'Vaga Reaproveitada') {
             return res.status(403).json({ erro: 'O orçamento selecionado não está habilitado para contratação de staff (contratarstaff = false).' });
+        }
+
+        // Bloqueia também quando o orçamento libera contratação no geral (ou está
+        // fechado), mas o ITEM específico foi desmarcado individualmente — ex.:
+        // um aditivo/bonificado incluído depois do fechamento e ainda não
+        // autorizado pelo cliente não deve poder contratar só porque o
+        // orçamento como um todo já está liberado/fechado.
+        if (idfuncao && tipoSolicitacaoAditivo !== 'Vaga Reaproveitada') {
+            const { rows: itemCheck } = await pool.query(`
+                SELECT liberarcontratacao FROM orcamentoitens
+                WHERE idorcamento = $1 AND idfuncao = $2
+                  AND regexp_replace(upper(unaccent(trim(COALESCE(setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+                      = regexp_replace(upper(unaccent(trim(COALESCE($3::text,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+                LIMIT 1
+            `, [idorcamento, idfuncao, setor ?? '']);
+            if (itemCheck.length > 0 && itemCheck[0].liberarcontratacao === false) {
+                return res.status(403).json({ erro: 'Este item do orçamento está com a contratação de staff desabilitada individualmente.' });
+            }
         }
     }
 

@@ -947,6 +947,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
           bool_or(i.cachefechado = true) as tem_cache_fechado,
           i.idorcamento,
           o.contratarstaff,
+          bool_and(COALESCE(i.liberarcontratacao, true)) AS liberarcontratacao,
           COALESCE(SUM(CASE
             WHEN i.adicional = true AND COALESCE(i.vlrdiaria, 0) = 0
             THEN 0 ELSE i.totgeralitem END), 0) AS vlr_orcado_item,
@@ -1424,6 +1425,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         datas_staff: datas_staff,
         tem_cache_fechado: item.tem_cache_fechado,
         contratarstaff: item.contratarstaff,
+        liberarcontratacao: item.liberarcontratacao !== false,
         vagas_usadas_em: reaproveitadasMap[`${Number(item.idfuncao)}_${setorNormalizado}_${Number(item.idorcamento)}`] || [],
         qtd_aditivo_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd || 0,
         qtd_limite_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd_limite || 0,
