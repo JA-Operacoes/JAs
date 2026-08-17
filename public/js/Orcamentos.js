@@ -164,8 +164,14 @@ let GLOBAL_PERCENTUAL_AJUDA = 0; // Para Alimentação/Transporte
 let nrOrcamentoOriginal = "";
 let mensagemReajuste = "";
 
+// Nota: NÃO incluir ".idPavilhao" aqui — esse é o select de cabeçalho
+// "#selecionarPavilhao" (escolha do pavilhão do Local de Montagem), que fica
+// FORA da tabela de itens e tem seu próprio listener dedicado (vide
+// "selecionarPavilhao" mais abaixo). Incluí-lo aqui fazia atualizaProdutoOrc
+// disparar sem uma <tr> ancestral e cair no fallback de "primeira linha da
+// tabela", sobrescrevendo com dados vazios/zerados o último item adicionado.
 let selects = document.querySelectorAll(
-  ".idFuncao, .idEquipamento, .idSuprimento, .idPavilhao"
+  ".idFuncao, .idEquipamento, .idSuprimento"
 );
 selects.forEach((select) => {
   select.addEventListener("change", atualizaProdutoOrc);
@@ -3091,34 +3097,11 @@ async function atualizaProdutoOrc(event, linhaFornecida) {
     }
 
     if (!linha) {
-        // Plano C: usa a última linha adicionada pelo usuário (prepend ou append), senão first-child
+        // Plano C: usa a última linha adicionada pelo usuário (prepend ou append), senão first-child.
+        // Seguro agora que só selects DENTRO da tabela (.idFuncao/.idEquipamento/.idSuprimento)
+        // chamam esta função — o select de pavilhão do Local de Montagem (.idPavilhao) foi
+        // removido da lista de listeners logo acima, então não cai mais aqui por engano.
         linha = window._ultimaLinhaAdicionada || document.querySelector("#tabela tbody tr:first-child");
-    }
-
-    if (!linha) {
-        console.error("Erro Fatal: Não foi possível encontrar a linha (TR) de nenhuma forma.");
-        return;
-    }
-
-    console.log("Select alterado com sucesso na linha:", linha);
-
-
-    // 1. BUSCA EXAUSTIVA PELA LINHA (TR)
-    // let linha = linhaFornecida || select.closest('tr');
-
-    // Plano B: Se o select estiver dentro de um componente customizado que esconde o original
-    if (!linha) {
-        // Tenta encontrar pelo ID ou classe pai se o closest falhar por causa de Shadow DOM ou bibliotecas de Select
-        const container = select.parentElement;
-        if (container) {
-            linha = container.closest('tr');
-        }
-    }
-
-    if (!linha) {
-        // Plano C: Se ainda assim for null, tenta pegar a última linha clicada ou a primeira da tabela (Emergência)
-        console.warn("Aviso: closest('tr') falhou. Tentando localizar via DOM estável.");
-        linha = document.querySelector("#tabela tbody tr:first-child"); 
     }
 
     if (!linha) {
@@ -5541,6 +5524,17 @@ export async function limparOrcamento() {
 let prePosAtivo = false;
 let montagemInfraAtivo = false;
 
+// Exposta em window porque quem abre o orçamento pelo Aside faz um
+// `import('./Orcamentos.js')` separado (URL sem o cache-busting "?t=" usado
+// pela <script> que Index.js injeta), o que o navegador trata como uma
+// SEGUNDA instância deste módulo, com seu próprio `flatpickrInstances` vazio
+// — os pickers de período (Marcação/Montagem/Realização/Desmontagem) nunca
+// tinham sido inicializados nessa cópia, então o preenchimento sempre pulava
+// esses campos silenciosamente. Chamar via window garante que é sempre a
+// MESMA instância de módulo (a que o script.onload de Index.js inicializou)
+// que preenche o formulário.
+window.preencherFormularioComOrcamento = preencherFormularioComOrcamento;
+
 export async function preencherFormularioComOrcamento(orcamento) {
   console.log("ENTROU NO PREENCHER FORUMLARIO DO ORÇAMENTO")
   if (!orcamento) {
@@ -6421,6 +6415,9 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 }
 
 // --- Função para Limpar o Formulário Principal ---
+
+// Mesmo motivo do window.preencherFormularioComOrcamento acima.
+window.limparFormularioOrcamento = limparFormularioOrcamento;
 
 export function limparFormularioOrcamento() {
   document.getElementById("form").reset();

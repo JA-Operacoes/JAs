@@ -314,42 +314,65 @@ async function carregarOrcamentos(clienteId, eventoId) {
 
                     const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
                     if (linkModal) {
+                        // Se o modal já foi aberto antes nesta sessão, window.preencherFormularioComOrcamento
+                        // ainda aponta para a instância ANTERIOR do módulo Orcamentos.js (com Flatpickr
+                        // ligados ao <tr>/modal antigo, já removido do DOM). Sem limpar isso aqui, o
+                        // polling abaixo via "typeof window.preencherFormularioComOrcamento === function"
+                        // passava na hora — usando a função velha — e é exatamente por isso que 1 em cada
+                        // poucas tentativas falhava mesmo com o polling: a condição já estava satisfeita
+                        // por um estado obsoleto antes do novo <script> terminar de (re)inicializar.
+                        delete window.preencherFormularioComOrcamento;
+                        delete window.limparFormularioOrcamento;
+
                         console.log("🟡 Abrindo modal de orçamento...");
                         linkModal.click();
 
-                        setTimeout(async () => {
-                            console.log("🔵 Timeout disparado: tentando preencher o modal");
-                            const input = document.getElementById("nrOrcamento");
-                            if (input) {
+                        // Espera o #nrOrcamento existir, window.preencherFormularioComOrcamento estar
+                        // disponível de novo (prova que o novo módulo terminou o setup síncrono) E o
+                        // Flatpickr do período de Marcação já estar de fato anexado ao elemento atual do
+                        // DOM (flatpickr grava a instância em element._flatpickr) — essa terceira checagem
+                        // é o sinal mais confiável, pois é uma propriedade do próprio nó vivo, não de uma
+                        // referência de módulo que pode ficar obsoleta entre aberturas.
+                        const aguardarModalPronto = () => new Promise((resolve) => {
+                            const tentativa = setInterval(() => {
+                                const input = document.getElementById("nrOrcamento");
+                                const campoMarcacao = document.getElementById("periodoMarcacao");
+                                if (
+                                    input &&
+                                    typeof window.preencherFormularioComOrcamento === "function" &&
+                                    campoMarcacao && campoMarcacao._flatpickr
+                                ) {
+                                    clearInterval(tentativa);
+                                    resolve(input);
+                                }
+                            }, 50);
+                            setTimeout(() => {
+                                clearInterval(tentativa);
+                                resolve(document.getElementById("nrOrcamento") || null);
+                            }, 5000);
+                        });
+
+                        aguardarModalPronto().then(async (input) => {
+                            console.log("🔵 Modal pronto: tentando preencher");
+                            if (input && typeof window.preencherFormularioComOrcamento === "function") {
                                 console.log("🟣 Campo nrOrcamento encontrado. Preenchendo com:", orc.nrorcamento);
                                 input.value = orc.nrorcamento;
-
-                                // Início da atualização: Simula o evento de Enter
-                                const enterEvent = new KeyboardEvent('keydown', {
-                                    key: 'Enter',
-                                    code: 'Enter',
-                                    keyCode: 13,
-                                    which: 13,
-                                    bubbles: true,
-                                });
-                                input.dispatchEvent(enterEvent);
 
                                 try {
                                     console.log("🟤 Buscando orçamento detalhado via API...");
                                     const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
-                                    const moduloOrcamento = await import('./Orcamentos.js');
                                     console.log("✅ Dados recebidos, preenchendo formulário. ");
-                                    moduloOrcamento.preencherFormularioComOrcamento(orcamento);
+                                    window.preencherFormularioComOrcamento(orcamento);
                                 } catch (error) {
                                     console.error("❌ Erro ao buscar orçamento:", error);
-                                    const moduloOrcamento = await import('./Orcamentos.js');
-                                    moduloOrcamento.limparFormularioOrcamento();
+                                    window.limparFormularioOrcamento?.();
                                     Swal.fire("Erro", `Não foi possível buscar o orçamento ${orc.nrorcamento}.`, "error");
                                 }
                             } else {
-                                console.warn("⚠️ Campo #nrOrcamento NÃO encontrado dentro do modal.");
+                                console.warn("⚠️ Modal não ficou pronto a tempo (campo ou função de preenchimento ausentes).");
+                                Swal.fire("Erro", "O modal do orçamento demorou demais para carregar. Tente novamente.", "error");
                             }
-                        }, 500);
+                        });
                     } else {
                         console.error("❌ Botão para abrir o modal não encontrado.");
                         Swal.fire("Erro", "Botão para abrir o modal não encontrado.", "error");
