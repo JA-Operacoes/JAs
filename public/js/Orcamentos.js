@@ -181,6 +181,19 @@ selects.forEach((select) => {
 // o Salvar) — se já houver staff alocado para o item, avisa e volta o
 // checkbox pro estado marcado. Delegado em #tabela pra funcionar em qualquer
 // linha, inclusive as adicionadas dinamicamente depois deste script rodar.
+// Bloqueia o clique no checkbox por item enquanto o orçamento está "A"
+// (Aberto) — mesma regra do checkbox mestre #liberaContratacao: só libera
+// depois que o orçamento avança (geração do contrato/proposta).
+document.getElementById("tabela")?.addEventListener("click", function (e) {
+  if (!e.target.classList.contains("liberarContratacao-input")) return;
+  const statusAtual = document.getElementById("Status")?.value || "";
+  if (statusAtual === "A") {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Clique bloqueado em 'liberarContratacao-input' porque status é 'A'");
+  }
+});
+
 document.getElementById("tabela")?.addEventListener("change", async function (e) {
   if (!e.target.classList.contains("liberarContratacao-input")) return;
   const checkbox = e.target;
@@ -1538,6 +1551,26 @@ window.toggleEditavel = function(checkbox) {
 
 
 
+// Mesma verificação usada pelo checkbox mestre "Liberado Para Contratar Staff"
+// (#liberaContratacao, em atualizarEstadoLiberaStaff): o checkbox por item só
+// pode ser clicado depois que o orçamento sai do status "A" (Aberto), o que
+// na prática acontece junto com a geração do contrato/proposta.
+function aplicarBloqueioLiberarContratacaoItens() {
+  const statusAtual = document.getElementById("Status")?.value || "";
+  const isBloqueado = statusAtual === "A";
+
+  document.querySelectorAll("#tabela tbody .liberarContratacao-input").forEach((cb) => {
+    cb.disabled = isBloqueado;
+    const wrapper = cb.closest(".checkbox-wrapper-33");
+    if (wrapper) {
+      wrapper.style.cursor = isBloqueado ? "not-allowed" : "pointer";
+      cb.style.cursor = isBloqueado ? "not-allowed" : "pointer";
+      wrapper.style.pointerEvents = "auto";
+      wrapper.classList.toggle("status-aprovado", isBloqueado);
+    }
+  });
+}
+
 function adicionarLinhaOrc() {
   let tabela = document
     .getElementById("tabela")
@@ -2020,6 +2053,7 @@ function adicionarLinhaOrc() {
   recalcularTotaisGerais();
   aplicarMascaraMoeda();
   limparSelects();
+  aplicarBloqueioLiberarContratacaoItens();
 }
 
 
@@ -4635,27 +4669,17 @@ async function verificaOrcamento() {
           if (ehDuplicata) return;
       }
 
-      // Campos obrigatórios pra emitir a Nota Fiscal depois (Empresa
-      // Emissora, vencimento de cada parcela) e Local de Montagem (já era
-      // obrigatório na criação, faltava confirmar/bloquear na edição). Um
-      // swal só, listando tudo que falta, em vez de vários avisos soltos.
+      // Campo obrigatório pra emitir a Nota Fiscal depois: Local de Montagem
+      // (já era obrigatório na criação, faltava confirmar/bloquear na
+      // edição). Empresa Emissora e vencimento só são exigidos na hora de
+      // gerar a proposta (ver PropostaouContrato).
       const camposFaltando = [];
 
       if (!document.querySelector(".idMontagem option:checked")?.value) {
         camposFaltando.push("Local de Montagem");
       }
-      if (!document.querySelector(".idEmpresaEmissora")?.value) {
-        camposFaltando.push("Empresa Emissora da NF");
-      }
 
       const parcelasParaValidar = coletarParcelasParaEnviar();
-      if (parcelasParaValidar && parcelasParaValidar.some((p) => !p.dtvencimento)) {
-        camposFaltando.push(
-          document.getElementById("chkParcelado")?.checked
-            ? "Vencimento de todas as parcelas"
-            : "Data de vencimento"
-        );
-      }
 
       if (camposFaltando.length) {
         await Swal.fire({
@@ -4708,11 +4732,23 @@ async function verificaOrcamento() {
       // 4. Lidar com a resposta do backend
       window._setorSugeridoCache = null;
 
-      Swal.fire(
-        "Sucesso!",
-        resultado.message || "Orçamento salvo com sucesso!",
-        "success"
-      );
+      const { isConfirmed: desejaNovoOrcamento } = await Swal.fire({
+        title: "Sucesso!",
+        html:
+          `${resultado.message || "Orçamento salvo com sucesso!"}<br><br>` +
+          "Deseja abrir um <b>novo orçamento</b> reaproveitando os dados principais deste " +
+          "(cliente, evento, edição, local de montagem, pavilhão, pré/pós evento, infra e períodos)?",
+        icon: "success",
+        showCancelButton: true,
+        confirmButtonText: "Sim, Manter Dados",
+        cancelButtonText: "OK, Fechar",
+        reverseButtons: true,
+      });
+
+      if (desejaNovoOrcamento) {
+        await abrirNovoOrcamentoComDadosPrincipais(dadosOrcamento);
+      }
+
       btnEnviar.disabled = false;
       btnEnviar.textContent = "Salvo";
       // Se for uma criação e o backend retornar o ID, atualize o formulário
@@ -5532,6 +5568,7 @@ export async function limparOrcamento() {
     if (statusInput) {
         statusInput.value = "A";
     }
+    aplicarBloqueioLiberarContratacaoItens();
 
     // Desbloquear todos os campos e botões
     console.log("DEBUG: Desbloqueando campos e botões...");
@@ -5588,6 +5625,100 @@ export async function limparOrcamento() {
     );
 }
 
+/**
+ * Após salvar um orçamento, abre um novo orçamento em branco reaproveitando
+ * apenas os dados principais do que acabou de ser salvo (cliente, evento,
+ * edição, local de montagem, pavilhão, pré/pós evento, infra e períodos).
+ * Itens, valores e empresa emissora ficam vazios, pois são específicos do
+ * orçamento anterior.
+ */
+async function abrirNovoOrcamentoComDadosPrincipais(dados) {
+  // Captura os pavilhões (id/nome) selecionados ANTES de limpar, pois
+  // `dados.idsPavilhoes` só tem os IDs e `limparOrcamento` não zera essa
+  // variável, mas vamos reaproveitá-la explicitamente por segurança.
+  const pavilhoesParaNovoOrcamento = [...selectedPavilhoes];
+
+  await limparOrcamento();
+
+  const edicaoInput = document.getElementById("edicao");
+  if (edicaoInput) edicaoInput.value = dados.edicao || "";
+
+  const clienteSelect = document.querySelector(".idCliente");
+  if (clienteSelect) clienteSelect.value = dados.idCliente || "";
+
+  const eventoSelect = document.querySelector(".idEvento");
+  if (eventoSelect) eventoSelect.value = dados.idEvento || "";
+
+  const localMontagemSelect = document.querySelector(".idMontagem");
+  if (localMontagemSelect) {
+    localMontagemSelect.value = dados.idMontagem || "";
+    atualizarUFOrc(localMontagemSelect);
+
+    if (dados.idMontagem) {
+      await carregarPavilhaoOrc(dados.idMontagem);
+    } else {
+      await carregarPavilhaoOrc("");
+    }
+  }
+
+  selectedPavilhoes = pavilhoesParaNovoOrcamento;
+  updatePavilhaoDisplayInputs();
+
+
+  let prePosAtivoNovo = false;
+  let montagemInfraAtivoNovo = false;
+
+  const periodosParaNovoOrcamento = {
+    periodoPreEvento: { inicio: dados.dtIniPreEvento, fim: dados.dtFimPreEvento, prePos: true },
+    periodoInfraMontagem: { inicio: dados.dtIniInfraMontagem, fim: dados.dtFimInfraMontagem, infra: true },
+    periodoMontagem: { inicio: dados.dtIniMontagem, fim: dados.dtFimMontagem },
+    periodoMarcacao: { inicio: dados.dtIniMarcacao, fim: dados.dtFimMarcacao },
+    periodoRealizacao: { inicio: dados.dtIniRealizacao, fim: dados.dtFimRealizacao },
+    periodoDesmontagem: { inicio: dados.dtIniDesmontagem, fim: dados.dtFimDesmontagem },
+    periodoDesmontagemInfra: { inicio: dados.dtIniDesmontagemInfra, fim: dados.dtFimDesmontagemInfra, infra: true },
+    periodoPosEvento: { inicio: dados.dtIniPosEvento, fim: dados.dtFimPosEvento, prePos: true },
+  };
+
+  for (const id in flatpickrInstances) {
+    const pickerInstance = flatpickrInstances[id];
+    const periodo = periodosParaNovoOrcamento[id];
+    if (!pickerInstance || typeof pickerInstance.setDate !== "function" || !periodo) continue;
+
+    const startDate = periodo.inicio ? new Date(periodo.inicio) : null;
+    const endDate = periodo.fim ? new Date(periodo.fim) : null;
+    const hasValidDates =
+      (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
+
+    if (pickerInstance.config.mode === "range" && startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+      pickerInstance.setDate([startDate, endDate], true);
+    } else if (startDate && !isNaN(startDate.getTime())) {
+      pickerInstance.setDate(startDate, true);
+    } else {
+      pickerInstance.clear();
+    }
+
+    if (hasValidDates) {
+      if (periodo.prePos) prePosAtivoNovo = true;
+      if (periodo.infra) montagemInfraAtivoNovo = true;
+    }
+  }
+
+  const checkPrePos = document.getElementById("prepos");
+  if (checkPrePos) {
+    checkPrePos.checked = prePosAtivoNovo;
+    if (typeof atualizarVisibilidadePrePos === "function") atualizarVisibilidadePrePos();
+  }
+
+  const checkMontagemInfra = document.getElementById("ativo");
+  if (checkMontagemInfra) {
+    checkMontagemInfra.checked = montagemInfraAtivoNovo;
+    if (typeof atualizarVisibilidadeInfra === "function") atualizarVisibilidadeInfra();
+  }
+
+  const edicaoInputFoco = document.getElementById("edicao");
+  if (edicaoInputFoco) edicaoInputFoco.focus();
+}
+
 let prePosAtivo = false;
 let montagemInfraAtivo = false;
 
@@ -5604,7 +5735,11 @@ window.preencherFormularioComOrcamento = preencherFormularioComOrcamento;
 
 export async function preencherFormularioComOrcamento(orcamento) {
   console.log("ENTROU NO PREENCHER FORUMLARIO DO ORÇAMENTO")
-  if (!orcamento) {
+  // fetchComToken devolve `[]` (truthy) em respostas 404 — sem este segundo
+  // check, um orçamento não encontrado (ex.: de outra empresa) limpava o
+  // guard acima e seguia tentando preencher o formulário com um array vazio,
+  // deixando tudo em branco sem nenhum erro visível.
+  if (!orcamento || Array.isArray(orcamento) || !orcamento.idorcamento) {
     limparOrcamento();
     return;
   }
@@ -5856,6 +5991,9 @@ function atualizarEstadoLiberaStaff(status) {
     }
 
     console.log(`Checkbox Staff ${isBloqueado ? 'bloqueado' : 'habilitado'}: Status ${status}`);
+
+    // Reaplica a mesma regra aos checkboxes por item.
+    aplicarBloqueioLiberarContratacaoItens();
 }
 
     // Estado inicial com base no orcamento carregado
@@ -6404,6 +6542,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   }
 
   aplicarMascaraMoeda();
+  aplicarBloqueioLiberarContratacaoItens();
 }
 
 
@@ -9004,7 +9143,40 @@ function gerenciarBotoesProposta(status) {
 //     }
 // }
 
+// Empresa Emissora e Data de Vencimento não são obrigatórias para salvar o
+// orçamento, só para gerar a proposta (ela referencia esses dados no PDF).
+function validarCamposParaProposta() {
+  const camposFaltando = [];
+
+  if (!document.querySelector(".idEmpresaEmissora")?.value) {
+    camposFaltando.push("Empresa Emissora da NF");
+  }
+
+  if (document.getElementById("chkParcelado")?.checked) {
+    const parcelas = coletarParcelasParaEnviar();
+    if (!parcelas || parcelas.some((p) => !p.dtvencimento)) {
+      camposFaltando.push("Vencimento de todas as parcelas");
+    }
+  } else if (!document.getElementById("dtVencimentoAvista")?.value?.trim()) {
+    camposFaltando.push("Data de vencimento");
+  }
+
+  if (camposFaltando.length) {
+    Swal.fire({
+      title: "Faltam campos obrigatórios para gerar a proposta",
+      html: `Preencha antes de gerar a proposta:<br><br><b>${camposFaltando.join("</b><br><b>")}</b>`,
+      icon: "warning",
+      confirmButtonText: "Entendido",
+    });
+    return false;
+  }
+
+  return true;
+}
+
 async function gerarPropostaPDF() {
+  if (!validarCamposParaProposta()) return;
+
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
   let nrOrcamento = "";
 
@@ -9178,6 +9350,8 @@ function podeAtualizarParaStatusP(statusAtual) {
 }
 
 async function gerarPropostaAdicionaisPDF() {
+  if (!validarCamposParaProposta()) return;
+
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
   let nrOrcamento = "";
 
