@@ -412,7 +412,8 @@ function configurarFlatpickrs() {
                 const isPago = verificarSeEstaPago();
                
                 if (isPago && instance.usuarioAbriu) {
-                    registrarLogPosPagamento(`Alteração em Diária Dobrada: ${dateStr}`);                    
+                    const datasFormatadas = selectedDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ');
+                    registrarLogPosPagamento(`Alteração em Diária Dobrada: ${datasFormatadas}`);
                 }
 
                 // Se a validação passou, atualize a variável para o próximo ciclo
@@ -583,9 +584,9 @@ function configurarFlatpickrs() {
                 console.log("LOG TESTE - Manual:", instance.usuarioAbriu, "Pago:", isPago);
 
                 if (isPago && instance.usuarioAbriu) {
-                    const msg = `Alteração em Meia Diária: ${dateStr}`;                
+                    const datasFormatadas = selectedDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ');
+                    const msg = `Alteração em Meia Diária: ${datasFormatadas}`;
                     registrarLogPosPagamento(msg);
-                   
                 }
 
                 // Se a validação passou, atualize a variável para o próximo ciclo
@@ -5271,25 +5272,30 @@ async function verificaStaff() {
                 motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia.";
             }
 
-            // Se é edição de um registro já existente e as datas do evento não mudaram desde o
-            // carregamento, o conflito de agendamento (se houver) já existia antes desta gravação
-            // — reexecutar essa checagem aqui só bloqueia edições de campos sem nenhuma relação
-            // com data/agendamento (ex: mudar o valor da Caixinha).
+            // Se é edição de um registro já existente e a gravação atual não introduz NENHUMA
+            // data nova além das que já estavam carregadas, o conflito de agendamento (se houver)
+            // já existia antes desta gravação — reexecutar essa checagem aqui só bloqueia edições
+            // que não adicionam data nova (ex: remover data(s), mudar o valor da Caixinha).
+            // Usamos subset (toda data atual já estava nas originais) em vez de igualdade exata
+            // pra cobrir remoção de datas: remover não pode criar um conflito novo, só adicionar pode.
             // NÃO usar isFormLoadedFromDoubleClick aqui: essa flag é resetada por um
             // setTimeout(1000ms) logo após o carregamento (ver atualizarAjustesFinanceirosStaff),
             // então já está sempre false na prática por ocasião do salvamento — usuário real
             // sempre demora mais de 1s pra editar e clicar em Salvar. `metodo` é o sinal
             // confiável de "isto é uma edição de registro existente" pra ESTE salvamento.
             const idStaffExistenteParaSkip = document.getElementById('idStaff')?.value;
-            const datasAtuaisChaveSkip = datasParaVerificacao.slice().sort().join(',');
-            const datasOriginaisChaveSkip = (window.datasOriginaisCarregadas || []).slice().sort().join(',');
+            const datasAtuaisArraySkip = datasParaVerificacao.slice().sort();
+            const datasOriginaisArraySkip = (window.datasOriginaisCarregadas || []).slice().sort();
+            const datasAtuaisChaveSkip = datasAtuaisArraySkip.join(',');
+            const datasOriginaisChaveSkip = datasOriginaisArraySkip.join(',');
+            const naoIntroduziuDataNova = datasAtuaisArraySkip.every(d => datasOriginaisArraySkip.includes(d));
             const podeIgnorarConflitoJaExistente = metodo === 'PUT'
                 && idStaffExistenteParaSkip && idStaffExistenteParaSkip !== ""
-                && datasAtuaisChaveSkip === datasOriginaisChaveSkip;
+                && naoIntroduziuDataNova;
 
             console.log("🔍 [Conflito Agendamento] Verificando se pode ignorar:", {
                 metodo, idStaffExistenteParaSkip, datasAtuaisChaveSkip, datasOriginaisChaveSkip,
-                podeIgnorarConflitoJaExistente
+                naoIntroduziuDataNova, podeIgnorarConflitoJaExistente
             });
 
             if (totalConflitosExistentes > 0 && !podeIgnorarConflitoJaExistente) {
