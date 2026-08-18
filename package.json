@@ -1,10 +1,11 @@
 {
   "name": "ja-system---teste",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "setup": "node setup.js",
+    "prepare": "git config core.hooksPath githooks",
     "migrate": "node db/migrate.js",
     "migrate:new": "node db/new-migration.js",
     "teste:up": "docker compose -p jasystem-test -f compose.yaml -f compose.test.yaml --env-file .env.test up -d --build",
@@ -16,7 +17,8 @@
     "prod:migrate": "docker compose -p jasystem-prod -f compose.yaml exec app npm run migrate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "Bug-fix": "npm version patch && git push --follow-tags",
-    "Novidade": "npm version minor && git push --follow-tags"
+    "Novidade": "npm version minor && git push --follow-tags",
+    "Breaking": "npm version major && git push --follow-tags"
   },
   "keywords": [],
   "author": "",

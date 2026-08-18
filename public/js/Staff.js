@@ -6,6 +6,20 @@ function getUrlParameter(name) {
     return urlParams.get(name);
 }
 
+// Normaliza "setor" (texto livre do orçamento, ex: "1") e "pavilhão" (nome
+// oficial do local, ex: "Pavilhão 1") para o mesmo formato antes de comparar
+// — remove acentos, caixa e o prefixo "PAV"/"PAVILHAO" — para que slots do
+// mesmo setor não sejam tratados como diferentes só por causa da grafia.
+function normalizarSetorPavilhao(valor) {
+    const SEM_ACENTO = new RegExp('[̀-ͯ]', 'g');
+    return (valor || '')
+        .normalize('NFD').replace(SEM_ACENTO, '')
+        .toUpperCase()
+        .trim()
+        .replace(/^PAV(ILHAO)?\.?\s*/, '')
+        .trim();
+}
+
 const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
@@ -398,7 +412,8 @@ function configurarFlatpickrs() {
                 const isPago = verificarSeEstaPago();
                
                 if (isPago && instance.usuarioAbriu) {
-                    registrarLogPosPagamento(`Alteração em Diária Dobrada: ${dateStr}`);                    
+                    const datasFormatadas = selectedDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ');
+                    registrarLogPosPagamento(`Alteração em Diária Dobrada: ${datasFormatadas}`);
                 }
 
                 // Se a validação passou, atualize a variável para o próximo ciclo
@@ -569,9 +584,9 @@ function configurarFlatpickrs() {
                 console.log("LOG TESTE - Manual:", instance.usuarioAbriu, "Pago:", isPago);
 
                 if (isPago && instance.usuarioAbriu) {
-                    const msg = `Alteração em Meia Diária: ${dateStr}`;                
+                    const datasFormatadas = selectedDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ');
+                    const msg = `Alteração em Meia Diária: ${datasFormatadas}`;
                     registrarLogPosPagamento(msg);
-                   
                 }
 
                 // Se a validação passou, atualize a variável para o próximo ciclo
@@ -5257,25 +5272,30 @@ async function verificaStaff() {
                 motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia.";
             }
 
-            // Se é edição de um registro já existente e as datas do evento não mudaram desde o
-            // carregamento, o conflito de agendamento (se houver) já existia antes desta gravação
-            // — reexecutar essa checagem aqui só bloqueia edições de campos sem nenhuma relação
-            // com data/agendamento (ex: mudar o valor da Caixinha).
+            // Se é edição de um registro já existente e a gravação atual não introduz NENHUMA
+            // data nova além das que já estavam carregadas, o conflito de agendamento (se houver)
+            // já existia antes desta gravação — reexecutar essa checagem aqui só bloqueia edições
+            // que não adicionam data nova (ex: remover data(s), mudar o valor da Caixinha).
+            // Usamos subset (toda data atual já estava nas originais) em vez de igualdade exata
+            // pra cobrir remoção de datas: remover não pode criar um conflito novo, só adicionar pode.
             // NÃO usar isFormLoadedFromDoubleClick aqui: essa flag é resetada por um
             // setTimeout(1000ms) logo após o carregamento (ver atualizarAjustesFinanceirosStaff),
             // então já está sempre false na prática por ocasião do salvamento — usuário real
             // sempre demora mais de 1s pra editar e clicar em Salvar. `metodo` é o sinal
             // confiável de "isto é uma edição de registro existente" pra ESTE salvamento.
             const idStaffExistenteParaSkip = document.getElementById('idStaff')?.value;
-            const datasAtuaisChaveSkip = datasParaVerificacao.slice().sort().join(',');
-            const datasOriginaisChaveSkip = (window.datasOriginaisCarregadas || []).slice().sort().join(',');
+            const datasAtuaisArraySkip = datasParaVerificacao.slice().sort();
+            const datasOriginaisArraySkip = (window.datasOriginaisCarregadas || []).slice().sort();
+            const datasAtuaisChaveSkip = datasAtuaisArraySkip.join(',');
+            const datasOriginaisChaveSkip = datasOriginaisArraySkip.join(',');
+            const naoIntroduziuDataNova = datasAtuaisArraySkip.every(d => datasOriginaisArraySkip.includes(d));
             const podeIgnorarConflitoJaExistente = metodo === 'PUT'
                 && idStaffExistenteParaSkip && idStaffExistenteParaSkip !== ""
-                && datasAtuaisChaveSkip === datasOriginaisChaveSkip;
+                && naoIntroduziuDataNova;
 
             console.log("🔍 [Conflito Agendamento] Verificando se pode ignorar:", {
                 metodo, idStaffExistenteParaSkip, datasAtuaisChaveSkip, datasOriginaisChaveSkip,
-                podeIgnorarConflitoJaExistente
+                naoIntroduziuDataNova, podeIgnorarConflitoJaExistente
             });
 
             if (totalConflitosExistentes > 0 && !podeIgnorarConflitoJaExistente) {
@@ -10938,7 +10958,7 @@ async function carregarFuncaoStaff() {
                 }
 
                 // 2. CONTROLE DE NÍVEIS E CUSTOS
-                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO";
+                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO" || perfilSelecionado === "EXTERNOH";
 
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     // Sempre trava Senior, Pleno, Junior — independente do perfil
@@ -11040,15 +11060,16 @@ async function carregarFuncionarioStaff() {
                 $(select).select2('destroy');
             }
 
-           
+
             $(select).select2({
+
                 placeholder: "Digite para buscar o funcionário...",
                 allowClear: true,
                 width: '100%',
                 matcher: function(params, data) {
                     if ($.trim(params.term) === '') return data;
                     if (typeof data.text === 'undefined') return null;
-                    
+
                     // Busca ignorando maiúsculas/minúsculas
                     if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
                         return data;
@@ -11067,6 +11088,13 @@ async function carregarFuncionarioStaff() {
                 this.value = "";
                 this.dispatchEvent(new Event('change', { bubbles: true }));
             });
+
+            // O Select2 continua rodando por baixo dos panos (várias partes do código
+            // dependem de $(select).val()/.trigger('change.select2')), mas escondemos a
+            // interface dele e colocamos por cima o mesmo padrão de busca do cadastro de
+            // Funcionários: um único input onde já dá pra digitar, sem caixa de busca
+            // separada dentro do dropdown.
+            configurarBuscaTextoFuncionarioStaff(select, funcionariofetch);
 
             select.addEventListener("change", function () {
                 //limparCamposStaffParcial();
@@ -11221,6 +11249,89 @@ async function carregarFuncionarioStaff() {
     }
 }
 
+// Mesmo padrão de busca do cadastro de Funcionários (CadFuncionarios): um único
+// input onde já dá pra digitar o nome, com uma lista suspensa embaixo — sem abrir
+// uma segunda caixa de busca dentro do dropdown como o Select2 faz por padrão.
+// O <select> original continua no DOM e com o Select2 rodando por baixo dos panos
+// (só escondido), porque várias partes do código dependem de $(select).val() e
+// .trigger('change.select2') pra funcionar.
+function configurarBuscaTextoFuncionarioStaff(select, funcionarios) {
+    const instanciaSelect2 = $(select).data('select2');
+    if (instanciaSelect2 && instanciaSelect2.$container) {
+        instanciaSelect2.$container.hide();
+    }
+    select.style.display = "none";
+
+    const wrapper = select.parentNode;
+    wrapper.style.position = "relative";
+
+    let input = wrapper.querySelector(".nmFuncionario-busca-input");
+    if (!input) {
+        input = document.createElement("input");
+        input.type = "text";
+        input.className = "nmFuncionario-busca-input";
+        input.setAttribute("autocomplete", "off");
+        wrapper.insertBefore(input, select);
+    }
+    input.placeholder = "Digite para buscar o funcionário...";
+
+    let lista = wrapper.querySelector(".nmFuncionario-busca-lista");
+    if (!lista) {
+        lista = document.createElement("ul");
+        lista.className = "nmFuncionario-busca-lista";
+        lista.style.cssText = "display:none; position:absolute; left:0; right:0; top:100%; z-index:50;" +
+            "background:#fff; border:1px solid #ccc; border-radius:6px; max-height:220px;" +
+            "overflow-y:auto; margin:0; padding:4px; list-style:none;" +
+            "box-shadow:0 4px 12px rgba(0,0,0,.15);";
+        wrapper.appendChild(lista);
+    }
+
+    const removerAcentosBuscaStaff = (str) => String(str || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    const sincronizarInputComSelect = () => {
+        const opcaoAtual = select.options[select.selectedIndex];
+        input.value = (opcaoAtual && opcaoAtual.value) ? opcaoAtual.textContent.trim() : "";
+    };
+    sincronizarInputComSelect();
+    // Se o valor do select mudar por código (ex.: reverter pro funcionário
+    // anterior num Swal de conflito), o input reflete o novo texto também.
+    select.addEventListener("change", sincronizarInputComSelect);
+
+    function renderizarLista(termoDigitado) {
+        const termo = removerAcentosBuscaStaff(termoDigitado.toUpperCase().trim());
+        lista.innerHTML = "";
+        funcionarios
+            .filter((f) => !termo || removerAcentosBuscaStaff((f.nome || "").toUpperCase()).includes(termo))
+            .forEach((f) => {
+                const li = document.createElement("li");
+                li.textContent = f.apelido ? `${f.nome} — ${f.apelido}` : (f.nome || "");
+                li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
+                li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                li.addEventListener("mouseout", () => { li.style.background = ""; });
+                // mousedown dispara antes do blur do input, evitando que a lista suma antes do clique.
+                li.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    input.value = li.textContent;
+                    lista.style.display = "none";
+                    // dispatchEvent nativo (não $(...).trigger) porque o handler que
+                    // busca os dados/eventos do funcionário foi registrado com
+                    // addEventListener puro, e o .trigger('change') do jQuery não
+                    // chega até esses handlers nativos.
+                    select.value = String(f.idfuncionario);
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                lista.appendChild(li);
+            });
+        lista.style.display = "block";
+    }
+
+    input.addEventListener("focus", () => renderizarLista(""));
+    input.addEventListener("input", () => renderizarLista(input.value));
+    document.addEventListener("mousedown", (e) => {
+        if (e.target !== input && !lista.contains(e.target)) lista.style.display = "none";
+    });
+}
+
 function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSelecionado) {
     document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
     document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
@@ -11250,7 +11361,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             isLote = false;
             labelFuncionario.textContent = "FREE-LANCER";
             labelFuncionario.style.color = "red";
-        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
+        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo") || (perfilSelecionado.toLowerCase() === "externoh")) {
             isLote = false;
             labelFuncionario.textContent = "FUNCIONÁRIO";
             labelFuncionario.style.color = "green";           
@@ -11271,7 +11382,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             const descFuncaoAtual = optionFuncaoAtual?.textContent.trim().toUpperCase() || '';
             const isAjudante = descFuncaoAtual === "AJUDANTE DE MARCAÇÃO";
 
-            if (perfilSelecionado.toLowerCase() === "externo")
+            if (perfilSelecionado.toLowerCase() === "externo" || perfilSelecionado.toLowerCase() === "externoh")
             {
                 document.getElementById("vlrCusto").value = "0,00";
                 descBeneficioTextarea.value = "Funcionário externo Não recebe Cachê, apenas benefícios (alimentação e transporte) conforme função";
@@ -18359,12 +18470,12 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                 // Exclui apenas a combinação atual (mesma função + mesmo orcamento + mesmo setor)
                 // Outras vagas da mesma função com setor/orcamento diferente (ex: EXCEDIDO) devem aparecer
                 const idOrcamentoAtualProc = String(dadosOrcamento?.idorcamento || dadosOrcamento?.idOrcamento || '');
-                const setorAtualProc = (criterios.pavilhao || criterios.setor || '').trim();
+                const setorAtualProc = normalizarSetorPavilhao(criterios.pavilhao || criterios.setor || '');
                 const vagasOutrasFuncoes = Array.isArray(vagasDisponiveis)
                     ? vagasDisponiveis.filter(v =>
                         !(String(v.idfuncao) === String(idFuncaoProcurado) &&
                           String(v.idorcamento) === idOrcamentoAtualProc &&
-                          (v.setor || '').trim() === setorAtualProc) &&
+                          normalizarSetorPavilhao(v.setor) === setorAtualProc) &&
                         parseInt(v.saldo_disponivel) > 0
                       )
                     : [];
@@ -19420,7 +19531,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 })
                             });
 
-                            const normalizarSetorLocal = (s) => (s || '').trim();
+                            const normalizarSetorLocal = normalizarSetorPavilhao;
                             const idOrcamentoAtual = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
                             //const setorAtualLocal  = normalizarSetorLocal(dadosOrcamento.itensOrcamentoDetail?.[0]?.setor);
 
@@ -19697,11 +19808,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
             if (Array.isArray(vagasDisponiveis)) {
                 const idOrcAtualFin  = dadosOrcamento.idorcamento || dadosOrcamento.idOrcamento;
                 const idFnAtualFin   = criterios.idFuncao || criterios.idfuncao;
-                const setorAtualFin  = (criterios.pavilhao || criterios.setor || '').trim();
+                const setorAtualFin  = normalizarSetorPavilhao(criterios.pavilhao || criterios.setor || '');
                 vagasDisponiveis = vagasDisponiveis.filter(v =>
                     !(String(v.idfuncao)    === String(idFnAtualFin) &&
                       String(v.idorcamento) === String(idOrcAtualFin) &&
-                      (v.setor || '').trim() === setorAtualFin)
+                      normalizarSetorPavilhao(v.setor) === setorAtualFin)
                 );
             }
         } catch (e) {

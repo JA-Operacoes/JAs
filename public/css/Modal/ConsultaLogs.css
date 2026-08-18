@@ -1,0 +1,221 @@
+/* --- OVERLAY E CAIXA DO MODAL --- */
+
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 1000;
+}
+
+#ConsultaLogs {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #ffffff;
+  padding: 24px 30px 30px;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: none;
+  z-index: 1001;
+}
+
+#ConsultaLogs .modal-content {
+  width: 100%;
+}
+
+#ConsultaLogs .Close {
+  display: flex;
+  justify-content: flex-end;
+}
+
+#ConsultaLogs .close {
+  border: none;
+  background-color: transparent;
+  color: var(--grey-color, #666);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+#ConsultaLogs .close:hover {
+  color: var(--primary-color, #942123);
+}
+
+#ConsultaLogs .title h1 {
+  text-align: center;
+  color: #333;
+  border-bottom: 2px solid #686868;
+  padding-bottom: 10px;
+  margin: 0 0 16px;
+}
+
+/* --- FILTROS --- */
+
+#ConsultaLogs .logs-filtros {
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 8px;
+  padding: 16px 20px 20px;
+  margin-bottom: 16px;
+}
+
+#ConsultaLogs .logs-filtros legend {
+  font-weight: bold;
+  color: var(--primary-color, #333);
+  padding: 0 8px;
+}
+
+#ConsultaLogs .logs-filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px 20px;
+}
+
+#ConsultaLogs .logs-filtros-grid select,
+#ConsultaLogs .logs-filtros-grid input {
+  width: 100%;
+}
+
+#ConsultaLogs .logs-filtros-botoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+#ConsultaLogs .btn-primario,
+#ConsultaLogs .btn-secundario {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-family: var(--Font-primary, inherit);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+#ConsultaLogs .btn-primario {
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+}
+
+#ConsultaLogs .btn-primario:hover {
+  background-color: var(--hover-color, #75191a);
+}
+
+#ConsultaLogs .btn-secundario {
+  background-color: var(--light-base-color, #fff);
+  color: var(--primary-color, #942123);
+  border: 1px solid var(--border-color, #ccc);
+}
+
+#ConsultaLogs .btn-secundario:hover {
+  background-color: var(--background-base-color, #eee);
+}
+
+#ConsultaLogs .btn-secundario:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- RESULTADO --- */
+
+#ConsultaLogs .logs-resultado-info {
+  font-size: 14px;
+  color: var(--grey-color, #666);
+  margin-bottom: 8px;
+}
+
+#ConsultaLogs .logs-tabela-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+#ConsultaLogs .report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+#ConsultaLogs .report-table thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#ConsultaLogs .report-table tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-base-color, #e0e0e0);
+}
+
+#ConsultaLogs .report-table tbody tr:nth-child(even) {
+  background-color: var(--background-base-color, #f7f7f7);
+}
+
+#ConsultaLogs .logs-vazio {
+  text-align: center;
+  color: var(--grey-color, #777);
+  padding: 20px !important;
+}
+
+#ConsultaLogs .btn-ver-dados {
+  border: 1px solid var(--primary-color, #942123);
+  background-color: transparent;
+  color: var(--primary-color, #942123);
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#ConsultaLogs .btn-ver-dados:hover {
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+}
+
+#ConsultaLogs .logs-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* --- CONTEÚDO DO SWEETALERT "VER DADOS" --- */
+
+.logs-swal-dados {
+  text-align: left;
+}
+
+.logs-swal-dados h3 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.logs-swal-dados pre {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

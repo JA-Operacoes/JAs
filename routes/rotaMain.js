@@ -10,6 +10,21 @@ const path = require('path');
 const fs = require('fs');
 
 
+// Normaliza "setor" (texto livre do orçamento, ex: "1") e "pavilhão" (nome
+// oficial do local, ex: "Pavilhão 1") para o mesmo formato antes de comparar
+// — remove acentos, caixa e o prefixo "PAV"/"PAVILHAO" — sem exigir que o
+// usuário digite o nome oficial do pavilhão no setor do orçamento.
+function normalizarSetorPavilhao(valor) {
+    const SEM_ACENTO = new RegExp('[̀-ͯ]', 'g');
+    return (valor || '')
+        .toString()
+        .normalize('NFD').replace(SEM_ACENTO, '')
+        .toUpperCase()
+        .trim()
+        .replace(/^PAV(ILHAO)?\.?\s*/, '')
+        .trim();
+}
+
 function isFeriado(date) {
     const d = new Date(date);
     const mmdd = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -932,6 +947,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
           bool_or(i.cachefechado = true) as tem_cache_fechado,
           i.idorcamento,
           o.contratarstaff,
+          bool_and(COALESCE(i.liberarcontratacao, true)) AS liberarcontratacao,
           COALESCE(SUM(CASE
             WHEN i.adicional = true AND COALESCE(i.vlrdiaria, 0) = 0
             THEN 0 ELSE i.totgeralitem END), 0) AS vlr_orcado_item,
@@ -1186,7 +1202,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     );
 
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-      const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
+      const key = `${row.idfuncao}_${normalizarSetorPavilhao(row.localizacao)}`;
       acc[key] = row.datas_staff;
       return acc;
     }, {});
@@ -1252,15 +1268,17 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     // Ignora quando origem e destino são a mesma linha de orçamento (data fora do período no mesmo item)
     const reaproveitadasMap = {};
     for (const r of reaproveitadasRows) {
+        const setorOrigemNorm  = normalizarSetorPavilhao(r.setor_origem);
+        const setorDestinoNorm = normalizarSetorPavilhao(r.setor_destino);
         const isSelf = Number(r.idfuncao_origem)    === Number(r.idfuncao_destino)
-                    && (r.setor_origem || '')        === (r.setor_destino || '')
+                    && setorOrigemNorm                === setorDestinoNorm
                     && Number(r.idorcamento_origem)  === Number(r.idorcamento_destino);
         if (isSelf) continue;
 
-        const key = `${Number(r.idfuncao_origem)}_${r.setor_origem}_${Number(r.idorcamento_origem)}`;
+        const key = `${Number(r.idfuncao_origem)}_${setorOrigemNorm}_${Number(r.idorcamento_origem)}`;
         if (!reaproveitadasMap[key]) reaproveitadasMap[key] = [];
         const isSameFuncao    = Number(r.idfuncao_origem) === Number(r.idfuncao_destino);
-        const isSameSetor     = (r.setor_origem || '') === (r.setor_destino || '');
+        const isSameSetor     = setorOrigemNorm === setorDestinoNorm;
         const isDiffOrcamento = Number(r.idorcamento_origem) !== Number(r.idorcamento_destino);
         const labelDestino = (isSameFuncao && isSameSetor && isDiffOrcamento)
             ? `${r.nome_funcao_destino} (outro orçamento)`
@@ -1297,7 +1315,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     `, [idsOrcamentos, idempresa]);
 
     const aditivosPendentesMap = aditivosPendentesRows.reduce((acc, row) => {
-        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${row.setor_solicitacao}`;
+        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${normalizarSetorPavilhao(row.setor_solicitacao)}`;
         acc[key] = {
             qtd: Number(row.qtd_aditivo_pendente || 0),
             qtd_limite: Number(row.qtd_limite_pendente || 0)
@@ -1329,7 +1347,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     `, [idsOrcamentos, idempresa]);
 
     const aguardandoInclusaoMap = aguardandoInclusaoRows.reduce((acc, row) => {
-        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${row.setor_solicitacao}`;
+        const key = `${Number(row.idfuncao)}_${Number(row.idorcamento)}_${normalizarSetorPavilhao(row.setor_solicitacao)}`;
         acc[key] = Number(row.qtd_aguardando_inclusao || 0);
         return acc;
     }, {});
@@ -1351,12 +1369,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       equipesMap[idequipeKey].vlr_orcado_equipe    += Number(item.vlr_orcado_item    || 0);
       equipesMap[idequipeKey].vlr_bonificado_equipe += Number(item.vlr_bonificado_item || 0);
 
-      const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
-      const cadastrado = staffCount.find(s => 
-        String(s.idfuncao) === String(item.idfuncao) && 
-        String(s.localizacao).trim().toUpperCase() === setorNormalizado &&
+      const setorNormalizado = normalizarSetorPavilhao(item.setor_orcamento);
+      const cadastrado = staffCount.find(s =>
+        String(s.idfuncao) === String(item.idfuncao) &&
+        normalizarSetorPavilhao(s.localizacao) === setorNormalizado &&
         Number(s.idorcamento) === Number(item.idorcamento)
-      ); 
+      );
 
       // --- LÓGICA DE TRANSIÇÃO ---
       // Se for cache fechado, pegamos a soma de diárias, senão a contagem de pessoas
@@ -1407,7 +1425,8 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         datas_staff: datas_staff,
         tem_cache_fechado: item.tem_cache_fechado,
         contratarstaff: item.contratarstaff,
-        vagas_usadas_em: reaproveitadasMap[`${Number(item.idfuncao)}_${String(item.setor_orcamento || '').trim().toUpperCase()}_${Number(item.idorcamento)}`] || [],
+        liberarcontratacao: item.liberarcontratacao !== false,
+        vagas_usadas_em: reaproveitadasMap[`${Number(item.idfuncao)}_${setorNormalizado}_${Number(item.idorcamento)}`] || [],
         qtd_aditivo_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd || 0,
         qtd_limite_pendente: aditivosPendentesMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`]?.qtd_limite || 0,
         qtd_aguardando_inclusao: aguardandoInclusaoMap[`${Number(item.idfuncao)}_${Number(item.idorcamento)}_${setorNormalizado}`] || 0,

@@ -168,6 +168,7 @@ Escolha **um** critério e use sempre o mesmo, para não divergir.
 | **RH mode** | [`RH.js`](../public/js/RH.js) — `temPermissao("Staff","rh") \|\| ...("supremo")` esconde `li.RH` | `exigirFlag('rh','supremo')` no `/rh` |
 | **Alíquotas (menu)** | [`Index.js`](../public/js/Index.js) — mesmo critério no item `.abrir-modal` | `/rh/parametros` cai sob o `/rh` protegido |
 | **Checkbox Devs** (CadUsuarios) | [`usuarios.js`](../public/js/usuarios.js) — fetch `/auth/permissoes`, esconde se não tem `pode_devs` | `permissoesController` recusa conceder `devs` se o solicitante não for devs |
+| **CEO Mode / Dashboard orçado × real** | [`CeoMode.js`](../public/js/CeoMode.js) — `temPermissao("Staff","supremo")` esconde `li.Ceo` | `exigirFlag('supremo')` no `/ceo` |
 
 ---
 

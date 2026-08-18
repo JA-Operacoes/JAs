@@ -171,6 +171,6 @@ inicializar();
 // Registra o handler do módulo (o Index.js chama desinicializar ao fechar o modal;
 // sem esse registro window.moduloHandlers fica undefined e o fecharModal quebra).
 window.moduloHandlers = window.moduloHandlers || {};
-window.moduloHandlers['Logs'] = {
+window.moduloHandlers['ConsultaLogs'] = {
   desinicializar: () => {}
 };
