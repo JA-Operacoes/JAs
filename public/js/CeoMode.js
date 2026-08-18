@@ -61,25 +61,59 @@ async function abrirOrcamento(nrOrcamento) {
     sessionStorage.setItem("origemAbertura", "ceo");
     linkModal.click();
 
-    let tentativas = 0;
-    const intervalo = setInterval(async () => {
-        const inputNr = document.getElementById("nrOrcamento");
-        tentativas++;
-        if (inputNr) {
-            clearInterval(intervalo);
-            inputNr.value = nrOrcamento;
-            inputNr.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
-            try {
-                const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
-                const modulo = await import("./Orcamentos.js");
-                if (modulo.preencherFormularioComOrcamento) modulo.preencherFormularioComOrcamento(orcDet);
-            } catch (err) {
-                console.error("Erro ao abrir orçamento (CEO):", err);
+    // Espera não só o #nrOrcamento existir, mas o módulo ter terminado o setup
+    // assíncrono: Flatpickr de Marcação já anexado ao elemento (senão o loop de
+    // preenchimento de datas em preencherFormularioComOrcamento roda sobre um
+    // flatpickrInstances vazio) e os selects de Local de Montagem/Empresa Emissora
+    // já com as <option> carregadas (senão select.value = idMontagem não encontra
+    // a option correspondente e fica vazio). Mesmo mecanismo já usado em Aside.js.
+    const aguardarModalPronto = () => new Promise((resolve) => {
+        const tentativa = setInterval(() => {
+            const input = document.getElementById("nrOrcamento");
+            const campoMarcacao = document.getElementById("periodoMarcacao");
+            const selectMontagem = document.querySelector(".idMontagem");
+            const selectEmpresaEmissora = document.querySelector(".idEmpresaEmissora");
+            if (
+                input &&
+                typeof window.preencherFormularioComOrcamento === "function" &&
+                campoMarcacao && campoMarcacao._flatpickr &&
+                selectMontagem && selectMontagem.options.length > 1 &&
+                selectEmpresaEmissora && selectEmpresaEmissora.options.length > 1
+            ) {
+                clearInterval(tentativa);
+                resolve(input);
             }
-        } else if (tentativas >= 20) {
-            clearInterval(intervalo);
+        }, 50);
+        setTimeout(() => {
+            clearInterval(tentativa);
+            resolve(document.getElementById("nrOrcamento") || null);
+        }, 5000);
+    });
+
+    const inputNr = await aguardarModalPronto();
+    if (!inputNr || typeof window.preencherFormularioComOrcamento !== "function") {
+        console.warn("⚠️ Modal não ficou pronto a tempo (campo ou função de preenchimento ausentes).");
+        return;
+    }
+
+    inputNr.value = nrOrcamento;
+    inputNr.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+    try {
+        const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
+        // Usa window.preencherFormularioComOrcamento (exposta pelo próprio
+        // script do módulo já injetado no modal) em vez de `import("./Orcamentos.js")`:
+        // esse import dinâmico cria uma SEGUNDA instância do módulo, cujo
+        // `flatpickrInstances` nunca foi populado (nunca rodou o setup do modal),
+        // então os campos de período (Marcação/Montagem/Realização/Desmontagem)
+        // ficavam sempre vazios mesmo com o resto do formulário preenchido.
+        if (!orcDet || Array.isArray(orcDet) || !orcDet.idorcamento) {
+            console.warn("Orçamento não encontrado ao abrir pelo CEO Mode:", nrOrcamento);
+            return;
         }
-    }, 100);
+        window.preencherFormularioComOrcamento?.(orcDet);
+    } catch (err) {
+        console.error("Erro ao abrir orçamento (CEO):", err);
+    }
 }
 
 // Formata o período de realização do evento: "12/08/2026 a 15/08/2026".

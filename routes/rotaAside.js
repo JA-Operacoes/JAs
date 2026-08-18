@@ -82,14 +82,19 @@ router.get('/clientes', async (req,res)=>{
 
 router.get('/orcamento', async (req,res)=>{
     const { eventoId, clienteId } = req.query;
+    const idempresa = req.idempresa;
     if(!eventoId || !clienteId) return res.status(400).json({erro:"eventoId e clienteId obrigatórios"});
     try {
+        // Filtra por idempresa (mesma regra de GET /orcamentos) — sem isso a
+        // lista mostrava orçamentos de outras empresas, que depois davam 404
+        // ao serem abertos (a busca detalhada é filtrada por idempresa).
         const result = await db.query(`
-            SELECT idorcamento, nrorcamento, status, nomenclatura, edicao
-            FROM orcamentos
-            WHERE idevento = $1 AND idcliente = $2
-            ORDER BY edicao DESC, datacriacao DESC
-        `,[eventoId, clienteId]);
+            SELECT o.idorcamento, o.nrorcamento, o.status, o.nomenclatura, o.edicao
+            FROM orcamentos o
+            INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            WHERE o.idevento = $1 AND o.idcliente = $2 AND oe.idempresa = $3
+            ORDER BY o.edicao DESC, o.datacriacao DESC
+        `,[eventoId, clienteId, idempresa]);
         res.json(result.rows);
     } catch(err){ res.status(500).json({erro:"Erro ao buscar orçamentos"});}
 });
