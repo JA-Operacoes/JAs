@@ -1363,26 +1363,31 @@ router.get("/", autenticarToken(), contextoEmpresa,
             UNION ALL
 
             -- 9. CRÉDITO/DÉBITO FINANCEIRO (staffajustefinanceiro) — mostra o tipo do
-            -- lançamento (Crédito/Débito) e a justificativa salva, vinculado ao evento
-            -- de origem do ajuste (idstaffevento_origem). Só o que ainda não foi 'Pago'.
-            SELECT
+            -- lançamento (Crédito/Débito) e a justificativa salva. Vinculado ao
+            -- funcionário + empresa (mesmo critério usado na soma da coluna
+            -- "CRÉDITO/DÉBITO" do relatório principal, linhas ~376-381), e não mais pelo
+            -- idstaffeventoorigem: esse campo é opcional (rotaAjusteFinanceiro.js) e, quando
+            -- nulo ou fora do período filtrado, fazia o valor aparecer no total do relatório
+            -- mas sumir da tabela de Contingência. Só o que ainda não foi 'Pago'.
+            SELECT DISTINCT
                 tse.idevento,
                 tbf.nome AS "Profissional",
                 af.tipo || ' - R$' || CAST(af.valor AS TEXT) AS "Informacao",
                 af.justificativa AS "Observacao"
             FROM
-                staffajustefinanceiro af
+                staffeventos tse
             JOIN
-                funcionarios tbf ON tbf.idfuncionario = af.idfuncionario
-            JOIN
-                staffeventos tse ON tse.idstaffevento = af.idstaffeventoorigem
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN
                 staffempresas semp ON tse.idstaff = semp.idstaff
             JOIN
                 funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
+            JOIN
+                staffajustefinanceiro af ON af.idfuncionario = tse.idfuncionario
+                    AND af.idempresa = semp.idempresa
+                    AND af.status <> 'Pago'
             WHERE
-                af.idempresa = $1 ${wherePeriodoFinal}
-                AND af.status <> 'Pago'
+                semp.idempresa = $1 ${wherePeriodoFinal}
 
             ORDER BY
                 idevento, "Profissional", "Informacao";
