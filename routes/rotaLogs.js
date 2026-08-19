@@ -9,12 +9,27 @@ router.get('/', async (req, res) => {
       modulo,
       idexecutor,
       idregistroalterado,
+      idfuncionario,
       idempresa,
       dataInicio,
       dataFim,
       page = 1,
-      limit = 50
+      limit = 50,
+      orderBy = 'criado_em',
+      orderDir = 'desc'
     } = req.query;
+
+    const colunasOrdenaveis = {
+      criado_em: 'l.criado_em',
+      empresa_nome: 'emp.nmfantasia',
+      modulo: 'l.modulo',
+      acao: 'l.acao',
+      executor_nome: 'ue.nome',
+      idregistroalterado: 'l.idregistroalterado',
+      usuarioalvo_nome: 'ua.nome'
+    };
+    const colunaOrdenacao = colunasOrdenaveis[orderBy] || colunasOrdenaveis.criado_em;
+    const direcaoOrdenacao = String(orderDir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const condicoes = [];
     const params = [];
@@ -31,6 +46,23 @@ router.get('/', async (req, res) => {
     if (idregistroalterado) {
       condicoes.push(`l.idregistroalterado = $${idx++}`);
       params.push(idregistroalterado);
+    }
+    if (idfuncionario && /^\d+$/.test(String(idfuncionario))) {
+      // Não existe coluna de funcionário na tabela logs. O vínculo é achado de duas formas:
+      // 1) idregistroalterado do módulo "Funcionarios" (PK gravada por logMiddleware);
+      // 2) qualquer referência ao id dentro dos JSONBs dadosanteriores/dadosnovos, já que
+      //    outros módulos (Orçamentos, Staff, etc.) guardam o idfuncionario dentro do payload.
+      const idxIdReg = idx++;
+      const idxJson = idx++;
+      // Casa uma chave contendo "funcionario" seguida do valor exato do id, delimitado por
+      // vírgula, fechamento de objeto/array ou fim de string (evita casar 123 dentro de 1234).
+      const regexFuncionario = `"[a-zA-Z_]*funcionario[a-zA-Z_]*"\\s*:\\s*"?${idfuncionario}"?(,|\\}|\\]|$)`;
+      condicoes.push(`(
+        (l.modulo = 'Funcionarios' AND l.idregistroalterado = $${idxIdReg})
+        OR l.dadosanteriores::text ~* $${idxJson}
+        OR l.dadosnovos::text ~* $${idxJson}
+      )`);
+      params.push(idfuncionario, regexFuncionario);
     }
     if (idempresa) {
       condicoes.push(`l.idempresa = $${idx++}`);
@@ -80,7 +112,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN usuarios ua ON ua.idusuario = l.idusuarioalvo
       LEFT JOIN empresas emp ON emp.idempresa = l.idempresa
       ${where}
-      ORDER BY l.criado_em DESC
+      ORDER BY ${colunaOrdenacao} ${direcaoOrdenacao}, l.id ${direcaoOrdenacao}
       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}
     `;
 
@@ -137,6 +169,27 @@ router.get('/empresas', async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar empresas de logs:', err);
     res.status(500).json({ erro: 'Erro ao buscar empresas.' });
+  }
+});
+
+// GET /logs/funcionarios?q= - busca funcionários por nome (autocomplete do filtro de logs)
+router.get('/funcionarios', async (req, res) => {
+  try {
+    const termo = (req.query.q || '').trim();
+    if (termo.length < 2) return res.json([]);
+
+    const { rows } = await db.query(
+      `SELECT idfuncionario, nome, apelido
+       FROM funcionarios
+       WHERE unaccent(nome) ILIKE unaccent($1)
+       ORDER BY nome
+       LIMIT 20`,
+      [`%${termo}%`]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Erro ao buscar funcionários para logs:', err);
+    res.status(500).json({ erro: 'Erro ao buscar funcionários.' });
   }
 });
 
