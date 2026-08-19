@@ -397,81 +397,523 @@ p.nf-subtitulo {
 #cadModalNotaFiscal ::-webkit-scrollbar-track { background-color: transparent; }
 
 /* -------------------------------------- @medias ---------------------------------------- */
-/* Faixa de telas do escritório: da menor janela (1366x728, viewport ~1366x641)
-   até a maior (2558x1030, viewport ~2515x958). Acima de ~1920px de largura o
-   modal usa o tamanho base (1600x920, cabe até a maior tela sem esticar).
-   As alturas de .Close/.title/.subtitulo/.nf-tabs são fixadas em cada faixa
-   pra somar exatamente com a altura do modal — senão o fundo cinza escuro
-   sobra desigual (aparece de um lado e corta do outro). */
-
-/* Notebooks (ex.: viewport ~1491x742/1536x816) */
-@media (max-width: 1900px), (max-height: 900px) {
-  #cadModalNotaFiscal.modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #4d4d4d;
-    padding: 7px;
-    width: 1450px;
-    max-width: 1450px;
-    height: 780px;
-    overflow: hidden;
-    border-radius: 10px;
-    font-family: "Abel", sans-serif;
-    font-size: 16px;
-    z-index: 9999;
-  }
-
-  #cadModalNotaFiscal #form-notafiscal { height: 565px; padding: 8px; }
-
-  #cadModalNotaFiscal .title { box-sizing: border-box; height: 44px; font-size: 24px; padding: 0; }
-  #cadModalNotaFiscal .subtitulo { box-sizing: border-box; height: 24px; font-size: 14px; line-height: 18px; margin: 0 0 6px; }
-  #cadModalNotaFiscal .nf-tabs { display: flex; justify-content: center; box-sizing: border-box; height: 46px; }
-  #cadModalNotaFiscal .nf-tab-btn { font-size: 16px; padding: 8px 14px 10px; }
-
-  #cadModalNotaFiscal .nf-tamanho-select-emissora,
-  #cadModalNotaFiscal .nf-combo input { width: 100%; height: 40px; }
+/* ==========================================================================
+   1. OVERLAY E REGRAS GLOBAIS DE PÁGINA
+   ========================================================================== */
+.modal-open main,
+.modal-open header,
+.modal-open #content,
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
 }
 
-/* Menor tela do escritório (janela 1366x728, viewport ~1366x641) — também
-   cobre notebooks de largura maior (ex.: viewport 1491x742) cuja ALTURA já
-   não cabe no tamanho da faixa "notebooks" acima (780px); como este bloco
-   vem depois no arquivo, ganha da faixa anterior quando as duas batem. */
-@media (max-width: 1420px), (max-height: 800px) {
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 96%;
+  max-width: 1260px;
+  z-index: 1000;
+}
+
+body {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   2. ESTRUTURA BASE DO MODAL (Atende da janela 1366x728 até 2558x1030)
+   ========================================================================== */
+#cadModalNotaFiscal.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #4d4d4d;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  z-index: 9999;
+
+  /* Adaptação fluida para a menor e maior faixa de tela */
+  width: 95vw;
+  max-width: 2400px;
+  height: 92vh;
+  max-height: 980px;
+
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+#cadModalNotaFiscal .modal-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Força o preenchimento uniforme e sem sobras no fundo cinza */
+#cadModalNotaFiscal #form-notafiscal,
+#cadModalNotaFiscal .nf-tabs,
+#cadModalNotaFiscal .tab-content,
+#cadModalNotaFiscal .tab-pane,
+#cadModalNotaFiscal .nf-secao,
+#cadModalNotaFiscal table {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   3. CABEÇALHO, ABAS E BOTÃO FECHAR
+   ========================================================================== */
+#cadModalNotaFiscal .Close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+#cadModalNotaFiscal button.close {
+  width: 200px;
+  height: 28px;
+  margin: 0;
+}
+
+#cadModalNotaFiscal .title {
+  font-family: "Abel", sans-serif;
+  font-size: 26px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 4px 0;
+  color: #000000;
+  flex-shrink: 0;
+}
+
+#cadModalNotaFiscal .subtitulo {
+  text-align: center;
+  font-size: 15px;
+  color: #000000;
+  margin: 0 0 12px;
+  flex-shrink: 0;
+}
+
+#cadModalNotaFiscal .nf-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px 6px;
+  flex-shrink: 0;
+}
+
+#cadModalNotaFiscal .nf-tab-btn {
+  font-family: "Abel", sans-serif;
+  font-size: 17px;
+  background: none;
+  border: none;
+  color: #4b4b4b;
+  padding: 8px 16px 10px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+
+#cadModalNotaFiscal .nf-tab-btn.ativa {
+  color: #fff;
+  background: var(--primary-color, #942123);
+  border-bottom-color: var(--border-color, #ce0303);
+}
+
+/* ==========================================================================
+   4. CORPO DO FORMULÁRIO (Rolável dinâmico)
+   ========================================================================== */
+#cadModalNotaFiscal #form-notafiscal {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  flex-direction: column;
+  background-color: #cacaca;
+  flex: 1; /* Ocupa exatamente a sobra vertical disponível */
+  padding: 12px;
+  border-radius: 10px;
+  overflow-y: auto;
+  position: relative;
+  box-sizing: border-box;
+}
+
+#cadModalNotaFiscal .nf-view {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+#cadModalNotaFiscal .nf-view.ativa {
+  display: flex;
+}
+
+/* ==========================================================================
+   5. SEÇÕES E COMPONENTES INTERNOS
+   ========================================================================== */
+#cadModalNotaFiscal .nf-secao {
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+#cadModalNotaFiscal .nf-secao h3 {
+  font-size: 18px;
+  color: #2b2a2a;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #b9b9b9;
+  padding-bottom: 6px;
+  font-weight: normal;
+}
+
+#cadModalNotaFiscal .nf-aviso {
+  font-size: 14.5px;
+  color: #444;
+  line-height: 1.4;
+}
+
+p.nf-subtitulo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+}
+
+#cadModalNotaFiscal .nf-hint {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin-top: 5px;
+}
+
+#cadModalNotaFiscal .nf-hint.warn {
+  color: #b50000;
+}
+
+#cadModalNotaFiscal #nfAvisoInscMun,
+#cadModalNotaFiscal #nfCampoOutrosPag,
+#cadModalNotaFiscal #nfSecaoParcelas,
+#cadModalNotaFiscal #nfCampoParcelaNum,
+#cadModalNotaFiscal #nfCampoParcelaVencimento,
+#cadModalNotaFiscal #nfDadosBancariosEmissora {
+  display: none;
+}
+
+#cadModalNotaFiscal .nf-dados-bancarios {
+  border: 1.5px solid #9fb6c9;
+  background: #e4ecf3;
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #33424c;
+  font-size: 15.5px;
+  line-height: 1.7;
+}
+
+#cadModalNotaFiscal .nf-row-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+#cadModalNotaFiscal .nf-tag-interno {
+  font-size: 11px;
+  text-transform: none;
+  color: #555;
+}
+
+#cadModalNotaFiscal .nf-campo.nf-fim {
+  justify-content: flex-end;
+}
+
+#cadModalNotaFiscal .nf-mt {
+  margin-top: 12px;
+}
+
+/* ==========================================================================
+   6. GRID FLUIDO DE CAMPOS
+   ========================================================================== */
+#cadModalNotaFiscal .nf-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+#cadModalNotaFiscal .nf-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; }
+#cadModalNotaFiscal .nf-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
+#cadModalNotaFiscal .nf-full { grid-column: 1 / -1; }
+
+#cadModalNotaFiscal .nf-grupo-filtro {
+  min-width: 0;
+  margin: 0;
+  border: 1.5px solid #c9c9c9;
+  border-radius: 10px;
+  padding: 6px 14px 14px;
+}
+
+#cadModalNotaFiscal .nf-grupo-filtro legend {
+  padding: 0 8px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 800;
+  color: var(--primary-color, #942123);
+}
+
+#cadModalNotaFiscal .nf-combo {
+  position: relative;
+  width: 100%;
+}
+
+#cadModalNotaFiscal .nf-combo-lista {
+  display: none;
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+
+#cadModalNotaFiscal .nf-combo-lista.aberta { display: block; }
+#cadModalNotaFiscal .nf-combo-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 16px; }
+#cadModalNotaFiscal .nf-combo-lista li:hover { background: #f0f2f5; }
+#cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio { color: #999; cursor: default; }
+
+#cadModalNotaFiscal .nf-campo { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+#cadModalNotaFiscal .nf-campo label {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #000000;
+  font-weight: 800;
+}
+
+#cadModalNotaFiscal .nf-campo input,
+#cadModalNotaFiscal .nf-campo select,
+#cadModalNotaFiscal .nf-campo textarea {
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  border: 1.5px solid #9e9e9e;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #171616;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#cadModalNotaFiscal .nf-campo textarea { min-height: 64px; resize: vertical; }
+
+#cadModalNotaFiscal .nf-tamanho-select-emissora,
+#cadModalNotaFiscal .nf-combo input {
+  box-sizing: border-box;
+  height: 40px;
+  width: 100%;
+}
+
+#cadModalNotaFiscal .nf-campo.auto input,
+#cadModalNotaFiscal .nf-campo.auto select {
+  background: #e4ecf3;
+  border-color: #9fb6c9;
+  color: #33424c;
+}
+
+#cadModalNotaFiscal .nf-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  color: #171616;
+}
+
+#cadModalNotaFiscal .nf-campo .nf-check {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+#cadModalNotaFiscal .nf-check input[type="checkbox"] { width: 18px; height: 18px; }
+
+#cadModalNotaFiscal .nf-envio-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15.5px;
+  color: #333;
+}
+
+#cadModalNotaFiscal .nf-envio-rodape button { flex: none; padding: 10px 22px; }
+#cadModalNotaFiscal table.nf-tabela input[type="checkbox"] { width: 16px; height: 16px; }
+
+/* ==========================================================================
+   7. TABELAS E COMPONENTES DE TOTAIS
+   ========================================================================== */
+#cadModalNotaFiscal .nf-tabela-wrap { overflow-x: auto; border-radius: 8px; width: 100%; }
+
+#cadModalNotaFiscal table.nf-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.85);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 14px;
+  min-width: 600px;
+}
+
+#cadModalNotaFiscal table.nf-tabela th {
+  text-align: left;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #444;
+  padding: 10px 12px;
+  border-bottom: 1px solid #b9b9b9;
+}
+
+#cadModalNotaFiscal table.nf-tabela th.nf-num { text-align: right; }
+#cadModalNotaFiscal table.nf-tabela td { padding: 10px 12px; border-bottom: 1px solid #d8d8d8; }
+#cadModalNotaFiscal table.nf-tabela tr:last-child td { border-bottom: none; }
+#cadModalNotaFiscal .nf-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+#cadModalNotaFiscal .nf-chip {
+  display: inline-block; font-size: 12.5px; padding: 3px 11px; border-radius: 999px; color: #fff;
+}
+#cadModalNotaFiscal .nf-chip.rascunho { background: var(--Pending, #FFBD29); color: #4a3300; }
+#cadModalNotaFiscal .nf-chip.emitida { background: var(--Aproved, #046800); }
+#cadModalNotaFiscal .nf-chip.cancelada { background: var(--Reject, #B50000); }
+
+#cadModalNotaFiscal .nf-link {
+  color: #942123; text-decoration: underline; cursor: pointer; font-size: 14.5px; margin-right: 10px;
+  background: none; border: none; font-family: inherit; padding: 0;
+}
+
+#cadModalNotaFiscal .nf-link-ok { color: #1a7d33; }
+
+#cadModalNotaFiscal .nf-row-btn {
+  font-family: "Abel", sans-serif;
+  background: var(--primary-color, #942123);
+  color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
+}
+#cadModalNotaFiscal .nf-row-btn:hover { background: var(--hover-color, #75191a); }
+
+#cadModalNotaFiscal .nf-reforma {
+  border: 1.5px dashed var(--Pending, #FFBD29);
+  background: #fff8e8;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 12px;
+  font-size: 15.5px;
+  color: #5a4200;
+}
+#cadModalNotaFiscal .nf-reforma .linha { display: flex; justify-content: space-between; padding: 3px 0; }
+
+#cadModalNotaFiscal .nf-totais {
+  background: rgba(255,255,255,0.85); border-radius: 8px; padding: 14px 18px;
+}
+#cadModalNotaFiscal .nf-totais .linha {
+  display: flex; justify-content: space-between; font-size: 16px; color: #3a3a3a; padding: 3px 0;
+}
+#cadModalNotaFiscal .nf-totais .linha.final {
+  font-size: 20px; color: #171616; border-top: 1px solid #c9c9c9; margin-top: 6px; padding-top: 8px;
+}
+
+#cadModalNotaFiscal button {
+  font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight, none);
+  font-size: 18px;
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+#cadModalNotaFiscal .BTNs { display: flex; justify-content: space-between; margin-top: 10px; gap: 10px; }
+#cadModalNotaFiscal .BTNs button { flex: 1; padding: 10px 0; }
+#cadModalNotaFiscal .BTNs button:hover { background-color: var(--hover-color, #75191a); }
+
+#cadModalNotaFiscal ::-webkit-scrollbar { width: 6px; height: 10px; }
+#cadModalNotaFiscal ::-webkit-scrollbar-thumb { background-color: #888; border-radius: 10px; }
+#cadModalNotaFiscal ::-webkit-scrollbar-track { background-color: transparent; }
+
+/* ==========================================================================
+   8. MEDIA QUERIES (Ajustes finos para Notebooks / Janelas Reduzidas)
+   ========================================================================== */
+
+/* Telas Intermediárias (Ex: 1600px de largura ou viewports < 850px altura) */
+@media screen and (max-width: 1600px), screen and (max-height: 850px) {
   #cadModalNotaFiscal.modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #4d4d4d;
-    padding: 6px;
-    width: 1320px;
-    max-width: 1320px;
-    height: 625px;
-    overflow: hidden;
-    border-radius: 10px;
-    font-family: "Abel", sans-serif;
+    width: 96vw;
+    height: 94vh;
+    padding: 8px;
     font-size: 15px;
-    z-index: 9999;
   }
 
-  #cadModalNotaFiscal #form-notafiscal { height: 565px; padding: 8px; }
-
-  #cadModalNotaFiscal .title { box-sizing: border-box; height: 40px; font-size: 22px; padding: 0; }
-  #cadModalNotaFiscal .subtitulo { box-sizing: border-box; height: 26px; font-size: 13px; line-height: 20px; margin: 0 0 6px; }
-  #cadModalNotaFiscal .nf-tabs { display: flex; justify-content: center; box-sizing: border-box; height: 42px; }
-  #cadModalNotaFiscal .nf-tab-btn { font-size: 15px; padding: 7px 12px 9px; }
-
+  #cadModalNotaFiscal .title { font-size: 22px; padding: 2px 0; }
+  #cadModalNotaFiscal .subtitulo { font-size: 13px; margin-bottom: 8px; }
+  #cadModalNotaFiscal .nf-tab-btn { font-size: 15px; padding: 6px 12px; }
   #cadModalNotaFiscal .nf-secao { padding: 12px 14px; }
-  #cadModalNotaFiscal .nf-secao h3 { font-size: 16px; margin: 0 0 8px; }
+  #cadModalNotaFiscal .nf-secao h3 { font-size: 16px; margin-bottom: 8px; }
+}
 
-  #cadModalNotaFiscal .nf-tamanho-select-emissora,
-  #cadModalNotaFiscal .nf-combo input { width: 100%; height: 38px; }
+/* Telas Menores (Ex: Menor janela 1366x728 / viewports curtas <= 750px) */
+@media screen and (max-width: 1400px), screen and (max-height: 750px) {
+  #cadModalNotaFiscal.modal {
+    width: 97vw;
+    height: 95vh;
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  #cadModalNotaFiscal .title { font-size: 20px; }
+  #cadModalNotaFiscal .subtitulo { font-size: 12px; margin-bottom: 6px; }
+
+  #cadModalNotaFiscal .nf-grid4 { grid-template-columns: repeat(2, 1fr); gap: 10px 12px; }
+  #cadModalNotaFiscal .nf-grid3 { grid-template-columns: repeat(2, 1fr); gap: 10px 12px; }
+  #cadModalNotaFiscal .nf-grid2 { gap: 10px 12px; }
 
   #cadModalNotaFiscal .nf-campo input,
   #cadModalNotaFiscal .nf-campo select,
-  #cadModalNotaFiscal .nf-campo textarea { font-size: 15px; padding: 7px 10px; }
+  #cadModalNotaFiscal .nf-campo textarea {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
 
-  #cadModalNotaFiscal button.close { width: 160px; height: 26px; }
+  #cadModalNotaFiscal .nf-tamanho-select-emissora,
+  #cadModalNotaFiscal .nf-combo input {
+    height: 34px;
+  }
+
+  #cadModalNotaFiscal button.close {
+    width: 150px;
+    height: 24px;
+  }
 }
