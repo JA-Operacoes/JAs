@@ -561,12 +561,25 @@ input[type="file"]{
     color: #000000;
 }
 
+/* Badge de status por item de Caixinha — <select> pra Master/Supremo, <span> somente
+   leitura pros demais (ver renderCaixinhaItems/temPermissaoCaixinhaEditavel). */
+.caixinha-status-badge {
+    display: inline-block;
+    font-size: 11px;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: bold;
+    border: 1px solid #999;
+}
+
 /* 1. Estilos para o status "Pendente" (Fundo Amarelo, Fonte Preta) */
 #selectStatusAjusteCusto.status-Pendente,
 #selectStatusCaixinha.status-Pendente,
 #selectStatusDiariaDobrada.status-Pendente,
 #selectStatusMeiaDiaria.status-Pendente,
-#selectStatusCustoFechado.status-Pendente {
+#selectStatusCustoFechado.status-Pendente,
+.caixinha-status-badge.status-Pendente,
+.caixinha-status-badge option.status-Pendente {
     background-color: #FFC107; /* Amarelo */
     color: #000000; /* Preto */
 }
@@ -576,7 +589,9 @@ input[type="file"]{
 #selectStatusCaixinha.status-Autorizado,
 #selectStatusDiariaDobrada.status-Autorizado,
 #selectStatusMeiaDiaria.status-Autorizado,
-#selectStatusCustoFechado.status-Autorizado {
+#selectStatusCustoFechado.status-Autorizado,
+.caixinha-status-badge.status-Autorizado,
+.caixinha-status-badge option.status-Autorizado {
     background-color: green; /* Verde */
     color: #FFFFFF; /* Branco */
 }
@@ -586,7 +601,9 @@ input[type="file"]{
 #selectStatusCaixinha.status-Rejeitado,
 #selectStatusDiariaDobrada.status-Rejeitado,
 #selectStatusMeiaDiaria.status-Rejeitado,
-#selectStatusCustoFechado.status-Rejeitado {
+#selectStatusCustoFechado.status-Rejeitado,
+.caixinha-status-badge.status-Rejeitado,
+.caixinha-status-badge option.status-Rejeitado {
     background-color: #DC3545; /* Vermelho */
     color: #FFFFFF; /* Branco */
 }
@@ -1101,6 +1118,59 @@ input#ajusteCusto:not([value=""]) ~ label{
   font-size: 14px;
   padding: 0 2px;
   background: #cacaca;
+}
+
+input#caixinha:not([value=""]) ~ label{
+  top: 0;
+  left: 25px;
+  font-size: 14px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
+/* Container único agrupando tudo que é da Caixinha (lista de pedidos + botão) */
+.caixinha-container {
+  width: 100%;
+  border: 1px solid #999;
+  border-radius: 10px;
+  box-shadow: 4px 4px 20px rgba(0, 0, 0, .12);
+  background-color: rgba(139, 0, 0, 0.03);
+  padding: 10px 14px;
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+.caixinha-container-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: bold;
+  font-size: 15px;
+  color: #8B0000;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(139, 0, 0, 0.2);
+}
+
+.btn-solicitar-caixinha {
+  background: none;
+  border: 1px dashed #8B0000;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #8B0000;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-solicitar-caixinha:hover {
+  background-color: rgba(139, 0, 0, 0.08);
+}
+
+.linha-caixinha:last-child {
+  border-bottom: none !important;
 }
 
 input ~ label,

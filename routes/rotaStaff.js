@@ -20,6 +20,83 @@ const parseFloatOrNull = (v) => {
     return Number.isNaN(n) ? 0 : n;
 };
 
+// Normaliza o array de caixinhas (coluna `caixinha`, jsonb) enviado pelo client —
+// usada tanto no PUT (edição, `oldRow` é o registro atual) quanto no POST (criação,
+// `oldRow` é null). Cada item: { iditem, valor, status, justificativa, data, comprovante }.
+//
+// vlrcaixinha/statuscaixinha/desccaixinha/comppgtocaixinha (colunas soltas antigas)
+// foram descontinuadas — não são mais escritas, o array é a única fonte de verdade.
+//
+// Regra de negócio: caixinha é recurso pro funcionário usar DURANTE o evento — nunca
+// pode ser criada/autorizada depois que o cachê já foi pago (statuspgto = Pago/Pago50)
+// OU depois que a própria caixinha já foi paga (statuspgtocaixinha = Pago) — uma vez
+// pago, a "gaveta" da caixinha fecha, não entra mais item novo.
+function normalizarCaixinha(body, req, oldRow) {
+    const oldItens = Array.isArray(oldRow?.caixinha)
+        ? oldRow.caixinha
+        : (typeof oldRow?.caixinha === 'string' ? (JSON.parse(oldRow.caixinha || '[]') || []) : []);
+    const oldPorIditem = new Map(oldItens.map(it => [String(it.iditem), it]));
+
+    let raw = Array.isArray(body.datacaixinha) ? body.datacaixinha[0] : body.datacaixinha;
+    let itens = [];
+    try {
+        if (raw) {
+            const parsed = typeof raw === 'object' ? raw : JSON.parse(raw);
+            itens = (Array.isArray(parsed) ? parsed : []).map(item => ({
+                iditem: String(item.iditem || ''),
+                valor: parseFloatOrNull(item.valor),
+                status: String(item.status || 'Pendente').trim(),
+                justificativa: String(item.justificativa || '').trim(),
+                data: item.data || null,
+                comprovante: item.comprovante || null // path já existente, reenviado pelo client
+            }));
+        }
+    } catch (e) {
+        console.error("❌ Erro ao parsear datacaixinha:", e);
+        itens = [];
+    }
+
+    // Mapeia os arquivos novos (podem ser vários, um por item) pros itens certos via
+    // comprovanteCaixinhaIditens[] — array paralelo na MESMA ordem de req.files.comppgtocaixinha.
+    const arquivosNovos = req.files?.comppgtocaixinha || [];
+    let targets = body.comprovanteCaixinhaIditens;
+    targets = Array.isArray(targets) ? targets : (targets ? [targets] : []);
+    const arquivosAntigosParaApagar = [];
+
+    arquivosNovos.forEach((file, i) => {
+        const iditem = String(targets[i] || '');
+        const alvo = itens.find(it => it.iditem === iditem);
+        if (!alvo) return; // não veio um iditem correspondente, ignora o upload
+        const antigo = oldPorIditem.get(iditem)?.comprovante;
+        if (antigo) arquivosAntigosParaApagar.push(antigo);
+        alvo.comprovante = `/uploads/staff_comprovantes/${file.filename}`;
+    });
+
+    // Item sem comprovante novo mantém o que já tinha (rede de segurança — o client já
+    // reenvia esse path no JSON normalmente).
+    itens.forEach(it => {
+        if (!it.comprovante && oldPorIditem.has(it.iditem)) {
+            it.comprovante = oldPorIditem.get(it.iditem).comprovante || null;
+        }
+    });
+
+    const statusPgtoCacheCheck = String(body.statuspgto || oldRow?.statuspgto || '').trim().toUpperCase();
+    const statusPgtoCaixinhaCheck = String(body.statuspgtocaixinha || oldRow?.statuspgtocaixinha || '').trim().toUpperCase();
+    const cachePago = statusPgtoCacheCheck === 'PAGO' || statusPgtoCacheCheck === 'PAGO50';
+    const caixinhaPaga = statusPgtoCaixinhaCheck === 'PAGO' || statusPgtoCaixinhaCheck === 'PAGO50';
+    if (cachePago || caixinhaPaga) {
+        const itemNovo = itens.some(it => it.iditem && !oldPorIditem.has(it.iditem));
+        const novaAutorizacao = itens.some(it =>
+            it.status === 'Autorizado' && oldPorIditem.get(it.iditem)?.status !== 'Autorizado'
+        );
+        if (itemNovo || novaAutorizacao) {
+            throw new Error('Não é possível adicionar ou autorizar uma nova Caixinha depois que o cachê ou a própria caixinha já foram pagos — Caixinha é um recurso para o funcionário usar durante o evento, não depois.');
+        }
+    }
+
+    return { itens, arquivosAntigosParaApagar };
+}
+
 const comprovantesUploadDir = path.join(__dirname, '../uploads/staff_comprovantes');
 if (!fs.existsSync(comprovantesUploadDir)) {
     fs.mkdirSync(comprovantesUploadDir, { recursive: true });
@@ -57,10 +134,18 @@ const storageComprovantes = multer.diskStorage({
         const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
 
         const ext = path.extname(file.originalname).toLowerCase();
-        
+
+        // Campos com maxCount > 1 (ex.: comppgtocaixinha, um comprovante por item de
+        // caixinha) podem receber vários arquivos com o MESMO nome original na mesma
+        // requisição — sem isso o 2º arquivo sobrescreveria o 1º no disco.
+        req._compFieldSeq = req._compFieldSeq || {};
+        const seq = (req._compFieldSeq[file.fieldname] || 0) + 1;
+        req._compFieldSeq[file.fieldname] = seq;
+        const sufixoSeq = seq > 1 ? `-${seq}` : '';
+
         // RESULTADO: comppgtocache-ID73-20260303-ReciboJoao.pdf
-        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
-        
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${sufixoSeq}${ext}`;
+
         cb(null, nomeFinal);
     }
 });
@@ -84,7 +169,7 @@ const uploadComprovantesMiddleware = multer({
     { name: 'comppgtocache', maxCount: 1 },
     { name: 'comppgtocache50', maxCount: 1 },
     { name: 'comppgtoajdcusto', maxCount: 1 },
-    { name: 'comppgtocaixinha', maxCount: 1 },
+    { name: 'comppgtocaixinha', maxCount: 10 }, // 1 comprovante por item de caixinha (ver coluna `caixinha`)
     { name: 'comppgtoajdcusto50', maxCount: 1 },
     { name: 'compcontrolegastos', maxCount: 1 },
     { name: 'compnotafiscal', maxCount: 1 },
@@ -1435,7 +1520,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
         client = await pool.connect(); 
 
         let query = `
-            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, se.vlrcaixinha,
+            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
                 se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
                 se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                 se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
@@ -1642,7 +1727,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.vlralimentacao,
           se.vlrtransporte,
           se.vlrajustecusto,
-          se.vlrcaixinha,
+          caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
           se.descajustecusto,
           se.descbeneficios,
           se.vlrtotal,
@@ -1661,6 +1746,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.statuspgto,
           se.statusajustecusto,
           se.statuscaixinha,
+          se.caixinha,
           se.dtdiariadobrada,
           se.dtmeiadiaria,
           se.statusdiariadobrada,
@@ -1924,7 +2010,7 @@ router.put("/:idStaffEvento",
                 cache50: req.files?.comppgtocache50 ? `/uploads/staff_comprovantes/${req.files.comppgtocache50[0].filename}` : (body.limparComprovanteCache2      === 'true' ? null : old.comppgtocache50),
                 ajd:    req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto    === 'true' ? null : old.comppgtoajdcusto),
                 ajd50:  req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto2 === 'true' ? null : old.comppgtoajdcusto50),
-                cx:     req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha     === 'true' ? null : old.comppgtocaixinha),
+                cx:     old.comppgtocaixinha, // descontinuado — congelado no valor que já tinha antes desta feature
                 contgastos:  req.files?.compcontrolegastos ? `/uploads/staff_comprovantes/${req.files.compcontrolegastos[0].filename}` : (body.limparComprovanteControleGastos === 'true' ? null : old.compcontgastos),
                 notafiscal:  req.files?.compnotafiscal     ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}`     : (body.limparComprovanteNotaFiscal    === 'true' ? null : old.compnotafiscal),
                 inativardeletar: req.files?.compinativardeletar
@@ -1936,7 +2022,9 @@ router.put("/:idStaffEvento",
             if (req.files?.comppgtocache50)   deletarArquivoAntigo(old.comppgtocache50);
             if (req.files?.comppgtoajdcusto)  deletarArquivoAntigo(old.comppgtoajdcusto);
             if (req.files?.comppgtoajdcusto50)deletarArquivoAntigo(old.comppgtoajdcusto50);
-            if (req.files?.comppgtocaixinha)  deletarArquivoAntigo(old.comppgtocaixinha);
+            // comppgtocaixinha (coluna legado, descontinuada) não é mais apagado aqui — a
+            // coluna `caixinha` tem um comprovante por item, a limpeza de arquivo substituído
+            // é feita item a item no bloco de normalização, mais abaixo.
             if (req.files?.compcontrolegastos) deletarArquivoAntigo(old.compcontgastos);
             if (req.files?.compnotafiscal)     deletarArquivoAntigo(old.compnotafiscal);
             if (req.files?.compinativardeletar || body.limparComprovanteInativarDeletar === 'true') {
@@ -1979,11 +2067,18 @@ router.put("/:idStaffEvento",
 
             console.log("🔍 dtdiariadobrada normalizado:", JSON.stringify(dtdiariadobrada, null, 2));
 
+            // Normaliza o array de caixinhas. Também valida a regra de "nunca autorizar/criar
+            // caixinha depois do cachê ou da própria caixinha pagos" — lança Error e cai no
+            // catch/ROLLBACK. vlrcaixinha/statuscaixinha/desccaixinha/comppgtocaixinha (colunas
+            // legado) foram descontinuadas — não são mais calculadas nem escritas aqui.
+            const resultadoCaixinha = normalizarCaixinha(body, req, old);
+            const caixinha = resultadoCaixinha.itens;
+            resultadoCaixinha.arquivosAntigosParaApagar.forEach(deletarArquivoAntigo);
+
             const vlrCusto = parseFloat(String(body.vlrcache || 0).replace(',', '.')) || 0;
             const vlrTransp = parseFloat(String(body.vlrtransporte || 0).replace(',', '.')) || 0;
             const vlrAlim = parseFloat(String(body.vlralimentacao || 0).replace(',', '.')) || 0;
             const vlrAjuste = parseFloat(String(body.vlrajustecusto || 0).replace(',', '.')) || 0;
-            const vlrCaixinha = parseFloat(String(body.vlrcaixinha || 0).replace(',', '.')) || 0;
 
             // let total = 0, totalCache = 0, totalAjdCusto = 0;
             // datasevento.forEach(dStr => {
@@ -2088,11 +2183,17 @@ router.put("/:idStaffEvento",
                 };
                 const oldVlrCache    = parseFloat(old.vlrtotcache) || 0;
                 const oldVlrAjdCusto = parseFloat(old.vlrtotajdcusto) || 0;
-                const oldVlrCaixinha = parseFloat(old.vlrcaixinha) || 0;
+                // vlrcaixinha (coluna legado) foi descontinuada — soma direto do array (itens
+                // Autorizados), e o status que importa aqui é o de PAGAMENTO (statuspgtocaixinha),
+                // não o de autorização (statuscaixinha é Pendente/Autorizado/Rejeitado, nunca "Pago").
+                const oldItensCaixinha = Array.isArray(old.caixinha) ? old.caixinha : [];
+                const oldVlrCaixinha = oldItensCaixinha
+                    .filter(it => it.status === 'Autorizado')
+                    .reduce((acc, it) => acc + (parseFloat(it.valor) || 0), 0);
 
                 const valorJaPago = calcPagoBase(old.statuspgto, oldVlrCache)
                     + calcPagoBase(old.statuspgtoajdcto, oldVlrAjdCusto)
-                    + calcPagoBase(old.statuscaixinha, oldVlrCaixinha);
+                    + calcPagoBase(old.statuspgtocaixinha, oldVlrCaixinha);
 
                 if (valorJaPago > 0.01) {
                     // Trava anti-duplicação: se este idstaffevento já tem um crédito/débito não
@@ -2166,37 +2267,39 @@ router.put("/:idStaffEvento",
                 : old.obslogsistema;
 
             // 3. UPDATE PRINCIPAL STAFFEVENTOS
+            // vlrcaixinha/statuscaixinha/desccaixinha/comppgtocaixinha descontinuadas — não
+            // fazem mais parte deste UPDATE, ficam congeladas no valor que já tinham.
             await client.query(`
                 UPDATE staffeventos SET
                     idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
-                    vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18,
-                    vlrtotal = $19, descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
-                    statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27,
-                    dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
-                    comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35,
-                    nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                    statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45,
-                    statuscustofechado = $46, desccustofechado = $47, obspospgto = $48, statusstaff = COALESCE($51, statusstaff),
-                    compcontgastos = $52, compnotafiscal = $53, obsgeral = $54, obslogsistema = $55,
-                    compinativardeletar = $56, comppgtocache50 = $57
-                WHERE idstaffevento = $49
-                AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $50)`,
+                    vlralimentacao = $15, descajustecusto = $16, datasevento = $17,
+                    vlrtotal = $18, descbeneficios = $19, setor = $20, statuspgto = $21, statusajustecusto = $22,
+                    statusdiariadobrada = $23, statusmeiadiaria = $24, dtdiariadobrada = $25,
+                    dtmeiadiaria = $26, descdiariadobrada = $27, descmeiadiaria = $28,
+                    comppgtocache = $29, comppgtoajdcusto = $30, comppgtoajdcusto50 = $31,
+                    nivelexperiencia = $32, qtdpessoaslote = $33, idequipe = $34, nmequipe = $35, tipoajudacustoviagem = $36,
+                    statuspgtoajdcto = $37, statuspgtocaixinha = $38, idorcamento = $39, vlrtotcache = $40, vlrtotajdcusto = $41,
+                    statuscustofechado = $42, desccustofechado = $43, obspospgto = $44, statusstaff = COALESCE($47, statusstaff),
+                    compcontgastos = $48, compnotafiscal = $49, obsgeral = $50, obslogsistema = $51,
+                    compinativardeletar = $52, comppgtocache50 = $53, caixinha = $54
+                WHERE idstaffevento = $45
+                AND EXISTS (SELECT 1 FROM staffempresas sme WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $46)`,
                 [
                     body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
                     body.idcliente, body.nmcliente, body.idevento, body.nmevento, body.idmontagem,
-                    body.nmlocalmontagem, body.pavilhao, vlrCusto, vlrAjuste, vlrTransp, vlrAlim, vlrCaixinha,
+                    body.nmlocalmontagem, body.pavilhao, vlrCusto, vlrAjuste, vlrTransp, vlrAlim,
                     body.descajustecusto, JSON.stringify(datasevento), total, body.descbeneficios, body.setor,
-                    body.statuspgto, body.statusajustecusto, body.statuscaixinha, body.statusdiariadobrada,
+                    body.statuspgto, body.statusajustecusto, body.statusdiariadobrada,
                     body.statusmeiadiaria, JSON.stringify(dtdiariadobrada), JSON.stringify(dtmeiadiaria),
-                    body.desccaixinha, descDiariaDobradaFinalText, body.descmeiadiaria,
-                    paths.cache, paths.ajd, paths.ajd50, paths.cx,
+                    descDiariaDobradaFinalText, body.descmeiadiaria,
+                    paths.cache, paths.ajd, paths.ajd50,
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                     body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
                     paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal,
-                    paths.inativardeletar, paths.cache50
+                    paths.inativardeletar, paths.cache50, JSON.stringify(caixinha)
                 ]
             );
 
@@ -2228,7 +2331,7 @@ router.put("/:idStaffEvento",
             // as duas num card só, escondendo uma delas na tela mesmo com as 2 linhas no banco.
             const tipoCustoFechadoAtual = (body.nivelexperiencia || '').trim().toUpperCase() === 'LIBERADO' ? 'Cachê Liberado' : 'Cachê Fechado';
             const itensFinanceiros = [
-                { status: body.statuscaixinha, campo: 'statuscaixinha', valor: vlrCaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
+                { campo: 'statuscaixinha', tipo: 'Caixinha', itensCaixinha: caixinha },
                 { status: body.statusajustecusto, campo: 'statusajustecusto', valor: vlrAjuste, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
                 { status: body.statuscustofechado, campo: 'statuscustofechado', valor: vlrCusto, desc: body.desccustofechado, tipo: tipoCustoFechadoAtual },
                 { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: body.descdiariadobrada, tipo: 'Diária Dobrada', datas: dtdiariadobrada },
@@ -2236,9 +2339,65 @@ router.put("/:idStaffEvento",
             ];
 
             for (const item of itensFinanceiros) {
-                if (item.campo === 'statusdiariadobrada' || item.campo === 'statusmeiadiaria') {
+                if (item.campo === 'statuscaixinha') {
+                    // Caixinha não tem uma data única natural pra casar com solicitacoes (duas
+                    // caixinhas podem nascer no mesmo dia) — casa por chaveitem (iditem) em vez
+                    // de dtsolicitada, ao contrário de diária dobrada/meia diária abaixo.
+                    for (const entrada of (item.itensCaixinha || [])) {
+                        const statusDec = (entrada.status || '').trim();
+                        if (!entrada.iditem || !statusDec) continue;
 
-                    
+                        const justificativaItem = String(entrada.justificativa || item.desc || '').trim();
+
+                        const updateRes = await client.query(
+                            `UPDATE public.solicitacoes
+                             SET status = $1::varchar,
+                                 vlrsolicitado = $2,
+                                 justificativa = $3::text,
+                                 dtresposta = CASE
+                                     WHEN $1::varchar = 'Pendente' THEN NULL
+                                     WHEN status IS DISTINCT FROM $1::varchar THEN CURRENT_TIMESTAMP
+                                     ELSE dtresposta
+                                 END,
+                                 idusuarioresponsavel = CASE
+                                     WHEN $1::varchar = 'Pendente' THEN NULL
+                                     WHEN status IS DISTINCT FROM $1::varchar THEN $4::integer
+                                     ELSE idusuarioresponsavel
+                                 END,
+                                 idusuariosolicitante = $4::integer
+                             WHERE idregistroalterado = $5::integer
+                               AND categoria_log = $6::varchar
+                               AND idempresa = $7::integer
+                               AND chaveitem = $8::varchar`,
+                            [statusDec, entrada.valor || 0, justificativaItem, idUsuarioLogado, idStaffEvento, item.campo, idempresa, entrada.iditem]
+                        );
+
+                        if (updateRes.rowCount === 0 && ['Pendente', 'Autorizado'].includes(statusDec)) {
+                            await client.query(`
+                                INSERT INTO public.solicitacoes (
+                                    idorcamento, idregistroalterado, idfuncionario, idfuncao, idempresa,
+                                    tiposolicitacao, status, dtsolicitacao, idusuariosolicitante,
+                                    categoria_log, justificativa, dtsolicitada, vlrsolicitado, chaveitem
+                                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, $10, ARRAY[$11]::date[], $12, $13)`,
+                                [body.idorcamento,
+                                 idStaffEvento,
+                                 body.idfuncionario,
+                                 body.idfuncao,
+                                 idempresa,
+                                 item.tipo,
+                                 statusDec,
+                                 idUsuarioLogado,
+                                 item.campo,
+                                 justificativaItem,
+                                 entrada.data,
+                                 entrada.valor || 0,
+                                 entrada.iditem]
+                            );
+                        }
+                    }
+                } else if (item.campo === 'statusdiariadobrada' || item.campo === 'statusmeiadiaria') {
+
+
                     for (const entrada of item.datas) {
                         const statusDec = (entrada.status || '').trim();
                         if (!entrada.data || !statusDec) continue;
@@ -2514,6 +2673,16 @@ router.put("/:idStaffEvento",
                 `, [idStaffEvento, idempresa]);
                 const datasAfetadas = pendDates.rows[0]?.datas || [];
 
+                // 1b. Mesma coisa, mas por chaveitem — caixinha casa por item (iditem), não por
+                //     data, então precisa da sua própria lista de "afetados" antes de rejeitar.
+                const pendChaveItens = await client.query(`
+                    SELECT ARRAY_AGG(DISTINCT chaveitem) FILTER (WHERE chaveitem IS NOT NULL) AS chaves
+                    FROM solicitacoes
+                    WHERE idregistroalterado = $1 AND idempresa = $2
+                      AND status = 'Pendente' AND categoria_log = 'statuscaixinha'
+                `, [idStaffEvento, idempresa]);
+                const chaveItensAfetados = pendChaveItens.rows[0]?.chaves || [];
+
                 // 2. Rejeita TODAS as solicitacoes pendentes deste registro, qualquer categoria,
                 //    exceto 'saldoinativacao' (ver nota acima).
                 const cascataRes = await client.query(`
@@ -2533,10 +2702,23 @@ router.put("/:idStaffEvento",
                 `, [sufixoJust, idUsuarioLogado, idStaffEvento, idempresa]);
 
                 // 3. Atualiza as entradas JSONB por-data (aditivo/extra, diária dobrada, meia diária)
-                //    cujas datas coincidem com as das solicitações rejeitadas
-                if (datasAfetadas.length > 0) {
+                //    cujas datas coincidem com as das solicitações rejeitadas, e por-item (caixinha)
+                if (datasAfetadas.length > 0 || chaveItensAfetados.length > 0) {
                     await client.query(`
                         UPDATE staffeventos SET
+                            caixinha = CASE
+                                WHEN jsonb_typeof(caixinha) = 'array'
+                                THEN (
+                                    SELECT COALESCE(jsonb_agg(
+                                        CASE WHEN (elem->>'status') = 'Pendente'
+                                              AND (elem->>'iditem') = ANY($4::text[])
+                                        THEN jsonb_set(elem, '{status}', '"Rejeitado"')
+                                        ELSE elem END
+                                    ), caixinha)
+                                    FROM jsonb_array_elements(caixinha) elem
+                                )
+                                ELSE caixinha
+                            END,
                             dtdiariadobrada = CASE
                                 WHEN jsonb_typeof(dtdiariadobrada) = 'array'
                                 THEN (
@@ -2581,14 +2763,13 @@ router.put("/:idStaffEvento",
                               SELECT 1 FROM staffempresas sme
                               WHERE sme.idstaff = staffeventos.idstaff AND sme.idempresa = $3
                           )
-                    `, [datasAfetadas, idStaffEvento, idempresa]);
+                    `, [datasAfetadas, idStaffEvento, idempresa, chaveItensAfetados]);
                 }
 
                 // 4. Atualiza as colunas de status "resumo" (sem granularidade por data) — só quando
                 //    ainda estavam Pendente, pra não sobrescrever uma decisão diferente feita nesta mesma request
                 await client.query(`
                     UPDATE staffeventos SET
-                        statuscaixinha      = CASE WHEN statuscaixinha      = 'Pendente' THEN 'Rejeitado' ELSE statuscaixinha      END,
                         statusajustecusto   = CASE WHEN statusajustecusto   = 'Pendente' THEN 'Rejeitado' ELSE statusajustecusto   END,
                         statuscustofechado  = CASE WHEN statuscustofechado  = 'Pendente' THEN 'Rejeitado' ELSE statuscustofechado  END,
                         statusdiariadobrada = CASE WHEN statusdiariadobrada = 'Pendente' THEN 'Rejeitado' ELSE statusdiariadobrada END,
@@ -2696,6 +2877,13 @@ async function registrarSolicitacao(client, dados) {
         return valor;
     };
 
+    // chaveitem: usado quando um mesmo categoria_log pode ter VÁRIAS solicitações
+    // concorrentes no mesmo registro (ex.: múltiplas caixinhas) — sem isso, o UPDATE/dedup
+    // abaixo trataria itens diferentes como se fossem o mesmo. IS NOT DISTINCT FROM trata
+    // NULL de forma seletiva, então chamadores que não passam chaveitem (todo o resto do
+    // sistema) continuam batendo só com outras linhas igualmente sem chaveitem.
+    const chaveitem = dados.chaveitem || null;
+
     // 1. Tenta atualizar registro existente
     const updateRes = await client.query(`
         UPDATE public.solicitacoes SET
@@ -2707,12 +2895,14 @@ async function registrarSolicitacao(client, dados) {
           AND categoria_log = $5
           AND status = 'Pendente'
           AND idregistroalterado IS NOT NULL
+          AND chaveitem IS NOT DISTINCT FROM $6
     `, [
         dados.valor || 0,
         dados.justificativa,
         dados.idusuariosolicitante,
         dados.idstaffevento || null,
-        dados.categoria
+        dados.categoria,
+        chaveitem
     ]);
 
     // 2. Se não achou nada para atualizar, verifica se é de fato uma solicitação nova antes de inserir.
@@ -2723,8 +2913,9 @@ async function registrarSolicitacao(client, dados) {
         const { rows: ultimaSol } = await client.query(`
             SELECT status, vlrsolicitado FROM public.solicitacoes
             WHERE idregistroalterado = $1 AND categoria_log = $2
+              AND chaveitem IS NOT DISTINCT FROM $3
             ORDER BY dtsolicitacao DESC LIMIT 1
-        `, [dados.idstaffevento || null, dados.categoria]);
+        `, [dados.idstaffevento || null, dados.categoria, chaveitem]);
 
         const jaIgual = ultimaSol.length > 0
             && ultimaSol[0].status === statusNovo
@@ -2736,8 +2927,8 @@ async function registrarSolicitacao(client, dados) {
                     idempresa, idorcamento, idfuncionario, idfuncao,
                     idregistroalterado, idusuariosolicitante, tiposolicitacao,
                     categoria_log, vlrsolicitado, justificativa,
-                    dtsolicitada, status, dtsolicitacao
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW())
+                    dtsolicitada, status, dtsolicitacao, chaveitem
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date[], $12, NOW(), $13)
             `, [
                 dados.idempresa,
                 dados.idorcamento,
@@ -2750,7 +2941,8 @@ async function registrarSolicitacao(client, dados) {
                 dados.valor || 0,
                 dados.justificativa,
                 formatarParaJsonB(dados.datas),
-                statusNovo
+                statusNovo,
+                chaveitem
             ]);
         }
     }
@@ -3409,9 +3601,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
         vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
-        vlrcaixinha, datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
-        statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria,
-        datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
+        datasevento, descajustecusto, descbeneficios, vlrtotal, setor,
+        statuspgto, statusajustecusto, statusdiariadobrada, statusmeiadiaria,
+        datadiariadobrada, datameiadiaria, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento, statusstaff,
         vlrtotcache, vlrtotajdcusto, statuscustofechado, desccustofechado, obspospgto, obsgeral,
@@ -3596,6 +3788,12 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             dtdiariadobrada = [];
         }
 
+        // Normaliza o array de caixinhas — sem registro anterior (criação), então nenhum
+        // comprovante/iditem prévio pra preservar. vlrcaixinha/statuscaixinha/desccaixinha/
+        // comppgtocaixinha (colunas legado) foram descontinuadas, não são mais calculadas.
+        const resultadoCaixinha = normalizarCaixinha(body, req, null);
+        const caixinha = resultadoCaixinha.itens;
+
         // ====================================================================
         // 🚀 TRATAMENTO DE DATADIARIADOBRADA ANTI-DUPLICAÇÃO (IGUAL AO PUT)
         // ====================================================================
@@ -3669,22 +3867,25 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
        // console.log("📝 tagsDescricaoGeral:", tagsDescricaoGeral);
 
         // 4. Inserir na staffeventos
+        // vlrcaixinha/statuscaixinha/desccaixinha/comppgtocaixinha descontinuadas — não
+        // fazem mais parte deste INSERT.
         const queryInsert = `
             INSERT INTO staffeventos (
                 idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-                idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao, vlrcache, 
-                vlralimentacao, vlrtransporte, vlrajustecusto, vlrcaixinha, descajustecusto,
-                datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
-                descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha,
+                idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao, vlrcache,
+                vlralimentacao, vlrtransporte, vlrajustecusto, descajustecusto,
+                datasevento, vlrtotal, comppgtocache, comppgtoajdcusto,
+                descbeneficios, setor, statuspgto, statusajustecusto,
                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
-                dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
+                dtmeiadiaria, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado, 
-                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos, compnotafiscal, vagasreaproveitadas, ativo, obslogsistema
+                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado,
+                desccustofechado, obspospgto, obsgeral, statusstaff, compcontgastos, compnotafiscal, vagasreaproveitadas, ativo, obslogsistema,
+                caixinha
             ) VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
                 $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,
-                $49,$50,$51,$52,$53,$54,$55,$56
+                $49,$50,$51,$52,$53
             ) RETURNING idstaffevento;
         `;
 
@@ -3692,20 +3893,20 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             parseFloatOrNull(vlrcache), parseFloatOrNull(vlralimentacao),
-            parseFloatOrNull(vlrtransporte), parseFloatOrNull(vlrajustecusto), parseFloatOrNull(vlrcaixinha),
+            parseFloatOrNull(vlrtransporte), parseFloatOrNull(vlrajustecusto),
             descajustecusto, JSON.stringify(datasArray), parseFloatOrNull(vlrtotal),
             req.files?.comppgtocache?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : null,
             req.files?.comppgtoajdcusto?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : null,
-            req.files?.comppgtocaixinha?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : null,
-            descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada,
-            statusmeiadiaria, JSON.stringify(dtdiariadobrada), 
+            descbeneficios, setor, statuspgto, statusajustecusto, statusdiariadobrada,
+            statusmeiadiaria, JSON.stringify(dtdiariadobrada),
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
-            JSON.stringify(dtmeiadiaria), desccaixinha, descDiariaDobradaFinalText, descmeiadiaria, nivelexperiencia, qtdpessoas,
+            JSON.stringify(dtmeiadiaria), descDiariaDobradaFinalText, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral, 
+            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral,
             statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null,
             req.files?.compnotafiscal?.[0] ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}` : null,
-            jsonVagasReaproveitadas, ativoFinal, obslogsistemaNovo || null
+            jsonVagasReaproveitadas, ativoFinal, obslogsistemaNovo || null,
+            JSON.stringify(caixinha)
         ];
 
         const resIns = await client.query(queryInsert, values);
@@ -3721,7 +3922,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         // notificações (que agrupam por tiposolicitacao).
         const tipoCustoFechadoAtualPost = nivelExperienciaUpper === 'LIBERADO' ? 'Cachê Liberado' : 'Cachê Fechado';
         const itensFinanceiros = [
-            { status: body.statuscaixinha, campo: 'statuscaixinha', valor: body.vlrcaixinha, desc: body.desccaixinha, tipo: 'Caixinha' },
+            { campo: 'statuscaixinha', tipo: 'Caixinha', itensCaixinha: caixinha },
             { status: body.statusajustecusto, campo: 'statusajustecusto', valor: body.vlrajustecusto, desc: body.descajustecusto, tipo: 'Ajuste de Custo' },
             { status: body.statuscustofechado, campo: 'statuscustofechado', valor: body.vlrcache, desc: body.desccustofechado, tipo: tipoCustoFechadoAtualPost },
             { status: body.statusdiariadobrada, campo: 'statusdiariadobrada', valor: 0, desc: descDiariaDobradaFinalText, tipo: 'Diária Dobrada', datas: dtdiariadobrada },
@@ -3729,6 +3930,34 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         ];
 
         for (const item of itensFinanceiros) {
+            if (item.campo === 'statuscaixinha') {
+                // Cada caixinha é sua própria solicitação (independente do status individual,
+                // não só quando o campo resumo é 'Pendente') — casa/insere por chaveitem (iditem).
+                for (const entrada of (item.itensCaixinha || [])) {
+                    const statusDec = (entrada.status || '').trim();
+                    if (!entrada.iditem || !['Pendente', 'Autorizado'].includes(statusDec)) continue;
+
+                    let justificativaItem = entrada.justificativa || item.desc;
+                    justificativaItem = String(Array.isArray(justificativaItem) ? justificativaItem[0] : justificativaItem || '').trim();
+                    if (justificativaItem.startsWith('{')) {
+                        justificativaItem = justificativaItem.replace(/[\{\}"]/g, '').trim();
+                    }
+
+                    await registrarSolicitacao(client, {
+                        idempresa, idorcamento, idfuncionario, idfuncao,
+                        idstaffevento: novoIdStaffEvento,
+                        idusuariosolicitante: idUsuarioLogado,
+                        tiposolicitacao: item.tipo,
+                        categoria: item.campo,
+                        valor: entrada.valor || 0,
+                        justificativa: justificativaItem,
+                        datas: entrada.data ? `{${String(entrada.data).trim()}}` : null,
+                        status: statusDec,
+                        chaveitem: entrada.iditem
+                    });
+                }
+                continue;
+            }
             if (item.status === 'Pendente') {
                 if (item.campo === 'statusdiariadobrada' || item.campo === 'statusmeiadiaria') {
                     

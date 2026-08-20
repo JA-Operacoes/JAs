@@ -1749,6 +1749,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 se.datasevento,
                 MIN(s.dtsolicitacao)   AS criado_em,
                 s.categoria_log        AS categoria,
+                s.chaveitem            AS chaveitem,
                 s.status               AS status_atual,
                 SUM(s.vlrsolicitado)   AS vlrsolicitado,
                 MIN(s.justificativa)   AS desccaixinha,
@@ -1782,10 +1783,10 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
             LEFT JOIN public.funcao fn_orig  ON fn_orig.idfuncao = se.idfuncao
             WHERE s.idempresa = $1
             ${filtroStatus}
-            GROUP BY 
+            GROUP BY
                 s.idregistroalterado, s.idusuariosolicitante, fn.descfuncao, fn_orig.descfuncao, s.tiposolicitacao,
                 u.nome, u.sobrenome, resp.nome, resp.sobrenome, f.nome, e.nmevento,
-                se.datasevento, s.categoria_log, s.status, o.dtfiminfradesmontagem,
+                se.datasevento, s.categoria_log, s.chaveitem, s.status, o.dtfiminfradesmontagem,
                 o.dtfimdesmontagem, s.idfuncionario, se.vlralimentacao, se.vlrtransporte,
                 se.vlrcache, se.dtdiariadobrada, se.dtmeiadiaria
             ORDER BY MIN(s.dtsolicitacao) DESC
@@ -2244,9 +2245,9 @@ router.get('/saldos-inativacao-pendentes', autenticarToken(), contextoEmpresa, a
         const { rows } = await pool.query(`
             SELECT s.idsolicitacao, s.idfuncionario, s.vlrsolicitado, s.justificativa, s.dtsolicitacao,
                    f.nome AS nomefuncionario, se.idevento, e.nmevento,
-                   se.datasevento, se.vlrcaixinha,
+                   se.datasevento, caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
                    se.vlrtotcache, se.vlrtotajdcusto,
-                   se.statuspgto, se.statuspgtoajdcto, se.statuscaixinha
+                   se.statuspgto, se.statuspgtoajdcto, se.statuspgtocaixinha AS statuscaixinha
             FROM solicitacoes s
             LEFT JOIN funcionarios f ON f.idfuncionario = s.idfuncionario
             LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
@@ -2294,8 +2295,9 @@ router.post('/notificacoes-financeiras/atualizar-status',
             if (categoria === 'saldoinativacao') {
                 const { rows: solRows } = await pool.query(
                     `SELECT s.idsolicitacao, s.idfuncionario, s.idregistroalterado,
-                            se.datasevento, se.vlrtotcache, se.vlrtotajdcusto, se.vlrcaixinha,
-                            se.statuspgto, se.statuspgtoajdcto, se.statuscaixinha
+                            se.datasevento, se.vlrtotcache, se.vlrtotajdcusto,
+                            caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
+                            se.statuspgto, se.statuspgtoajdcto, se.statuspgtocaixinha
                      FROM solicitacoes s
                      LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
                      WHERE s.idsolicitacao = $1 AND s.idempresa = $2 AND s.status = 'Pendente'`,
@@ -2342,7 +2344,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                     const valorJaPago = calcPagoBase(sol.statuspgto, vlrTotCache)
                         + calcPagoBase(sol.statuspgtoajdcto, vlrTotAjdCusto)
-                        + calcPagoBase(sol.statuscaixinha, vlrCaixinha);
+                        + calcPagoBase(sol.statuspgtocaixinha, vlrCaixinha);
 
                     // > 0: empresa pagou a mais (Débito do funcionário) | < 0: empresa ainda deve (Crédito ao funcionário)
                     const saldo = valorJaPago - valorDevido;
@@ -2397,7 +2399,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // 1. RECUPERA AS DATAS E O TIPO DA SOLICITAÇÃO
             let datasDaSolicitacao = [];
             const { rows: dadosSol } = await pool.query(`
-                SELECT dtsolicitada, tiposolicitacao FROM public.solicitacoes 
+                SELECT dtsolicitada, tiposolicitacao, chaveitem, vlrsolicitado FROM public.solicitacoes
                 WHERE idsolicitacao = $1 AND idempresa = $2
             `, [idpedido, idempresa]);
 
@@ -2457,7 +2459,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             console.log(`[REGISTRO MESTRE ANCORADO] Encontrado Staff ID: ${idStaffAlvo}`);
 
             const mapCategorias = {
-                'statuscaixinha': 'statuscaixinha',
+                'statuscaixinha': 'caixinha',
                 'statusajustecusto': 'statusajustecusto',
                 'statusdiariadobrada': 'dtdiariadobrada', 
                 'statusmeiadiaria': 'dtmeiadiaria',
@@ -2775,6 +2777,24 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 });
                 varObjetoJsonFinal = JSON.stringify(novasDiarias);
 
+            } else if (categoriaEfetiva === 'statuscaixinha') {
+                // Múltiplas caixinhas por registro: casa pelo chaveitem da PRÓPRIA solicitação
+                // (não por data — duas caixinhas podem nascer no mesmo dia), atualiza só o item
+                // certo dentro do array, preservando os outros intactos.
+                let rawCaixinha = registro.caixinha;
+                if (typeof rawCaixinha === 'string') {
+                    try { rawCaixinha = JSON.parse(rawCaixinha); } catch(e) { rawCaixinha = []; }
+                }
+                const arrayCaixinha = Array.isArray(rawCaixinha) ? rawCaixinha : [];
+                const chaveItemSolicitacao = dadosSol[0]?.chaveitem;
+                const novaCaixinha = arrayCaixinha.map(item => {
+                    if (chaveItemSolicitacao && item.iditem === chaveItemSolicitacao) {
+                        return { ...item, status: statusParaAtualizar };
+                    }
+                    return item;
+                });
+                varObjetoJsonFinal = JSON.stringify(novaCaixinha);
+
             } else if (categoriaEfetiva === 'statusvagasreaproveitadas') {
                 let rawVagas = registro.vagasreaproveitadas;
                 let arrayVagas = [];
@@ -2833,7 +2853,9 @@ router.post('/notificacoes-financeiras/atualizar-status',
             const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
             const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
             const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
-            const vlrCaixinha = parseFloat(registro.vlrcaixinha) || 0;
+            // vlrcaixinha (coluna legado) foi descontinuada — o valor relevante aqui é o
+            // DESTA solicitação específica (vlrsolicitado), não uma soma congelada do registro.
+            const vlrCaixinhaDestaSolicitacao = parseFloat(dadosSol[0]?.vlrsolicitado) || 0;
 
             if (categoriaEfetiva === 'statusdiariadobrada' || categoriaEfetiva === 'statusmeiadiaria') {
                 let arrayExtras = (categoriaEfetiva === 'statusdiariadobrada') ? registro.dtdiariadobrada : registro.dtmeiadiaria;
@@ -2930,7 +2952,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             } else {
                 if (categoriaEfetiva === 'statusajustecusto' && statusParaAtualizar === 'Autorizado') { totalCache += vlrAjuste; }
                 total = totalCache + totalAjdCusto;
-                if (categoriaEfetiva === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinha; }
+                if (categoriaEfetiva === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinhaDestaSolicitacao; }
             }
 
             // ==========================================
@@ -2942,8 +2964,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
             }
 
             let valorFinalColuna;
-            if (['dtdiariadobrada', 'dtmeiadiaria', 'vagasreaproveitadas'].includes(colunaDestinoBanco)) {
-                valorFinalColuna = varObjetoJsonFinal; 
+            if (['dtdiariadobrada', 'dtmeiadiaria', 'vagasreaproveitadas', 'caixinha'].includes(colunaDestinoBanco)) {
+                valorFinalColuna = varObjetoJsonFinal;
             } else {
                 valorFinalColuna = statusParaAtualizar;
             }
@@ -3263,11 +3285,12 @@ router.get("/vencimentos", async (req, res) => {
           --(COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
           COALESCE(tse.vlrtotcache, 0) AS cache_com_ajuste,
           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
-          COALESCE(tse.vlrcaixinha, 0) AS vlrcaixinha,       
-          COALESCE(tse.vlrcaixinha, 0) AS totalcaixinha_full,
+          COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) AS vlrcaixinha,
+          COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) AS totalcaixinha_full,
+          tse.caixinha,
           tse.statuspgto,
           tse.statuspgtoajdcto,
-          tse.statuscaixinha,
+          tse.statuspgtocaixinha AS statuscaixinha,
           tse.statusstaff,
           tse.comppgtocache,
           tse.comppgtocache50,
@@ -3292,6 +3315,35 @@ router.get("/vencimentos", async (req, res) => {
     `;
 
     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
+
+    // statusstaff='Pendente' é ambíguo: pode ser (a) ainda aguardando decisão do
+    // Aditivo/Extra/FuncExcedido, OU (b) já Autorizado mas ainda não incluído no
+    // orçamento (statusstaff só vira 'Ativo' depois dessa inclusão). Só dá pra saber
+    // olhando a(s) solicitação(ões) vinculada(s) — se TODAS já estão Autorizado, é o
+    // caso (b); senão (nenhuma vinculada, ou alguma ainda Pendente), é o caso (a).
+    const idsStaffPendentes = staffRows.filter(s => s.statusstaff === 'Pendente').map(s => s.idstaffevento);
+    const mapaAguardandoOrcamento = new Map();
+    const mapaJustificativaPendencia = new Map();
+    if (idsStaffPendentes.length > 0) {
+        const { rows: solicitacoesVagaEtc } = await pool.query(
+            `SELECT idregistroalterado, status, justificativa
+             FROM public.solicitacoes
+             WHERE idregistroalterado = ANY($1) AND categoria_log IN ('aditivoextra', 'statusvagaexcedida')`,
+            [idsStaffPendentes]
+        );
+        const porRegistro = new Map();
+        solicitacoesVagaEtc.forEach(s => {
+            if (!porRegistro.has(s.idregistroalterado)) porRegistro.set(s.idregistroalterado, []);
+            porRegistro.get(s.idregistroalterado).push(s);
+        });
+        porRegistro.forEach((linhas, idregistroalterado) => {
+            mapaAguardandoOrcamento.set(idregistroalterado, linhas.every(l => l.status === 'Autorizado'));
+            // Pode haver mais de uma solicitação (1 por data de exceção) — junta as
+            // justificativas distintas, sem repetir, pra exibir no lugar dos botões.
+            const justificativasUnicas = [...new Set(linhas.map(l => (l.justificativa || '').trim()).filter(Boolean))];
+            mapaJustificativaPendencia.set(idregistroalterado, justificativasUnicas.join(' | '));
+        });
+    }
 
     const normalizarParaDate = (val) => {
         if (!val) return null;
@@ -3367,11 +3419,29 @@ router.get("/vencimentos", async (req, res) => {
             if (startD && (!minEscalaStaff || startD < minEscalaStaff)) minEscalaStaff = startD;
             if (endD && (!maxEscalaStaff || endD > maxEscalaStaff)) maxEscalaStaff = endD;
 
+            // Itens de caixinha (autorizados + pendentes) pra exibir individualmente nos
+            // Vencimentos, com a justificativa de cada um — Rejeitado não representa mais
+            // valor em aberto, então não precisa aparecer aqui.
+            const caixinhaArray = Array.isArray(s.caixinha) ? s.caixinha : [];
+            const itensCaixinha = caixinhaArray
+                .filter(it => it.status === 'Autorizado' || it.status === 'Pendente')
+                .map(it => ({
+                    valor: parseFloat(it.valor) || 0,
+                    status: it.status,
+                    justificativa: it.justificativa || '',
+                    comprovante: it.comprovante || null
+                }));
+
+            const { caixinha, ...sSemCaixinhaRaw } = s;
+
             return {
-                ...s,
+                ...sSemCaixinhaRaw,
                 periodo_eventoini_fmt: formatarDDMMYYYY(s.periodo_eventoini_all),
                 periodo_eventofim_fmt: formatarDDMMYYYY(s.periodo_eventofim_all),
-                totalpagar: vC + vA + vX
+                totalpagar: vC + vA + vX,
+                itens_caixinha: itensCaixinha,
+                aguardandoInclusaoOrcamento: mapaAguardandoOrcamento.get(s.idstaffevento) || false,
+                justificativaPendencia: mapaJustificativaPendencia.get(s.idstaffevento) || ''
             };
         });
 
@@ -3530,7 +3600,7 @@ router.post("/vencimentos/update-status",
     logMiddleware("Vencimentos", {
         buscarDadosAnteriores: async (req) => {
             const { idStaff } = req.body;
-            const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuscaixinha FROM staffeventos WHERE idstaffevento = $1`;
+            const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuspgtocaixinha FROM staffeventos WHERE idstaffevento = $1`;
             const result = await pool.query(query, [idStaff]);
             return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
         }
@@ -3580,7 +3650,10 @@ router.post("/vencimentos/update-status",
         } else if (tipo === 'Ajuda') {
             coluna = 'statuspgtoajdcto';
         } else if (tipo === 'Caixinha') {
-            coluna = 'statuscaixinha'; // Nome da coluna conforme sua query de SELECT
+            // Bug corrigido: isto é status de PAGAMENTO ("Pago"/"Suspenso"/"Rejeitado"), não de
+            // autorização — statuscaixinha (autorização: Pendente/Autorizado/Rejeitado, hoje
+            // descontinuada em favor do array `caixinha`) nunca deveria receber esses valores.
+            coluna = 'statuspgtocaixinha';
         }
 
         if (!coluna) {
@@ -3679,7 +3752,11 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
             coluna = 'comppgtocache';
         }
         else if (tipo === 'caixinha') {
-            coluna = 'comppgtocaixinha';
+            // comppgtocaixinha (comprovante único pro registro) foi descontinuada — cada
+            // caixinha agora tem seu próprio comprovante dentro do array `caixinha`, e essa
+            // tela não sabe pra qual item específico este upload seria. Envie item a item
+            // pela tela do Staff.
+            return res.status(400).json({ error: "Envie o comprovante de cada caixinha individualmente pela tela do Staff (uma por item)." });
         }
         else if (tipo === 'ajuda_50') {
             coluna = 'comppgtoajdcusto50';

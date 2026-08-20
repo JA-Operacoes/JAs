@@ -24,6 +24,8 @@ const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
 const temPermissaoDevs = temPermissao("Staff", "devs");
+// Só Master e Supremo podem trocar o status de cada Caixinha — os demais só visualizam.
+const temPermissaoCaixinhaEditavel = temPermissaoMaster || temPermissao("Staff", "supremo");
 
 
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
@@ -1853,20 +1855,14 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         btnResolicitarAjuste.style.display = podeResolicitarAjuste ? 'inline-block' : 'none';
     }
 
-    caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
-    descCaixinhaTextarea.value = eventData.desccaixinha || '';
-   // statusCaixinhaInput.value = eventData.statuscaixinha || '';
-    const vlrCaixinha = parseFloat(eventData.vlrcaixinha || 0);
-    statusCaixinhaInput.value = eventData.statuscaixinha || (vlrCaixinha !== 0 ? 'Pendente' : '');
-    caixinhaInput.readOnly = (eventData.statuscaixinha || '').trim() === 'Autorizado';
-
-    // "Solicitar Novamente": só quando Rejeitado e o pagamento da caixinha ainda não foi PAGO
-    const btnResolicitarCaixinha = document.getElementById('btnSolicitarNovamenteCaixinha');
-    if (btnResolicitarCaixinha) {
-        const podeResolicitarCaixinha = (eventData.statuscaixinha || '').trim() === 'Rejeitado'
-            && (eventData.statuspgtocaixinha || '').trim().toUpperCase() !== 'PAGO';
-        btnResolicitarCaixinha.style.display = podeResolicitarCaixinha ? 'inline-block' : 'none';
-    }
+    // Múltiplas caixinhas: dtcaixinha é o array-fonte, os campos legado (caixinha/
+    // descCaixinha/statusCaixinha) são só exibição do resumo — ver sincronizarResumoCaixinha.
+    window.dtCaixinhaAtual = Array.isArray(eventData.caixinha)
+        ? eventData.caixinha
+        : (typeof eventData.caixinha === 'string' ? (JSON.parse(eventData.caixinha || '[]') || []) : []);
+    window.comprovantesCaixinhaPendentes = new Map();
+    if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
+    if (typeof sincronizarResumoCaixinha === 'function') sincronizarResumoCaixinha();
     window.statusAnteriorCaixinha = eventData.statuscaixinha;
     statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || 'Pendente';
     window.statusPgtoCaixinhaOriginalDoBanco = eventData.statuspgtocaixinha;
@@ -2058,19 +2054,19 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     }
 
     if (caixinhacheck) {
-        const vlrCaixa = parseFloat(eventData.vlrcaixinha || 0);
-        caixinhacheck.checked = vlrCaixa != 0;
+        // Checked por ITEM existir (não pelo total autorizado): um registro só com
+        // caixinhas Pendentes tem vlrcaixinha = 0, mas ainda tem que aparecer marcado.
+        caixinhacheck.checked = (window.dtCaixinhaAtual || []).length > 0;
         window.statusAnteriorCaixinha = eventData.statuscaixinha || '';
-        
+
         const mostrarCx = caixinhacheck.checked ? 'block' : 'none';
-        if (campoCaixinha) campoCaixinha.style.display = mostrarCx;
-        if (campoStatusCaixinha) campoStatusCaixinha.style.display = mostrarCx;
         if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = mostrarCx;
-        if (descCaixinhaTextarea) {
-            descCaixinhaTextarea.style.display = mostrarCx;
-            descCaixinhaTextarea.required = caixinhacheck.checked;
-            descCaixinhaTextarea.value = eventData.desccaixinha || '';
-        }
+        const wrapperListaCx = document.getElementById('wrapperListaCaixinhas');
+        if (wrapperListaCx) wrapperListaCx.style.display = mostrarCx;
+        // campoCaixinha/campoStatusCaixinha/descCaixinha são exibição do resumo — quem
+        // decide se mostram é sincronizarResumoCaixinha (baseado em ter item ou não).
+        if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
+        if (typeof sincronizarResumoCaixinha === 'function') sincronizarResumoCaixinha();
     }
 
     // 🟢 LOG POS-PAGAMENTO: Mostra apenas se houver conteúdo na tabela
@@ -2411,13 +2407,9 @@ function inicializarEPreencherCampos(eventData) {
         aplicarCoresAsOpcoes('selectStatusAjusteCusto');
         aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
 
-        document.getElementById('selectStatusCaixinha').style.display = 'block';
-        statusCaixinhaInput.style.display = 'none';
-        const statusCaixinhaNormalizado = (eventData.statuscaixinha || '').toLowerCase().replace(/^\w/, c => c.toUpperCase());
-        document.getElementById('selectStatusCaixinha').value = statusCaixinhaNormalizado;
-        aplicarCoresAsOpcoes('selectStatusCaixinha');
-        aplicarCorNoSelect(document.getElementById('selectStatusCaixinha'));
-        
+        // Caixinha: autorização agora é por item, na lista (ver sincronizarResumoCaixinha) —
+        // não reexibe mais o select agregado nem pra financeiro/master.
+
         // Exibe os grupos (label + container)
         document.getElementById('grupoDiariaDobrada').style.display = 'block';
         document.getElementById('grupoMeiaDiaria').style.display = 'block';
@@ -2469,11 +2461,8 @@ function inicializarEPreencherCampos(eventData) {
         statusAjusteCustoInput.value = statusAjuste.charAt(0).toUpperCase() + statusAjuste.slice(1).toLowerCase();
         aplicarCorStatusInput(statusAjusteCustoInput);
 
-        document.getElementById('selectStatusCaixinha').style.display = 'none';
-        statusCaixinhaInput.style.display = 'block';
-        const statusCx = eventData.statuscaixinha || '';
-        statusCaixinhaInput.value = statusCx.charAt(0).toUpperCase() + statusCx.slice(1).toLowerCase();
-        aplicarCorStatusInput(statusCaixinhaInput);
+        // Caixinha: exibição já resolvida por sincronizarResumoCaixinha (baseada no array
+        // dtcaixinha, não no eventData.statuscaixinha "congelado" no momento do load).
 
         // Esconde os grupos (label + container)
         document.getElementById('grupoDiariaDobrada').style.display = 'none';
@@ -2955,36 +2944,24 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 statusCellCache.appendChild(spanCache);                
 
                 
-                const statusCaixinhaCell = row.insertCell();
+                // Coluna "Caixinha" = VALOR (mesmo padrão de "Total Cachê"); coluna "Pgto Caixinha"
+                // = status do PAGAMENTO (mesmo padrão de "Pgto Cachê"). Antes as duas colunas
+                // mostravam statuscaixinha duplicado e a coluna de valor nunca aparecia.
+                const cellValorCaixinha = row.insertCell();
                 const vlrCaixinhaCell = parseFloat(eventData.vlrcaixinha || 0);
+                cellValorCaixinha.textContent = vlrCaixinhaCell > 0
+                    ? vlrCaixinhaCell.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : '---';
 
+                const cellPgtoCaixinha = row.insertCell();
                 if (vlrCaixinhaCell > 0) {
-                    const sCaixinha = (eventData.statuscaixinha || '').toLowerCase().trim();
-                    const spanCaixinha = document.createElement('span');
-                    
-                    spanCaixinha.textContent = sCaixinha === "" ? "Pendente" : sCaixinha.toUpperCase();
-                    
-                    // CORREÇÃO: Prevenção contra token vazio
-                    spanCaixinha.classList.add('status-pgto');
-                    if (sCaixinha !== "") {
-                        spanCaixinha.classList.add(sCaixinha);
-                    }
-                    statusCaixinhaCell.appendChild(spanCaixinha);
+                    const statusPgtoCx = (eventData.statuspgtocaixinha || 'pendente').toLowerCase().trim();
+                    const spanPgtoCaixinha = document.createElement('span');
+                    spanPgtoCaixinha.textContent = statusPgtoCx.toUpperCase();
+                    spanPgtoCaixinha.classList.add('status-pgto', statusPgtoCx);
+                    cellPgtoCaixinha.appendChild(spanPgtoCaixinha);
                 } else {
-                    statusCaixinhaCell.textContent = '---';
-                }
-
-                const cellStatusCaixinha = row.insertCell();
-                if (eventData.vlrcaixinha > 0) {
-                    const statusCaixinhaBase = (eventData.statuscaixinha || 'pendente').toLowerCase().trim();
-                    const statusSpanCaixinha = document.createElement('span');
-                                  
-                    statusSpanCaixinha.textContent = statusCaixinhaBase.toUpperCase();
-                   
-                    statusSpanCaixinha.classList.add('status-pgto', statusCaixinhaBase);
-                    cellStatusCaixinha.appendChild(statusSpanCaixinha);
-                } else {
-                    cellStatusCaixinha.textContent = '---';
+                    cellPgtoCaixinha.textContent = '---';
                 }
 
                 // TOTAL GERAL
@@ -4255,16 +4232,7 @@ async function verificaStaff() {
     }
     caixinhacheck.addEventListener('change', async (e) => {
         const isChecked = caixinhacheck.checked;
-        const textarea = document.getElementById('descCaixinha');
-        
-        // Elementos do Status da Caixinha
-        const inputStatus = document.getElementById('statusCaixinha'); 
-        const selectStatus = document.getElementById('selectStatusCaixinha');
-        
-        // Container do status (Wrapper)
-        const wrapperStatus = document.getElementById('campoStatusCaixinha') || 
-                            inputStatus?.closest('.form2') || 
-                            inputStatus?.parentElement;
+        const wrapperListaCx = document.getElementById('wrapperListaCaixinhas');
 
         // TRAVA DE SEGURANÇA: Bloqueia se o Cachê Base estiver pendente
         if (isChecked && !cacheBaseLiberado()) {
@@ -4278,22 +4246,20 @@ async function verificaStaff() {
             });
         }
 
-        let vOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) : 0;
-        let dOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.desccaixinha || '' : '';
-        let sOriginal = currentEditingStaffEvent ? currentEditingStaffEvent.statuscaixinha || '' : '';
-
         if (!isChecked) {
-            // Lógica para quando desmarca
-            if (sOriginal !== 'Pendente' && sOriginal !== '' && sOriginal !== null) {
+            // Múltiplas caixinhas: só pode desmarcar (limpar tudo) se NENHUM item já foi
+            // decidido (Autorizado/Rejeitado) — equivalente à trava antiga de status único.
+            const temItemDecidido = (window.dtCaixinhaAtual || []).some(it => it.status && it.status !== 'Pendente');
+            if (temItemDecidido) {
                 e.preventDefault();
                 caixinhacheck.checked = true;
-                return Swal.fire('Erro!', `Não é possível remover: status atual é "${sOriginal}".`, 'error');
+                return Swal.fire('Erro!', 'Não é possível remover: já existe(m) caixinha(s) com status decidido (Autorizado/Rejeitado).', 'error');
             }
 
-            if (parseFloat(caixinhaInput.value.replace(',', '.')) > 0) {
+            if ((window.dtCaixinhaAtual || []).length > 0) {
                 const result = await Swal.fire({
-                    title: 'Remover Caixinha?',
-                    text: 'Os dados preenchidos serão perdidos. Confirmar?',
+                    title: 'Remover Caixinha(s)?',
+                    text: 'Os pedidos de caixinha pendentes serão perdidos. Confirmar?',
                     icon: 'warning',
                     showCancelButton: true
                 });
@@ -4303,28 +4269,18 @@ async function verificaStaff() {
                 }
             }
 
-            // Esconde tudo
-            campoCaixinha.style.display = 'none';
-            textarea.style.display = 'none';
-            campoPgtoCaixinha.style.display = 'none';
-            if (wrapperStatus) wrapperStatus.style.display = 'none';
-            
-            caixinhaInput.value = '0,00';
-            textarea.value = '';
+            window.dtCaixinhaAtual = [];
+            window.comprovantesCaixinhaPendentes = new Map();
+            if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
+            if (wrapperListaCx) wrapperListaCx.style.display = 'none';
         } else {
-            // Lógica de abertura (Exibir)
-            campoCaixinha.style.display = 'block';
-            textarea.style.display = 'block';
-            campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
-
-            caixinhaInput.value = vOriginal.toFixed(2).replace('.', ',');
-            textarea.value = dOriginal;
-
-            const campoInput = document.getElementById('statusCaixinha');
-            //if (campoInput) campoInput.value = sOriginal || 'Pendente';
-            const vlrCaixaOriginal = currentEditingStaffEvent ? parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) : 0;
-            campoInput.value = sOriginal || (vlrCaixaOriginal !== 0 ? 'Pendente' : '');
+            if (campoPgtoCaixinha) campoPgtoCaixinha.style.setProperty('display', 'block', 'important');
+            if (wrapperListaCx) wrapperListaCx.style.display = 'block';
         }
+
+        if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
+        if (typeof sincronizarResumoCaixinha === 'function') sincronizarResumoCaixinha();
+        if (typeof calcularValorTotal === 'function') calcularValorTotal();
     })
    
    
@@ -5958,7 +5914,9 @@ async function verificaStaff() {
                 };
                 
                 const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivo) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
-                const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivo) || (caixinhaValorOriginal !== caixinhaValorAtual);
+                // Comparação pelo array inteiro (não só pelo total autorizado): adicionar uma
+                // caixinha nova Pendente não muda o total autorizado, mas é uma alteração real.
+                const houveAlteracaoCaixinha = JSON.stringify(currentEditingStaffEvent.dtcaixinha || []) !== JSON.stringify(window.dtCaixinhaAtual || []);
                 const houveAlteracaoDiariaDobrada = (dataDiariaDobradaOriginalLimpa.toString() !== periodoDobrado.toString());
                 const houveAlteracaoMeiaDiaria = (dataMeiaDiariaOriginalLimpa.toString() !== periodoMeiaDiaria.toString());
                 const houveAlteracaoDatas = JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento);
@@ -5996,10 +5954,9 @@ async function verificaStaff() {
                 //     }
                 // }
 
-                if (houveAlteracaoCaixinha && caixinhaAtivo && (!descCaixinha || descCaixinha.length < 15)) {
-                    descCaixinhaInput?.focus();
-                    return Swal.fire("Campos obrigatórios!", "A descrição da Caixinha deve ter no mínimo 15 caracteres.", "warning");
-                }
+                // Validação de tamanho mínimo da justificativa de Caixinha agora acontece no
+                // momento da criação de cada item (modal do botão "+ Nova Caixinha"), não mais
+                // aqui — descCaixinha é só a exibição (readonly) da justificativa do item mais recente.
                 if (houveAlteracaoAjusteCusto && ajusteCustoAtivo && (!descAjusteCusto || descAjusteCusto.length < 15)) {
                     descAjusteCustoInput?.focus();
                     return Swal.fire("Campos obrigatórios!", "A descrição do Bônus deve ter no mínimo 15 caracteres.", "warning");
@@ -6986,6 +6943,13 @@ async function verificaStaff() {
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
             formData.append('statuscaixinha', capitalize(statusCaixaEnvio));
             formData.append('statuspgtocaixinha', capitalize(statusPgtoCxEnvio));
+            // Múltiplas caixinhas: o array é a fonte de verdade — o backend recalcula
+            // vlrcaixinha/statuscaixinha/desccaixinha a partir dele (ver normalizarCaixinha).
+            formData.append('datacaixinha', JSON.stringify(window.dtCaixinhaAtual || []));
+            (window.comprovantesCaixinhaPendentes || new Map()).forEach((file, iditem) => {
+                formData.append('comppgtocaixinha', file);
+                formData.append('comprovanteCaixinhaIditens', iditem);
+            });
             
             // //formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
             // if (window.dadosDiariaDobradaInjetar && window.dadosDiariaDobradaInjetar.length > 0) {
@@ -7209,8 +7173,9 @@ async function verificaStaff() {
             if (fileAjdCusto2Input.files?.[0]) formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
             else if (hiddenRemoverAjdCusto2Input.value === 'true') formData.append('limparComprovanteAjdCusto2', 'true');
 
-            if (fileCaixinhaInput.files?.[0]) formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-            else if (hiddenRemoverCaixinhaInput.value === 'true') formData.append('limparComprovanteCaixinha', 'true');
+            // Múltiplas caixinhas: comprovante agora é por item (ver comprovantesCaixinhaPendentes,
+            // enviado mais acima junto com datacaixinha) — o widget único #fileCaixinha não é mais
+            // usado no envio, só a lista por item.
 
             if (fileAjdCustoInput.files?.[0]) {
                 console.log("📎 Anexando NOVO comprovante de Ajuda de Custo");
@@ -11872,9 +11837,9 @@ function limparCamposEvento() {
     // 4. Containers de Status e Wrappers (Ajustado para esconder as áreas de inputs)
     const containersParaLimpar = [
         'campoAjusteCusto', 'campoStatusAjusteCusto', // Crucial para esconder o Ajuste
-        'campoCaixinha', 'campoStatusCaixinha', 
-        'campoPgtoCaixinha', 'campoStatusPgtoCaixinha',
-        'campoMeiaDiaria', 'campoStatusMeiaDiaria', 
+        'campoCaixinha', 'campoStatusCaixinha',
+        'campoPgtoCaixinha', 'campoStatusPgtoCaixinha', 'wrapperListaCaixinhas',
+        'campoMeiaDiaria', 'campoStatusMeiaDiaria',
         'campoDiariaDobrada', 'campoStatusDiariaDobrada',
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
@@ -11888,6 +11853,10 @@ function limparCamposEvento() {
             container.style.display = 'none'; // Garante que a "caixa" do campo suma
         }
     });
+
+    window.dtCaixinhaAtual = [];
+    window.comprovantesCaixinhaPendentes = new Map();
+    if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
 
     
     
@@ -12066,7 +12035,7 @@ function limparCamposStaff() {
         'containerStatusDiariaDobrada', 'containerStatusMeiaDiaria',
         'containerStatusAditivo', 'containerStatusExtraBonificado',
         'campoStatusDiariaDobrada', 'campoStatusMeiaDiaria', 'campoAjusteCusto',
-        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha',
+        'campoCaixinha', 'campoStatusCaixinha', 'campoPgtoCaixinha', 'wrapperListaCaixinhas',
         'campoStatusCustoFechado', 'wrapperJustificativaCustoFechado'
     ];
 
@@ -12077,6 +12046,10 @@ function limparCamposStaff() {
             container.style.display = 'none';
         }
     });
+
+    window.dtCaixinhaAtual = [];
+    window.comprovantesCaixinhaPendentes = new Map();
+    if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
 
     // 6. Containers, Wrappers e Status Visuais
     const containersParaOcultar = [
@@ -12524,26 +12497,274 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
             return;
         }
         
-        document.getElementById('campoCaixinha').style.display = 'block';
-        document.getElementById('campoStatusCaixinha').style.display = 'block';
         document.getElementById('campoPgtoCaixinha').style.display = 'block';
-        
-        input.required = true;
-        inputStatus.required = true;
+        document.getElementById('wrapperListaCaixinhas').style.display = 'block';
+
         inputPgto.required = true;
+        if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
+        if (typeof sincronizarResumoCaixinha === 'function') sincronizarResumoCaixinha();
     } else {
-        input.required = false;
-        inputStatus.required = false;
         inputPgto.required = false;
 
         document.getElementById('campoCaixinha').style.display = 'none';
         document.getElementById('campoStatusCaixinha').style.display = 'none';
         document.getElementById('campoPgtoCaixinha').style.display = 'none';
-        
+        document.getElementById('wrapperListaCaixinhas').style.display = 'none';
+
+        window.dtCaixinhaAtual = [];
         input.value = '';
         inputStatus.value = '';
         inputPgto.value = '';
+        if (typeof renderCaixinhaItems === 'function') renderCaixinhaItems();
     }
+});
+
+// =====================================================================
+// CAIXINHA MÚLTIPLA — cada pedido é um item independente em window.dtCaixinhaAtual
+// ({ iditem, valor, status, justificativa, data, comprovante }). Os campos antigos
+// (caixinha/descCaixinha/statusCaixinha) continuam existindo, só que agora são
+// só EXIBIÇÃO do total/resumo calculado a partir do array — ver sincronizarResumoCaixinha.
+// =====================================================================
+
+// Chave interna do item (não aparece na tela) — legível pra quem for debugar direto no
+// banco/console: data + hora + valor + um sufixo curto só pra garantir unicidade (2
+// caixinhas de mesmo valor no mesmo segundo não colidiriam). Ex: "2026-08-18_143205_100_a1b2".
+function gerarIditemCaixinha(data, valor) {
+    const agora = new Date();
+    const hora = [agora.getHours(), agora.getMinutes(), agora.getSeconds()]
+        .map(n => String(n).padStart(2, '0')).join('');
+    const valorLimpo = String(parseFloat(valor) || 0).replace('.', ',');
+    const sufixo = Math.random().toString(36).slice(2, 6);
+    return `${data || 'sem-data'}_${hora}_${valorLimpo}_${sufixo}`;
+}
+
+function caixinhaCachePago() {
+    // Bloqueia item novo/nova autorização quando o cachê JÁ foi pago OU quando a própria
+    // caixinha já foi paga (statuspgtocaixinha) — uma vez pago, a "gaveta" da caixinha
+    // fecha, mesma regra aplicada no backend (normalizarCaixinha).
+    const cachePago = (window.statusPgtoCacheOriginalDoBanco || '').trim().toLowerCase().startsWith('pago');
+    const caixinhaPaga = (window.statusPgtoCaixinhaOriginalDoBanco || '').trim().toLowerCase().startsWith('pago');
+    return cachePago || caixinhaPaga;
+}
+
+// Recalcula os campos-resumo (legado) a partir de window.dtCaixinhaAtual — mesma regra
+// usada no backend (normalizarCaixinha em routes/rotaStaff.js): Pendente > Autorizado >
+// Rejeitado na prioridade de exibição, valor = soma dos itens Autorizados.
+function sincronizarResumoCaixinha() {
+    const itens = window.dtCaixinhaAtual || [];
+    const total = itens.filter(it => it.status === 'Autorizado')
+        .reduce((acc, it) => acc + (parseFloat(it.valor) || 0), 0);
+    const statusResumo = itens.some(it => it.status === 'Pendente') ? 'Pendente'
+        : itens.some(it => it.status === 'Autorizado') ? 'Autorizado'
+        : itens.some(it => it.status === 'Rejeitado') ? 'Rejeitado'
+        : '';
+
+    if (caixinhaInput) caixinhaInput.value = total.toFixed(2).replace('.', ',');
+    if (descCaixinhaTextarea) descCaixinhaTextarea.value = itens[itens.length - 1]?.justificativa || '';
+    if (statusCaixinhaInput) {
+        statusCaixinhaInput.value = statusResumo;
+        if (typeof aplicarCorStatusInput === 'function') aplicarCorStatusInput(statusCaixinhaInput);
+    }
+
+    // A autorização agora é por item (lista abaixo) — o select agregado antigo fica
+    // sempre oculto, só mostramos o texto-resumo (mesmo "modo exibição" que o código
+    // já usava pra status já decidido).
+    const selectCx = document.getElementById('selectStatusCaixinha');
+    if (selectCx) selectCx.style.display = 'none';
+    // campoStatusCaixinha (o "Autorizado"/"Pendente" agregado) fica sempre oculto — é
+    // redundante com o status já visível em cada linha da lista, e com só 1-2 itens
+    // acabava mostrando a mesma palavra duas vezes de um jeito confuso. O valor do
+    // input continua sendo atualizado (statusCaixinhaInput.value acima) só pra manter
+    // o FormData/consumidores legado coerentes, mesmo sem aparecer na tela.
+    if (statusCaixinhaInput) statusCaixinhaInput.style.display = 'none';
+    const campoStatusCx = document.getElementById('campoStatusCaixinha');
+    if (campoStatusCx) campoStatusCx.style.display = 'none';
+
+    // "Status do Pgto Caixinha" também fica oculto — quem olha (inclusive Master, que já
+    // vê o select por item) não precisa desse campo extra pra entender o que foi decidido;
+    // o valor continua sendo mantido/enviado por baixo (regra de pagamento é única pro
+    // registro inteiro, não por item — ver caixinhaCachePago).
+    if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
+
+    // campoCaixinha (total autorizado) também fica sempre oculto — com 1-2 itens dava a
+    // impressão de "R$X autorizado + mais R$X pendente na lista", como se fossem valores
+    // separados. O total continua calculado (linha acima) só pra quem lê via FormData/
+    // backend legado; quem olha a tela só vê a lista, que já é a fonte da verdade.
+    if (campoCaixinha) campoCaixinha.style.display = 'none';
+}
+
+function renderCaixinhaItems() {
+    const container = document.getElementById('listaCaixinhas');
+    if (!container) return;
+    const itens = window.dtCaixinhaAtual || [];
+    container.innerHTML = '';
+
+    itens.forEach((item) => {
+        const linha = document.createElement('div');
+        linha.className = 'linha-caixinha';
+        linha.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee; font-size:12px; flex-wrap:wrap;';
+
+        const dataFormatada = item.data ? String(item.data).split('-').reverse().join('/') : '';
+        const valorFormatado = (parseFloat(item.valor) || 0).toFixed(2).replace('.', ',');
+        const justTitulo = String(item.justificativa || '').replace(/"/g, '&quot;');
+        const justResumo = String(item.justificativa || '');
+
+        // infoSpan não cresce (flex:0) pra ficar coladinho no select — quem cresce e
+        // empurra o comprovante pro fim da linha é o "spacer" depois do select.
+        const infoSpan = document.createElement('span');
+        infoSpan.style.cssText = 'flex:0 1 auto; min-width:0;';
+        infoSpan.innerHTML = `<b>${dataFormatada}</b> — R$ ${valorFormatado} — <span title="${justTitulo}">${justResumo.slice(0, 40)}${justResumo.length > 40 ? '…' : ''}</span>`;
+        linha.appendChild(infoSpan);
+
+        // Só Master/Supremo podem trocar o status por item — os demais só veem o
+        // status atual (badge somente leitura, sem select).
+        if (temPermissaoCaixinhaEditavel) {
+            const selectStatus = document.createElement('select');
+            selectStatus.className = 'caixinha-status-badge';
+            selectStatus.style.cssText = 'flex:0 0 auto;';
+            ['Pendente', 'Autorizado', 'Rejeitado'].forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt;
+                optionEl.textContent = opt;
+                optionEl.classList.add('status-' + opt);
+                if (opt === item.status) optionEl.selected = true;
+                selectStatus.appendChild(optionEl);
+            });
+            if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectStatus);
+            selectStatus.addEventListener('change', () => {
+                if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectStatus);
+                onMudarStatusCaixinhaItem(item.iditem, selectStatus.value, selectStatus);
+            });
+            linha.appendChild(selectStatus);
+        } else {
+            const badgeStatus = document.createElement('span');
+            badgeStatus.className = 'caixinha-status-badge status-' + (item.status || 'Pendente');
+            badgeStatus.style.cssText = 'flex:0 0 auto;';
+            badgeStatus.textContent = item.status || 'Pendente';
+            linha.appendChild(badgeStatus);
+        }
+
+        // Comprovante fica coladinho ao lado do status (não no fim da linha) — é a
+        // prova referente àquele valor/status específico, faz sentido ver os dois juntos.
+        if (item.comprovante) {
+            const link = document.createElement('a');
+            link.href = item.comprovante;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = '📎 ver';
+            link.style.cssText = 'font-size:11px; flex:0 0 auto;';
+            linha.appendChild(link);
+        }
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'application/pdf,image/*';
+        fileInput.title = item.comprovante ? 'Substituir comprovante desta caixinha' : 'Enviar comprovante desta caixinha';
+        fileInput.style.cssText = 'font-size:11px; flex:0 0 auto; max-width:130px;';
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files?.[0]) {
+                window.comprovantesCaixinhaPendentes = window.comprovantesCaixinhaPendentes || new Map();
+                window.comprovantesCaixinhaPendentes.set(item.iditem, fileInput.files[0]);
+            }
+        });
+        linha.appendChild(fileInput);
+
+        const espacador = document.createElement('span');
+        espacador.style.cssText = 'flex:1 1 auto;';
+        linha.appendChild(espacador);
+
+        container.appendChild(linha);
+    });
+}
+
+async function onMudarStatusCaixinhaItem(iditem, novoStatus, selectEl) {
+    const item = (window.dtCaixinhaAtual || []).find(it => it.iditem === iditem);
+    if (!item) return;
+    const statusAnterior = item.status;
+
+    if (novoStatus === 'Autorizado' && statusAnterior !== 'Autorizado' && caixinhaCachePago()) {
+        selectEl.value = statusAnterior;
+        if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectEl);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Não é possível autorizar',
+            text: 'O cachê já foi pago — Caixinha é um recurso para o funcionário usar durante o evento, não depois.'
+        });
+        return;
+    }
+
+    if (typeof verificarSeEstaPago === 'function' && verificarSeEstaPago()) {
+        const { value: justificativa } = await Swal.fire({
+            title: 'Alterar status da Caixinha',
+            html: `Este registro já tem pagamento em andamento. Justifique a alteração de <b>${statusAnterior}</b> para <b>${novoStatus}</b>:`,
+            input: 'textarea',
+            inputLabel: 'Justificativa',
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            inputValidator: (v) => { if (!v) return 'Justificativa obrigatória!'; }
+        });
+        if (!justificativa) {
+            selectEl.value = statusAnterior;
+            if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectEl);
+            return;
+        }
+        item.justificativa = justificativa;
+        if (typeof registrarLogPosPagamento === 'function') {
+            registrarLogPosPagamento(`Alteração em Caixinha (R$ ${(parseFloat(item.valor) || 0).toFixed(2)}): ${statusAnterior} -> ${novoStatus}. Motivo: ${justificativa}`);
+        }
+    }
+
+    item.status = novoStatus;
+    renderCaixinhaItems();
+    sincronizarResumoCaixinha();
+    if (typeof calcularValorTotal === 'function') calcularValorTotal();
+}
+
+document.getElementById('btnAdicionarCaixinha')?.addEventListener('click', async () => {
+    if (caixinhaCachePago()) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Não é possível adicionar',
+            text: 'O cachê já foi pago — Caixinha é um recurso para o funcionário usar durante o evento, não depois.'
+        });
+        return;
+    }
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Nova Caixinha',
+        html:
+            '<input id="swal-valor-caixinha" class="swal2-input" placeholder="Valor (R$)" inputmode="decimal">' +
+            '<textarea id="swal-just-caixinha" class="swal2-textarea" placeholder="Justificativa"></textarea>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Adicionar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const valorRaw = document.getElementById('swal-valor-caixinha').value;
+            const justificativa = document.getElementById('swal-just-caixinha').value.trim();
+            const valor = parseFloat(String(valorRaw).replace(',', '.'));
+            if (!valor || valor <= 0) { Swal.showValidationMessage('Informe um valor válido.'); return false; }
+            if (!justificativa || justificativa.length < 15) { Swal.showValidationMessage('A justificativa deve ter no mínimo 15 caracteres.'); return false; }
+            return { valor, justificativa };
+        }
+    });
+
+    if (!formValues) return;
+
+    const dataHoje = new Date().toISOString().split('T')[0];
+    window.dtCaixinhaAtual = window.dtCaixinhaAtual || [];
+    window.dtCaixinhaAtual.push({
+        iditem: gerarIditemCaixinha(dataHoje, formValues.valor),
+        valor: formValues.valor,
+        status: 'Pendente',
+        justificativa: formValues.justificativa,
+        data: dataHoje,
+        comprovante: null
+    });
+
+    renderCaixinhaItems();
+    sincronizarResumoCaixinha();
+    if (typeof calcularValorTotal === 'function') calcularValorTotal();
 });
 
 function registrarListenersNivel() {
@@ -14013,16 +14234,16 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
         }
     }
 
-    // --- 4. AJUSTE E CAIXINHA ---
+    // --- 4. AJUSTE ---
     if ((document.getElementById("statusAjusteCusto")?.value || "Pendente") === 'Autorizado') {
         totalCache += ajusteCusto;
     }
-    if ((document.getElementById("statusCaixinha")?.value || "Pendente") === 'Autorizado') {
-        totalCache += caixinha;
-    }
+    // Caixinha NÃO entra no total do Cachê — só no Total Geral (item 5 abaixo). `caixinha`
+    // já é a soma dos itens Autorizados (sincronizarResumoCaixinha mantém #caixinha em dia),
+    // não precisa de checagem de status aqui.
 
     // --- 5. ATUALIZAÇÃO FINAL ---
-    const totalGeral = totalCache + totalAjdCusto;
+    const totalGeral = totalCache + totalAjdCusto + caixinha;
 
     document.getElementById('vlrTotal').value = 'R$ ' + totalGeral.toFixed(2).replace('.', ',');
     document.getElementById('vlrTotalHidden').value = totalGeral.toFixed(2);
