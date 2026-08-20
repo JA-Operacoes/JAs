@@ -6373,30 +6373,55 @@ function renderizarListaOrcamentos(container, lista) {
 
             linkModal.click();
 
-            let tentativas = 0;
-            const verificarModal = setInterval(async () => {
-                const inputNr = document.getElementById("nrOrcamento");
-                tentativas++;
+            // Espera não só o #nrOrcamento existir, mas o módulo ter terminado o setup
+            // assíncrono: Flatpickr de Marcação já anexado ao elemento (senão o loop de
+            // preenchimento de datas em preencherFormularioComOrcamento roda sobre um
+            // flatpickrInstances vazio) e os selects de Local de Montagem/Empresa Emissora
+            // já com as <option> carregadas (senão select.value = idMontagem não encontra
+            // a option correspondente e fica vazio). Mesmo mecanismo já usado em Aside.js.
+            const aguardarModalPronto = () => new Promise((resolve) => {
+                const tentativa = setInterval(() => {
+                    const input = document.getElementById("nrOrcamento");
+                    const campoMarcacao = document.getElementById("periodoMarcacao");
+                    const selectMontagem = document.querySelector(".idMontagem");
+                    const selectEmpresaEmissora = document.querySelector(".idEmpresaEmissora");
+                    if (
+                        input &&
+                        typeof window.preencherFormularioComOrcamento === "function" &&
+                        campoMarcacao && campoMarcacao._flatpickr &&
+                        selectMontagem && selectMontagem.options.length > 1 &&
+                        selectEmpresaEmissora && selectEmpresaEmissora.options.length > 1
+                    ) {
+                        clearInterval(tentativa);
+                        resolve(input);
+                    }
+                }, 50);
+                setTimeout(() => {
+                    clearInterval(tentativa);
+                    resolve(document.getElementById("nrOrcamento") || null);
+                }, 5000);
+            });
 
-                if (inputNr) {
-                    clearInterval(verificarModal);
+            aguardarModalPronto().then(async (inputNr) => {
+                if (inputNr && typeof window.preencherFormularioComOrcamento === "function") {
                     inputNr.value = nrOrcamento;
-                    
+
                     // Dispara o Enter para carregar os dados no módulo
                     const enter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
                     inputNr.dispatchEvent(enter);
 
-                    // Importação dinâmica para preenchimento forçado se necessário
                     try {
                         const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
-                        const modulo = await import('./Orcamentos.js');
-                        if(modulo.preencherFormularioComOrcamento) modulo.preencherFormularioComOrcamento(orcDet);
+                        if (!orcDet || Array.isArray(orcDet) || !orcDet.idorcamento) {
+                            console.warn("Orçamento não encontrado ao abrir pelo card:", nrOrcamento);
+                        } else {
+                            window.preencherFormularioComOrcamento?.(orcDet);
+                        }
                     } catch (err) { console.warn("Aviso: Falha ao forçar preenchimento detalhado."); }
-                    
-                } else if (tentativas >= 20) {
-                    clearInterval(verificarModal);
+                } else {
+                    console.warn("⚠️ Modal não ficou pronto a tempo (campo ou função de preenchimento ausentes).");
                 }
-            }, 100);
+            });
         };
 
         grid.appendChild(item);
@@ -14924,15 +14949,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     getDiarias: f => f.qtddiarias_filtradas || 0,
                     tipoAcao: 'Cache',
                 },
-                {
-                    key: 'caixinha',
-                    label: 'Caixinha',
-                    badgeClass: 'badge-caixinha',
-                    getStatus: f => formatarStatusFront(f.statuscaixinha || 'Pendente'),
-                    getValor:  f => valorConsiderandoParcial(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0)),
-                    getDiarias: f => f.qtddiarias_filtradas || 0,
-                    tipoAcao: 'Caixinha',
-                },
+                // 'caixinha' saiu de CATEGORIAS — agora é renderizada item a item, num
+                // bloco próprio depois deste loop (ver itens_caixinha), não mais como
+                // 1 linha agregada aqui.
             ];
 
             const nomesOrdenados = Object.keys(grupos).sort((a, b) => a.localeCompare(b));
@@ -14946,6 +14965,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // célula de nome, mas são renderizados uma única vez por registro.
                 const totalAjustesGrupo = registros.reduce(
                     (acc, r) => acc + (r.ajustes_financeiros ? r.ajustes_financeiros.length : 0), 0
+                );
+
+                // Itens de caixinha (autorizados + pendentes) de todos os registros deste
+                // funcionário — cada item ganha sua própria linha (como Crédito/Débito),
+                // então conta pro rowspan da célula de nome igual totalAjustesGrupo.
+                const totalCaixinhaItensGrupo = registros.reduce(
+                    (acc, r) => acc + (r.itens_caixinha ? r.itens_caixinha.length : 0), 0
                 );
 
                 // registros.forEach((f, idxF) => {
@@ -15050,15 +15076,27 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     const periodoFormatado = `${f.periodo_eventoini_fmt} a ${f.periodo_eventofim_fmt}`;
                     const ehUltimoRegistro = (idxF === registros.length - 1);
 
-                    const temCaixinha = parseFloat(f.totalcaixinha_full || 0) > 0;
+                    // Caixinha agora é renderizada item a item (ver bloco após ajustes
+                    // financeiros), não mais como 1 linha agregada dentro de CATEGORIAS —
+                    // por isso não entra mais no cálculo de rowspan aqui.
+                    const rowspanTotal = CATEGORIAS.length;
 
-                    const rowspanTotal = CATEGORIAS.filter(cat => {
-                        if (cat.key === 'caixinha') return temCaixinha;
-                        return true;
-                    }).length;
+                    // Registro (Staff) ainda pendente — Ajuda/Cachê/Caixinha deste registro
+                    // ficam travados (sem botão de pagamento) até o próprio registro virar
+                    // Ativo, independente do status individual deles. "Pendente" é ambíguo
+                    // (ver aguardandoInclusaoOrcamento, resolvido no backend): pode ser que
+                    // ainda falte autorizar o Aditivo/Extra/FuncExcedido, ou que já esteja
+                    // Autorizado e só falte a inclusão no orçamento.
+                    const staffPendente = f.statusstaff === 'Pendente';
+                    const staffAguardandoOrcamento = staffPendente && !!f.aguardandoInclusaoOrcamento;
 
-                    // Qual é a última categoria visível para ESTE funcionário?
-                    const ultimaCatKey = temCaixinha ? 'caixinha' : 'cache';
+                    // Justificativa do Aditivo/Extra/FuncExcedido que travou o registro —
+                    // mostrada no lugar dos botões de ação enquanto staffPendente (ver abaixo).
+                    const justificativaPend = f.justificativaPendencia || '';
+                    const justificativaPendEscapada = justificativaPend.replace(/"/g, '&quot;');
+                    const justificativaPendResumida = justificativaPend.length > 30
+                        ? justificativaPend.slice(0, 30) + '…'
+                        : (justificativaPend || '—');
 
                     let linhasCats = '';
 
@@ -15120,18 +15158,24 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 CATEGORIAS.forEach((cat, idxCat) => {
                         const valor = cat.getValor(f);
-                        if (cat.key === 'caixinha' && !temCaixinha) return;
 
-                        const status       = cat.getStatus(f);
+                        const status       = staffAguardandoOrcamento
+                            ? 'Aguardando Inclusão no Orçamento'
+                            : (staffPendente ? 'Pendente de Autorização' : cat.getStatus(f));
                         const diarias      = cat.getDiarias(f);
-                        const estaPago     = status.toLowerCase().startsWith('pago');
-                        const classeStatus = status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                        const estaPago     = !staffPendente && status.toLowerCase().startsWith('pago');
+                        const classeStatus = staffAguardandoOrcamento
+                            ? 'aguardando-orcamento'
+                            : (staffPendente ? 'pendente-autorizacao' : status.toLowerCase().replace(/\s+/g, '-').replace('%', ''));
 
                         // ESTRATÉGIA DE BORDAS:
                         // 1. Todas as linhas ganham uma borda pontilhada sutil para não bugar o CSS da tabela.
-                        // 2. A última categoria do período ganha o tracejado de separação.
-                        const ehUltimaLinha = (cat.key === ultimaCatKey);
-                        const pagRejeitado = (status === 'Rejeitado');
+                        // 2. A última categoria fixa (Cachê) ganha o tracejado — a menos que
+                        // este registro tenha itens de caixinha depois, aí o tracejado passa
+                        // pro último item de caixinha (ver bloco após ajustes financeiros).
+                        const temCaixinhaRegistro = (f.itens_caixinha || []).length > 0;
+                        const ehUltimaLinha = (cat.key === 'cache') && !temCaixinhaRegistro;
+                        const pagRejeitado = !staffPendente && (status === 'Rejeitado');
                         
                         let estiloBorda = 'border-bottom: 1px dotted #e0e0e0 !important;'; 
                         
@@ -15156,7 +15200,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 return `<small style="display:block; color:#2563eb; font-weight:500; margin-top:3px;">• ${r.funcao}</small>`;
                             }).join('');
 
-                            celulaNome = '<td rowspan="' + (rowspanTotal * registros.length + totalAjustesGrupo) + '" '
+                            celulaNome = '<td rowspan="' + (rowspanTotal * registros.length + totalCaixinhaItensGrupo + totalAjustesGrupo) + '" '
                                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb; padding: 10px;">'
                                 + '<strong>' + f.nome + '</strong><br>'
                                 + '<div style="margin-top:5px; line-height:1.2;">'
@@ -15168,15 +15212,24 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         // Pré-computa células com lógica condicional — evita template aninhado
                         const celulaAcoes = podeVerAcoes
                             ? '<td style="text-align:center; ' + estiloBorda + '">'
-                                + renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
+                                + (staffPendente
+                                    // Sem botão possível (registro travado) — em vez de repetir
+                                    // "Pendente de Autorização"/"Aguardando Inclusão no Orçamento"
+                                    // (já visível na coluna Status), mostra a justificativa real
+                                    // do Aditivo/Extra que travou o registro, com o texto completo
+                                    // disponível no tooltip.
+                                    ? `<small title="${justificativaPendEscapada}">${justificativaPendResumida}</small>`
+                                    : renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status))
                                 + '</td>'
                             : '';
 
-                        const conteudoComprovante = pagRejeitado
-                            ? '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>'
-                            : estaPago
-                                ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-                                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+                        const conteudoComprovante = staffPendente
+                            ? '<span style="font-size:9px; color:#999;">—</span>'
+                            : pagRejeitado
+                                ? '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>'
+                                : estaPago
+                                    ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
+                                    : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
 
                         // linhasCats += '<tr>'
                         //     + celulaNome
@@ -15210,6 +15263,91 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             + '<td class="comprovantes-cell">' + conteudoComprovante + '</td>'
                             + '<td class="status-celula status-' + classeStatus + '">' + status + '</td>'
                             + `<td class="valor-celula ${classeValorRejeitado}" style="text-align:right;">${formatarMoeda(valor)}</td>`
+                            + '</tr>';
+                    });
+
+                    // Caixinha — uma linha por item (autorizado OU pendente), com a
+                    // justificativa no lugar do período (mesmo padrão de Crédito/Débito),
+                    // já que cada item pode ter motivo e valor diferentes. Pagamento
+                    // continua sendo UMA flag só pro registro (statuspgtocaixinha) — por
+                    // isso o botão de ação só aparece na última linha, representando a
+                    // "gaveta" inteira, e fica travado enquanto houver item pendente.
+                    const itensCaixinha = f.itens_caixinha || [];
+                    // Pagamento é liberado pela parte já Autorizada mesmo que exista outro
+                    // item ainda Pendente no mesmo registro — decisão do usuário: aceitar o
+                    // risco de, se pagar agora, a trava do backend (rotaStaff.js) nunca mais
+                    // deixar autorizar esse item pendente depois (não é bug, é a troca feita).
+                    const idxUltimoAutorizado = itensCaixinha.reduce(
+                        (acc, it, i) => it.status === 'Autorizado' ? i : acc, -1
+                    );
+
+                    itensCaixinha.forEach((item, idxItem) => {
+                        const ehUltimoItemCaixinha = (idxItem === itensCaixinha.length - 1);
+                        const estiloLinhaCaixinha = ehUltimoItemCaixinha
+                            ? 'style="border-bottom: 2px dashed #bbbbbb !important;"'
+                            : 'style="border-bottom: 1px dotted #e0e0e0 !important;"';
+
+                        const justificativaCx = item.justificativa || '';
+                        const justificativaCxEscapada = justificativaCx.replace(/"/g, '&quot;');
+                        const justificativaCxResumida = justificativaCx.length > 30 ? justificativaCx.slice(0, 30) + '…' : justificativaCx;
+
+                        let statusExibidoCx, classeStatusCx, comprovanteCx;
+                        if (staffAguardandoOrcamento) {
+                            statusExibidoCx = 'Aguardando Inclusão no Orçamento';
+                            classeStatusCx = 'aguardando-orcamento';
+                            comprovanteCx = '<span style="font-size:9px; color:#999;">—</span>';
+                        } else if (staffPendente || item.status === 'Pendente') {
+                            statusExibidoCx = 'Pendente de Autorização';
+                            classeStatusCx = 'pendente-autorizacao';
+                            comprovanteCx = '<span style="font-size:9px; color:#999;">—</span>';
+                        } else if (item.status === 'Rejeitado') {
+                            statusExibidoCx = 'Rejeitado';
+                            classeStatusCx = 'rejeitado';
+                            comprovanteCx = '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>';
+                        } else {
+                            // Autorizado — o que importa agora é o status de PAGAMENTO
+                            // (statuspgtocaixinha), não mais o de autorização.
+                            statusExibidoCx = formatarStatusFront(f.statuscaixinha || 'Pendente');
+                            classeStatusCx = statusExibidoCx.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                            const estaPagoCx = statusExibidoCx.toLowerCase().startsWith('pago');
+                            comprovanteCx = item.comprovante
+                                ? `<a href="${item.comprovante}" target="_blank" class="btn-ver-comp" title="Ver comprovante"><i class="fas fa-file-invoice"></i></a>`
+                                : (estaPagoCx
+                                    ? '<span style="font-size:9px; color:#999;">Sem comprovante</span>'
+                                    : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+                        }
+
+                        let celulaAcoesCx = '';
+                        if (podeVerAcoes) {
+                            let conteudoAcaoCx = '';
+                            if (staffPendente) {
+                                // Registro inteiro travado — em vez de repetir o status (já
+                                // visível na coluna Status), mostra a justificativa do
+                                // Aditivo/Extra que travou o registro, só na última linha.
+                                if (ehUltimoItemCaixinha) {
+                                    conteudoAcaoCx = `<small title="${justificativaPendEscapada}">${justificativaPendResumida}</small>`;
+                                }
+                            } else if (idxItem === idxUltimoAutorizado) {
+                                // Única linha com o controle de pagamento (statuspgtocaixinha é
+                                // 1 flag pro registro, não por item) — a última Autorizada.
+                                conteudoAcaoCx = renderConteudoAcao(f.idstaffevento, 'Caixinha', formatarStatusFront(f.statuscaixinha || 'Pendente'));
+                            } else if (idxUltimoAutorizado === -1 && ehUltimoItemCaixinha) {
+                                // Nenhum item autorizado ainda — nada a pagar.
+                                conteudoAcaoCx = '<span class="check-finalizado"><i class="fas fa-lock" style="color: #999;" title="Nenhuma caixinha autorizada"></i></span>';
+                            }
+                            celulaAcoesCx = '<td style="text-align:center;">' + conteudoAcaoCx + '</td>';
+                        }
+
+                        linhasCats += `<tr ${estiloLinhaCaixinha}>`
+                            + '<td style="text-align:center;">'
+                                + '<span class="badge-categoria badge-caixinha">Caixinha</span>'
+                            + '</td>'
+                            + '<td style="text-align:center;">—</td>'
+                            + `<td style="text-align:center;" title="${justificativaCxEscapada}"><small>${justificativaCxResumida}</small></td>`
+                            + celulaAcoesCx
+                            + '<td class="comprovantes-cell">' + comprovanteCx + '</td>'
+                            + `<td class="status-celula status-${classeStatusCx}">${statusExibidoCx}</td>`
+                            + `<td class="valor-celula" style="text-align:right;">${formatarMoeda(item.valor)}</td>`
                             + '</tr>';
                     });
 
@@ -15408,21 +15546,27 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 // --- FORA DO FOR EACH DE REGISTROS ---
                 
-                // Cálculo dos totais do funcionário (aparece para TODOS)
+                // Cálculo dos totais do funcionário (aparece para TODOS). Registro com
+                // statusstaff='Pendente' não entra em nenhum total — a escala ainda não
+                // foi autorizada, então não é uma obrigação confirmada ainda.
                 const totalDiarias = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
                     return f.statuspgto === 'Rejeitado' ? s : s + parseFloat(f.qtddiarias_filtradas || 0);
                 }, 0);
 
                 const totalAjuda = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
                     // Verifica status da ajuda de custo especificamente, se houver um campo próprio
                     return f.statuspgtoajdcto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0));
                 }, 0);
 
                 const totalCache = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
                     return f.statuspgto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
                 }, 0);
 
                 const totalCaixinha = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
                     return f.statuscaixinha === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0));
                 }, 0);
 
@@ -15441,6 +15585,62 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 // O total geral do funcionário somando tudo
                 const totalGeralFuncionario = totalAjuda + totalCache + totalCaixinha + totalAjustesFinanceiros;
+
+                // Quanto desse total já foi de fato pago — mesma regra 100%/50% de
+                // valorConsiderandoParcial, só que pro lado "já pago" em vez de "resta pagar".
+                // "A Pagar" sai por subtração do Total, garantindo Total = Pagos + A Pagar
+                // sempre, mesmo que uma categoria tenha alguma regra própria de exclusão.
+                const calcPagoCategoria = (statusRaw, valorTotal) => {
+                    const match = String(statusRaw || '').match(/^Pago(\d+)?$/);
+                    if (!match) return 0; // Pendente/Suspenso/Rejeitado — nada pago ainda
+                    const percent = match[1] ? Number(match[1]) : 100;
+                    return valorTotal * (percent / 100);
+                };
+
+                const totalAjudaPago = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
+                    return s + calcPagoCategoria(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0));
+                }, 0);
+
+                const totalCachePago = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
+                    return s + calcPagoCategoria(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
+                }, 0);
+
+                const totalCaixinhaPago = registros.reduce((s, f) => {
+                    if (f.statusstaff === 'Pendente') return s;
+                    return s + calcPagoCategoria(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0));
+                }, 0);
+
+                const totalAjustesPago = registros.reduce((s, f) => {
+                    return s + (f.ajustes_financeiros || []).reduce((sa, a) => {
+                        if (a.status !== 'Pago') return sa;
+                        if (a.notaEventoRelacionado?.tipo === 'pago') return sa;
+                        const valor = parseFloat(a.valor) || 0;
+                        return sa + (a.tipo === 'Credito' ? valor : -valor);
+                    }, 0);
+                }, 0);
+
+                const totalPagoFuncionario = totalAjudaPago + totalCachePago + totalCaixinhaPago + totalAjustesPago;
+                const totalAPagarFuncionario = totalGeralFuncionario - totalPagoFuncionario;
+
+                // Valor ainda sem decisão nenhuma (nem Autorizado nem Rejeitado) — registro
+                // com statusstaff='Pendente' genuíno (exclui o caso "aguardando inclusão no
+                // orçamento", que já foi Autorizado) soma seu valor inteiro, e item de
+                // caixinha Pendente soma o próprio valor mesmo num registro Ativo.
+                const totalPendenteAutorizacao = registros.reduce((s, f) => {
+                    const itensPendentesCx = (f.itens_caixinha || [])
+                        .filter(it => it.status === 'Pendente')
+                        .reduce((si, it) => si + (parseFloat(it.valor) || 0), 0);
+
+                    if (f.statusstaff === 'Pendente' && !f.aguardandoInclusaoOrcamento) {
+                        const vAjuda = parseFloat(f.totalajudacusto_full || 0);
+                        const vCache = parseFloat(f.cache_com_ajuste || 0);
+                        const vCaixinhaAutorizada = parseFloat(f.totalcaixinha_full || 0);
+                        return s + vAjuda + vCache + vCaixinhaAutorizada + itensPendentesCx;
+                    }
+                    return s + itensPendentesCx;
+                }, 0);
 
                 // Monta a linha de total (Agora sem a trava de registros.length > 1)
                 linhasHtml += `
@@ -15482,11 +15682,28 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                         </span>
                                     ` : ''}
 
+                                    ${totalPendenteAutorizacao > 0 ? `
+                                        <span style="color: #eab308;">
+                                            <small style="font-weight: normal; color: #666;">Pendentes de Autorização: </small>
+                                            ${formatarMoeda(totalPendenteAutorizacao)}
+                                        </span>
+                                    ` : ''}
+
                                     <span style="color: #111; margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
                                         <small style="font-weight: normal; color: #666;">Total: </small>
                                         ${formatarMoeda(totalGeralFuncionario)}
                                     </span>
-                                    
+
+                                    <span style="color: #16a34a;">
+                                        <small style="font-weight: normal; color: #666;">Pagos: </small>
+                                        ${formatarMoeda(totalPagoFuncionario)}
+                                    </span>
+
+                                    <span style="color: #b91c1c;">
+                                        <small style="font-weight: normal; color: #666;">A Pagar: </small>
+                                        ${formatarMoeda(totalAPagarFuncionario)}
+                                    </span>
+
                                 </div>
                             </div>
                         </td>

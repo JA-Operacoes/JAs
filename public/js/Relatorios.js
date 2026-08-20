@@ -616,6 +616,26 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         return texto;
     };
 
+    // Mostra o valor autorizado normalmente e, se houver caixinha ainda não
+    // decidida, empilha o valor pendente (mais apagado) + aviso abaixo — em vez
+    // de somar tudo junto, que dava a impressão de já estar tudo autorizado.
+    // `linhaEscura` ajusta as cores pra continuar legível em cima do fundo
+    // vermelho escuro usado quando a linha tem Ajuste de Custo aplicado.
+    const montarCelulaCaixinha = (valorAutorizado, valorPendente, linhaEscura = false) => {
+        const autorizado = parseFloat(valorAutorizado) || 0;
+        const pendente = parseFloat(valorPendente) || 0;
+        const corValorPendente = linhaEscura ? 'rgba(255,255,255,0.7)' : '#888';
+        const corLabelPendente = linhaEscura ? '#ffe066' : '#b8860b';
+
+        let html = autorizado > 0 || pendente <= 0 ? formatarMoeda(autorizado) : '';
+
+        if (pendente > 0) {
+            html += `${autorizado > 0 ? '<br>' : ''}<span style="color: ${corValorPendente};">${formatarMoeda(pendente)}</span><br><span style="color: ${corLabelPendente};">Pendente de Autorização</span>`;
+        }
+
+        return html;
+    };
+
     const obterClasseCompStatus = (status) => {
         if (!status) return '';
         // 50% (ex.: "Cachê 50% Anexado", "50% Anexado") precisa vir antes do check de
@@ -703,7 +723,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     TOT_DIARIAS: 0,
                     TOT_AJUDA: 0,
                     TOT_GERAL: 0,
-                    TOT_PAGAR: 0
+                    TOT_PAGAR: 0,
+                    VLR_CAIXINHA: 0
                 };
                 let linhas = '';
 
@@ -713,19 +734,22 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     const proximoItem = dadosFechamento[index + 1];
 
                     // Acumula os valores do funcionário atual
-                    subtotalFuncionario.TOT_DIARIAS += parseFloat(item["TOT DIÁRIAS"] || 0);
-                    subtotalFuncionario.TOT_AJUDA   += parseFloat(item["TOT AJUDA"]   || 0);
-                    subtotalFuncionario.TOT_GERAL   += parseFloat(item["TOT GERAL"]   || 0);
-                    subtotalFuncionario.TOT_PAGAR   += parseFloat(item["TOT PAGAR"]   || 0);
+                    subtotalFuncionario.TOT_DIARIAS  += parseFloat(item["TOT DIÁRIAS"]  || 0);
+                    subtotalFuncionario.TOT_AJUDA    += parseFloat(item["TOT AJUDA"]    || 0);
+                    subtotalFuncionario.TOT_GERAL    += parseFloat(item["TOT GERAL"]    || 0);
+                    subtotalFuncionario.TOT_PAGAR    += parseFloat(item["TOT PAGAR"]    || 0);
+                    subtotalFuncionario.VLR_CAIXINHA += parseFloat(item["VLR CAIXINHA"] || 0);
 
 
                     const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
                     const nivelExp = item.nivelexperiencia ? item.nivelexperiencia.trim() : '';
 
                     let styleDestaque = '';
-                    if (item["STATUS SOLICITAÇÃO"]) {
-                        styleDestaque = 'style="color: #999; background-color: #f0f0f0;"';
-                    } else if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
+                    // Linha de fundo escuro (Ajuste de Custo aplicado) — usado abaixo pra
+                    // decidir a cor do valor/label "Pendente de Autorização" da caixinha,
+                    // já que cinza/amarelo padrão perdem contraste em cima do vermelho escuro.
+                    const linhaAjusteDestaque = !(nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') && vlrAdic !== 0;
+                    if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
                         styleDestaque = 'style="color: black; font-weight: bold; background-color: #cbe4fd;"';
                     } else if (vlrAdic !== 0) {
                         styleDestaque = 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"';
@@ -755,7 +779,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['QTD CACHÊ']}">${item["QTD CACHÊ"] || item.QTD || ''}</td>
                             <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
                             <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
-                            <td class="${alinhamentos['VLR CAIXINHA']}">${formatarMoeda(item["VLR CAIXINHA"])}</td>
+                            <td class="${alinhamentos['VLR CAIXINHA']}">${montarCelulaCaixinha(item["VLR CAIXINHA"], item["VLR CAIXINHA PENDENTE"], linhaAjusteDestaque)}</td>
                             <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                             <td class="${alinhamentos['QTD AJUDA']}">${item.QTD_AJUDA || ''}</td>
                             <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
@@ -777,7 +801,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['VLR DIÁRIA']}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
                             ${tipo !== 'ajuda_custo' ? `<td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>` : ''}
                             ${tipo === 'cache' ? `
-                                <td class="${alinhamentos['VLR CAIXINHA']}">${formatarMoeda(item["VLR CAIXINHA"])}</td>
+                                <td class="${alinhamentos['VLR CAIXINHA']}">${montarCelulaCaixinha(item["VLR CAIXINHA"], item["VLR CAIXINHA PENDENTE"], linhaAjusteDestaque)}</td>
                                 <td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || '-'}</td>
                             ` : ''}
                             <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
@@ -820,7 +844,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <td></td>
                                     <td></td>
                                     <td></td>
-                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.VLR_CAIXINHA)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
                                     <td></td>
                                     <td></td>
@@ -831,7 +855,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                 ` : `
                                     <td></td>
                                     ${tipo !== 'ajuda_custo' ? '<td></td>' : ''}
-                                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
+                                    ${tipo === 'cache' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.VLR_CAIXINHA)}</td><td></td>` : ''}
                                     <td></td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
@@ -849,7 +873,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         }
 
                         // Zera o acumulador para o próximo funcionário
-                        subtotalFuncionario = { TOT_DIARIAS: 0, TOT_AJUDA: 0, TOT_GERAL: 0, TOT_PAGAR: 0 };
+                        subtotalFuncionario = { TOT_DIARIAS: 0, TOT_AJUDA: 0, TOT_GERAL: 0, TOT_PAGAR: 0, VLR_CAIXINHA: 0 };
                     }
                 });
 
@@ -861,12 +885,12 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
                 
                 ${tipo === 'cache_ajuda' ? `
-                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td> 
-                    <td class="text-right" style="font-weight: bold;">-</td> 
+                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td>
+                    <td class="text-right" style="font-weight: bold;">-</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAdicional)}</td>
-                    <td></td>
+                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalCaixinha)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
-                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td> 
+                    <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdAjuda || ''}</td>
                     <td class="text-right" style="font-weight: bold;">-</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
@@ -875,7 +899,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 ` : `
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                     ${tipo !== 'ajuda_custo' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
-                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
+                    ${tipo === 'cache' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalCaixinha)}</td><td></td>` : ''}
                     <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
@@ -1403,8 +1427,8 @@ async function gerarRelatorio() {
                 eventosOrdenados.forEach(evento => {
                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
-                        { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
+                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
+                        { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
                     console.log('Totais do evento atual:', totaisDoEventoAtual); // Log para verificar os totais
                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                         evento.fechamentoCache,

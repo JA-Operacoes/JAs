@@ -14,34 +14,36 @@
         <legend>Filtros</legend>
         <div class="logs-filtros-grid">
           <div class="form2">
-            <select id="logModulo">
-              <option value="">Todos</option>
-            </select>
-            <label for="logModulo">Módulo</label>
+            <input type="text" id="logModuloBusca" class="logs-input-busca" placeholder=" " autocomplete="off">
+            <input type="hidden" id="logModulo">
+            <label class="logs-user-label" for="logModuloBusca">Módulo</label>
           </div>
           <div class="form2">
-            <select id="logExecutor">
-              <option value="">Todos</option>
-            </select>
-            <label for="logExecutor">Executor</label>
+            <input type="text" id="logExecutorBusca" class="logs-input-busca" placeholder=" " autocomplete="off">
+            <input type="hidden" id="logExecutor">
+            <label class="logs-user-label" for="logExecutorBusca">Executor</label>
           </div>
           <div class="form2">
-            <select id="logEmpresa">
-              <option value="">Todas</option>
-            </select>
-            <label for="logEmpresa">Empresa</label>
+            <input type="text" id="logEmpresaBusca" class="logs-input-busca" placeholder=" " autocomplete="off">
+            <input type="hidden" id="logEmpresa">
+            <label class="logs-user-label" for="logEmpresaBusca">Empresa</label>
           </div>
-          <div class="form2">
-            <input type="number" id="logIdRegistro" min="1">
-            <label for="logIdRegistro">ID Registro Alterado</label>
+          <div class="logs-campo">
+            <input type="text" id="logFuncionarioBusca" class="logs-input-busca" placeholder=" " autocomplete="off">
+            <input type="hidden" id="logIdFuncionario">
+            <label class="logs-user-label" for="logFuncionarioBusca">Funcionário</label>
           </div>
-          <div class="form2">
-            <input type="date" id="logDataInicio">
-            <label for="logDataInicio">Data Início</label>
+          <div class="logs-campo">
+            <input type="number" id="logIdRegistro" class="logs-input-busca" placeholder=" " min="1">
+            <label class="logs-user-label" for="logIdRegistro">ID Registro Alterado</label>
           </div>
-          <div class="form2">
-            <input type="date" id="logDataFim">
-            <label for="logDataFim">Data Fim</label>
+          <div class="logs-campo">
+            <input type="date" id="logDataInicio" class="logs-input-busca" placeholder=" ">
+            <label class="logs-user-label" for="logDataInicio">Data Início</label>
+          </div>
+          <div class="logs-campo">
+            <input type="date" id="logDataFim" class="logs-input-busca" placeholder=" ">
+            <label class="logs-user-label" for="logDataFim">Data Fim</label>
           </div>
         </div>
 
@@ -59,13 +61,13 @@
         <table class="report-table" id="tabelaLogs">
           <thead>
             <tr>
-              <th>Data/Hora</th>
-              <th>Empresa</th>
-              <th>Módulo</th>
-              <th>Ação</th>
-              <th>Executor</th>
-              <th>Registro Alterado</th>
-              <th>Usuário Alvo</th>
+              <th class="th-sort" data-sort="criado_em">Data/Hora</th>
+              <th class="th-sort" data-sort="empresa_nome">Empresa</th>
+              <th class="th-sort" data-sort="modulo">Módulo</th>
+              <th class="th-sort" data-sort="acao">Ação</th>
+              <th class="th-sort" data-sort="executor_nome">Executor</th>
+              <th class="th-sort" data-sort="idregistroalterado">Registro Alterado</th>
+              <th class="th-sort" data-sort="usuarioalvo_nome">Usuário Alvo</th>
               <th>Dados</th>
             </tr>
           </thead>

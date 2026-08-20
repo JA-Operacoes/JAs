@@ -411,10 +411,18 @@
 
                 <div class="form-2colunas caixinha">
                   <div class="form2" id="campoCaixinha" style="display: none;">
-                    <input type="text" name="caixinha" id="caixinha">
+                    <input type="text" name="caixinha" id="caixinha" readonly data-permanent-readonly="true" title="Total autorizado (soma dos itens autorizados na lista abaixo)">
                     <label for="caixinha">Caixinha</label>
                   </div>
-                  <textarea name="caixinha[]" id="descCaixinha" placeholder="Descritivo da Caixinha" style="display: none;" required></textarea>
+                  <textarea name="caixinha[]" id="descCaixinha" placeholder="Descritivo da Caixinha" style="display: none;" readonly data-permanent-readonly="true"></textarea>
+
+                  <div id="wrapperListaCaixinhas" class="caixinha-container" style="display: none;">
+                    <div class="caixinha-container-header">
+                      <span>Caixinha</span>
+                      <button type="button" id="btnAdicionarCaixinha" class="btn-solicitar-caixinha">Solicitar Nova Caixinha</button>
+                    </div>
+                    <div id="listaCaixinhas" class="lista-caixinhas"></div>
+                  </div>
 
                   <div class="form2" id="campoStatusCaixinha" style="display: none;">
                     <input id="statusCaixinha" type="text" readonly data-permanent-readonly="true" required/>

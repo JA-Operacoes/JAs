@@ -3288,6 +3288,8 @@ body.dark .indicador-evento {
 .status-suspenso { background: #ff7f07; color: #ffffff; font-weight: 600; border-radius: 10%; }
 .status-previsao { background: #e9ecef; color: #495057; font-weight: 600; border-radius: 10%; }
 .status-atrasado { background: #b02a37; color: #ffffff; font-weight: 600; border-radius: 10%; }
+.status-pendente-autorizacao { background: #eab308; color: #000000; font-weight: 600; border-radius: 10%; }
+.status-aguardando-orcamento { background: #7c3aed; color: #ffffff; font-weight: 600; border-radius: 10%; }
 
 
 .acoes-master, .acoes-supremo, .acoes-financeiro {

@@ -75,13 +75,60 @@
 
 #ConsultaLogs .logs-filtros-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px 20px;
 }
 
 #ConsultaLogs .logs-filtros-grid select,
 #ConsultaLogs .logs-filtros-grid input {
   width: 100%;
+}
+
+/* --- Input de busca (mesmo modelo do Plano de Saúde: borda arredondada + label flutuante) --- */
+
+#ConsultaLogs .logs-campo {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+#ConsultaLogs .logs-input-busca {
+  width: 100%;
+  box-sizing: border-box;
+  border: solid 2px #9e9e9e;
+  border-radius: 1rem;
+  background: none;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  font-family: var(--Font-primary, inherit);
+  color: #333;
+  transition: border 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ConsultaLogs .logs-user-label {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  color: #666;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+  padding: 0 0.2em;
+}
+
+#ConsultaLogs .logs-input-busca:focus,
+#ConsultaLogs .logs-input-busca:not(:placeholder-shown) {
+  outline: none;
+  border: 1.5px solid var(--primary-color, #942123);
+}
+
+#ConsultaLogs .logs-input-busca:focus ~ .logs-user-label,
+#ConsultaLogs .logs-input-busca:not(:placeholder-shown) ~ .logs-user-label {
+  top: 0;
+  transform: translateY(-50%) scale(0.85);
+  background-color: #ffffff;
+  color: var(--primary-color, #942123);
 }
 
 #ConsultaLogs .logs-filtros-botoes {
@@ -156,6 +203,35 @@
   padding: 10px 12px;
   text-align: left;
   white-space: nowrap;
+}
+
+#ConsultaLogs .report-table thead th.th-sort {
+  cursor: pointer;
+  user-select: none;
+  padding-right: 22px;
+  position: sticky;
+}
+
+#ConsultaLogs .report-table thead th.th-sort:hover {
+  background-color: var(--hover-color, #75191a);
+}
+
+#ConsultaLogs .report-table thead th.th-sort::after {
+  content: '\2195';
+  position: absolute;
+  margin-left: 6px;
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+#ConsultaLogs .report-table thead th.th-sort-asc::after {
+  content: '\2191';
+  opacity: 1;
+}
+
+#ConsultaLogs .report-table thead th.th-sort-desc::after {
+  content: '\2193';
+  opacity: 1;
 }
 
 #ConsultaLogs .report-table tbody td {
