@@ -341,4 +341,365 @@ router.get("/filtrar", async (req, res) => {
   }
 });
 
+// ===== Visão Geral (todas as empresas) — remuneração de funcionários entre empresas =====
+// Diferente do resto do arquivo (uma empresa por vez, via req.idempresa/contextoEmpresa):
+// aqui o CEO precisa ver o panorama entre TODAS as empresas do grupo, então estes endpoints
+// ignoram req.idempresa e recebem "idempresa" como filtro OPCIONAL na query string.
+
+// GET /ceo/geral/empresas — todas as empresas cadastradas, p/ filtro "Todas" / uma específica.
+router.get("/geral/empresas", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT idempresa, nmfantasia FROM empresas ORDER BY nmfantasia ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("ERRO CEO /geral/empresas:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/funcionarios?busca=&idempresa= — lista pesquisável de funcionários (qualquer
+// perfil, qualquer empresa) para o seletor da Visão Geral.
+router.get("/geral/funcionarios", async (req, res) => {
+  try {
+    const busca = (req.query.busca || "").trim();
+    const idempresa = req.query.idempresa ? parseInt(req.query.idempresa, 10) : null;
+    const params = [];
+    let where = "1=1";
+    if (busca) { params.push(`%${busca}%`); where += ` AND f.nome ILIKE $${params.length}`; }
+    if (idempresa) { params.push(idempresa); where += ` AND fe.idempresa = $${params.length}`; }
+
+    const { rows } = await pool.query(
+      `SELECT f.idfuncionario, f.nome,
+              array_agg(DISTINCT emp.nmfantasia ORDER BY emp.nmfantasia) AS empresas
+       FROM funcionarios f
+       JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
+       JOIN empresas emp ON emp.idempresa = fe.idempresa
+       WHERE ${where}
+       GROUP BY f.idfuncionario, f.nome
+       ORDER BY f.nome ASC
+       LIMIT 50`,
+      params
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("ERRO CEO /geral/funcionarios:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/anos-disponiveis — anos com holerite OU staff cadastrado, p/ seletor de ano
+// da Visão Geral (independe de empresa/funcionário — só pra popular o select).
+router.get("/geral/anos-disponiveis", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ano FROM (
+         SELECT DISTINCT ano FROM folhaholerite
+         UNION
+         SELECT DISTINCT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano
+         FROM staffeventos se JOIN orcamentos o ON o.idorcamento = se.idorcamento
+         WHERE o.dtinirealizacao IS NOT NULL
+       ) x
+       WHERE ano IS NOT NULL
+       ORDER BY ano DESC`
+    );
+    res.json(rows.map((r) => r.ano));
+  } catch (error) {
+    console.error("ERRO CEO /geral/anos-disponiveis:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/funcionario?idfuncionario=X&ano=YYYY&idempresa=(opcional)
+// Consolida tudo que o funcionário já recebeu (Pago) ou vai receber (Pendente) no ano, por
+// origem: Holerite (RH), Staff em eventos (cachê/ajuda de custo/caixinha) e Ajustes financeiros
+// avulsos (créditos/débitos de staff, só quando pagos — mesma regra do detector de rentabilidade).
+// Sem idempresa, soma todas as empresas onde o funcionário atua.
+router.get("/geral/funcionario", async (req, res) => {
+  try {
+    const idfuncionario = parseInt(req.query.idfuncionario, 10);
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresa = req.query.idempresa ? parseInt(req.query.idempresa, 10) : null;
+    if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
+
+    const filtroEmpresaHolerite = idempresa ? "AND h.idempresa = $3" : "";
+    const filtroEmpresaStaff = idempresa ? "AND oe.idempresa = $3" : "";
+    const filtroEmpresaAjuste = idempresa ? "AND af.idempresa = $3" : "";
+    const params = idempresa ? [idfuncionario, ano, idempresa] : [idfuncionario, ano];
+
+    const holerites = await pool.query(
+      `SELECT h.idholerite, h.idempresa, emp.nmfantasia AS nomeempresa, h.mes, h.ano, h.tipo,
+              h.status, h.salariobase, h.dtpagamento,
+              COALESCE(SUM(CASE WHEN i.tipo IN ('P','B') THEN i.valor ELSE 0 END), 0) AS proventos,
+              COALESCE(SUM(CASE WHEN i.tipo = 'D' THEN i.valor ELSE 0 END), 0) AS descontos
+       FROM folhaholerite h
+       JOIN empresas emp ON emp.idempresa = h.idempresa
+       LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
+       WHERE h.idfuncionario = $1 AND h.ano = $2 ${filtroEmpresaHolerite}
+       GROUP BY h.idholerite, h.idempresa, emp.nmfantasia, h.mes, h.ano, h.tipo, h.status, h.salariobase, h.dtpagamento
+       ORDER BY h.mes ASC`,
+      params
+    );
+
+    const staff = await pool.query(
+      `SELECT se.idstaffevento, se.idevento, se.nmevento, se.nmcliente, o.idorcamento,
+              oe.idempresa, emp.nmfantasia AS nomeempresa, o.dtinirealizacao, o.dtfimrealizacao,
+              COALESCE(se.vlrtotcache, 0)    AS vlrcache,
+              COALESCE(se.vlrtotajdcusto, 0) AS vlrajdcusto,
+              COALESCE(se.vlrcaixinha, 0)    AS vlrcaixinha,
+              se.statuspgto, se.statuspgtoajdcto, se.statuspgtocaixinha, se.statusstaff
+       FROM staffeventos se
+       JOIN orcamentos o ON o.idorcamento = se.idorcamento
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       JOIN empresas emp ON emp.idempresa = oe.idempresa
+       WHERE se.idfuncionario = $1
+         AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
+         AND se.statusstaff <> 'Deletado'
+         ${filtroEmpresaStaff}
+       ORDER BY o.dtinirealizacao ASC`,
+      params
+    );
+
+    const ajustes = await pool.query(
+      `SELECT af.idajustefinanceiro, af.tipo, af.valor, af.status, af.dtlancamento,
+              af.idempresa, emp.nmfantasia AS nomeempresa, se.idevento, se.nmevento
+       FROM staffajustefinanceiro af
+       JOIN empresas emp ON emp.idempresa = af.idempresa
+       LEFT JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
+       WHERE af.idfuncionario = $1
+         AND EXTRACT(YEAR FROM af.dtlancamento) = $2
+         AND af.status = 'Pago'
+         ${filtroEmpresaAjuste}
+       ORDER BY af.dtlancamento ASC`,
+      params
+    );
+
+    res.json({ holerites: holerites.rows, staff: staff.rows, ajustes: ajustes.rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/funcionario:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/panorama?ano=YYYY&idempresas=1,2,3 — visão agregada de TODOS os funcionários
+// (não um só): quanto já está contratado por mês (pago x pendente) e a base pra "provisão de
+// custo" do ano — alimenta o modo Gráfico da Visão Geral quando abre (sem precisar buscar um
+// funcionário específico primeiro). idempresas filtra por uma ou mais empresas; sem ele, soma
+// o grupo inteiro.
+router.get("/geral/panorama", async (req, res) => {
+  try {
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresas = String(req.query.idempresas || "")
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter((n) => Number.isInteger(n));
+    const temFiltro = idempresas.length > 0;
+
+    const filtroHolerite = temFiltro ? "AND h.idempresa = ANY($2::int[])" : "";
+    const filtroStaff = temFiltro ? "AND oe.idempresa = ANY($2::int[])" : "";
+    const filtroAjuste = temFiltro ? "AND af.idempresa = ANY($2::int[])" : "";
+    const params = temFiltro ? [ano, idempresas] : [ano];
+
+    const holerite = await pool.query(
+      `SELECT h.mes,
+              COALESCE(SUM(CASE WHEN h.status = 'Pago'
+                THEN (CASE WHEN i.tipo IN ('P','B') THEN i.valor WHEN i.tipo = 'D' THEN -i.valor ELSE 0 END)
+                ELSE 0 END), 0) AS pago,
+              COALESCE(SUM(CASE WHEN h.status <> 'Pago'
+                THEN (CASE WHEN i.tipo IN ('P','B') THEN i.valor WHEN i.tipo = 'D' THEN -i.valor ELSE 0 END)
+                ELSE 0 END), 0) AS pendente
+       FROM folhaholerite h
+       LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
+       WHERE h.ano = $1 ${filtroHolerite}
+       GROUP BY h.mes`,
+      params
+    );
+
+    const staff = await pool.query(
+      `SELECT EXTRACT(MONTH FROM o.dtinirealizacao)::int AS mes,
+              COALESCE(SUM(
+                (CASE WHEN se.statuspgto = 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtoajdcto = 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtocaixinha = 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+              ), 0) AS pago,
+              COALESCE(SUM(
+                (CASE WHEN se.statuspgto <> 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtoajdcto <> 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtocaixinha <> 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+              ), 0) AS pendente
+       FROM staffeventos se
+       JOIN orcamentos o ON o.idorcamento = se.idorcamento
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       WHERE EXTRACT(YEAR FROM o.dtinirealizacao) = $1
+         AND se.statusstaff <> 'Deletado'
+         AND o.dtinirealizacao IS NOT NULL
+         ${filtroStaff}
+       GROUP BY EXTRACT(MONTH FROM o.dtinirealizacao)`,
+      params
+    );
+
+    // Ajustes financeiros só entram quando 'Pago' (mesma regra do detector de rentabilidade e do
+    // /geral/funcionario) — não há "pendente" comparável aqui.
+    const ajustes = await pool.query(
+      `SELECT EXTRACT(MONTH FROM af.dtlancamento)::int AS mes,
+              COALESCE(SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END), 0) AS pago
+       FROM staffajustefinanceiro af
+       WHERE EXTRACT(YEAR FROM af.dtlancamento) = $1 AND af.status = 'Pago' ${filtroAjuste}
+       GROUP BY EXTRACT(MONTH FROM af.dtlancamento)`,
+      params
+    );
+
+    res.json({ ano, holerite: holerite.rows, staff: staff.rows, ajustes: ajustes.rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/panorama:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/receber?agrupamento=mensal|anual|empresa&ano=YYYY&idempresas=1,2
+// Contas a receber = valor total do cliente por orçamento (vlrcliente), a mesma base usada na
+// aba Rentabilidade. Sem coluna de baixa de recebimento no schema, "recebido" aproxima pelo
+// evento já ter se realizado (dtfimrealizacao passado) e "pendente" pelo que ainda não aconteceu
+// — mesma lógica de "certo/provisionado" já usada no detector de rentabilidade. Também traz
+// lucro (lucroreal) e despesa (custo orçado: totgeralcto + totajdcto) agregados por evento.
+router.get("/geral/receber", async (req, res) => {
+  try {
+    const agrupamento = ["mensal", "anual", "empresa", "evento"].includes(req.query.agrupamento) ? req.query.agrupamento : "mensal";
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresas = String(req.query.idempresas || "")
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter((n) => Number.isInteger(n));
+    const temFiltroEmpresa = idempresas.length > 0;
+
+    const mes = parseInt(req.query.mes, 10); // opcional — 1-12, filtra pra um mês específico em QUALQUER agrupamento
+    const filtros = ["o.status <> 'R'", "o.idevento IS NOT NULL", "o.dtinirealizacao IS NOT NULL"];
+    const params = [];
+    if (temFiltroEmpresa) { params.push(idempresas); filtros.push(`oe.idempresa = ANY($${params.length}::int[])`); }
+    // "anual" mostra todos os anos disponíveis (não filtra); mensal/empresa são sempre de um ano.
+    if (agrupamento !== "anual") { params.push(ano); filtros.push(`EXTRACT(YEAR FROM o.dtinirealizacao) = $${params.length}`); }
+    if (Number.isInteger(mes) && mes >= 1 && mes <= 12) { params.push(mes); filtros.push(`EXTRACT(MONTH FROM o.dtinirealizacao) = $${params.length}`); }
+
+    let selectChave, groupBy, extraJoin = "", extraSelect = "", orderBy = "chave";
+    if (agrupamento === "anual") {
+      selectChave = "EXTRACT(YEAR FROM o.dtinirealizacao)::int";
+      groupBy = selectChave;
+    } else if (agrupamento === "empresa") {
+      selectChave = "oe.idempresa";
+      groupBy = "oe.idempresa, emp.nmfantasia";
+      extraJoin = "JOIN empresas emp ON emp.idempresa = oe.idempresa";
+      extraSelect = ", emp.nmfantasia";
+    } else if (agrupamento === "evento") {
+      // Detalhe por evento (não por período) — pra achar onde está a maior despesa e o
+      // maior/menor lucro dentro do recorte de ano/mês/empresas já filtrado.
+      selectChave = "o.idevento";
+      groupBy = "o.idevento, e.nmevento, c.nmfantasia";
+      extraJoin = "JOIN eventos e ON e.idevento = o.idevento LEFT JOIN clientes c ON c.idcliente = o.idcliente";
+      extraSelect = ", e.nmevento, c.nmfantasia AS nomecliente, MIN(o.dtinirealizacao) AS dtinirealizacao";
+      orderBy = "dtinirealizacao ASC";
+    } else {
+      selectChave = "EXTRACT(MONTH FROM o.dtinirealizacao)::int";
+      groupBy = selectChave;
+    }
+
+    // porEmpresa=1 (só válido com mensal/anual) quebra cada período também por empresa — usado
+    // pelos gráficos pra empilhar visualmente "o que é de cada empresa" dentro da mesma barra.
+    if (req.query.porEmpresa === "1" && (agrupamento === "mensal" || agrupamento === "anual")) {
+      extraJoin = "JOIN empresas emp ON emp.idempresa = oe.idempresa";
+      extraSelect = ", oe.idempresa, emp.nmfantasia";
+      groupBy += ", oe.idempresa, emp.nmfantasia";
+      orderBy = "chave, emp.nmfantasia";
+    }
+
+    const { rows } = await pool.query(
+      `SELECT ${selectChave} AS chave ${extraSelect},
+              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
+              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+              SUM(COALESCE(o.lucroreal, 0)) AS lucro,
+              SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa,
+              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE
+                THEN COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0) ELSE 0 END) AS despesapaga,
+              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL
+                THEN COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0) ELSE 0 END) AS despesapendente
+       FROM orcamentos o
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       ${extraJoin}
+       WHERE ${filtros.join(" AND ")}
+       GROUP BY ${groupBy}
+       ORDER BY ${orderBy}`,
+      params
+    );
+
+    res.json({ agrupamento, ano, linhas: rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/receber:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/eventos?busca= — lista pesquisável de eventos entre TODAS as empresas (pro
+// comparativo de anos anteriores em Contas a receber). Mesmo padrão de /geral/funcionarios.
+router.get("/geral/eventos", async (req, res) => {
+  try {
+    const busca = (req.query.busca || "").trim();
+    const params = [];
+    let where = "o.status <> 'R' AND o.idevento IS NOT NULL";
+    if (busca) { params.push(`%${busca}%`); where += ` AND (e.nmevento ILIKE $${params.length} OR c.nmfantasia ILIKE $${params.length})`; }
+
+    const { rows } = await pool.query(
+      `SELECT e.idevento, e.nmevento,
+              array_agg(DISTINCT c.nmfantasia) FILTER (WHERE c.nmfantasia IS NOT NULL) AS clientes,
+              array_agg(DISTINCT emp.nmfantasia ORDER BY emp.nmfantasia) AS empresas
+       FROM orcamentos o
+       JOIN eventos e ON e.idevento = o.idevento
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       JOIN empresas emp ON emp.idempresa = oe.idempresa
+       LEFT JOIN clientes c ON c.idcliente = o.idcliente
+       WHERE ${where}
+       GROUP BY e.idevento, e.nmevento
+       ORDER BY e.nmevento ASC
+       LIMIT 50`,
+      params
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("ERRO CEO /geral/eventos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /ceo/geral/evento-anos?idevento=X — compara o MESMO evento ano a ano, já quebrado por
+// empresa (o /ceo/evento-anos "normal" é escopado a uma empresa só) — dá pra somar por ano
+// (gráfico principal) OU detalhar por empresa (botão "Detalhar", só some quando um evento está
+// selecionado). Mesmas métricas de /geral/receber: recebido/pendente (vlrcliente) + lucro/despesa.
+router.get("/geral/evento-anos", async (req, res) => {
+  try {
+    const idevento = parseInt(req.query.idevento, 10);
+    if (!idevento) return res.status(400).json({ error: "idevento obrigatório." });
+
+    const nome = await pool.query("SELECT nmevento FROM eventos WHERE idevento = $1", [idevento]);
+    const { rows } = await pool.query(
+      `SELECT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+              oe.idempresa, emp.nmfantasia AS nomeempresa,
+              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
+              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+              SUM(COALESCE(o.lucroreal, 0)) AS lucro,
+              SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa
+       FROM orcamentos o
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       JOIN empresas emp ON emp.idempresa = oe.idempresa
+       WHERE o.idevento = $1 AND o.status <> 'R' AND o.dtinirealizacao IS NOT NULL
+       GROUP BY ano, oe.idempresa, emp.nmfantasia
+       ORDER BY ano ASC, emp.nmfantasia ASC`,
+      [idevento]
+    );
+
+    res.json({ nmevento: nome.rows[0]?.nmevento || "Evento", linhas: rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/evento-anos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
