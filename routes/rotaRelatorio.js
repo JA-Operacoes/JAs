@@ -74,7 +74,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             statusConditions.push(`(tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') AND (tse.comppgtoajdcusto50 IS NULL OR tse.comppgtoajdcusto50 = '')`);
                         }
                     } else if (tipo === 'cache') {
-                        const vlrcaixinhaNumericoSeguro = `CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC)`;
+                        const vlrcaixinhaNumericoSeguro = `CAST(COALESCE(NULLIF(TRIM(caixinha_valor_autorizado(tse.caixinha)::TEXT), ''), '0') AS NUMERIC)`;
                         
                         const vlrcaixinhaDevido = `(${vlrcaixinhaNumericoSeguro} > 0)`;
                         const vlrcaixinhaNaoDevido = `(${vlrcaixinhaNumericoSeguro} <= 0)`;
@@ -85,8 +85,8 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         const comprovanteCachePreenchido = `((tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') OR (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != ''))`;
                         const comprovanteCachePendente = `((tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))`;
 
-                        const comprovanteCaixinhaPreenchido = `(tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')`;
-                        const comprovanteCaixinhaPendente = `(tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')`;
+                        const comprovanteCaixinhaPreenchido = `(caixinha_tem_comprovante(tse.caixinha))`;
+                        const comprovanteCaixinhaPendente = `(NOT caixinha_tem_comprovante(tse.caixinha))`;
 
                         if (incluirPagos) {
                             const condicaoPago = `(
@@ -354,10 +354,11 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE(da.vlr_meias, 0)
                             ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
 
-                            CAST(COALESCE(tse.vlrcaixinha, 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA",
-                            CASE 
-                                WHEN COALESCE(tse.vlrcaixinha, 0) <= 0 THEN 'Isento'
-                                WHEN (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') THEN 'Anexado'
+                            CAST(COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA",
+                            CAST(COALESCE(caixinha_valor_pendente(tse.caixinha), 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA PENDENTE",
+                            CASE
+                                WHEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 THEN 'Isento'
+                                WHEN (caixinha_tem_comprovante(tse.caixinha)) THEN 'Anexado'
                                 ELSE 'Pendente'
                             END AS "COMP CAIXINHA",
 
@@ -370,43 +371,43 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             END AS "STATUS PGTO",
                             CASE
                                 -- 1. ISENTO
-                                WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
+                                WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0) THEN 'Isento'
 
                                 -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, sem nenhum comprovante ainda)
                                 WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))
-                                    AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+                                    AND (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) > 0 AND (NOT caixinha_tem_comprovante(tse.caixinha)))
                                     THEN 'Cachê e Caixinha Pendentes'
 
                                 -- 3. CACHÊ PENDENTE (nenhum comprovante ainda; Caixinha está OK ou é Isenta)
                                 WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = '') AND (tse.comppgtocache50 IS NULL OR tse.comppgtocache50 = ''))
-                                    AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
+                                    AND (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 OR (caixinha_tem_comprovante(tse.caixinha)))
                                     THEN 'Cachê Pendente'
 
                                 -- 4. CACHÊ 50% ANEXADO (só a 1ª parcela; Caixinha está OK ou é Isenta)
                                 WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != '' AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
-                                    AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
+                                    AND (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 OR (caixinha_tem_comprovante(tse.caixinha)))
                                     THEN 'Cachê 50% Anexado'
 
                                 -- 5. CAIXINHA PENDENTE (Mas Cachê está OK, 50% ou é Isento)
-                                WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+                                WHEN (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) > 0 AND (NOT caixinha_tem_comprovante(tse.caixinha)))
                                     AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') OR (tse.comppgtocache50 IS NOT NULL AND tse.comppgtocache50 != ''))
                                     THEN 'Caixinha Pendente'
 
                                 -- 6. AMBOS ANEXADOS
                                 WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
-                                    AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
+                                    AND (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) > 0 AND caixinha_tem_comprovante(tse.caixinha))
                                     THEN 'Cachê e Caixinha Anexados'
 
                                 -- 7. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
                                 WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
                                     THEN CASE
-                                            WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')
+                                            WHEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) > 0 AND (NOT caixinha_tem_comprovante(tse.caixinha))
                                             THEN 'Cachê Anexado (Falta Caixinha)'
                                             ELSE 'Cachê Anexado'
                                         END
 
                                 -- 8. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
-                                WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
+                                WHEN (COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) > 0 AND caixinha_tem_comprovante(tse.caixinha))
                                     AND COALESCE(tse.vlrcache, 0) <= 0
                                     THEN 'Caixinha Anexada'
 
@@ -440,7 +441,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     ))
                                 END +
                                 CASE WHEN (tse.statuspgto IS DISTINCT FROM 'Pago') AND tse.statusajustecusto = 'Autorizado' THEN COALESCE(tse.vlrajustecusto, 0) ELSE 0 END +
-                                CASE WHEN (tse.statuspgtocaixinha IS DISTINCT FROM 'Pago') AND tse.statuscaixinha = 'Autorizado' THEN COALESCE(tse.vlrcaixinha, 0) ELSE 0 END +
+                                CASE WHEN (tse.statuspgtocaixinha IS DISTINCT FROM 'Pago') AND caixinha_status_agregado(tse.caixinha) = 'Autorizado' THEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) ELSE 0 END +
                                 CASE WHEN tse.statuspgto IS DISTINCT FROM 'Pago' THEN 
                                     COALESCE(da.vlr_dobras, 0) + COALESCE(da.vlr_meias, 0)
                                     ELSE 0 
@@ -541,7 +542,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         -- Coluna VLR ADICIONAL
                         CAST(
                             COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0.00) +
-                            COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0.00)
+                            COALESCE(CASE WHEN caixinha_status_agregado(tse.caixinha) = 'Autorizado' THEN caixinha_valor_autorizado(tse.caixinha) ELSE 0 END, 0.00)
                         AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
                         
                         -- Coluna QTD
@@ -569,14 +570,14 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 )
                             )) +
                             COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0.00) +
-                            COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0.00)
+                            COALESCE(CASE WHEN caixinha_status_agregado(tse.caixinha) = 'Autorizado' THEN caixinha_valor_autorizado(tse.caixinha) ELSE 0 END, 0.00)
                         AS NUMERIC(10, 2)) AS "TOT GERAL",
 
                         -- Coluna STATUS PGTO
                         CASE
                             WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
-                            AND (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
-                                OR (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0 AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')))
+                            AND (CAST(COALESCE(NULLIF(TRIM(caixinha_valor_autorizado(tse.caixinha)::TEXT), ''), '0') AS NUMERIC) <= 0
+                                OR (CAST(COALESCE(NULLIF(TRIM(caixinha_valor_autorizado(tse.caixinha)::TEXT), ''), '0') AS NUMERIC) > 0 AND (caixinha_tem_comprovante(tse.caixinha))))
                             THEN 'Pago' ELSE 'Pendente'
                         END AS "STATUS PGTO"
 
@@ -798,15 +799,16 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 END AS "COMP AJUDA",
 
                                 -- ✅ NOVAS COLUNAS CAIXINHA
-                                CAST(COALESCE(tse.vlrcaixinha, 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA",
-                                CASE 
-                                    WHEN COALESCE(tse.vlrcaixinha, 0) <= 0 THEN 'Isento'
+                                CAST(COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA",
+                                CAST(COALESCE(caixinha_valor_pendente(tse.caixinha), 0) AS NUMERIC(10,2)) AS "VLR CAIXINHA PENDENTE",
+                                CASE
+                                    WHEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 THEN 'Isento'
                                     WHEN tse.statuspgtocaixinha = 'Pago' THEN 'Pago'
                                     ELSE 'Pendente'
                                 END AS "STATUS CAIXINHA",
                                 CASE 
-                                    WHEN COALESCE(tse.vlrcaixinha, 0) <= 0 THEN 'Isento'
-                                    WHEN (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') THEN 'Anexado'
+                                    WHEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 THEN 'Isento'
+                                    WHEN (caixinha_tem_comprovante(tse.caixinha)) THEN 'Anexado'
                                     ELSE 'Pendente'
                                 END AS "COMP CAIXINHA"
 
@@ -837,7 +839,10 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     const obspospgto   = (item['obspospgto'] || '').trim();
                     const statusCache  = item['STATUS CACHÊ'] || '';
                     const statusAjuste = item['statusajustecusto'] || '';
-                    const statusCaixa  = item['statuscaixinha'] || '';
+                    // Bug pré-existente: lia item['statuscaixinha'], chave que não existe na
+                    // query (a coluna vem como "STATUS CAIXINHA", com aspas/maiúsculas) — o
+                    // check de "Suspenso" nunca considerava a caixinha. Corrigido pra chave certa.
+                    const statusCaixa  = item['STATUS CAIXINHA'] || '';
 
                     // Suspenso: se qualquer um dos status relevantes for Suspenso, sinaliza no item
                     if (statusCache === 'Suspenso' || statusAjuste === 'Suspenso' || statusCaixa === 'Suspenso') {
@@ -1115,25 +1120,27 @@ router.get("/", autenticarToken(), contextoEmpresa,
 
             UNION ALL
             
-            -- 4. CAIXINHA
+            -- 4. CAIXINHA (uma linha por item — autorizado ou pendente — pra não
+            -- esconder solicitações ainda não aprovadas nem perder a justificativa
+            -- de cada uma quando há mais de uma caixinha no mesmo registro)
             SELECT
                 tse.idevento,
                 tbf.nome AS "Profissional",
-                'Caixinha - R$' || CAST(tse.vlrcaixinha AS TEXT) AS "Informacao",
-                tse.desccaixinha AS "Observacao"
+                'Caixinha' || (CASE WHEN item->>'status' = 'Pendente' THEN ' (Pendente de Autorização)' ELSE '' END)
+                    || ' - R$' || CAST((item->>'valor')::numeric AS TEXT) AS "Informacao",
+                item->>'justificativa' AS "Observacao"
             FROM
                 staffeventos tse
             JOIN
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
+            JOIN
                 staffempresas semp ON semp.idstaff = tse.idstaff
             JOIN
                 funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
+            CROSS JOIN jsonb_array_elements(COALESCE(tse.caixinha, '[]'::jsonb)) item
             WHERE
                 semp.idempresa = $1 ${wherePeriodoFinal}
-                AND tse.statuscaixinha = 'Autorizado' 
-                AND tse.vlrcaixinha IS NOT NULL 
-                AND tse.vlrcaixinha > 0
+                AND item->>'status' IN ('Autorizado', 'Pendente')
 
             UNION ALL
 
