@@ -675,9 +675,13 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <span style="display:inline-block; width:12px; height:12px; background-color:#cbe4fd; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Custo Fechado / Liberado
                 </span>
-                <span style="display:inline-block;">
+                <span style="display:inline-block; margin-right:16px;">
                     <span style="display:inline-block; width:12px; height:12px; background-color:rgb(136,9,9); border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Ajuste de Custo aplicado
+                </span>
+                <span style="display:inline-block;">
+                    <span style="display:inline-block; width:12px; height:12px; background-color:#f0f0f0; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    Aguardando Autorização / Inclusão no Orçamento
                 </span>
             </p>
         `;
@@ -685,9 +689,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ', 'VLR ADICIONAL','VLR CAIXINHA', 'TOT DIÁRIAS', 'QTD AJUDA', 'VLR AJUDA', 'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA','STATUS CX','COMP CAIXINHA', 'COMP CACHÊ', 'COMP AJUDA' ];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ', 'VLR ADICIONAL','VLR CAIXINHA', 'TOT DIÁRIAS', 'QTD AJUDA', 'VLR AJUDA', 'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'CRÉDITO/DÉBITO', 'STATUS SOLICITAÇÃO', 'STATUS CACHÊ', 'STATUS AJUDA','STATUS CX','COMP CAIXINHA', 'COMP CACHÊ', 'COMP AJUDA' ];
             } else {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['VLR CAIXINHA','STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['VLR CAIXINHA','STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', ...(tipo === 'cache' ? ['CRÉDITO/DÉBITO', 'STATUS SOLICITAÇÃO'] : []) ,'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
         } else {
             colunas = ['FUNÇÃO', 'NOME', 'CPF', 'INÍCIO', 'TÉRMINO', 'QTD', 'TOT GERAL', 'STATUS PGTO'];
@@ -700,7 +704,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'STATUS CX': 'text-center', 'QTD': 'text-center', 'QTD CACHÊ': 'text-center', 'QTD AJUDA': 'text-center',
             'TOT DIÁRIAS': 'text-right', 'TOT AJUDA': 'text-right', 'TOT GERAL': 'text-right',
             'STATUS CACHÊ': 'text-center', 'STATUS AJUDA': 'text-center', 'STATUS PGTO': 'text-center', 'VLR CAIXINHA': 'text-center',
-            'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHÊ': 'text-center', 'COMP AJUDA': 'text-center', 'COMP CAIXINHA': 'text-center'
+            'TOT PAGAR': 'text-right', 'STATUS COMPROVANTE': 'text-center', 'COMP CACHÊ': 'text-center', 'COMP AJUDA': 'text-center', 'COMP CAIXINHA': 'text-center',
+            'CRÉDITO/DÉBITO': 'text-right', 'STATUS SOLICITAÇÃO': 'text-center'
         };
 
         const colspanSubtotal = 5;
@@ -751,16 +756,25 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     }
 
                     const ehFuncionario = item.PERFIL_STAFF && item.PERFIL_STAFF.includes('Interno');
+                    const ehMei = item.PERFIL_MEI;
+                    const ehFuncMei = ehFuncionario && ehMei;
 
                     linhas += `
                     <tr ${styleDestaque}>
                         <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
-                        <td class="${alinhamentos['NOME']}">${item.NOME || ''}${ehFuncionario ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>' : ''}</td>
-                        
+                        <td class="${alinhamentos['NOME']}">${item.NOME || ''}
+                            ${ehFuncMei
+                                ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNC - MEI</span>'
+                                : ehFuncionario
+                                    ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>'
+                                    : ehMei
+                                        ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">MEI</span>'
+                                        : ''}
+                        </td>
                         ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
                         <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
                         <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
-                        
+
                         ${podeVerFinanceiro ? (tipo === 'cache_ajuda' ? `
                             <td class="${alinhamentos['QTD CACHÊ']}">${item["QTD CACHÊ"] || item.QTD || ''}</td>
                             <td class="${alinhamentos['VLR CACHÊ']}">${formatarMoeda(item["VLR CACHÊ"])}</td>
@@ -772,14 +786,17 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">
-                                ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"])}
+                            ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"])}
                             </td>
+                            <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(item["CRÉDITO/DÉBITO"])}</td>
+                            <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS CX']} ${obterClasseStatus(item["STATUS CAIXINHA"])}">${item["STATUS CAIXINHA"] || 'Pendente'}</td>
                             <td class="${alinhamentos['COMP CAIXINHA']} ${obterClasseCompStatus(item["COMP CAIXINHA"])}">${item["COMP CAIXINHA"] || 'Pendente'}</td>
                             <td class="${alinhamentos['COMP CACHÊ']} ${obterClasseCompStatus(item["COMP CACHÊ"])}">${item["COMP CACHÊ"] || 'Pendente'}</td>
                             <td class="${alinhamentos['COMP AJUDA']} ${obterClasseCompStatus(item["COMP AJUDA"])}">${item["COMP AJUDA"] || 'Pendente'}</td>
+                            
                         ` : `
                             <td class="${alinhamentos['VLR DIÁRIA']}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
                             ${tipo !== 'ajuda_custo' ? `<td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>` : ''}
@@ -790,9 +807,14 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
                             <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+                            ${tipo === 'cache' ? `
+                                <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(item["CRÉDITO/DÉBITO"])}</td>
+                                <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
+                            ` : ''}
                             <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], item["TOT PAGAR"], false)}</td>
                             <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
+                            
                         `) : `
                             <td class="${alinhamentos['QTD']}">${item.QTD || ''}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
@@ -829,7 +851,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_AJUDA)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
-                                    <td colspan="6"></td>
+                                    <td colspan="8"></td>
                                 ` : `
                                     <td></td>
                                     ${tipo !== 'ajuda_custo' ? '<td></td>' : ''}
@@ -840,6 +862,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <td></td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
                                     <td></td>
+                                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
                                 `}
                             </tr>`;
                             // Separador azul após o subtotal (não na última linha)
@@ -872,7 +895,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
-                    <td colspan="6"></td>
+                    <td colspan="8"></td>
                 ` : `
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                     ${tipo !== 'ajuda_custo' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
@@ -883,6 +906,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <td></td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                     <td></td>
+                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
                 `}
             </tr>` : ''}
         </tbody>

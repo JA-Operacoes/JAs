@@ -500,13 +500,6 @@ router.post(
         detail: "O campo 'Edição' é obrigatório e não pode ser nulo.",
       });
     }
-    if (!idEmpresaEmissora) {
-      return res.status(400).json({
-        error: "Erro de validação.",
-        detail: "O campo 'Empresa Emissora da NF' é obrigatório e não pode ser nulo.",
-      });
-    }
-
     try {
       await client.query("BEGIN");
 
@@ -841,13 +834,10 @@ router.post(
           if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
             throw new Error(`Parcela ${i + 1} está sem valor.`);
           }
-          if (!p.dtvencimento) {
-            throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
-          }
           await client.query(
             `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
              VALUES ($1, $2, $3, $4, $5)`,
-            [idorcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
+            [idorcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento || null]
           );
         }
       }
@@ -2912,13 +2902,6 @@ router.put("/:id",
         detail: "O campo 'Edição' é obrigatório e não pode ser nulo.",
       });
     }
-    if (!idEmpresaEmissora) {
-      return res.status(400).json({
-        error: "Erro de validação.",
-        detail: "O campo 'Empresa Emissora da NF' é obrigatório e não pode ser nulo.",
-      });
-    }
-
     // Antes de ativar um staffevento (statusstaff = 'Ativo') na inclusão no orçamento,
     // verifica se ainda existe OUTRA solicitação Pendente pro mesmo staffevento (de
     // qualquer categoria) — se houver, statusstaff deve continuar 'Pendente' mesmo com
@@ -3602,13 +3585,10 @@ router.put("/:id",
           if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
             throw new Error(`Parcela ${i + 1} está sem valor.`);
           }
-          if (!p.dtvencimento) {
-            throw new Error(`Parcela ${i + 1} está sem data de vencimento.`);
-          }
           await client.query(
             `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
              VALUES ($1, $2, $3, $4, $5)`,
-            [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento]
+            [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento || null]
           );
         }
       }

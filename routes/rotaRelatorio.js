@@ -48,11 +48,18 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 (equipe && equipe !== "todos" && equipe !== "") ? equipe.toString() : null
             ];
 
+            // Cache/cache_ajuda também trazem staff 'Pendente' (aguardando autorização de
+            // solicitação de aditivo/bonificado, ou já autorizado mas aguardando inclusão
+            // no orçamento) — os demais tipos de relatório continuam só com 'Ativo'.
+            const statusStaffPermitidos = (tipo === 'cache' || tipo === 'cache_ajuda')
+                ? `('Ativo', 'Pendente')`
+                : `('Ativo')`;
+
             const sqlFiltrosExtras = `
                 AND ($4::text IS NULL OR $4::text = '' OR tse.idevento::text = $4::text)
                 AND ($5::text IS NULL OR $5::text = '' OR tse.idcliente::text = $5::text)
                 AND ($6::text IS NULL OR $6::text = '' OR tse.idequipe::text = $6::text)
-                AND tse.statusstaff = 'Ativo'
+                AND tse.statusstaff IN ${statusStaffPermitidos}
             `;
 
             let wherePeriodoFinal = whereEventos + sqlFiltrosExtras;
@@ -136,6 +143,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         SELECT
                             tse.idevento AS "idevento",
                             fe.perfil AS "PERFIL_STAFF",
+                            fe.mei AS "PERFIL_MEI",
                             tse.nmevento AS "nomeEvento",
                             tse.nmfuncao AS "FUNÇÃO",
                             tse.idcliente AS "idcliente",
@@ -318,6 +326,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         SELECT
                             tse.idevento,
                             fe.perfil AS "PERFIL_STAFF",
+                            fe.mei AS "PERFIL_MEI",
                             tse.nmevento AS "nomeEvento",
                             tse.idcliente,
                             tse.nmcliente AS "nomeCliente",
@@ -361,6 +370,40 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHEN (caixinha_tem_comprovante(tse.caixinha)) THEN 'Anexado'
                                 ELSE 'Pendente'
                             END AS "COMP CAIXINHA",
+
+                            -- Crédito/Débito pendente do funcionário com a empresa (staffajustefinanceiro),
+                            -- em uma única coluna: Crédito soma positivo, Débito soma negativo. Só o que
+                            -- ainda não foi 'Pago' — mesmo critério de rotaStaff.js:1741-1761.
+                            CAST(COALESCE((
+                                SELECT SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END)
+                                FROM staffajustefinanceiro af
+                                WHERE af.idfuncionario = tse.idfuncionario AND af.idempresa = semp.idempresa
+                                  AND af.status <> 'Pago'
+                            ), 0) AS NUMERIC(10,2)) AS "CRÉDITO/DÉBITO",
+
+                            -- Quando statusstaff = 'Pendente', diz se está aguardando autorização da
+                            -- solicitação de aditivo/bonificado ou, já autorizada, aguardando ser
+                            -- incluída como item no orçamento — mesma lógica de rotaStaff.js:1718-1740
+                            -- (solicitacao_aditivo) usada hoje em Staff.js.
+                            CASE
+                                WHEN tse.statusstaff = 'Pendente' THEN COALESCE((
+                                    SELECT CASE
+                                        WHEN sol.status = 'Autorizado' AND NOT EXISTS (
+                                            SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
+                                        ) THEN 'Aguardando Inclusão no Orçamento'
+                                        ELSE 'Aguardando Autorização'
+                                    END
+                                    FROM solicitacoes sol
+                                    WHERE sol.idregistroalterado = tse.idstaffevento
+                                      AND sol.categoria_log = 'aditivoextra'
+                                      AND sol.idorcamento = tse.idorcamento
+                                      AND sol.idfuncionario = tse.idfuncionario
+                                      AND sol.idfuncao = tse.idfuncao
+                                    ORDER BY sol.dtsolicitacao DESC
+                                    LIMIT 1
+                                ), 'Aguardando Autorização')
+                                ELSE NULL
+                            END AS "STATUS SOLICITAÇÃO",
 
                             -- STATUS PGTO com base no status real de pagamento do cachê
                             CASE
@@ -462,7 +505,10 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 WHERE ${phaseFilterSql})
                             ) > 0
                     ) AS subquery
-                    WHERE ("QTD" > 0 OR "VLR ADICIONAL" != 0)
+                    -- Além de QTD/VLR ADICIONAL, também aparece quando há pendência de
+                    -- solicitação/inclusão no orçamento, ou crédito/débito diferente de zero
+                    -- (mesmo staff "Interno" em dia de semana sem cachê extra).
+                    WHERE ("QTD" > 0 OR "VLR ADICIONAL" != 0 OR "STATUS SOLICITAÇÃO" IS NOT NULL OR "CRÉDITO/DÉBITO" != 0)
                     ORDER BY "nomeEvento", "NOME";
                     `;
 
@@ -527,6 +573,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     SELECT
                         tse.idevento,
                         fe.perfil AS "PERFIL_STAFF",
+                        fe.mei AS "PERFIL_MEI",
                         tse.nmevento AS "nomeEvento",
                         tse.idcliente,
                         tse.nmcliente AS "nomeCliente",
@@ -742,6 +789,7 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE(tse.vlrtotajdcusto, 0) as vlrtotajdcusto, 
                                 tbf.pix AS "PIX",
                                 fe.perfil AS "PERFIL_STAFF",
+                                fe.mei AS "PERFIL_MEI",
                                 (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
                                 (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
                                 
@@ -810,7 +858,41 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                     WHEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) <= 0 THEN 'Isento'
                                     WHEN (caixinha_tem_comprovante(tse.caixinha)) THEN 'Anexado'
                                     ELSE 'Pendente'
-                                END AS "COMP CAIXINHA"
+                                END AS "COMP CAIXINHA",
+
+                                -- Crédito/Débito pendente do funcionário com a empresa (staffajustefinanceiro),
+                                -- em uma única coluna: Crédito soma positivo, Débito soma negativo. Só o
+                                -- que ainda não foi 'Pago' — mesmo critério de rotaStaff.js:1741-1761.
+                                CAST(COALESCE((
+                                    SELECT SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END)
+                                    FROM staffajustefinanceiro af
+                                    WHERE af.idfuncionario = tse.idfuncionario AND af.idempresa = semp.idempresa
+                                      AND af.status <> 'Pago'
+                                ), 0) AS NUMERIC(10,2)) AS "CRÉDITO/DÉBITO",
+
+                                -- Quando statusstaff = 'Pendente', diz se está aguardando autorização da
+                                -- solicitação de aditivo/bonificado ou, já autorizada, aguardando ser
+                                -- incluída como item no orçamento — mesma lógica de rotaStaff.js:1718-1740
+                                -- (solicitacao_aditivo) usada hoje em Staff.js.
+                                CASE
+                                    WHEN tse.statusstaff = 'Pendente' THEN COALESCE((
+                                        SELECT CASE
+                                            WHEN sol.status = 'Autorizado' AND NOT EXISTS (
+                                                SELECT 1 FROM orcamentoitens oi WHERE sol.idsolicitacao = ANY(oi.idsolicitacao)
+                                            ) THEN 'Aguardando Inclusão no Orçamento'
+                                            ELSE 'Aguardando Autorização'
+                                        END
+                                        FROM solicitacoes sol
+                                        WHERE sol.idregistroalterado = tse.idstaffevento
+                                          AND sol.categoria_log = 'aditivoextra'
+                                          AND sol.idorcamento = tse.idorcamento
+                                          AND sol.idfuncionario = tse.idfuncionario
+                                          AND sol.idfuncao = tse.idfuncao
+                                        ORDER BY sol.dtsolicitacao DESC
+                                        LIMIT 1
+                                    ), 'Aguardando Autorização')
+                                    ELSE NULL
+                                END AS "STATUS SOLICITAÇÃO"
 
                             FROM staffeventos tse
                             JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
@@ -1284,6 +1366,35 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 AND (vr->>'idfuncao_origem')::int <> tse.idfuncao
             GROUP BY
                 tse.idevento, tbf.nome
+
+            UNION ALL
+
+            -- 9. CRÉDITO/DÉBITO FINANCEIRO (staffajustefinanceiro) — mostra o tipo do
+            -- lançamento (Crédito/Débito) e a justificativa salva. Vinculado ao
+            -- funcionário + empresa (mesmo critério usado na soma da coluna
+            -- "CRÉDITO/DÉBITO" do relatório principal, linhas ~376-381), e não mais pelo
+            -- idstaffeventoorigem: esse campo é opcional (rotaAjusteFinanceiro.js) e, quando
+            -- nulo ou fora do período filtrado, fazia o valor aparecer no total do relatório
+            -- mas sumir da tabela de Contingência. Só o que ainda não foi 'Pago'.
+            SELECT DISTINCT
+                tse.idevento,
+                tbf.nome AS "Profissional",
+                af.tipo || ' - R$' || CAST(af.valor AS TEXT) AS "Informacao",
+                af.justificativa AS "Observacao"
+            FROM
+                staffeventos tse
+            JOIN
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            JOIN
+                staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
+            JOIN
+                staffajustefinanceiro af ON af.idfuncionario = tse.idfuncionario
+                    AND af.idempresa = semp.idempresa
+                    AND af.status <> 'Pago'
+            WHERE
+                semp.idempresa = $1 ${wherePeriodoFinal}
 
             ORDER BY
                 idevento, "Profissional", "Informacao";

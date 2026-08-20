@@ -6373,30 +6373,55 @@ function renderizarListaOrcamentos(container, lista) {
 
             linkModal.click();
 
-            let tentativas = 0;
-            const verificarModal = setInterval(async () => {
-                const inputNr = document.getElementById("nrOrcamento");
-                tentativas++;
+            // Espera não só o #nrOrcamento existir, mas o módulo ter terminado o setup
+            // assíncrono: Flatpickr de Marcação já anexado ao elemento (senão o loop de
+            // preenchimento de datas em preencherFormularioComOrcamento roda sobre um
+            // flatpickrInstances vazio) e os selects de Local de Montagem/Empresa Emissora
+            // já com as <option> carregadas (senão select.value = idMontagem não encontra
+            // a option correspondente e fica vazio). Mesmo mecanismo já usado em Aside.js.
+            const aguardarModalPronto = () => new Promise((resolve) => {
+                const tentativa = setInterval(() => {
+                    const input = document.getElementById("nrOrcamento");
+                    const campoMarcacao = document.getElementById("periodoMarcacao");
+                    const selectMontagem = document.querySelector(".idMontagem");
+                    const selectEmpresaEmissora = document.querySelector(".idEmpresaEmissora");
+                    if (
+                        input &&
+                        typeof window.preencherFormularioComOrcamento === "function" &&
+                        campoMarcacao && campoMarcacao._flatpickr &&
+                        selectMontagem && selectMontagem.options.length > 1 &&
+                        selectEmpresaEmissora && selectEmpresaEmissora.options.length > 1
+                    ) {
+                        clearInterval(tentativa);
+                        resolve(input);
+                    }
+                }, 50);
+                setTimeout(() => {
+                    clearInterval(tentativa);
+                    resolve(document.getElementById("nrOrcamento") || null);
+                }, 5000);
+            });
 
-                if (inputNr) {
-                    clearInterval(verificarModal);
+            aguardarModalPronto().then(async (inputNr) => {
+                if (inputNr && typeof window.preencherFormularioComOrcamento === "function") {
                     inputNr.value = nrOrcamento;
-                    
+
                     // Dispara o Enter para carregar os dados no módulo
                     const enter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
                     inputNr.dispatchEvent(enter);
 
-                    // Importação dinâmica para preenchimento forçado se necessário
                     try {
                         const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
-                        const modulo = await import('./Orcamentos.js');
-                        if(modulo.preencherFormularioComOrcamento) modulo.preencherFormularioComOrcamento(orcDet);
+                        if (!orcDet || Array.isArray(orcDet) || !orcDet.idorcamento) {
+                            console.warn("Orçamento não encontrado ao abrir pelo card:", nrOrcamento);
+                        } else {
+                            window.preencherFormularioComOrcamento?.(orcDet);
+                        }
                     } catch (err) { console.warn("Aviso: Falha ao forçar preenchimento detalhado."); }
-                    
-                } else if (tentativas >= 20) {
-                    clearInterval(verificarModal);
+                } else {
+                    console.warn("⚠️ Modal não ficou pronto a tempo (campo ou função de preenchimento ausentes).");
                 }
-            }, 100);
+            });
         };
 
         grid.appendChild(item);

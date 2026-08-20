@@ -369,6 +369,15 @@ async function carregarOrcamentos(clienteId, eventoId) {
                                 try {
                                     console.log("🟤 Buscando orçamento detalhado via API...");
                                     const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
+                                    // fetchComToken devolve [] (truthy) em respostas 404 — trata como
+                                    // "não encontrado" em vez de deixar preencherFormularioComOrcamento
+                                    // tentar carregar um objeto vazio silenciosamente.
+                                    if (!orcamento || Array.isArray(orcamento) || !orcamento.idorcamento) {
+                                        console.warn("⚠️ Orçamento não encontrado para a empresa atual:", orc.nrorcamento);
+                                        window.limparFormularioOrcamento?.();
+                                        Swal.fire("Erro", `Orçamento ${orc.nrorcamento} não encontrado para a empresa atual.`, "error");
+                                        return;
+                                    }
                                     console.log("✅ Dados recebidos, preenchendo formulário. ");
                                     window.preencherFormularioComOrcamento(orcamento);
                                 } catch (error) {
