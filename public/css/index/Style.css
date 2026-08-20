@@ -1071,6 +1071,313 @@ input#search-aside {
 
   #ceo-panel .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
 
+  /* ===== Painel CEO — Visão Geral (remuneração de funcionário entre empresas) ===== */
+  #ceo-panel-geral { display: none; }
+
+  body.ceo-mode #ceo-panel-geral {
+    display: block;
+    width: 100%;
+    max-width: 20000px;
+    margin: 100px auto 40px;
+    padding: 0 24px 40px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+    font-family: var(--Font-primary);
+    color: #2e2e2e;
+    text-align: left;
+  }
+  #ceo-panel-geral .ceo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  #ceo-panel-geral .ceo-header h2 { font-size: 22px; font-weight: 700; margin: 0; }
+
+  /* Barra de filtros em linha — mesmo padrão visual do card "Eventos em Aberto"
+     (.filtro-grupo/.label-select/.wrapper.select-wrapper em Main.css), reproduzido aqui
+     escopado ao painel pra não puxar o Main.css inteiro (que tem .wrapper genérico usado
+     em várias outras telas). */
+  #ceo-panel-geral .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  #ceo-panel-geral .filtro-grupo { display: flex; flex-direction: column; gap: 5px; }
+  #ceo-panel-geral .label-select { font-weight: bold; font-size: 13px; color: #555; }
+  #ceo-panel-geral .wrapper.select-wrapper {
+    position: relative;
+    height: 36px;
+    border: 2px solid var(--border-color, #ccc);
+    border-radius: 34px;
+    display: flex;
+    align-items: center;
+    background: #fff;
+  }
+  #ceo-panel-geral .select-simples {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 34px;
+    padding: 0 15px;
+    font-size: 14px;
+    color: black;
+  }
+  #ceo-panel-geral .filtro-grupo-empresas .wrapper {
+    width: auto;
+    min-width: 220px;
+    height: auto;
+    padding: 5px 10px;
+    border-radius: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Toggle em radio-pill (Visão/Exibição) — mesma cara dos filtros de Status/Período do card
+     "Eventos em Aberto" (Main.css: .venc-container/.Evt-container .wrapper/.option/.btn/.span),
+     reproduzido aqui escopado ao painel. Usa :has() em vez do truque de overlay absoluto com
+     largura fixa em px, porque os rótulos aqui são mais longos ("👤 Funcionários"). */
+  #ceo-panel-geral .wrapper:not(.select-wrapper):not(.ceo-geral-empresas-filtro) {
+    height: 36px;
+    border: 2px solid var(--border-color, #ccc);
+    border-radius: 34px;
+    display: flex;
+    flex-direction: row;
+    padding: 2px;
+    gap: 2px;
+  }
+  #ceo-panel-geral .wrapper .option { display: flex; }
+  #ceo-panel-geral .wrapper .input { display: none; }
+  #ceo-panel-geral .wrapper .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 16px;
+    border-radius: 34px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s;
+  }
+  #ceo-panel-geral .wrapper .span { color: var(--black-color, #333); font-size: 13px; }
+  /* .input e .btn são IRMÃOS dentro de .option (o <label for="..."> não envolve o input) —
+     :has() tem que mirar .option, não .btn, senão "tem" um irmão em vez de um filho. */
+  #ceo-panel-geral .wrapper .option:has(.input:checked) .btn { background: var(--primary-color, #2e2e2e); }
+  #ceo-panel-geral .wrapper .option:has(.input:checked) .span { color: var(--font-color, #fff); }
+  /* "Exibição" (Lista/Gráficos) — texto mais curto que "Visão", pill um pouco mais justa. */
+  #ceo-panel-geral .wrapper-exibicao .btn { padding: 0 12px; }
+  i.ri-search-line { padding: 10px;}
+  .wrapper.wrapper-exibicao {  width: 165px; }
+
+  /* Busca de funcionário — mesma cara do busca-evento do card "Eventos em Aberto"
+     (Main.css: .busca-evento-input/.busca-evento-lista), reproduzida aqui escopada ao painel. */
+  #ceo-panel-geral .busca-funcionario-wrapper { width: 360px; padding: 0; }
+  #ceo-panel-geral .busca-funcionario-input {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0 15px;
+    font-size: 14px;
+    border-radius: inherit;
+    outline: none;
+  }
+  #ceo-panel-geral .busca-funcionario-lista {
+    display: none;
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 4px);
+    z-index: 50;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0; padding: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  #ceo-panel-geral .busca-funcionario-lista li { padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  #ceo-panel-geral .busca-funcionario-lista li small { color: #1f6fc4; margin-left: 6px; }
+  #ceo-panel-geral .busca-funcionario-lista li:hover { background: #f0f2f5; }
+  #ceo-panel-geral .busca-funcionario-lista li.vazio { color: #999; cursor: default; }
+
+  #ceo-panel-geral .ceo-geral-secao { margin-top: 6px; }
+  #ceo-panel-geral .ceo-vazio-sutil { color: #888; font-size: 13px; margin: 0 0 14px; }
+  #ceo-panel-geral .ceo-geral-graficos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+  }
+  #ceo-panel-geral .ceo-chart-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  #ceo-panel-geral .ceo-chart-card h3 { font-size: 15px; margin: 0 0 8px; }
+  #ceo-panel-geral .ceo-chart { width: 100%; height: 320px; }
+
+  #ceo-panel-geral .ceo-geral-empresas-filtro {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  #ceo-panel-geral .ceo-status-chip {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #999;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    opacity: .6;
+  }
+  /* Chip de empresa: a classe .tema-<nmfantasia> (Roots.css) escopa --primary-color/--font-color
+     neste elemento — lê direto daqui, sem precisar mapear cor manualmente por empresa. */
+  #ceo-panel-geral .ceo-status-chip[class*="tema-"] { border-color: var(--primary-color, #ccc); color: var(--primary-color, #999); }
+  #ceo-panel-geral .ceo-status-chip[class*="tema-"].ativo {
+    background: var(--primary-color, #2e2e2e);
+    border-color: var(--primary-color, #2e2e2e);
+    color: var(--font-color, #fff);
+  }
+  #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; }
+  #ceo-panel-geral .ceo-status-chip-todos.ativo {
+    background: #2e2e2e; border-color: #2e2e2e; color: #fff; opacity: 1;
+  }
+  /* Resultado da busca de funcionário na visualização Lista: total geral + tabela horizontal
+     (uma linha por empresa) — mais fácil de comparar de uma vez do que cards verticais lado a
+     lado. Clicar na linha expande o detalhe (holerite/staff/ajustes) daquela empresa. */
+  #ceo-panel-geral .ceo-geral-resultado { display: flex; flex-direction: column; gap: 18px; }
+  #ceo-panel-geral .ceo-geral-total-geral .ceo-resumo-card strong { font-size: 22px; }
+  #ceo-panel-geral .ceo-geral-tabela-wrap { overflow-x: auto; }
+  #ceo-panel-geral .ceo-geral-tabela-empresas { width: 100%; border-collapse: collapse; font-size: 14px; }
+  #ceo-panel-geral .ceo-geral-tabela-empresas th,
+  #ceo-panel-geral .ceo-geral-tabela-empresas td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #eee; }
+  #ceo-panel-geral .ceo-geral-tabela-empresas th { color: #777; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  #ceo-panel-geral .ceo-geral-tabela-empresas td.pos { color: #1e9e54; font-weight: 700; }
+  #ceo-panel-geral .ceo-geral-tabela-empresas td.neg { color: #dc2e2e; font-weight: 700; }
+  #ceo-panel-geral .ceo-geral-linha-empresa { cursor: pointer; transition: background .15s; }
+  #ceo-panel-geral .ceo-geral-linha-empresa:hover { background: #f7f7f7; }
+  #ceo-panel-geral .ceo-geral-linha-empresa.expandida { background: #f0f2f5; }
+  #ceo-panel-geral .ceo-geral-expandir { color: #999; text-align: center; width: 24px; }
+  #ceo-panel-geral .ceo-geral-empresa-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 12px;
+    background: var(--primary-color, #5a6b7b);
+    color: var(--font-color, #fff);
+  }
+  #ceo-panel-geral .ceo-geral-linha-detalhe td { padding: 16px; background: #fafafa; }
+  #ceo-panel-geral .ceo-geral-linha-detalhe .ceo-geral-subabas { margin-bottom: 12px; }
+
+  #ceo-panel-geral button.secundario {
+    height: 36px;
+    border: none;
+    border-radius: 20px;
+    padding: 0 16px;
+    background: #888;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #ceo-panel-geral .wrapper .input:disabled + .btn { opacity: .4; cursor: not-allowed; }
+  #ceo-panel-geral select:disabled { opacity: .4; cursor: not-allowed; }
+
+  #ceo-panel-geral .ceo-geral-colunas {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    overflow-x: auto;
+    padding-bottom: 12px;
+  }
+  #ceo-panel-geral .ceo-geral-coluna {
+    flex: 1 1 260px;
+    min-width: 260px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  #ceo-panel-geral .ceo-geral-coluna-header {
+    padding: 12px 14px;
+    background: var(--primary-color, #5a6b7b);
+    color: var(--font-color, #fff);
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+  }
+  #ceo-panel-geral .ceo-geral-coluna-corpo { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  #ceo-panel-geral .ceo-geral-coluna-corpo .ceo-resumo-card { padding: 10px 12px; }
+  #ceo-panel-geral .ceo-geral-coluna-corpo .ceo-resumo-card strong { font-size: 17px; }
+  #ceo-panel-geral .ceo-geral-subabas { display: flex; gap: 6px; }
+  #ceo-panel-geral .ceo-geral-subaba {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    border: 1px solid #e2e2e2;
+    border-radius: 8px;
+    background: #f7f7f7;
+    padding: 8px 4px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  #ceo-panel-geral .ceo-geral-subaba span { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: .3px; }
+  #ceo-panel-geral .ceo-geral-subaba strong { font-size: 13px; color: #333; }
+  #ceo-panel-geral .ceo-geral-subaba.ativo { background: #2e2e2e; border-color: #2e2e2e; }
+  #ceo-panel-geral .ceo-geral-subaba.ativo span { color: #ccc; }
+  #ceo-panel-geral .ceo-geral-subaba.ativo strong { color: #fff; }
+
+  #ceo-panel-geral .ceo-vazio { color: #888; padding: 40px 0; text-align: center; }
+  #ceo-panel-geral .ceo-titulo { font-size: 20px; font-weight: 700; margin: 18px 0 10px; }
+  #ceo-panel-geral .ceo-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  #ceo-panel-geral .ceo-resumo-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  #ceo-panel-geral .ceo-resumo-card span { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+  #ceo-panel-geral .ceo-resumo-card strong { font-size: 20px; }
+  #ceo-panel-geral .ceo-resumo-card strong.pos { color: #1e9e54; }
+  #ceo-panel-geral .ceo-resumo-card strong.neg { color: #dc2e2e; }
+  #ceo-panel-geral .ceo-resumo-card small { color: #999; font-size: 11px; margin-top: 2px; }
+  #ceo-panel-geral .ceo-geral-blocos { display: flex; flex-direction: column; gap: 28px; }
+  #ceo-panel-geral .ceo-geral-bloco h4 { font-size: 15px; margin: 0 0 8px; }
+  #ceo-panel-geral .ceo-geral-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #ceo-panel-geral .ceo-geral-tabela th,
+  #ceo-panel-geral .ceo-geral-tabela td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
+  #ceo-panel-geral .ceo-geral-tabela th { color: #777; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  #ceo-panel-geral .ceo-geral-tabela td.pos { color: #1e9e54; font-weight: 600; }
+  #ceo-panel-geral .ceo-geral-tabela td.neg { color: #dc2e2e; font-weight: 600; }
+  #ceo-panel-geral .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
+
   /* ===== RH (Holerite Virtual): tela limpa, mesmo padrão do CeoMode ===== */
   body.rh-mode #sidebar,
   body.rh-mode .cards,
