@@ -749,7 +749,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     // decidir a cor do valor/label "Pendente de Autorização" da caixinha,
                     // já que cinza/amarelo padrão perdem contraste em cima do vermelho escuro.
                     const linhaAjusteDestaque = !(nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') && vlrAdic !== 0;
-                    if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
+                    if (item["STATUS SOLICITAÇÃO"]) {
+                        styleDestaque = 'style="color: #999; background-color: #f0f0f0;"';
+                    } else if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
                         styleDestaque = 'style="color: black; font-weight: bold; background-color: #cbe4fd;"';
                     } else if (vlrAdic !== 0) {
                         styleDestaque = 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"';
