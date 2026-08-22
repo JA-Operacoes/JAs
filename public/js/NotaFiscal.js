@@ -451,11 +451,12 @@ function renderizarNotasProntasParaEnvio() {
     // (diferente de "Notas registradas", que mistura vários status juntos).
     tbody.innerHTML = notas.map((n) => `
       <tr>
-        <td><input type="checkbox" class="nf-envio-check" data-id="${n.idnotafiscal}"></td>
+        <td><input type="checkbox" class="nf-envio-check" data-id="${n.idnotafiscal}" ${n.pendencia ? `disabled title="${escaparAtributo(n.pendencia.mensagem)}"` : ''}></td>
         <td>${n.nrorcamento}</td>
         <td>
           ${nomeClienteComFantasia(n.cliente_nome, n.cliente_nmfantasia) || '—'}
           ${!n.cliente_inscricaomunicipal ? `<br><span class="nf-chip rascunho" title="Preencha na tela de Emitir Nota ou direto no cadastro de Clientes">Falta Insc. Municipal</span>` : ''}
+          ${n.pendencia ? `<br><span class="nf-chip bloqueio" title="${escaparAtributo(n.pendencia.mensagem)}">${escaparAtributo(n.pendencia.curto)}</span>` : ''}
         </td>
         <td${n.descricaoservico ? ` title="${escaparAtributo(n.descricaoservico)}"` : ''}>${n.descricaoservico ? n.descricaoservico.slice(0, 50) + '…' : '—'}</td>
         <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
@@ -495,7 +496,7 @@ function renderizarNotasProntasParaEnvio() {
 }
 
 function atualizarContagemEnvio() {
-  const total = document.querySelectorAll('.nf-envio-check').length;
+  const total = document.querySelectorAll('.nf-envio-check:not(:disabled)').length;
   const marcadas = document.querySelectorAll('.nf-envio-check:checked').length;
   document.getElementById('nfEnvioContagem').textContent =
     `${marcadas} nota${marcadas === 1 ? '' : 's'} selecionada${marcadas === 1 ? '' : 's'}`;
@@ -528,6 +529,85 @@ async function baixarLoteXml() {
   } catch (err) {
     console.error('Erro ao gerar XML do lote:', err);
     aviso('error', 'Erro ao gerar lote', err?.message || 'Não foi possível gerar o XML do lote.');
+  }
+}
+
+// Resume erros/alertas do retorno do Web Service num texto legível — cada
+// item já vem com Codigo/Descricao (e o número do RPS quando é específico de
+// uma nota, que pra nós é o próprio idnotafiscal).
+function resumirEventos(eventos) {
+  if (!eventos || !eventos.length) return '';
+  return eventos
+    .map((e) => `${e.numeroRps ? `Nota #${e.numeroRps}: ` : ''}${e.descricao || `Código ${e.codigo}`}`)
+    .join('\n');
+}
+
+// Testar/Enviar de verdade compartilham a mesma chamada — só muda o `teste`
+// no body e o texto de confirmação/resultado. TesteEnvioLoteRPS não tem
+// nenhum efeito colateral na prefeitura (não substitui RPS por NF-e), então
+// não precisa de confirmação prévia; "Enviar direto" precisa, porque é real.
+async function enviarLote(teste) {
+  const ids = [...document.querySelectorAll('.nf-envio-check:checked')].map((chk) => Number(chk.dataset.id));
+  if (!ids.length) {
+    return aviso('warning', 'Nenhuma nota selecionada', 'Marque ao menos uma nota pra enviar.');
+  }
+
+  if (!teste) {
+    const confirmacao = await Swal.fire({
+      icon: 'warning',
+      title: 'Enviar de verdade?',
+      text: `Isso vai enviar ${ids.length} nota(s) pra prefeitura de verdade — se aceito, substitui o RPS pela NF-e (não dá pra desfazer). Recomendado só depois de "Testar envio" ter dado certo.`,
+      showCancelButton: true,
+      confirmButtonText: 'Sim, enviar',
+      cancelButtonText: 'Cancelar'
+    });
+    if (!confirmacao.isConfirmed) return;
+  }
+
+  const botao = document.getElementById(teste ? 'nfBtnTestarEnvio' : 'nfBtnEnviarDireto');
+  botao.disabled = true;
+
+  try {
+    const resultado = await fetchComToken('/notafiscal/xml-lote/enviar', {
+      method: 'POST',
+      body: { idsNotasFiscais: ids, teste }
+    });
+
+    if (resultado.tipo === 'sucesso') {
+      const numeros = (resultado.notas || []).map((n) => `Nota #${n.numeroRps}: NF-e ${n.numeroNFe}`).join('\n');
+      await Swal.fire({
+        icon: 'success',
+        title: teste ? 'Validação OK' : 'Enviado com sucesso',
+        text: teste
+          ? 'A prefeitura aceitaria esse lote — nenhum RPS foi substituído de verdade (foi só o teste).'
+          : (numeros || 'Lote aceito pela prefeitura.')
+      });
+    } else if (resultado.tipo === 'rejeitado') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Rejeitado pela prefeitura',
+        text: resumirEventos(resultado.erros) || resultado.mensagem
+      });
+    } else {
+      // 'incerto' ou 'falha_soap' — não sabemos (ou sabemos que nem chegou a
+      // ser avaliado). Nunca tratar como sucesso silencioso.
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Não deu pra confirmar',
+        text: resultado.mensagem || 'Não foi possível confirmar o resultado do envio — confira manualmente antes de tentar de novo.'
+      });
+    }
+
+    if (resultado.alertas?.length) {
+      aviso('info', 'Alertas da prefeitura', resumirEventos(resultado.alertas));
+    }
+
+    if (!teste) await atualizarProntasParaEnvioSeVisivel();
+  } catch (err) {
+    console.error('Erro ao enviar lote pro Web Service:', err);
+    aviso('error', 'Erro ao enviar', err?.message || 'Não foi possível enviar o lote.');
+  } finally {
+    botao.disabled = false;
   }
 }
 
@@ -583,6 +663,22 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
     const campoInscMun = document.getElementById('nfClienteInscMun');
     campoInscMun.value = dados.inscricaomunicipal || '';
     document.getElementById('nfAvisoInscMun').style.display = dados.inscricaomunicipal ? 'none' : 'block';
+
+    document.getElementById('nfIdMontagemAtual').value = dados.idmontagem || '';
+    document.getElementById('nfMontagemDesc').value = dados.descmontagem || '—';
+    document.getElementById('cep').value = dados.montagem_cep || '';
+    document.getElementById('rua').value = dados.montagem_rua || '';
+    document.getElementById('nfMontagemNumero').value = dados.montagem_numero || '';
+    document.getElementById('bairro').value = dados.montagem_bairro || '';
+    // Cidade/UF/país não aparecem na tela (são os campos escondidos que
+    // Formataçoes.js/preencherEndereco usa) — só ficam guardados pra
+    // reenviar junto no PATCH sem sobrescrever com vazio; só mudam de
+    // verdade se o usuário digitar um CEP novo (buscarCEP corrige os dois).
+    document.getElementById('cidade').value = dados.montagem_cidade || '';
+    document.getElementById('estado').value = dados.montagem_uf || '';
+    document.getElementById('pais').value = dados.montagem_cidade ? 'Brasil' : '';
+    const enderecoMontagemCompleto = dados.montagem_rua && dados.montagem_numero && dados.montagem_bairro && dados.montagem_cep;
+    document.getElementById('nfAvisoMontagem').style.display = (dados.idmontagem && !enderecoMontagemCompleto) ? 'block' : 'none';
 
     dadosBancariosEmissoraAtual = {
       nome: dados.emissora_nome,
@@ -673,23 +769,51 @@ function obterRotuloMeioPagamento() {
   return opt ? opt.textContent.replace(/^\d+\s*—\s*/, '').trim() : '';
 }
 
-// Acrescenta os dados bancários mostrados na tela ao final da descrição do
-// serviço — é ali (texto livre) que essa informação chega de fato na NFS-e,
-// já que o layout de SP não tem campo próprio pra dados de pagamento.
+// Acrescenta uma linha de texto ao final da descrição do serviço — usado
+// pelos botões "Inserir" (dados bancários, valor, parcela, vencimento). É
+// ali (texto livre) que essa informação chega de fato na NFS-e, já que o
+// layout de SP não tem campo próprio pra isso.
+function inserirTextoNaDescricao(texto) {
+  const campo = document.getElementById('nfDescricaoServico');
+  campo.value = campo.value.trim() ? `${campo.value.trim()}\n${texto}` : texto;
+
+  // O campo fica numa seção acima — sem isso o usuário clica no botão e não
+  // vê nada mudar na tela.
+  campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  campo.focus();
+}
+
 function inserirDadosBancariosNaDescricao() {
   const linhas = montarLinhasDadosBancarios();
   if (!linhas.length) {
     return aviso('warning', 'Nada pra inserir', 'Não há dados bancários cadastrados pra esse meio de pagamento.');
   }
-  const campo = document.getElementById('nfDescricaoServico');
   const rotuloMeio = obterRotuloMeioPagamento();
-  const textoNovo = rotuloMeio ? `${rotuloMeio} — ${linhas.join(' — ')}` : linhas.join(' — ');
-  campo.value = campo.value.trim() ? `${campo.value.trim()}\n${textoNovo}` : textoNovo;
+  inserirTextoNaDescricao(rotuloMeio ? `${rotuloMeio} — ${linhas.join(' — ')}` : linhas.join(' — '));
+}
 
-  // O campo fica numa seção acima ("Serviço prestado") — sem isso o usuário
-  // clica no botão e não vê nada mudar na tela.
-  campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  campo.focus();
+function inserirValorNaDescricao() {
+  const valor = document.getElementById('nfValorServico').value.trim();
+  if (!valor) {
+    return aviso('warning', 'Nada pra inserir', 'Informe o valor do serviço antes de inserir na descrição.');
+  }
+  inserirTextoNaDescricao(`Valor desta parcela: ${valor}`);
+}
+
+function inserirParcelaNaDescricao() {
+  const texto = document.getElementById('nfParcelaSelecionadaNum').value.trim();
+  if (!texto) {
+    return aviso('warning', 'Nada pra inserir', 'Nenhuma parcela selecionada.');
+  }
+  inserirTextoNaDescricao(texto);
+}
+
+function inserirVencimentoNaDescricao() {
+  const vencimento = document.getElementById('nfParcelaVencimento').value.trim();
+  if (!vencimento) {
+    return aviso('warning', 'Nada pra inserir', 'Informe o vencimento da parcela antes de inserir na descrição.');
+  }
+  inserirTextoNaDescricao(`Vencimento: ${vencimento}`);
 }
 
 // ---- Cálculo dos tributos (ao vivo, conforme o usuário digita) ----
@@ -865,6 +989,26 @@ async function registrarNota() {
       }
     }
 
+    const idmontagem = document.getElementById('nfIdMontagemAtual').value;
+    if (idmontagem) {
+      const enderecoMontagem = {
+        rua: document.getElementById('rua').value.trim() || null,
+        numero: document.getElementById('nfMontagemNumero').value.trim() || null,
+        bairro: document.getElementById('bairro').value.trim() || null,
+        cep: document.getElementById('cep').value.trim() || null,
+        cidade: document.getElementById('cidade').value.trim() || null,
+        uf: document.getElementById('estado').value.trim() || null,
+      };
+      // Mesma ideia da inscrição municipal: rota dedicada, não trava o
+      // registro da nota se falhar, só avisa.
+      try {
+        await fetchComToken(`/localmontagem/${idmontagem}/endereco`, { method: 'PATCH', body: enderecoMontagem });
+      } catch (errMontagem) {
+        console.error('Erro ao salvar endereço do local de montagem:', errMontagem);
+        aviso('warning', 'Endereço não salvo', 'A nota foi registrada, mas não consegui salvar o endereço do local de montagem. Tente preencher direto no cadastro de Local de Montagem.');
+      }
+    }
+
     if (idparcela) {
       // O financeiro pode ter corrigido a data na hora de gerar — grava
       // antes de emitir a nota (idempotente se não mudou nada).
@@ -900,8 +1044,19 @@ async function renderHistorico(idorcamento) {
       return;
     }
     tbody.innerHTML = '';
+    // Rejeitada/Envio Incerto podem ser marcadas como emitidas manualmente
+    // (financeiro confere no portal e confirma) e sempre podem ser
+    // canceladas (pra liberar a parcela e registrar uma nota corrigida) —
+    // só "Rejeitada" não entra no "Marcar emitida", já que rejeitada
+    // significa que a prefeitura garantidamente NÃO emitiu.
+    const podeMarcarEmitida = ['Pronta para Envio', 'Envio Incerto'];
+    const podeCancelar = ['Pronta para Envio', 'Rejeitada', 'Envio Incerto'];
+
     notas.forEach((n) => {
-      const chipClasse = n.status === 'Emitida' ? 'emitida' : n.status === 'Cancelada' ? 'cancelada' : 'rascunho';
+      const chipClasse = n.status === 'Emitida' ? 'emitida'
+        : n.status === 'Cancelada' ? 'cancelada'
+        : (n.status === 'Rejeitada' || n.status === 'Envio Incerto') ? 'bloqueio'
+        : 'rascunho';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td${n.descricaoservico ? ` title="${escaparAtributo(n.descricaoservico)}"` : ''}>${n.descricaoservico ? n.descricaoservico.slice(0, 60) + '…' : `Nota #${n.idnotafiscal}`}</td>
@@ -909,10 +1064,13 @@ async function renderHistorico(idorcamento) {
         <td>${n.dtvencimento ? formatarDataBR(n.dtvencimento) : '—'}</td>
         <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
         <td>${n.numeronota || '—'}</td>
-        <td><span class="nf-chip ${chipClasse}">${n.status}</span></td>
         <td>
-          ${n.status === 'Pronta para Envio' ? `<button type="button" class="nf-link" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
-          ${n.status === 'Pronta para Envio' ? `<button type="button" class="nf-link" data-cancelar="${n.idnotafiscal}">Cancelar</button>` : ''}
+          <span class="nf-chip ${chipClasse}"${n.mensagemenvio ? ` title="${escaparAtributo(n.mensagemenvio)}"` : ''}>${n.status}</span>
+          ${n.mensagemenvio ? `<br><span class="nf-hint warn">${escaparAtributo(n.mensagemenvio)}</span>` : ''}
+        </td>
+        <td>
+          ${podeMarcarEmitida.includes(n.status) ? `<button type="button" class="nf-link" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
+          ${podeCancelar.includes(n.status) ? `<button type="button" class="nf-link" data-cancelar="${n.idnotafiscal}">Cancelar</button>` : ''}
           ${n.arquivoxml ? `<a class="nf-link nf-link-ok" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           ${n.status !== 'Cancelada' ? `<button type="button" class="nf-link" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS (ainda sem assinatura digital)'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML'}</button>` : ''}
           ${n.arquivopdf ? `<a class="nf-link" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-link" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
@@ -1023,11 +1181,16 @@ function configurarEventosNotaFiscal() {
     atualizarDadosBancarios();
   });
   document.getElementById('nfBtnInserirDadosBancarios').addEventListener('click', inserirDadosBancariosNaDescricao);
+  document.getElementById('nfBtnInserirValor').addEventListener('click', inserirValorNaDescricao);
+  document.getElementById('nfBtnInserirParcela').addEventListener('click', inserirParcelaNaDescricao);
+  document.getElementById('nfBtnInserirVencimento').addEventListener('click', inserirVencimentoNaDescricao);
 
   document.getElementById('nfBtnBaixarLote').addEventListener('click', baixarLoteXml);
+  document.getElementById('nfBtnTestarEnvio').addEventListener('click', () => enviarLote(true));
+  document.getElementById('nfBtnEnviarDireto').addEventListener('click', () => enviarLote(false));
   document.getElementById('nfEnvioFiltroEmpresa').addEventListener('change', renderizarNotasProntasParaEnvio);
   document.getElementById('nfEnvioMarcarTodas').addEventListener('change', (e) => {
-    document.querySelectorAll('.nf-envio-check').forEach((chk) => { chk.checked = e.target.checked; });
+    document.querySelectorAll('.nf-envio-check:not(:disabled)').forEach((chk) => { chk.checked = e.target.checked; });
     atualizarContagemEnvio();
   });
 

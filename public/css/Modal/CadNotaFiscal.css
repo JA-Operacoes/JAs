@@ -332,6 +332,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-chip.rascunho { background: var(--Pending, #FFBD29); color: #4a3300; }
 #cadModalNotaFiscal .nf-chip.emitida { background: var(--Aproved, #046800); }
 #cadModalNotaFiscal .nf-chip.cancelada { background: var(--Reject, #B50000); }
+#cadModalNotaFiscal .nf-chip.bloqueio { background: var(--Reject, #B50000); }
 
 #cadModalNotaFiscal .nf-link {
   color: #942123; text-decoration: underline; cursor: pointer; font-size: 14.5px; margin-right: 10px;
@@ -809,6 +810,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-chip.rascunho { background: var(--Pending, #FFBD29); color: #4a3300; }
 #cadModalNotaFiscal .nf-chip.emitida { background: var(--Aproved, #046800); }
 #cadModalNotaFiscal .nf-chip.cancelada { background: var(--Reject, #B50000); }
+#cadModalNotaFiscal .nf-chip.bloqueio { background: var(--Reject, #B50000); }
 
 #cadModalNotaFiscal .nf-link {
   color: #942123; text-decoration: underline; cursor: pointer; font-size: 14.5px; margin-right: 10px;

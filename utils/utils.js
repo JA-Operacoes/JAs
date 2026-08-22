@@ -117,7 +117,10 @@ async function fetchComToken(url, options = {}) {
         // Monta a mensagem de erro incluindo detalhes do servidor quando disponíveis
         let errorMessage = '';
         if (responseBody && (responseBody.erro || responseBody.message)) {
-            errorMessage = (responseBody.erro || responseBody.message) + (responseBody.detalhes ? ' - ' + responseBody.detalhes : '');
+            // Algumas rotas devolvem "detalhes" (PT), outras "detail" (EN) —
+            // aceita os dois pra não perder a mensagem específica do erro.
+            const detalhesExtra = responseBody.detalhes || responseBody.detail;
+            errorMessage = (responseBody.erro || responseBody.message) + (detalhesExtra ? ' - ' + detalhesExtra : '');
         } else if (responseBody) {
             errorMessage = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
         } else {

@@ -1,69 +1,68 @@
 # Checklist — antes de habilitar o envio automático pro portal
 
-O botão de "Enviar direto" reaproveita o mesmo gerador/assinador de XML do
-"Baixar XML" manual. Por isso, boa parte da validação abaixo já acontece
-naturalmente enquanto o financeiro usa o modo manual — a lista serve pra
-deixar explícito o que precisa ter acontecido pelo menos algumas vezes, sem
-erro, antes de tirar o humano da conferência.
+**Atualização 2026-08-21 — mudança de rota:** descobrimos que **não existe upload
+manual de arquivo XML** no portal da prefeitura pro layout com CBS/IBS (só "Online"
+digitando nota por nota, ou "Web Service") — confirmado pelo próprio aviso da tela
+"Envio de RPS em Lote" e por orientação oficial da prefeitura. Isso tornou a seção 3
+original (testar via upload manual) inaplicável, e adiantou a construção da automação
+(seção 4) — que já está implementada e testada com sucesso de verdade contra o
+ambiente real (`TesteEnvioLoteRPS`).
 
-## 1. Assinatura digital (depende do certificado A1)
+## 1. Assinatura digital (depende do certificado A1) — ✅ RESOLVIDO
 
-- [ ] Confirmar o tamanho real da cadeia de `<Assinatura>` do RPS — 85 ou 86
-      caracteres (ver divergência anotada no README desta pasta). Só se
-      resolve testando contra o portal (ou homologação, se a prefeitura
-      oferecer um ambiente de teste separado do de produção).
-- [ ] Confirmar que a assinatura RSA-SHA1 dessa cadeia é aceita (nenhum RPS
-      rejeitado por `Assinatura inválida` ou equivalente).
-- [ ] Confirmar que o `<ds:Signature>` XMLDSig do envelope inteiro é aceito
-      (KeyInfo, algoritmo, canonicalização C14N — ver `xmldsig-core-schema_v02.xsd`).
+- [x] Tamanho da cadeia de `<Assinatura>` do RPS — **não eram 85 nem 86, são 90**
+      (confirmado 2026-08-21 testando contra o ambiente real: a prefeitura devolve a
+      string que ela mesma verificou quando a assinatura está errada, dava pra
+      comparar campo a campo). Faltavam 2 coisas na fórmula documentada em
+      `utils/gerarXmlRpsLote.js` (`montarCadeiaAssinaturaRPS`): CCM do prestador com
+      **12 dígitos** (não 8), e um dígito indicador de tipo de documento do tomador
+      (1=CPF/2=CNPJ) que não existia na cadeia.
+- [x] Assinatura RSA-SHA1 da cadeia — aceita, confirmado (erro 1206 sumiu depois da
+      correção acima).
+- [x] `<ds:Signature>` XMLDSig do envelope — aceito, nenhum problema encontrado.
 
-## 2. Dados de negócio batendo
+## 2. Dados de negócio — parcialmente confirmado
 
-- [ ] Gerar o XML de uma nota real completa (cliente com inscrição municipal
-      preenchida, empresa emissora com CNPJ/inscrição municipal cadastrados)
-      e conferir se ISS, IRRF, PIS/COFINS/CSLL, CBS e IBS batem com o que o
-      financeiro calcularia manualmente.
-- [ ] Conferir se o NBS / CIndOp / Classificação tributária cadastrados em
-      Serviços estão corretos pra cada serviço que a empresa realmente presta
-      (não só o de teste).
-- [ ] Testar nota emitida por mais de uma empresa emissora diferente —
-      confirmar que pega o CNPJ/inscrição municipal certos de cada uma.
+- [x] Testado de ponta a ponta com uma nota real (nota #4, JA-EXPO) —
+      `TesteEnvioLoteRPS` retornou **sucesso, sem erros nem alertas** depois de
+      corrigir: `ValorInicialCobrado` → `ValorFinalCobrado` (campo descontinuado),
+      código de serviço com dígito trocado (07191→07161), `MunicipioPrestacao` não
+      deve ser enviado pro nosso caso (serviço tributado em SP), `<atvEvento>` com
+      endereço do local de montagem (novo, ver `db/migrations/20260821_094227_*`),
+      e `AliquotaServicos` em fração decimal (0.025), não percentual (2.5).
+- [ ] Testar nota emitida por mais de uma empresa emissora diferente.
 - [ ] Testar cliente pessoa física (CPF) além de pessoa jurídica (CNPJ).
 - [ ] Testar orçamento parcelado e orçamento à vista.
+- [ ] Preencher o endereço (rua/número/bairro/CEP, tela Local de Montagem) de cada
+      venue realmente usado — sem isso, `<atvEvento>` fica incompleto e a geração do
+      XML falha com erro claro ("Campo obrigatório X está vazio") antes mesmo de
+      chegar na prefeitura.
 
-## 3. Upload manual no portal ("Envio de RPS em Lote")
+## 3. ~~Upload manual no portal~~ — não se aplica (ver nota do topo)
 
-- [ ] Subir o XML gerado pelo sistema manualmente pelo menos 3–5 vezes, com
-      dados de notas diferentes, sem nenhuma rejeição.
-- [ ] Conferir se o número da nota / dados que saem no portal batem com o
-      que o sistema registrou (JA System → "Marcar emitida").
-- [ ] Provocar uma rejeição de propósito (ex.: código de serviço errado) e
-      confirmar que a mensagem de erro do portal é compreensível — isso
-      antecipa que tipo de erro o envio automático vai precisar tratar.
+## 4. Automação — ✅ IMPLEMENTADA E TESTADA COM SUCESSO
 
-## 4. Só depois disso — construir a automação de verdade
-
-- [x] ~~Implementar a consulta de situação do lote~~ — CORRIGIDO (2026-08-12):
-      confirmei lendo o próprio manual (`Manual_WebService_SP_v3.3.7.pdf`,
-      seções 3.3.1 e 4.3.3) que "Envio de Lote de RPS" (`EnvioLoteRPS`, o
-      serviço que `gerarXmlRpsLote.js` gera hoje) é o serviço **síncrono** —
-      devolve o número da NF-e (`RetornoEnvioLoteRPS` → `ChaveNFeRPS` →
-      `ChaveNFe.Numero`) na MESMA conexão, sem precisar de consulta depois.
-      A consulta de protocolo só existe pro serviço **assíncrono**
-      (`EnvioLoteRpsAsync`, seção 4.4) — um serviço SEPARADO e opcional, só
-      pra quem manda volumes muito grandes e não precisa do número na hora.
-      Não usamos o assíncrono, então essa etapa não é necessária.
-- [ ] Implementar a chamada HTTP/SOAP de verdade pro Web Service síncrono
-      (`https://nfews.prefeitura.sp.gov.br/lotenfe.asmx` — WSDL público) —
-      hoje o sistema só gera o XML assinado, ainda não manda pra prefeitura.
-- [ ] Decidir o que o sistema faz quando a prefeitura rejeita o lote pela API
-      (deixar a nota num status "Rejeitada" pra corrigir e reenviar, avisar
-      quem registrou, etc.).
-- [ ] Se a prefeitura tiver um ambiente de homologação separado do de
-      produção, rodar tudo lá antes de habilitar em produção.
+- [x] Consulta de situação do lote — não necessária (`EnvioLoteRPS` é síncrono, já
+      documentado abaixo desde 2026-08-12).
+- [x] Chamada HTTP/SOAP de verdade pro Web Service síncrono
+      (`utils/enviarLoteWebService.js`, rota `POST /notafiscal/xml-lote/enviar`) —
+      SOAPAction, nome do elemento do pedido (`<Metodo>Request`) e do campo de
+      retorno (`RetornoXML`) confirmados contra o WSDL real (não seguem a convenção
+      ingênua — foram obtidos baixando o WSDL de verdade com o certificado).
+- [x] Tratamento de rejeição pela API — três desfechos possíveis:
+      `Emitida` (sucesso), `Rejeitada` (a prefeitura respondeu recusando —
+      `mensagemenvio` guarda o motivo por nota) e `Envio Incerto` (falha de
+      rede/timeout — nunca tratado como sucesso ou rejeição, precisa conferência
+      manual antes de tentar de novo). Ver migration
+      `20260821_171348_adiciona_rejeitada_envio_incerto_e_mensagemenvio_em_notasfis.sql`.
+- [ ] Ambiente de homologação separado — não existe pra esse fluxo (confirmado: só
+      "Online" e "Web Service" pro layout com CBS/IBS, nenhum dos dois documenta uma
+      homologação à parte). Testes reais usam `TesteEnvioLoteRPS`, que não substitui
+      RPS por NF-e de verdade — é o mais próximo de "homologação" que existe aqui.
 
 ---
 
-Enquanto os itens acima não estiverem todos marcados, o botão de envio
-automático deve continuar visível (pra mostrar que já foi construído) mas
-**desabilitado**, com um texto do tipo "Enviar direto (em teste)".
+Restam principalmente os itens da seção 2 (cobertura de cenários — múltiplas
+emissoras, CPF, parcelado) antes de considerar o "Enviar direto" pronto pra uso
+rotineiro sem supervisão. O botão "Testar envio" (seguro, não substitui nada) deve
+continuar sendo o primeiro passo pra qualquer nota/cenário ainda não coberto acima.

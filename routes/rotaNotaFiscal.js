@@ -1,11 +1,15 @@
 // routes/rotaNotaFiscal.js
 // Emissao de Nota Fiscal — Fase A (painel semi-automatico).
 //
-// O sistema NAO emite a NFS-e junto ao portal da prefeitura/ADN Nacional —
-// isso continua manual, feito pelo financeiro. Esta rota só:
+// Esta rota:
 //   1) mostra quais orçamentos fechados ainda têm saldo a faturar;
-//   2) monta os dados prontos pra copiar na emissão manual;
-//   3) registra o resultado (número da nota, tributos, status) de volta,
+//   2) gera e assina o XML do RPS (individual ou em lote);
+//   3) opcionalmente ENVIA de verdade esse XML pro Web Service síncrono da
+//      prefeitura (POST /xml-lote/enviar — só existe porque descobrimos que
+//      não há upload manual de arquivo pra layout com CBS/IBS, só Online ou
+//      Web Service) — mas o financeiro ainda pode preferir baixar o XML e
+//      seguir manual, então as duas rotas convivem;
+//   4) registra o resultado (número da nota, tributos, status) de volta,
 //      pra manter o controle de faturamento visível dentro do JA System.
 //
 // Os valores de tributos (ISS, IRRF, PIS/COFINS/CSLL, CBS, IBS) são
@@ -24,6 +28,8 @@ const logMiddleware = require('../middlewares/logMiddleware');
 const { gerarXmlPedidoEnvioLoteRPS } = require('../utils/gerarXmlRpsLote');
 const { obterCertificadoEmpresa } = require('../utils/certificadoEmpresa');
 const { carregarCertificado } = require('../utils/assinarXmlRpsLote');
+const { enviarLoteRPS } = require('../utils/enviarLoteWebService');
+const registrarLog = require('../utils/logger');
 
 router.use(autenticarToken());
 router.use(contextoEmpresa);
@@ -48,6 +54,14 @@ if (!fs.existsSync(dirNotasParaEnvio)) {
 const dirXmlParaEnviarRede = path.join(__dirname, '../xmlparaenviar');
 if (!fs.existsSync(dirXmlParaEnviarRede)) {
   fs.mkdirSync(dirXmlParaEnviarRede, { recursive: true });
+}
+
+// --- Rastro de cada tentativa de envio pro Web Service (pedido + resposta),
+// independente do resultado — serve pra conferência manual quando o desfecho
+// for "Rejeitada"/"Envio Incerto", não é a cópia que o financeiro usa.
+const dirEnviosWebService = path.join(__dirname, '../uploads/notasparaenvio/envios-webservice');
+if (!fs.existsSync(dirEnviosWebService)) {
+  fs.mkdirSync(dirEnviosWebService, { recursive: true });
 }
 
 // Só avisa no log se essa 2ª cópia falhar (ex.: pasta de rede fora do ar) —
@@ -119,7 +133,7 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
        LEFT JOIN (
          SELECT idorcamento, SUM(valorservico) AS faturado
          FROM notasfiscais
-         WHERE status <> 'Cancelada'
+         WHERE status NOT IN ('Cancelada', 'Rejeitada', 'Envio Incerto')
          GROUP BY idorcamento
        ) nf ON nf.idorcamento = o.idorcamento
        LEFT JOIN (
@@ -175,6 +189,9 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
          c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.cep,
          ce.emailnfe,
          e.nmevento,
+         lm.idmontagem, lm.descmontagem, lm.rua AS montagem_rua, lm.numero AS montagem_numero,
+         lm.bairro AS montagem_bairro, lm.cep AS montagem_cep,
+         lm.cidademontagem AS montagem_cidade, lm.ufmontagem AS montagem_uf,
          em.nmfantasia AS emissora_nome,
          b.nmbanco AS emissora_banconome,
          b.codbanco AS emissora_bancocodigo,
@@ -191,12 +208,13 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
        LEFT JOIN clientes c ON c.idcliente = o.idcliente
        LEFT JOIN clienteempresas ce ON ce.idcliente = c.idcliente AND ce.idempresa = oe.idempresa
        LEFT JOIN eventos e ON e.idevento = o.idevento
+       LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
        LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
        LEFT JOIN bancos b ON b.idbanco = em.idbanco
        LEFT JOIN (
          SELECT idorcamento, SUM(valorservico) AS faturado
          FROM notasfiscais
-         WHERE status <> 'Cancelada'
+         WHERE status NOT IN ('Cancelada', 'Rejeitada', 'Envio Incerto')
          GROUP BY idorcamento
        ) fat ON fat.idorcamento = o.idorcamento
        WHERE o.idorcamento = $1`,
@@ -506,7 +524,9 @@ async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
             cl.cnpj AS cliente_cnpj, cl.inscricaomunicipal AS cliente_inscricaomunicipal,
             cl.nmfantasia AS cliente_nmfantasia,
             ce.emailnfe AS cliente_email,
-            s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria
+            s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria,
+            e.nmevento AS evento_nome, o.dtinirealizacao AS evento_datainicio, o.dtfimrealizacao AS evento_datafim,
+            lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep
        FROM notasfiscais nf
        JOIN orcamentos o ON o.idorcamento = nf.idorcamento
        LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
@@ -514,6 +534,8 @@ async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
        LEFT JOIN clientes cl ON cl.idcliente = nf.idcliente
        LEFT JOIN clienteempresas ce ON ce.idcliente = cl.idcliente AND ce.idempresa = nf.idempresa
        LEFT JOIN servicos s ON s.idservico = nf.idservico
+       LEFT JOIN eventos e ON e.idevento = o.idevento
+       LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
       WHERE nf.idnotafiscal = ANY($1::int[]) AND nf.idempresa = $2`,
     [idsNotasFiscais, idempresa]
   );
@@ -541,21 +563,31 @@ function rotuloNota(nf) {
   return `Orçamento #${nf.nrorcamento}${parcela}`;
 }
 
-// Retorna uma mensagem de erro se a nota não tiver os dados mínimos pro XML,
-// ou null se estiver tudo certo.
+// Retorna { curto, mensagem } se a nota não tiver os dados mínimos pro XML,
+// ou null se estiver tudo certo. `curto` é um rótulo de poucas palavras (pro
+// chip na tela — precisa ser visível de cara, financeiro não vai adivinhar
+// que um chip genérico esconde um motivo passando o mouse em cima); `mensagem`
+// é o texto completo (pros erros de geração/envio, que também dizem qual
+// orçamento/parcela é).
 function validarNotaParaXml(nf) {
   if (!nf.emissora_cnpj || !nf.emissora_inscricaomunicipal) {
-    return `${rotuloNota(nf)}: a empresa emissora do orçamento não tem CNPJ/Inscrição Municipal cadastrados (cadastre em Empresas).`;
+    return { curto: "Falta CNPJ/Insc. Municipal da Emissora", mensagem: `${rotuloNota(nf)}: a empresa emissora do orçamento não tem CNPJ/Inscrição Municipal cadastrados (cadastre em Empresas).` };
   }
   if (!nf.codigoservico || !nf.nbs || !nf.cindop || !nf.classificacaotributaria) {
-    return `${rotuloNota(nf)}: o serviço não tem Código/NBS/CIndOp/Classificação Tributária cadastrados (cadastre em Serviços).`;
+    return { curto: "Falta Código/NBS do Serviço", mensagem: `${rotuloNota(nf)}: o serviço não tem Código/NBS/CIndOp/Classificação Tributária cadastrados (cadastre em Serviços).` };
+  }
+  if (!nf.evento_nome || !nf.evento_datainicio || !nf.evento_datafim) {
+    return { curto: "Falta Evento/Datas do Orçamento", mensagem: `${rotuloNota(nf)}: o orçamento não tem evento ou datas de realização cadastradas.` };
+  }
+  if (!nf.evento_rua || !nf.evento_numero || !nf.evento_bairro || !nf.evento_cep) {
+    return { curto: "Falta Endereço Local Montagem", mensagem: `${rotuloNota(nf)}: o local de montagem do evento não tem endereço completo (rua/número/bairro/CEP) — complete em Local de Montagem.` };
   }
   const certificado = obterCertificadoEmpresa({
     nmfantasia: nf.emissora_nmfantasia,
     siglacertificado: nf.emissora_siglacertificado,
   });
   if (!certificado?.caminho || !certificado?.senha) {
-    return `${rotuloNota(nf)}: a empresa emissora não tem certificado digital configurado (cadastre em Empresas).`;
+    return { curto: "Falta Certificado Digital", mensagem: `${rotuloNota(nf)}: a empresa emissora não tem certificado digital configurado (cadastre em Empresas).` };
   }
   return null;
 }
@@ -585,7 +617,14 @@ function montarNotaParaGerador(nf) {
     valorPisCofinsCsllRetido: nf.valorpiscofinscsll,
     nbs: nf.nbs,
     cIndOp: nf.cindop,
-    classificacaoTributaria: nf.classificacaotributaria
+    classificacaoTributaria: nf.classificacaotributaria,
+    nomeEvento: nf.evento_nome,
+    dataInicioEvento: nf.evento_datainicio,
+    dataFimEvento: nf.evento_datafim,
+    cepEvento: nf.evento_cep,
+    ruaEvento: nf.evento_rua,
+    numeroEvento: nf.evento_numero,
+    bairroEvento: nf.evento_bairro
   };
 }
 
@@ -602,7 +641,7 @@ router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req
 
     const erro = validarNotaParaXml(nf);
     if (erro) {
-      return res.status(400).json({ message: erro });
+      return res.status(400).json({ message: erro.mensagem });
     }
 
     let certificado;
@@ -668,17 +707,26 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
               c.inscricaomunicipal AS cliente_inscricaomunicipal,
               op.numparcela, op.dtvencimento,
               (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
-              em.nmfantasia AS emissora_nome, o.idempresaemissora
+              em.nmfantasia AS emissora_nome, o.idempresaemissora,
+              em.cnpj AS emissora_cnpj, em.inscricaomunicipal AS emissora_inscricaomunicipal,
+              em.nmfantasia AS emissora_nmfantasia, em.siglacertificado AS emissora_siglacertificado,
+              s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria,
+              e.nmevento AS evento_nome, o.dtinirealizacao AS evento_datainicio, o.dtfimrealizacao AS evento_datafim,
+              lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep
          FROM notasfiscais nf
          JOIN orcamentos o ON o.idorcamento = nf.idorcamento
          LEFT JOIN clientes c ON c.idcliente = nf.idcliente
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
          LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+         LEFT JOIN servicos s ON s.idservico = nf.idservico
+         LEFT JOIN eventos e ON e.idevento = o.idevento
+         LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
         WHERE nf.idempresa = $1 AND nf.status = 'Pronta para Envio'
         ORDER BY em.nmfantasia ASC, op.dtvencimento ASC NULLS LAST, nf.dtregistro ASC`,
       [idempresa]
     );
-    return res.json(result.rows);
+    const notas = result.rows.map((nf) => ({ ...nf, pendencia: validarNotaParaXml(nf) }));
+    return res.json(notas);
   } catch (error) {
     console.error("Erro ao buscar notas prontas para envio:", error);
     res.status(500).json({ message: "Erro ao buscar notas prontas para envio." });
@@ -708,7 +756,7 @@ router.post("/xml-lote", verificarPermissao('notafiscal', 'pesquisar'), async (r
 
     for (const nf of linhas) {
       const erro = validarNotaParaXml(nf);
-      if (erro) return res.status(400).json({ message: erro });
+      if (erro) return res.status(400).json({ message: erro.mensagem });
     }
 
     const emissorasDistintas = new Set(linhas.map((nf) => nf.emissora_cnpj));
@@ -747,6 +795,177 @@ router.post("/xml-lote", verificarPermissao('notafiscal', 'pesquisar'), async (r
   } catch (error) {
     console.error("Erro ao gerar XML do lote:", error);
     res.status(500).json({ message: "Erro ao gerar XML do lote.", detail: error.message });
+  }
+});
+
+// POST /notafiscal/xml-lote/enviar — gera, assina e MANDA de verdade o lote
+// pro Web Service síncrono da prefeitura (autenticação TLS mútua com o mesmo
+// certificado usado pra assinar o XML). Reaproveita o mesmíssimo pipeline do
+// POST /xml-lote acima — só muda o que acontece depois do XML pronto.
+//
+// `teste: true` chama TesteEnvioLoteRPS — valida exatamente igual, mas NÃO
+// substitui o RPS por NF-e de verdade (sem efeito na prefeitura, sem tocar
+// no banco aqui). É o jeito seguro de testar contra o ambiente real antes de
+// usar `teste: false` (EnvioLoteRPS, envio de verdade) pela primeira vez.
+//
+// Como o XML manda <transacao>true</transacao>, um erro em qualquer RPS
+// invalida o LOTE INTEIRO — por isso um resultado "rejeitado" marca todas as
+// notas enviadas como Rejeitada, não só a citada no erro.
+router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), async (req, res) => {
+  const idempresa = req.idempresa;
+  const { idsNotasFiscais, teste } = req.body;
+  const modoTeste = !!teste;
+
+  if (!Array.isArray(idsNotasFiscais) || !idsNotasFiscais.length) {
+    return res.status(400).json({ message: "Selecione ao menos uma nota." });
+  }
+  if (idsNotasFiscais.length > 50) {
+    return res.status(400).json({ message: `Você selecionou ${idsNotasFiscais.length} notas — o máximo por lote é 50.` });
+  }
+
+  try {
+    const linhas = await buscarNotasParaXml(idsNotasFiscais, idempresa);
+    if (linhas.length !== idsNotasFiscais.length) {
+      return res.status(404).json({ message: "Uma ou mais notas selecionadas não foram encontradas." });
+    }
+
+    for (const nf of linhas) {
+      const erro = validarNotaParaXml(nf);
+      if (erro) return res.status(400).json({ message: erro.mensagem });
+    }
+
+    const emissorasDistintas = new Set(linhas.map((nf) => nf.emissora_cnpj));
+    if (emissorasDistintas.size > 1) {
+      return res.status(400).json({ message: "As notas selecionadas são de empresas emissoras diferentes — selecione notas de uma única empresa emissora por lote." });
+    }
+
+    let certificado;
+    try {
+      certificado = carregarCertificadoDaNota(linhas[0]);
+    } catch (errCert) {
+      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+    }
+
+    const xml = gerarXmlPedidoEnvioLoteRPS({
+      empresaEmissora: {
+        cnpj: linhas[0].emissora_cnpj,
+        inscricaomunicipal: linhas[0].emissora_inscricaomunicipal
+      },
+      notas: linhas.map(montarNotaParaGerador),
+      certificado
+    });
+
+    const resultado = await enviarLoteRPS({
+      xmlAssinado: xml,
+      certificado,
+      metodo: modoTeste ? 'TesteEnvioLoteRPS' : 'EnvioLoteRPS'
+    });
+
+    const carimbo = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+    const nomeLogEnvio = `Envio-${modoTeste ? 'Teste-' : ''}${carimbo}-${linhas.length}notas.log.xml`;
+    try {
+      fs.writeFileSync(
+        path.join(dirEnviosWebService, nomeLogEnvio),
+        `<!-- ENVIADO -->\n${resultado.envelopeEnviado || ''}\n\n<!-- RECEBIDO -->\n${resultado.xmlRetorno || '(sem resposta — falha de rede)'}`,
+        'utf8'
+      );
+    } catch (errLog) {
+      console.error('Não consegui salvar o log do envio ao Web Service:', errLog.message);
+    }
+
+    if (modoTeste) {
+      return res.json({
+        teste: true,
+        tipo: resultado.tipo,
+        mensagem: resultado.mensagem,
+        erros: resultado.erros || [],
+        alertas: resultado.alertas || [],
+      });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      if (resultado.tipo === 'sucesso') {
+        for (const nota of resultado.notas) {
+          const notaAtualizada = await client.query(
+            `UPDATE notasfiscais
+                SET status = 'Emitida',
+                    numeronota = $1,
+                    codigoverificacao = $2,
+                    identificadornacional = $3,
+                    mensagemenvio = NULL,
+                    dtemissao = CASE WHEN dtemissao IS NULL THEN now() ELSE dtemissao END
+              WHERE idnotafiscal = $4 AND idempresa = $5
+              RETURNING idparcela`,
+            [nota.numeroNFe, nota.codigoVerificacao, nota.chaveNotaNacional, nota.numeroRps, idempresa]
+          );
+          const idparcela = notaAtualizada.rows[0]?.idparcela;
+          if (idparcela) {
+            await client.query(`UPDATE orcamentoparcelas SET status = 'Faturada' WHERE idparcela = $1`, [idparcela]);
+          }
+        }
+      } else if (resultado.tipo === 'rejeitado') {
+        for (const nf of linhas) {
+          const erroDaNota = (resultado.erros || []).find((e) => e.numeroRps === nf.idnotafiscal);
+          const mensagem = erroDaNota
+            ? erroDaNota.descricao
+            : "Lote rejeitado por erro em outro RPS do mesmo envio.";
+          const notaAtualizada = await client.query(
+            `UPDATE notasfiscais SET status = 'Rejeitada', mensagemenvio = $1
+              WHERE idnotafiscal = $2 AND idempresa = $3
+              RETURNING idparcela`,
+            [mensagem, nf.idnotafiscal, idempresa]
+          );
+          const idparcela = notaAtualizada.rows[0]?.idparcela;
+          if (idparcela) {
+            await client.query(`UPDATE orcamentoparcelas SET status = 'Aberta' WHERE idparcela = $1`, [idparcela]);
+          }
+        }
+      } else {
+        // 'incerto' (falha de rede/timeout) ou 'falha_soap' (a prefeitura nem
+        // chegou a avaliar o lote) — nunca marcar Emitida nem Rejeitada aqui,
+        // só sinalizar que precisa conferência manual antes de tentar de novo.
+        for (const nf of linhas) {
+          await client.query(
+            `UPDATE notasfiscais SET status = 'Envio Incerto', mensagemenvio = $1
+              WHERE idnotafiscal = $2 AND idempresa = $3`,
+            [resultado.mensagem, nf.idnotafiscal, idempresa]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+    } catch (errDb) {
+      await client.query("ROLLBACK");
+      throw errDb;
+    } finally {
+      client.release();
+    }
+
+    for (const nf of linhas) {
+      registrarLog({
+        idexecutor: req.usuario.idusuario,
+        idempresa,
+        acao: 'enviou',
+        modulo: 'NotaFiscal',
+        idregistroalterado: nf.idnotafiscal,
+        dadosnovos: { tipo: resultado.tipo, mensagem: resultado.mensagem }
+      }).catch((errLog) => console.error('Erro ao logar envio de nota fiscal:', errLog));
+    }
+
+    return res.json({
+      teste: false,
+      tipo: resultado.tipo,
+      mensagem: resultado.mensagem,
+      erros: resultado.erros || [],
+      alertas: resultado.alertas || [],
+      notas: resultado.notas || [],
+    });
+  } catch (error) {
+    console.error("Erro ao enviar lote pro Web Service da prefeitura:", error);
+    res.status(500).json({ message: "Erro ao enviar lote.", detail: error.message });
   }
 });
 

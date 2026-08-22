@@ -82,15 +82,19 @@ router.put("/:id", verificarPermissao('servicos', 'alterar'),
   async (req, res) => {
     const { id } = req.params;
     const idempresa = req.idempresa;
-    const { descricao, nbs, cindop, classificacaoTributaria, aliquotaIssRef, ativo } = req.body;
+    const { codigoServico, descricao, nbs, cindop, classificacaoTributaria, aliquotaIssRef, ativo } = req.body;
+
+    if (!codigoServico || !descricao) {
+      return res.status(400).json({ message: "Código de serviço e descrição são obrigatórios." });
+    }
 
     try {
       const result = await pool.query(
         `UPDATE servicos
-         SET descricao = $1, nbs = $2, cindop = $3, classificacaotributaria = $4, aliquotaissref = $5, ativo = $6
-         WHERE idservico = $7 AND idempresa = $8
+         SET codigoservico = $1, descricao = $2, nbs = $3, cindop = $4, classificacaotributaria = $5, aliquotaissref = $6, ativo = $7
+         WHERE idservico = $8 AND idempresa = $9
          RETURNING *`,
-        [descricao, nbs || null, cindop || null, classificacaoTributaria || null, aliquotaIssRef || null, ativo, id, idempresa]
+        [codigoServico, descricao, nbs || null, cindop || null, classificacaoTributaria || null, aliquotaIssRef || null, ativo, id, idempresa]
       );
 
       if (!result.rowCount) {
@@ -103,6 +107,9 @@ router.put("/:id", verificarPermissao('servicos', 'alterar'),
 
       return res.json({ message: "Serviço atualizado com sucesso!", servico: result.rows[0] });
     } catch (error) {
+      if (error.code === '23505') { // unique_violation (idempresa, codigoservico)
+        return res.status(409).json({ message: "Este código de serviço já está cadastrado para a empresa." });
+      }
       console.error("Erro ao atualizar serviço:", error);
       res.status(500).json({ message: "Erro ao atualizar serviço." });
     }

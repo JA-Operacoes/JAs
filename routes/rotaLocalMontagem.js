@@ -137,7 +137,7 @@ router.put("/:id",
     async (req, res) => {
         const id = req.params.id;
         const idempresa = req.idempresa;
-        const { descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes } = req.body; // ✅ Novo campo e array
+        const { descMontagem, cidadeMontagem, ufMontagem, rua, numero, bairro, cep, qtdPavilhao, pavilhoes } = req.body; // ✅ Novo campo e array
         let client;
 
         console.log("descMontagem na rota", descMontagem);
@@ -150,11 +150,12 @@ router.put("/:id",
                         // 1. Atualiza o local de montagem, incluindo qtdpavilhao
             const resultUpdate = await client.query(
                 `UPDATE localmontagem lm
-                SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3, qtdpavilhao = $4
+                SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3, qtdpavilhao = $4,
+                    rua = $5, numero = $6, bairro = $7, cep = $8
                 FROM localmontempresas lme
-                WHERE lm.idmontagem = $5 AND lme.idmontagem = lm.idmontagem AND lme.idempresa = $6
+                WHERE lm.idmontagem = $9 AND lme.idmontagem = lm.idmontagem AND lme.idempresa = $10
                 RETURNING lm.idmontagem, lm.qtdpavilhao`,
-                [descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, id, idempresa]
+                [descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, rua || null, numero || null, bairro || null, cep || null, id, idempresa]
             );
 
             if (!resultUpdate.rowCount) {
@@ -292,8 +293,44 @@ router.put("/:id",
         }
     }
 );
+// PATCH /:id/endereco — atualiza SÓ rua/número/bairro/CEP/cidade/UF (dedicada
+// de propósito: o PUT "/:id" acima espera o formulário inteiro, incluindo
+// pavilhões, e reescreve tudo a partir do body — mandar um body parcial ali
+// apagaria os pavilhões já cadastrados). Usada pelo preenchimento rápido do
+// endereço direto na tela de Emitir Nota, mesma ideia do PATCH de inscrição
+// municipal do cliente. Cidade/UF entram aqui também (mesmo sem campo visível
+// na tela de Emitir Nota) pra manter consistente com o que o CEP diz — se
+// alguém corrige o CEP ali, cidade/UF do cadastro compartilhado de Local de
+// Montagem não podem ficar desatualizados.
+router.patch("/:id/endereco", verificarPermissao('localmontagem', 'alterar'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+  const { rua, numero, bairro, cep, cidade, uf } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE localmontagem lm
+          SET rua = $1, numero = $2, bairro = $3, cep = $4, cidademontagem = $5, ufmontagem = $6
+         FROM localmontempresas lme
+        WHERE lm.idmontagem = $7 AND lme.idmontagem = lm.idmontagem AND lme.idempresa = $8
+        RETURNING lm.idmontagem, lm.rua, lm.numero, lm.bairro, lm.cep, lm.cidademontagem, lm.ufmontagem`,
+      [rua || null, numero || null, bairro || null, cep || null, cidade || null, uf || null, id, idempresa]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ message: "Local de Montagem não encontrado." });
+    }
+    res.locals.acao = 'atualizou';
+    res.locals.idregistroalterado = id;
+    res.locals.dadosnovos = result.rows[0];
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao atualizar endereço do local de montagem:", error);
+    res.status(500).json({ message: "Erro ao atualizar endereço do local de montagem." });
+  }
+});
+
 // POST criar nova local montagem
-router.post("/", verificarPermissao('localmontagem', 'cadastrar'), 
+router.post("/", verificarPermissao('localmontagem', 'cadastrar'),
   logMiddleware('localmontagem', {
         buscarDadosAnteriores: async (req) => {
             return { dadosanteriores: null, idregistroalterado: null };
@@ -302,18 +339,19 @@ router.post("/", verificarPermissao('localmontagem', 'cadastrar'),
   async (req, res) => {
 
     console.log("Requisição para criar novo local de montagem:", req.body);
-  const { descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes } = req.body;
+  const { descMontagem, cidadeMontagem, ufMontagem, rua, numero, bairro, cep, qtdPavilhao, pavilhoes } = req.body;
   const idempresa = req.idempresa;
-  
-  let client; 
+
+  let client;
 
   try {
-      client = await pool.connect(); 
+      client = await pool.connect();
       await client.query('BEGIN');
-     
+
       const resultLocalMontagem = await client.query(
-          "INSERT INTO localmontagem (descmontagem, cidademontagem, ufmontagem, qtdpavilhao) VALUES ($1, $2, $3, $4) RETURNING idmontagem", // ✅ Retorna idmontagem
-          [descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao]
+          `INSERT INTO localmontagem (descmontagem, cidademontagem, ufmontagem, qtdpavilhao, rua, numero, bairro, cep)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING idmontagem`, // ✅ Retorna idmontagem
+          [descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, rua || null, numero || null, bairro || null, cep || null]
       );
 
       const novoLocalMontagem = resultLocalMontagem.rows[0];
