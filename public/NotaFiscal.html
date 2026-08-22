@@ -115,6 +115,31 @@
           </div>
         </div>
 
+        <div class="nf-secao">
+          <h3>Local de montagem do evento</h3>
+          <input type="hidden" id="nfIdMontagemAtual">
+          <!-- rua/bairro/cidade/estado/pais usam os MESMOS IDs globais que
+               Formataçoes.js (buscarCEP/preencherEndereco) já espera — assim
+               a busca por CEP já usada em Clientes/Empresa/Fornecedores
+               funciona aqui sem duplicar função nenhuma. Cidade/estado/país
+               ficam escondidos (não tem por que o financeiro editar isso
+               aqui), mas são preenchidos/salvos por trás dos panos pra manter
+               o cadastro compartilhado de Local de Montagem consistente com
+               o CEP. Só um modal fica aberto por vez neste sistema, então
+               reaproveitar esses IDs não colide com outras telas. -->
+          <input type="hidden" id="cidade">
+          <input type="hidden" id="estado">
+          <input type="hidden" id="pais">
+          <div class="nf-grid2">
+            <div class="nf-campo auto"><label>Local</label><input id="nfMontagemDesc" readonly></div>
+            <div class="nf-campo"><label>CEP</label><input id="cep" maxlength="9" oninput="formatCEP(this)"></div>
+            <div class="nf-campo"><label>Rua</label><input id="rua"></div>
+            <div class="nf-campo"><label>Número</label><input id="nfMontagemNumero"></div>
+            <div class="nf-campo"><label>Bairro</label><input id="bairro"></div>
+          </div>
+          <span class="nf-hint warn" id="nfAvisoMontagem">Endereço obrigatório pra prefeitura — não veio cadastrado no Local de Montagem.</span>
+        </div>
+
         <div class="nf-secao" id="nfSecaoParcelas">
           <h3>Parcelas deste orçamento</h3>
           <p class="nf-hint">Orçamento parcelado — selecione a parcela aberta que esta nota vai faturar (preenche o valor automaticamente).</p>
@@ -150,9 +175,21 @@
               <span class="nf-hint">Cadastrado em Serviços — NBS/cIndOp/classificação tributária vêm junto automaticamente.</span>
             </div>
             <div class="nf-campo"><label>Município da prestação</label><input id="nfMunicipioPrestacao" value="São Paulo/SP"></div>
-            <div class="nf-campo"><label>Valor do serviço (esta parcela)</label><input id="nfValorServico" inputmode="numeric" oninput="formatReais(this)"></div>
-            <div class="nf-campo auto" id="nfCampoParcelaNum"><label>Parcela selecionada</label><input id="nfParcelaSelecionadaNum" readonly></div>
-            <div class="nf-campo" id="nfCampoParcelaVencimento"><label>Vencimento da parcela</label><input id="nfParcelaVencimento" placeholder="dd/mm/aaaa"></div>
+            <div class="nf-campo">
+              <label>Valor do serviço (esta parcela)</label>
+              <input id="nfValorServico" inputmode="numeric" oninput="formatReais(this)">
+              <button type="button" class="nf-link" id="nfBtnInserirValor">Inserir na descrição do serviço</button>
+            </div>
+            <div class="nf-campo auto" id="nfCampoParcelaNum">
+              <label>Parcela selecionada</label>
+              <input id="nfParcelaSelecionadaNum" readonly>
+              <button type="button" class="nf-link" id="nfBtnInserirParcela">Inserir na descrição do serviço</button>
+            </div>
+            <div class="nf-campo" id="nfCampoParcelaVencimento">
+              <label>Vencimento da parcela</label>
+              <input id="nfParcelaVencimento" placeholder="dd/mm/aaaa">
+              <button type="button" class="nf-link" id="nfBtnInserirVencimento">Inserir na descrição do serviço</button>
+            </div>
             <div class="nf-campo nf-full"><label>Descrição do serviço</label><textarea id="nfDescricaoServico"></textarea></div>
           </div>
         </div>
@@ -274,6 +311,8 @@
         <div class="nf-secao nf-envio-rodape">
           <span id="nfEnvioContagem">0 notas selecionadas</span>
           <button type="button" id="nfBtnBaixarLote">Baixar XML do lote</button>
+          <button type="button" id="nfBtnTestarEnvio" title="Valida contra a prefeitura de verdade, sem substituir nenhum RPS por NF-e">Testar envio</button>
+          <button type="button" id="nfBtnEnviarDireto" title="Envio de verdade — substitui o(s) RPS por NF-e na prefeitura">Enviar direto</button>
         </div>
       </div>
 

@@ -35,11 +35,37 @@ let isSwalOpen = false;
 let MontagemOriginal = {
     idMontagem: "",
     descMontagem: "",
+    cep: "",
+    rua: "",
+    numero: "",
+    bairro: "",
     cidadeMontagem: "",
     ufMontagem: "",
     qtdPavilhao:"",
     pavilhoes: []
 };
+
+// Busca de endereço por CEP (ViaCEP) — mesma ideia do cadastro de Clientes
+// (`Formataçoes.js`), mas própria dessa tela: os campos aqui têm IDs
+// diferentes (#cidadeMontagem/#ufMontagem, não #cidade/#estado) e local de
+// montagem é sempre nacional, então não precisa do fallback multi-país.
+function buscarCepMontagem() {
+    const cepInput = document.querySelector('#cepMontagem');
+    const cep = cepInput.value.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+
+    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then((r) => r.json())
+        .then((data) => {
+            if (data.erro) return;
+            document.querySelector('#ruaMontagem').value = (data.logradouro || '').toUpperCase();
+            document.querySelector('#bairroMontagem').value = (data.bairro || '').toUpperCase();
+            document.querySelector('#cidadeMontagem').value = (data.localidade || '').toUpperCase();
+            document.querySelector('#ufMontagem').value = data.uf || '';
+        })
+        .catch((err) => console.error('Erro ao buscar CEP:', err));
+}
+window.buscarCepMontagem = buscarCepMontagem;
 
 function verificaMontagem() {
 
@@ -169,6 +195,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                     descMontagem: document.querySelector("#descMontagem").value.trim().toUpperCase(),
                     cidadeMontagem: document.querySelector("#cidadeMontagem").value.trim().toUpperCase(),
                     ufMontagem: document.querySelector("#ufMontagem").value.trim().toUpperCase(),
+                    rua: document.querySelector("#ruaMontagem").value.trim().toUpperCase(),
+                    numero: document.querySelector("#numeroMontagem").value.trim(),
+                    bairro: document.querySelector("#bairroMontagem").value.trim().toUpperCase(),
+                    cep: document.querySelector("#cepMontagem").value.trim(),
                     qtdPavilhao: novaQuantidadeFinal,
                     pavilhoes: pavilhoesParaManter
                 };
@@ -223,6 +253,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                 descMontagem: document.querySelector("#descMontagem").value.trim().toUpperCase(),
                 cidadeMontagem: document.querySelector("#cidadeMontagem").value.trim().toUpperCase(),
                 ufMontagem: document.querySelector("#ufMontagem").value.trim().toUpperCase(),
+                rua: document.querySelector("#ruaMontagem").value.trim().toUpperCase(),
+                numero: document.querySelector("#numeroMontagem").value.trim(),
+                bairro: document.querySelector("#bairroMontagem").value.trim().toUpperCase(),
+                cep: document.querySelector("#cepMontagem").value.trim(),
                 qtdPavilhao: novaQuantidade,
                 pavilhoes: pavilhoesParaManter
             };
@@ -261,9 +295,13 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
 
         const idMontagem = document.querySelector("#idMontagem").value.trim().toString();
         const descMontagem = document.querySelector("#descMontagem").value.trim().toUpperCase();
+        const cepMontagem = document.querySelector("#cepMontagem").value.trim();
+        const ruaMontagem = document.querySelector("#ruaMontagem").value.trim().toUpperCase();
+        const numeroMontagem = document.querySelector("#numeroMontagem").value.trim();
+        const bairroMontagem = document.querySelector("#bairroMontagem").value.trim().toUpperCase();
         const cidadeMontagem = document.querySelector("#cidadeMontagem").value.trim().toUpperCase();
         const ufMontagem = document.querySelector("#ufMontagem").value.trim().toUpperCase();
-        const qtdPavilhao = parseInt(document.querySelector("#qtdPavilhao").value.trim()); 
+        const qtdPavilhao = parseInt(document.querySelector("#qtdPavilhao").value.trim());
         
         const pavilhoesInputElements = document.querySelectorAll('#inputsPavilhoes input[name="nmPavilhao[]"]');
         const pavilhoes = [];
@@ -332,7 +370,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
             return;
         }
     
-        const dados = { descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes };
+        const dados = {
+            descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes,
+            rua: ruaMontagem, numero: numeroMontagem, bairro: bairroMontagem, cep: cepMontagem
+        };
 
         const url = idMontagem
             ? `/localmontagem/${idMontagem}`
@@ -430,6 +471,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                 // ✅ Preenche diretamente sem fetch
                 document.querySelector("#idMontagem").value = d.idmontagem;
                 document.querySelector("#descMontagem").value = d.descmontagem;
+                document.querySelector("#cepMontagem").value = d.cep || '';
+                document.querySelector("#ruaMontagem").value = d.rua || '';
+                document.querySelector("#numeroMontagem").value = d.numero || '';
+                document.querySelector("#bairroMontagem").value = d.bairro || '';
                 document.querySelector("#cidadeMontagem").value = d.cidademontagem;
                 document.querySelector("#ufMontagem").value = d.ufmontagem;
                 document.querySelector("#qtdPavilhao").value = d.qtdpavilhao;
@@ -439,6 +484,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                 MontagemOriginal = {
                     idMontagem: d.idmontagem,
                     descMontagem: d.descmontagem,
+                    cep: d.cep || '',
+                    rua: d.rua || '',
+                    numero: d.numero || '',
+                    bairro: d.bairro || '',
                     cidadeMontagem: d.cidademontagem,
                     ufMontagem: d.ufmontagem,
                     qtdPavilhao: d.qtdpavilhao,
@@ -685,6 +734,10 @@ function criarSelectMontagem(montagem) {
         // ✅ Adicionar dataset
         option.dataset.idmontagem = localmontagem.idmontagem;
         option.dataset.descmontagem = localmontagem.descmontagem;
+        option.dataset.cep = localmontagem.cep || '';
+        option.dataset.rua = localmontagem.rua || '';
+        option.dataset.numero = localmontagem.numero || '';
+        option.dataset.bairro = localmontagem.bairro || '';
         option.dataset.cidademontagem = localmontagem.cidademontagem;
         option.dataset.ufmontagem = localmontagem.ufmontagem;
         option.dataset.qtdpavilhao = localmontagem.qtdpavilhao;
@@ -747,6 +800,10 @@ async function carregarLocalMontagem(desc, elementoAtual) {
         console.log("Dados da montagem recebidos no frontend:", montagem);
         document.querySelector("#idMontagem").value = montagem.idmontagem;
         document.querySelector("#descMontagem").value = montagem.descmontagem;
+        document.querySelector("#cepMontagem").value = montagem.cep || '';
+        document.querySelector("#ruaMontagem").value = montagem.rua || '';
+        document.querySelector("#numeroMontagem").value = montagem.numero || '';
+        document.querySelector("#bairroMontagem").value = montagem.bairro || '';
         document.querySelector("#cidadeMontagem").value = montagem.cidademontagem;
         document.querySelector("#ufMontagem").value = montagem.ufmontagem;
         document.querySelector("#qtdPavilhao").value = montagem.qtdpavilhao;
@@ -756,11 +813,15 @@ async function carregarLocalMontagem(desc, elementoAtual) {
         MontagemOriginal = {
             idMontagem: montagem.idmontagem,
             descMontagem: montagem.descmontagem,
+            cep: montagem.cep || '',
+            rua: montagem.rua || '',
+            numero: montagem.numero || '',
+            bairro: montagem.bairro || '',
             cidadeMontagem: montagem.cidademontagem,
             ufMontagem: montagem.ufmontagem,
             qtdPavilhao:montagem.qtdpavilhao,
-            pavilhoes: montagem.pavilhoes || [] 
-            
+            pavilhoes: montagem.pavilhoes || []
+
         };
      
           
@@ -788,7 +849,11 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 console.log(`Usuário optou por cadastrar: ${desc}`);
                
                 document.querySelector("#idMontagem").value = "";
-                document.querySelector("#cidadeMontagem").value = ""; // Limpa os outros campos, pois é um novo cadastro
+                document.querySelector("#cepMontagem").value = ""; // Limpa os outros campos, pois é um novo cadastro
+                document.querySelector("#ruaMontagem").value = "";
+                document.querySelector("#numeroMontagem").value = "";
+                document.querySelector("#bairroMontagem").value = "";
+                document.querySelector("#cidadeMontagem").value = "";
                 document.querySelector("#ufMontagem").value = "";
                 document.querySelector("#qtdPavilhao").value = "";
                 criarInputsPavilhoes(0); 
@@ -797,6 +862,10 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 MontagemOriginal = {
                     idMontagem: null,
                     descMontagem: desc.toUpperCase(),
+                    cep: "",
+                    rua: "",
+                    numero: "",
+                    bairro: "",
                     cidadeMontagem: "",
                     ufMontagem: "",
                     qtdPavilhao: 0,
@@ -830,6 +899,10 @@ function limparMontagemOriginal() {
     MontagemOriginal = {
         idMontagem: "",
         descMontagem: "",
+        cep: "",
+        rua: "",
+        numero: "",
+        bairro: "",
         cidadeMontagem: "",
         ufMontagem: "",
         qtdPavilhao:"",

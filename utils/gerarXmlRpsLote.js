@@ -112,24 +112,21 @@ function elementoCpfCnpj(nomeElemento, documento, obrigatorio = false) {
 // privada do certificado) pra virar o conteúdo do campo <Assinatura> de
 // cada RPS (tpAssinatura no XSD — é uma assinatura à parte, mais antiga,
 // diferente do <ds:Signature> XMLDSig que cobre o envelope inteiro).
-// Formato documentado em prosa no XSD, seção tpAssinatura:
-//   CCM prestador (8) + Série RPS (5, espaços à direita) +
-//   Número RPS (12, zeros à esquerda) + Data emissão AAAAMMDD (8) +
-//   Tipo tributação (1: T/F/I/J) + Status RPS (1: N/C/E) +
-//   ISS Retido (1: S/N) + Valor Serviços (15, centavos, zeros à esquerda) +
-//   Valor Deduções (15, centavos, zeros à esquerda) +
-//   Código Serviço (5, zeros à esquerda) + CPF/CNPJ tomador (14, zeros à esquerda)
-// Soma dos tamanhos individuais documentados: 8+5+12+8+1+1+1+15+15+5+14 = 85.
 //
-// ATENÇÃO — inconsistência encontrada no próprio manual da Prefeitura: o
-// texto introdutório desta seção do XSD diz "a cadeia... deverá conter 86
-// posições", mas a soma dos tamanhos de cada campo, documentados logo
-// abaixo NO MESMO bloco, dá 85, não 86. Segui os tamanhos individuais (mais
-// específicos e verificáveis um a um) em vez do número "86" solto no texto
-// — mas isso é uma suposição, não uma certeza. PRECISA validar contra um
-// exemplo real ou o ambiente de teste da prefeitura antes de assinar/enviar
-// qualquer coisa de verdade — se a cadeia assinada tiver o tamanho errado,
-// a assinatura não bate e o RPS é rejeitado.
+// CONFIRMADO CONTRA O AMBIENTE REAL DA PREFEITURA (2026-08-21, via
+// TesteEnvioLoteRPS): nem 85 nem 86 — são 90 posições. A prosa do manual
+// (que já divergia entre si, 85 x 86) estava incompleta em dois pontos, só
+// visíveis testando de verdade (erro 1206 "Assinatura Digital do RPS
+// incorreta" devolve a string que a prefeitura esperava, dava pra comparar
+// campo a campo com a nossa):
+//   CCM prestador (12, não 8 como o manual documentava) + Série RPS (5,
+//   espaços à direita) + Número RPS (12, zeros à esquerda) + Data emissão
+//   AAAAMMDD (8) + Tipo tributação (1: T/F/I/J) + Status RPS (1: N/C/E) +
+//   ISS Retido (1: S/N) + Valor Serviços (15, centavos, zeros à esquerda) +
+//   Valor Deduções (15, centavos, zeros à esquerda) + Código Serviço (5,
+//   zeros à esquerda) + Tipo Documento Tomador (1: "1"=CPF/"2"=CNPJ — campo
+//   que faltava por completo) + CPF/CNPJ tomador (14, zeros à esquerda).
+// Soma: 12+5+12+8+1+1+1+15+15+5+1+14 = 90.
 function montarCadeiaAssinaturaRPS({
   inscricaoMunicipalPrestador,
   serieRps,
@@ -143,7 +140,7 @@ function montarCadeiaAssinaturaRPS({
   codigoServico,
   cpfCnpjTomador,
 }) {
-  const ccm = apenasDigitos(inscricaoMunicipalPrestador).padStart(8, "0").slice(-8);
+  const ccm = apenasDigitos(inscricaoMunicipalPrestador).padStart(12, "0").slice(-12);
   const serie = String(serieRps || "1").padEnd(5, " ").slice(0, 5);
   const numero = String(numeroRps).padStart(12, "0").slice(-12);
   const data = formatarDataISO(dataEmissao).replace(/-/g, "");
@@ -151,16 +148,16 @@ function montarCadeiaAssinaturaRPS({
   const valorServ = String(Math.round((Number(valorServicos) || 0) * 100)).padStart(15, "0");
   const valorDed = String(Math.round((Number(valorDeducoes) || 0) * 100)).padStart(15, "0");
   const cServico = apenasDigitos(codigoServico).padStart(5, "0").slice(-5);
-  const cpfCnpj = apenasDigitos(cpfCnpjTomador).padStart(14, "0").slice(-14);
+  const digitosTomador = apenasDigitos(cpfCnpjTomador);
+  const tipoDocTomador = digitosTomador.length > 11 ? "2" : "1";
+  const cpfCnpj = digitosTomador.padStart(14, "0").slice(-14);
 
   const cadeia =
     ccm + serie + numero + data + tipoTributacao + statusRps + issRet +
-    valorServ + valorDed + cServico + cpfCnpj;
+    valorServ + valorDed + cServico + tipoDocTomador + cpfCnpj;
 
-  // 85 = soma dos tamanhos documentados campo a campo (ver nota acima sobre
-  // a divergência com o "86" citado no texto solto do manual).
-  if (cadeia.length !== 85) {
-    throw new Error(`Cadeia de assinatura do RPS ficou com ${cadeia.length} caracteres (esperado 85): "${cadeia}"`);
+  if (cadeia.length !== 90) {
+    throw new Error(`Cadeia de assinatura do RPS ficou com ${cadeia.length} caracteres (esperado 90): "${cadeia}"`);
   }
   return cadeia;
 }
@@ -190,6 +187,13 @@ function montarXmlRps(dados, chavePrivadaPem) {
     nbs, // servicos.nbs — obrigatório no layout v2 (não existia no v1)
     cIndOp, // servicos.cindop — código indicador da operação (IBSCBS)
     classificacaoTributaria, // servicos.classificacaotributaria — cClassTrib (IBSCBS)
+    nomeEvento,
+    dataInicioEvento,
+    dataFimEvento,
+    cepEvento,
+    ruaEvento,
+    numeroEvento,
+    bairroEvento,
   } = dados;
 
   const numeroRps = idnotafiscal;
@@ -237,7 +241,13 @@ function montarXmlRps(dados, chavePrivadaPem) {
       ${elemento("ValorIR", formatarValorXml(0), true)}
       ${elemento("ValorCSLL", formatarValorXml(csll), true)}
       ${elemento("CodigoServico", apenasDigitos(codigoServico), true)}
-      ${elemento("AliquotaServicos", (Number(aliquotaIss) || 0).toFixed(4), true)}
+      <!-- AliquotaServicos espera fração decimal (0.025 = 2,5%), não
+           percentual (2.5) — confirmado contra o ambiente real da prefeitura
+           (2026-08-21, alerta 208: "aliquota informada (2,5) difere da
+           vigente (0,025)"). Na prática esse campo é ignorado quando
+           TributacaoRPS = "T" (documentado no próprio XSD), mas mandamos
+           certo mesmo assim pra não gerar alerta à toa. -->
+      ${elemento("AliquotaServicos", ((Number(aliquotaIss) || 0) / 100).toFixed(4), true)}
       ${elemento("ISSRetido", issRetido ? "true" : "false", true)}
       <!-- CPFCNPJTomador ou InscricaoMunicipalTomador: com o CNPJ do
            tomador já preenchido, o próprio sistema da prefeitura ignora
@@ -247,13 +257,41 @@ function montarXmlRps(dados, chavePrivadaPem) {
       ${elemento("InscricaoMunicipalTomador", apenasDigitos(inscricaoMunicipalTomador))}
       ${elemento("EmailTomador", emailTomador)}
       ${elemento("Discriminacao", discriminacaoServico, true)}
-      ${elemento("MunicipioPrestacao", municipioPrestacaoIbge || MUNICIPIO_SAO_PAULO_IBGE, true)}
-      ${elemento("ValorInicialCobrado", formatarValorXml(valorServico), true)}
+      <!-- MunicipioPrestacao: confirmado contra o ambiente real da
+           prefeitura (2026-08-21, erro 1223) que esse campo só deve ser
+           informado quando o serviço é tributado em OUTRO município
+           (exceção de local de incidência do ISS) ou é exportação — nunca
+           pro nosso caso normal (tributado em São Paulo mesmo). Por isso não
+           mandamos mais esse campo aqui. -->
+      <!-- ValorInicialCobrado x ValorFinalCobrado é um <xs:choice> no XSD —
+           só pode mandar um dos dois. Confirmado contra o ambiente real da
+           prefeitura (2026-08-21, erro 640): ValorInicialCobrado foi
+           descontinuado, a prefeitura agora exige ValorFinalCobrado (mesmo
+           valor — nosso valorServico já é o valor total cobrado do cliente,
+           que é exatamente o que esse campo pede: "calcula os impostos do
+           fim pro início" a partir dele). -->
+      ${elemento("ValorFinalCobrado", formatarValorXml(valorServico), true)}
       ${elemento("ValorMulta", formatarValorXml(0))}
       ${elemento("ValorJuros", formatarValorXml(0))}
       ${elemento("ValorIPI", formatarValorXml(0), true)}
       ${elemento("ExigibilidadeSuspensa", "0", true)}
       ${elemento("NBS", apenasDigitos(nbs), true)}
+      <!-- atvEvento: exigido pela prefeitura (confirmado 2026-08-21, erro
+           637) pro indicador de operação "040101" (evento), que é o único
+           que o sistema usa hoje — por isso sempre incluído, sem condicional.
+           Dados vêm de eventos.nmevento / orcamentos.dtinirealizacao-
+           dtfimrealizacao / localmontagem (rua/numero/bairro/cep). -->
+      <atvEvento>
+        ${elemento("xNomeEvt", nomeEvento, true)}
+        ${elemento("dtIniEvt", formatarDataISO(dataInicioEvento), true)}
+        ${elemento("dtFimEvt", formatarDataISO(dataFimEvento), true)}
+        <end>
+          ${elemento("CEP", apenasDigitos(cepEvento), true)}
+          ${elemento("xLgr", ruaEvento, true)}
+          ${elemento("nro", numeroEvento, true)}
+          ${elemento("xBairro", bairroEvento, true)}
+        </end>
+      </atvEvento>
       <!-- gpPrestacao: escolha entre local no Brasil (cLocPrestacao, código
            IBGE) ou no exterior (cPaisPrestacao) — sempre Brasil por enquanto. -->
       ${elemento("cLocPrestacao", municipioPrestacaoIbge || MUNICIPIO_SAO_PAULO_IBGE, true)}

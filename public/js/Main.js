@@ -15396,7 +15396,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             + celulaAcoesAjuste
                             + '<td class="comprovantes-cell">' + conteudoComprovanteAjuste + '</td>'
                             + `<td class="status-celula status-${classeStatusAjuste}">${statusAjuste}</td>`
-                            + `<td class="valor-celula" style="text-align:right;">${formatarMoeda(a.valor)}</td>`
+                            + `<td class="valor-celula" style="text-align:right; color:${corAjuste};">${a.tipo === 'Credito' ? '' : '-'}${formatarMoeda(a.valor)}</td>`
                             + '</tr>';
                     });
 
@@ -19386,17 +19386,59 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEv
         const htmlOriginal = btnClicado.innerHTML;
         btnClicado.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-        const response = await fetch(`/main/vencimentos/update-status`, {
+        const enviarUpdate = (confirmarDiferenca = false) => fetch(`/main/vencimentos/update-status`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar, idEventoContexto })
+            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar, idEventoContexto, confirmarDiferenca })
         });
 
+        let response = await enviarUpdate();
+        let ajusteDiferencaGerado = false;
+
+        // Débito sem saldo a receber pendente suficiente pra cobrir: backend devolve 409 com a
+        // diferença, em vez de fechar o débito sem deixar rastro do que faltou compensar.
+        if (response.status === 409) {
+            const diferencaInfo = await response.json();
+            if (!diferencaInfo.diferencaDetectada) {
+                throw new Error('Erro no servidor');
+            }
+
+            const confirmacao = await Swal.fire({
+                title: 'Diferença de valor detectada',
+                html: `Você está pagando um <strong>Débito de ${formatarMoeda(diferencaInfo.valorDebito)}</strong>.<br>
+                       O total destinado a este funcionário neste evento (Cachê + Ajuda de Custo + Caixinha + Créditos, pagos ou não) é de
+                       <strong>${formatarMoeda(diferencaInfo.saldo)}</strong>.<br><br>
+                       Se continuar, este Débito será marcado como Pago e um novo <strong>Débito de ${formatarMoeda(diferencaInfo.diferenca)}</strong>
+                       será gerado automaticamente para registrar a diferença.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Gerar Ajuste e Pagar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            });
+
+            if (!confirmacao.isConfirmed) {
+                btnClicado.disabled = false;
+                btnClicado.innerHTML = htmlOriginal;
+                return;
+            }
+
+            response = await enviarUpdate(true);
+        }
+
         if (response.ok) {
-            exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
+            const resultado = await response.json().catch(() => ({}));
+            ajusteDiferencaGerado = !!resultado.ajusteDiferencaGerado;
+            exibirToastSucesso(
+                ajusteDiferencaGerado
+                    ? `Status atualizado — novo Débito de diferença gerado`
+                    : `Status atualizado para ${statusParaEnviar}`
+            );
 
             // Atualização na memória global
             if (typeof dados !== 'undefined' && Array.isArray(dados)) {
