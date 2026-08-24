@@ -322,6 +322,7 @@ async function carregarEventosOrc() {
     let selects = document.querySelectorAll(".idEvento");
 
     selects.forEach((select) => {
+      const valorSelecionadoAtual = select.value;
       select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
       eventos.forEach((evento) => {
         let option = document.createElement("option");
@@ -332,6 +333,10 @@ async function carregarEventosOrc() {
         option.setAttribute("data-idEvento", evento.idevento);
         select.appendChild(option);
       });
+
+      if (valorSelecionadoAtual) {
+        select.value = String(valorSelecionadoAtual);
+      }
 
       select.addEventListener("change", function () {
         idEvento = this.value;
@@ -350,6 +355,7 @@ async function carregarLocalMontOrc() {
     let selects = document.querySelectorAll(".idMontagem");
 
     selects.forEach((select) => {
+      const valorSelecionadoAtual = select.value;
       // Adiciona as opções de Local de Montagem
       select.innerHTML =
         '<option value="">Selecione Local de Montagem</option>'; // Adiciona a opção padrão
@@ -366,6 +372,11 @@ async function carregarLocalMontOrc() {
 
         locaisDeMontagem = montagem;
       });
+
+      if (valorSelecionadoAtual) {
+        select.value = String(valorSelecionadoAtual);
+      }
+
       select.addEventListener("change", function () {
         //idMontagem = this.value; // O value agora é o ID
 
