@@ -25,7 +25,6 @@ async function carregarServicos() {
 function preencherFormulario(servico) {
   document.getElementById('svIdServico').value = servico.idservico;
   document.getElementById('svCodigoServico').value = servico.codigoservico;
-  document.getElementById('svCodigoServico').disabled = true; // não muda o código de um serviço já em uso
   document.getElementById('svDescricao').value = servico.descricao || '';
   document.getElementById('svNbs').value = servico.nbs || '';
   document.getElementById('svCindop').value = servico.cindop || '';
@@ -37,7 +36,6 @@ function preencherFormulario(servico) {
 function limparFormulario() {
   document.getElementById('formServico').reset();
   document.getElementById('svIdServico').value = '';
-  document.getElementById('svCodigoServico').disabled = false;
   document.getElementById('svAtivo').checked = true;
   document.querySelectorAll('.sv-combo-lista').forEach((lista) => lista.classList.remove('aberta'));
 }

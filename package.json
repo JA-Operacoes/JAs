@@ -1,6 +1,6 @@
 {
   "name": "ja-system---teste",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -25,6 +25,7 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "@xmldom/xmldom": "^0.8.13",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "expres": "^0.0.5",

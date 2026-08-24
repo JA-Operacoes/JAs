@@ -3596,6 +3596,67 @@ router.get("/vencimentos", async (req, res) => {
   }
 });
 
+// Saldo a receber de um funcionário DENTRO DE UM EVENTO ESPECÍFICO, pra decidir se cobre um
+// Débito sendo pago. Cachê/Ajuda/Caixinha/Crédito contam pelo valor TOTAL, independente de já
+// estarem Pagos ou não (exceto Rejeitado) — esse dinheiro já foi destinado ao funcionário naquele
+// evento de qualquer forma, pago ou não, então continua "disponível" pra fins de comparação com
+// o débito. Já os OUTROS Débitos do mesmo evento só entram na conta se JÁ estiverem Pagos — um
+// débito ainda Pendente não consumiu nada do saldo até ser efetivamente pago (evita que dois
+// débitos pendentes simultâneos "brigem" pelo mesmo saldo antes de qualquer um deles ser decidido).
+// Escopo por evento, não pelo funcionário inteiro — mesma granularidade do "Total do Funcionário".
+async function calcularSaldoAReceberPendente(idfuncionario, idempresa, excluirIdAjuste = null, idevento = null) {
+    const totalExpr = (colStatus, colValor) => `SUM(CASE
+        WHEN ${colStatus} = 'Rejeitado' THEN 0
+        ELSE COALESCE(${colValor}, 0)
+    END)`;
+
+    const { rows } = await pool.query(`
+        SELECT
+            COALESCE((
+                SELECT ${totalExpr('se.statuspgto', 'se.vlrtotcache')}
+                FROM staffeventos se
+                JOIN staffempresas sem ON sem.idstaff = se.idstaff
+                WHERE se.idfuncionario = $1 AND sem.idempresa = $2
+                  AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+                  AND ($4::int IS NULL OR se.idevento = $4::int)
+            ), 0) AS cache_total,
+            COALESCE((
+                SELECT ${totalExpr('se.statuspgtoajdcto', 'se.vlrtotajdcusto')}
+                FROM staffeventos se
+                JOIN staffempresas sem ON sem.idstaff = se.idstaff
+                WHERE se.idfuncionario = $1 AND sem.idempresa = $2
+                  AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+                  AND ($4::int IS NULL OR se.idevento = $4::int)
+            ), 0) AS ajuda_total,
+            COALESCE((
+                SELECT ${totalExpr('se.statuspgtocaixinha', 'se.vlrcaixinha')}
+                FROM staffeventos se
+                JOIN staffempresas sem ON sem.idstaff = se.idstaff
+                WHERE se.idfuncionario = $1 AND sem.idempresa = $2
+                  AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+                  AND ($4::int IS NULL OR se.idevento = $4::int)
+            ), 0) AS caixinha_total,
+            COALESCE((
+                SELECT SUM(a.valor) FROM staffajustefinanceiro a
+                LEFT JOIN staffeventos seOrigem ON seOrigem.idstaffevento = a.idstaffeventoorigem
+                WHERE a.idfuncionario = $1 AND a.idempresa = $2 AND a.tipo = 'Credito' AND a.status <> 'Rejeitado'
+                  AND ($4::int IS NULL OR seOrigem.idevento = $4::int)
+            ), 0) AS creditos_total,
+            COALESCE((
+                SELECT SUM(a.valor) FROM staffajustefinanceiro a
+                LEFT JOIN staffeventos seOrigem ON seOrigem.idstaffevento = a.idstaffeventoorigem
+                WHERE a.idfuncionario = $1 AND a.idempresa = $2 AND a.tipo = 'Debito' AND a.status = 'Pago'
+                  AND ($3::int IS NULL OR a.idajustefinanceiro <> $3::int)
+                  AND ($4::int IS NULL OR seOrigem.idevento = $4::int)
+            ), 0) AS debitos_pagos
+    `, [idfuncionario, idempresa, excluirIdAjuste, idevento]);
+
+    const r = rows[0];
+    const saldo = Number(r.cache_total) + Number(r.ajuda_total) + Number(r.caixinha_total)
+                + Number(r.creditos_total) - Number(r.debitos_pagos);
+    return { saldo, detalhe: r };
+}
+
 router.post("/vencimentos/update-status",
     logMiddleware("Vencimentos", {
         buscarDadosAnteriores: async (req) => {
@@ -3606,9 +3667,10 @@ router.post("/vencimentos/update-status",
         }
     }), 
     async (req, res) => {
-        let { idStaff, tipo, novoStatus, idlog_origem, idEventoContexto } = req.body;
+        let { idStaff, tipo, novoStatus, idlog_origem, idEventoContexto, confirmarDiferenca } = req.body;
 
         const idempresa = req.idempresa;
+        const idUsuarioLogado = req.usuario?.idusuario;
         if (!idempresa) {
             return res.status(400).json({ success: false, error: "idempresa obrigatório na requisição." });
         }
@@ -3619,6 +3681,56 @@ router.post("/vencimentos/update-status",
         // aconteceu — pode ser diferente do evento onde o lançamento foi originado.
         if (tipo === 'AjusteFin') {
             try {
+                // Antes de fechar um Débito, confere se o total destinado ao funcionário neste
+                // evento (pago ou não) é suficiente pra "cobrir" esse valor. Se não tiver, devolve 409 com a diferença pro
+                // front mostrar o aviso — só gera o Débito compensatório se vier confirmarDiferenca=true.
+                let diferencaParaGerar = 0;
+                let idfuncionarioAjuste = null;
+
+                if (novoStatus === 'Pago') {
+                    const { rows: ajusteRows } = await pool.query(
+                        `SELECT idfuncionario, tipo, valor, status FROM staffajustefinanceiro
+                         WHERE idajustefinanceiro = $1 AND idempresa = $2`,
+                        [idStaff, idempresa]
+                    );
+                    const ajusteAtual = ajusteRows[0];
+
+                    if (ajusteAtual && ajusteAtual.tipo === 'Debito' && ajusteAtual.status !== 'Pago') {
+                        idfuncionarioAjuste = ajusteAtual.idfuncionario;
+
+                        // idEventoContexto é, na verdade, o idstaffevento da linha do card onde o
+                        // usuário clicou "Pagar" — precisa resolver o idevento real pra escopar o
+                        // saldo só a este evento (mesma granularidade do "Total do Funcionário" na tela).
+                        let ideventoContexto = null;
+                        if (idEventoContexto) {
+                            const { rows: eventoRows } = await pool.query(
+                                `SELECT idevento FROM staffeventos WHERE idstaffevento = $1`,
+                                [idEventoContexto]
+                            );
+                            ideventoContexto = eventoRows[0]?.idevento ?? null;
+                        }
+
+                        const { saldo } = await calcularSaldoAReceberPendente(
+                            ajusteAtual.idfuncionario, idempresa, idStaff, ideventoContexto
+                        );
+                        const valorDebito = parseFloat(ajusteAtual.valor) || 0;
+                        const diferenca = valorDebito - saldo;
+
+                        if (diferenca > 0.01) {
+                            if (!confirmarDiferenca) {
+                                return res.status(409).json({
+                                    success: false,
+                                    diferencaDetectada: true,
+                                    saldo,
+                                    valorDebito,
+                                    diferenca
+                                });
+                            }
+                            diferencaParaGerar = diferenca;
+                        }
+                    }
+                }
+
                 const resultAjuste = await pool.query(
                     `UPDATE staffajustefinanceiro
                      SET status = $1::varchar,
@@ -3629,14 +3741,31 @@ router.post("/vencimentos/update-status",
                     [novoStatus, idStaff, idempresa, idEventoContexto || null]
                 );
 
-                if (resultAjuste.rowCount > 0) {
-                    res.locals.idlog_origem = idlog_origem;
-                    res.locals.acao = 'atualizou';
-                    res.locals.idregistroalterado = idStaff;
-                    res.locals.dadosnovos = resultAjuste.rows[0];
-                    return res.json({ success: true, statusSalvo: novoStatus });
+                if (resultAjuste.rowCount === 0) {
+                    return res.status(404).json({ success: false, error: "Ajuste financeiro não encontrado." });
                 }
-                return res.status(404).json({ success: false, error: "Ajuste financeiro não encontrado." });
+
+                if (diferencaParaGerar > 0.01) {
+                    // idEventoContexto já é um idstaffevento (a linha/função onde o débito original
+                    // estava) — reaproveita como origem do novo ajuste, senão o card de notificação
+                    // fica sem saber de qual evento/função essa diferença veio.
+                    await pool.query(
+                        `INSERT INTO staffajustefinanceiro
+                            (idfuncionario, idempresa, idstaffeventoorigem, tipo, valor, justificativa, status, idusuariolancamento)
+                         VALUES ($1, $2, $3, 'Debito', $4, $5, 'Pendente', $6)`,
+                        [
+                            idfuncionarioAjuste, idempresa, idEventoContexto || null, diferencaParaGerar,
+                            `[Diferença de valor] Total destinado ao funcionário neste evento insuficiente para cobrir este débito — diferença de R$ ${diferencaParaGerar.toFixed(2)} gerada automaticamente na confirmação do pagamento.`,
+                            idUsuarioLogado
+                        ]
+                    );
+                }
+
+                res.locals.idlog_origem = idlog_origem;
+                res.locals.acao = 'atualizou';
+                res.locals.idregistroalterado = idStaff;
+                res.locals.dadosnovos = resultAjuste.rows[0];
+                return res.json({ success: true, statusSalvo: novoStatus, ajusteDiferencaGerado: diferencaParaGerar > 0.01 });
             } catch (error) {
                 console.error("Erro ao atualizar status do ajuste financeiro:", error);
                 return res.status(500).json({ success: false, error: error.message });
