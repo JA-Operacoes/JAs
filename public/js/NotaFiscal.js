@@ -506,32 +506,6 @@ function atualizarContagemEnvio() {
   marcarTodas.indeterminate = marcadas > 0 && marcadas < total;
 }
 
-async function baixarLoteXml() {
-  const ids = [...document.querySelectorAll('.nf-envio-check:checked')].map((chk) => Number(chk.dataset.id));
-  if (!ids.length) {
-    return aviso('warning', 'Nenhuma nota selecionada', 'Marque ao menos uma nota pra gerar o lote.');
-  }
-
-  try {
-    const xml = await fetchComToken('/notafiscal/xml-lote', {
-      method: 'POST',
-      body: { idsNotasFiscais: ids }
-    });
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Lote-RPS-${ids.length}notas.xml`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error('Erro ao gerar XML do lote:', err);
-    aviso('error', 'Erro ao gerar lote', err?.message || 'Não foi possível gerar o XML do lote.');
-  }
-}
-
 // Resume erros/alertas do retorno do Web Service num texto legível — cada
 // item já vem com Codigo/Descricao (e o número do RPS quando é específico de
 // uma nota, que pra nós é o próprio idnotafiscal).
@@ -1185,7 +1159,6 @@ function configurarEventosNotaFiscal() {
   document.getElementById('nfBtnInserirParcela').addEventListener('click', inserirParcelaNaDescricao);
   document.getElementById('nfBtnInserirVencimento').addEventListener('click', inserirVencimentoNaDescricao);
 
-  document.getElementById('nfBtnBaixarLote').addEventListener('click', baixarLoteXml);
   document.getElementById('nfBtnTestarEnvio').addEventListener('click', () => enviarLote(true));
   document.getElementById('nfBtnEnviarDireto').addEventListener('click', () => enviarLote(false));
   document.getElementById('nfEnvioFiltroEmpresa').addEventListener('change', renderizarNotasProntasParaEnvio);

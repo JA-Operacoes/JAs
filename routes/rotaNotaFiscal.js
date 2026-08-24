@@ -3,12 +3,12 @@
 //
 // Esta rota:
 //   1) mostra quais orçamentos fechados ainda têm saldo a faturar;
-//   2) gera e assina o XML do RPS (individual ou em lote);
-//   3) opcionalmente ENVIA de verdade esse XML pro Web Service síncrono da
-//      prefeitura (POST /xml-lote/enviar — só existe porque descobrimos que
-//      não há upload manual de arquivo pra layout com CBS/IBS, só Online ou
-//      Web Service) — mas o financeiro ainda pode preferir baixar o XML e
-//      seguir manual, então as duas rotas convivem;
+//   2) gera e assina o XML do RPS individual (GET /:id/xml — usado pra
+//      inspeção/conferência, "Ver XML");
+//   3) ENVIA de verdade o lote assinado pro Web Service síncrono da
+//      prefeitura (POST /xml-lote/enviar — descobrimos que não há upload
+//      manual de arquivo pra layout com CBS/IBS, só Online ou Web Service,
+//      então esse é o único caminho pra emitir de fato através do sistema);
 //   4) registra o resultado (número da nota, tributos, status) de volta,
 //      pra manter o controle de faturamento visível dentro do JA System.
 //
@@ -526,7 +526,8 @@ async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
             ce.emailnfe AS cliente_email,
             s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria,
             e.nmevento AS evento_nome, o.dtinirealizacao AS evento_datainicio, o.dtfimrealizacao AS evento_datafim,
-            lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep
+            lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep,
+            lm.cidademontagem AS evento_cidade, lm.ufmontagem AS evento_uf
        FROM notasfiscais nf
        JOIN orcamentos o ON o.idorcamento = nf.idorcamento
        LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
@@ -563,6 +564,12 @@ function rotuloNota(nf) {
   return `Orçamento #${nf.nrorcamento}${parcela}`;
 }
 
+// Maiúsculo e sem acento, só pra comparar texto livre de cidade sem depender
+// de como foi digitado ("São Paulo", "SAO PAULO", "são paulo" etc.).
+function normalizarTexto(texto) {
+  return String(texto || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase().trim();
+}
+
 // Retorna { curto, mensagem } se a nota não tiver os dados mínimos pro XML,
 // ou null se estiver tudo certo. `curto` é um rótulo de poucas palavras (pro
 // chip na tela — precisa ser visível de cara, financeiro não vai adivinhar
@@ -578,6 +585,15 @@ function validarNotaParaXml(nf) {
   }
   if (!nf.evento_nome || !nf.evento_datainicio || !nf.evento_datafim) {
     return { curto: "Falta Evento/Datas do Orçamento", mensagem: `${rotuloNota(nf)}: o orçamento não tem evento ou datas de realização cadastradas.` };
+  }
+  // Organização de feiras/eventos/congressos (código 07161, item 17.09/17.10
+  // da lista de serviços) é uma das exceções do art. 3º da LC 116/2003: o ISS
+  // é devido no MUNICÍPIO do evento, não no da empresa emissora. Fora do
+  // município de São Paulo, o Web Service que automatizamos (específico da
+  // prefeitura de SP) não é o caminho certo — bloqueia até decidirmos como
+  // tratar esses casos (provavelmente emissão manual nesse outro município).
+  if (normalizarTexto(nf.evento_cidade) !== 'SAO PAULO') {
+    return { curto: "Fora de São Paulo", mensagem: `${rotuloNota(nf)}: o evento é em ${nf.evento_cidade || 'um município não informado'}${nf.evento_uf ? '/' + nf.evento_uf : ''}, fora de São Paulo — o ISS desse serviço é devido no município do evento (exceção do art. 3º da LC 116/2003), não dá pra emitir pelo Web Service de São Paulo. Consulte o contador sobre como emitir para esse município.` };
   }
   if (!nf.evento_rua || !nf.evento_numero || !nf.evento_bairro || !nf.evento_cep) {
     return { curto: "Falta Endereço Local Montagem", mensagem: `${rotuloNota(nf)}: o local de montagem do evento não tem endereço completo (rua/número/bairro/CEP) — complete em Local de Montagem.` };
@@ -712,7 +728,8 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
               em.nmfantasia AS emissora_nmfantasia, em.siglacertificado AS emissora_siglacertificado,
               s.codigoservico, s.nbs, s.cindop, s.classificacaotributaria,
               e.nmevento AS evento_nome, o.dtinirealizacao AS evento_datainicio, o.dtfimrealizacao AS evento_datafim,
-              lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep
+              lm.rua AS evento_rua, lm.numero AS evento_numero, lm.bairro AS evento_bairro, lm.cep AS evento_cep,
+              lm.cidademontagem AS evento_cidade, lm.ufmontagem AS evento_uf
          FROM notasfiscais nf
          JOIN orcamentos o ON o.idorcamento = nf.idorcamento
          LEFT JOIN clientes c ON c.idcliente = nf.idcliente
@@ -733,75 +750,11 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
   }
 });
 
-// POST /notafiscal/xml-lote — gera UM único XML de "Envio de RPS em Lote"
-// com várias notas juntas (o layout já suporta isso — é pra isso que serve
-// o lote). Máximo 50 por lote (limite do XSD), e todas precisam ser da MESMA
-// empresa emissora, já que o Cabecalho do envelope só tem um CPFCNPJRemetente.
-router.post("/xml-lote", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
-  const idempresa = req.idempresa;
-  const { idsNotasFiscais } = req.body;
-
-  if (!Array.isArray(idsNotasFiscais) || !idsNotasFiscais.length) {
-    return res.status(400).json({ message: "Selecione ao menos uma nota." });
-  }
-  if (idsNotasFiscais.length > 50) {
-    return res.status(400).json({ message: `Você selecionou ${idsNotasFiscais.length} notas — o máximo por lote é 50.` });
-  }
-
-  try {
-    const linhas = await buscarNotasParaXml(idsNotasFiscais, idempresa);
-    if (linhas.length !== idsNotasFiscais.length) {
-      return res.status(404).json({ message: "Uma ou mais notas selecionadas não foram encontradas." });
-    }
-
-    for (const nf of linhas) {
-      const erro = validarNotaParaXml(nf);
-      if (erro) return res.status(400).json({ message: erro.mensagem });
-    }
-
-    const emissorasDistintas = new Set(linhas.map((nf) => nf.emissora_cnpj));
-    if (emissorasDistintas.size > 1) {
-      return res.status(400).json({ message: "As notas selecionadas são de empresas emissoras diferentes — selecione notas de uma única empresa emissora por lote." });
-    }
-
-    let certificado;
-    try {
-      certificado = carregarCertificadoDaNota(linhas[0]);
-    } catch (errCert) {
-      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
-    }
-
-    const xml = gerarXmlPedidoEnvioLoteRPS({
-      empresaEmissora: {
-        cnpj: linhas[0].emissora_cnpj,
-        inscricaomunicipal: linhas[0].emissora_inscricaomunicipal
-      },
-      notas: linhas.map(montarNotaParaGerador),
-      certificado
-    });
-
-    // Aqui NÃO dá pra usar um nome fixo (o mesmo conjunto de ids poderia
-    // legitimamente ser baixado de novo, mas um lote diferente de notas
-    // também vira "Lote-RPS" — sem hora teria risco de um sobrescrever o
-    // outro por engano). Carimbo com data E hora deixa cada geração única.
-    const carimbo = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
-    const nomeArquivo = `Lote-RPS-${carimbo}-${linhas.length}notas.xml`;
-    fs.writeFileSync(path.join(dirNotasParaEnvio, nomeArquivo), xml, 'utf8');
-    salvarCopiaParaRede(nomeArquivo, xml);
-
-    res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${nomeArquivo}"`);
-    return res.send(xml);
-  } catch (error) {
-    console.error("Erro ao gerar XML do lote:", error);
-    res.status(500).json({ message: "Erro ao gerar XML do lote.", detail: error.message });
-  }
-});
-
 // POST /notafiscal/xml-lote/enviar — gera, assina e MANDA de verdade o lote
 // pro Web Service síncrono da prefeitura (autenticação TLS mútua com o mesmo
-// certificado usado pra assinar o XML). Reaproveita o mesmíssimo pipeline do
-// POST /xml-lote acima — só muda o que acontece depois do XML pronto.
+// certificado usado pra assinar o XML). Máximo 50 por lote (limite do XSD), e
+// todas as notas precisam ser da MESMA empresa emissora, já que o Cabecalho
+// do envelope só tem um CPFCNPJRemetente.
 //
 // `teste: true` chama TesteEnvioLoteRPS — valida exatamente igual, mas NÃO
 // substitui o RPS por NF-e de verdade (sem efeito na prefeitura, sem tocar
@@ -862,6 +815,20 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
     });
 
     const carimbo = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+
+    // Só grava o XML "de verdade" (o que qualquer nota do lote pode abrir via
+    // "Ver XML") quando não é teste — TesteEnvioLoteRPS não mexe no banco,
+    // então não tem porquê deixar arquivo pra trás. Aponta pro MESMO arquivo
+    // do lote inteiro em todas as notas dele — é literalmente o que foi
+    // transmitido, mais preciso do que gerar um XML novo na hora de abrir.
+    let caminhoRelativoXml = null;
+    if (!modoTeste) {
+      const nomeArquivoLote = `Lote-RPS-${carimbo}-${linhas.length}notas.xml`;
+      fs.writeFileSync(path.join(dirNotasParaEnvio, nomeArquivoLote), xml, 'utf8');
+      salvarCopiaParaRede(nomeArquivoLote, xml);
+      caminhoRelativoXml = `uploads/notasparaenvio/${nomeArquivoLote}`;
+    }
+
     const nomeLogEnvio = `Envio-${modoTeste ? 'Teste-' : ''}${carimbo}-${linhas.length}notas.log.xml`;
     try {
       fs.writeFileSync(
@@ -896,10 +863,11 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
                     codigoverificacao = $2,
                     identificadornacional = $3,
                     mensagemenvio = NULL,
+                    arquivoxml = $4,
                     dtemissao = CASE WHEN dtemissao IS NULL THEN now() ELSE dtemissao END
-              WHERE idnotafiscal = $4 AND idempresa = $5
+              WHERE idnotafiscal = $5 AND idempresa = $6
               RETURNING idparcela`,
-            [nota.numeroNFe, nota.codigoVerificacao, nota.chaveNotaNacional, nota.numeroRps, idempresa]
+            [nota.numeroNFe, nota.codigoVerificacao, nota.chaveNotaNacional, caminhoRelativoXml, nota.numeroRps, idempresa]
           );
           const idparcela = notaAtualizada.rows[0]?.idparcela;
           if (idparcela) {
@@ -913,10 +881,10 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
             ? erroDaNota.descricao
             : "Lote rejeitado por erro em outro RPS do mesmo envio.";
           const notaAtualizada = await client.query(
-            `UPDATE notasfiscais SET status = 'Rejeitada', mensagemenvio = $1
-              WHERE idnotafiscal = $2 AND idempresa = $3
+            `UPDATE notasfiscais SET status = 'Rejeitada', mensagemenvio = $1, arquivoxml = $2
+              WHERE idnotafiscal = $3 AND idempresa = $4
               RETURNING idparcela`,
-            [mensagem, nf.idnotafiscal, idempresa]
+            [mensagem, caminhoRelativoXml, nf.idnotafiscal, idempresa]
           );
           const idparcela = notaAtualizada.rows[0]?.idparcela;
           if (idparcela) {
@@ -929,9 +897,9 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
         // só sinalizar que precisa conferência manual antes de tentar de novo.
         for (const nf of linhas) {
           await client.query(
-            `UPDATE notasfiscais SET status = 'Envio Incerto', mensagemenvio = $1
-              WHERE idnotafiscal = $2 AND idempresa = $3`,
-            [resultado.mensagem, nf.idnotafiscal, idempresa]
+            `UPDATE notasfiscais SET status = 'Envio Incerto', mensagemenvio = $1, arquivoxml = $2
+              WHERE idnotafiscal = $3 AND idempresa = $4`,
+            [resultado.mensagem, caminhoRelativoXml, nf.idnotafiscal, idempresa]
           );
         }
       }
