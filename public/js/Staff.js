@@ -11973,6 +11973,12 @@ function limparCamposStaff() {
         }
     });
 
+    // nmFuncionario é um <select> escondido (configurarBuscaTextoFuncionarioStaff) — o campo
+    // visível é um input de busca separado, sincronizado só pelo evento "change" do select.
+    // Zerar o .value acima não dispara esse evento, então o texto visível não some sozinho.
+    const buscaFuncionarioInputLimparTudo = document.querySelector(".nmFuncionario-busca-input");
+    if (buscaFuncionarioInputLimparTudo) buscaFuncionarioInputLimparTudo.value = "";
+
     const camposExtras = ["selectStatusCustoFechado", "statusCustoFechadoTexto"];
     camposExtras.forEach(id => {
         const el = document.getElementById(id);
@@ -12229,6 +12235,12 @@ async function limparCamposStaffParcial() {
                 $(campo).val('').trigger('change.select2');
         }
     });
+
+    // nmFuncionario é um <select> escondido (configurarBuscaTextoFuncionarioStaff) — o campo
+    // visível é um input de busca separado, sincronizado só pelo evento "change" do select.
+    // Zerar o .value acima não dispara esse evento, então o texto visível não some sozinho.
+    const buscaFuncionarioInput = document.querySelector(".nmFuncionario-busca-input");
+    if (buscaFuncionarioInput) buscaFuncionarioInput.value = "";
 
     // 4. Reset de Checkboxes (Unificado)
     const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100', 'viagem1Check', 'viagem2Check', 'viagem3Check'];
