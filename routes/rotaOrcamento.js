@@ -854,7 +854,14 @@ router.post(
       // INSERT (idorcamento/nrorcamento são gerados aqui, não vêm no body).
       // Um resumo com só alguns campos (como tinha antes) esconderia
       // justamente parcela/pavilhão — e é isso que precisa aparecer no log.
-      res.locals.dadosnovos = { ...req.body, idorcamento, nrorcamento };
+      res.locals.dadosnovos = {
+        ...req.body,
+        idorcamento,
+        nrorcamento,
+        idcliente: idCliente,
+        idevento: idEvento,
+        idlocalmontagem: idMontagem,
+      };
 
 
       // Retorne o nrOrcamento gerado para o frontend
@@ -2088,6 +2095,33 @@ router.get('/verificar-staff-alocado', autenticarToken(), contextoEmpresa, async
     }
 });
 
+// Quantos funcionários já foram efetivamente contratados (staffeventos) para
+// um setor+função dentro do orçamento — usado no frontend para bloquear a
+// redução da quantidade de uma linha abaixo do que já foi contratado.
+router.get('/qtd-staff-contratado', autenticarToken(), contextoEmpresa, async (req, res) => {
+    const { idorcamento, idfuncao, setor } = req.query;
+
+    if (!idorcamento || !idfuncao) {
+        return res.status(400).json({ error: "idorcamento e idfuncao são obrigatórios." });
+    }
+
+    try {
+        const { rows } = await pool.query(`
+            SELECT COUNT(DISTINCT se.idfuncionario) AS qtd
+            FROM staffeventos se
+            WHERE se.idorcamento = $1
+              AND se.idfuncao = $2
+              AND COALESCE(se.setor, '') = COALESCE($3, '')
+              AND se.statusstaff != 'Deletado'
+        `, [idorcamento, idfuncao, setor ?? '']);
+
+        res.status(200).json({ qtdContratada: Number(rows[0]?.qtd || 0) });
+    } catch (error) {
+        console.error("Erro ao verificar qtd de staff contratado:", error);
+        res.status(500).json({ error: "Erro ao verificar qtd de staff contratado.", detail: error.message });
+    }
+});
+
 // Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
 router.post('/verificar-duplicidade', async (req, res) => {
     const { idOrcamento, idFuncao, setor } = req.body;
@@ -2985,13 +3019,46 @@ router.put("/:id",
 
       // 3. Lidar com os ITENS do orçamento (orcamentoitens)
       const existingItemsResult = await client.query(
-        `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
+        `SELECT idorcamentoitem, idfuncao, setor, qtditens FROM orcamentoitens WHERE idorcamento = $1`,
         [idOrcamento]
       );
-      const existingItemIds = new Set(existingItemsResult.rows.map(r => Number(r.idorcamentoitem)));
+      const existingItemsById = new Map(
+        existingItemsResult.rows.map(r => [Number(r.idorcamentoitem), r])
+      );
+      const existingItemIds = new Set(existingItemsById.keys());
       const receivedItemIds = new Set(itens.filter(item => item.id).map(item => Number(item.id)));
 
+      // Conta quantos funcionários já foram contratados (staffeventos) para
+      // um setor+função dentro deste orçamento — usado para impedir excluir
+      // ou diminuir uma linha abaixo do que já foi efetivamente contratado.
+      const contarStaffContratado = async (idfuncao, setor) => {
+        const { rows } = await client.query(`
+          SELECT COUNT(DISTINCT se.idfuncionario) AS qtd
+          FROM staffeventos se
+          WHERE se.idorcamento = $1
+            AND se.idfuncao = $2
+            AND COALESCE(se.setor, '') = COALESCE($3, '')
+            AND se.statusstaff != 'Deletado'
+        `, [idOrcamento, idfuncao, setor]);
+        return Number(rows[0]?.qtd || 0);
+      };
+
       const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
+      for (const idItem of itemsToDelete) {
+        const itemAntigo = existingItemsById.get(idItem);
+        const qtdContratada = await contarStaffContratado(itemAntigo.idfuncao, itemAntigo.setor);
+        if (qtdContratada > 0) {
+          await client.query("ROLLBACK");
+          return res.status(409).json({
+            status: "staffContratado",
+            temStaffContratado: true,
+            idOrcamentoItem: idItem,
+            setor: itemAntigo.setor || "Geral",
+            qtdContratada,
+            message: `Não é possível excluir este item: já existem ${qtdContratada} pessoa(s) contratada(s) para a função/setor "${itemAntigo.setor || "Geral"}".`
+          });
+        }
+      }
       if (itemsToDelete.length > 0) {
         await client.query(
           `DELETE FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = ANY($2)`,
@@ -3009,6 +3076,29 @@ router.put("/:id",
         // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
         const valorBase = item.vlrbase ?? item.vlrdiaria;
         let setorItem = (item.setor || '').trim();
+
+        // Se o item já existe e a quantidade está sendo DIMINUÍDA, não permite reduzir
+        // abaixo do que já foi efetivamente contratado (staffeventos) para esse setor+função.
+        // Aumentar quantidade continua livre.
+        if (item.id) {
+          const itemAntigo = existingItemsById.get(Number(item.id));
+          const qtdAntiga = Number(itemAntigo?.qtditens ?? 0);
+          const qtdNova = Number(item.qtditens ?? 0);
+          if (itemAntigo && qtdNova < qtdAntiga) {
+            const qtdContratada = await contarStaffContratado(itemAntigo.idfuncao, itemAntigo.setor);
+            if (qtdNova < qtdContratada) {
+              await client.query("ROLLBACK");
+              return res.status(409).json({
+                status: "staffContratado",
+                temStaffContratado: true,
+                idOrcamentoItem: Number(item.id),
+                setor: itemAntigo.setor || "Geral",
+                qtdContratada,
+                message: `Não é possível reduzir esta linha para menos de ${qtdContratada}: já existem ${qtdContratada} pessoa(s) contratada(s) para a função/setor "${itemAntigo.setor || "Geral"}".`
+              });
+            }
+          }
+        }
 
         // Auto-enumera setores ADITIVO/BONIFICADO quando já existe item com mesmo setor+função.
         if (setorItem && /\b(ADITIVO|BONIFICADO)\b$/i.test(setorItem)) {
@@ -3604,6 +3694,14 @@ router.put("/:id",
 
 
 
+      res.locals.dadosnovos = {
+        ...req.body,
+        idorcamento: idOrcamento,
+        idcliente: idCliente,
+        idevento: idEvento,
+        idlocalmontagem: idMontagem,
+      };
+
       res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -3626,12 +3724,17 @@ router.put(
       const client = await pool.connect();
       try {
         const result = await client.query(
-          "SELECT status FROM orcamentos WHERE idorcamento = $1",
+          "SELECT status, idcliente, idevento, idmontagem FROM orcamentos WHERE idorcamento = $1",
           [idOrcamento]
         );
         return {
           dadosanteriores: result.rows[0]
-            ? { status: result.rows[0].status }
+            ? {
+                status: result.rows[0].status,
+                idcliente: result.rows[0].idcliente,
+                idevento: result.rows[0].idevento,
+                idlocalmontagem: result.rows[0].idmontagem,
+              }
             : null,
           idregistroalterado: idOrcamento,
         };
@@ -3655,7 +3758,7 @@ router.put(
         WHERE idorcamento = $1
         AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $1) = $2
         AND status != 'F'
-        RETURNING idorcamento, vlrcliente;
+        RETURNING idorcamento, vlrcliente, idcliente, idevento, idmontagem;
       `;
       const result = await client.query(updateQuery, [idOrcamento, idempresa]);
 
@@ -3686,7 +3789,10 @@ router.put(
       res.locals.acao = "fechou"; // Nova ação para o log
       res.locals.idregistroalterado = idOrcamento;
       res.locals.dadosnovos = {
-        status: 'F'
+        status: 'F',
+        idcliente: result.rows[0].idcliente,
+        idevento: result.rows[0].idevento,
+        idlocalmontagem: result.rows[0].idmontagem,
       };
 
       res.status(200).json({ message: "Orçamento fechado com sucesso!" });
@@ -3752,8 +3858,17 @@ router.delete(
           `SELECT * FROM orcamentoitens WHERE idorcamento = $1`,
           [idorcamento] // ✅ Todos os itens, não só o deletado
         );
+        const orcamentoResult = await client.query(
+          `SELECT idcliente, idevento, idmontagem FROM orcamentos WHERE idorcamento = $1`,
+          [idorcamento]
+        );
         return {
-          dadosanteriores: { itens: result.rows },
+          dadosanteriores: {
+            itens: result.rows,
+            idcliente: orcamentoResult.rows[0]?.idcliente,
+            idevento: orcamentoResult.rows[0]?.idevento,
+            idlocalmontagem: orcamentoResult.rows[0]?.idmontagem,
+          },
           idregistroalterado: idorcamentoitem,
         };
       } catch (error) {
@@ -3804,6 +3919,35 @@ router.delete(
           });
       }
 
+      // 1.1 Verifica se já existe staff contratado (staffeventos) para o setor/função
+      // deste item — se sim, não pode excluir a linha.
+      const itemParaExcluirResult = await client.query(
+        `SELECT idfuncao, setor FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = $2`,
+        [idorcamento, idorcamentoitem]
+      );
+      const itemParaExcluir = itemParaExcluirResult.rows[0];
+      if (itemParaExcluir) {
+        const { rows: staffRows } = await client.query(`
+          SELECT COUNT(DISTINCT se.idfuncionario) AS qtd
+          FROM staffeventos se
+          WHERE se.idorcamento = $1
+            AND se.idfuncao = $2
+            AND COALESCE(se.setor, '') = COALESCE($3, '')
+            AND se.statusstaff != 'Deletado'
+        `, [idorcamento, itemParaExcluir.idfuncao, itemParaExcluir.setor]);
+        const qtdContratada = Number(staffRows[0]?.qtd || 0);
+        if (qtdContratada > 0) {
+          await client.query("ROLLBACK");
+          return res.status(409).json({
+            status: "staffContratado",
+            temStaffContratado: true,
+            setor: itemParaExcluir.setor || "Geral",
+            qtdContratada,
+            message: `Não é possível excluir este item: já existem ${qtdContratada} pessoa(s) contratada(s) para a função/setor "${itemParaExcluir.setor || "Geral"}".`
+          });
+        }
+      }
+
       // 2. Procede com a deleção do item
       const deleteItemQuery = `
                 DELETE FROM orcamentoitens
@@ -3825,9 +3969,14 @@ router.delete(
 
       const client2 = await pool.connect();
       let itensRestantes = { rows: [] };
+      let orcamentoInfo = { rows: [] };
       try {
         itensRestantes = await client2.query(
           `SELECT * FROM orcamentoitens WHERE idorcamento = $1`,
+          [idorcamento]
+        );
+        orcamentoInfo = await client2.query(
+          `SELECT idcliente, idevento, idmontagem FROM orcamentos WHERE idorcamento = $1`,
           [idorcamento]
         );
       } finally {
@@ -3838,7 +3987,10 @@ router.delete(
       res.locals.idregistroalterado = idorcamentoitem;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = {
-        itens: itensRestantes.rows
+        itens: itensRestantes.rows,
+        idcliente: orcamentoInfo.rows[0]?.idcliente,
+        idevento: orcamentoInfo.rows[0]?.idevento,
+        idlocalmontagem: orcamentoInfo.rows[0]?.idmontagem,
       };
 
       res
