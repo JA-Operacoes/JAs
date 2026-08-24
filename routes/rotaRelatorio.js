@@ -947,11 +947,17 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         let vlrAjudaEmbutida = 0;
 
                         if (obspospgto) {
-                            const blocoRemovidas = (obspospgto.match(/Data\(s\)\s+removida\(s\)[^|]*/i) || [''])[0];
-                            const blocoInseridas = (obspospgto.match(/Data\(s\)\s+inserida\(s\)[^|]*/i) || [''])[0];
+                            // Cada linha de log é uma edição; "Data(s) removida(s)"/"inserida(s)" só
+                            // termina em "|" (quando as duas aparecem na MESMA edição) ou fim de linha
+                            // — nunca deve vazar pra linha seguinte (edições diferentes, em datas/horas
+                            // diferentes). Sem o \r\n no limite, uma única captura engolia todas as
+                            // linhas seguintes do obspospgto, somando remoções/inserções de edições
+                            // completamente distintas (bug visto nos idstaffevento 3523 e 3687).
+                            const blocosRemovidas = obspospgto.match(/Data\(s\)\s+removida\(s\)[^|\r\n]*/gi) || [];
+                            const blocosInseridas = obspospgto.match(/Data\(s\)\s+inserida\(s\)[^|\r\n]*/gi) || [];
 
-                            const qtdRemovidas = (blocoRemovidas.match(/\d{2}\/\d{2}\/\d{4}/g) || []).length;
-                            const qtdInseridas = (blocoInseridas.match(/\d{2}\/\d{2}\/\d{4}/g) || []).length;
+                            const qtdRemovidas = (blocosRemovidas.join(' ').match(/\d{2}\/\d{2}\/\d{4}/g) || []).length;
+                            const qtdInseridas = (blocosInseridas.join(' ').match(/\d{2}\/\d{2}\/\d{4}/g) || []).length;
 
                             const qtdLiquida = qtdInseridas - qtdRemovidas;
                             vlrAjudaEmbutida = qtdLiquida * vlrAjuda;
