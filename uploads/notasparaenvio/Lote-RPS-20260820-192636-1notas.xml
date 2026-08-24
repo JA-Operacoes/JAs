@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ns:PedidoEnvioLoteRPS xmlns:ns="http://www.prefeitura.sp.gov.br/nfe" xmlns:tipos="http://www.prefeitura.sp.gov.br/nfe/tipos" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <Cabecalho Versao="2">
+    <CPFCNPJRemetente><CNPJ>39781313000160</CNPJ></CPFCNPJRemetente>
+    <transacao>true</transacao>
+    <dtInicio>2026-08-20</dtInicio>
+    <dtFim>2026-08-20</dtFim>
+    <QtdRPS>1</QtdRPS>
+  </Cabecalho>
+    <RPS>
+      <Assinatura>kggynLRUisCrecV7ZL16msuckT9ZmYlufq8k8HRfm27dW9l+eysK9TJiWc0ZFabnIEeAfojqoISzPAk2cZjmNAnBTC9GRhjVFrRvP7HJ5yQpibRj8C+fl3W9cY0UvbDXhMRML1dbnchXMU/qg7aDUGAng8M38bGvCTU1CbhtYeCvQIfSfjH4qKUKPGYVM7wG3zX+lzRrKGeQtFhA4+82u8L4QWelv9T18A3i01LtbZ7Z/xy36/V6BXbQEpOMD6K/oRAW11D8s3McIp6pHbhKViIgNh4VMx36tWSNtQReUPPajNZuuycYQpyMoYT0nAy7st4Dl1IWNkJKfT/G3qvPEA==</Assinatura>
+      <ChaveRPS>
+        <InscricaoPrestador>67605893</InscricaoPrestador>
+        <SerieRPS>1</SerieRPS>
+        <NumeroRPS>1</NumeroRPS>
+      </ChaveRPS>
+      <TipoRPS>RPS</TipoRPS>
+      <DataEmissao>2026-08-20</DataEmissao>
+      <StatusRPS>N</StatusRPS>
+      <TributacaoRPS>T</TributacaoRPS>
+      <ValorDeducoes>0</ValorDeducoes>
+      <ValorPIS>48.75</ValorPIS>
+      <ValorCOFINS>225.00</ValorCOFINS>
+      <ValorINSS>0</ValorINSS>
+      <ValorIR>0</ValorIR>
+      <ValorCSLL>75.00</ValorCSLL>
+      <CodigoServico>07161</CodigoServico>
+      <AliquotaServicos>2.5000</AliquotaServicos>
+      <ISSRetido>false</ISSRetido>
+      <!-- CPFCNPJTomador ou InscricaoMunicipalTomador: com o CNPJ do
+           tomador já preenchido, o próprio sistema da prefeitura ignora
+           Endereco/RazaoSocial/InscEstadual do tomador (busca do cadastro
+           dele) — por isso não mandamos esses campos aqui, mais simples. -->
+      <CPFCNPJTomador><CNPJ>28721098000195</CNPJ></CPFCNPJTomador>
+      
+      
+      <Discriminacao>Nota fiscal referente ao contrato operacional do evento "B2B SUMMIT", realizado em 12/08/2026, conforme condições do Orçamento Nº 1421.
+Depósito bancário — Banco: BRADESCO (237) — Agência: 2833 — Conta: 26468-7 (Corrente)</Discriminacao>
+      <MunicipioPrestacao>3550308</MunicipioPrestacao>
+      <ValorInicialCobrado>7500.00</ValorInicialCobrado>
+      <ValorMulta>0</ValorMulta>
+      <ValorJuros>0</ValorJuros>
+      <ValorIPI>0</ValorIPI>
+      <ExigibilidadeSuspensa>0</ExigibilidadeSuspensa>
+      <NBS>118066300</NBS>
+      <!-- gpPrestacao: escolha entre local no Brasil (cLocPrestacao, código
+           IBGE) ou no exterior (cPaisPrestacao) — sempre Brasil por enquanto. -->
+      <cLocPrestacao>3550308</cLocPrestacao>
+      <IBSCBS>
+        <finNFSe>0</finNFSe>
+        <indFinal>0</indFinal>
+        <cIndOp>40101</cIndOp>
+        <indDest>0</indDest>
+        <valores>
+          <trib>
+            <gIBSCBS>
+              <cClassTrib>000001</cClassTrib>
+            </gIBSCBS>
+          </trib>
+        </valores>
+      </IBSCBS>
+    </RPS>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><ds:DigestValue>kx8myQiyo1BphijxPuVKSYUqMNc=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>sM3ml1ibgifbvixIYz9QXPo/LfU0jHgLcIsnZud+VF6uepuoXHs/VU1Y9/Vk8kVJP/ezXDQuxwxJR3IiGDDBM6Kgpn/zcT1/7eiU4pybAVcrf+gbgx9HvX64SWcIwxFCt5YXvTBR3gqT5GPAT5/7E4248ZWWztSUof3/8K+U1CkGF3XhFglbSAO/oCC6So8Zl41xLtu0bUw8neAC3CX6GCBnu2XyYSKFejw/vcVgT5E1T1DXdbiVVum9fALx2NzKmEk3r6WE/XpMWPXn16O/ZzZJ9an5sntbDvrWr8MEsEtfsVeKNyMh2FDW8e7oLs4/rYJbRTNs20rmgk4N+2dCwA==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>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</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature></ns:PedidoEnvioLoteRPS>
