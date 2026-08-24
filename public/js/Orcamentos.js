@@ -322,6 +322,7 @@ async function carregarEventosOrc() {
     let selects = document.querySelectorAll(".idEvento");
 
     selects.forEach((select) => {
+      const valorSelecionadoAtual = select.value;
       select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
       eventos.forEach((evento) => {
         let option = document.createElement("option");
@@ -332,6 +333,10 @@ async function carregarEventosOrc() {
         option.setAttribute("data-idEvento", evento.idevento);
         select.appendChild(option);
       });
+
+      if (valorSelecionadoAtual) {
+        select.value = String(valorSelecionadoAtual);
+      }
 
       select.addEventListener("change", function () {
         idEvento = this.value;
@@ -350,6 +355,7 @@ async function carregarLocalMontOrc() {
     let selects = document.querySelectorAll(".idMontagem");
 
     selects.forEach((select) => {
+      const valorSelecionadoAtual = select.value;
       // Adiciona as opções de Local de Montagem
       select.innerHTML =
         '<option value="">Selecione Local de Montagem</option>'; // Adiciona a opção padrão
@@ -366,6 +372,11 @@ async function carregarLocalMontOrc() {
 
         locaisDeMontagem = montagem;
       });
+
+      if (valorSelecionadoAtual) {
+        select.value = String(valorSelecionadoAtual);
+      }
+
       select.addEventListener("change", function () {
         //idMontagem = this.value; // O value agora é o ID
 
@@ -2032,11 +2043,19 @@ function adicionarLinhaOrc() {
             );
           } catch (error) {
             console.error("Erro ao deletar item:", error);
-            Swal.fire(
-              "Erro!",
-              `Não foi possível deletar o item: ${error.message}`,
-              "error"
-            );
+            if (error.corpo && error.corpo.temStaffContratado) {
+              await Swal.fire(
+                "Não é possível excluir",
+                error.corpo.message,
+                "warning"
+              );
+            } else {
+              Swal.fire(
+                "Erro!",
+                `Não foi possível deletar o item: ${error.message}`,
+                "error"
+              );
+            }
           }
         }
       }
@@ -4940,7 +4959,7 @@ async function verificaOrcamento() {
       } catch (error) {
           console.error("Erro capturado:", error);
 
-          let erroData = null;
+          let erroData = (error.corpo && typeof error.corpo === "object") ? error.corpo : null;
           let errorMessage = "";
           let swalTitle = "Erro!";
           let swalIcon = "error";
@@ -4969,6 +4988,17 @@ async function verificaOrcamento() {
                       message: errorMessage
                   };
               }
+          }
+
+          if (erroData && (erroData.status === "staffContratado" || erroData.temStaffContratado)) {
+              await Swal.fire({
+                  title: 'Não é possível alterar este item',
+                  html: erroData.message || `Já existem ${erroData.qtdContratada || ''} pessoa(s) contratada(s) para a função/setor "${erroData.setor || 'Geral'}".`,
+                  icon: 'warning',
+                  confirmButtonText: 'OK',
+                  confirmButtonColor: '#e67e22'
+              });
+              return;
           }
 
           if (erroData && (erroData.status === "duplicado" || erroData.isDuplicado)) {
@@ -6480,11 +6510,40 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       i.value = parseInt(i.value) + 1;
       recalcularLinha(newRow);
     });
-    newRow.querySelector(".decrement")?.addEventListener("click", () => {
+    newRow.querySelector(".decrement")?.addEventListener("click", async () => {
       const chk = newRow.querySelector(".chk-cache-fechado");
       if (chk && chk.checked) return;
       const i = newRow.querySelector(".qtdProduto input");
-      if (parseInt(i.value) > 0) { i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }
+      const qtdAtual = parseInt(i.value);
+      if (qtdAtual <= 0) return;
+
+      const idOrcamentoItem = newRow.dataset.idorcamentoitem;
+      const idFuncao = newRow.dataset.idfuncao;
+      if (idOrcamentoItem && idFuncao) {
+        const idOrcamentoPrincipal = document.getElementById("idOrcamento")?.value;
+        const setorAtual = newRow.querySelector(".setor-input")?.value?.trim() || "";
+        try {
+          const resultado = await fetchComToken(
+            `/orcamentos/qtd-staff-contratado?idorcamento=${idOrcamentoPrincipal}&idfuncao=${idFuncao}&setor=${encodeURIComponent(setorAtual)}`
+          );
+          const qtdContratada = resultado?.qtdContratada || 0;
+          if (qtdAtual - 1 < qtdContratada) {
+            await Swal.fire({
+              title: "Não é possível reduzir",
+              html: `Já existem <b>${qtdContratada}</b> pessoa(s) contratada(s) para a função/setor "${setorAtual || "Geral"}". Não é possível reduzir a quantidade abaixo desse valor.`,
+              icon: "warning",
+              confirmButtonText: "OK",
+              confirmButtonColor: "#e67e22",
+            });
+            return;
+          }
+        } catch (err) {
+          console.error("Erro ao verificar staff contratado:", err);
+        }
+      }
+
+      i.value = qtdAtual - 1;
+      recalcularLinha(newRow);
     });
 
     const itemDateInput = newRow.querySelector(".datas-item");
@@ -6521,7 +6580,13 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
               newRow.remove();
               recalcularTotaisGerais();
               Swal.fire("Deletado!", "", "success");
-            } catch (err) { Swal.fire("Erro!", err.message, "error"); }
+            } catch (err) {
+              if (err.corpo && err.corpo.temStaffContratado) {
+                Swal.fire("Não é possível excluir", err.corpo.message, "warning");
+              } else {
+                Swal.fire("Erro!", err.message, "error");
+              }
+            }
           }
         }
       });
