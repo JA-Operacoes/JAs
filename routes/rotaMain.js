@@ -2247,7 +2247,9 @@ router.get('/saldos-inativacao-pendentes', autenticarToken(), contextoEmpresa, a
                    f.nome AS nomefuncionario, se.idevento, e.nmevento,
                    se.datasevento, caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
                    se.vlrtotcache, se.vlrtotajdcusto,
-                   se.statuspgto, se.statuspgtoajdcto, se.statuspgtocaixinha AS statuscaixinha
+                   -- statuspgtocaixinha (flag única do registro) descontinuado — pagamento de
+                   -- caixinha já vem somado por item, direto do array.
+                   se.statuspgto, se.statuspgtoajdcto, caixinha_valor_pago(se.caixinha) AS vlrcaixinhapago
             FROM solicitacoes s
             LEFT JOIN funcionarios f ON f.idfuncionario = s.idfuncionario
             LEFT JOIN staffeventos se ON se.idstaffevento = s.idregistroalterado
@@ -3426,8 +3428,12 @@ router.get("/vencimentos", async (req, res) => {
             const itensCaixinha = caixinhaArray
                 .filter(it => it.status === 'Autorizado' || it.status === 'Pendente')
                 .map(it => ({
+                    iditem: it.iditem,
                     valor: parseFloat(it.valor) || 0,
                     status: it.status,
+                    // Pagamento agora é por item (statuspgtocaixinha do registro inteiro
+                    // descontinuado) — cada item carrega o próprio Pendente/Pago/Suspenso.
+                    statuspgto: it.statuspgto || 'Pendente',
                     justificativa: it.justificativa || '',
                     comprovante: it.comprovante || null
                 }));
@@ -3629,7 +3635,10 @@ async function calcularSaldoAReceberPendente(idfuncionario, idempresa, excluirId
                   AND ($4::int IS NULL OR se.idevento = $4::int)
             ), 0) AS ajuda_total,
             COALESCE((
-                SELECT ${totalExpr('se.statuspgtocaixinha', 'se.vlrcaixinha')}
+                -- statuspgtocaixinha/vlrcaixinha (colunas congeladas) descontinuados — soma
+                -- direto dos itens Autorizado no array vivo (mesma regra de "conta a menos que
+                -- Rejeitado": item não-Autorizado já não entra na soma de caixinha_valor_autorizado).
+                SELECT SUM(caixinha_valor_autorizado(se.caixinha))
                 FROM staffeventos se
                 JOIN staffempresas sem ON sem.idstaff = se.idstaff
                 WHERE se.idfuncionario = $1 AND sem.idempresa = $2
@@ -3661,13 +3670,13 @@ router.post("/vencimentos/update-status",
     logMiddleware("Vencimentos", {
         buscarDadosAnteriores: async (req) => {
             const { idStaff } = req.body;
-            const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuspgtocaixinha FROM staffeventos WHERE idstaffevento = $1`;
+            const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuspgtocaixinha, caixinha FROM staffeventos WHERE idstaffevento = $1`;
             const result = await pool.query(query, [idStaff]);
             return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
         }
-    }), 
+    }),
     async (req, res) => {
-        let { idStaff, tipo, novoStatus, idlog_origem, idEventoContexto, confirmarDiferenca } = req.body;
+        let { idStaff, tipo, novoStatus, idlog_origem, idEventoContexto, confirmarDiferenca, iditem } = req.body;
 
         const idempresa = req.idempresa;
         const idUsuarioLogado = req.usuario?.idusuario;
@@ -3772,44 +3781,61 @@ router.post("/vencimentos/update-status",
             }
         }
 
-        // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
+        // 1. Mapeamento da Coluna — Caixinha não é mais coluna única, é por item (ver abaixo)
         let coluna = "";
         if (tipo === 'Cache') {
             coluna = 'statuspgto';
         } else if (tipo === 'Ajuda') {
             coluna = 'statuspgtoajdcto';
         } else if (tipo === 'Caixinha') {
-            // Bug corrigido: isto é status de PAGAMENTO ("Pago"/"Suspenso"/"Rejeitado"), não de
-            // autorização — statuscaixinha (autorização: Pendente/Autorizado/Rejeitado, hoje
-            // descontinuada em favor do array `caixinha`) nunca deveria receber esses valores.
-            coluna = 'statuspgtocaixinha';
+            coluna = 'caixinha'; // sinaliza o branch por-item abaixo, não é escrita direta na coluna
         }
 
         if (!coluna) {
             return res.status(400).json({ success: false, error: "Tipo de pagamento inválido." });
         }
 
+        if (tipo === 'Caixinha' && !iditem) {
+            return res.status(400).json({ success: false, error: "iditem obrigatório para atualizar pagamento de Caixinha." });
+        }
+
         // 2. Lógica de Padronização do Banco (Ex: "Pago 50%" -> "Pago50")
         let statusFinal = novoStatus;
         if (statusFinal === "Pago 100%") {
-            statusFinal = "Pago"; 
+            statusFinal = "Pago";
         } else if (statusFinal.includes("%")) {
             statusFinal = statusFinal.replace("%", "").replace(/\s/g, "");
         }
 
         try {
-            const result = await pool.query(
-                `UPDATE staffeventos se SET ${coluna} = $1 
-                 FROM staffempresas sem
-                 WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
-                 RETURNING se.*`, // Adicionado o RETURNING para preencher os dados novos no log
-                [statusFinal, idStaff, idempresa]
-            );        
-            
+            // Caixinha: statuspgtocaixinha (flag única do registro) foi descontinuada — o
+            // pagamento agora é um campo (statuspgto) dentro do item específico do array
+            // `caixinha`, identificado por iditem. Cache/Ajuda continuam como coluna única.
+            const result = tipo === 'Caixinha'
+                ? await pool.query(
+                    `UPDATE staffeventos se SET caixinha = (
+                        SELECT jsonb_agg(
+                            CASE WHEN elem->>'iditem' = $4 THEN elem || jsonb_build_object('statuspgto', $1::text) ELSE elem END
+                        )
+                        FROM jsonb_array_elements(se.caixinha) elem
+                     )
+                     FROM staffempresas sem
+                     WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
+                     RETURNING se.*`,
+                    [statusFinal, idStaff, idempresa, String(iditem)]
+                )
+                : await pool.query(
+                    `UPDATE staffeventos se SET ${coluna} = $1
+                     FROM staffempresas sem
+                     WHERE se.idstaffevento = $2 AND sem.idstaff = se.idstaff AND sem.idempresa = $3
+                     RETURNING se.*`, // Adicionado o RETURNING para preencher os dados novos no log
+                    [statusFinal, idStaff, idempresa]
+                );
+
             if (result.rowCount > 0) {
                 res.locals.idlog_origem = idlog_origem;
                 res.locals.acao = 'atualizou';
-                res.locals.idregistroalterado = idStaff; 
+                res.locals.idregistroalterado = idStaff;
                 res.locals.dadosnovos = result.rows[0];
                 res.json({ success: true, statusSalvo: statusFinal });
             } else {

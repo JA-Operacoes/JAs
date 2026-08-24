@@ -555,25 +555,10 @@
                       </div>
                   </div>
 
-                  <!-- Linha 2: Caixinha | Controle de Gastos | Nota Fiscal -->
-                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
-                      <h5>Comprovante de Caixinha</h5>
-                      <div class="containerPDF">
-                          <label for="fileCaixinha" class="footerPDF" name="footerPDF[]" id="labelFileCaixinha">
-                              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                  <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                  <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                              </svg>
-                              <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                          </label>
-                          <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtocaixinha" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                      </div>
-                      <div id="comprovanteCaixinhaDisplay" style="display: none; margin-top: 10px;">
-                          <div id="linkContainerCaixinha"></div>
-                      </div>
-                  </div>
-
-                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
+                  <!-- Linha 2: Controle de Gastos | Nota Fiscal — comprovante de Caixinha não é
+                       mais um upload único aqui: cada caixinha solicitada tem seu próprio campo
+                       de comprovante na lista dentro do container "Caixinha" (ver listaCaixinhas). -->
+                  <div class="collumn" style="flex: 0 0 calc(50% - 6px); min-width: 0;">
                       <h5>Controle de Gastos</h5>
                       <div class="containerPDF">
                           <label for="fileControleGastos" class="footerPDF" name="footerPDF[]" id="labelFileControleGastos">
@@ -590,7 +575,7 @@
                       </div>
                   </div>
 
-                  <div class="collumn" style="flex: 0 0 calc(33.33% - 8px); min-width: 0;">
+                  <div class="collumn" style="flex: 0 0 calc(50% - 6px); min-width: 0;">
                       <h5>Nota Fiscal</h5>
                       <div class="containerPDF">
                           <label for="fileNotaFiscal" class="footerPDF" name="footerPDF[]" id="labelFileNotaFiscal">
@@ -610,7 +595,6 @@
                   <input type="hidden" name="limparComprovanteCache" id="limparComprovanteCache" value="false">
                   <input type="hidden" name="limparComprovanteAjdCusto" id="limparComprovanteAjdCusto" value="false">
                   <input type="hidden" name="limparComprovanteAjdCusto2" id="limparComprovanteAjdCusto2" value="false">
-                  <input type="hidden" name="limparComprovanteCaixinha" id="limparComprovanteCaixinha" value="false">
                   <input type="hidden" name="limparComprovanteControleGastos" id="limparComprovanteControleGastos" value="false">
                   <input type="hidden" name="limparComprovanteNotaFiscal" id="limparComprovanteNotaFiscal" value="false">
 
