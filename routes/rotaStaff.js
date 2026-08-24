@@ -29,8 +29,8 @@ const parseFloatOrNull = (v) => {
 //
 // Regra de negócio: caixinha é recurso pro funcionário usar DURANTE o evento — nunca
 // pode ser criada/autorizada depois que o cachê já foi pago (statuspgto = Pago/Pago50)
-// OU depois que a própria caixinha já foi paga (statuspgtocaixinha = Pago) — uma vez
-// pago, a "gaveta" da caixinha fecha, não entra mais item novo.
+// OU depois que algum item da própria caixinha já foi pago (item.statuspgto = Pago) —
+// uma vez pago, a "gaveta" daquele item fecha, não entra mais item novo no registro.
 function normalizarCaixinha(body, req, oldRow) {
     const oldItens = Array.isArray(oldRow?.caixinha)
         ? oldRow.caixinha
@@ -46,9 +46,16 @@ function normalizarCaixinha(body, req, oldRow) {
                 iditem: String(item.iditem || ''),
                 valor: parseFloatOrNull(item.valor),
                 status: String(item.status || 'Pendente').trim(),
+                // Pagamento agora é por item (statuspgtocaixinha do registro inteiro foi
+                // descontinuado, ver PUT/POST abaixo) — Pendente/Pago/Suspenso, sem Pago50.
+                statuspgto: String(item.statuspgto || 'Pendente').trim(),
                 justificativa: String(item.justificativa || '').trim(),
                 data: item.data || null,
-                comprovante: item.comprovante || null // path já existente, reenviado pelo client
+                comprovante: item.comprovante || null, // path já existente, reenviado pelo client
+                // Marcador transiente (removido antes de salvar, ver abaixo) — sem ele, o
+                // item chegaria sem comprovante e a rede de segurança (linha ~82) reaproveitaria
+                // o antigo, desfazendo a remoção pedida pelo usuário.
+                _comprovanteRemovido: !!item.comprovanteRemovido
             }));
         }
     } catch (e) {
@@ -73,17 +80,31 @@ function normalizarCaixinha(body, req, oldRow) {
     });
 
     // Item sem comprovante novo mantém o que já tinha (rede de segurança — o client já
-    // reenvia esse path no JSON normalmente).
+    // reenvia esse path no JSON normalmente). Mesma rede pro statuspgto, caso o client não
+    // mande (ex.: item recém-criado no mesmo submit que não passou pelo select de pagamento).
+    // Exceção: item marcado _comprovanteRemovido pula a rede de segurança de propósito — é
+    // uma remoção explícita (só Master, com justificativa, ver onRemoverComprovanteCaixinhaItem
+    // no front) — e o arquivo antigo entra na lista de apagar do disco.
     itens.forEach(it => {
-        if (!it.comprovante && oldPorIditem.has(it.iditem)) {
+        if (it._comprovanteRemovido) {
+            const antigo = oldPorIditem.get(it.iditem)?.comprovante;
+            if (antigo && antigo !== it.comprovante) arquivosAntigosParaApagar.push(antigo);
+            it.comprovante = null;
+        } else if (!it.comprovante && oldPorIditem.has(it.iditem)) {
             it.comprovante = oldPorIditem.get(it.iditem).comprovante || null;
         }
+        if (!it.statuspgto && oldPorIditem.has(it.iditem)) {
+            it.statuspgto = oldPorIditem.get(it.iditem).statuspgto || 'Pendente';
+        }
+        delete it._comprovanteRemovido;
     });
 
     const statusPgtoCacheCheck = String(body.statuspgto || oldRow?.statuspgto || '').trim().toUpperCase();
-    const statusPgtoCaixinhaCheck = String(body.statuspgtocaixinha || oldRow?.statuspgtocaixinha || '').trim().toUpperCase();
     const cachePago = statusPgtoCacheCheck === 'PAGO' || statusPgtoCacheCheck === 'PAGO50';
-    const caixinhaPaga = statusPgtoCaixinhaCheck === 'PAGO' || statusPgtoCaixinhaCheck === 'PAGO50';
+    // Pagamento agora é por item — basta UM item antigo já pago pra fechar a gaveta pro
+    // registro inteiro (mesma regra de antes, só que a fonte deixou de ser a flag única
+    // statuspgtocaixinha do registro e passou a ser o array).
+    const caixinhaPaga = oldItens.some(it => String(it.statuspgto || '').trim().toUpperCase() === 'PAGO');
     if (cachePago || caixinhaPaga) {
         const itemNovo = itens.some(it => it.iditem && !oldPorIditem.has(it.iditem));
         const novaAutorizacao = itens.some(it =>
@@ -2187,13 +2208,16 @@ router.put("/:idStaffEvento",
                 // Autorizados), e o status que importa aqui é o de PAGAMENTO (statuspgtocaixinha),
                 // não o de autorização (statuscaixinha é Pendente/Autorizado/Rejeitado, nunca "Pago").
                 const oldItensCaixinha = Array.isArray(old.caixinha) ? old.caixinha : [];
-                const oldVlrCaixinha = oldItensCaixinha
-                    .filter(it => it.status === 'Autorizado')
+                // Pagamento de caixinha agora é por item (statuspgto), sem percentual — soma
+                // direto os itens Autorizado E Pago (statuspgtocaixinha do registro inteiro
+                // foi descontinuado).
+                const oldVlrCaixinhaPago = oldItensCaixinha
+                    .filter(it => it.status === 'Autorizado' && String(it.statuspgto || '').trim().toUpperCase() === 'PAGO')
                     .reduce((acc, it) => acc + (parseFloat(it.valor) || 0), 0);
 
                 const valorJaPago = calcPagoBase(old.statuspgto, oldVlrCache)
                     + calcPagoBase(old.statuspgtoajdcto, oldVlrAjdCusto)
-                    + calcPagoBase(old.statuspgtocaixinha, oldVlrCaixinha);
+                    + oldVlrCaixinhaPago;
 
                 if (valorJaPago > 0.01) {
                     // Trava anti-duplicação: se este idstaffevento já tem um crédito/débito não
@@ -2296,7 +2320,9 @@ router.put("/:idStaffEvento",
                     descDiariaDobradaFinalText, body.descmeiadiaria,
                     paths.cache, paths.ajd, paths.ajd50,
                     body.nivelexperiencia, body.qtdpessoas || 0, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
-                    body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
+                    // statuspgtocaixinha descontinuado — congelado no valor que já tinha antes
+                    // (pagamento agora é por item, dentro do array `caixinha`, ver normalizarCaixinha).
+                    body.statuspgtoajdcto, old.statuspgtocaixinha, body.idorcamento, totalCache, totalAjdCusto,
                     body.statuscustofechado, body.desccustofechado, obsPosPosPgtoFinal, idStaffEvento, idempresa, body.statusstaff || null,
                     paths.contgastos, paths.notafiscal, (body.obsgeral || null), obsLogSistemaFinal,
                     paths.inativardeletar, paths.cache50, JSON.stringify(caixinha)
@@ -2342,7 +2368,11 @@ router.put("/:idStaffEvento",
                 if (item.campo === 'statuscaixinha') {
                     // Caixinha não tem uma data única natural pra casar com solicitacoes (duas
                     // caixinhas podem nascer no mesmo dia) — casa por chaveitem (iditem) em vez
-                    // de dtsolicitada, ao contrário de diária dobrada/meia diária abaixo.
+                    // de dtsolicitada, ao contrário de diária dobrada/meia diária abaixo. Por já
+                    // casar por chaveitem único (não por categoria_log genérico), o UPDATE abaixo
+                    // nunca precisou de filtro por status — já sincroniza reversões (Autorizado ->
+                    // Rejeitado/Pendente feitas direto no Staff) corretamente, sem risco de tocar
+                    // em histórico de outro item.
                     for (const entrada of (item.itensCaixinha || [])) {
                         const statusDec = (entrada.status || '').trim();
                         if (!entrada.iditem || !statusDec) continue;
@@ -2417,6 +2447,10 @@ router.put("/:idStaffEvento",
                         }                 
 
                         // CORREÇÃO: Usando o operador ANY para comparar data com array de datas (date[])
+                        // status IN ('Pendente','Autorizado') em vez de só 'Pendente': permite sincronizar
+                        // quando o usuário reverte a decisão direto no Staff (ex.: Autorizado -> Rejeitado)
+                        // — sem isso a solicitação ficava travada em Autorizado pra sempre, porque o UPDATE
+                        // só combinava linhas ainda Pendentes. Rejeitado (histórico já fechado) fica de fora.
                         const updateRes = await client.query(
                             `UPDATE public.solicitacoes
                              SET status = $1::varchar,
@@ -2435,7 +2469,7 @@ router.put("/:idStaffEvento",
                                AND categoria_log = $5::varchar
                                AND idempresa = $6::integer
                                AND $7::date = ANY(dtsolicitada)
-                               AND status = 'Pendente'`,
+                               AND status IN ('Pendente', 'Autorizado')`,
                             [statusDec, idOrcamentoRegistro, idUsuarioLogado, idStaffEvento, item.campo, idempresa, entrada.data]
                         );
 
@@ -2584,27 +2618,39 @@ router.put("/:idStaffEvento",
                     }
 
                     // 1. Tenta atualizar. Incluímos o idusuariosolicitante no SET para garantir que ele seja gravado.
+                    // status IN ('Pendente','Autorizado') em vez de só 'Pendente': permite sincronizar quando
+                    // o usuário reverte a decisão direto no Staff (ex.: Autorizado -> Rejeitado) — sem isso a
+                    // solicitação ficava travada em Autorizado pra sempre. Rejeitado (histórico já fechado)
+                    // fica de fora. "status IS DISTINCT FROM" evita tocar dtresposta/responsável quando o
+                    // valor reenviado é o mesmo que já estava (save de rotina, sem mudança real nesse campo).
                     const updateRes = await client.query(
                         `UPDATE public.solicitacoes
                         SET status = $1::varchar,
-                            dtresposta = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE CURRENT_TIMESTAMP END,
-                            idusuarioresponsavel = CASE WHEN $1::varchar = 'Pendente' THEN NULL ELSE $2::integer END,
+                            dtresposta = CASE
+                                WHEN $1::varchar = 'Pendente' THEN NULL
+                                WHEN status IS DISTINCT FROM $1::varchar THEN CURRENT_TIMESTAMP
+                                ELSE dtresposta
+                            END,
+                            idusuarioresponsavel = CASE
+                                WHEN $1::varchar = 'Pendente' THEN NULL
+                                WHEN status IS DISTINCT FROM $1::varchar THEN $2::integer
+                                ELSE idusuarioresponsavel
+                            END,
                             vlrsolicitado = $3,
                             justificativa = $4::text,
                             idusuariosolicitante = $2::integer -- Adicionado para não ficar NULL no update
                         WHERE idregistroalterado = $5::integer
                         AND categoria_log = $6::varchar
                         AND idempresa = $7::integer
-                        AND status = 'Pendente'`,
+                        AND status IN ('Pendente', 'Autorizado')`,
                         [item.status, idUsuarioLogado, item.valor, item.desc, idStaffEvento, item.campo, idempresa]
                     );
 
-                    // 🌟 GUARDA: Cachê Fechado/Liberado ('statuscustofechado') usa a MESMA categoria_log
-                    // pros dois níveis. O UPDATE acima só afeta status='Pendente', então uma linha
-                    // AUTORIZADA nunca é tocada por ele. Cobre o caso de usuário trocando de
-                    // Fechado/Liberado para um nível padrão (Base/Junior/Pleno/Senior) tendo uma
-                    // solicitação AUTORIZADA ou PENDENTE em aberto (envia 'Rejeitado' explícito, ver
-                    // statusFechadoParaEnvio no Staff.js) — sem isso a Autorizada ficaria intocada.
+                    // 🌟 GUARDA: rede de segurança secundária — o UPDATE acima já cobre a maioria dos
+                    // casos de reversão (agora aceita status='Autorizado' também, não só 'Pendente').
+                    // Isto só dispara se, por algum motivo, updateRes não encontrou nenhuma linha
+                    // Pendente/Autorizado pra atualizar mas ainda existe uma Autorizada perdida (ex.:
+                    // idempresa/categoria_log divergente) — garante que ela não fique presa pra sempre.
                     if (item.campo === 'statuscustofechado' && ['Pendente', 'Rejeitado'].includes(item.status) && updateRes.rowCount === 0) {
                         const autorizadaAnteriorRes = await client.query(
                             `UPDATE public.solicitacoes
@@ -3901,7 +3947,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             statusmeiadiaria, JSON.stringify(dtdiariadobrada),
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
             JSON.stringify(dtmeiadiaria), descDiariaDobradaFinalText, descmeiadiaria, nivelexperiencia, qtdpessoas,
-            idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
+            // statuspgtocaixinha descontinuado — registro novo não tem pagamento ainda,
+            // pagamento agora é por item, dentro do array `caixinha` (statuspgto de cada item).
+            idequipe, nmequipe, tipoajudacustoviagem, null, statuspgtoajdcto, idorcamento,
             parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado, desccustofechado, obspospgto, obsgeral,
             statusStaff, req.files?.comppgtocontgastos ? `/uploads/staff_comprovantes/${req.files.comppgtocontgastos[0].filename}` : null,
             req.files?.compnotafiscal?.[0] ? `/uploads/staff_comprovantes/${req.files.compnotafiscal[0].filename}` : null,
