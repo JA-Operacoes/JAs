@@ -351,18 +351,33 @@
                     <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotalAjdCusto" name="vlrTotalAjdCusto[]"  readonly data-permanent-readonly="true" required>
                     <label>Valor Total Ajuda Custo</label>
                   </div>
-                  <div class="form2">                      
+                  <div class="form2">
                     <input type="text" class="preenchido" name="statusPgtoAjudaCusto" id="statusPgtoAjudaCusto" required readonly data-permanent-readonly="true" >
+                    <select id="selectStatusPgtoAjudaCusto" class="preenchido" style="display:none;">
+                      <option value="" disabled selected>Status do Pgto Ajuda Custo</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Pago">Pago</option>
+                      <option value="Pago50">Pago 50%</option>
+                      <option value="Suspenso">Suspenso</option>
+                      <option value="Rejeitado">Rejeitado</option>
+                    </select>
                     <label for="statusPgtoAjudaCusto">Status do Pgto Ajuda Custo</label>
-                  </div> 
+                  </div>
                   <div class="form2">
                     <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotalCache" name="vlrTotalCache[]" required readonly data-permanent-readonly="true">
                     <label>Valor Total Cachê</label>
                   </div>
-                  <div class="form2">                      
+                  <div class="form2">
                     <input type="text" class="preenchido" name="statusPgto" id="statusPgto" required readonly data-permanent-readonly="true">
+                    <select id="selectStatusPgto" class="preenchido" style="display:none;">
+                      <option value="" disabled selected>Status do Pgto Cachê</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Pago">Pago</option>
+                      <option value="Suspenso">Suspenso</option>
+                      <option value="Rejeitado">Rejeitado</option>
+                    </select>
                     <label for="statusPgto">Status do Pgto Cachê</label>
-                  </div> 
+                  </div>
                   <div class="form2">
                     <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly data-permanent-readonly="true" required>
                     <label>Valor Total Geral</label>

@@ -24,8 +24,19 @@ const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
 const temPermissaoDevs = temPermissao("Staff", "devs");
-// Só Master e Supremo podem trocar o status de cada Caixinha — os demais só visualizam.
-const temPermissaoCaixinhaEditavel = temPermissaoMaster || temPermissao("Staff", "supremo");
+// Só Master e Supremo podem trocar manualmente o status de Caixinha e o status
+// de pagamento de Cachê/Ajuda de Custo — os demais só visualizam (input readonly).
+const temPermissaoMasterOuSupremo = temPermissaoMaster || temPermissao("Staff", "supremo");
+const temPermissaoCaixinhaEditavel = temPermissaoMasterOuSupremo;
+
+// Normaliza o status de pagamento (cru do banco, ex.: "PAGO", "pago 50%") para
+// o value exato usado nas <option> dos selects de Status do Pgto (Cachê/Ajuda).
+function normalizarStatusPgtoParaSelect(valor) {
+    const semEspacoOuPercent = (valor || '').trim().toUpperCase().replace(/\s|%/g, '');
+    if (!semEspacoOuPercent) return 'Pendente';
+    if (semEspacoOuPercent === 'PAGO50') return 'Pago50';
+    return semEspacoOuPercent.charAt(0) + semEspacoOuPercent.slice(1).toLowerCase();
+}
 
 
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
@@ -1877,6 +1888,21 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     statusPagtoInput.value = (eventData.statuspgto || 'Pendente').toUpperCase();
     window.statusPgtoCacheOriginalDoBanco = eventData.statuspgto;
     statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase();
+
+    // Master/Supremo podem alterar manualmente o status de pagamento de Cachê e
+    // Ajuda de Custo — mostra o select nesse caso; os demais só veem o input (readonly).
+    const selectStatusPgtoEl = document.getElementById('selectStatusPgto');
+    const selectStatusPgtoAjudaCustoEl = document.getElementById('selectStatusPgtoAjudaCusto');
+    if (selectStatusPgtoEl) {
+        selectStatusPgtoEl.value = normalizarStatusPgtoParaSelect(eventData.statuspgto);
+        statusPagtoInput.style.display = temPermissaoMasterOuSupremo ? 'none' : '';
+        selectStatusPgtoEl.style.display = temPermissaoMasterOuSupremo ? 'block' : 'none';
+    }
+    if (selectStatusPgtoAjudaCustoEl) {
+        selectStatusPgtoAjudaCustoEl.value = normalizarStatusPgtoParaSelect(eventData.statuspgtoajdcto);
+        statusPgtoAjudaCustoInput.style.display = temPermissaoMasterOuSupremo ? 'none' : '';
+        selectStatusPgtoAjudaCustoEl.style.display = temPermissaoMasterOuSupremo ? 'block' : 'none';
+    }
 
     // Checkboxes de status do staff
     const statusStaff = (eventData.statusstaff || '').trim();
@@ -4269,6 +4295,35 @@ async function verificaStaff() {
     })
    
    
+    // Master/Supremo alterando manualmente o status de pagamento do Cachê — sincroniza
+    // o select com o input escondido (é o input que o restante do código/envio lê).
+    document.getElementById('selectStatusPgto')?.addEventListener('change', function(e) {
+        const novoStatus = e.target.value.toUpperCase();
+        statusPagtoInput.value = novoStatus;
+        statusPagtoInput.classList.remove('pendente', 'pago', 'suspenso');
+        if (novoStatus === 'PENDENTE') statusPagtoInput.classList.add('pendente');
+        else if (novoStatus === 'PAGO') statusPagtoInput.classList.add('pago');
+        else if (novoStatus === 'SUSPENSO') statusPagtoInput.classList.add('suspenso');
+    });
+
+    // Idem para a Ajuda de Custo — aqui também precisa manter o dataset.status (valor
+    // "cru", ex. PAGO50) separado do texto exibido no input (ex. "PAGO 50%"), porque é
+    // o dataset que o resto do código lê pra saber o status real (ver linha ~1960).
+    document.getElementById('selectStatusPgtoAjudaCusto')?.addEventListener('change', function(e) {
+        const novoStatus = e.target.value.toUpperCase();
+        statusPgtoAjudaCustoInput.dataset.status = novoStatus;
+        statusPgtoAjudaCustoInput.classList.remove('pendente', 'pago', 'pago50', 'suspenso');
+        if (novoStatus === 'PAGO50') {
+            statusPgtoAjudaCustoInput.value = 'PAGO 50%';
+            statusPgtoAjudaCustoInput.classList.add('pago50');
+        } else {
+            statusPgtoAjudaCustoInput.value = novoStatus;
+            if (novoStatus === 'PENDENTE') statusPgtoAjudaCustoInput.classList.add('pendente');
+            else if (novoStatus === 'PAGO') statusPgtoAjudaCustoInput.classList.add('pago');
+            else if (novoStatus === 'SUSPENSO') statusPgtoAjudaCustoInput.classList.add('suspenso');
+        }
+    });
+
     document.getElementById('selectStatusCaixinha')?.addEventListener('change', async function(e) {
         const novoStatus = e.target.value;
         const inputDescCaixinha = document.getElementById('descCaixinha');
