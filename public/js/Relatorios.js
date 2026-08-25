@@ -689,7 +689,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ', 'VLR ADICIONAL','VLR CAIXINHA', 'TOT DIÁRIAS', 'QTD AJUDA', 'VLR AJUDA', 'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'CRÉDITO/DÉBITO', 'STATUS SOLICITAÇÃO', 'STATUS CACHÊ', 'STATUS AJUDA','STATUS CX','COMP CAIXINHA', 'COMP CACHÊ', 'COMP AJUDA' ];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD CACHÊ', 'VLR CACHÊ', 'VLR ADICIONAL','VLR CAIXINHA', 'TOT DIÁRIAS', 'QTD AJUDA', 'VLR AJUDA', 'TOT AJUDA', 'TOT GERAL', 'CRÉDITO/DÉBITO', 'TOT PAGAR', 'STATUS SOLICITAÇÃO', 'STATUS CACHÊ', 'STATUS AJUDA','STATUS CX','COMP CAIXINHA', 'COMP CACHÊ', 'COMP AJUDA' ];
             } else {
                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['VLR CAIXINHA','STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', ...(tipo === 'cache' ? ['CRÉDITO/DÉBITO', 'STATUS SOLICITAÇÃO'] : []) ,'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
@@ -724,7 +724,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     TOT_AJUDA: 0,
                     TOT_GERAL: 0,
                     TOT_PAGAR: 0,
-                    VLR_CAIXINHA: 0
+                    VLR_CAIXINHA: 0,
+                    CREDITO_DEBITO: 0
                 };
                 let linhas = '';
 
@@ -732,6 +733,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
 
                 dadosFechamento.forEach((item, index) => {
                     const proximoItem = dadosFechamento[index + 1];
+                    const ehUltimaLinhaFuncionario = !proximoItem || proximoItem.NOME !== item.NOME;
+                    const linhasFuncionarioAtual = dadosFechamento.filter(d => d.NOME === item.NOME);
+                    const funcionarioTemMultiplasLinhas = linhasFuncionarioAtual.length > 1;
 
                     // Acumula os valores do funcionário atual
                     subtotalFuncionario.TOT_DIARIAS  += parseFloat(item["TOT DIÁRIAS"]  || 0);
@@ -739,6 +743,10 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     subtotalFuncionario.TOT_GERAL    += parseFloat(item["TOT GERAL"]    || 0);
                     subtotalFuncionario.TOT_PAGAR    += parseFloat(item["TOT PAGAR"]    || 0);
                     subtotalFuncionario.VLR_CAIXINHA += parseFloat(item["VLR CAIXINHA"] || 0);
+                    // CRÉDITO/DÉBITO vem do backend como saldo do FUNCIONÁRIO (não do evento/linha) —
+                    // é o mesmo valor repetido em todas as linhas dele, então não pode ser somado
+                    // por linha (senão dobra/triplica). Só capturamos o valor (é igual em todas).
+                    subtotalFuncionario.CREDITO_DEBITO = parseFloat(item["CRÉDITO/DÉBITO"] || 0);
 
 
                     const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
@@ -785,10 +793,10 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
                             <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
+                            <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${ehUltimaLinhaFuncionario ? formatarMoeda(item["CRÉDITO/DÉBITO"]) : ''}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">
                             ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"])}
                             </td>
-                            <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(item["CRÉDITO/DÉBITO"])}</td>
                             <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
                             <td class="${alinhamentos['STATUS AJUDA']} ${obterClasseStatus(item["STATUS AJUDA"])}">${item["STATUS AJUDA"] || 'Pendente'}</td>
@@ -808,11 +816,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             ${tipo === 'cache' ? `
-                                <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(item["CRÉDITO/DÉBITO"])}</td>
+                                <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${ehUltimaLinhaFuncionario ? formatarMoeda(item["CRÉDITO/DÉBITO"]) : ''}</td>
                                 <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             ` : ''}
                             <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
-                            <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], item["TOT PAGAR"], false)}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], (!funcionarioTemMultiplasLinhas ? (parseFloat(item["TOT PAGAR"] || 0) + parseFloat(item["CRÉDITO/DÉBITO"] || 0)) : item["TOT PAGAR"]), false)}</td>
                             <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
                             
                         `) : `
@@ -850,19 +858,30 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <td></td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_AJUDA)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
-                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
-                                    <td colspan="8"></td>
+                                    <td class="text-right" style="font-weight: bold; ${subtotalFuncionario.CREDITO_DEBITO < 0 ? 'color:#c0392b;' : subtotalFuncionario.CREDITO_DEBITO > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(subtotalFuncionario.CREDITO_DEBITO)}</td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR + subtotalFuncionario.CREDITO_DEBITO)}</td>
+                                    <td colspan="7"></td>
+                                ` : tipo === 'cache' ? `
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.VLR_CAIXINHA)}</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
+                                    <td class="text-right" style="font-weight: bold; ${subtotalFuncionario.CREDITO_DEBITO < 0 ? 'color:#c0392b;' : subtotalFuncionario.CREDITO_DEBITO > 0 ? 'color:#27ae60;' : ''}">${formatarMoeda(subtotalFuncionario.CREDITO_DEBITO)}</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR + subtotalFuncionario.CREDITO_DEBITO)}</td>
+                                    <td></td>
                                 ` : `
                                     <td></td>
-                                    ${tipo !== 'ajuda_custo' ? '<td></td>' : ''}
-                                    ${tipo === 'cache' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.VLR_CAIXINHA)}</td><td></td>` : ''}
                                     <td></td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_DIARIAS)}</td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_GERAL)}</td>
                                     <td></td>
                                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(subtotalFuncionario.TOT_PAGAR)}</td>
                                     <td></td>
-                                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
                                 `}
                             </tr>`;
                             // Separador azul após o subtotal (não na última linha)

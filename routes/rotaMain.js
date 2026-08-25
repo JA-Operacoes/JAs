@@ -2136,11 +2136,19 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         });
 
         // --- Merge de pares Extra Bonificado + Diária Dobrada em um único card ---
+        // Tipos que já pertencem ao combo FuncExcedido + Estouro Financeiro / Vaga Excedida
+        // (combosConfig acima) não podem ser reaproveitados aqui como bonifItem — são
+        // solicitações de outra natureza (reaproveitamento/criação de vaga) que só
+        // coincidem por estarem no mesmo idstaffevento e período.
+        const tiposReservadosFuncExcedido = new Set(
+            combosConfig.flatMap(c => c.tipo1Variants).map(t => t.toLowerCase())
+        );
         const comboEDB = new Map();
         resultadoFinal.forEach(item => {
             const cat  = item.categoria || '';
             const tipo = (item.tiposolicitacao_raw || '').toLowerCase();
-            if (cat === 'aditivoextra' && (tipo.includes('bonificado') || tipo.includes('aditivo'))) {
+            if (cat === 'aditivoextra' && (tipo.includes('bonificado') || tipo.includes('aditivo'))
+                && !tiposReservadosFuncExcedido.has(tipo)) {
                 if (!comboEDB.has(item.idstaffevento)) comboEDB.set(item.idstaffevento, { bonifItem: null, dobradaItem: null });
                 const entry = comboEDB.get(item.idstaffevento);
                 const novoStatus   = (item.status_aprovacao || '').toLowerCase();
@@ -2187,12 +2195,22 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 comboLogIdsEDB.add(dobradaItem.id_log);
                 const tipoBonus = (bonifItem.tiposolicitacao_raw || '').toLowerCase();
                 const isAditivo = tipoBonus.includes('aditivo') && !tipoBonus.includes('bonificado');
+                // O card mesclado não pode herdar cegamente o status de um dos dois lados
+                // (spread de bonifItem sobrescrevia o status_aprovacao do card inteiro com o
+                // do Aditivo/Bonificado, mesmo quando a Diária Dobrada ainda estava Pendente).
+                const stBonif   = (bonifItem.status_aprovacao   || 'pendente').toLowerCase();
+                const stDobrada = (dobradaItem.status_aprovacao || 'pendente').toLowerCase();
+                const statusMerged = (stBonif === 'pendente' || stDobrada === 'pendente')
+                    ? 'pendente'
+                    : (stBonif === 'rejeitado' || stDobrada === 'rejeitado') ? 'rejeitado' : 'autorizado';
                 comboMergedEDB.push({
                     ...bonifItem,
                     isComboExtraDobrada: true,
                     isComboAditivoDobrada: isAditivo,
                     titulo_formatado: isAditivo ? 'Aditivo + Diária Dobrada' : 'Extra Bonificado + Diária Dobrada',
                     categoria_item: 'extrabonificado_dobrada',
+                    status_aprovacao: statusMerged,
+                    status: statusMerged,
                     dadosBonificado: bonifItem,
                     dadosDobrada: dobradaItem,
                 });
