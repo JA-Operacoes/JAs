@@ -29,6 +29,8 @@ const { gerarXmlPedidoEnvioLoteRPS } = require('../utils/gerarXmlRpsLote');
 const { obterCertificadoEmpresa } = require('../utils/certificadoEmpresa');
 const { carregarCertificado } = require('../utils/assinarXmlRpsLote');
 const { enviarLoteRPS } = require('../utils/enviarLoteWebService');
+const { buscarCodigoIbge } = require('../utils/buscarMunicipioIbge');
+const { buscarSimplesNacional } = require('../utils/buscarSimplesNacional');
 const registrarLog = require('../utils/logger');
 
 router.use(autenticarToken());
@@ -105,7 +107,7 @@ const uploadNotaFiscal = multer({
 // um orçamento parcelado casa se QUALQUER parcela vencer dentro do período.
 router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
-  const { idcliente, idevento, idempresaemissora } = req.query;
+  const { idcliente, idevento, idempresaemissora, statusFatura } = req.query;
   let { dtRealizacaoDe, dtRealizacaoAte, dtVencimentoDe, dtVencimentoAte } = req.query;
 
   if (dtRealizacaoDe && !dtRealizacaoAte) dtRealizacaoAte = dtRealizacaoDe;
@@ -122,14 +124,18 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
          o.idempresaemissora, em.nmfantasia AS emissora_nome,
          o.dtinirealizacao, o.dtfimrealizacao,
          o.formapagamento,
+         lm.cidademontagem AS evento_cidade, lm.ufmontagem AS evento_uf,
          COALESCE(nf.faturado, 0) AS faturado,
          (o.vlrcliente - COALESCE(nf.faturado, 0)) AS saldo,
-         prox.proximovencimento
+         prox.proximovencimento,
+         COALESCE(parc.totalparcelas, 0) AS totalparcelas,
+         COALESCE(parc.parcelaspagas, 0) AS parcelaspagas
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento AND oe.idempresa = $1
        LEFT JOIN clientes c ON c.idcliente = o.idcliente
        LEFT JOIN eventos e ON e.idevento = o.idevento
        LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+       LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
        LEFT JOIN (
          SELECT idorcamento, SUM(valorservico) AS faturado
          FROM notasfiscais
@@ -146,6 +152,13 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
          WHERE status = 'Aberta'
          GROUP BY idorcamento
        ) prox ON prox.idorcamento = o.idorcamento
+       LEFT JOIN (
+         SELECT idorcamento,
+                COUNT(*) AS totalparcelas,
+                COUNT(*) FILTER (WHERE status = 'Faturada') AS parcelaspagas
+         FROM orcamentoparcelas
+         GROUP BY idorcamento
+       ) parc ON parc.idorcamento = o.idorcamento
        WHERE o.status = 'F'
          AND ($2::int IS NULL OR o.idcliente = $2::int)
          AND ($3::int IS NULL OR o.idevento = $3::int)
@@ -156,6 +169,13 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
                 WHERE op.idorcamento = o.idorcamento
                   AND op.dtvencimento BETWEEN $7::date AND $8::date
              ))
+         AND (
+           $9::text IS NULL
+           OR ($9 = 'faturada' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) <= 0.009)
+           OR ($9 = 'aberto' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
+           OR ($9 = 'vencida' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
+               AND prox.proximovencimento < CURRENT_DATE)
+         )
        ORDER BY prox.proximovencimento ASC NULLS LAST, o.nrorcamento DESC`,
       [
         idempresa,
@@ -166,6 +186,7 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
         dtRealizacaoAte || null,
         dtVencimentoDe || null,
         dtVencimentoAte || null,
+        statusFatura || null,
       ]
     );
     return res.json(result.rows);
@@ -228,6 +249,35 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
   } catch (error) {
     console.error("Erro ao buscar dados do orçamento para emissão:", error);
     res.status(500).json({ message: "Erro ao buscar dados do orçamento." });
+  }
+});
+
+// GET /notafiscal/cliente/:idcliente/regime-simples — consulta ao vivo (BrasilAPI)
+// se o cliente é optante do Simples Nacional, pra ajudar a decidir a
+// retenção de IRRF/PIS-COFINS-CSLL na hora de emitir. Nunca falha com erro
+// 500 nem bloqueia nada — na pior hipótese devolve optanteSimples:null e o
+// front trata como "não deu pra saber, decida manualmente" (comportamento
+// de hoje, sem automação).
+router.get("/cliente/:idcliente/regime-simples", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+  const idempresa = req.idempresa;
+  const { idcliente } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT c.cnpj
+         FROM clientes c
+         INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente AND ce.idempresa = $2
+        WHERE c.idcliente = $1`,
+      [idcliente, idempresa]
+    );
+    if (!result.rows.length) {
+      return res.json({ optanteSimples: null, erro: "Cliente não encontrado." });
+    }
+    const { optanteSimples, erro } = await buscarSimplesNacional(result.rows[0].cnpj);
+    return res.json({ optanteSimples, erro });
+  } catch (error) {
+    console.error("Erro ao consultar regime Simples Nacional do cliente:", error);
+    return res.json({ optanteSimples: null, erro: "Erro interno ao consultar." });
   }
 });
 
@@ -415,7 +465,7 @@ router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
   async (req, res) => {
     const { id } = req.params;
     const idempresa = req.idempresa;
-    const { status, numeronota, identificadornacional, codigoverificacao, observacao } = req.body;
+    const { status, numeronota, chaveacesso, codigoverificacao, observacao } = req.body;
 
     const client = await pool.connect();
     try {
@@ -425,13 +475,13 @@ router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
         `UPDATE notasfiscais
          SET status = COALESCE($1, status),
              numeronota = COALESCE($2, numeronota),
-             identificadornacional = COALESCE($3, identificadornacional),
+             chaveacesso = COALESCE($3, chaveacesso),
              codigoverificacao = COALESCE($4, codigoverificacao),
              observacao = COALESCE($5, observacao),
              dtemissao = CASE WHEN $1 = 'Emitida' AND dtemissao IS NULL THEN now() ELSE dtemissao END
          WHERE idnotafiscal = $6 AND idempresa = $7
          RETURNING *`,
-        [status || null, numeronota || null, identificadornacional || null, codigoverificacao || null, observacao || null, id, idempresa]
+        [status || null, numeronota || null, chaveacesso || null, codigoverificacao || null, observacao || null, id, idempresa]
       );
 
       if (!result.rowCount) {
@@ -588,12 +638,16 @@ function validarNotaParaXml(nf) {
   }
   // Organização de feiras/eventos/congressos (código 07161, item 17.09/17.10
   // da lista de serviços) é uma das exceções do art. 3º da LC 116/2003: o ISS
-  // é devido no MUNICÍPIO do evento, não no da empresa emissora. Fora do
-  // município de São Paulo, o Web Service que automatizamos (específico da
-  // prefeitura de SP) não é o caminho certo — bloqueia até decidirmos como
-  // tratar esses casos (provavelmente emissão manual nesse outro município).
-  if (normalizarTexto(nf.evento_cidade) !== 'SAO PAULO') {
-    return { curto: "Fora de São Paulo", mensagem: `${rotuloNota(nf)}: o evento é em ${nf.evento_cidade || 'um município não informado'}${nf.evento_uf ? '/' + nf.evento_uf : ''}, fora de São Paulo — o ISS desse serviço é devido no município do evento (exceção do art. 3º da LC 116/2003), não dá pra emitir pelo Web Service de São Paulo. Consulte o contador sobre como emitir para esse município.` };
+  // é devido no MUNICÍPIO do evento, não no da empresa emissora. Continuamos
+  // emitindo pelo mesmo Web Service de São Paulo (TributacaoRPS="F" +
+  // MunicipioPrestacao/cLocPrestacao com o código IBGE do evento — ver
+  // gerarXmlRpsLote.js), mas não existe base pública de alíquota de ISS por
+  // município — o financeiro precisa digitar manualmente a cada emissão
+  // (campo "ISS (%)"), consultando a lei daquele município. O recolhimento
+  // em si na prefeitura de destino também é manual, fora do sistema.
+  const eventoForaDeSaoPaulo = normalizarTexto(nf.evento_cidade) !== 'SAO PAULO';
+  if (eventoForaDeSaoPaulo && !(Number(nf.aliquotaiss) > 0)) {
+    return { curto: "Falta Alíquota de ISS", mensagem: `${rotuloNota(nf)}: o evento é em ${nf.evento_cidade || 'um município não informado'}${nf.evento_uf ? '/' + nf.evento_uf : ''}, fora de São Paulo — o ISS é devido lá (exceção do art. 3º da LC 116/2003). Informe a alíquota de ISS daquele município no campo "ISS (%)" antes de emitir.` };
   }
   if (!nf.evento_rua || !nf.evento_numero || !nf.evento_bairro || !nf.evento_cep) {
     return { curto: "Falta Endereço Local Montagem", mensagem: `${rotuloNota(nf)}: o local de montagem do evento não tem endereço completo (rua/número/bairro/CEP) — complete em Local de Montagem.` };
@@ -619,7 +673,17 @@ function carregarCertificadoDaNota(nf) {
   return carregarCertificado(certificado.caminho, certificado.senha);
 }
 
-function montarNotaParaGerador(nf) {
+async function montarNotaParaGerador(nf) {
+  // validarNotaParaXml já garantiu (quando fora de São Paulo) que a alíquota
+  // foi preenchida — aqui só falta achar o código IBGE do município do
+  // evento, pra declarar TributacaoRPS="F" + MunicipioPrestacao no XML.
+  let municipioPrestacaoIbge;
+  if (normalizarTexto(nf.evento_cidade) !== 'SAO PAULO') {
+    municipioPrestacaoIbge = await buscarCodigoIbge(nf.evento_cidade, nf.evento_uf);
+    if (!municipioPrestacaoIbge) {
+      throw new Error(`${rotuloNota(nf)}: não encontrei o código IBGE do município "${nf.evento_cidade}/${nf.evento_uf}" — confira se o nome da cidade está correto em Local de Montagem.`);
+    }
+  }
   return {
     idnotafiscal: nf.idnotafiscal,
     dataEmissao: new Date(),
@@ -631,6 +695,7 @@ function montarNotaParaGerador(nf) {
     discriminacaoServico: nf.descricaoservico,
     valorServico: nf.valorservico,
     valorPisCofinsCsllRetido: nf.valorpiscofinscsll,
+    municipioPrestacaoIbge,
     nbs: nf.nbs,
     cIndOp: nf.cindop,
     classificacaoTributaria: nf.classificacaotributaria,
@@ -667,12 +732,19 @@ router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req
       return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
     }
 
+    let notaParaGerador;
+    try {
+      notaParaGerador = await montarNotaParaGerador(nf);
+    } catch (errMunicipio) {
+      return res.status(400).json({ message: errMunicipio.message });
+    }
+
     const xml = gerarXmlPedidoEnvioLoteRPS({
       empresaEmissora: {
         cnpj: nf.emissora_cnpj,
         inscricaomunicipal: nf.emissora_inscricaomunicipal
       },
-      notas: [montarNotaParaGerador(nf)],
+      notas: [notaParaGerador],
       certificado
     });
 
@@ -717,7 +789,7 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
 
   try {
     const result = await pool.query(
-      `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
+      `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.aliquotaiss, nf.dtregistro,
               nf.arquivoxml, nf.arquivopdf, nf.numeronota,
               o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
               c.inscricaomunicipal AS cliente_inscricaomunicipal,
@@ -747,6 +819,46 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
   } catch (error) {
     console.error("Erro ao buscar notas prontas para envio:", error);
     res.status(500).json({ message: "Erro ao buscar notas prontas para envio." });
+  }
+});
+
+// GET /notafiscal/faturadas — notas já EMITIDAS (de qualquer orçamento), pra
+// achar/reabrir uma nota antiga (ver PDF/XML) sem precisar saber de cor qual
+// orçamento é. Filtros opcionais: idcliente, idempresaemissora, dtDe/dtAte
+// (por dtregistro — não existe uma "data de emissão" separada hoje).
+router.get("/faturadas", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+  const idempresa = req.idempresa;
+  const { idcliente, idempresaemissora } = req.query;
+  let { dtDe, dtAte } = req.query;
+  if (dtDe && !dtAte) dtAte = dtDe;
+  if (dtAte && !dtDe) dtDe = dtAte;
+
+  try {
+    const result = await pool.query(
+      `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
+              nf.arquivoxml, nf.arquivopdf, nf.numeronota,
+              o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
+              op.numparcela, op.dtvencimento,
+              (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
+              em.nmfantasia AS emissora_nome, o.idempresaemissora,
+              e.nmevento AS evento_nome
+         FROM notasfiscais nf
+         JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+         LEFT JOIN clientes c ON c.idcliente = nf.idcliente
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+         LEFT JOIN eventos e ON e.idevento = o.idevento
+        WHERE nf.idempresa = $1 AND nf.status = 'Emitida'
+          AND ($2::int IS NULL OR nf.idcliente = $2::int)
+          AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
+          AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
+        ORDER BY nf.dtregistro DESC`,
+      [idempresa, idcliente || null, idempresaemissora || null, dtDe || null, dtAte || null]
+    );
+    return res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar notas faturadas:", error);
+    res.status(500).json({ message: "Erro ao buscar notas faturadas." });
   }
 });
 
@@ -799,12 +911,19 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
       return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
     }
 
+    let notasParaGerador;
+    try {
+      notasParaGerador = await Promise.all(linhas.map(montarNotaParaGerador));
+    } catch (errMunicipio) {
+      return res.status(400).json({ message: errMunicipio.message });
+    }
+
     const xml = gerarXmlPedidoEnvioLoteRPS({
       empresaEmissora: {
         cnpj: linhas[0].emissora_cnpj,
         inscricaomunicipal: linhas[0].emissora_inscricaomunicipal
       },
-      notas: linhas.map(montarNotaParaGerador),
+      notas: notasParaGerador,
       certificado
     });
 
@@ -861,7 +980,7 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
                 SET status = 'Emitida',
                     numeronota = $1,
                     codigoverificacao = $2,
-                    identificadornacional = $3,
+                    chaveacesso = $3,
                     mensagemenvio = NULL,
                     arquivoxml = $4,
                     dtemissao = CASE WHEN dtemissao IS NULL THEN now() ELSE dtemissao END
