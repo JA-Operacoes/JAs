@@ -160,6 +160,7 @@ p.nf-subtitulo {
   margin-top: 5px;
 }
 #cadModalNotaFiscal .nf-hint.warn { color: #b50000; }
+#cadModalNotaFiscal .nf-hint.ok { color: var(--Aproved, #046800); }
 
 /* ===== Auxiliares (antes eram inline styles no HTML) ===== */
 /* #nfAvisoInscMun e #nfCampoOutrosPag começam ocultos; o JS decide quando
@@ -620,6 +621,10 @@ p.nf-subtitulo {
   color: #b50000;
 }
 
+#cadModalNotaFiscal .nf-hint.ok {
+  color: var(--Aproved, #046800);
+}
+
 #cadModalNotaFiscal #nfAvisoInscMun,
 #cadModalNotaFiscal #nfCampoOutrosPag,
 #cadModalNotaFiscal #nfSecaoParcelas,
@@ -918,4 +923,94 @@ p.nf-subtitulo {
     width: 150px;
     height: 24px;
   }
+}
+
+/* ===== Aba "Visão Geral" — filtros e totais fixos, só a lista rola =====
+   #nfViewLista.ativa já é display:flex/flex-direction:column (regra genérica
+   de .nf-view.ativa) — aqui só forçamos ela a preencher a altura do
+   #form-notafiscal (flex:1 do pai) e a lista (.nf-tabela-wrap) a ser o único
+   filho com flex:1+overflow, deixando filtros/totais fora do scroll. */
+#cadModalNotaFiscal #nfViewLista.ativa {
+  height: 100%;
+  min-height: 0;
+}
+#cadModalNotaFiscal #nfViewLista .nf-aviso,
+#cadModalNotaFiscal #nfViewLista .nf-secao,
+#cadModalNotaFiscal #nfViewLista .nf-rodape-totais {
+  flex-shrink: 0;
+}
+#cadModalNotaFiscal #nfViewLista .nf-tabela-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+#cadModalNotaFiscal #nfViewLista .nf-tabela thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(240, 240, 240, 0.97);
+  z-index: 1;
+}
+#cadModalNotaFiscal .nf-rodape-totais {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 15px;
+}
+#cadModalNotaFiscal .nf-total-vencido strong { color: #b50000; }
+
+/* "Limpar filtros" em cinza (mesmo tom de fundo do próprio modal) pra não
+   competir visualmente com "Filtrar" — que é a ação principal e mantém a
+   cor forte do sistema. */
+#cadModalNotaFiscal button.nf-btn-secundario {
+  background-color: #4d4d4d;
+  color: #fff;
+  border: none;
+}
+#cadModalNotaFiscal button.nf-btn-secundario:hover {
+  background-color: #3a3a3a;
+  color: #fff;
+}
+
+/* Filtros em uma única linha só (pedido: não separar os períodos em outra
+   linha) — flex-wrap em vez de grid rígido, com os campos de data bem mais
+   estreitos (só precisam caber "dd/mm/aaaa") que os de cliente/evento. */
+#cadModalNotaFiscal .nf-filtros-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 14px;
+}
+#cadModalNotaFiscal .nf-filtros-linha .nf-campo {
+  flex: 1 1 130px;
+  width: auto;
+  min-width: 130px;
+}
+#cadModalNotaFiscal .nf-filtros-linha .nf-campo-largo {
+  flex: 1.6 1 170px;
+  min-width: 170px;
+}
+#cadModalNotaFiscal .nf-filtros-linha .nf-campo-data {
+  flex: 0 1 100px;
+  min-width: 100px;
+}
+#cadModalNotaFiscal .nf-filtros-linha .nf-campo-data input {
+  padding: 8px 8px;
+}
+/* Realização/Vencimento continuam com a borda de "grupo" (pedido: fica mais
+   delimitado visualmente) — só compactada pra caber na mesma linha dos
+   outros filtros, em vez de empurrar tudo pra uma linha à parte. */
+#cadModalNotaFiscal .nf-filtros-linha .nf-grupo-compacto {
+  flex: 0 1 auto;
+  padding: 4px 10px 8px;
+}
+#cadModalNotaFiscal .nf-grupo-compacto-campos {
+  display: flex;
+  gap: 10px;
+}
+#cadModalNotaFiscal .nf-grupo-compacto .nf-campo-data {
+  min-width: 90px;
 }

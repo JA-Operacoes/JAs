@@ -1,6 +1,6 @@
 {
   "name": "ja-system---teste",
-  "version": "1.2.2",
+  "version": "1.4.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
