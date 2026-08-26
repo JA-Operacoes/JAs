@@ -198,7 +198,15 @@ function montarXmlRps(dados, chavePrivadaPem) {
 
   const numeroRps = idnotafiscal;
   const serieRps = "1";
-  const tipoTributacao = "T"; // Tributação no município de São Paulo (ver nota real analisada)
+  // TributacaoRPS: "T" = tributado em São Paulo (nosso caso normal), "F" =
+  // tributado fora de São Paulo — usado quando o evento está em outro
+  // município (exceção do art. 3º da LC 116/2003 / art. 3º da Lei municipal
+  // 13.701/2003). Com "T" a prefeitura IGNORA AliquotaServicos (documentado
+  // no manual); só com "F" a alíquota digitada pelo financeiro é respeitada,
+  // e só com "F" o MunicipioPrestacao pode ser enviado (com "T" dá erro
+  // 1223, confirmado 2026-08-21).
+  const tributadoForaDeSaoPaulo = !!municipioPrestacaoIbge && String(municipioPrestacaoIbge) !== MUNICIPIO_SAO_PAULO_IBGE;
+  const tipoTributacao = tributadoForaDeSaoPaulo ? "F" : "T";
   const statusRps = "N"; // Normal
   const issRetido = false; // nunca vimos retenção de ISS nas notas reais até agora — reavaliar se algum tomador exigir
   const { pis, cofins, csll } = separarPisCofinsCsll(valorPisCofinsCsllRetido);
@@ -257,12 +265,11 @@ function montarXmlRps(dados, chavePrivadaPem) {
       ${elemento("InscricaoMunicipalTomador", apenasDigitos(inscricaoMunicipalTomador))}
       ${elemento("EmailTomador", emailTomador)}
       ${elemento("Discriminacao", discriminacaoServico, true)}
-      <!-- MunicipioPrestacao: confirmado contra o ambiente real da
-           prefeitura (2026-08-21, erro 1223) que esse campo só deve ser
-           informado quando o serviço é tributado em OUTRO município
-           (exceção de local de incidência do ISS) ou é exportação — nunca
-           pro nosso caso normal (tributado em São Paulo mesmo). Por isso não
-           mandamos mais esse campo aqui. -->
+      <!-- Só enviamos MunicipioPrestacao quando TributacaoRPS="F" (evento
+           fora de São Paulo) — com "T" a prefeitura rejeita esse campo (erro
+           1223, 2026-08-21). municipioPrestacaoIbge já vem resolvido (código
+           IBGE) por quem chamou; ver utils/buscarMunicipioIbge.js. -->
+      ${elemento("MunicipioPrestacao", tributadoForaDeSaoPaulo ? municipioPrestacaoIbge : null, tributadoForaDeSaoPaulo)}
       <!-- ValorInicialCobrado x ValorFinalCobrado é um <xs:choice> no XSD —
            só pode mandar um dos dois. Confirmado contra o ambiente real da
            prefeitura (2026-08-21, erro 640): ValorInicialCobrado foi

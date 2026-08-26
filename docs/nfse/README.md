@@ -1,7 +1,7 @@
 # NFS-e São Paulo — material de referência
 
 Base técnica oficial usada pra construir `utils/gerarXmlRpsLote.js` e a tela
-de Emissão de Nota Fiscal. Guardado aqui (em vez de só um link) porque a
+de Faturamento. Guardado aqui (em vez de só um link) porque a
 prefeitura já atualizou esses arquivos mais de uma vez desde que a Reforma
 Tributária começou (Ago/2025 em diante) — se o link mudar de novo, a cópia
 que validamos continua aqui.
