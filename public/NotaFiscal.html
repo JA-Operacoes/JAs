@@ -11,14 +11,15 @@
     <div class="Close"><button class="close" id="Fechar" type="button"> X </button></div>
     
     <div id="form-notafiscal">
-    <div class="title"><h1>Emissão de Nota Fiscal</h1></div>
+    <div class="title"><h1>Faturamento</h1></div>
 
-    <div class="subtitulo"><p class="nf-subtitulo">NFS-e São Paulo · Fase A — registro e acompanhamento (emissão final continua manual no portal)</p></div>
+    <div class="subtitulo"><p class="nf-subtitulo">NFS-e São Paulo · emissão automática via Web Service, com acompanhamento de faturamento</p></div>
 
     <div class="nf-tabs">
-      <button type="button" class="nf-tab-btn ativa" data-nf-tab="lista">Orçamentos a faturar</button>
+      <button type="button" class="nf-tab-btn ativa" data-nf-tab="lista">Visão Geral</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="emissao">Emitir nota</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="envio">Prontas para Envio</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="faturadas">Faturadas</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="parametros">Parâmetros/AliquotasNF</button>
     </div>
 
@@ -32,8 +33,8 @@
 
         <div class="nf-secao">
           <h3>Filtros</h3>
-          <div class="nf-grid3">
-            <div class="nf-campo">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
               <label>Cliente</label>
               <div class="nf-combo">
                 <input type="text" id="nfBuscaCliente" placeholder="Todos" autocomplete="off">
@@ -41,7 +42,7 @@
                 <ul id="nfListaCliente" class="nf-combo-lista"></ul>
               </div>
             </div>
-            <div class="nf-campo">
+            <div class="nf-campo nf-campo-largo">
               <label>Evento</label>
               <div class="nf-combo">
                 <input type="text" id="nfBuscaEvento" placeholder="Todos" autocomplete="off">
@@ -53,26 +54,33 @@
               <label>Empresa emissora</label>
               <select id="nfFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
             </div>
-          </div>
-          <div class="nf-grid2 nf-mt">
-            <fieldset class="nf-grupo-filtro">
+            <div class="nf-campo">
+              <label>Status</label>
+              <select id="nfFiltroStatusFatura">
+                <option value="">Todas</option>
+                <option value="faturada">Faturadas</option>
+                <option value="aberto">Em aberto</option>
+                <option value="vencida">Vencidas</option>
+              </select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
               <legend>Realização</legend>
-              <div class="nf-grid2">
-                <div class="nf-campo"><label>De</label><input id="nfFiltroRealizacaoDe" placeholder="dd/mm/aaaa"></div>
-                <div class="nf-campo"><label>Até</label><input id="nfFiltroRealizacaoAte" placeholder="dd/mm/aaaa"></div>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroRealizacaoDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroRealizacaoAte" placeholder="dd/mm/aaaa"></div>
               </div>
             </fieldset>
-            <fieldset class="nf-grupo-filtro">
-              <legend>Vencimento da parcela</legend>
-              <div class="nf-grid2">
-                <div class="nf-campo"><label>De</label><input id="nfFiltroVencimentoDe" placeholder="dd/mm/aaaa"></div>
-                <div class="nf-campo"><label>Até</label><input id="nfFiltroVencimentoAte" placeholder="dd/mm/aaaa"></div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Vencimento</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroVencimentoDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroVencimentoAte" placeholder="dd/mm/aaaa"></div>
               </div>
             </fieldset>
           </div>
           <div class="BTNs">
             <button type="button" id="nfBtnFiltrarPendentes">Filtrar</button>
-            <button type="button" id="nfBtnLimparFiltrosPendentes">Limpar filtros</button>
+            <button type="button" id="nfBtnLimparFiltrosPendentes" class="nf-btn-secundario">Limpar filtros</button>
           </div>
         </div>
 
@@ -83,6 +91,8 @@
                 <th>Nº orçamento</th>
                 <th>Cliente</th>
                 <th>Evento</th>
+                <th>Município</th>
+                <th>Parcelas</th>
                 <th>Realização</th>
                 <th>Vencimento</th>
                 <th class="nf-num">Valor total</th>
@@ -92,9 +102,16 @@
               </tr>
             </thead>
             <tbody id="nfTabelaPendentesBody">
-              <tr><td colspan="9">Carregando...</td></tr>
+              <tr><td colspan="11">Carregando...</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="nf-rodape-totais">
+          <span>Valor total: <strong id="nfTotalGeralValor">R$ 0,00</strong></span>
+          <span>Faturado: <strong id="nfTotalGeralFaturado">R$ 0,00</strong></span>
+          <span>A Faturar: <strong id="nfTotalGeralSaldo">R$ 0,00</strong></span>
+          <span class="nf-total-vencido">Vencido: <strong id="nfTotalGeralVencido">R$ 0,00</strong></span>
         </div>
       </div>
 
@@ -164,6 +181,7 @@
             <div class="nf-campo auto nf-full"><label>Endereço</label><input id="nfClienteEndereco" readonly></div>
           </div>
           <span class="nf-hint warn" id="nfAvisoInscMun">Campo obrigatório para a NFS-e Nacional — não veio cadastrado no cliente.</span>
+          <span class="nf-hint" id="nfStatusSimplesNacional" style="display:none"></span>
         </div>
 
         <div class="nf-secao">
@@ -174,7 +192,7 @@
               <select id="nfServicoSelect"></select>
               <span class="nf-hint">Cadastrado em Serviços — NBS/cIndOp/classificação tributária vêm junto automaticamente.</span>
             </div>
-            <div class="nf-campo"><label>Município da prestação</label><input id="nfMunicipioPrestacao" value="São Paulo/SP"></div>
+            <div class="nf-campo auto"><label>Município da prestação</label><input id="nfMunicipioPrestacao" value="São Paulo/SP" readonly></div>
             <div class="nf-campo">
               <label>Valor do serviço (esta parcela)</label>
               <input id="nfValorServico" inputmode="numeric" oninput="formatReais(this)">
@@ -242,6 +260,7 @@
             <div class="nf-campo auto"><label>Valor retido</label><input id="nfValorPisCofins" readonly></div>
             <div></div>
           </div>
+          <span class="nf-hint warn" id="nfAvisoAliquotaIss" style="display:none">Evento fora de São Paulo — o ISS é devido no município do evento, não no de São Paulo. Digite manualmente a alíquota de ISS daquele município no campo acima.</span>
 
           <div class="nf-reforma">
             <strong>Reforma Tributária — fase de teste <span id="nfLabelAnoParametros">2026</span> (destaque informativo)</strong>
@@ -312,6 +331,59 @@
           <span id="nfEnvioContagem">0 notas selecionadas</span>
           <button type="button" id="nfBtnTestarEnvio" title="Valida contra a prefeitura de verdade, sem substituir nenhum RPS por NF-e">Testar envio</button>
           <button type="button" id="nfBtnEnviarDireto" title="Envio de verdade — substitui o(s) RPS por NF-e na prefeitura">Enviar direto</button>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — FATURADAS ===================== -->
+      <div class="nf-view" id="nfViewFaturadas">
+        <p class="nf-aviso">Notas já emitidas (de qualquer orçamento) — reveja o XML/PDF ou anexe o comprovante se ainda faltar.</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaFatCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroFatCliente" value="">
+                <ul id="nfListaFatCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfFatFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFatFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFatFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarFaturadas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosFaturadas" class="nf-btn-secundario">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th>Nº da nota</th>
+                <th class="nf-num">Valor</th>
+                <th>Registrada em</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfFaturadasBody">
+              <tr><td colspan="8">Carregando...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

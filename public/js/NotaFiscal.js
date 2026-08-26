@@ -16,6 +16,7 @@ const moeda = (el) => {
 };
 const fmtMoeda = (n) => 'R$ ' + window.formatarReaisValor(n || 0);
 const fmtPct = (frac) => ((Number(frac) || 0) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+const normalizarTexto = (t) => String(t || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().trim();
 
 // Só pra valores colocados dentro de atributo HTML (ex.: title="...") — aqui
 // aspas duplas sem escapar fecham o atributo antes da hora e quebram a linha.
@@ -77,6 +78,7 @@ function mudarAba(nome) {
   // Recarrega sempre que entra na aba — pode ter registrado/cancelado uma
   // nota na aba "Emitir nota" desde a última vez que olhou aqui.
   if (nome === 'envio') carregarProntasParaEnvio();
+  if (nome === 'faturadas') carregarFaturadas();
 }
 
 // ---- Aba 1: orçamentos pendentes de faturamento ----
@@ -204,6 +206,7 @@ function montarQueryFiltrosPendentes() {
   const idcliente = document.getElementById('nfFiltroCliente').value;
   const idevento = document.getElementById('nfFiltroEvento').value;
   const idempresaemissora = document.getElementById('nfFiltroEmpresaEmissora').value;
+  const statusFatura = document.getElementById('nfFiltroStatusFatura').value;
   const dtRealizacaoDe = converterDataBRParaISO(document.getElementById('nfFiltroRealizacaoDe').value.trim());
   const dtRealizacaoAte = converterDataBRParaISO(document.getElementById('nfFiltroRealizacaoAte').value.trim());
   const dtVencimentoDe = converterDataBRParaISO(document.getElementById('nfFiltroVencimentoDe').value.trim());
@@ -212,6 +215,7 @@ function montarQueryFiltrosPendentes() {
   if (idcliente) params.set('idcliente', idcliente);
   if (idevento) params.set('idevento', idevento);
   if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
+  if (statusFatura) params.set('statusFatura', statusFatura);
   if (dtRealizacaoDe) params.set('dtRealizacaoDe', dtRealizacaoDe);
   if (dtRealizacaoAte) params.set('dtRealizacaoAte', dtRealizacaoAte);
   if (dtVencimentoDe) params.set('dtVencimentoDe', dtVencimentoDe);
@@ -238,32 +242,65 @@ function limparFiltrosPendentes() {
   preencherComboFiltro('Cliente', opcoesUnicasOrdenadas(pendentesTodosParaFiltro, 'idcliente', 'cliente_nome'));
   preencherComboFiltro('Evento', opcoesUnicasOrdenadas(pendentesTodosParaFiltro, 'idevento', 'evento_nome'));
   document.getElementById('nfFiltroEmpresaEmissora').value = '';
+  document.getElementById('nfFiltroStatusFatura').value = '';
   ['nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte'].forEach((id) => {
     document.getElementById(id).value = '';
   });
   carregarPendentes();
 }
 
+// Soma Valor total/Faturado/Saldo da lista já filtrada (backend já aplicou
+// cliente/evento/emissora/status/período — aqui só soma o que veio).
+function atualizarTotaisGeraisPendentes(lista) {
+  // Datas do backend são tratadas como UTC em toda a tela (ver formatarDataBR
+  // com timeZone:'UTC') — "hoje" precisa ser comparado do mesmo jeito, senão
+  // uma parcela que vence hoje pode contar como vencida ou não dependendo do
+  // fuso de quem está usando o sistema.
+  const hojeUTC = new Date();
+  hojeUTC.setUTCHours(0, 0, 0, 0);
+
+  const totais = lista.reduce((acc, o) => {
+    const saldo = parseFloat(o.saldo) || 0;
+    acc.valor += parseFloat(o.vlrcliente) || 0;
+    acc.faturado += parseFloat(o.faturado) || 0;
+    acc.saldo += saldo;
+    if (saldo > 0.009 && o.proximovencimento && new Date(o.proximovencimento) < hojeUTC) {
+      acc.vencido += saldo;
+    }
+    return acc;
+  }, { valor: 0, faturado: 0, saldo: 0, vencido: 0 });
+
+  document.getElementById('nfTotalGeralValor').textContent = fmtMoeda(totais.valor);
+  document.getElementById('nfTotalGeralFaturado').textContent = fmtMoeda(totais.faturado);
+  document.getElementById('nfTotalGeralSaldo').textContent = fmtMoeda(totais.saldo);
+  document.getElementById('nfTotalGeralVencido').textContent = fmtMoeda(totais.vencido);
+}
+
 async function carregarPendentes() {
   const tbody = document.getElementById('nfTabelaPendentesBody');
-  tbody.innerHTML = '<tr><td colspan="9">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11">Carregando...</td></tr>';
 
   try {
     const query = montarQueryFiltrosPendentes();
     const lista = await fetchComToken(`/notafiscal/pendentes${query ? '?' + query : ''}`);
     popularFiltrosPendentes(lista);
     if (!lista.length) {
-      tbody.innerHTML = '<tr><td colspan="9">Nenhum orçamento fechado com saldo a faturar para os filtros selecionados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11">Nenhum orçamento fechado com saldo a faturar para os filtros selecionados.</td></tr>';
+      atualizarTotaisGeraisPendentes([]);
       return;
     }
     tbody.innerHTML = '';
     lista.forEach((o) => {
       const saldo = parseFloat(o.saldo) || 0;
+      const totalparcelas = parseInt(o.totalparcelas, 10) || 0;
+      const parcelaspagas = parseInt(o.parcelaspagas, 10) || 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${o.nrorcamento}</td>
         <td>${nomeClienteComFantasia(o.cliente_nome, o.cliente_nmfantasia) || '—'}</td>
         <td>${o.evento_nome || '—'}</td>
+        <td>${o.evento_cidade ? `${o.evento_cidade}${o.evento_uf ? '/' + o.evento_uf : ''}` : '—'}</td>
+        <td>${totalparcelas <= 1 ? 'À vista' : `${parcelaspagas}/${totalparcelas}`}</td>
         <td>${formatarDataBR(o.dtinirealizacao)}${o.dtfimrealizacao ? ' – ' + formatarDataBR(o.dtfimrealizacao) : ''}</td>
         <td>${o.proximovencimento ? formatarDataBR(o.proximovencimento) : '—'}</td>
         <td class="nf-num">${fmtMoeda(o.vlrcliente)}</td>
@@ -278,9 +315,11 @@ async function carregarPendentes() {
     tbody.querySelectorAll('.nf-row-btn').forEach((btn) => {
       btn.addEventListener('click', () => abrirEmissaoParaOrcamento(btn.dataset.idorcamento));
     });
+
+    atualizarTotaisGeraisPendentes(lista);
   } catch (err) {
     console.error('Erro ao carregar orçamentos pendentes:', err);
-    tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar orçamentos.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11">Erro ao carregar orçamentos.</td></tr>';
   }
 }
 
@@ -392,6 +431,7 @@ async function baixarXmlNota(idnotafiscal, idorcamento) {
       await carregarParcelasNota(idorcamento);
     }
     await atualizarProntasParaEnvioSeVisivel();
+    await atualizarFaturadasSeVisivel();
   } catch (err) {
     console.error('Erro ao gerar XML da nota:', err);
     aviso('error', 'Erro ao gerar XML', err?.message || 'Não foi possível gerar o XML desta nota.');
@@ -405,6 +445,12 @@ async function baixarXmlNota(idnotafiscal, idorcamento) {
 // só a lista de prontas para envio é atualizada nesse caso.
 async function atualizarProntasParaEnvioSeVisivel() {
   if (document.getElementById('nfEnvioBody')) await carregarProntasParaEnvio();
+}
+
+// Mesma ideia acima, pra aba "Faturadas" — uma nota pode entrar nela (Marcar
+// emitida/envio automático com sucesso) ou sair dela (Cancelar).
+async function atualizarFaturadasSeVisivel() {
+  if (document.getElementById('nfFaturadasBody')) await carregarFaturadas();
 }
 
 // ---- Aba "Prontas para Envio" ----
@@ -506,6 +552,80 @@ function atualizarContagemEnvio() {
   marcarTodas.indeterminate = marcadas > 0 && marcadas < total;
 }
 
+// ---- Aba "Faturadas" ----
+function montarQueryFiltrosFaturadas() {
+  const params = new URLSearchParams();
+  const idcliente = document.getElementById('nfFiltroFatCliente').value;
+  const idempresaemissora = document.getElementById('nfFatFiltroEmpresaEmissora').value;
+  const dtDe = converterDataBRParaISO(document.getElementById('nfFatFiltroDe').value.trim());
+  const dtAte = converterDataBRParaISO(document.getElementById('nfFatFiltroAte').value.trim());
+
+  if (idcliente) params.set('idcliente', idcliente);
+  if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
+  if (dtDe) params.set('dtDe', dtDe);
+  if (dtAte) params.set('dtAte', dtAte);
+  return params.toString();
+}
+
+function limparFiltrosFaturadas() {
+  preencherComboFiltro('FatCliente', opcoesUnicasOrdenadas(faturadasTodasParaFiltro, 'idcliente', 'cliente_nome'));
+  document.getElementById('nfFatFiltroEmpresaEmissora').value = '';
+  document.getElementById('nfFatFiltroDe').value = '';
+  document.getElementById('nfFatFiltroAte').value = '';
+  carregarFaturadas();
+}
+
+let faturadasTodasParaFiltro = [];
+let filtrosFaturadasPopulados = false;
+
+async function carregarFaturadas() {
+  const tbody = document.getElementById('nfFaturadasBody');
+  tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
+
+  try {
+    const query = montarQueryFiltrosFaturadas();
+    const notas = await fetchComToken(`/notafiscal/faturadas${query ? '?' + query : ''}`);
+
+    if (!filtrosFaturadasPopulados) {
+      filtrosFaturadasPopulados = true;
+      faturadasTodasParaFiltro = notas;
+      preencherComboFiltro('FatCliente', opcoesUnicasOrdenadas(notas, 'idcliente', 'cliente_nome'));
+      preencherSelectFiltro('nfFatFiltroEmpresaEmissora', opcoesUnicasOrdenadas(notas, 'idempresaemissora', 'emissora_nome'), 'Todas');
+    }
+
+    if (!notas.length) {
+      tbody.innerHTML = '<tr><td colspan="8">Nenhuma nota faturada para os filtros selecionados.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = notas.map((n) => `
+      <tr>
+        <td>${n.nrorcamento}</td>
+        <td>${nomeClienteComFantasia(n.cliente_nome, n.cliente_nmfantasia) || '—'}</td>
+        <td>${n.evento_nome || '—'}</td>
+        <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
+        <td>${n.numeronota || '—'}</td>
+        <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
+        <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
+        <td>
+          ${n.arquivoxml ? `<a class="nf-link nf-link-ok" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
+          <button type="button" class="nf-link" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
+          ${n.arquivopdf ? `<a class="nf-link" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-link" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('[data-idnotafiscal]').forEach((btn) => {
+      btn.addEventListener('click', () => baixarXmlNota(btn.dataset.idnotafiscal));
+    });
+    tbody.querySelectorAll('[data-anexar]').forEach((btn) => {
+      btn.addEventListener('click', () => anexarPdf(btn.dataset.anexar));
+    });
+  } catch (err) {
+    console.error('Erro ao carregar notas faturadas:', err);
+    tbody.innerHTML = '<tr><td colspan="8">Erro ao carregar notas.</td></tr>';
+  }
+}
+
 // Resume erros/alertas do retorno do Web Service num texto legível — cada
 // item já vem com Codigo/Descricao (e o número do RPS quando é específico de
 // uma nota, que pra nós é o próprio idnotafiscal).
@@ -576,7 +696,10 @@ async function enviarLote(teste) {
       aviso('info', 'Alertas da prefeitura', resumirEventos(resultado.alertas));
     }
 
-    if (!teste) await atualizarProntasParaEnvioSeVisivel();
+    if (!teste) {
+      await atualizarProntasParaEnvioSeVisivel();
+      await atualizarFaturadasSeVisivel();
+    }
   } catch (err) {
     console.error('Erro ao enviar lote pro Web Service:', err);
     aviso('error', 'Erro ao enviar', err?.message || 'Não foi possível enviar o lote.');
@@ -610,6 +733,46 @@ function selecionarParcela(idparcela) {
 }
 
 // ---- Aba 2: abrir emissão a partir de um orçamento ----
+// Consulta ao vivo (BrasilAPI, via nosso backend) se o cliente é optante do
+// Simples Nacional, pra ajudar a decidir a retenção de IRRF/PIS-COFINS-CSLL
+// — nunca bloqueia nada, só pré-marca quando dá pra confirmar. Só o caso
+// "optante confirmado" mexe nos checkboxes (desmarca — retenção não se
+// aplica); "não optante"/"não deu pra confirmar" não muda nada, deixa o
+// financeiro decidir como já faz hoje.
+async function consultarRegimeSimplesNacional(idcliente, idorcamentoQuandoChamado) {
+  let resultado;
+  try {
+    resultado = await fetchComToken(`/notafiscal/cliente/${idcliente}/regime-simples`);
+  } catch (err) {
+    console.warn('Não deu pra consultar o regime Simples Nacional do cliente:', err);
+    return;
+  }
+
+  // Enquanto esperava a resposta, o usuário pode ter trocado de orçamento
+  // ou fechado a tela — descarta se não for mais o caso atual.
+  if (document.getElementById('nfIdOrcamentoAtual').value != idorcamentoQuandoChamado) return;
+
+  const spanSimples = document.getElementById('nfStatusSimplesNacional');
+  if (resultado.optanteSimples === true) {
+    spanSimples.textContent = 'Cliente optante do Simples Nacional (consultado agora na Receita Federal) — retenção de IRRF/PIS-COFINS-CSLL não se aplica.';
+    spanSimples.className = 'nf-hint warn';
+    spanSimples.style.display = 'block';
+    // Só desmarca se o usuário não tiver marcado manualmente enquanto
+    // esperava a resposta — não sobrescreve uma decisão já tomada.
+    const checkIrrf = document.getElementById('nfCheckIrrf');
+    const checkPisCofins = document.getElementById('nfCheckPisCofins');
+    if (!checkIrrf.dataset.tocado) checkIrrf.checked = false;
+    if (!checkPisCofins.dataset.tocado) checkPisCofins.checked = false;
+    recalcularTributos();
+  } else if (resultado.optanteSimples === false) {
+    spanSimples.textContent = 'Cliente não é optante do Simples Nacional (consultado agora na Receita Federal).';
+    spanSimples.className = 'nf-hint ok';
+    spanSimples.style.display = 'block';
+  }
+  // optanteSimples === null (CNPJ inválido, BrasilAPI fora do ar, etc.):
+  // não mostra nada, comportamento igual a antes dessa automação existir.
+}
+
 async function abrirEmissaoParaOrcamento(idorcamento) {
   mudarAba('emissao');
 
@@ -640,6 +803,11 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
 
     document.getElementById('nfIdMontagemAtual').value = dados.idmontagem || '';
     document.getElementById('nfMontagemDesc').value = dados.descmontagem || '—';
+    document.getElementById('nfMunicipioPrestacao').value = dados.montagem_cidade
+      ? `${dados.montagem_cidade}${dados.montagem_uf ? '/' + dados.montagem_uf : ''}`
+      : 'São Paulo/SP';
+    const eventoForaDeSaoPaulo = dados.montagem_cidade && normalizarTexto(dados.montagem_cidade) !== 'SAO PAULO';
+    document.getElementById('nfAvisoAliquotaIss').style.display = eventoForaDeSaoPaulo ? 'block' : 'none';
     document.getElementById('cep').value = dados.montagem_cep || '';
     document.getElementById('rua').value = dados.montagem_rua || '';
     document.getElementById('nfMontagemNumero').value = dados.montagem_numero || '';
@@ -673,8 +841,19 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
       `, conforme condições do Orçamento Nº ${dados.nrorcamento}.`;
 
     document.getElementById('nfValorServico').value = '';
-    document.getElementById('nfCheckIrrf').checked = false;
-    document.getElementById('nfCheckPisCofins').checked = false;
+    const checkIrrfEl = document.getElementById('nfCheckIrrf');
+    const checkPisCofinsEl = document.getElementById('nfCheckPisCofins');
+    checkIrrfEl.checked = false;
+    checkPisCofinsEl.checked = false;
+    delete checkIrrfEl.dataset.tocado;
+    delete checkPisCofinsEl.dataset.tocado;
+    const spanSimples = document.getElementById('nfStatusSimplesNacional');
+    spanSimples.style.display = 'none';
+    // Não usa await de propósito — é uma consulta externa (BrasilAPI) que
+    // pode demorar; não faz sentido travar o resto da tela esperando ela.
+    // Roda em paralelo e só aplica o resultado se o usuário ainda estiver
+    // no mesmo orçamento/cliente e não tiver mexido nos checkboxes.
+    if (dados.idcliente) consultarRegimeSimplesNacional(dados.idcliente, dados.idorcamento);
 
     await carregarServicosSelect();
     await carregarParcelasNota(idorcamento);
@@ -909,7 +1088,7 @@ async function registrarNota() {
   const valores = recalcularTributos();
 
   if (!idorcamento || !idcliente) {
-    return aviso('warning', 'Selecione um orçamento', 'Escolha um orçamento na aba "Orçamentos a faturar" antes de registrar.');
+    return aviso('warning', 'Selecione um orçamento', 'Escolha um orçamento na aba "Visão Geral" antes de registrar.');
   }
   if (!valores.valor) {
     return aviso('warning', 'Valor obrigatório', 'Informe o valor do serviço desta parcela.');
@@ -1087,6 +1266,7 @@ async function marcarComoEmitida(idnotafiscal, idorcamento) {
     });
     if (idorcamento) await renderHistorico(idorcamento);
     await atualizarProntasParaEnvioSeVisivel();
+    await atualizarFaturadasSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao marcar nota como emitida:', err);
@@ -1117,6 +1297,7 @@ async function cancelarNota(idnotafiscal, idorcamento) {
       await carregarParcelasNota(idorcamento);
     }
     await atualizarProntasParaEnvioSeVisivel();
+    await atualizarFaturadasSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao cancelar nota:', err);
@@ -1136,6 +1317,7 @@ function anexarPdf(idnotafiscal, idorcamento) {
       await fetchComToken(`/notafiscal/${idnotafiscal}/anexo`, { method: 'POST', body: formData });
       if (idorcamento) await renderHistorico(idorcamento);
       await atualizarProntasParaEnvioSeVisivel();
+      await atualizarFaturadasSeVisivel();
     } catch (err) {
       console.error('Erro ao anexar arquivo:', err);
       aviso('error', 'Erro', 'Não foi possível anexar o arquivo.');
@@ -1179,11 +1361,22 @@ function configurarEventosNotaFiscal() {
   ligarComboFiltro('Cliente', aoMudarClienteFiltro);
   ligarComboFiltro('Evento', aoMudarEventoFiltro);
 
+  document.getElementById('nfBtnFiltrarFaturadas').addEventListener('click', carregarFaturadas);
+  document.getElementById('nfBtnLimparFiltrosFaturadas').addEventListener('click', limparFiltrosFaturadas);
+  ligarComboFiltro('FatCliente', () => {});
+  ['nfFatFiltroDe', 'nfFatFiltroAte'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', (e) => mascararDataDigitada(e.target));
+  });
+
   ['nfValorServico', 'nfAliquotaIss'].forEach((id) => {
     document.getElementById(id).addEventListener('input', recalcularTributos);
   });
   ['nfCheckIrrf', 'nfCheckPisCofins'].forEach((id) => {
-    document.getElementById(id).addEventListener('change', recalcularTributos);
+    const el = document.getElementById(id);
+    el.addEventListener('change', recalcularTributos);
+    // Marca que o usuário mexiu manualmente, pra consultarRegimeSimplesNacional
+    // não sobrescrever a escolha dele se a resposta da BrasilAPI chegar depois.
+    el.addEventListener('change', () => { el.dataset.tocado = '1'; });
   });
 
   document.getElementById('nfBtnRegistrar').addEventListener('click', registrarNota);
