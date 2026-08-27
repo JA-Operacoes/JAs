@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-<link rel="stylesheet" href="css/Modal/CadNotaFiscal.css?v=18">
+<link rel="stylesheet" href="css/Modal/CadNotaFiscal.css?v=22">
 
 <div id="cadModalNotaFiscal" class="modal">
   <div class="modal-content">
@@ -19,7 +19,8 @@
       <button type="button" class="nf-tab-btn ativa" data-nf-tab="lista">Visão Geral</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="emissao">Emitir nota</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="envio">Prontas para Envio</button>
-      <button type="button" class="nf-tab-btn" data-nf-tab="faturadas">Faturadas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="emitidas">Emitidas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="canceladas">Canceladas</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="parametros">Parâmetros/AliquotasNF</button>
     </div>
 
@@ -59,6 +60,7 @@
               <select id="nfFiltroStatusFatura">
                 <option value="">Todas</option>
                 <option value="faturada">Faturadas</option>
+                <option value="parcial">Faturadas parcialmente</option>
                 <option value="aberto">Em aberto</option>
                 <option value="vencida">Vencidas</option>
               </select>
@@ -87,22 +89,23 @@
         <div class="nf-tabela-wrap">
           <table class="nf-tabela">
             <thead>
-              <tr>
-                <th>Nº orçamento</th>
-                <th>Cliente</th>
-                <th>Evento</th>
-                <th>Município</th>
-                <th>Parcelas</th>
-                <th>Realização</th>
-                <th>Vencimento</th>
-                <th class="nf-num">Valor total</th>
-                <th class="nf-num">Faturado</th>
-                <th class="nf-num">Saldo</th>
+              <tr id="nfTabelaPendentesHead">
+                <th data-sort="nrorcamento">Nº orçamento<span class="nf-seta"></span></th>
+                <th data-sort="cliente_nome">Cliente<span class="nf-seta"></span></th>
+                <th data-sort="evento_nome">Evento<span class="nf-seta"></span></th>
+                <th data-sort="emissora_nome">Empresa emissora<span class="nf-seta"></span></th>
+                <th data-sort="evento_cidade">Município<span class="nf-seta"></span></th>
+                <th data-sort="parcelaspagas">Parcelas<span class="nf-seta"></span></th>
+                <th data-sort="dtinirealizacao">Realização<span class="nf-seta"></span></th>
+                <th data-sort="proximovencimento">Vencimento<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="vlrcliente">Valor total<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="faturado">Faturado<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="saldo">Saldo<span class="nf-seta"></span></th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="nfTabelaPendentesBody">
-              <tr><td colspan="11">Carregando...</td></tr>
+              <tr><td colspan="12">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -335,7 +338,7 @@
       </div>
 
       <!-- ===================== ABA — FATURADAS ===================== -->
-      <div class="nf-view" id="nfViewFaturadas">
+      <div class="nf-view" id="nfViewEmitidas">
         <p class="nf-aviso">Notas já emitidas (de qualquer orçamento) — reveja o XML/PDF ou anexe o comprovante se ainda faltar.</p>
 
         <div class="nf-secao">
@@ -343,26 +346,26 @@
             <div class="nf-campo nf-campo-largo">
               <label>Cliente</label>
               <div class="nf-combo">
-                <input type="text" id="nfBuscaFatCliente" placeholder="Todos" autocomplete="off">
-                <input type="hidden" id="nfFiltroFatCliente" value="">
-                <ul id="nfListaFatCliente" class="nf-combo-lista"></ul>
+                <input type="text" id="nfBuscaEmiCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroEmiCliente" value="">
+                <ul id="nfListaEmiCliente" class="nf-combo-lista"></ul>
               </div>
             </div>
             <div class="nf-campo">
               <label>Empresa emissora</label>
-              <select id="nfFatFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+              <select id="nfEmiFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
             </div>
             <fieldset class="nf-grupo-filtro nf-grupo-compacto">
               <legend>Registro</legend>
               <div class="nf-grupo-compacto-campos">
-                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFatFiltroDe" placeholder="dd/mm/aaaa"></div>
-                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFatFiltroAte" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfEmiFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfEmiFiltroAte" placeholder="dd/mm/aaaa"></div>
               </div>
             </fieldset>
           </div>
           <div class="BTNs">
-            <button type="button" id="nfBtnFiltrarFaturadas">Filtrar</button>
-            <button type="button" id="nfBtnLimparFiltrosFaturadas" class="nf-btn-secundario">Limpar filtros</button>
+            <button type="button" id="nfBtnFiltrarEmitidas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosEmitidas" class="nf-btn-secundario">Limpar filtros</button>
           </div>
         </div>
 
@@ -380,8 +383,62 @@
                 <th>Ações</th>
               </tr>
             </thead>
-            <tbody id="nfFaturadasBody">
+            <tbody id="nfEmitidasBody">
               <tr><td colspan="8">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — CANCELADAS ===================== -->
+      <div class="nf-view" id="nfViewCanceladas">
+        <p class="nf-aviso">Notas com status Cancelada — tanto as canceladas só localmente (nunca chegaram a ser emitidas de verdade) quanto as canceladas na prefeitura, via Web Service (essas mostram a justificativa e a data do cancelamento).</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaCancCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroCancCliente" value="">
+                <ul id="nfListaCancCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfCancFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfCancFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfCancFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarCanceladas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosCanceladas" class="nf-btn-secundario">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th>Nº da nota</th>
+                <th class="nf-num">Valor</th>
+                <th>Cancelada em</th>
+                <th>Justificativa</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfCanceladasBody">
+              <tr><td colspan="9">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
