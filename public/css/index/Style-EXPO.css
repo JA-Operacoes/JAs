@@ -59,7 +59,7 @@ nav {
 }
 
 /* Quando o mouse passar sobre cada logo, a cor do menu muda */
-.logo-expo:hover ~ nav {
+.logo-ja-expo:hover ~ nav {
   background-color: #f47722;
 }
 
