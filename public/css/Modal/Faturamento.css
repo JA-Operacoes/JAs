@@ -1028,6 +1028,24 @@ p.nf-subtitulo {
   background-color: #3a3a3a;
   color: #fff;
 }
+#cadModalNotaFiscal button.nf-btn-secundario:disabled {
+  background-color: #b7b7b7;
+  color: #f0f0f0;
+  cursor: not-allowed;
+}
+#cadModalNotaFiscal button.nf-btn-secundario:disabled:hover {
+  background-color: #b7b7b7;
+}
+/* Preto — pedido explícito, distinto do cinza (Limpar filtros) e do azul do
+   "Ver XML" (#1f6fa8) e do teal da "Prévia" (#127a76). */
+#cadModalNotaFiscal button.nf-btn-imprimir {
+  background-color: #000;
+  color: #fff;
+  border: none;
+}
+#cadModalNotaFiscal button.nf-btn-imprimir:hover {
+  background-color: #222;
+}
 
 /* Filtros em uma única linha só (pedido: não separar os períodos em outra
    linha) — flex-wrap em vez de grid rígido, com os campos de data bem mais
@@ -1067,4 +1085,21 @@ p.nf-subtitulo {
 }
 #cadModalNotaFiscal .nf-grupo-compacto .nf-campo-data {
   min-width: 90px;
+}
+
+/* Impressão (Visão Geral) — escolha de colunas dentro do Swal "Escolha as
+   colunas". SEM escopo #cadModalNotaFiscal de propósito: Swal2 renderiza seu
+   popup fora do modal (append direto em document.body), então uma regra
+   escopada aqui nunca chegaria a valer (mesmo motivo do Swal de "Marcar
+   emitida" — ver comentário mais acima no arquivo). */
+.nf-print-colunas {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.nf-print-coluna-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  text-align: left;
 }

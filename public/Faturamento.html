@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-<link rel="stylesheet" href="css/Modal/Faturamento.css?v=22">
+<link rel="stylesheet" href="css/Modal/Faturamento.css?v=26">
 
 <div id="cadModalNotaFiscal" class="modal">
   <div class="modal-content">
@@ -83,6 +83,7 @@
           <div class="BTNs">
             <button type="button" id="nfBtnFiltrarPendentes">Filtrar</button>
             <button type="button" id="nfBtnLimparFiltrosPendentes" class="nf-btn-secundario">Limpar filtros</button>
+            <button type="button" id="nfBtnImprimirPendentes" class="nf-btn-imprimir">Imprimir</button>
           </div>
         </div>
 
@@ -184,7 +185,10 @@
             <div class="nf-campo auto nf-full"><label>Endereço</label><input id="nfClienteEndereco" readonly></div>
           </div>
           <span class="nf-hint warn" id="nfAvisoInscMun">Campo obrigatório para a NFS-e Nacional — não veio cadastrado no cliente.</span>
-          <span class="nf-hint" id="nfStatusSimplesNacional" style="display:none"></span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="nf-hint" id="nfStatusSimplesNacional" style="display:none"></span>
+            <button type="button" id="nfBtnVerificarSimples" class="nf-btn-secundario" style="display:none;padding:2px 10px;font-size:12px;" title="Consulta de novo o regime tributário desse cliente na Receita Federal">Verificar Regime Tributário</button>
+          </div>
         </div>
 
         <div class="nf-secao">
@@ -264,6 +268,10 @@
             <div></div>
           </div>
           <span class="nf-hint warn" id="nfAvisoAliquotaIss" style="display:none">Evento fora de São Paulo — o ISS é devido no município do evento, não no de São Paulo. Digite manualmente a alíquota de ISS daquele município no campo acima.</span>
+          <div id="nfAvisoRetencaoTravada" style="display:none;align-items:center;gap:8px;">
+            <span class="nf-hint">Cliente Simples Nacional — retenção não se aplica, caixinhas travadas.</span>
+            <button type="button" id="nfBtnForcarRetencao" class="nf-btn-secundario" style="padding:1px 8px;font-size:12px;" title="Destrava as caixinhas de retenção mesmo com o cliente confirmado como Simples Nacional">Forçar mesmo assim</button>
+          </div>
 
           <div class="nf-reforma">
             <strong>Reforma Tributária — fase de teste <span id="nfLabelAnoParametros">2026</span> (destaque informativo)</strong>
@@ -475,3 +483,5 @@
     </div>
   </div>
 </div>
+
+<iframe id="nfPrintIframe" style="display:none;"></iframe>

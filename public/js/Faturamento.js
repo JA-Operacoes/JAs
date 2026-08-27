@@ -22,6 +22,12 @@ const normalizarTexto = (t) => String(t || '').normalize('NFD').replace(/\p{Diac
 // aspas duplas sem escapar fecham o atributo antes da hora e quebram a linha.
 const escaparAtributo = (texto) => String(texto ?? '').replace(/"/g, '&quot;');
 
+// Testar envio / Enviar direto / Cancelar / Cancelar NF na Prefeitura são
+// restritos à flag especial "master" (pedido explícito) — front só esconde
+// (UX), o backend é quem realmente bloqueia (ver docs/PERMISSOES.md). Segue a
+// convenção do projeto: a flag é concedida na linha do módulo "Staff".
+const temMasterFaturamento = () => typeof window.temPermissao === 'function' && window.temPermissao('Staff', 'master');
+
 // Razão social + nome fantasia entre parênteses (quando existe e é diferente
 // da razão social — evita "Nome (Nome)" redundante quando são iguais).
 const nomeClienteComFantasia = (razaoSocial, nomeFantasia) => {
@@ -252,7 +258,9 @@ function limparFiltrosPendentes() {
 
 // Soma Valor total/Faturado/Saldo da lista já filtrada (backend já aplicou
 // cliente/evento/emissora/status/período — aqui só soma o que veio).
-function atualizarTotaisGeraisPendentes(lista) {
+// Extraído pra ser reaproveitado pela impressão "Só Total" (calcula os mesmos
+// 4 totais, mas por grupo de empresa emissora em vez de só o geral da tela).
+function calcularTotaisLista(lista) {
   // Datas do backend são tratadas como UTC em toda a tela (ver formatarDataBR
   // com timeZone:'UTC') — "hoje" precisa ser comparado do mesmo jeito, senão
   // uma parcela que vence hoje pode contar como vencida ou não dependendo do
@@ -260,7 +268,7 @@ function atualizarTotaisGeraisPendentes(lista) {
   const hojeUTC = new Date();
   hojeUTC.setUTCHours(0, 0, 0, 0);
 
-  const totais = lista.reduce((acc, o) => {
+  return lista.reduce((acc, o) => {
     const saldo = parseFloat(o.saldo) || 0;
     acc.valor += parseFloat(o.vlrcliente) || 0;
     acc.faturado += parseFloat(o.faturado) || 0;
@@ -270,7 +278,10 @@ function atualizarTotaisGeraisPendentes(lista) {
     }
     return acc;
   }, { valor: 0, faturado: 0, saldo: 0, vencido: 0 });
+}
 
+function atualizarTotaisGeraisPendentes(lista) {
+  const totais = calcularTotaisLista(lista);
   document.getElementById('nfTotalGeralValor').textContent = fmtMoeda(totais.valor);
   document.getElementById('nfTotalGeralFaturado').textContent = fmtMoeda(totais.faturado);
   document.getElementById('nfTotalGeralSaldo').textContent = fmtMoeda(totais.saldo);
@@ -327,7 +338,7 @@ function renderizarLinhasPendentes(lista) {
       <td>${!o.proprioambiente
           ? `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(o.ambienteorigem_nome || '—')}</span>`
           : saldo > 0.009
-            ? `${parseFloat(o.faturado) > 0 ? '<span class="nf-chip rascunho" title="Já tem parcela(s) faturada(s), mas ainda falta faturar o restante">Faturada parcialmente</span> ' : ''}<button type="button" class="nf-row-btn" data-idorcamento="${o.idorcamento}">Emitir nota</button>`
+            ? `${parseFloat(o.faturado) > 0 ? '<span class="nf-chip rascunho" title="Já tem parcela(s) faturada(s), mas ainda falta faturar o restante">Faturada parcialmente</span> ' : ''}${temMasterFaturamento() ? `<button type="button" class="nf-row-btn" data-idorcamento="${o.idorcamento}">Emitir nota</button>` : ''}`
             : '<span class="nf-chip emitida">Faturado</span>'}</td>`;
     tbody.appendChild(tr);
   });
@@ -345,14 +356,18 @@ function renderizarLinhasPendentes(lista) {
 const PENDENTES_CAMPOS_NUMERICOS = new Set(['nrorcamento', 'vlrcliente', 'faturado', 'saldo', 'parcelaspagas']);
 const PENDENTES_CAMPOS_DATA = new Set(['dtinirealizacao', 'proximovencimento']);
 
-function ordenarPendentes(campo) {
-  pendentesOrdenacao.direcao = (pendentesOrdenacao.campo === campo) ? -pendentesOrdenacao.direcao : 1;
-  pendentesOrdenacao.campo = campo;
-
+// Extraído de ordenarPendentes pra ser reaproveitado pela impressão (ver
+// gerarImpressaoVisaoGeral) — a impressão precisa refletir a MESMA ordem que
+// está na tela, mas pendentesListaAtual nunca é reordenada de verdade (só o
+// que é renderizado no DOM), então sem isso a impressão sairia sempre na
+// ordem original do backend, ignorando um clique de ordenação já feito.
+function aplicarOrdenacaoAtual(lista) {
+  if (!pendentesOrdenacao.campo) return lista;
+  const campo = pendentesOrdenacao.campo;
   const numerico = PENDENTES_CAMPOS_NUMERICOS.has(campo);
   const data = PENDENTES_CAMPOS_DATA.has(campo);
 
-  const lista = [...pendentesListaAtual].sort((a, b) => {
+  return [...lista].sort((a, b) => {
     let va = a[campo];
     let vb = b[campo];
     // Nulo/vazio sempre no fim, não importa a direção — senão "sem vencimento"
@@ -369,9 +384,14 @@ function ordenarPendentes(campo) {
     if (va > vb) return 1 * pendentesOrdenacao.direcao;
     return 0;
   });
+}
+
+function ordenarPendentes(campo) {
+  pendentesOrdenacao.direcao = (pendentesOrdenacao.campo === campo) ? -pendentesOrdenacao.direcao : 1;
+  pendentesOrdenacao.campo = campo;
 
   atualizarSetasOrdenacaoPendentes();
-  renderizarLinhasPendentes(lista);
+  renderizarLinhasPendentes(aplicarOrdenacaoAtual(pendentesListaAtual));
 }
 
 function atualizarSetasOrdenacaoPendentes() {
@@ -385,6 +405,221 @@ function atualizarSetasOrdenacaoPendentes() {
       seta.textContent = '▲';
     }
   });
+}
+
+// ---- Impressão (Visão Geral) ----
+// Logo da empresa atual (mesmo mecanismo já usado em Relatorios.js:
+// GET /relatorios/empresas/:id devolve nmfantasia, o nome do arquivo em
+// public/img/ é o nmfantasia em maiúsculas com separadores trocados por "_").
+// Caminho relativo (não localhost:3000 fixo) pra funcionar em produção também.
+let nfEmpresaLogoPath = '/img/JA_Oper.png';
+
+async function inicializarLogoEmpresaImpressao() {
+  const idempresa = localStorage.getItem('idempresa');
+  if (!idempresa) return;
+  try {
+    const empresa = await fetchComToken(`/relatorios/empresas/${idempresa}`);
+    if (empresa?.nmfantasia) {
+      nfEmpresaLogoPath = `/img/${empresa.nmfantasia.toUpperCase().replace(/[^A-Z0-9]/g, '_')}.png`;
+    }
+  } catch (err) {
+    console.warn('Não consegui buscar o logo da empresa pra impressão, usando o padrão:', err);
+  }
+}
+
+const NF_COLUNAS_IMPRESSAO = [
+  { chave: 'nrorcamento', label: 'Nº orçamento', valor: (o) => o.nrorcamento },
+  { chave: 'cliente', label: 'Cliente', valor: (o) => nomeClienteComFantasia(o.cliente_nome, o.cliente_nmfantasia) || '—' },
+  { chave: 'evento', label: 'Evento', valor: (o) => o.evento_nome || '—' },
+  { chave: 'emissora', label: 'Empresa emissora', valor: (o) => o.emissora_nome || '—' },
+  { chave: 'municipio', label: 'Município', valor: (o) => o.evento_cidade ? `${o.evento_cidade}${o.evento_uf ? '/' + o.evento_uf : ''}` : '—' },
+  {
+    chave: 'parcelas', label: 'Parcelas', valor: (o) => {
+      const totalparcelas = parseInt(o.totalparcelas, 10) || 0;
+      const parcelaspagas = parseInt(o.parcelaspagas, 10) || 0;
+      return totalparcelas <= 1 ? 'À vista' : `${parcelaspagas}/${totalparcelas}`;
+    }
+  },
+  { chave: 'realizacao', label: 'Realização', valor: (o) => `${formatarDataBR(o.dtinirealizacao)}${o.dtfimrealizacao ? ' – ' + formatarDataBR(o.dtfimrealizacao) : ''}` },
+  { chave: 'vencimento', label: 'Vencimento', valor: (o) => o.proximovencimento ? formatarDataBR(o.proximovencimento) : '—' },
+  { chave: 'valorTotal', label: 'Valor total', valor: (o) => fmtMoeda(o.vlrcliente), numerica: true },
+  { chave: 'faturado', label: 'Faturado', valor: (o) => fmtMoeda(o.faturado), numerica: true },
+  { chave: 'saldo', label: 'Saldo', valor: (o) => fmtMoeda(parseFloat(o.saldo) || 0), numerica: true },
+];
+
+// Resumo dos filtros ativos em Visão Geral, pra aparecer no cabeçalho da
+// impressão — sobretudo no modo "Só Total", que não mostra as linhas, só os
+// totais e o que foi filtrado pra chegar neles.
+function resumoFiltrosPendentesAtivos() {
+  const partes = [];
+  const cliente = document.getElementById('nfBuscaCliente').value.trim();
+  if (cliente) partes.push(`Cliente: ${cliente}`);
+  const evento = document.getElementById('nfBuscaEvento').value.trim();
+  if (evento) partes.push(`Evento: ${evento}`);
+  // Empresa emissora sempre aparece, mesmo em "Todas" — deixa explícito o
+  // escopo do relatório em vez de simplesmente omitir quando não filtrado.
+  const selectEmpresa = document.getElementById('nfFiltroEmpresaEmissora');
+  partes.push(`Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`);
+  const selectStatus = document.getElementById('nfFiltroStatusFatura');
+  if (selectStatus.value) partes.push(`Status: ${selectStatus.options[selectStatus.selectedIndex].text}`);
+  const realDe = document.getElementById('nfFiltroRealizacaoDe').value.trim();
+  const realAte = document.getElementById('nfFiltroRealizacaoAte').value.trim();
+  if (realDe || realAte) partes.push(`Realização: ${realDe || '—'} a ${realAte || '—'}`);
+  const vencDe = document.getElementById('nfFiltroVencimentoDe').value.trim();
+  const vencAte = document.getElementById('nfFiltroVencimentoAte').value.trim();
+  if (vencDe || vencAte) partes.push(`Vencimento: ${vencDe || '—'} a ${vencAte || '—'}`);
+  return partes;
+}
+
+function cabecalhoImpressaoPendentes(subtitulo) {
+  const dataHora = new Date().toLocaleString('pt-BR');
+  const filtros = resumoFiltrosPendentesAtivos();
+  return `
+    <div class="nf-print-topo">
+      <img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">
+      <h1>Faturamento</h1>
+    </div>
+    <div class="nf-print-barra-titulo">VISÃO GERAL — ${escaparAtributo(subtitulo)}</div>
+    <p class="nf-print-geradoem">Gerado em ${dataHora}</p>
+    ${filtros.length ? `<div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>` : ''}`;
+}
+
+// Escreve o conteúdo no iframe oculto e dispara a impressão — mesmo padrão
+// já usado em Relatorios.js (window.print() direto na tela brigaria com o
+// layout do modal/overlay, por isso um iframe isolado com CSS próprio). O
+// estilo do documento impresso fica todo nesse único <style>, não espalhado
+// em atributos style="" pelo HTML gerado.
+function imprimirHtmlEmIframe(conteudoHtml) {
+  const iframe = document.getElementById('nfPrintIframe');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faturamento — Visão Geral</title>
+    <style>
+      @page { size: A4 landscape; margin: 1cm; }
+      body { font-family: Arial, sans-serif; color: #222; margin: 0; }
+      .nf-print-topo { display: flex; align-items: center; gap: 16px; background: #eef0f2; padding: 10px 16px; border-radius: 6px 6px 0 0; }
+      .nf-print-logo { max-height: 40px; }
+      .nf-print-topo h1 { flex: 1; text-align: center; margin: 0; margin-right: 56px; font-size: 24px; letter-spacing: .04em; color: #2c3e50; }
+      .nf-print-barra-titulo { background: #2c3e50; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .03em; padding: 6px 16px; }
+      .nf-print-geradoem { margin: 6px 16px 0; font-size: 11px; color: #777; }
+      .nf-print-filtros { margin: 8px 16px 14px; }
+      .nf-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #2c3e50; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 0 0 12px; }
+      th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
+      th { background: #ddd; color: #000; font-weight: bold; }
+      tbody tr:nth-child(even) { background: #f5f6f7; }
+      td.num, th.num { text-align: right; }
+      .nf-print-total-geral td { background: #2c3e50; color: #fff; font-weight: bold; font-size: 12px; }
+      .nf-print-vazio { margin: 0 16px; color: #777; }
+    </style>
+  </head><body>${conteudoHtml}</body></html>`);
+  doc.close();
+  // Pequeno atraso pra garantir que o iframe renderizou antes de imprimir.
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  }, 300);
+}
+
+function linhaTotaisImpressao(titulo, totais, destaque) {
+  return `<tr${destaque ? ' class="nf-print-total-geral"' : ''}>
+    <td>${escaparAtributo(titulo)}</td>
+    <td class="num">${fmtMoeda(totais.valor)}</td>
+    <td class="num">${fmtMoeda(totais.faturado)}</td>
+    <td class="num">${fmtMoeda(totais.saldo)}</td>
+    <td class="num">${fmtMoeda(totais.vencido)}</td>
+  </tr>`;
+}
+
+// "Só Total" sempre mostra de qual empresa emissora é o valor (pedido
+// explícito) — com um filtro de empresa específico, pendentesListaAtual já
+// só tem uma; com "Todas", agrupa uma linha de subtotal por empresa, mais
+// uma linha de Total Geral no final juntando todas. Colunas em vez de linhas
+// empilhadas — mais compacto e fácil de comparar entre empresas.
+function gerarImpressaoSoTotal() {
+  const lista = pendentesListaAtual;
+  const grupos = new Map(); // nome da empresa emissora -> orçamentos dela
+  lista.forEach((o) => {
+    const nome = o.emissora_nome || 'Sem empresa emissora';
+    if (!grupos.has(nome)) grupos.set(nome, []);
+    grupos.get(nome).push(o);
+  });
+  const nomesEmpresas = [...grupos.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  let corpo;
+  if (!nomesEmpresas.length) {
+    corpo = '<p class="nf-print-vazio">Nenhum orçamento para os filtros selecionados.</p>';
+  } else {
+    let linhas = nomesEmpresas.map((nome) => linhaTotaisImpressao(nome, calcularTotaisLista(grupos.get(nome)))).join('');
+    if (nomesEmpresas.length > 1) {
+      linhas += linhaTotaisImpressao('Total Geral (todas as empresas)', calcularTotaisLista(lista), true);
+    }
+    corpo = `
+      <table>
+        <thead><tr><th>Empresa Emissora</th><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Vencidos</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>`;
+  }
+
+  const html = cabecalhoImpressaoPendentes('Somente totais') + corpo;
+  imprimirHtmlEmIframe(html);
+}
+
+function gerarImpressaoDetalhes(colunasEscolhidas) {
+  const colunas = NF_COLUNAS_IMPRESSAO.filter((c) => colunasEscolhidas.includes(c.chave));
+  // Mesma ordem que está na tela (respeita clique em ordenação já feito).
+  const lista = aplicarOrdenacaoAtual(pendentesListaAtual);
+  const linhas = lista.map((o) => `<tr>${colunas.map((c) => `<td${c.numerica ? ' class="num"' : ''}>${c.valor(o)}</td>`).join('')}</tr>`).join('');
+  const html = cabecalhoImpressaoPendentes(`Detalhes — ${lista.length} orçamento${lista.length === 1 ? '' : 's'}`) + `
+    <table>
+      <thead><tr>${colunas.map((c) => `<th${c.numerica ? ' class="num"' : ''}>${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${linhas || `<tr><td colspan="${colunas.length}">Nenhum orçamento para os filtros selecionados.</td></tr>`}</tbody>
+    </table>`;
+  imprimirHtmlEmIframe(html);
+}
+
+// Checkboxes de coluna, todas marcadas por padrão — o financeiro só desmarca
+// o que não quer ver impresso (pedido explícito: "vir com todos setados").
+// Classes .nf-print-colunas/.nf-print-coluna-check ficam em Faturamento.css
+// (sem escopo #cadModalNotaFiscal, já que o Swal renderiza fora do modal).
+async function abrirEscolhaColunasImpressao() {
+  const checkboxesHtml = NF_COLUNAS_IMPRESSAO.map((c) => `
+    <label class="nf-print-coluna-check">
+      <input type="checkbox" checked value="${c.chave}"> ${c.label}
+    </label>`).join('');
+
+  const { value: colunasEscolhidas } = await Swal.fire({
+    title: 'Escolha as colunas',
+    html: `<div class="nf-print-colunas">${checkboxesHtml}</div>`,
+    showCancelButton: true,
+    confirmButtonText: 'Imprimir',
+    cancelButtonText: 'Cancelar',
+    preConfirm: () => {
+      const marcadas = [...document.querySelectorAll('.swal2-html-container input[type=checkbox]:checked')].map((el) => el.value);
+      if (!marcadas.length) {
+        Swal.showValidationMessage('Escolha pelo menos uma coluna.');
+        return false;
+      }
+      return marcadas;
+    }
+  });
+  if (!colunasEscolhidas) return;
+  gerarImpressaoDetalhes(colunasEscolhidas);
+}
+
+async function imprimirVisaoGeral() {
+  const { isConfirmed, isDenied } = await Swal.fire({
+    title: 'Imprimir Visão Geral',
+    text: '"Detalhes" mostra a lista com as colunas que você escolher; "Só Total" mostra apenas os totais e os filtros aplicados.',
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: 'Detalhes',
+    denyButtonText: 'Só Total',
+    cancelButtonText: 'Cancelar',
+    reverseButtons: true
+  });
+  if (isConfirmed) await abrirEscolhaColunasImpressao();
+  else if (isDenied) gerarImpressaoSoTotal();
 }
 
 // ---- Cadastro de serviços da empresa (select) ----
@@ -634,7 +869,7 @@ function renderizarNotasProntasParaEnvio() {
         <td>
           <button type="button" class="nf-btn-acao previa" data-previa="${n.idnotafiscal}" title="Resumo legível de tudo que essa nota mandaria pra prefeitura — pra conferir antes de enviar">Prévia</button>
           <button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>
-          <button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>
+          ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
@@ -745,7 +980,7 @@ async function carregarEmitidas() {
                ${n.arquivopdf
                   ? `<button type="button" class="nf-btn-acao email" data-enviar-email="${n.idnotafiscal}" data-email-cliente="${escaparAtributo(n.cliente_email || '')}" title="${n.dtenvioemailcliente ? `Já enviado em ${formatarDataBR(n.dtenvioemailcliente)} — clique pra enviar de novo` : 'Manda o PDF anexado pro e-mail do cliente'}">${n.dtenvioemailcliente ? 'Reenviar e-mail' : 'Enviar por E-mail'}</button>`
                   : `<button type="button" class="nf-btn-acao email" disabled title="Anexe o PDF antes de poder enviar por e-mail">Enviar por E-mail</button>`}
-               <button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>`
+               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
@@ -946,17 +1181,72 @@ function selecionarParcela(idparcela) {
 
 // ---- Aba 2: abrir emissão a partir de um orçamento ----
 // Consulta ao vivo (BrasilAPI, via nosso backend) se o cliente é optante do
-// Simples Nacional, pra ajudar a decidir a retenção de IRRF/PIS-COFINS-CSLL
-// — nunca bloqueia nada, só pré-marca quando dá pra confirmar. Só o caso
-// "optante confirmado" mexe nos checkboxes (desmarca — retenção não se
-// aplica); "não optante"/"não deu pra confirmar" não muda nada, deixa o
-// financeiro decidir como já faz hoje.
+// Simples Nacional, pra decidir a retenção de IRRF/PIS-COFINS-CSLL — cliente
+// Simples Nacional não é obrigado a reter, então "optante confirmado"
+// desmarca E trava as caixinhas (ver travarRetencaoSimples); "não
+// optante"/"não deu pra confirmar" deixa como está, financeiro decide.
+// Trava/destrava as caixinhas de retenção quando o Simples Nacional é
+// confirmado — cliente Simples não é obrigado a reter IRRF/PIS-COFINS-CSLL,
+// então não faz sentido deixar marcar por engano. `dataset.forcado` registra
+// se foi destravada manualmente (ver forcarRetencaoApesarDoSimples), pra
+// registrarNota() deixar isso anotado na observação da nota.
+function travarRetencaoSimples(travar) {
+  const checkIrrf = document.getElementById('nfCheckIrrf');
+  const checkPisCofins = document.getElementById('nfCheckPisCofins');
+  checkIrrf.disabled = travar;
+  checkPisCofins.disabled = travar;
+  delete checkIrrf.dataset.forcado;
+  delete checkPisCofins.dataset.forcado;
+  document.getElementById('nfAvisoRetencaoTravada').style.display = travar ? 'flex' : 'none';
+}
+
+// Escape da trava acima — o financeiro pode saber de algo que a BrasilAPI não
+// sabe (dado desatualizado, CNPJ errado etc.), então não é uma trava sem
+// saída. Fica marcado em dataset.forcado pra entrar na observação da nota.
+function forcarRetencaoApesarDoSimples() {
+  const checkIrrf = document.getElementById('nfCheckIrrf');
+  const checkPisCofins = document.getElementById('nfCheckPisCofins');
+  checkIrrf.disabled = false;
+  checkPisCofins.disabled = false;
+  checkIrrf.dataset.forcado = '1';
+  checkPisCofins.dataset.forcado = '1';
+  document.getElementById('nfAvisoRetencaoTravada').style.display = 'none';
+}
+
+// A BrasilAPI limita a 3 requisições/minuto (ver buscarSimplesNacional.js) —
+// depois de 3 respostas 429 seguidas, para de tentar por 3 minutos em vez de
+// continuar batendo (só pioraria o bloqueio do lado da BrasilAPI). Zera
+// assim que uma consulta der certo.
+let tentativas429Consecutivas = 0;
+let bloqueadoSimplesAte = 0;
+const TEXTO_BTN_VERIFICAR_SIMPLES = 'Verificar Regime Tributário';
+
 async function consultarRegimeSimplesNacional(idcliente, idorcamentoQuandoChamado) {
+  const spanSimples = document.getElementById('nfStatusSimplesNacional');
+  const btnVerificar = document.getElementById('nfBtnVerificarSimples');
+
+  if (Date.now() < bloqueadoSimplesAte) {
+    spanSimples.textContent = 'Limite de consulta excedido, aguarde 3 minutos para nova consulta.';
+    spanSimples.className = 'nf-hint';
+    spanSimples.style.display = 'block';
+    btnVerificar.style.display = '';
+    btnVerificar.disabled = true;
+    btnVerificar.textContent = 'Aguarde...';
+    return;
+  }
+
   let resultado;
   try {
     resultado = await fetchComToken(`/faturamento/cliente/${idcliente}/regime-simples`);
   } catch (err) {
     console.warn('Não deu pra consultar o regime Simples Nacional do cliente:', err);
+    // Falha de rede/token — mesmo tratamento do erro== null abaixo: avisa
+    // sem travar nada, e deixa o botão "Verificar agora" disponível.
+    if (document.getElementById('nfIdOrcamentoAtual').value != idorcamentoQuandoChamado) return;
+    spanSimples.textContent = 'Não consegui confirmar o regime tributário agora — verifique manualmente.';
+    spanSimples.className = 'nf-hint';
+    spanSimples.style.display = 'block';
+    btnVerificar.style.display = '';
     return;
   }
 
@@ -964,8 +1254,8 @@ async function consultarRegimeSimplesNacional(idcliente, idorcamentoQuandoChamad
   // ou fechado a tela — descarta se não for mais o caso atual.
   if (document.getElementById('nfIdOrcamentoAtual').value != idorcamentoQuandoChamado) return;
 
-  const spanSimples = document.getElementById('nfStatusSimplesNacional');
   if (resultado.optanteSimples === true) {
+    tentativas429Consecutivas = 0;
     spanSimples.textContent = 'Cliente optante do Simples Nacional (consultado agora na Receita Federal) — retenção de IRRF/PIS-COFINS-CSLL não se aplica.';
     spanSimples.className = 'nf-hint warn';
     spanSimples.style.display = 'block';
@@ -975,14 +1265,49 @@ async function consultarRegimeSimplesNacional(idcliente, idorcamentoQuandoChamad
     const checkPisCofins = document.getElementById('nfCheckPisCofins');
     if (!checkIrrf.dataset.tocado) checkIrrf.checked = false;
     if (!checkPisCofins.dataset.tocado) checkPisCofins.checked = false;
+    travarRetencaoSimples(true);
     recalcularTributos();
   } else if (resultado.optanteSimples === false) {
+    tentativas429Consecutivas = 0;
     spanSimples.textContent = 'Cliente não é optante do Simples Nacional (consultado agora na Receita Federal).';
     spanSimples.className = 'nf-hint ok';
     spanSimples.style.display = 'block';
+    travarRetencaoSimples(false);
+  } else if (String(resultado.erro || '').includes('429')) {
+    tentativas429Consecutivas++;
+    if (tentativas429Consecutivas >= 3) {
+      const TRES_MINUTOS_MS = 3 * 60 * 1000;
+      bloqueadoSimplesAte = Date.now() + TRES_MINUTOS_MS;
+      spanSimples.textContent = 'Limite de consulta excedido, aguarde 3 minutos para nova consulta.';
+      spanSimples.className = 'nf-hint';
+      spanSimples.style.display = 'block';
+      btnVerificar.style.display = '';
+      btnVerificar.disabled = true;
+      btnVerificar.textContent = 'Aguarde...';
+      setTimeout(() => {
+        tentativas429Consecutivas = 0;
+        bloqueadoSimplesAte = 0;
+        btnVerificar.disabled = false;
+        btnVerificar.textContent = TEXTO_BTN_VERIFICAR_SIMPLES;
+      }, TRES_MINUTOS_MS);
+      return;
+    }
+    spanSimples.textContent = `Não consegui confirmar o regime tributário agora (${resultado.erro}) — tente de novo em instantes ou verifique manualmente.`;
+    spanSimples.className = 'nf-hint';
+    spanSimples.style.display = 'block';
+    travarRetencaoSimples(false);
+  } else {
+    // optanteSimples === null por outro motivo (CNPJ inválido, timeout,
+    // etc., não rate-limit) — antes não mostrava nada; agora avisa que não
+    // deu pra confirmar em vez de ficar em silêncio.
+    tentativas429Consecutivas = 0;
+    spanSimples.textContent = `Não consegui confirmar o regime tributário agora${resultado.erro ? ` (${resultado.erro})` : ''} — tente de novo em instantes ou verifique manualmente.`;
+    spanSimples.className = 'nf-hint';
+    spanSimples.style.display = 'block';
+    travarRetencaoSimples(false);
   }
-  // optanteSimples === null (CNPJ inválido, BrasilAPI fora do ar, etc.):
-  // não mostra nada, comportamento igual a antes dessa automação existir.
+  btnVerificar.style.display = '';
+  btnVerificar.disabled = false;
 }
 
 async function abrirEmissaoParaOrcamento(idorcamento) {
@@ -1061,6 +1386,8 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
     delete checkPisCofinsEl.dataset.tocado;
     const spanSimples = document.getElementById('nfStatusSimplesNacional');
     spanSimples.style.display = 'none';
+    document.getElementById('nfBtnVerificarSimples').style.display = 'none';
+    travarRetencaoSimples(false);
     // Não usa await de propósito — é uma consulta externa (BrasilAPI) que
     // pode demorar; não faz sentido travar o resto da tela esperando ela.
     // Roda em paralelo e só aplica o resultado se o usuário ainda estiver
@@ -1319,6 +1646,11 @@ async function registrarNota() {
     ? parcelasDoOrcamentoAtual.find((p) => String(p.idparcela) === String(idparcela))
     : null;
 
+  // Se o financeiro destravou a retenção manualmente (Simples Nacional
+  // confirmado, mas decidiu reter mesmo assim), fica anotado na própria nota
+  // — é o registro pedido pra esse caso excepcional.
+  const forcouRetencao = document.getElementById('nfCheckIrrf').dataset.forcado || document.getElementById('nfCheckPisCofins').dataset.forcado;
+
   const body = {
     idorcamento, idcliente,
     idservico: idservico || null,
@@ -1335,6 +1667,7 @@ async function registrarNota() {
     valoribs: valores.valorIbs,
     meiopagamento,
     descricaomeiopagamento: descricaoMeioPagamento,
+    observacao: forcouRetencao ? 'Retenção de IRRF/PIS-COFINS-CSLL forçada manualmente pelo financeiro — cliente confirmado como optante do Simples Nacional na Receita Federal.' : null,
     status: 'Pronta para Envio'
   };
 
@@ -1386,7 +1719,7 @@ async function registrarNota() {
       }
     }
 
-    await fetchComToken('/notafiscal', { method: 'POST', body });
+    await fetchComToken('/faturamento', { method: 'POST', body });
     await aviso('success', 'Registrada', 'Nota fiscal registrada. Emita no portal da prefeitura e depois marque como "Emitida" aqui.');
     await renderHistorico(idorcamento);
     await carregarParcelasNota(idorcamento);
@@ -1435,7 +1768,7 @@ async function renderHistorico(idorcamento) {
         </td>
         <td>
           ${podeMarcarEmitida.includes(n.status) ? `<button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
-          ${podeCancelar.includes(n.status) ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
+          ${podeCancelar.includes(n.status) && temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           ${n.status !== 'Cancelada' ? `<button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS (ainda sem assinatura digital)'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML'}</button>` : ''}
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
@@ -1687,6 +2020,8 @@ function anexarPdf(idnotafiscal, idorcamento) {
 
 // ---- Inicialização (chamada pelo loader genérico de módulos) ----
 function configurarEventosNotaFiscal() {
+  inicializarLogoEmpresaImpressao();
+
   document.querySelectorAll('#cadModalNotaFiscal .nf-tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => mudarAba(btn.dataset.nfTab));
   });
@@ -1696,12 +2031,22 @@ function configurarEventosNotaFiscal() {
     atualizarDadosBancarios();
   });
   document.getElementById('nfBtnInserirDadosBancarios').addEventListener('click', inserirDadosBancariosNaDescricao);
+  document.getElementById('nfBtnVerificarSimples').addEventListener('click', () => {
+    const idcliente = document.getElementById('nfIdClienteAtual').value;
+    const idorcamento = document.getElementById('nfIdOrcamentoAtual').value;
+    if (idcliente && idorcamento) consultarRegimeSimplesNacional(idcliente, idorcamento);
+  });
+  document.getElementById('nfBtnForcarRetencao').addEventListener('click', forcarRetencaoApesarDoSimples);
   document.getElementById('nfBtnInserirValor').addEventListener('click', inserirValorNaDescricao);
   document.getElementById('nfBtnInserirParcela').addEventListener('click', inserirParcelaNaDescricao);
   document.getElementById('nfBtnInserirVencimento').addEventListener('click', inserirVencimentoNaDescricao);
 
   document.getElementById('nfBtnTestarEnvio').addEventListener('click', () => enviarLote(true));
   document.getElementById('nfBtnEnviarDireto').addEventListener('click', () => enviarLote(false));
+  if (!temMasterFaturamento()) {
+    document.getElementById('nfBtnTestarEnvio').style.display = 'none';
+    document.getElementById('nfBtnEnviarDireto').style.display = 'none';
+  }
   document.getElementById('nfEnvioFiltroEmpresa').addEventListener('change', renderizarNotasProntasParaEnvio);
   document.getElementById('nfEnvioMarcarTodas').addEventListener('change', (e) => {
     document.querySelectorAll('.nf-envio-check:not(:disabled)').forEach((chk) => { chk.checked = e.target.checked; });
@@ -1717,6 +2062,7 @@ function configurarEventosNotaFiscal() {
   });
   document.getElementById('nfBtnFiltrarPendentes').addEventListener('click', carregarPendentes);
   document.getElementById('nfBtnLimparFiltrosPendentes').addEventListener('click', limparFiltrosPendentes);
+  document.getElementById('nfBtnImprimirPendentes').addEventListener('click', imprimirVisaoGeral);
   ligarComboFiltro('Cliente', aoMudarClienteFiltro);
   ligarComboFiltro('Evento', aoMudarEventoFiltro);
   document.querySelectorAll('#nfTabelaPendentesHead th[data-sort]').forEach((th) => {
@@ -1749,6 +2095,7 @@ function configurarEventosNotaFiscal() {
   });
 
   document.getElementById('nfBtnRegistrar').addEventListener('click', registrarNota);
+  if (!temMasterFaturamento()) document.getElementById('nfBtnRegistrar').style.display = 'none';
   document.getElementById('nfBtnSalvarParametros').addEventListener('click', salvarParametros);
 
   popularSeletorAno();
