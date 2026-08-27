@@ -1,5 +1,5 @@
-// routes/rotaNotaFiscal.js
-// Emissao de Nota Fiscal — Fase A (painel semi-automatico).
+// routes/rotaFaturamento.js
+// Faturamento / Emissão de Nota Fiscal — Fase A (painel semi-automatico).
 //
 // Esta rota:
 //   1) mostra quais orçamentos fechados ainda têm saldo a faturar;
@@ -29,6 +29,8 @@ const { gerarXmlPedidoEnvioLoteRPS } = require('../utils/gerarXmlRpsLote');
 const { obterCertificadoEmpresa } = require('../utils/certificadoEmpresa');
 const { carregarCertificado } = require('../utils/assinarXmlRpsLote');
 const { enviarLoteRPS } = require('../utils/enviarLoteWebService');
+const { montarXmlCancelamentoNFe } = require('../utils/gerarXmlCancelamentoNFe');
+const { enviarEmailComAnexo } = require('../utils/enviarEmail');
 const { buscarCodigoIbge } = require('../utils/buscarMunicipioIbge');
 const { buscarSimplesNacional } = require('../utils/buscarSimplesNacional');
 const registrarLog = require('../utils/logger');
@@ -99,13 +101,13 @@ const uploadNotaFiscal = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 }).single('arquivo');
 
-// GET /notafiscal/pendentes — orçamentos fechados da empresa, com faturado/saldo
+// GET /faturamento/pendentes — orçamentos fechados da empresa, com faturado/saldo
 // Filtros opcionais via querystring: idcliente, idevento, idempresaemissora,
 // dtRealizacaoDe/dtRealizacaoAte, dtVencimentoDe/dtVencimentoAte. Com só uma
 // ponta de um período preenchida, filtra a data exata; com as duas, filtra o
 // intervalo. Vencimento é da PARCELA (orcamentoparcelas), não do orçamento —
 // um orçamento parcelado casa se QUALQUER parcela vencer dentro do período.
-router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idcliente, idevento, idempresaemissora, statusFatura } = req.query;
   let { dtRealizacaoDe, dtRealizacaoAte, dtVencimentoDe, dtVencimentoAte } = req.query;
@@ -129,17 +131,34 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
          (o.vlrcliente - COALESCE(nf.faturado, 0)) AS saldo,
          prox.proximovencimento,
          COALESCE(parc.totalparcelas, 0) AS totalparcelas,
-         COALESCE(parc.parcelaspagas, 0) AS parcelaspagas
+         COALESCE(parc.parcelaspagas, 0) AS parcelaspagas,
+         (oe.idempresa = $1) AS proprioambiente,
+         oe_emp.nmfantasia AS ambienteorigem_nome
        FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento AND oe.idempresa = $1
+       -- Empréstimo entre ambientes (2026-08-26): o ambiente 1 (JA-OPER) é
+       -- historicamente onde a maioria dos orçamentos/notas é processada de
+       -- verdade, mesmo quando a empresa emissora é outra (2, 3, 4, 5, 6...).
+       -- Pra quem está logado num ambiente diferente de 1, além do que é
+       -- realmente dele (oe.idempresa = $1), também mostramos (só visualização,
+       -- "Emitir nota" fica oculto — ver proprioambiente acima) os orçamentos
+       -- presos no ambiente 1 cuja empresa emissora bate com o ambiente atual.
+       -- Quem está no próprio ambiente 1 não é afetado (a 2ª condição já fica
+       -- redundante quando $1 = 1).
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         AND (oe.idempresa = $1 OR (oe.idempresa = 1 AND o.idempresaemissora = $1))
+       LEFT JOIN empresas oe_emp ON oe_emp.idempresa = oe.idempresa
        LEFT JOIN clientes c ON c.idcliente = o.idcliente
        LEFT JOIN eventos e ON e.idevento = o.idevento
        LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
        LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
        LEFT JOIN (
+         -- "Faturado" exige status = 'Emitida' (confirmado pela prefeitura),
+         -- não basta "Pronta para Envio" — essa é registrada localmente mas
+         -- pode nunca ter sido enviada de verdade; contar como faturado
+         -- daria um saldo zerado falso pro financeiro (2026-08-26).
          SELECT idorcamento, SUM(valorservico) AS faturado
          FROM notasfiscais
-         WHERE status NOT IN ('Cancelada', 'Rejeitada', 'Envio Incerto')
+         WHERE status = 'Emitida'
          GROUP BY idorcamento
        ) nf ON nf.idorcamento = o.idorcamento
        LEFT JOIN (
@@ -175,6 +194,8 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
            OR ($9 = 'aberto' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
            OR ($9 = 'vencida' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
                AND prox.proximovencimento < CURRENT_DATE)
+           OR ($9 = 'parcial' AND COALESCE(nf.faturado, 0) > 0
+               AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
          )
        ORDER BY prox.proximovencimento ASC NULLS LAST, o.nrorcamento DESC`,
       [
@@ -196,8 +217,8 @@ router.get("/pendentes", verificarPermissao('notafiscal', 'pesquisar'), async (r
   }
 });
 
-// GET /notafiscal/orcamento/:idorcamento — dados pra pré-popular a emissão
-router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+// GET /faturamento/orcamento/:idorcamento — dados pra pré-popular a emissão
+router.get("/orcamento/:idorcamento", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idorcamento } = req.params;
 
@@ -233,9 +254,13 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
        LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
        LEFT JOIN bancos b ON b.idbanco = em.idbanco
        LEFT JOIN (
+         -- "Faturado" exige status = 'Emitida' (confirmado pela prefeitura),
+         -- não basta "Pronta para Envio" — essa é registrada localmente mas
+         -- pode nunca ter sido enviada de verdade; contar como faturado
+         -- daria um saldo zerado falso pro financeiro (2026-08-26).
          SELECT idorcamento, SUM(valorservico) AS faturado
          FROM notasfiscais
-         WHERE status NOT IN ('Cancelada', 'Rejeitada', 'Envio Incerto')
+         WHERE status = 'Emitida'
          GROUP BY idorcamento
        ) fat ON fat.idorcamento = o.idorcamento
        WHERE o.idorcamento = $1`,
@@ -252,13 +277,13 @@ router.get("/orcamento/:idorcamento", verificarPermissao('notafiscal', 'pesquisa
   }
 });
 
-// GET /notafiscal/cliente/:idcliente/regime-simples — consulta ao vivo (BrasilAPI)
+// GET /faturamento/cliente/:idcliente/regime-simples — consulta ao vivo (BrasilAPI)
 // se o cliente é optante do Simples Nacional, pra ajudar a decidir a
 // retenção de IRRF/PIS-COFINS-CSLL na hora de emitir. Nunca falha com erro
 // 500 nem bloqueia nada — na pior hipótese devolve optanteSimples:null e o
 // front trata como "não deu pra saber, decida manualmente" (comportamento
 // de hoje, sem automação).
-router.get("/cliente/:idcliente/regime-simples", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/cliente/:idcliente/regime-simples", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idcliente } = req.params;
 
@@ -281,8 +306,8 @@ router.get("/cliente/:idcliente/regime-simples", verificarPermissao('notafiscal'
   }
 });
 
-// GET /notafiscal/orcamento/:idorcamento/historico — notas já registradas
-router.get("/orcamento/:idorcamento/historico", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+// GET /faturamento/orcamento/:idorcamento/historico — notas já registradas
+router.get("/orcamento/:idorcamento/historico", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idorcamento } = req.params;
 
@@ -303,9 +328,9 @@ router.get("/orcamento/:idorcamento/historico", verificarPermissao('notafiscal',
   }
 });
 
-// GET /notafiscal/orcamento/:idorcamento/parcelas — parcelas de pagamento
+// GET /faturamento/orcamento/:idorcamento/parcelas — parcelas de pagamento
 // (vazio quando o orçamento é à vista — front continua com o valor manual)
-router.get("/orcamento/:idorcamento/parcelas", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/orcamento/:idorcamento/parcelas", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idorcamento } = req.params;
 
@@ -331,11 +356,11 @@ router.get("/orcamento/:idorcamento/parcelas", verificarPermissao('notafiscal', 
   }
 });
 
-// PATCH /notafiscal/parcela/:idparcela — corrige o vencimento da parcela
+// PATCH /faturamento/parcela/:idparcela — corrige o vencimento da parcela
 // aberta antes de gerar a nota (o financeiro percebe a data errada só na
 // hora de emitir). Só mexe em parcela ainda 'Aberta' — depois de faturada
 // o vencimento já virou histórico da nota emitida.
-router.patch("/parcela/:idparcela", verificarPermissao('notafiscal', 'alterar'), async (req, res) => {
+router.patch("/parcela/:idparcela", verificarPermissao('faturamento', 'alterar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idparcela } = req.params;
   const { dtvencimento } = req.body;
@@ -368,7 +393,7 @@ router.patch("/parcela/:idparcela", verificarPermissao('notafiscal', 'alterar'),
 });
 
 // POST /notafiscal — registra uma nota (rascunho ou já emitida no portal)
-router.post("/", verificarPermissao('notafiscal', 'cadastrar'),
+router.post("/", verificarPermissao('faturamento', 'cadastrar'),
   logMiddleware('NotaFiscal', {
     buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
   }),
@@ -450,8 +475,8 @@ router.post("/", verificarPermissao('notafiscal', 'cadastrar'),
     }
   });
 
-// PUT /notafiscal/:id — atualiza status/número da nota após emissão manual no portal
-router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
+// PUT /faturamento/:id — atualiza status/número da nota após emissão manual no portal
+router.put("/:id", verificarPermissao('faturamento', 'alterar'),
   logMiddleware('NotaFiscal', {
     buscarDadosAnteriores: async (req) => {
       const result = await pool.query(
@@ -465,7 +490,15 @@ router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
   async (req, res) => {
     const { id } = req.params;
     const idempresa = req.idempresa;
-    const { status, numeronota, chaveacesso, codigoverificacao, observacao } = req.body;
+    const { status, numeronota, chaveacesso, codigoverificacao, observacao, dtemissao, justificativa } = req.body;
+
+    // Mesma trava do "Cancelar NF na Prefeitura": cancelar sem querer aqui
+    // também libera a parcela de volta pra "Aberta", então exige justificativa
+    // antes — evita um clique errado destravar/perder o controle de uma
+    // parcela sem deixar rastro do motivo.
+    if (status === 'Cancelada' && !(justificativa || '').trim()) {
+      return res.status(400).json({ message: "Informe a justificativa do cancelamento." });
+    }
 
     const client = await pool.connect();
     try {
@@ -478,10 +511,17 @@ router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
              chaveacesso = COALESCE($3, chaveacesso),
              codigoverificacao = COALESCE($4, codigoverificacao),
              observacao = COALESCE($5, observacao),
-             dtemissao = CASE WHEN $1 = 'Emitida' AND dtemissao IS NULL THEN now() ELSE dtemissao END
+             -- Data de emissão: usa a informada manualmente (nota emitida
+             -- direto no portal, marcada aqui depois do fato — "agora" seria
+             -- errado); só cai pra now() se ninguém informou nada.
+             dtemissao = COALESCE($8::date, CASE WHEN $1 = 'Emitida' AND dtemissao IS NULL THEN now() ELSE dtemissao END),
+             -- Mesma coluna usada pelo cancelamento via Web Service (só muda
+             -- de fato quando o status virando aqui é 'Cancelada').
+             justificativacancelamento = CASE WHEN $1 = 'Cancelada' THEN $9 ELSE justificativacancelamento END,
+             dtcancelamento = CASE WHEN $1 = 'Cancelada' THEN now() ELSE dtcancelamento END
          WHERE idnotafiscal = $6 AND idempresa = $7
          RETURNING *`,
-        [status || null, numeronota || null, chaveacesso || null, codigoverificacao || null, observacao || null, id, idempresa]
+        [status || null, numeronota || null, chaveacesso || null, codigoverificacao || null, observacao || null, id, idempresa, dtemissao || null, justificativa || null]
       );
 
       if (!result.rowCount) {
@@ -525,8 +565,139 @@ router.put("/:id", verificarPermissao('notafiscal', 'alterar'),
     }
   });
 
-// POST /notafiscal/:id/anexo — anexa o PDF/comprovante baixado do portal
-router.post("/:id/anexo", verificarPermissao('notafiscal', 'alterar'), (req, res) => {
+// POST /faturamento/:id/cancelar-webservice — cancela de verdade, via Web
+// Service (CancelamentoNFe), uma nota já Emitida — diferente do botão
+// "Cancelar" comum (PUT /:id com status='Cancelada'), que só mexe no banco
+// local e serve pra quando a nota nunca chegou a ser emitida de fato (ex.:
+// gerada com dado errado, nem chegou a sair pro Web Service). Aqui a
+// prefeitura É avisada. NÃO EXISTE "TesteCancelamentoNFe" — toda chamada
+// aqui já é definitiva, sem como simular antes (confirmado na lista
+// completa de operações do WSDL — ver utils/enviarLoteWebService.js).
+// Loga direto (não via logMiddleware) porque precisa registrar quem tentou
+// cancelar mesmo quando a prefeitura rejeita ou a resposta fica incerta —
+// logMiddleware só loga em respostas 2xx, e aqui uma tentativa que falhou é
+// tão importante pro histórico quanto uma que deu certo (mesmo padrão de
+// POST /xml-lote/enviar).
+router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alterar'),
+  async (req, res) => {
+    const { id } = req.params;
+    const idempresa = req.idempresa;
+    const justificativa = (req.body?.justificativa || '').trim();
+
+    if (!justificativa) {
+      return res.status(400).json({ message: "Informe a justificativa do cancelamento." });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT nf.idnotafiscal, nf.idparcela, nf.status, nf.numeronota, nf.codigoverificacao, nf.chaveacesso,
+                o.nrorcamento, op.numparcela,
+                em.cnpj AS emissora_cnpj, em.inscricaomunicipal AS emissora_inscricaomunicipal,
+                em.nmfantasia AS emissora_nmfantasia, em.siglacertificado AS emissora_siglacertificado
+           FROM notasfiscais nf
+           JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+           LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+           LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+          WHERE nf.idnotafiscal = $1 AND nf.idempresa = $2`,
+        [id, idempresa]
+      );
+      const nf = result.rows[0];
+      if (!nf) return res.status(404).json({ message: "Nota fiscal não encontrada." });
+      if (nf.status !== 'Emitida') {
+        return res.status(400).json({ message: `Só é possível cancelar na prefeitura uma nota Emitida (status atual: ${nf.status}).` });
+      }
+      if (!nf.numeronota) {
+        return res.status(400).json({ message: "Nota sem número (NumeroNFe) registrado — não é possível cancelar na prefeitura." });
+      }
+
+      let certificado;
+      try {
+        certificado = carregarCertificadoDaNota(nf);
+      } catch (errCert) {
+        return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+      }
+
+      const xml = montarXmlCancelamentoNFe({
+        cnpjPrestador: nf.emissora_cnpj,
+        notas: [{
+          inscricaoMunicipalPrestador: nf.emissora_inscricaomunicipal,
+          numeroNFe: nf.numeronota,
+          codigoVerificacao: nf.codigoverificacao,
+          chaveNotaNacional: nf.chaveacesso,
+        }],
+        certificado,
+      });
+
+      const resultado = await enviarLoteRPS({
+        xmlAssinado: xml,
+        certificado,
+        metodo: 'CancelamentoNFe',
+      });
+
+      const carimbo = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+      const nomeLogEnvio = `Cancelamento-${carimbo}-nf${nf.idnotafiscal}.log.xml`;
+      try {
+        fs.writeFileSync(
+          path.join(dirEnviosWebService, nomeLogEnvio),
+          `<!-- ENVIADO -->\n${resultado.envelopeEnviado || ''}\n\n<!-- RECEBIDO -->\n${resultado.xmlRetorno || '(sem resposta — falha de rede)'}`,
+          'utf8'
+        );
+      } catch (errLog) {
+        console.error('Não consegui salvar o log do cancelamento no Web Service:', errLog.message);
+      }
+
+      if (resultado.tipo === 'sucesso') {
+        const notaAtualizada = await pool.query(
+          `UPDATE notasfiscais
+              SET status = 'Cancelada', mensagemenvio = NULL,
+                  justificativacancelamento = $3, dtcancelamento = now()
+            WHERE idnotafiscal = $1 AND idempresa = $2
+            RETURNING *`,
+          [nf.idnotafiscal, idempresa, justificativa]
+        );
+        if (nf.idparcela) {
+          await pool.query(`UPDATE orcamentoparcelas SET status = 'Aberta' WHERE idparcela = $1`, [nf.idparcela]);
+        }
+
+        registrarLog({
+          idexecutor: req.usuario.idusuario,
+          idempresa,
+          acao: 'cancelou na prefeitura',
+          modulo: 'NotaFiscal',
+          idregistroalterado: nf.idnotafiscal,
+          dadosnovos: { justificativa, tipo: resultado.tipo, mensagem: resultado.mensagem }
+        }).catch((errLog) => console.error('Erro ao logar cancelamento de nota fiscal na prefeitura:', errLog));
+
+        return res.json({ tipo: 'sucesso', mensagem: 'Nota cancelada com sucesso na prefeitura.', notafiscal: notaAtualizada.rows[0] });
+      }
+
+      // 'rejeitado' (a prefeitura recusou o cancelamento), 'incerto' (falha de
+      // rede/timeout) ou 'falha_soap' — em nenhum desses casos o status muda
+      // aqui: só sabemos que a nota está cancelada quando a prefeitura confirma.
+      // Mesmo assim registra a TENTATIVA no log — quem tentou cancelar e o que
+      // a prefeitura respondeu importa pro histórico tanto quanto um sucesso.
+      const mensagem = resultado.tipo === 'rejeitado'
+        ? (resultado.erros?.[0]?.descricao || 'A prefeitura rejeitou o cancelamento.')
+        : resultado.mensagem;
+
+      registrarLog({
+        idexecutor: req.usuario.idusuario,
+        idempresa,
+        acao: 'tentou cancelar na prefeitura',
+        modulo: 'NotaFiscal',
+        idregistroalterado: nf.idnotafiscal,
+        dadosnovos: { justificativa, tipo: resultado.tipo, mensagem }
+      }).catch((errLog) => console.error('Erro ao logar tentativa de cancelamento de nota fiscal na prefeitura:', errLog));
+
+      return res.status(422).json({ message: mensagem, tipo: resultado.tipo, erros: resultado.erros || [] });
+    } catch (error) {
+      console.error("Erro ao cancelar nota fiscal na prefeitura:", error);
+      res.status(500).json({ message: "Erro ao cancelar nota na prefeitura.", detail: error.message });
+    }
+  });
+
+// POST /faturamento/:id/anexo — anexa o PDF/comprovante baixado do portal
+router.post("/:id/anexo", verificarPermissao('faturamento', 'alterar'), (req, res) => {
   uploadNotaFiscal(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ message: err.message });
@@ -555,7 +726,69 @@ router.post("/:id/anexo", verificarPermissao('notafiscal', 'alterar'), (req, res
   });
 });
 
-// GET /notafiscal/:id/xml — gera na hora (nada é gravado) o XML do "Pedido de
+// POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
+// e-mail do cliente, por SMTP (ver utils/enviarEmail.js — usa os mesmos
+// dados de servidor de saída já configurados no Outlook de vocês). Só libera
+// depois de anexar o PDF (arquivopdf), igual pedido: sem o comprovante
+// escaneado/baixado do portal não tem o que mandar.
+router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
+  logMiddleware('NotaFiscal', { acao: 'enviou por e-mail' }),
+  async (req, res) => {
+    const { id } = req.params;
+    const idempresa = req.idempresa;
+    const destinatario = (req.body?.destinatario || '').trim();
+
+    if (!destinatario) {
+      return res.status(400).json({ message: "Informe o e-mail de destino." });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT nf.idnotafiscal, nf.arquivopdf, nf.numeronota, nf.status,
+                o.nrorcamento, e.nmevento AS evento_nome,
+                em.nmfantasia AS emissora_nome
+           FROM notasfiscais nf
+           JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+           LEFT JOIN eventos e ON e.idevento = o.idevento
+           LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+          WHERE nf.idnotafiscal = $1 AND nf.idempresa = $2`,
+        [id, idempresa]
+      );
+      const nf = result.rows[0];
+      if (!nf) return res.status(404).json({ message: "Nota fiscal não encontrada." });
+      if (nf.status !== 'Emitida') {
+        return res.status(400).json({ message: `Só é possível enviar por e-mail uma nota Emitida (status atual: ${nf.status}).` });
+      }
+      if (!nf.arquivopdf) {
+        return res.status(400).json({ message: "Anexe o PDF da nota antes de enviar por e-mail." });
+      }
+
+      const assunto = `Nota Fiscal${nf.numeronota ? ` Nº ${nf.numeronota}` : ''} — Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` — ${nf.evento_nome}` : ''}`;
+      const corpoTexto = `Olá,\n\nSegue em anexo a nota fiscal referente ao Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` (${nf.evento_nome})` : ''}.\n\nAtenciosamente,\n${nf.emissora_nome || 'JA System'}`;
+
+      await enviarEmailComAnexo({
+        para: destinatario,
+        assunto,
+        corpoTexto,
+        anexo: { nome: `NotaFiscal-${nf.numeronota || nf.idnotafiscal}.pdf`, caminhoRelativo: nf.arquivopdf },
+      });
+
+      const notaAtualizada = await pool.query(
+        `UPDATE notasfiscais SET dtenvioemailcliente = now() WHERE idnotafiscal = $1 AND idempresa = $2 RETURNING *`,
+        [nf.idnotafiscal, idempresa]
+      );
+
+      res.locals.idregistroalterado = nf.idnotafiscal;
+      res.locals.dadosnovos = { destinatario, notafiscal: notaAtualizada.rows[0] };
+
+      return res.json({ message: "E-mail enviado com sucesso!", notafiscal: notaAtualizada.rows[0] });
+    } catch (error) {
+      console.error("Erro ao enviar nota fiscal por e-mail:", error);
+      res.status(500).json({ message: "Erro ao enviar e-mail.", detail: error.message });
+    }
+  });
+
+// GET /faturamento/:id/xml — gera na hora (nada é gravado) o XML do "Pedido de
 // Envio de Lote de RPS" dessa nota, pro financeiro baixar e subir no portal
 // da prefeitura (Envio de RPS em Lote). AINDA NÃO ASSINADO — ver
 // utils/gerarXmlRpsLote.js: falta o certificado A1 pra assinar de verdade,
@@ -566,7 +799,8 @@ router.post("/:id/anexo", verificarPermissao('notafiscal', 'alterar'), (req, res
 async function buscarNotasParaXml(idsNotasFiscais, idempresa) {
   const result = await pool.query(
     `SELECT nf.idnotafiscal, nf.descricaoservico, nf.valorservico, nf.aliquotaiss,
-            nf.valorpiscofinscsll,
+            nf.valorpiscofinscsll, nf.valoriss, nf.valorirrf, nf.valorcbs, nf.valoribs,
+            nf.meiopagamento, nf.descricaomeiopagamento,
             o.nrorcamento, op.numparcela,
             (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
             em.cnpj AS emissora_cnpj, em.inscricaomunicipal AS emissora_inscricaomunicipal,
@@ -709,7 +943,96 @@ async function montarNotaParaGerador(nf) {
   };
 }
 
-router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+// GET /faturamento/:id/previa — resumo LEGÍVEL (não o XML cru) de tudo que
+// essa nota mandaria pra prefeitura, pra conferência antes de "Enviar
+// direto". Usa os MESMOS dados/regra de buscarNotasParaXml e o mesmo cálculo
+// de município (fora de SP) de montarNotaParaGerador — o que aparece aqui é
+// garantido bater com o que realmente seria enviado. Diferente de GET /:id/xml
+// (que já bloqueia com 400 se faltar algo pra gerar), a prévia NÃO bloqueia:
+// o objetivo aqui é justamente ajudar a achar o que falta antes de tentar
+// enviar de verdade, então devolve o resto dos dados junto com o aviso.
+router.get("/:id/previa", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+
+  try {
+    const linhas = await buscarNotasParaXml([id], idempresa);
+    if (!linhas.length) {
+      return res.status(404).json({ message: "Nota fiscal não encontrada." });
+    }
+    const nf = linhas[0];
+    const erroValidacao = validarNotaParaXml(nf);
+
+    const foraDeSaoPaulo = normalizarTexto(nf.evento_cidade) !== 'SAO PAULO';
+    let municipioPrestacaoIbge = null;
+    let avisoMunicipio = null;
+    if (foraDeSaoPaulo && nf.evento_cidade) {
+      try {
+        municipioPrestacaoIbge = await buscarCodigoIbge(nf.evento_cidade, nf.evento_uf);
+      } catch (errMunicipio) {
+        avisoMunicipio = errMunicipio.message;
+      }
+      if (!municipioPrestacaoIbge && !avisoMunicipio) {
+        avisoMunicipio = `Não encontrei o código IBGE de "${nf.evento_cidade}/${nf.evento_uf}".`;
+      }
+    }
+
+    return res.json({
+      rotulo: rotuloNota(nf),
+      aviso: erroValidacao?.mensagem || avisoMunicipio || null,
+      emissora: {
+        nome: nf.emissora_nmfantasia || null,
+        cnpj: nf.emissora_cnpj || null,
+        inscricaomunicipal: nf.emissora_inscricaomunicipal || null,
+      },
+      cliente: {
+        nome: nf.cliente_nmfantasia || null,
+        cnpj: nf.cliente_cnpj || null,
+        inscricaomunicipal: nf.cliente_inscricaomunicipal || null,
+        email: nf.cliente_email || null,
+      },
+      evento: {
+        nome: nf.evento_nome || null,
+        datainicio: nf.evento_datainicio || null,
+        datafim: nf.evento_datafim || null,
+        cidade: nf.evento_cidade || null,
+        uf: nf.evento_uf || null,
+        rua: nf.evento_rua || null,
+        numero: nf.evento_numero || null,
+        bairro: nf.evento_bairro || null,
+        cep: nf.evento_cep || null,
+      },
+      servico: {
+        descricao: nf.descricaoservico || null,
+        codigoservico: nf.codigoservico || null,
+        nbs: nf.nbs || null,
+        cindop: nf.cindop || null,
+        classificacaotributaria: nf.classificacaotributaria || null,
+      },
+      tributacao: {
+        foraDeSaoPaulo,
+        municipioPrestacao: foraDeSaoPaulo ? `${nf.evento_cidade || '—'}/${nf.evento_uf || '—'}` : 'São Paulo/SP',
+        municipioPrestacaoIbge,
+      },
+      valores: {
+        valorservico: nf.valorservico,
+        aliquotaiss: nf.aliquotaiss,
+        valoriss: nf.valoriss,
+        valorirrf: nf.valorirrf,
+        valorpiscofinscsll: nf.valorpiscofinscsll,
+        valorcbs: nf.valorcbs,
+        valoribs: nf.valoribs,
+      },
+      meiopagamento: nf.descricaomeiopagamento || null,
+      parcela: { numparcela: nf.numparcela || null, totalparcelas: nf.totalparcelas || null },
+    });
+  } catch (error) {
+    console.error("Erro ao montar prévia da nota fiscal:", error);
+    res.status(500).json({ message: "Erro ao montar prévia da nota." });
+  }
+});
+
+router.get("/:id/xml", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const { id } = req.params;
   const idempresa = req.idempresa;
 
@@ -778,13 +1101,13 @@ router.get("/:id/xml", verificarPermissao('notafiscal', 'pesquisar'), async (req
   }
 });
 
-// GET /notafiscal/prontas-envio — todas as notas "Pronta para Envio" da
+// GET /faturamento/prontas-envio — todas as notas "Pronta para Envio" da
 // empresa (de qualquer orçamento), pra escolher quais entram no lote a
 // baixar juntas. Traz arquivoxml/arquivopdf/numeronota também — a tela usa
 // isso pra mostrar os mesmos botões (Marcar emitida/Cancelar/Baixar
 // XML/Anexar PDF) que já existem em "Notas registradas", sem precisar abrir
 // o orçamento pra agir sobre a nota.
-router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/prontas-envio", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
 
   try {
@@ -822,11 +1145,11 @@ router.get("/prontas-envio", verificarPermissao('notafiscal', 'pesquisar'), asyn
   }
 });
 
-// GET /notafiscal/faturadas — notas já EMITIDAS (de qualquer orçamento), pra
+// GET /faturamento/emitidas — notas já EMITIDAS (de qualquer orçamento), pra
 // achar/reabrir uma nota antiga (ver PDF/XML) sem precisar saber de cor qual
 // orçamento é. Filtros opcionais: idcliente, idempresaemissora, dtDe/dtAte
 // (por dtregistro — não existe uma "data de emissão" separada hoje).
-router.get("/faturadas", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/emitidas", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idcliente, idempresaemissora } = req.query;
   let { dtDe, dtAte } = req.query;
@@ -836,19 +1159,28 @@ router.get("/faturadas", verificarPermissao('notafiscal', 'pesquisar'), async (r
   try {
     const result = await pool.query(
       `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
-              nf.arquivoxml, nf.arquivopdf, nf.numeronota,
+              nf.arquivoxml, nf.arquivopdf, nf.numeronota, nf.dtenvioemailcliente,
               o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
               op.numparcela, op.dtvencimento,
               (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
               em.nmfantasia AS emissora_nome, o.idempresaemissora,
-              e.nmevento AS evento_nome
+              e.nmevento AS evento_nome,
+              ce.emailnfe AS cliente_email,
+              (nf.idempresa = $1) AS proprioambiente,
+              nf_emp.nmfantasia AS ambienteorigem_nome
          FROM notasfiscais nf
          JOIN orcamentos o ON o.idorcamento = nf.idorcamento
          LEFT JOIN clientes c ON c.idcliente = nf.idcliente
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
          LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+         LEFT JOIN empresas nf_emp ON nf_emp.idempresa = nf.idempresa
          LEFT JOIN eventos e ON e.idevento = o.idevento
-        WHERE nf.idempresa = $1 AND nf.status = 'Emitida'
+         LEFT JOIN clienteempresas ce ON ce.idcliente = nf.idcliente AND ce.idempresa = nf.idempresa
+        -- Empréstimo entre ambientes (2026-08-26): mesma regra do /pendentes —
+        -- ver comentário lá. "proprioambiente" acima decide se os botões de
+        -- ação (Anexar PDF/Gerar XML novamente) aparecem ou não.
+        WHERE (nf.idempresa = $1 OR (nf.idempresa = 1 AND o.idempresaemissora = $1))
+          AND nf.status = 'Emitida'
           AND ($2::int IS NULL OR nf.idcliente = $2::int)
           AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
           AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
@@ -857,12 +1189,58 @@ router.get("/faturadas", verificarPermissao('notafiscal', 'pesquisar'), async (r
     );
     return res.json(result.rows);
   } catch (error) {
-    console.error("Erro ao buscar notas faturadas:", error);
-    res.status(500).json({ message: "Erro ao buscar notas faturadas." });
+    console.error("Erro ao buscar notas emitidas:", error);
+    res.status(500).json({ message: "Erro ao buscar notas emitidas." });
   }
 });
 
-// POST /notafiscal/xml-lote/enviar — gera, assina e MANDA de verdade o lote
+// GET /faturamento/canceladas — notas com status 'Cancelada', incluindo tanto
+// as canceladas pelo botão local (nunca chegaram a ser emitidas de verdade)
+// quanto as canceladas de verdade na prefeitura (via Web Service — essas têm
+// justificativacancelamento/dtcancelamento preenchidos). Aba separada de
+// "Emitidas" de propósito: lá só ficam notas com status realmente válido.
+router.get("/canceladas", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
+  const idempresa = req.idempresa;
+  const { idcliente, idempresaemissora } = req.query;
+  let { dtDe, dtAte } = req.query;
+  if (dtDe && !dtAte) dtAte = dtDe;
+  if (dtAte && !dtDe) dtDe = dtAte;
+
+  try {
+    const result = await pool.query(
+      `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
+              nf.arquivoxml, nf.arquivopdf, nf.numeronota, nf.mensagemenvio,
+              nf.justificativacancelamento, nf.dtcancelamento,
+              o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
+              op.numparcela, op.dtvencimento,
+              (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
+              em.nmfantasia AS emissora_nome, o.idempresaemissora,
+              e.nmevento AS evento_nome,
+              (nf.idempresa = $1) AS proprioambiente,
+              nf_emp.nmfantasia AS ambienteorigem_nome
+         FROM notasfiscais nf
+         JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+         LEFT JOIN clientes c ON c.idcliente = nf.idcliente
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+         LEFT JOIN empresas nf_emp ON nf_emp.idempresa = nf.idempresa
+         LEFT JOIN eventos e ON e.idevento = o.idevento
+        WHERE (nf.idempresa = $1 OR (nf.idempresa = 1 AND o.idempresaemissora = $1))
+          AND nf.status = 'Cancelada'
+          AND ($2::int IS NULL OR nf.idcliente = $2::int)
+          AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
+          AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
+        ORDER BY COALESCE(nf.dtcancelamento, nf.dtregistro) DESC`,
+      [idempresa, idcliente || null, idempresaemissora || null, dtDe || null, dtAte || null]
+    );
+    return res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar notas canceladas:", error);
+    res.status(500).json({ message: "Erro ao buscar notas canceladas." });
+  }
+});
+
+// POST /faturamento/xml-lote/enviar — gera, assina e MANDA de verdade o lote
 // pro Web Service síncrono da prefeitura (autenticação TLS mútua com o mesmo
 // certificado usado pra assinar o XML). Máximo 50 por lote (limite do XSD), e
 // todas as notas precisam ser da MESMA empresa emissora, já que o Cabecalho
@@ -876,7 +1254,7 @@ router.get("/faturadas", verificarPermissao('notafiscal', 'pesquisar'), async (r
 // Como o XML manda <transacao>true</transacao>, um erro em qualquer RPS
 // invalida o LOTE INTEIRO — por isso um resultado "rejeitado" marca todas as
 // notas enviadas como Rejeitada, não só a citada no erro.
-router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), async (req, res) => {
+router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idsNotasFiscais, teste } = req.body;
   const modoTeste = !!teste;
@@ -1056,9 +1434,9 @@ router.post("/xml-lote/enviar", verificarPermissao('notafiscal', 'alterar'), asy
   }
 });
 
-// GET /notafiscal/parametros?ano=2026 — alíquotas de CBS/IBS/retenções vigentes no ano
+// GET /faturamento/parametros?ano=2026 — alíquotas de CBS/IBS/retenções vigentes no ano
 // (tabela própria do módulo Nota Fiscal — não confundir com `aliquotas`, que é do RH/folha)
-router.get("/parametros", verificarPermissao('notafiscal', 'pesquisar'), async (req, res) => {
+router.get("/parametros", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
 
   try {
@@ -1073,8 +1451,8 @@ router.get("/parametros", verificarPermissao('notafiscal', 'pesquisar'), async (
   }
 });
 
-// PUT /notafiscal/parametros/:ano — cadastra/atualiza as alíquotas do ano (upsert)
-router.put("/parametros/:ano", verificarPermissao('notafiscal', 'alterar'),
+// PUT /faturamento/parametros/:ano — cadastra/atualiza as alíquotas do ano (upsert)
+router.put("/parametros/:ano", verificarPermissao('faturamento', 'alterar'),
   logMiddleware('NotaFiscal', {
     buscarDadosAnteriores: async (req) => {
       const result = await pool.query(`SELECT * FROM aliquotasnf WHERE ano = $1`, [req.params.ano]);
