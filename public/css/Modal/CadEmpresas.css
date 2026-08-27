@@ -42,7 +42,7 @@
    sempre vence um "display:flex" escrito aqui no CSS — então depender de
    flex nesse elemento nunca funciona de verdade. Em vez disso, quem rola é
    só o #form-content, com altura própria independente (mesmo padrão já
-   usado e funcionando em CadNotaFiscal.css). */
+   usado e funcionando em Faturamento.css). */
 #cadModalEmpresas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
