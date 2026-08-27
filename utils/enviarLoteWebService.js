@@ -30,6 +30,10 @@ const NAMESPACE = "http://www.prefeitura.sp.gov.br/nfe";
 const SOAP_ACTIONS = {
   EnvioLoteRPS: `${NAMESPACE}/ws/envioLoteRPS`,
   TesteEnvioLoteRPS: `${NAMESPACE}/ws/testeenvio`,
+  // Confirmado no WSDL real (re-baixado em 2026-08-26): não existe um
+  // "TesteCancelamentoNFe" — essa é a única operação de cancelamento, sempre
+  // definitiva, sem modo de simulação.
+  CancelamentoNFe: `${NAMESPACE}/ws/cancelamentoNFe`,
 };
 
 // Monta o envelope SOAP 1.1. O elemento do pedido tem que se chamar
