@@ -23,7 +23,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
-const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+const { verificarPermissao, exigirFlag } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 const { gerarXmlPedidoEnvioLoteRPS } = require('../utils/gerarXmlRpsLote');
 const { obterCertificadoEmpresa } = require('../utils/certificadoEmpresa');
@@ -393,7 +393,9 @@ router.patch("/parcela/:idparcela", verificarPermissao('faturamento', 'alterar')
 });
 
 // POST /notafiscal — registra uma nota (rascunho ou já emitida no portal)
-router.post("/", verificarPermissao('faturamento', 'cadastrar'),
+// Restrito a "master" (pedido explícito) — igual ao resto do ciclo de vida
+// da nota (enviar/cancelar).
+router.post("/", verificarPermissao('faturamento', 'cadastrar'), exigirFlag('master'),
   logMiddleware('NotaFiscal', {
     buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
   }),
@@ -500,6 +502,20 @@ router.put("/:id", verificarPermissao('faturamento', 'alterar'),
       return res.status(400).json({ message: "Informe a justificativa do cancelamento." });
     }
 
+    // Cancelar é restrito a "master" (pedido explícito) — mas essa rota
+    // também serve "Marcar emitida" e outras atualizações, então a checagem é
+    // só aqui dentro, não na rota inteira (verificarPermissao/exigirFlag de
+    // rota toda bloquearia ações que continuam liberadas pro financeiro comum).
+    if (status === 'Cancelada') {
+      const acessoMaster = await pool.query(
+        `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND master = true LIMIT 1`,
+        [req.usuario.idusuario, idempresa]
+      );
+      if (!acessoMaster.rowCount) {
+        return res.status(403).json({ message: "Só usuários com permissão Master podem cancelar notas fiscais." });
+      }
+    }
+
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -578,7 +594,9 @@ router.put("/:id", verificarPermissao('faturamento', 'alterar'),
 // logMiddleware só loga em respostas 2xx, e aqui uma tentativa que falhou é
 // tão importante pro histórico quanto uma que deu certo (mesmo padrão de
 // POST /xml-lote/enviar).
-router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alterar'),
+// Restrito a "master" — cancelamento na prefeitura é definitivo, sem modo de
+// teste, então só quem tem a flag especial pode disparar.
+router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'),
   async (req, res) => {
     const { id } = req.params;
     const idempresa = req.idempresa;
@@ -1254,7 +1272,10 @@ router.get("/canceladas", verificarPermissao('faturamento', 'pesquisar'), async 
 // Como o XML manda <transacao>true</transacao>, um erro em qualquer RPS
 // invalida o LOTE INTEIRO — por isso um resultado "rejeitado" marca todas as
 // notas enviadas como Rejeitada, não só a citada no erro.
-router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), async (req, res) => {
+// "Testar envio" e "Enviar direto" passam os dois por aqui (só muda o `teste`
+// no body) — restrito a quem tem a flag especial "master" (pedido explícito:
+// só Master mexe no envio de verdade pro Web Service, teste incluso).
+router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'), async (req, res) => {
   const idempresa = req.idempresa;
   const { idsNotasFiscais, teste } = req.body;
   const modoTeste = !!teste;
