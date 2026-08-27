@@ -962,6 +962,60 @@ p.nf-subtitulo {
 }
 #cadModalNotaFiscal .nf-total-vencido strong { color: #b50000; }
 
+/* Cabeçalho clicável da Visão Geral (ordenação) — a seta só aparece na coluna
+   ativa; nas outras fica reservado o espaço (opacidade 0) pra não saltar o
+   texto de lugar quando o usuário troca de coluna. */
+#cadModalNotaFiscal table.nf-tabela th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+#cadModalNotaFiscal table.nf-tabela th[data-sort]:hover {
+  color: var(--primary-color, #942123);
+}
+#cadModalNotaFiscal .nf-seta {
+  display: inline-block;
+  width: 10px;
+  margin-left: 3px;
+  opacity: 0.35;
+  font-size: 11px;
+}
+#cadModalNotaFiscal table.nf-tabela th[data-sort].nf-sort-asc .nf-seta,
+#cadModalNotaFiscal table.nf-tabela th[data-sort].nf-sort-desc .nf-seta {
+  opacity: 1;
+}
+
+/* Botões de ação (Prontas para Envio / Emitidas / Notas registradas) — antes
+   pareciam links sublinhados; agora são botões de verdade, uma cor por tipo
+   de ação, pra ficar fácil de reconhecer de relance qual botão é qual. */
+#cadModalNotaFiscal .nf-btn-acao {
+  display: inline-block;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin: 2px 5px 2px 0;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+#cadModalNotaFiscal .nf-btn-acao:hover { filter: brightness(0.88); }
+#cadModalNotaFiscal .nf-btn-acao.confirmar { background: var(--Aproved, #046800); }
+#cadModalNotaFiscal .nf-btn-acao.cancelar { background: var(--Reject, #B50000); }
+#cadModalNotaFiscal .nf-btn-acao.ver { background: #1f6fa8; }
+#cadModalNotaFiscal .nf-btn-acao.gerar { background: #6a3fb5; }
+#cadModalNotaFiscal .nf-btn-acao.anexar { background: var(--Pending, #FFBD29); color: #4a3300; }
+/* Preto de propósito: mais grave que ".cancelar" (só local) — esse avisa a
+   prefeitura de verdade e não tem como desfazer. */
+#cadModalNotaFiscal .nf-btn-acao.cancelar-webservice { background: #1a1a1a; }
+#cadModalNotaFiscal .nf-btn-acao.previa { background: #127a76; }
+#cadModalNotaFiscal .nf-btn-acao.email { background: #8a4b08; }
+#cadModalNotaFiscal .nf-btn-acao.email:disabled { background: #b7b7b7; cursor: not-allowed; filter: none; }
+
 /* "Limpar filtros" em cinza (mesmo tom de fundo do próprio modal) pra não
    competir visualmente com "Filtrar" — que é a ação principal e mantém a
    cor forte do sistema. */
