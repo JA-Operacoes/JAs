@@ -408,22 +408,22 @@ function atualizarSetasOrdenacaoPendentes() {
 }
 
 // ---- Impressão (Visão Geral) ----
-// Logo da empresa atual (mesmo mecanismo já usado em Relatorios.js:
-// GET /relatorios/empresas/:id devolve nmfantasia, o nome do arquivo em
-// public/img/ é o nmfantasia em maiúsculas com separadores trocados por "_").
-// Caminho relativo (não localhost:3000 fixo) pra funcionar em produção também.
-let nfEmpresaLogoPath = '/img/JA_Oper.png';
+// Logo da empresa atual — vem do cadastro de Empresas (campo logo, upload de
+// verdade, ver CadEmpresa.html/rotaEmpresa.js). Nada de adivinhar o nome do
+// arquivo a partir de nmfantasia: já tentamos isso e deu errado pra EA/EXPO
+// (nmfantasia no banco não bate direito com o arquivo real).
+let nfEmpresaLogoPath = null; // null = não mostra nenhum logo (em vez de mostrar um errado)
 
 async function inicializarLogoEmpresaImpressao() {
   const idempresa = localStorage.getItem('idempresa');
   if (!idempresa) return;
   try {
     const empresa = await fetchComToken(`/relatorios/empresas/${idempresa}`);
-    if (empresa?.nmfantasia) {
-      nfEmpresaLogoPath = `/img/${empresa.nmfantasia.toUpperCase().replace(/[^A-Z0-9]/g, '_')}.png`;
+    if (empresa?.logo) {
+      nfEmpresaLogoPath = `/${empresa.logo}`;
     }
   } catch (err) {
-    console.warn('Não consegui buscar o logo da empresa pra impressão, usando o padrão:', err);
+    console.warn('Não consegui buscar o logo da empresa pra impressão:', err);
   }
 }
 
@@ -450,38 +450,40 @@ const NF_COLUNAS_IMPRESSAO = [
 // Resumo dos filtros ativos em Visão Geral, pra aparecer no cabeçalho da
 // impressão — sobretudo no modo "Só Total", que não mostra as linhas, só os
 // totais e o que foi filtrado pra chegar neles.
+// Sempre mostra os 6 filtros de Visão Geral, mesmo os não preenchidos (com
+// "Todos"/"Todas"/"—") — pedido explícito: deixa claro o escopo completo do
+// relatório em vez de só citar o que foi de fato restringido.
 function resumoFiltrosPendentesAtivos() {
-  const partes = [];
   const cliente = document.getElementById('nfBuscaCliente').value.trim();
-  if (cliente) partes.push(`Cliente: ${cliente}`);
   const evento = document.getElementById('nfBuscaEvento').value.trim();
-  if (evento) partes.push(`Evento: ${evento}`);
-  // Empresa emissora sempre aparece, mesmo em "Todas" — deixa explícito o
-  // escopo do relatório em vez de simplesmente omitir quando não filtrado.
   const selectEmpresa = document.getElementById('nfFiltroEmpresaEmissora');
-  partes.push(`Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`);
   const selectStatus = document.getElementById('nfFiltroStatusFatura');
-  if (selectStatus.value) partes.push(`Status: ${selectStatus.options[selectStatus.selectedIndex].text}`);
   const realDe = document.getElementById('nfFiltroRealizacaoDe').value.trim();
   const realAte = document.getElementById('nfFiltroRealizacaoAte').value.trim();
-  if (realDe || realAte) partes.push(`Realização: ${realDe || '—'} a ${realAte || '—'}`);
   const vencDe = document.getElementById('nfFiltroVencimentoDe').value.trim();
   const vencAte = document.getElementById('nfFiltroVencimentoAte').value.trim();
-  if (vencDe || vencAte) partes.push(`Vencimento: ${vencDe || '—'} a ${vencAte || '—'}`);
-  return partes;
+
+  return [
+    `Cliente: ${cliente || 'Todos'}`,
+    `Evento: ${evento || 'Todos'}`,
+    `Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`,
+    `Status: ${selectStatus.value ? selectStatus.options[selectStatus.selectedIndex].text : 'Todas'}`,
+    `Realização do Evento: ${realDe || '—'} a ${realAte || '—'}`,
+    `Vencimento da NF: ${vencDe || '—'} a ${vencAte || '—'}`,
+  ];
 }
 
 function cabecalhoImpressaoPendentes(subtitulo) {
-  const dataHora = new Date().toLocaleString('pt-BR');
   const filtros = resumoFiltrosPendentesAtivos();
+  // Sem "Gerado em ..." aqui — o navegador já imprime data/hora sozinho no
+  // cabeçalho automático da página (pedido: informação duplicada).
   return `
-    <div class="nf-print-topo">
-      <img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">
+    <div class="nf-print-topo${nfEmpresaLogoPath ? '' : ' sem-logo'}">
+      ${nfEmpresaLogoPath ? `<img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">` : ''}
       <h1>Faturamento</h1>
     </div>
     <div class="nf-print-barra-titulo">VISÃO GERAL — ${escaparAtributo(subtitulo)}</div>
-    <p class="nf-print-geradoem">Gerado em ${dataHora}</p>
-    ${filtros.length ? `<div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>` : ''}`;
+    <div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>`;
 }
 
 // Escreve o conteúdo no iframe oculto e dispara a impressão — mesmo padrão
@@ -496,20 +498,25 @@ function imprimirHtmlEmIframe(conteudoHtml) {
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faturamento — Visão Geral</title>
     <style>
       @page { size: A4 landscape; margin: 1cm; }
+      /* Sem isso, o Chrome ignora background/cor de fundo na impressão real
+         (só mostra na pré-visualização) a menos que o usuário marque
+         "Gráficos de segundo plano" manualmente nas opções de impressão —
+         força a cor a sair sempre, sem depender dessa opção. */
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
       body { font-family: Arial, sans-serif; color: #222; margin: 0; }
       .nf-print-topo { display: flex; align-items: center; gap: 16px; background: #eef0f2; padding: 10px 16px; border-radius: 6px 6px 0 0; }
       .nf-print-logo { max-height: 40px; }
-      .nf-print-topo h1 { flex: 1; text-align: center; margin: 0; margin-right: 56px; font-size: 24px; letter-spacing: .04em; color: #2c3e50; }
-      .nf-print-barra-titulo { background: #2c3e50; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .03em; padding: 6px 16px; }
-      .nf-print-geradoem { margin: 6px 16px 0; font-size: 11px; color: #777; }
+      .nf-print-topo h1 { flex: 1; text-align: center; margin: 0; margin-right: 56px; font-size: 24px; letter-spacing: .04em; color: #050505; }
+      .nf-print-topo.sem-logo h1 { margin-right: 0; }
+      .nf-print-barra-titulo { background: #7e7e7e; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .03em; padding: 6px 16px; }
       .nf-print-filtros { margin: 8px 16px 14px; }
-      .nf-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #2c3e50; }
+      .nf-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #7e7e7e; }
       table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 0 0 12px; }
       th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
       th { background: #ddd; color: #000; font-weight: bold; }
       tbody tr:nth-child(even) { background: #f5f6f7; }
       td.num, th.num { text-align: right; }
-      .nf-print-total-geral td { background: #2c3e50; color: #fff; font-weight: bold; font-size: 12px; }
+      .nf-print-total-geral td { background: #7e7e7e; color: #fff; font-weight: bold; font-size: 12px; }
       .nf-print-vazio { margin: 0 16px; color: #777; }
     </style>
   </head><body>${conteudoHtml}</body></html>`);
@@ -521,9 +528,11 @@ function imprimirHtmlEmIframe(conteudoHtml) {
   }, 300);
 }
 
+// titulo null = sem a 1ª coluna (usado no total geral do modo "Detalhes",
+// que não é quebrado por empresa — ver gerarImpressaoDetalhes).
 function linhaTotaisImpressao(titulo, totais, destaque) {
   return `<tr${destaque ? ' class="nf-print-total-geral"' : ''}>
-    <td>${escaparAtributo(titulo)}</td>
+    ${titulo != null ? `<td>${escaparAtributo(titulo)}</td>` : ''}
     <td class="num">${fmtMoeda(totais.valor)}</td>
     <td class="num">${fmtMoeda(totais.faturado)}</td>
     <td class="num">${fmtMoeda(totais.saldo)}</td>
@@ -570,11 +579,22 @@ function gerarImpressaoDetalhes(colunasEscolhidas) {
   // Mesma ordem que está na tela (respeita clique em ordenação já feito).
   const lista = aplicarOrdenacaoAtual(pendentesListaAtual);
   const linhas = lista.map((o) => `<tr>${colunas.map((c) => `<td${c.numerica ? ' class="num"' : ''}>${c.valor(o)}</td>`).join('')}</tr>`).join('');
+
+  // Total geral (Valor total/Faturado/A Faturar/Vencidos) da lista inteira —
+  // pedido explícito, pra não precisar gerar "Só Total" à parte só pra ver
+  // os totais de uma impressão em Detalhes. Sem quebra por empresa emissora
+  // aqui (esse detalhamento é o papel do modo "Só Total").
+  const blocoTotalGeral = lista.length ? `
+    <table>
+      <thead><tr><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Vencidos</th></tr></thead>
+      <tbody>${linhaTotaisImpressao(null, calcularTotaisLista(lista), true)}</tbody>
+    </table>` : '';
+
   const html = cabecalhoImpressaoPendentes(`Detalhes — ${lista.length} orçamento${lista.length === 1 ? '' : 's'}`) + `
     <table>
       <thead><tr>${colunas.map((c) => `<th${c.numerica ? ' class="num"' : ''}>${c.label}</th>`).join('')}</tr></thead>
       <tbody>${linhas || `<tr><td colspan="${colunas.length}">Nenhum orçamento para os filtros selecionados.</td></tr>`}</tbody>
-    </table>`;
+    </table>` + blocoTotalGeral;
   imprimirHtmlEmIframe(html);
 }
 
@@ -871,8 +891,8 @@ function renderizarNotasProntasParaEnvio() {
           <button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>
           ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
-          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
         </td>
       </tr>`).join('');
 
@@ -975,12 +995,13 @@ async function carregarEmitidas() {
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : ''}
           ${n.proprioambiente
-            ? `<button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
+            ? `${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}
                ${!n.arquivopdf ? `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>` : ''}
                ${n.arquivopdf
                   ? `<button type="button" class="nf-btn-acao email" data-enviar-email="${n.idnotafiscal}" data-email-cliente="${escaparAtributo(n.cliente_email || '')}" title="${n.dtenvioemailcliente ? `Já enviado em ${formatarDataBR(n.dtenvioemailcliente)} — clique pra enviar de novo` : 'Manda o PDF anexado pro e-mail do cliente'}">${n.dtenvioemailcliente ? 'Reenviar e-mail' : 'Enviar por E-mail'}</button>`
                   : `<button type="button" class="nf-btn-acao email" disabled title="Anexe o PDF antes de poder enviar por e-mail">Enviar por E-mail</button>`}
-               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}`
+               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}
+               <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
@@ -996,6 +1017,9 @@ async function carregarEmitidas() {
     });
     tbody.querySelectorAll('[data-enviar-email]').forEach((btn) => {
       btn.addEventListener('click', () => enviarNotaPorEmail(btn.dataset.enviarEmail, btn.dataset.emailCliente));
+    });
+    tbody.querySelectorAll('[data-remover-pdf]').forEach((btn) => {
+      btn.addEventListener('click', () => removerPdfAnexado(btn.dataset.removerPdf));
     });
   } catch (err) {
     console.error('Erro ao carregar notas emitidas:', err);
@@ -1062,11 +1086,18 @@ async function carregarCanceladas() {
         <td>
           ${n.proprioambiente
             ? `${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado antes do cancelamento">Ver XML</a>` : ''}
-               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : ''}
-               ${!n.arquivoxml && !n.arquivopdf ? '—' : ''}`
+               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+               ${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
+
+    tbody.querySelectorAll('[data-anexar]').forEach((btn) => {
+      btn.addEventListener('click', () => anexarPdf(btn.dataset.anexar));
+    });
+    tbody.querySelectorAll('[data-remover-pdf]').forEach((btn) => {
+      btn.addEventListener('click', () => removerPdfAnexado(btn.dataset.removerPdf));
+    });
   } catch (err) {
     console.error('Erro ao carregar notas canceladas:', err);
     tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
@@ -2010,12 +2041,59 @@ function anexarPdf(idnotafiscal, idorcamento) {
       if (idorcamento) await renderHistorico(idorcamento);
       await atualizarProntasParaEnvioSeVisivel();
       await atualizarEmitidasSeVisivel();
+      await atualizarCanceladasSeVisivel();
     } catch (err) {
       console.error('Erro ao anexar arquivo:', err);
       aviso('error', 'Erro', 'Não foi possível anexar o arquivo.');
     }
   };
   input.click();
+}
+
+// Restrito a Master (botão só aparece pra quem tem a flag — ver
+// temMasterFaturamento) — desfaz um PDF anexado por engano, liberando
+// "Anexar PDF" de novo pra subir o correto. Mesma trava de justificativa do
+// cancelamento: some com o comprovante de uma nota já emitida, não é uma
+// ação qualquer.
+async function removerPdfAnexado(idnotafiscal) {
+  const { isConfirmed } = await Swal.fire({
+    icon: 'warning',
+    title: 'Remover o PDF anexado?',
+    text: 'O arquivo atual será apagado e o botão "Anexar PDF" volta a aparecer pra subir o correto no lugar.',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, remover',
+    cancelButtonText: 'Voltar',
+    reverseButtons: true,
+    focusCancel: true
+  });
+  if (!isConfirmed) return;
+
+  const { value: justificativa } = await Swal.fire({
+    icon: 'warning',
+    title: 'Justificativa da remoção',
+    input: 'textarea',
+    inputPlaceholder: 'Explique o motivo (obrigatório)...',
+    showCancelButton: true,
+    confirmButtonText: 'Confirmar remoção',
+    cancelButtonText: 'Voltar',
+    reverseButtons: true,
+    inputValidator: (valor) => {
+      if (!valor || !valor.trim()) return 'Informe a justificativa antes de confirmar.';
+    }
+  });
+  if (!justificativa) return;
+
+  try {
+    await fetchComToken(`/faturamento/${idnotafiscal}/remover-anexo`, {
+      method: 'POST',
+      body: { justificativa: justificativa.trim() }
+    });
+    await atualizarEmitidasSeVisivel();
+    await atualizarCanceladasSeVisivel();
+  } catch (err) {
+    console.error('Erro ao remover PDF anexado:', err);
+    aviso('error', 'Erro', (err.corpo && err.corpo.message) || 'Não foi possível remover o PDF anexado.');
+  }
 }
 
 // ---- Inicialização (chamada pelo loader genérico de módulos) ----

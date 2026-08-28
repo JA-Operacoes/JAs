@@ -744,6 +744,58 @@ router.post("/:id/anexo", verificarPermissao('faturamento', 'alterar'), (req, re
   });
 });
 
+// POST /faturamento/:id/remover-anexo — desfaz um PDF anexado errado, pra
+// poder anexar o certo no lugar ("Anexar PDF" só aparece quando arquivopdf
+// está vazio). Restrito a "master" e exige justificativa (mesma trava do
+// cancelamento) — apagar o comprovante de uma nota já emitida não é uma
+// ação qualquer.
+router.post("/:id/remover-anexo", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+  const justificativa = (req.body?.justificativa || '').trim();
+
+  if (!justificativa) {
+    return res.status(400).json({ message: "Informe a justificativa da remoção." });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT idnotafiscal, arquivopdf, observacao FROM notasfiscais WHERE idnotafiscal = $1 AND idempresa = $2`,
+      [id, idempresa]
+    );
+    const nf = result.rows[0];
+    if (!nf) return res.status(404).json({ message: "Nota fiscal não encontrada." });
+    if (!nf.arquivopdf) return res.status(400).json({ message: "Essa nota não tem PDF anexado." });
+
+    try {
+      fs.unlinkSync(path.join(__dirname, '..', nf.arquivopdf));
+    } catch (errArquivo) {
+      console.error('Não consegui apagar o arquivo antigo do PDF (removendo a referência mesmo assim):', errArquivo.message);
+    }
+
+    const observacaoNova = `${nf.observacao ? nf.observacao + '\n' : ''}PDF removido manualmente por usuário Master em ${new Date().toLocaleString('pt-BR')} — motivo: ${justificativa}.`;
+
+    const notaAtualizada = await pool.query(
+      `UPDATE notasfiscais SET arquivopdf = NULL, observacao = $1 WHERE idnotafiscal = $2 AND idempresa = $3 RETURNING *`,
+      [observacaoNova, id, idempresa]
+    );
+
+    registrarLog({
+      idexecutor: req.usuario.idusuario,
+      idempresa,
+      acao: 'removeu PDF anexado',
+      modulo: 'NotaFiscal',
+      idregistroalterado: nf.idnotafiscal,
+      dadosnovos: { justificativa }
+    }).catch((errLog) => console.error('Erro ao logar remoção de PDF anexado:', errLog));
+
+    return res.json({ message: "PDF removido com sucesso!", notafiscal: notaAtualizada.rows[0] });
+  } catch (error) {
+    console.error("Erro ao remover PDF anexado:", error);
+    res.status(500).json({ message: "Erro ao remover o PDF anexado." });
+  }
+});
+
 // POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
 // e-mail do cliente, por SMTP (ver utils/enviarEmail.js — usa os mesmos
 // dados de servidor de saída já configurados no Outlook de vocês). Só libera
