@@ -5240,8 +5240,16 @@ async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, ele
     console.log(`Iniciando verificação de duplicidade para Função ID ${idFuncao} e Setor "${setor}"`);
 
     const idOrcamentoExistenteValue = document.getElementById("idOrcamento")?.value;
-    const orcamentoIdAtual = idOrcamentoExistenteValue && !isNaN(parseInt(idOrcamentoExistenteValue)) 
-        ? parseInt(idOrcamentoExistenteValue) 
+    const orcamentoIdAtual = idOrcamentoExistenteValue && !isNaN(parseInt(idOrcamentoExistenteValue))
+        ? parseInt(idOrcamentoExistenteValue)
+        : null;
+
+    // Se a linha já foi salva antes (tem idItemOrcamento), precisamos excluí-la
+    // da checagem — senão o backend acha "duplicado" comparando o item com ele mesmo.
+    const linhaAtualParaId = elementoInput?.closest('tr');
+    const idItemOrcamentoValue = linhaAtualParaId?.querySelector('input.idItemOrcamento')?.value;
+    const idOrcamentoItemAtual = idItemOrcamentoValue && idItemOrcamentoValue.trim() !== ''
+        ? Number(idItemOrcamentoValue)
         : null;
 
         console.log(`ID do Orçamento Atual para verificação: ${orcamentoIdAtual}`);
@@ -5253,7 +5261,8 @@ async function verificarDuplicidadeInstantanea(idFuncao, setor, produtoNome, ele
                 body: JSON.stringify({
                     idOrcamento: orcamentoIdAtual,
                     idFuncao: idFuncao,
-                    setor: (setor || '').trim()
+                    setor: (setor || '').trim(),
+                    idOrcamentoItem: idOrcamentoItemAtual
                 })
             });
 

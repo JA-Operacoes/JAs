@@ -2124,7 +2124,7 @@ router.get('/qtd-staff-contratado', autenticarToken(), contextoEmpresa, async (r
 
 // Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
 router.post('/verificar-duplicidade', async (req, res) => {
-    const { idOrcamento, idFuncao, setor } = req.body;
+    const { idOrcamento, idFuncao, setor, idOrcamentoItem } = req.body;
 
     try {
         if (!idOrcamento) {
@@ -2132,15 +2132,17 @@ router.post('/verificar-duplicidade', async (req, res) => {
         }
 
         const setorTrimmed = (setor || '').trim();
+        const idItemAtual = idOrcamentoItem ? Number(idOrcamentoItem) : null;
 
-        // 1. Verificar dentro do mesmo orçamento
+        // 1. Verificar dentro do mesmo orçamento (exclui a própria linha, quando já existente)
         const checkMesmoOrc = await pool.query(
             `SELECT idorcamentoitem FROM orcamentoitens
              WHERE idorcamento = $1
                AND idfuncao = $2
                AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+               AND ($4::int IS NULL OR idorcamentoitem != $4::int)
              LIMIT 1`,
-            [idOrcamento, idFuncao, setorTrimmed]
+            [idOrcamento, idFuncao, setorTrimmed, idItemAtual]
         );
 
         if (checkMesmoOrc.rows.length > 0) {
@@ -2150,7 +2152,10 @@ router.post('/verificar-duplicidade', async (req, res) => {
             });
         }
 
-        // 2. Verificar em outros orçamentos do mesmo evento, cliente e ANO
+        // 2. Verificar em outros orçamentos do mesmo evento, cliente e EDIÇÃO
+        // (edicao é o campo que representa o ano/edição do evento — usar a data
+        // de realização para isso é errado, pois orçamentos de edições diferentes
+        // podem ter datas no mesmo ano civil, e vice-versa).
         const checkOutrosOrc = await pool.query(
             `SELECT oi.idorcamentoitem, o.nrorcamento
              FROM orcamentoitens oi
@@ -2158,7 +2163,7 @@ router.post('/verificar-duplicidade', async (req, res) => {
              JOIN orcamentos oatual ON oatual.idorcamento = $1
              WHERE o.idevento                            = oatual.idevento
                AND o.idcliente                           = oatual.idcliente
-               AND EXTRACT(YEAR FROM o.dtinirealizacao)  = EXTRACT(YEAR FROM oatual.dtinirealizacao)
+               AND o.edicao                               = oatual.edicao
                AND o.idorcamento                        != $1
                AND oatual.idevento                      IS NOT NULL
                AND oi.idfuncao                           = $2
