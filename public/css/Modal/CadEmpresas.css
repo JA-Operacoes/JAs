@@ -140,6 +140,18 @@ legend{
   gap: 0,5px;
 }
 
+.nf-logo-topo {
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+/* Código reduzido pra caber o botão "Inserir logo" na mesma linha de
+   "Empresa Ativo" — esse campo é só leitura (idempresa), não precisa da
+   largura padrão de 270px. */
+#idEmpresa {
+  width: 90px !important;
+}
+
 .nf-aviso-empresa {
   font-size: 13px;
   color: #555;

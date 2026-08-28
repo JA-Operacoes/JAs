@@ -1047,6 +1047,28 @@ p.nf-subtitulo {
   background-color: #222;
 }
 
+/* Botão de ícone só (ex.: remover PDF anexado) — pedido explícito de ser um
+   ícone em vez de um botão de texto como os outros .nf-btn-acao. Vermelho
+   por ser destrutivo, redondo pra diferenciar visualmente da pílula dos
+   botões de texto. */
+#cadModalNotaFiscal .nf-btn-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--Reject, #B50000);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  vertical-align: middle;
+}
+#cadModalNotaFiscal .nf-btn-icone:hover {
+  filter: brightness(0.88);
+}
+
 /* Filtros em uma única linha só (pedido: não separar os períodos em outra
    linha) — flex-wrap em vez de grid rígido, com os campos de data bem mais
    estreitos (só precisam caber "dd/mm/aaaa") que os de cliente/evento. */

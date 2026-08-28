@@ -254,6 +254,16 @@ const limparFormulario = () => {
         btnInserir.style.display = "none";
         btnInserir.onclick = null;
     }
+    const previewLogo = document.querySelector("#previewLogo");
+    const btnInserirLogo = document.querySelector("#btnInserirLogo");
+    if (previewLogo) {
+        previewLogo.src = "#";
+        previewLogo.style.display = "none";
+    }
+    if (btnInserirLogo) {
+        btnInserirLogo.style.display = "none";
+        btnInserirLogo.onclick = null;
+    }
 };
 
 const obterDadosFormulario = () => {
@@ -336,6 +346,17 @@ function carregarEmpresas() {
             }
         });
     }
+
+    // Complemento pode ter texto bem maior que o espaço visível do input —
+    // mantém o title sincronizado com o valor pra mostrar o texto completo
+    // num tooltip nativo ao passar o mouse (pedido explícito).
+    const campoComplemento = document.getElementById('complemento');
+    if (campoComplemento) {
+        campoComplemento.addEventListener('input', (event) => {
+            event.target.title = event.target.value;
+        });
+    }
+
     //pesquisar empresa pelo nome fantasia
     const form = document.querySelector("#form");
     const btnEnviar = document.querySelector("#Enviar");
@@ -703,7 +724,9 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         maskCEP.value = empresa.cep || '';
         document.querySelector("#rua").value = empresa.endereco || "";
         document.querySelector("#numero").value = empresa.numero || "";
-        document.querySelector("#complemento").value = empresa.complemento || "";
+        const campoComplemento = document.querySelector("#complemento");
+        campoComplemento.value = empresa.complemento || "";
+        campoComplemento.title = campoComplemento.value;
         document.querySelector("#bairro").value = empresa.bairro || "";
         document.querySelector("#cidade").value = empresa.cidade || "";
         document.querySelector("#estado").value = empresa.estado || "";
@@ -721,6 +744,7 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#pix").value = empresa.pix || "";
         empresaOriginal = { ...empresa };
         verificarCertificadoEmpresa(empresa.idempresa, true);
+        atualizarPreviewLogoNaTela(empresa.logo, empresa.idempresa);
 
         const novoInput = document.createElement("input");
         novoInput.type = "text";
@@ -938,6 +962,97 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
         await Swal.fire("Certificado salvo!", "O certificado digital dessa empresa já está pronto pra assinar nota fiscal.", "success");
     } catch (erro) {
         Swal.fire("Erro", erro.message || "Erro ao salvar o certificado.", "error");
+    }
+}
+
+// Logo usado no cabeçalho de relatórios/impressão (ex.: Faturamento > Visão
+// Geral > Imprimir) — upload de verdade em vez de digitar o nome do arquivo,
+// pra evitar erro de digitação (escolher visualmente sempre pega o certo).
+function atualizarPreviewLogoNaTela(logo, idempresa) {
+    const preview = document.querySelector("#previewLogo");
+    const btnInserir = document.querySelector("#btnInserirLogo");
+    if (preview) {
+        if (logo) {
+            preview.src = `/${logo}`;
+            preview.style.display = "block";
+        } else {
+            preview.src = "#";
+            preview.style.display = "none";
+        }
+    }
+    if (btnInserir) {
+        btnInserir.style.display = "flex";
+        btnInserir.textContent = logo ? "Trocar logo" : "Inserir logo";
+        btnInserir.onclick = async () => {
+            const novoLogo = await abrirSwalUploadLogo(idempresa);
+            if (novoLogo) atualizarPreviewLogoNaTela(novoLogo, idempresa);
+        };
+    }
+}
+
+async function abrirSwalUploadLogo(idempresa) {
+    const { value: arquivo } = await Swal.fire({
+        title: "Logo da empresa",
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <label style="display:block; margin-bottom:6px;">Arquivo de imagem (PNG, JPG...)</label>
+                    <input type="file" id="swalLogoArquivo" accept="image/*" style="display:none;">
+                    <button type="button" id="swalLogoBtnAnexar" style="
+                        width:100%; box-sizing:border-box; margin:0; padding:14px;
+                        display:flex; align-items:center; justify-content:center; gap:8px;
+                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
+                        font-size:15px; cursor:pointer; color:#333;">
+                        <span id="swalLogoNomeArquivo">📎 Clique pra anexar o logo</span>
+                    </button>
+                </div>
+            </div>
+        `,
+        confirmButtonText: "Salvar logo",
+        showCancelButton: true,
+        cancelButtonText: "Cancelar",
+        focusConfirm: false,
+        didOpen: () => {
+            const inputArquivo = document.getElementById("swalLogoArquivo");
+            const btnAnexar = document.getElementById("swalLogoBtnAnexar");
+            const nomeArquivo = document.getElementById("swalLogoNomeArquivo");
+            btnAnexar.addEventListener("click", () => inputArquivo.click());
+            inputArquivo.addEventListener("change", () => {
+                const arquivo = inputArquivo.files[0];
+                if (arquivo) {
+                    nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
+                    btnAnexar.style.borderStyle = "solid";
+                    btnAnexar.style.borderColor = "#28a745";
+                    btnAnexar.style.background = "#eaf7ee";
+                } else {
+                    nomeArquivo.textContent = "📎 Clique pra anexar o logo";
+                    btnAnexar.style.borderStyle = "dashed";
+                    btnAnexar.style.borderColor = "#999";
+                    btnAnexar.style.background = "#f7f7f7";
+                }
+            });
+        },
+        preConfirm: () => {
+            const arquivo = document.getElementById("swalLogoArquivo").files[0];
+            if (!arquivo) {
+                Swal.showValidationMessage("Selecione o arquivo do logo.");
+                return false;
+            }
+            return arquivo;
+        },
+    });
+
+    if (!arquivo) return null;
+
+    try {
+        const formData = new FormData();
+        formData.append("logo", arquivo);
+        const resultado = await fetchComToken(`/empresas/${idempresa}/logo`, { method: "POST", body: formData });
+        await Swal.fire("Logo salvo!", "O logo dessa empresa já vai aparecer nos relatórios impressos.", "success");
+        return resultado.logo;
+    } catch (erro) {
+        Swal.fire("Erro", erro.message || "Erro ao salvar o logo.", "error");
+        return null;
     }
 }
 
