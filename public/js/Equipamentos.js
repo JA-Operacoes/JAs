@@ -88,7 +88,13 @@ function verificaEquipamento() {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { descEquip, custo, venda };
+        const dados = {
+            descEquip,
+            custo,
+            venda,
+            modelos: coletarModelosEquipamento(),
+            complementos: coletarComplementosEquipamento()
+        };
 
         // Verifica alterações
         if (
@@ -96,7 +102,9 @@ function verificaEquipamento() {
             parseInt(idEquip) === parseInt(window.EquipamentoOriginal?.idEquip) &&
             descEquip === window.EquipamentoOriginal?.descEquip &&
             Number(custo).toFixed(2) === Number(window.EquipamentoOriginal?.vlrCusto).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(window.EquipamentoOriginal?.vlrVenda).toFixed(2)
+            Number(venda).toFixed(2) === Number(window.EquipamentoOriginal?.vlrVenda).toFixed(2)&&
+            JSON.stringify(dados.modelos) === JSON.stringify(window.EquipamentoOriginal?.modelos) &&
+            JSON.stringify(dados.complementos) === JSON.stringify(window.EquipamentoOriginal?.complementos)
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -125,7 +133,7 @@ function verificaEquipamento() {
                 method: metodo,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
-            });            
+            });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Equipamento salvo com sucesso.", "success");
             limparCamposEquipamento();
@@ -197,7 +205,7 @@ function verificaEquipamento() {
             novoInput.id = "descEquip";
             novoInput.name = "descEquip";
             novoInput.required = true;
-            novoInput.className = "form";
+            novoInput.className = "input uppercase";
             novoInput.value = desc;
 
             novoInput.addEventListener("input", function () {
@@ -265,7 +273,7 @@ function resetarCampoDescEquipParaInput() {
         input.name = "descEquip";
         input.value = ""; // Limpa o valor
         input.placeholder = "Descrição do Equipamento";
-        input.className = "form";
+        input.className = "input uppercase";
         input.classList.add('uppercase');
         input.required = true;
 
@@ -357,7 +365,7 @@ function criarSelectEquipamento(equipamentos) {
     select.id = "descEquip";
     select.name = "descEquip";
     select.required = true;
-    select.className = "form";
+    select.className = "input uppercase";
 
    
     // Adicionar opções
@@ -424,9 +432,9 @@ function adicionarEventoBlurEquipamento() {
 async function carregarEquipamentoDescricao(desc, elementoAtual) {
     try {
         const equipamentos = await fetchComToken(`/equipamentos?descEquip=${encodeURIComponent(desc)}`);
-       
+
         if (!equipamentos || !equipamentos.idequip) throw new Error("Equipamento não encontrada");
-     
+
         document.querySelector("#idEquip").value = equipamentos.idequip;
         document.querySelector("#ctoEquip").value = equipamentos.ctoequip;
         document.querySelector("#vdaEquip").value = equipamentos.vdaequip;
@@ -437,6 +445,9 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
             vlrCusto: equipamentos.ctoequip,
             vlrVenda: equipamentos.vdaequip
         };
+
+        renderModelosEquipamento(equipamentos.modelos || []);
+        renderComplementosEquipamento(equipamentos.complementos || []);
 
     } catch (error) {
         
@@ -512,7 +523,7 @@ function limparCamposEquipamento() {
             novoInput.id = "descEquip";
             novoInput.name = "descEquip";
             novoInput.required = true;
-            novoInput.className = "form";
+            novoInput.className = "input uppercase";
 
             novoInput.addEventListener("input", function () {
                 this.value = this.value.toUpperCase();
@@ -546,7 +557,138 @@ function limparCamposEquipamento() {
         vlrCusto: "",
         vlrVenda: ""
     };
+
+    limparModelosEquipamento();
+    limparComplementosEquipamento();
 }
+
+// =============================================================================
+// Modelos (marca/modelo) e Complementos do equipamento — vivem como JSONB
+// dentro da própria linha de equipamentos; a tabela só edita em memória, o
+// array inteiro é enviado junto no POST/PUT de /equipamentos.
+// =============================================================================
+
+function gerarIdLocal() {
+    return (window.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+}
+
+function limparModelosEquipamento() {
+    const corpo = document.getElementById("corpo-modelos-equipamento");
+    if (corpo) corpo.innerHTML = "";
+}
+
+function criarLinhaModeloEquipamento(modelo = null) {
+    const tr = document.createElement("tr");
+    tr.dataset.idmodelo = modelo?.id ?? gerarIdLocal();
+
+    tr.innerHTML = `
+        <td><input type="text" class="input-modelo-marca uppercase" value="${modelo?.marca ?? ""}" placeholder="Ex: HP"></td>
+        <td><input type="text" class="input-modelo-modelo uppercase" value="${modelo?.modelo ?? ""}" placeholder="Ex: EliteBook"></td>
+        <td><input type="number" class="input-modelo-qtdeminima" min="0" value="${modelo?.qtdeminima ?? 0}"></td>
+        <td><button type="button" class="btnRemoverModelo equip-rm">✕</button></td>
+    `;
+
+    tr.dataset.temUnidades = modelo?.id ? "1" : "0";
+
+    tr.querySelectorAll(".uppercase").forEach((input) => {
+        input.addEventListener("input", function () { this.value = this.value.toUpperCase(); });
+    });
+
+    tr.querySelector(".btnRemoverModelo").addEventListener("click", async () => {
+        if (tr.dataset.temUnidades === "1") {
+            const { isConfirmed } = await Swal.fire({
+                title: "Este modelo já existe salvo",
+                text: "Se ele já tiver unidades/estoque cadastradas na aba Estoque do TI Mode, elas ficam órfãs ao remover aqui. Deseja continuar mesmo assim?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Remover mesmo assim",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+            });
+            if (!isConfirmed) return;
+        }
+        tr.remove();
+    });
+
+    return tr;
+}
+
+function renderModelosEquipamento(modelos) {
+    limparModelosEquipamento();
+    const corpo = document.getElementById("corpo-modelos-equipamento");
+    if (!corpo) return;
+    (modelos || []).forEach((modelo) => corpo.appendChild(criarLinhaModeloEquipamento(modelo)));
+}
+
+function coletarModelosEquipamento() {
+    const corpo = document.getElementById("corpo-modelos-equipamento");
+    if (!corpo) return [];
+
+    return Array.from(corpo.querySelectorAll("tr"))
+        .map((linha) => {
+            const marca = linha.querySelector(".input-modelo-marca")?.value.trim();
+            const modelo = linha.querySelector(".input-modelo-modelo")?.value.trim();
+            const qtdeminima = parseInt(linha.querySelector(".input-modelo-qtdeminima")?.value || "0", 10);
+            if (!marca) return null;
+
+            return {
+                id: linha.dataset.idmodelo,
+                marca,
+                modelo,
+                qtdeminima,
+            };
+        })
+        .filter(Boolean);
+}
+
+// ===== Complementos (lista simples de itens acessórios) =====
+
+function limparComplementosEquipamento() {
+    const corpo = document.getElementById("corpo-complementos-equipamento");
+    if (corpo) corpo.innerHTML = "";
+}
+
+function criarLinhaComplementoEquipamento(item = "") {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td><input type="text" class="input-complemento-item uppercase" value="${item}" placeholder="Ex: Mouse"></td>
+        <td><button type="button" class="btnRemoverComplemento equip-rm">✕</button></td>
+    `;
+
+    tr.querySelector(".uppercase").addEventListener("input", function () { this.value = this.value.toUpperCase(); });
+    tr.querySelector(".btnRemoverComplemento").addEventListener("click", () => tr.remove());
+
+    return tr;
+}
+
+function renderComplementosEquipamento(complementos) {
+    limparComplementosEquipamento();
+    const corpo = document.getElementById("corpo-complementos-equipamento");
+    if (!corpo) return;
+    (complementos || []).forEach((item) => corpo.appendChild(criarLinhaComplementoEquipamento(item)));
+}
+
+function coletarComplementosEquipamento() {
+    const corpo = document.getElementById("corpo-complementos-equipamento");
+    if (!corpo) return [];
+
+    return Array.from(corpo.querySelectorAll(".input-complemento-item"))
+        .map((input) => input.value.trim())
+        .filter(Boolean);
+}
+
+document.addEventListener("click", (event) => {
+    if (event.target?.id === "btnAdicionarModelo") {
+        event.preventDefault();
+        const corpo = document.getElementById("corpo-modelos-equipamento");
+        if (corpo) corpo.appendChild(criarLinhaModeloEquipamento());
+    }
+    if (event.target?.id === "btnAdicionarComplemento") {
+        event.preventDefault();
+        const corpo = document.getElementById("corpo-complementos-equipamento");
+        if (corpo) corpo.appendChild(criarLinhaComplementoEquipamento());
+    }
+});
 
 function configurarEventosEquipamento() {
     console.log("Configurando eventos Equipamento...");

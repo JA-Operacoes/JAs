@@ -41,7 +41,7 @@ router.get("/", verificarPermissao('Equipamentos', 'pesquisar'), async (req, res
 });
 
 // PUT atualizar
-router.put("/:id", 
+router.put("/:id",
   verificarPermissao('Equipamentos', 'alterar'),
   logMiddleware('Equipamentos', { // ✅ Módulo 'Equipamentos' para o log
       buscarDadosAnteriores: async (req) => {
@@ -51,7 +51,7 @@ router.put("/:id",
           if (!idEquipamento) {
               return { dadosanteriores: null, idregistroalterado: null };
           }
-          
+
           try {
               // Seleciona todos os campos importantes do equipamento ANTES da atualização
               const result = await pool.query(
@@ -74,24 +74,25 @@ router.put("/:id",
   async (req, res) => {
   const id = req.params.id;
   const idempresa = req.idempresa;
-  const { descEquip, custo, venda } = req.body;
+  const { descEquip, custo, venda, modelos, complementos } = req.body;
 
   try {
       const result = await pool.query(
         `UPDATE equipamentos e
-          SET descEquip = $1, ctoEquip = $2, vdaEquip = $3
+          SET descEquip = $1, ctoEquip = $2, vdaEquip = $3,
+              modelos = $4::jsonb, complementos = $5::jsonb
           FROM equipamentoempresas ee
-          WHERE e.idequip = $4 AND ee.idequip = e.idequip AND ee.idempresa = $5
-          RETURNING e.idequip`, 
-        [descEquip, custo, venda, id, idempresa]
+          WHERE e.idequip = $6 AND ee.idequip = e.idequip AND ee.idempresa = $7
+          RETURNING e.idequip`,
+        [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), id, idempresa]
       );
 
       if (result.rowCount) {
-        const equipamentoAtualizadoId = result.rows[0].idequip; 
-        
+        const equipamentoAtualizadoId = result.rows[0].idequip;
+
         res.locals.acao = 'atualizou';
-        res.locals.idregistroalterado = equipamentoAtualizadoId; 
-        res.locals.idusuarioAlvo = null; 
+        res.locals.idregistroalterado = equipamentoAtualizadoId;
+        res.locals.idusuarioAlvo = null;
         res.locals.dadosnovos = req.body;
 
         return res.json({ message: "Equipamento atualizado com sucesso!", equipamentos: result.rows[0] });
@@ -105,14 +106,14 @@ router.put("/:id",
 });
 
 // POST criar nova equipamentos
-router.post("/", verificarPermissao('Equipamentos', 'cadastrar'), 
-  logMiddleware('Equipamentos', { 
+router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
+  logMiddleware('Equipamentos', {
       buscarDadosAnteriores: async (req) => {
         return { dadosanteriores: null, idregistroalterado: null };
       }
   }),
   async (req, res) => {
-  const { descEquip, custo, venda } = req.body;
+  const { descEquip, custo, venda, modelos, complementos } = req.body;
   const idempresa = req.idempresa;
 
   let client; // Variável para a conexão de transação
@@ -124,8 +125,9 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
 
       // 1. Insere o novo equipamento na tabela 'equipamentos'
       const resultEquipamento = await client.query(
-          "INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip) VALUES ($1, $2, $3) RETURNING idequip, descEquip", // ✅ Retorna idequip
-          [descEquip, custo, venda]
+          `INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip, modelos, complementos)
+             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb) RETURNING idequip, descEquip, modelos, complementos`,
+          [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || [])]
       );
 
       const novoEquipamento = resultEquipamento.rows[0];
@@ -138,10 +140,10 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
       );
 
       await client.query('COMMIT'); // Confirma a transação
-      
+
       const novoEquipamentoId = idequip; // ID do equipamento recém-criado
       res.locals.acao = 'cadastrou';
-      res.locals.idregistroalterado = novoEquipamentoId; 
+      res.locals.idregistroalterado = novoEquipamentoId;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = novoEquipamento;
 
@@ -156,7 +158,7 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
       if (client) {
           client.release(); // Libera a conexão do pool
       }
-  }    
+  }
 
 });
 

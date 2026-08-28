@@ -132,6 +132,7 @@ app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
 app.use("/ceo", autenticarToken(), contextoEmpresa, exigirFlag('supremo'), require("./routes/rotaCeo"));
 app.use("/rh", autenticarToken(), contextoEmpresa, exigirFlag('rh', 'supremo'), require("./routes/rotaRH"));
 app.use("/logs", autenticarToken(), contextoEmpresa, exigirFlag('devs', 'supremo'), require("./routes/rotaLogs"));
+app.use("/ti", autenticarToken(), contextoEmpresa, exigirFlag('ti', 'supremo'), require("./routes/rotaTI"));
 
 
 // Logo após as outras rotas protegidas, no mesmo padrão:

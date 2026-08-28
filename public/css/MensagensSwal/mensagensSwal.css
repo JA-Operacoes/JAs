@@ -140,3 +140,40 @@
 @keyframes rotate4 { from { transform: rotateX(70deg) rotateZ(270deg);} to {transform: rotateX(70deg) rotateZ(630deg);} }
 @keyframes rotate5 { from { transform: rotateX(50deg) rotateY(150deg) rotateZ(100deg);} to {transform: rotateX(50deg) rotateY(150deg) rotateZ(460deg);} }
 @keyframes rotate6 { from { transform: rotateX(190deg) rotateY(150deg) rotateZ(100deg);} to {transform: rotateX(190deg) rotateY(150deg) rotateZ(460deg);} }
+
+/* ===== Formulários do TI Mode dentro de Swal (entrega/transferência/destino etc.) ===== */
+.ti-swal-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ti-swal-form-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.ti-swal-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+.ti-swal-label .swal2-input,
+.ti-swal-label .swal2-select,
+.ti-swal-label .swal2-textarea,
+.ti-swal-label select {
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+.ti-swal-check-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: normal;
+  padding: 4px 0;
+}

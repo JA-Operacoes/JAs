@@ -484,7 +484,8 @@ async function listarPermissoes(req, res) {
         supremo   AS supremo,
         comercial AS comercial,
         devs AS devs,
-        rh AS rh
+        rh AS rh,
+        ti AS ti
       FROM permissoes
       WHERE idusuario = $1 AND idempresa = $2
       `,
@@ -504,7 +505,8 @@ async function listarPermissoes(req, res) {
       pode_supremo: p.supremo,
       pode_comercial: p.comercial,
       pode_devs: p.devs,
-      pode_rh: p.rh        
+      pode_rh: p.rh,
+      pode_ti: p.ti
     }));
 
     res.json(permissoes);
