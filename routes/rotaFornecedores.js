@@ -283,8 +283,7 @@ router.put(
       if (client) await client.query('ROLLBACK');
       console.error("❌ Erro ao atualizar fornecedor:", error);
       res.status(500).json({
-        message: "Erro ao atualizar fornecedor.",
-        detail: error.message
+        message: "Erro ao atualizar fornecedor."
       });
     } finally {
       if (client) client.release();
@@ -423,7 +422,7 @@ router.post(
     } catch (error) {
       if (client) await client.query('ROLLBACK');
       console.error("❌ Erro ao salvar fornecedor:", error);
-      res.status(500).json({ erro: "Erro ao salvar fornecedor.", detalhe: error.message });
+      res.status(500).json({ erro: "Erro ao salvar fornecedor." });
     } finally {
       if (client) client.release();
     }
