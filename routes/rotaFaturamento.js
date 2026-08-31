@@ -471,7 +471,7 @@ router.post("/", verificarPermissao('faturamento', 'cadastrar'), exigirFlag('mas
     } catch (error) {
       await client.query("ROLLBACK");
       console.error("Erro ao registrar nota fiscal:", error);
-      res.status(500).json({ message: "Erro ao registrar nota fiscal.", detail: error.message });
+      res.status(500).json({ message: "Erro ao registrar nota fiscal." });
     } finally {
       client.release();
     }
@@ -632,7 +632,8 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
       try {
         certificado = carregarCertificadoDaNota(nf);
       } catch (errCert) {
-        return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+        console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+        return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
       }
 
       const xml = montarXmlCancelamentoNFe({
@@ -710,7 +711,7 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
       return res.status(422).json({ message: mensagem, tipo: resultado.tipo, erros: resultado.erros || [] });
     } catch (error) {
       console.error("Erro ao cancelar nota fiscal na prefeitura:", error);
-      res.status(500).json({ message: "Erro ao cancelar nota na prefeitura.", detail: error.message });
+      res.status(500).json({ message: "Erro ao cancelar nota na prefeitura." });
     }
   });
 
@@ -718,7 +719,8 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
 router.post("/:id/anexo", verificarPermissao('faturamento', 'alterar'), (req, res) => {
   uploadNotaFiscal(req, res, async (err) => {
     if (err) {
-      return res.status(400).json({ message: err.message });
+      console.error("Erro ao processar anexo da nota fiscal:", err);
+      return res.status(400).json({ message: "Erro ao processar o arquivo enviado. Verifique se é um PDF ou imagem de até 10MB." });
     }
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado." });
@@ -854,7 +856,7 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
       return res.json({ message: "E-mail enviado com sucesso!", notafiscal: notaAtualizada.rows[0] });
     } catch (error) {
       console.error("Erro ao enviar nota fiscal por e-mail:", error);
-      res.status(500).json({ message: "Erro ao enviar e-mail.", detail: error.message });
+      res.status(500).json({ message: "Erro ao enviar e-mail." });
     }
   });
 
@@ -1122,7 +1124,8 @@ router.get("/:id/xml", verificarPermissao('faturamento', 'pesquisar'), async (re
     try {
       certificado = carregarCertificadoDaNota(nf);
     } catch (errCert) {
-      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+      console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+      return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
     }
 
     let notaParaGerador;
@@ -1167,7 +1170,7 @@ router.get("/:id/xml", verificarPermissao('faturamento', 'pesquisar'), async (re
     return res.send(xml);
   } catch (error) {
     console.error("Erro ao gerar XML da nota fiscal:", error);
-    res.status(500).json({ message: "Erro ao gerar XML.", detail: error.message });
+    res.status(500).json({ message: "Erro ao gerar XML." });
   }
 });
 
@@ -1359,7 +1362,8 @@ router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), ex
     try {
       certificado = carregarCertificadoDaNota(linhas[0]);
     } catch (errCert) {
-      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+      console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+      return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
     }
 
     let notasParaGerador;
@@ -1503,7 +1507,7 @@ router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), ex
     });
   } catch (error) {
     console.error("Erro ao enviar lote pro Web Service da prefeitura:", error);
-    res.status(500).json({ message: "Erro ao enviar lote.", detail: error.message });
+    res.status(500).json({ message: "Erro ao enviar lote." });
   }
 });
 

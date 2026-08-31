@@ -8,8 +8,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!token) return [];
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log("Payload do Token:", payload);
-      console.log("Empresas encontradas:", payload.empresas);
       return payload.empresas || [];
     } catch (e) {
       console.warn("Token inválido ou sem empresas:", e);
@@ -98,8 +96,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             };
         });
 
-        console.log("Permissões do usuário:", permissoesArray);
-
         console.log("Lista dinâmica de logos mapeada e Empresas Ativas:", logos, empresasAtivas);
 
 
@@ -142,8 +138,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Armazena o array de permissões na variável global window.permissoes
   window.permissoes = permissoesArray; // <--- AGORA ESTÁ CORRETO
-  console.log("Permissões carregadas e armazenadas em window.permissoes:", window.permissoes);
-  
+
       
   try {
       console.log("Buscando lista de módulos do banco de dados...");

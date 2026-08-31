@@ -119,7 +119,7 @@ router.get("/clientes", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("ERRO CEO /clientes:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar clientes." });
   }
 });
 
@@ -142,7 +142,7 @@ router.get("/eventos", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("ERRO CEO /eventos:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar eventos." });
   }
 });
 
@@ -161,7 +161,7 @@ router.get("/analise", async (req, res) => {
     res.json({ eventos: rows });
   } catch (error) {
     console.error("ERRO CEO /analise:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao carregar análise de rentabilidade." });
   }
 });
 
@@ -183,7 +183,7 @@ router.get("/destaque-semana", async (req, res) => {
     res.json({ eventos: rows, dias });
   } catch (error) {
     console.error("ERRO CEO /destaque-semana:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao carregar destaque da semana." });
   }
 });
 
@@ -266,7 +266,7 @@ router.get("/evento-anos", async (req, res) => {
     res.json({ nmevento: nome.rows[0]?.nmevento || "Evento", anos: rows });
   } catch (error) {
     console.error("ERRO CEO /evento-anos:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao comparar evento por ano." });
   }
 });
 
@@ -289,7 +289,7 @@ router.get("/comparar", async (req, res) => {
     res.json({ eventos: rows });
   } catch (error) {
     console.error("ERRO CEO /comparar:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao comparar eventos." });
   }
 });
 
@@ -311,7 +311,7 @@ router.get("/anos-disponiveis", async (req, res) => {
     res.json(rows.map((r) => r.ano));
   } catch (error) {
     console.error("ERRO CEO /anos-disponiveis:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar anos disponíveis." });
   }
 });
 
@@ -337,7 +337,7 @@ router.get("/filtrar", async (req, res) => {
     res.json({ eventos: rows });
   } catch (error) {
     console.error("ERRO CEO /filtrar:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao filtrar eventos." });
   }
 });
 
@@ -355,7 +355,7 @@ router.get("/geral/empresas", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("ERRO CEO /geral/empresas:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar empresas." });
   }
 });
 
@@ -385,7 +385,7 @@ router.get("/geral/funcionarios", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("ERRO CEO /geral/funcionarios:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar funcionários." });
   }
 });
 
@@ -407,7 +407,7 @@ router.get("/geral/anos-disponiveis", async (req, res) => {
     res.json(rows.map((r) => r.ano));
   } catch (error) {
     console.error("ERRO CEO /geral/anos-disponiveis:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar anos disponíveis." });
   }
 });
 
@@ -478,7 +478,7 @@ router.get("/geral/funcionario", async (req, res) => {
     res.json({ holerites: holerites.rows, staff: staff.rows, ajustes: ajustes.rows });
   } catch (error) {
     console.error("ERRO CEO /geral/funcionario:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao carregar dados do funcionário." });
   }
 });
 
@@ -553,7 +553,7 @@ router.get("/geral/panorama", async (req, res) => {
     res.json({ ano, holerite: holerite.rows, staff: staff.rows, ajustes: ajustes.rows });
   } catch (error) {
     console.error("ERRO CEO /geral/panorama:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao carregar panorama geral." });
   }
 });
 
@@ -634,7 +634,7 @@ router.get("/geral/receber", async (req, res) => {
     res.json({ agrupamento, ano, linhas: rows });
   } catch (error) {
     console.error("ERRO CEO /geral/receber:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao carregar contas a receber." });
   }
 });
 
@@ -665,7 +665,7 @@ router.get("/geral/eventos", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("ERRO CEO /geral/eventos:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao listar eventos." });
   }
 });
 
@@ -698,7 +698,7 @@ router.get("/geral/evento-anos", async (req, res) => {
     res.json({ nmevento: nome.rows[0]?.nmevento || "Evento", linhas: rows });
   } catch (error) {
     console.error("ERRO CEO /geral/evento-anos:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao comparar evento por ano entre empresas." });
   }
 });
 

@@ -45,11 +45,10 @@ CREATE TABLE IF NOT EXISTS indiceanualempresas (
 `;
             return res.status(500).json({
                 error: "Tabela 'indiceanualempresas' não encontrada no banco de dados.",
-                detalhes: error.message,
                 sugestao_migracao: migrationSql.trim()
             });
         }
-        return res.status(500).json({ error: error.message || "Erro ao buscar índices anuais" });
+        return res.status(500).json({ error: "Erro ao buscar índices anuais." });
     }
 });
 
@@ -101,11 +100,10 @@ CREATE TABLE IF NOT EXISTS indiceanualempresas (
 `;
             return res.status(500).json({
                 error: "Tabela 'indiceanualempresas' não encontrada no banco de dados.",
-                detalhes: error.message,
                 sugestao_migracao: migrationSql.trim()
             });
         }
-        return res.status(500).json({ error: error.message || "Erro ao buscar índices anuais" });
+        return res.status(500).json({ error: "Erro ao buscar índices anuais." });
     }
 });
 
@@ -321,7 +319,8 @@ router.post("/", verificarPermissao('IndiceAnual', 'cadastrar'),
         res.status(201).json({ mensagem: "Índice anual salvo com sucesso!", idindice });
     } catch (error) {
         if (client) await client.query('ROLLBACK');
-        res.status(500).json({ erro: "Erro ao salvar índice anual", detalhes: error.message });
+        console.error("Erro ao salvar índice anual:", error);
+        res.status(500).json({ erro: "Erro ao salvar índice anual." });
     } finally {
         if (client) client.release();
     }
@@ -659,7 +658,7 @@ async function aplicarCalculo(idempresa, idexecutor, anoReferencia, idIndiceAnua
 
         console.error('Erro ao aplicar o cálculo:', error);
 
-        return { success: false, message: 'Falha ao aplicar o índice.', error: error.message };
+        return { success: false, message: 'Falha ao aplicar o índice.' };
 
     } finally {
 
@@ -1108,7 +1107,8 @@ router.post("/:id/desfazer-calculo", verificarPermissao('IndiceAnual', 'alterar'
 
         } catch (error) {
             if (client) await client.query('ROLLBACK');
-            res.status(500).json({ error: error.message });
+            console.error("Erro ao desfazer cálculo do índice anual:", error);
+            res.status(500).json({ error: "Erro ao desfazer cálculo do índice anual." });
         } finally {
             if (client) client.release();
         }
@@ -1225,7 +1225,8 @@ router.get("/:id/relatorio-comparacao", verificarPermissao('IndiceAnual', 'pesqu
         });
         
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Erro ao gerar relatório de comparação do índice anual:", error);
+        res.status(500).json({ error: "Erro ao gerar relatório de comparação do índice anual." });
     } finally {
         if (client) client.release();
     }

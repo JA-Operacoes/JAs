@@ -1,15 +1,25 @@
 // routes/auth.js
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
 const logMiddleware = require('../middlewares/logMiddleware');
+
+// Trava de força bruta: 10 tentativas de login por IP a cada 15 minutos.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { erro: 'Muitas tentativas de login. Tente novamente em alguns minutos.' },
+});
 
 
 
 const { cadastrarOuAtualizarUsuario, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, listarEmpresasDoUsuario, buscarModulos, carregarTodasEmpresas  } = require('../controllers/authController');
 
-router.post('/login', authController.login);
+router.post('/login', loginLimiter, authController.login);
 
 router.post('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarUsuario);
 router.put('/cadastro', autenticarToken({ verificarEmpresa: false }),  cadastrarOuAtualizarUsuario);

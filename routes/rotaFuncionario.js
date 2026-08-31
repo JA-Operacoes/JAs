@@ -79,7 +79,7 @@ router.get("/bancos", verificarPermissao('Bancos', 'pesquisar'), async (req, res
         } 
     } catch (error) {
         console.error("❌ Erro ao buscar bancos:", error);
-        return res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+        return res.status(500).json({ error: "Erro ao buscar bancos." });
     }
 });
 
@@ -136,7 +136,7 @@ router.get("/cbo", (req, res) => {
     res.json(resultado);
   } catch (error) {
     console.error("ERRO /funcionarios/cbo:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao buscar CBO." });
   }
 });
 
@@ -509,16 +509,15 @@ router.put("/:id",
             }
             // Mensagem de erro mais específica para não-nulo
             if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
-                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.` });
             }
             if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
                 return res.status(400).json({
                     message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
-                    field: "dataNascimento", // Adiciona um campo para identificar qual input
-                    details: error.message
+                    field: "dataNascimento" // Adiciona um campo para identificar qual input
                 });
             }
-            res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
+            res.status(500).json({ message: "Erro ao atualizar funcionário." });
         } finally {
             if (client) {
                 client.release(); // Libera o cliente de volta para o pool
@@ -734,8 +733,7 @@ router.post("/",
             // Tratamento de erros de campos obrigatórios
             if (error.code === '23502') {
                 return res.status(400).json({
-                    message: `Campo obrigatório faltando ou inválido: ${error.column}.`,
-                    details: error.message
+                    message: `Campo obrigatório faltando ou inválido: ${error.column}.`
                 });
             }
 
@@ -743,12 +741,11 @@ router.post("/",
             if (error.code === '22007') {
                 return res.status(400).json({
                     message: "A Data de Nascimento está em um formato inválido.",
-                    field: "dataNascimento",
-                    details: error.message
+                    field: "dataNascimento"
                 });
             }
 
-            res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
+            res.status(500).json({ error: "Erro ao salvar funcionário." });
         } finally {
             if (client) {
                 client.release();

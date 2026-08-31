@@ -151,7 +151,7 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
           await client.query('ROLLBACK');
       }
       console.error("Erro ao salvar equipamento e/ou associá-lo à empresa:", error);
-      res.status(500).json({ erro: "Erro ao salvar equipamentos.", detail: error.message });
+      res.status(500).json({ erro: "Erro ao salvar equipamentos." });
   } finally {
       if (client) {
           client.release(); // Libera a conexão do pool
