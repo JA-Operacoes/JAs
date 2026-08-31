@@ -502,9 +502,11 @@ function calcularResumoSaldoInativacao(item, diasTrabalhadosSet) {
         const match = String(status).match(/(\d+)/);
         return match ? amount * (Number(match[1]) / 100) : amount;
     };
+    // Caixinha: pagamento agora é por item (statuspgtocaixinha do registro inteiro
+    // descontinuado) — backend já manda o valor pago somado via caixinha_valor_pago().
     const valorJaPago = calcPagoBase(item.statuspgto, vlrTotCache)
         + calcPagoBase(item.statuspgtoajdcto, vlrTotAjdCusto)
-        + calcPagoBase(item.statuscaixinha, vlrCaixinha);
+        + (parseFloat(item.vlrcaixinhapago) || 0);
 
     return { totalDias, qtdTrabalhados, valorDevido, valorJaPago, saldo: valorJaPago - valorDevido };
 }
@@ -7536,8 +7538,13 @@ async function mostrarPedidosUsuario() {
         "statusmeiadiaria": "dtmeiadiaria",
         "statuscustofechado": "vlrcache",
         "statuscacheliberado": "vlrcache",
-        "statusvagaexcedida": "statusvagaexcedida", 
-        "statusaditivoextra": "statusaditivoextra"
+        "statusvagaexcedida": "statusvagaexcedida",
+        "statusaditivoextra": "statusaditivoextra",
+        // Sem entrada aqui, pedidoOriginal.statuscaixinha chegava intacto até o render como a
+        // string JSON crua (backend serializa com JSON.stringify) — infoItem.valor/descricao
+        // (justificativa) ficavam undefined porque nunca era feito o safeParse. Mapeando pra
+        // si mesma (mesmo padrão de statusvagaexcedida/statusaditivoextra) ativa o parse.
+        "statuscaixinha": "statuscaixinha"
     };
 
     const camposTodos = [
@@ -11251,6 +11258,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             if ((campo === 'statusajustecusto' || campo === 'statuscaixinha') && valor > 0) vlrSolBadge = valor;
                         } else {
                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        }
+                        // Justificativa da Caixinha: vem por item (infoItem.descricao, mapeado de
+                        // s.justificativa no backend) — faltava exibir, então o card nunca mostrava
+                        // o motivo da solicitação.
+                        if (campo === 'statuscaixinha') {
+                            const justifCaixinha = infoItem.descricao || pedido.justificativaSolicitacao || '';
+                            if (justifCaixinha) {
+                                htmlBody += `<span class="text-xs text-gray-600" style="display:block;margin-top:2px;margin-bottom:6px;line-height:1.5;"><strong>Justificativa:</strong> ${justifCaixinha}</span>`;
+                            }
                         }
                     } else if (isDataUnica) {
                         const dataBruta = String(infoItem.data || '').trim();
@@ -15268,18 +15284,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                     // Caixinha — uma linha por item (autorizado OU pendente), com a
                     // justificativa no lugar do período (mesmo padrão de Crédito/Débito),
-                    // já que cada item pode ter motivo e valor diferentes. Pagamento
-                    // continua sendo UMA flag só pro registro (statuspgtocaixinha) — por
-                    // isso o botão de ação só aparece na última linha, representando a
-                    // "gaveta" inteira, e fica travado enquanto houver item pendente.
+                    // já que cada item pode ter motivo e valor diferentes. Pagamento agora
+                    // é por item (item.statuspgto) — cada item Autorizado tem seu próprio
+                    // controle de Pagar/Susp/Rejeitar, independente dos demais do registro.
                     const itensCaixinha = f.itens_caixinha || [];
-                    // Pagamento é liberado pela parte já Autorizada mesmo que exista outro
-                    // item ainda Pendente no mesmo registro — decisão do usuário: aceitar o
-                    // risco de, se pagar agora, a trava do backend (rotaStaff.js) nunca mais
-                    // deixar autorizar esse item pendente depois (não é bug, é a troca feita).
-                    const idxUltimoAutorizado = itensCaixinha.reduce(
-                        (acc, it, i) => it.status === 'Autorizado' ? i : acc, -1
-                    );
+                    const temAlgumAutorizadoCx = itensCaixinha.some(it => it.status === 'Autorizado');
 
                     itensCaixinha.forEach((item, idxItem) => {
                         const ehUltimoItemCaixinha = (idxItem === itensCaixinha.length - 1);
@@ -15306,8 +15315,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             comprovanteCx = '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>';
                         } else {
                             // Autorizado — o que importa agora é o status de PAGAMENTO
-                            // (statuspgtocaixinha), não mais o de autorização.
-                            statusExibidoCx = formatarStatusFront(f.statuscaixinha || 'Pendente');
+                            // DESTE item (item.statuspgto), não mais o de autorização.
+                            statusExibidoCx = formatarStatusFront(item.statuspgto || 'Pendente');
                             classeStatusCx = statusExibidoCx.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                             const estaPagoCx = statusExibidoCx.toLowerCase().startsWith('pago');
                             comprovanteCx = item.comprovante
@@ -15327,11 +15336,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 if (ehUltimoItemCaixinha) {
                                     conteudoAcaoCx = `<small title="${justificativaPendEscapada}">${justificativaPendResumida}</small>`;
                                 }
-                            } else if (idxItem === idxUltimoAutorizado) {
-                                // Única linha com o controle de pagamento (statuspgtocaixinha é
-                                // 1 flag pro registro, não por item) — a última Autorizada.
-                                conteudoAcaoCx = renderConteudoAcao(f.idstaffevento, 'Caixinha', formatarStatusFront(f.statuscaixinha || 'Pendente'));
-                            } else if (idxUltimoAutorizado === -1 && ehUltimoItemCaixinha) {
+                            } else if (item.status === 'Autorizado') {
+                                // Cada item Autorizado tem seu próprio controle de pagamento,
+                                // independente dos outros itens do mesmo registro.
+                                conteudoAcaoCx = renderConteudoAcao(f.idstaffevento, 'Caixinha', formatarStatusFront(item.statuspgto || 'Pendente'), null, item.iditem);
+                            } else if (!temAlgumAutorizadoCx && ehUltimoItemCaixinha) {
                                 // Nenhum item autorizado ainda — nada a pagar.
                                 conteudoAcaoCx = '<span class="check-finalizado"><i class="fas fa-lock" style="color: #999;" title="Nenhuma caixinha autorizada"></i></span>';
                             }
@@ -15565,9 +15574,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     return f.statuspgto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
                 }, 0);
 
+                // Caixinha: pagamento por item — soma cada item Autorizado pelo seu próprio
+                // statuspgto (f.statuscaixinha/f.totalcaixinha_full não refletem mais isso).
                 const totalCaixinha = registros.reduce((s, f) => {
                     if (f.statusstaff === 'Pendente') return s;
-                    return f.statuscaixinha === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0));
+                    const itensCx = f.itens_caixinha || [];
+                    return s + itensCx
+                        .filter(it => it.status === 'Autorizado' && it.statuspgto !== 'Rejeitado')
+                        .reduce((sc, it) => sc + valorConsiderandoParcial(it.statuspgto, parseFloat(it.valor) || 0), 0);
                 }, 0);
 
                 // Crédito soma ao total (empresa deve ao funcionário), Débito subtrai (funcionário deve à empresa).
@@ -15609,7 +15623,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 const totalCaixinhaPago = registros.reduce((s, f) => {
                     if (f.statusstaff === 'Pendente') return s;
-                    return s + calcPagoCategoria(f.statuscaixinha, parseFloat(f.totalcaixinha_full || 0));
+                    const itensCx = f.itens_caixinha || [];
+                    return s + itensCx
+                        .filter(it => it.status === 'Autorizado')
+                        .reduce((sc, it) => sc + calcPagoCategoria(it.statuspgto, parseFloat(it.valor) || 0), 0);
                 }, 0);
 
                 const totalAjustesPago = registros.reduce((s, f) => {
@@ -19357,7 +19374,7 @@ function exibirToastSucesso(mensagem = 'Status atualizado!') {
     Toast.fire({ icon: 'success', title: mensagem });
 }
 
-async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEventoContexto = null) {
+async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEventoContexto = null, iditemCaixinha = null) {
     const btnClicado = elementoBotao;
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
     let statusParaEnviar = novoStatus;
@@ -19392,7 +19409,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEv
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar, idEventoContexto, confirmarDiferenca })
+            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar, idEventoContexto, confirmarDiferenca, iditem: iditemCaixinha })
         });
 
         let response = await enviarUpdate();
@@ -19447,7 +19464,11 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEv
                     if (func) {
                         if (tipo === 'Cache') func.statuspgto = statusParaEnviar;
                         else if (tipo === 'Ajuda') func.statuspgtoajdcto = statusParaEnviar;
-                        else if (tipo === 'Caixinha') func.statuscaixinha = statusParaEnviar;
+                        else if (tipo === 'Caixinha') {
+                            // Pagamento por item — atualiza só o item específico, não o registro inteiro.
+                            const itemCx = (func.itens_caixinha || []).find(it => it.iditem === iditemCaixinha);
+                            if (itemCx) itemCx.statuspgto = statusParaEnviar;
+                        }
                     }
                     if (tipo === 'AjusteFin') {
                         ev.funcionarios.forEach(f => {
@@ -19473,7 +19494,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao, idEv
 
                 // 2. Atualiza Botões
                 if (celulaAcoes) {
-                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
+                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar, null, iditemCaixinha);
                 }
 
                 // 3. Atualiza Comprovantes
@@ -19643,11 +19664,16 @@ async function atualizarCardsResumoSilencioso() {
 }
 
 
-function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null) {
+function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null, iditemCaixinha = null) {
     const statusLimpo = (statusAtual || "").trim();
     // idEventoContexto: só usado por AjusteFin (crédito/débito), pra registrar em qual
     // evento o pagamento foi de fato confirmado (idstaffeventopago no backend).
-    const argEventoContexto = idEventoContexto != null ? `, ${idEventoContexto}` : '';
+    // iditemCaixinha: só usado por Caixinha — pagamento agora é por item do array, não mais
+    // uma flag única do registro, então o botão precisa saber QUAL item está decidindo.
+    // Se vier iditemCaixinha sem idEventoContexto, ainda precisa do 'null' na posição pra
+    // não desalinhar os argumentos posicionais de alterarStatusStaff.
+    const argEventoContexto = idEventoContexto != null ? `, ${idEventoContexto}` : (iditemCaixinha ? ', null' : '');
+    const argIditem = iditemCaixinha ? `, ${JSON.stringify(iditemCaixinha)}` : '';
 
     // 1. Caso Comum: Já está Pago ou Finalizado
     if (statusLimpo === 'Pago' || statusLimpo === 'Pago 100%'|| statusLimpo === 'Rejeitado') {
@@ -19679,8 +19705,8 @@ function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null) {
     if (statusLimpo === 'Suspenso') {
         return `
             <div class="btn-group-acoes">
-                <button class="btn-reverter" title="Reverter para Pendente" 
-                    onclick="alterarStatusStaff(${id}, '${tipo}', 'Pendente', this)">
+                <button class="btn-reverter" title="Reverter para Pendente"
+                    onclick="alterarStatusStaff(${id}, '${tipo}', 'Pendente', this${argEventoContexto}${argIditem})">
                     <i class="fas fa-undo"></i> Reativar
                 </button>
             </div>`;
@@ -19689,13 +19715,13 @@ function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null) {
     // Pendente / Suspenso para Staff
     return `
         <div class="btn-group-acoes">
-            <button class="btn-pago" onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago', this${argEventoContexto})">
+            <button class="btn-pago" onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago', this${argEventoContexto}${argIditem})">
                 <i class="fas fa-check"></i> Pago
             </button>
-            <button class="btn-suspenso" onclick="alterarStatusStaff(${id}, '${tipo}', 'Suspenso', this${argEventoContexto})">
+            <button class="btn-suspenso" onclick="alterarStatusStaff(${id}, '${tipo}', 'Suspenso', this${argEventoContexto}${argIditem})">
                 <i class="fas fa-pause"></i> Susp.
             </button>
-            <button class="btn-rejeitado" onclick="alterarStatusStaff(${id}, '${tipo}', 'Rejeitado', this${argEventoContexto})">
+            <button class="btn-rejeitado" onclick="alterarStatusStaff(${id}, '${tipo}', 'Rejeitado', this${argEventoContexto}${argIditem})">
                 <i class="fas fa-xmark"></i> Rejeitar
             </button>
         </div>`;

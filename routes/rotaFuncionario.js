@@ -79,7 +79,7 @@ router.get("/bancos", verificarPermissao('Bancos', 'pesquisar'), async (req, res
         } 
     } catch (error) {
         console.error("❌ Erro ao buscar bancos:", error);
-        return res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+        return res.status(500).json({ error: "Erro ao buscar bancos." });
     }
 });
 
@@ -136,7 +136,7 @@ router.get("/cbo", (req, res) => {
     res.json(resultado);
   } catch (error) {
     console.error("ERRO /funcionarios/cbo:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erro ao buscar CBO." });
   }
 });
 
@@ -428,6 +428,26 @@ router.put("/:id",
                 return res.status(400).json({ message: "O campo 'perfil' é obrigatório e não pode ser vazio." });
             }
 
+            // --- Validação do CBO: só se aplica a Interno/Externo com holerite (mesmo
+            // critério do fieldset Financeiro no front). Demais perfis não têm CBO; um
+            // valor "preso" no campo (ex.: sugestão importada de outra empresa) não bloqueia.
+            const perfilTemRH = perfil === 'Interno' || perfil === 'ExternoH';
+            if (perfilTemRH && cbo && cbo.trim() !== '') {
+                const { tituloPorCodigo } = carregarCBO();
+                if (!tituloPorCodigo.has(cbo.trim())) {
+                    if (req.file) {
+                        fs.unlink(req.file.path, (err) => {
+                            if (err) console.error("Erro ao apagar upload de PUT falho (CBO inválido):", err);
+                        });
+                    }
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: "O CBO informado não existe na tabela oficial (MTE/CBO2002). Selecione a função pela lista de sugestões.",
+                        field: "cbo"
+                    });
+                }
+            }
+
 
             // 2. Atualiza os dados PESSOAIS em `funcionarios`
             // (perfil/lote/ativo/bonificado/mei/salario/funcao/cbo/dependentes/admissao/
@@ -509,16 +529,15 @@ router.put("/:id",
             }
             // Mensagem de erro mais específica para não-nulo
             if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
-                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.` });
             }
             if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
                 return res.status(400).json({
                     message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
-                    field: "dataNascimento", // Adiciona um campo para identificar qual input
-                    details: error.message
+                    field: "dataNascimento" // Adiciona um campo para identificar qual input
                 });
             }
-            res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
+            res.status(500).json({ message: "Erro ao atualizar funcionário." });
         } finally {
             if (client) {
                 client.release(); // Libera o cliente de volta para o pool
@@ -587,6 +606,26 @@ router.post("/",
                 }
                 await client.query('ROLLBACK');
                 return res.status(400).json({ message: "O campo 'perfil' é obrigatório e não pode ser vazio." });
+            }
+
+            // --- Validação do CBO: só se aplica a Interno/Externo com holerite (mesmo
+            // critério do fieldset Financeiro no front). Demais perfis não têm CBO; um
+            // valor "preso" no campo (ex.: sugestão importada de outra empresa) não bloqueia.
+            const perfilTemRH = perfil === 'Interno' || perfil === 'ExternoH';
+            if (perfilTemRH && cbo && cbo.trim() !== '') {
+                const { tituloPorCodigo } = carregarCBO();
+                if (!tituloPorCodigo.has(cbo.trim())) {
+                    if (req.file) {
+                        fs.unlink(req.file.path, (err) => {
+                            if (err) console.error("Erro ao apagar upload de POST falho (CBO inválido):", err);
+                        });
+                    }
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: "O CBO informado não existe na tabela oficial (MTE/CBO2002). Selecione a função pela lista de sugestões.",
+                        field: "cbo"
+                    });
+                }
             }
 
             // --- Funcionário com este CPF já existe (em qualquer empresa)? ---
@@ -734,8 +773,7 @@ router.post("/",
             // Tratamento de erros de campos obrigatórios
             if (error.code === '23502') {
                 return res.status(400).json({
-                    message: `Campo obrigatório faltando ou inválido: ${error.column}.`,
-                    details: error.message
+                    message: `Campo obrigatório faltando ou inválido: ${error.column}.`
                 });
             }
 
@@ -743,12 +781,11 @@ router.post("/",
             if (error.code === '22007') {
                 return res.status(400).json({
                     message: "A Data de Nascimento está em um formato inválido.",
-                    field: "dataNascimento",
-                    details: error.message
+                    field: "dataNascimento"
                 });
             }
 
-            res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
+            res.status(500).json({ error: "Erro ao salvar funcionário." });
         } finally {
             if (client) {
                 client.release();

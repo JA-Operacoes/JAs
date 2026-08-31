@@ -51,7 +51,14 @@ async function fetchComToken(url, options = {}) {
 
     const resposta = await fetch(url, options);
 
-    if (resposta.status === 404) {
+    // Só trata 404 como "lista vazia" em GET (ex.: nenhum banco cadastrado)
+    // — num POST/PUT/PATCH/DELETE, 404 significa que a rota não existe (URL
+    // errada, endpoint renomeado etc.), e SEMPRE precisa virar erro. Tratar
+    // como sucesso silencioso aqui já escondeu uma falha real de gravação
+    // (POST numa URL errada retornou 404, virou [] e o front mostrou "sucesso"
+    // sem ter salvado nada).
+    const metodoRequisicao = (options.method || 'GET').toUpperCase();
+    if (resposta.status === 404 && metodoRequisicao === 'GET') {
         // Retorna uma lista vazia para que o código do frontend possa tratar
         // a ausência de bancos de forma esperada.
         return [];

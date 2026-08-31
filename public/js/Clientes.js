@@ -35,6 +35,9 @@ let btnPesquisarListener = null;
 let selectClientesChangeListener = null;
 let nmFantasiaBlurListener = null;
 let cnpjBlurListener = null;
+// Evita perguntar "deseja cadastrar" duas vezes (uma no CNPJ, outra no Nome Fantasia)
+// quando o CNPJ já foi digitado e confirmado antes do Nome Fantasia.
+let clienteNovoConfirmadoViaCnpj = false;
 
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
@@ -240,6 +243,33 @@ function configurarVerificacaoCnpj() {
 
             // fetchComToken devolve [] em 404 (documento novo, ninguém encontrado)
             if (!resposta || Array.isArray(resposta) || !resposta.idcliente) {
+                // Documento novo: pergunta se deseja cadastrar já aqui, sem apagar o que
+                // já foi digitado (Razão Social, Inscrições etc). Marca a confirmação pra
+                // o blur do Nome Fantasia não perguntar de novo.
+                const nmFantasiaAtual = getCampo("nmFantasia")?.value?.trim();
+                const podeCadastrar = temPermissao("Clientes", "cadastrar");
+
+                if (!podeCadastrar) {
+                    await Swal.fire({
+                        icon: 'info',
+                        title: "Cliente não encontrado",
+                        text: `Você não tem permissão para cadastrar um novo cliente.`,
+                    });
+                    return;
+                }
+
+                const { isConfirmed } = await Swal.fire({
+                    icon: 'question',
+                    title: `Deseja cadastrar${nmFantasiaAtual ? ` "${nmFantasiaAtual.toUpperCase()}"` : ' este'} como novo Cliente?`,
+                    text: `CNPJ/CPF não encontrado.`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, cadastrar',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (isConfirmed) {
+                    clienteNovoConfirmadoViaCnpj = true;
+                }
                 return;
             }
 
@@ -285,8 +315,7 @@ const limparFormulario = () => {
     form.reset();
     document.querySelector("#idCliente").value = "";
     if (typeof limparClienteOriginal === "function") limparClienteOriginal();
-    
-    
+    clienteNovoConfirmadoViaCnpj = false;
 };
 
 const obterDadosFormulario = () => {
@@ -683,6 +712,13 @@ function adicionarEventoBlurCliente() {
 
             //  Se cliente não existe e ainda não tem ID preenchido
             if (!idCliente.value) {
+                // Já confirmado no blur do CNPJ (preenchido antes do Nome Fantasia) — não
+                // pergunta de novo e não mexe no que já foi digitado.
+                const cnpjPreenchido = (maskCNPJ?.unmaskedValue || getCampo("cnpj")?.value?.replace(/\D/g, '') || '');
+                if (clienteNovoConfirmadoViaCnpj && cnpjPreenchido) {
+                    return;
+                }
+
                 const podeCadastrar = temPermissao("Clientes", "cadastrar");
                 console.log("PODE CADASTRAR ", podeCadastrar);
                 // Só pergunta se deseja cadastrar se tiver permissão
@@ -698,9 +734,9 @@ function adicionarEventoBlurCliente() {
 
                     if (!isConfirmed) return;
 
-                    // Se confirmado, pode continuar com o formulário em branco
-                    limparFormulario(); // opcional
-                    getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
+                    // Confirmado: segue com os campos já preenchidos (CNPJ, inscrições etc),
+                    // sem limpar o formulário — só garante que o nome digitado permaneça.
+                    getCampo("nmFantasia").value = nmFantasia;
                 } else {
                     //  Sem permissão: apenas alerta
                     await Swal.fire({

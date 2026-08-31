@@ -92,8 +92,8 @@ router.get('/:id/certificado', async (req, res) => {
 router.post('/:id/certificado', exigirFlag('master'), (req, res) => {
   uploadCertificado.single('arquivo')(req, res, (err) => {
     if (err) {
-      console.error('Erro no upload do certificado:', err.message);
-      return res.status(400).json({ message: err.message || 'Erro ao enviar o certificado.' });
+      console.error('Erro no upload do certificado:', err);
+      return res.status(400).json({ message: 'Erro ao enviar o certificado.' });
     }
 
     const sigla = req.siglaCertificado;
@@ -113,6 +113,59 @@ router.post('/:id/certificado', exigirFlag('master'), (req, res) => {
     } catch (err2) {
       console.error('Erro ao salvar variáveis do certificado:', err2.message);
       res.status(500).json({ message: 'Erro ao salvar o certificado.' });
+    }
+  });
+});
+
+// --- Upload do logo da empresa (usado no cabeçalho de relatórios/impressão,
+// ex.: Faturamento > Visão Geral > Imprimir) -------------------------------
+// Upload de verdade em vez de digitar o nome do arquivo: escolher visualmente
+// evita erro de digitação e garante que o logo mostrado é sempre o certo.
+const dirLogos = path.join(__dirname, '..', 'uploads', 'logos_empresas');
+if (!fs.existsSync(dirLogos)) fs.mkdirSync(dirLogos, { recursive: true });
+
+const storageLogo = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, dirLogos),
+  // Nome fixo por empresa (logo_<idempresa>.<ext>) — um novo upload
+  // sobrescreve o arquivo anterior em vez de acumular versões antigas (só
+  // fica órfão se a extensão mudar entre um upload e outro, ex.: era .png e
+  // virou .jpg — caso raro, sem tratamento especial pra isso).
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `logo_${req.params.id}${ext}`);
+  },
+});
+
+const uploadLogo = multer({
+  storage: storageLogo,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) return cb(null, true);
+    cb(new Error('Envie um arquivo de imagem (PNG, JPG, etc.).'));
+  },
+});
+
+router.post('/:id/logo', verificarPermissao('Empresas', 'alterar'), (req, res) => {
+  uploadLogo.single('logo')(req, res, async (err) => {
+    if (err) {
+      console.error('Erro no upload do logo:', err);
+      return res.status(400).json({ message: 'Erro ao enviar o logo.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'Envie um arquivo de imagem.' });
+    }
+
+    const caminhoRelativo = `uploads/logos_empresas/${req.file.filename}`;
+    try {
+      const { rows } = await pool.query(
+        'UPDATE empresas SET logo = $1 WHERE idempresa = $2 RETURNING idempresa, logo',
+        [caminhoRelativo, req.params.id]
+      );
+      if (!rows.length) return res.status(404).json({ message: 'Empresa não encontrada.' });
+      res.json({ message: 'Logo salvo com sucesso.', logo: caminhoRelativo });
+    } catch (err2) {
+      console.error('Erro ao salvar logo da empresa:', err2.message);
+      res.status(500).json({ message: 'Erro ao salvar o logo.' });
     }
   });
 });

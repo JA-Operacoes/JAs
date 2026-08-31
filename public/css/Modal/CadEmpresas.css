@@ -42,7 +42,7 @@
    sempre vence um "display:flex" escrito aqui no CSS — então depender de
    flex nesse elemento nunca funciona de verdade. Em vez disso, quem rola é
    só o #form-content, com altura própria independente (mesmo padrão já
-   usado e funcionando em CadNotaFiscal.css). */
+   usado e funcionando em Faturamento.css). */
 #cadModalEmpresas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
@@ -138,6 +138,18 @@ legend{
   align-items: center;
   max-width: 300;
   gap: 0,5px;
+}
+
+.nf-logo-topo {
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+/* Código reduzido pra caber o botão "Inserir logo" na mesma linha de
+   "Empresa Ativo" — esse campo é só leitura (idempresa), não precisa da
+   largura padrão de 270px. */
+#idEmpresa {
+  width: 90px !important;
 }
 
 .nf-aviso-empresa {

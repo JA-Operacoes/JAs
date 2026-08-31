@@ -44,7 +44,7 @@ router.get("/", verificarPermissao('IndiceAnual', 'pesquisar'), async (req, res)
         }
     } catch (error) {
         console.error("❌ Erro ao buscar índices anuais:", error);
-        return res.status(500).json({ error: error.message || "Erro ao buscar índices anuais" });
+        return res.status(500).json({ error: "Erro ao buscar índices anuais." });
     }
 });
 
@@ -154,7 +154,7 @@ router.post("/", verificarPermissao('IndiceAnual', 'cadastrar'),
           await client.query('ROLLBACK');
       }
       console.error("❌ Erro ao salvar índice anual e/ou associá-lo à empresa:", error);
-      res.status(500).json({ erro: "Erro ao salvar índice anual", detalhes: error.message });
+      res.status(500).json({ erro: "Erro ao salvar índice anual." });
   } finally {
       if (client) {
           client.release(); // Libera a conexão do pool
@@ -344,7 +344,7 @@ router.post("/:id/aplicar-calculo", verificarPermissao('IndiceAnual', 'alterar')
             if (error.code === '23505') { 
                  return res.status(409).json({ error: "Erro: Snapshot já existe para este ano/empresa." });
             }
-            res.status(500).json({ error: "Erro ao aplicar índices e salvar snapshot.", detalhes: error.message });
+            res.status(500).json({ error: "Erro ao aplicar índices e salvar snapshot." });
         } finally {
             if (client) client.release();
         }
@@ -581,7 +581,7 @@ router.post("/:id/desfazer-calculo", verificarPermissao('IndiceAnual', 'alterar'
         } catch (error) {
             if (client) await client.query('ROLLBACK');
             console.error("❌ Erro ao desfazer índices:", error);
-            res.status(500).json({ error: "Erro ao desfazer índices.", detalhes: error.message });
+            res.status(500).json({ error: "Erro ao desfazer índices." });
         } finally {
             if (client) client.release();
         }
@@ -697,7 +697,7 @@ router.get("/:id/relatorio-comparacao", verificarPermissao('IndiceAnual', 'pesqu
 
         } catch (error) {
             console.error("❌ Erro ao gerar relatório de comparação:", error);
-            res.status(500).json({ error: "Erro ao gerar relatório de comparação.", detalhes: error.message });
+            res.status(500).json({ error: "Erro ao gerar relatório de comparação." });
         } finally {
             if (client) client.release();
         }

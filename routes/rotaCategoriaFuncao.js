@@ -196,7 +196,7 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
             await client.query('ROLLBACK');
         }
         console.error("Erro ao salvar função e/ou associá-la à empresa:", error);
-        res.status(500).json({ erro: "Erro ao salvar função.", detail: error.message });
+        res.status(500).json({ erro: "Erro ao salvar função." });
     } finally {
         if (client) {
             client.release(); 

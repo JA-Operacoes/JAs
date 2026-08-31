@@ -297,8 +297,7 @@ router.put(
       if (client) await client.query('ROLLBACK');
       console.error("❌ Erro ao atualizar cliente:", error);
       res.status(500).json({
-        message: "Erro ao atualizar cliente.",
-        detail: error.message
+        message: "Erro ao atualizar cliente."
       });
     } finally {
       if (client) client.release();
@@ -423,7 +422,7 @@ router.post(
     } catch (error) {
       if (client) await client.query('ROLLBACK');
       console.error("❌ Erro ao salvar cliente:", error);
-      res.status(500).json({ erro: "Erro ao salvar cliente.", detalhe: error.message });
+      res.status(500).json({ erro: "Erro ao salvar cliente." });
     } finally {
       if (client) client.release();
     }
