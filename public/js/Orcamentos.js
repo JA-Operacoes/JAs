@@ -3903,6 +3903,7 @@ async function verificaOrcamento() {
           console.log(
             "lastEditedGlobalFieldType resetado para null após blur do Desconto Valor."
           );
+          verificarDivergenciaParcelasAposAjuste();
         }
       }, 0);
     });
@@ -3926,6 +3927,7 @@ async function verificaOrcamento() {
           console.log(
             "lastEditedGlobalFieldType resetado para null após blur do Desconto Percentual."
           );
+          verificarDivergenciaParcelasAposAjuste();
         }
       }, 0);
     });
@@ -3953,6 +3955,7 @@ async function verificaOrcamento() {
           console.log(
             "lastEditedGlobalFieldType resetado para null após blur do Acrescimo Valor."
           );
+          verificarDivergenciaParcelasAposAjuste();
         }
       }, 0);
     });
@@ -3976,6 +3979,7 @@ async function verificaOrcamento() {
           console.log(
             "lastEditedGlobalFieldType resetado para null após blur do Acrescimo Percentual."
           );
+          verificarDivergenciaParcelasAposAjuste();
         }
       }, 0);
     });
@@ -4670,17 +4674,18 @@ async function verificaOrcamento() {
                            || 'Item';
           const ehAdicionalLinha = linhaEhAdicional(linha);
 
-          // Bloqueia save se linha de solicitação está sem setor
+          // Função nova pra este cliente/evento/edição pode ficar sem setor por
+          // enquanto (nada pra comparar ainda) — só bloqueia se a MESMA função já
+          // existir também sem setor, neste orçamento ou em outro do mesmo
+          // evento/cliente/edição (mesma checagem de duplicidade usada abaixo,
+          // só que aqui forçada mesmo em linha "adicional" — sem isso viraria
+          // duplicidade de "setor vazio" impossível de resolver depois).
           if (ehAdicionalLinha && !setorVal) {
-              await Swal.fire({
-                  title: 'Setor não definido',
-                  html: `O item vinculado à solicitação (<b>${produtoNome}</b>) está sem setor.<br>Não é possível salvar sem definir o setor corretamente.`,
-                  icon: 'error',
-                  confirmButtonText: 'Entendido',
-              });
-              btnEnviar.disabled = false;
-              btnEnviar.textContent = 'Salvar Orçamento';
-              return;
+              const duplicataVazia = await verificarDuplicidadeInstantanea(
+                  idFuncaoVal, '', produtoNome, linha.querySelector('.setor-input'), false
+              );
+              if (duplicataVazia) return;
+              continue;
           }
 
           if (ehAdicionalLinha) continue; // linha de solicitação com setor OK — pula duplicate check
@@ -4714,20 +4719,41 @@ async function verificaOrcamento() {
 
       // Bloqueia save se marcou "Pagamento parcelado?" e a soma das parcelas
       // não bate com o valor do orçamento — as parcelas são salvas junto com
-      // o orçamento aqui (não mais no fechamento, que trava a edição).
+      // o orçamento aqui (não mais no fechamento, que trava a edição). Em
+      // vez de só avisar, oferece corrigir na hora (dividir igualmente,
+      // preservando parcela já faturada) pra não obrigar o usuário a voltar
+      // e mexer campo a campo.
       if (parcelasParaValidar) {
         const vlrClienteParaValidar = obterValorClienteOrcamento();
         const somaParcelasParaValidar = parcelasParaValidar.reduce((soma, p) => soma + (p.vlrparcela || 0), 0);
         if (Math.abs(somaParcelasParaValidar - vlrClienteParaValidar) > 0.01) {
-          await Swal.fire(
-            "Parcelas não conferem",
-            `A soma das parcelas (${formatarMoeda(somaParcelasParaValidar)}) não bate com o valor do orçamento (${formatarMoeda(vlrClienteParaValidar)}). Ajuste antes de salvar.`,
-            "warning"
-          );
-          btnEnviar.disabled = false;
-          btnEnviar.textContent = "Salvar Orçamento";
-          return;
+          const corrigiu = await oferecerCorrecaoParcelas(vlrClienteParaValidar, somaParcelasParaValidar);
+          if (!corrigiu) {
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = "Salvar Orçamento";
+            return;
+          }
+          dadosOrcamento.parcelas = coletarParcelasParaEnviar();
         }
+      }
+
+      // Nenhuma parcela pode ficar sem vencimento — inclusive a "parcela
+      // única" do pagamento à vista. Evita depender de lembrar de voltar no
+      // orçamento depois só pra preencher a data.
+      const parcelas = dadosOrcamento.parcelas || [];
+      const idxSemVencimento = parcelas.findIndex((p) => !p.dtvencimento);
+      if (idxSemVencimento !== -1) {
+        await Swal.fire({
+          title: "Falta vencimento",
+          html: parcelas.length > 1
+            ? `A parcela nº ${idxSemVencimento + 1} está sem data de vencimento.<br>Preencha antes de salvar.`
+            : "Preencha a data de vencimento antes de salvar.",
+          icon: "warning",
+          confirmButtonText: "Entendido",
+        });
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "Salvar Orçamento";
+        return;
       }
 
       // Determina o método e a URL com base na existência do ID do orçamento
@@ -7773,6 +7799,8 @@ function criarLinhaParcela(dadosIniciais = {}, opcoes = {}) {
   const bloqueada = !!opcoes.bloqueada;
   const tr = document.createElement("tr");
   tr.className = "linha-parcela";
+  if (dadosIniciais.idparcela) tr.dataset.idparcela = dadosIniciais.idparcela;
+  if (dadosIniciais.status) tr.dataset.status = dadosIniciais.status;
 
   tr.innerHTML = `
     <td class="parc-num"></td>
@@ -7918,8 +7946,16 @@ function atualizarSomaParcelas() {
     soma += desformatarMoeda(input.value);
   });
 
-  somaInfo.textContent = `Soma: ${formatarMoeda(soma)} de ${formatarMoeda(vlrCliente)}`;
-  somaInfo.classList.toggle("parcelas-soma-erro", Math.abs(soma - vlrCliente) > 0.01);
+  const diferenca = Math.round((vlrCliente - soma) * 100) / 100;
+  const temErro = Math.abs(diferenca) > 0.01;
+  const sufixoDiferenca = !temErro
+    ? ""
+    : diferenca > 0
+      ? ` — faltam ${formatarMoeda(diferenca)}`
+      : ` — ${formatarMoeda(Math.abs(diferenca))} a mais`;
+
+  somaInfo.textContent = `Soma: ${formatarMoeda(soma)} de ${formatarMoeda(vlrCliente)}${sufixoDiferenca}`;
+  somaInfo.classList.toggle("parcelas-soma-erro", temErro);
 }
 
 function dividirParcelasIgualmente(qtd) {
@@ -7933,25 +7969,224 @@ function dividirParcelasIgualmente(qtd) {
   }
 
   const tbody = document.getElementById("parcelasTabelaBody");
-  tbody.innerHTML = "";
 
-  const valorParcela = Math.floor((vlrCliente / qtd) * 100) / 100; // arredonda p/ baixo, 2 casas
+  // Parcela Faturada nunca é apagada/recriada (tem Nota Fiscal emitida
+  // vinculada) — "qtd" conta ela também, só que a divisão de valor é feita
+  // com o que sobra depois de reservar o que já está faturado.
+  const linhasFaturadas = Array.from(tbody.querySelectorAll("tr")).filter(
+    (tr) => tr.dataset.status === "Faturada"
+  );
+  const somaFaturadas = linhasFaturadas.reduce(
+    (soma, tr) => soma + desformatarMoeda(tr.querySelector(".parc-valor")?.value),
+    0
+  );
+
+  const qtdNovas = qtd - linhasFaturadas.length;
+  if (qtdNovas < 1) {
+    Swal.fire(
+      "Atenção",
+      `Já existem ${linhasFaturadas.length} parcela(s) faturada(s) — escolha uma quantidade maior.`,
+      "warning"
+    );
+    return;
+  }
+
+  const valorRestante = Math.round((vlrCliente - somaFaturadas) * 100) / 100;
+  if (valorRestante < 0) {
+    Swal.fire(
+      "Não é possível dividir",
+      `O valor já faturado (${formatarMoeda(somaFaturadas)}) é maior que o valor do orçamento (${formatarMoeda(vlrCliente)}).`,
+      "error"
+    );
+    return;
+  }
+
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    if (tr.dataset.status !== "Faturada") tr.remove();
+  });
+
+  const valorParcela = Math.floor((valorRestante / qtdNovas) * 100) / 100; // arredonda p/ baixo, 2 casas
   let somaParcial = 0;
 
-  for (let i = 1; i <= qtd; i++) {
-    const ultima = i === qtd;
+  for (let i = 1; i <= qtdNovas; i++) {
+    const ultima = i === qtdNovas;
     // Última parcela absorve a diferença de centavos do arredondamento — o
     // mesmo que o financeiro já faz na mão (ver orçamento #1214).
-    const valor = ultima ? Math.round((vlrCliente - somaParcial) * 100) / 100 : valorParcela;
+    const valor = ultima ? Math.round((valorRestante - somaParcial) * 100) / 100 : valorParcela;
     somaParcial += valor;
 
     tbody.appendChild(
-      criarLinhaParcela({ descricao: i === 1 ? "Ato" : "", vlrparcela: valor })
+      criarLinhaParcela({ descricao: linhasFaturadas.length === 0 && i === 1 ? "Ato" : "", vlrparcela: valor })
     );
   }
 
   renumerarParcelas();
   atualizarSomaParcelas();
+}
+
+// Redistribui `valorRestante` igualmente entre as trs de parcela recebidas
+// (mantém a quantidade/ordem — usado quando o total do orçamento muda e as
+// parcelas não-faturadas precisam absorver a diferença, sem redividir tudo).
+function redistribuirValorNaoFaturado(valorRestante, linhasNaoFaturadas) {
+  const qtd = linhasNaoFaturadas.length;
+  if (!qtd) return;
+
+  const vlrCliente = obterValorClienteOrcamento();
+  const valorParcela = Math.floor((valorRestante / qtd) * 100) / 100;
+  let somaParcial = 0;
+
+  linhasNaoFaturadas.forEach((tr, i) => {
+    const ultima = i === qtd - 1;
+    const valor = ultima ? Math.round((valorRestante - somaParcial) * 100) / 100 : valorParcela;
+    somaParcial += valor;
+
+    const inputValor = tr.querySelector(".parc-valor");
+    const inputPercentual = tr.querySelector(".parc-percentual");
+    if (inputValor) inputValor.value = formatarMoeda(valor);
+    if (inputPercentual) {
+      inputPercentual.value = formatarPercentual(vlrCliente > 0 ? (valor / vlrCliente) * 100 : 0);
+    }
+  });
+}
+
+// Pede o vencimento logo na criação de uma parcela nova (fluxo de "lançar
+// parcela da diferença") — sem isso é fácil salvar o orçamento com a parcela
+// sem data e só notar ao reabrir. Deixa em branco se o usuário optar, não é
+// obrigatório (o campo é opcional no banco).
+async function solicitarVencimentoParcelaNova(linhaParcela, valorParcela) {
+  const inputVencimentoLinha = linhaParcela.querySelector(".parc-vencimento");
+
+  const { value: dtVencimento } = await Swal.fire({
+    title: "Vencimento da parcela nova",
+    html:
+      `<p>Parcela de <b>${formatarMoeda(valorParcela)}</b> lançada — falta só o vencimento dela.</p>` +
+      `<input id="swal-vencimento-parcela-nova" type="text" class="swal2-input" placeholder="dd/mm/aaaa" maxlength="10" inputmode="numeric">`,
+    icon: "info",
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Salvar vencimento",
+    cancelButtonText: "Deixar em branco por agora",
+    reverseButtons: true,
+    didOpen: () => {
+      const input = document.getElementById("swal-vencimento-parcela-nova");
+      input.addEventListener("input", () => mascararDataDigitada(input));
+      input.focus();
+    },
+    preConfirm: () => {
+      const valor = document.getElementById("swal-vencimento-parcela-nova").value.trim();
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) {
+        Swal.showValidationMessage('Data inválida — use o formato dd/mm/aaaa, ou clique em "Deixar em branco por agora".');
+        return false;
+      }
+      return valor;
+    },
+  });
+
+  if (dtVencimento && inputVencimentoLinha) {
+    inputVencimentoLinha.value = dtVencimento;
+    verificarReplicarPrimeiraDataParcela(linhaParcela, inputVencimentoLinha);
+  }
+}
+
+// Pergunta ao usuário como corrigir quando a soma das parcelas não bate mais
+// com o valor do orçamento (ex.: acréscimo/desconto aplicado depois de já
+// ter parcelado). Retorna true se o usuário escolheu corrigir automaticamente
+// e a correção foi aplicada; false se cancelou/optou por corrigir na mão, ou
+// se não é possível corrigir sozinho (parcela faturada absorve mais que o
+// novo total).
+async function oferecerCorrecaoParcelas(vlrCliente, somaAtual) {
+  const tbody = document.getElementById("parcelasTabelaBody");
+  const linhas = Array.from(tbody?.querySelectorAll("tr") || []);
+  const linhasFaturadas = linhas.filter((tr) => tr.dataset.status === "Faturada");
+  const linhasNaoFaturadas = linhas.filter((tr) => tr.dataset.status !== "Faturada");
+  const somaFaturadas = linhasFaturadas.reduce(
+    (soma, tr) => soma + desformatarMoeda(tr.querySelector(".parc-valor")?.value),
+    0
+  );
+  // Quanto as parcelas em aberto, juntas, precisam somar pra bater com o novo
+  // valor do orçamento — usado na opção "dividir igualmente".
+  const valorRestante = Math.round((vlrCliente - somaFaturadas) * 100) / 100;
+  // Diferença entre o que já está lançado e o novo valor — usado na opção
+  // "lançar parcela nova", que não mexe no valor das parcelas já em aberto
+  // (ex.: cliente quer que o aditivo vire uma parcela a mais, não diluído).
+  const diferenca = Math.round((vlrCliente - somaAtual) * 100) / 100;
+
+  const podeDividir = linhasNaoFaturadas.length > 0 && valorRestante >= -0.01;
+  const podeLancarNova = diferenca > 0.01;
+
+  if (!podeDividir && !podeLancarNova) {
+    await Swal.fire(
+      "Não é possível corrigir automaticamente",
+      `O valor já faturado (${formatarMoeda(somaFaturadas)}) é maior que o valor do orçamento ` +
+      `(${formatarMoeda(vlrCliente)}). Ajuste o desconto/acréscimo ou as parcelas manualmente.`,
+      "error"
+    );
+    return false;
+  }
+
+  const opcoesSwal = {
+    title: "As parcelas não conferem com o valor do orçamento",
+    html:
+      `A soma das parcelas (<b>${formatarMoeda(somaAtual)}</b>) não bate com o valor do orçamento ` +
+      `(<b>${formatarMoeda(vlrCliente)}</b>).<br><br>Como deseja corrigir?`,
+    icon: "warning",
+    showCancelButton: true,
+    cancelButtonText: "Vou corrigir manualmente",
+    reverseButtons: true,
+  };
+
+  if (podeDividir && podeLancarNova) {
+    // Cabem as duas formas: diluir a diferença entre as parcelas em aberto,
+    // ou lançar uma parcela nova só com a diferença, sem mexer nas abertas.
+    opcoesSwal.showDenyButton = true;
+    opcoesSwal.confirmButtonText = "Dividir igualmente";
+    opcoesSwal.denyButtonText = "Lançar parcela nova";
+  } else if (podeDividir) {
+    opcoesSwal.confirmButtonText = "Dividir igualmente";
+  } else {
+    opcoesSwal.confirmButtonText = "Lançar parcela da diferença";
+  }
+
+  const resultado = await Swal.fire(opcoesSwal);
+  if (!resultado.isConfirmed && !resultado.isDenied) return false;
+
+  const lancarNova = resultado.isDenied || !podeDividir;
+
+  if (lancarNova) {
+    const novaLinha = criarLinhaParcela({ descricao: "Aditivo", vlrparcela: diferenca });
+    tbody.appendChild(novaLinha);
+    renumerarParcelas();
+    // Pergunta o vencimento na hora — o orçamento pode ser salvo com a
+    // parcela sem data, e é fácil esquecer de voltar depois pra preencher.
+    await solicitarVencimentoParcelaNova(novaLinha, diferenca);
+  } else {
+    redistribuirValorNaoFaturado(valorRestante, linhasNaoFaturadas);
+  }
+
+  atualizarSomaParcelas();
+  return true;
+}
+
+// Chamada quando o usuário termina de editar Desconto/Acréscimo (no blur que
+// sai do grupo de campos — não a cada tecla). Se já havia parcelamento
+// lançado e o novo valorCliente não bate mais com a soma das parcelas,
+// oferece a correção em vez de deixar o usuário descobrir só ao salvar.
+function verificarDivergenciaParcelasAposAjuste() {
+  const chk = document.getElementById("chkParcelado");
+  if (!chk || !chk.checked) return;
+
+  const tbody = document.getElementById("parcelasTabelaBody");
+  const linhas = Array.from(tbody?.querySelectorAll("tr") || []);
+  if (linhas.length < 2) return;
+
+  const vlrCliente = obterValorClienteOrcamento();
+  const somaAtual = linhas.reduce(
+    (soma, tr) => soma + desformatarMoeda(tr.querySelector(".parc-valor")?.value),
+    0
+  );
+  if (Math.abs(somaAtual - vlrCliente) <= 0.01) return;
+
+  oferecerCorrecaoParcelas(vlrCliente, somaAtual);
 }
 
 function limparParcelasUI() {
@@ -8003,7 +8238,9 @@ async function carregarParcelasDoOrcamento(idOrcamento, fechado) {
     if (vencimentoAvistaWrap) vencimentoAvistaWrap.style.display = "none";
 
     parcelas.forEach((p) => {
-      tbody.appendChild(criarLinhaParcela(p));
+      // Parcela Faturada já tem Nota Fiscal emitida vinculada — trava a
+      // edição (readonly) pra não desincronizar o valor da nota já gerada.
+      tbody.appendChild(criarLinhaParcela(p, { bloqueada: p.status === "Faturada" }));
     });
 
     renumerarParcelas();
@@ -8030,6 +8267,8 @@ function coletarParcelasParaEnviar() {
   if (!linhas.length) return null;
 
   return Array.from(linhas).map((tr) => ({
+    idparcela: tr.dataset.idparcela ? Number(tr.dataset.idparcela) : null,
+    status: tr.dataset.status || null,
     descricao: tr.querySelector(".parc-descricao")?.value.trim() || null,
     vlrparcela: desformatarMoeda(tr.querySelector(".parc-valor")?.value),
     dtvencimento: converterDataBRParaISO(tr.querySelector(".parc-vencimento")?.value),
@@ -8159,9 +8398,12 @@ function fecharOrcamento() {
           // dos campos travados por bloquearCamposSeFechado().
           const chkParceladoFechado = document.getElementById("chkParcelado");
           if (chkParceladoFechado) chkParceladoFechado.disabled = true;
-          document.getElementById("btnDividirParcelas")?.style.setProperty("display", "none");
-          document.getElementById("qtdParcelasDividir")?.style.setProperty("display", "none");
-          document.getElementById("btnAdicionarParcela")?.style.setProperty("display", "none");
+          // "+ Adicionar parcela" e "Dividir Igualmente" continuam ativos de
+          // propósito mesmo fechado (empresa emissora, vencimento e
+          // parcelamento costumam ser preenchidos só depois do fechamento —
+          // ver bloquearCamposSeFechado(), que já mantém os dois liberados
+          // ao reabrir um orçamento fechado; escondê-los aqui só deixava a
+          // tela inconsistente entre "fechou agora" e "reabriu depois").
           document.querySelectorAll("#parcelasTabelaBody .parc-remover").forEach((btn) => {
             btn.disabled = true;
           });
