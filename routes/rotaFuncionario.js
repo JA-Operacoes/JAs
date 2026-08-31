@@ -428,6 +428,26 @@ router.put("/:id",
                 return res.status(400).json({ message: "O campo 'perfil' é obrigatório e não pode ser vazio." });
             }
 
+            // --- Validação do CBO: só se aplica a Interno/Externo com holerite (mesmo
+            // critério do fieldset Financeiro no front). Demais perfis não têm CBO; um
+            // valor "preso" no campo (ex.: sugestão importada de outra empresa) não bloqueia.
+            const perfilTemRH = perfil === 'Interno' || perfil === 'ExternoH';
+            if (perfilTemRH && cbo && cbo.trim() !== '') {
+                const { tituloPorCodigo } = carregarCBO();
+                if (!tituloPorCodigo.has(cbo.trim())) {
+                    if (req.file) {
+                        fs.unlink(req.file.path, (err) => {
+                            if (err) console.error("Erro ao apagar upload de PUT falho (CBO inválido):", err);
+                        });
+                    }
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: "O CBO informado não existe na tabela oficial (MTE/CBO2002). Selecione a função pela lista de sugestões.",
+                        field: "cbo"
+                    });
+                }
+            }
+
 
             // 2. Atualiza os dados PESSOAIS em `funcionarios`
             // (perfil/lote/ativo/bonificado/mei/salario/funcao/cbo/dependentes/admissao/
@@ -586,6 +606,26 @@ router.post("/",
                 }
                 await client.query('ROLLBACK');
                 return res.status(400).json({ message: "O campo 'perfil' é obrigatório e não pode ser vazio." });
+            }
+
+            // --- Validação do CBO: só se aplica a Interno/Externo com holerite (mesmo
+            // critério do fieldset Financeiro no front). Demais perfis não têm CBO; um
+            // valor "preso" no campo (ex.: sugestão importada de outra empresa) não bloqueia.
+            const perfilTemRH = perfil === 'Interno' || perfil === 'ExternoH';
+            if (perfilTemRH && cbo && cbo.trim() !== '') {
+                const { tituloPorCodigo } = carregarCBO();
+                if (!tituloPorCodigo.has(cbo.trim())) {
+                    if (req.file) {
+                        fs.unlink(req.file.path, (err) => {
+                            if (err) console.error("Erro ao apagar upload de POST falho (CBO inválido):", err);
+                        });
+                    }
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: "O CBO informado não existe na tabela oficial (MTE/CBO2002). Selecione a função pela lista de sugestões.",
+                        field: "cbo"
+                    });
+                }
             }
 
             // --- Funcionário com este CPF já existe (em qualquer empresa)? ---
