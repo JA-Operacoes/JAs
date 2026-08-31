@@ -7902,15 +7902,6 @@ function obterNomeDoToken() {
     const token = localStorage.getItem('token'); // ou o nome que você usa
     if (!token) return "Usuário";
 
-    console.group("🔍 Debug: Identificação do Usuário");
-    console.log("Token bruto encontrado:", token ? "Sim (Iniciado com " + token.substring(0, 10) + "...)" : "Não encontrado");
-
-    if (!token) {
-        console.warn("Aviso: Nenhum token encontrado no localStorage/sessionStorage.");
-        console.groupEnd();
-        return "Usuário";
-    }
-
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');

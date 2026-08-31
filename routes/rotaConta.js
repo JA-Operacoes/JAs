@@ -165,8 +165,8 @@ router.get("/proximo-codigo/:idplanocontas", autenticarToken(), async (req, res)
         res.json({ proximoCodigo });
 
     } catch (error) {
-        console.error("❌ ERRO NO BACKEND:", error.message);
-        res.status(500).json({ message: error.message });
+        console.error("❌ ERRO NO BACKEND:", error);
+        res.status(500).json({ message: "Erro ao gerar próximo código da conta." });
     }
 });
 
@@ -328,7 +328,7 @@ router.post("/", verificarPermissao('Contas', 'cadastrar'),
         res.status(201).json({ message: "Conta salva com sucesso!", conta: novaConta });
     } catch (error) {
         console.error("Erro ao salvar conta:", error);
-        res.status(500).json({ message: "Erro ao salvar conta.", detail: error.message });
+        res.status(500).json({ message: "Erro ao salvar conta." });
     }
 });
 

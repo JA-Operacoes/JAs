@@ -92,8 +92,8 @@ router.get('/:id/certificado', async (req, res) => {
 router.post('/:id/certificado', exigirFlag('master'), (req, res) => {
   uploadCertificado.single('arquivo')(req, res, (err) => {
     if (err) {
-      console.error('Erro no upload do certificado:', err.message);
-      return res.status(400).json({ message: err.message || 'Erro ao enviar o certificado.' });
+      console.error('Erro no upload do certificado:', err);
+      return res.status(400).json({ message: 'Erro ao enviar o certificado.' });
     }
 
     const sigla = req.siglaCertificado;
@@ -148,8 +148,8 @@ const uploadLogo = multer({
 router.post('/:id/logo', verificarPermissao('Empresas', 'alterar'), (req, res) => {
   uploadLogo.single('logo')(req, res, async (err) => {
     if (err) {
-      console.error('Erro no upload do logo:', err.message);
-      return res.status(400).json({ message: err.message || 'Erro ao enviar o logo.' });
+      console.error('Erro no upload do logo:', err);
+      return res.status(400).json({ message: 'Erro ao enviar o logo.' });
     }
     if (!req.file) {
       return res.status(400).json({ message: 'Envie um arquivo de imagem.' });
