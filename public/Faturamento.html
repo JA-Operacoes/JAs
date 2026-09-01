@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-<link rel="stylesheet" href="css/Modal/Faturamento.css?v=30">
+<link rel="stylesheet" href="css/Modal/Faturamento.css?v=31">
 
 <div id="cadModalNotaFiscal" class="modal">
   <div class="modal-content">
@@ -21,6 +21,7 @@
       <button type="button" class="nf-tab-btn" data-nf-tab="envio">Prontas para Envio</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="emitidas">Emitidas</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="canceladas">Canceladas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="rejeitadas">Rejeitadas</button>
       <button type="button" class="nf-tab-btn" data-nf-tab="parametros">Parâmetros/AliquotasNF</button>
     </div>
 
@@ -468,6 +469,62 @@
             </thead>
             <tbody id="nfCanceladasBody">
               <tr><td colspan="9">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — REJEITADAS ===================== -->
+      <div class="nf-view" id="nfViewRejeitadas">
+        <p class="nf-aviso">Notas que a prefeitura recusou (status Rejeitada) ou cujo envio ficou sem confirmação (Envio Incerto — falha de rede/timeout, precisa conferir no portal da prefeitura antes de decidir o próximo passo). Nunca chegaram a virar NF-e de verdade no nosso controle.</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaRejCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroRejCliente" value="">
+                <ul id="nfListaRejCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfRejFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfRejFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfRejFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfRejFiltroAnoAtual" checked> Ano atual
+              </label>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarRejeitadas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosRejeitadas" class="nf-btn-secundario">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th class="nf-num">Valor</th>
+                <th>Registrada em</th>
+                <th>Status / Motivo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfRejeitadasBody">
+              <tr><td colspan="8">Carregando...</td></tr>
             </tbody>
           </table>
         </div>

@@ -86,6 +86,7 @@ function mudarAba(nome) {
   if (nome === 'envio') carregarProntasParaEnvio();
   if (nome === 'emitidas') carregarEmitidas();
   if (nome === 'canceladas') carregarCanceladas();
+  if (nome === 'rejeitadas') carregarRejeitadas();
 }
 
 // ---- Aba 1: orçamentos pendentes de faturamento ----
@@ -889,6 +890,12 @@ async function atualizarCanceladasSeVisivel() {
   if (document.getElementById('nfCanceladasBody')) await carregarCanceladas();
 }
 
+// Mesma ideia, pra aba "Rejeitadas" — uma nota entra nela quando um envio é
+// rejeitado/fica incerto, e sai quando é cancelada ou confirmada Emitida.
+async function atualizarRejeitadasSeVisivel() {
+  if (document.getElementById('nfRejeitadasBody')) await carregarRejeitadas();
+}
+
 // ---- Aba "Prontas para Envio" ----
 let notasProntasParaEnvioCache = [];
 
@@ -1200,6 +1207,93 @@ async function carregarCanceladas() {
   } catch (err) {
     console.error('Erro ao carregar notas canceladas:', err);
     tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
+  }
+}
+
+// ---- Aba "Rejeitadas" ----
+// Rejeitada (a prefeitura confirmadamente não emitiu) e Envio Incerto
+// (falha de rede/timeout, não se sabe se foi processado) juntas numa aba só
+// — as duas são "precisa de atenção", nunca viraram NF-e de verdade no
+// nosso controle. Antes só dava pra ver abrindo orçamento por orçamento em
+// "Emitir nota" (pedido 2026-09-01, depois de um caso real de timeout que
+// travou a parcela — ver comentário em GET /orcamento/:id/parcelas).
+function montarQueryFiltrosRejeitadas() {
+  const params = new URLSearchParams();
+  const idcliente = document.getElementById('nfFiltroRejCliente').value;
+  const idempresaemissora = document.getElementById('nfRejFiltroEmpresaEmissora').value;
+  const periodo = periodoAnoAtualSeVazio('nfRejFiltroAnoAtual', 'nfRejFiltroDe', 'nfRejFiltroAte');
+  const dtDe = periodo.de;
+  const dtAte = periodo.ate;
+
+  if (idcliente) params.set('idcliente', idcliente);
+  if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
+  if (dtDe) params.set('dtDe', dtDe);
+  if (dtAte) params.set('dtAte', dtAte);
+  return params.toString();
+}
+
+function limparFiltrosRejeitadas() {
+  preencherComboFiltro('RejCliente', opcoesUnicasOrdenadas(rejeitadasTodasParaFiltro, 'idcliente', 'cliente_nome'));
+  document.getElementById('nfRejFiltroEmpresaEmissora').value = '';
+  document.getElementById('nfRejFiltroDe').value = '';
+  document.getElementById('nfRejFiltroAte').value = '';
+  document.getElementById('nfRejFiltroAnoAtual').checked = true;
+  carregarRejeitadas();
+}
+
+let rejeitadasTodasParaFiltro = [];
+let filtrosRejeitadasPopulados = false;
+
+async function carregarRejeitadas() {
+  const tbody = document.getElementById('nfRejeitadasBody');
+  tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
+
+  try {
+    const query = montarQueryFiltrosRejeitadas();
+    const notas = await fetchComToken(`/faturamento/rejeitadas${query ? '?' + query : ''}`);
+
+    if (!filtrosRejeitadasPopulados) {
+      filtrosRejeitadasPopulados = true;
+      rejeitadasTodasParaFiltro = notas;
+      preencherComboFiltro('RejCliente', opcoesUnicasOrdenadas(notas, 'idcliente', 'cliente_nome'));
+      preencherSelectFiltro('nfRejFiltroEmpresaEmissora', opcoesUnicasOrdenadas(notas, 'idempresaemissora', 'emissora_nome'), 'Todas');
+    }
+
+    if (!notas.length) {
+      tbody.innerHTML = '<tr><td colspan="8">Nenhuma nota rejeitada ou com envio incerto para os filtros selecionados.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = notas.map((n) => `
+      <tr>
+        <td>${n.nrorcamento}</td>
+        <td>${nomeClienteComFantasia(n.cliente_nome, n.cliente_nmfantasia) || '—'}</td>
+        <td>${n.evento_nome || '—'}</td>
+        <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
+        <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
+        <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
+        <td>
+          <span class="nf-chip ${n.status === 'Rejeitada' ? 'bloqueio' : 'rascunho'}">${n.status}</span>
+          ${n.mensagemenvio ? `<br><span class="nf-hint warn" title="${escaparAtributo(n.mensagemenvio)}">${n.mensagemenvio.length > 60 ? escaparAtributo(n.mensagemenvio.slice(0, 60)) + '…' : escaparAtributo(n.mensagemenvio)}</span>` : ''}
+        </td>
+        <td>
+          ${n.proprioambiente
+            ? `${n.status === 'Envio Incerto' ? `<button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}" title="Confirme no portal da prefeitura antes de marcar"><i class="fa-solid fa-check"></i> Marcar emitida</button>` : ''}
+               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura"><i class="fa-solid fa-xmark"></i> Cancelar</button>` : ''}
+               ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo"><i class="fa-solid fa-file-lines"></i> Ver XML</a>` : ''}`
+            : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('[data-marcar]').forEach((btn) => {
+      btn.addEventListener('click', () => marcarComoEmitida(btn.dataset.marcar));
+    });
+    tbody.querySelectorAll('[data-cancelar]').forEach((btn) => {
+      btn.addEventListener('click', () => cancelarNota(btn.dataset.cancelar));
+    });
+  } catch (err) {
+    console.error('Erro ao carregar notas rejeitadas:', err);
+    tbody.innerHTML = '<tr><td colspan="8">Erro ao carregar notas.</td></tr>';
   }
 }
 
@@ -1975,6 +2069,7 @@ async function marcarComoEmitida(idnotafiscal, idorcamento) {
     if (idorcamento) await renderHistorico(idorcamento);
     await atualizarProntasParaEnvioSeVisivel();
     await atualizarEmitidasSeVisivel();
+    await atualizarRejeitadasSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao marcar nota como emitida:', err);
@@ -2025,6 +2120,7 @@ async function cancelarNota(idnotafiscal, idorcamento) {
     await atualizarProntasParaEnvioSeVisivel();
     await atualizarEmitidasSeVisivel();
     await atualizarCanceladasSeVisivel();
+    await atualizarRejeitadasSeVisivel();
     await carregarPendentes();
   } catch (err) {
     console.error('Erro ao cancelar nota:', err);
@@ -2367,6 +2463,7 @@ function configurarEventosNotaFiscal() {
     { de: 'nfFiltroVencimentoDe', ate: 'nfFiltroVencimentoAte', check: 'nfFiltroVencimentoAnoAtual' },
     { de: 'nfEmiFiltroDe', ate: 'nfEmiFiltroAte', check: 'nfEmiFiltroAnoAtual' },
     { de: 'nfCancFiltroDe', ate: 'nfCancFiltroAte', check: 'nfCancFiltroAnoAtual' },
+    { de: 'nfRejFiltroDe', ate: 'nfRejFiltroAte', check: 'nfRejFiltroAnoAtual' },
   ].forEach(({ de, ate, check }) => {
     [de, ate].forEach((id) => {
       document.getElementById(id).addEventListener('input', (e) => {
@@ -2397,6 +2494,10 @@ function configurarEventosNotaFiscal() {
   document.getElementById('nfBtnFiltrarCanceladas').addEventListener('click', carregarCanceladas);
   document.getElementById('nfBtnLimparFiltrosCanceladas').addEventListener('click', limparFiltrosCanceladas);
   ligarComboFiltro('CancCliente', () => {});
+
+  document.getElementById('nfBtnFiltrarRejeitadas').addEventListener('click', carregarRejeitadas);
+  document.getElementById('nfBtnLimparFiltrosRejeitadas').addEventListener('click', limparFiltrosRejeitadas);
+  ligarComboFiltro('RejCliente', () => {});
 
   ['nfValorServico', 'nfAliquotaIss'].forEach((id) => {
     document.getElementById(id).addEventListener('input', recalcularTributos);
