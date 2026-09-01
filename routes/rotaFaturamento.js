@@ -132,6 +132,8 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
          prox.proximovencimento,
          COALESCE(parc.totalparcelas, 0) AS totalparcelas,
          COALESCE(parc.parcelaspagas, 0) AS parcelaspagas,
+         COALESCE(recb.pago, 0) AS pago,
+         COALESCE(recb.atrasadorecebimento, 0) AS atrasadorecebimento,
          (oe.idempresa = $1) AS proprioambiente,
          oe_emp.nmfantasia AS ambienteorigem_nome
        FROM orcamentos o
@@ -178,6 +180,21 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
          FROM orcamentoparcelas
          GROUP BY idorcamento
        ) parc ON parc.idorcamento = o.idorcamento
+       LEFT JOIN (
+         -- Recebimento (regime de caixa) é sobre a NOTA já Emitida, não sobre
+         -- o orçamento — "pago" soma o que já foi confirmado recebido;
+         -- "atrasadorecebimento" soma o que ainda não foi confirmado E cujo
+         -- vencimento (da parcela ligada à nota) já passou. Mesma distinção
+         -- de "Emissão NF atrasada" (que é sobre não ter emitido a tempo) —
+         -- aqui é sobre ter emitido mas o cliente não ter pago a tempo.
+         SELECT nf.idorcamento,
+                SUM(nf.valorservico) FILTER (WHERE nf.recebido = true) AS pago,
+                SUM(nf.valorservico) FILTER (WHERE nf.recebido = false AND op.dtvencimento < CURRENT_DATE) AS atrasadorecebimento
+         FROM notasfiscais nf
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         WHERE nf.status = 'Emitida'
+         GROUP BY nf.idorcamento
+       ) recb ON recb.idorcamento = o.idorcamento
        WHERE o.status = 'F'
          AND ($2::int IS NULL OR o.idcliente = $2::int)
          AND ($3::int IS NULL OR o.idevento = $3::int)
@@ -192,7 +209,7 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
            $9::text IS NULL
            OR ($9 = 'faturada' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) <= 0.009)
            OR ($9 = 'aberto' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
-           OR ($9 = 'vencida' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
+           OR ($9 = 'emissao-atrasada' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
                AND prox.proximovencimento < CURRENT_DATE)
            OR ($9 = 'parcial' AND COALESCE(nf.faturado, 0) > 0
                AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
@@ -798,6 +815,47 @@ router.post("/:id/remover-anexo", verificarPermissao('faturamento', 'alterar'), 
   }
 });
 
+// PUT /faturamento/:id/recebido — confirma (ou desfaz) que o cliente pagou de
+// verdade essa nota já Emitida. Nota emitida = obrigação fiscal existe;
+// recebido = dinheiro realmente entrou (regime de caixa) — são coisas
+// diferentes, essa rota controla só a segunda. Restrito a Master (pedido
+// explícito), como cancelar/enviar/registrar.
+//
+// dtrecebimento vem do financeiro (Swal no front, ver marcarRecebido em
+// Faturamento.js) em vez de sempre usar o momento do clique — o dinheiro
+// pode ter entrado numa sexta à noite e só ser conferido/confirmado no
+// sistema na segunda-feira; sem isso, ficaria registrado como recebido
+// depois do vencimento sem ter sido de verdade.
+router.put("/:id/recebido", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+  const recebido = !!req.body?.recebido;
+  const dtrecebimentoInformado = req.body?.dtrecebimento;
+  const dtrecebimento = /^\d{4}-\d{2}-\d{2}$/.test(dtrecebimentoInformado || '') ? dtrecebimentoInformado : null;
+
+  if (recebido && dtrecebimento && new Date(`${dtrecebimento}T00:00:00`) > new Date()) {
+    return res.status(400).json({ message: "A data de recebimento não pode ser no futuro." });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE notasfiscais
+          SET recebido = $1,
+              dtrecebimento = CASE WHEN $1 THEN COALESCE($4::date, now()) ELSE NULL END
+        WHERE idnotafiscal = $2 AND idempresa = $3 AND status = 'Emitida'
+        RETURNING *`,
+      [recebido, id, idempresa, dtrecebimento]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ message: "Nota fiscal não encontrada ou não está Emitida." });
+    }
+    return res.json({ message: recebido ? "Marcado como recebido!" : "Marcação de recebido desfeita.", notafiscal: result.rows[0] });
+  } catch (error) {
+    console.error("Erro ao atualizar recebimento da nota fiscal:", error);
+    res.status(500).json({ message: "Erro ao atualizar recebimento." });
+  }
+});
+
 // POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
 // e-mail do cliente, por SMTP (ver utils/enviarEmail.js — usa os mesmos
 // dados de servidor de saída já configurados no Outlook de vocês). Só libera
@@ -1233,6 +1291,7 @@ router.get("/emitidas", verificarPermissao('faturamento', 'pesquisar'), async (r
     const result = await pool.query(
       `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
               nf.arquivoxml, nf.arquivopdf, nf.numeronota, nf.dtenvioemailcliente,
+              nf.recebido, nf.dtrecebimento,
               o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
               op.numparcela, op.dtvencimento,
               (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
