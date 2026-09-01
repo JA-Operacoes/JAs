@@ -352,13 +352,19 @@ router.get("/orcamento/:idorcamento/parcelas", verificarPermissao('faturamento',
   const { idorcamento } = req.params;
 
   try {
+    // "Rejeitada" NÃO conta como nota ativa pra travar a parcela — a
+    // prefeitura confirmadamente não emitiu (mesma lógica de podeMarcarEmitida
+    // no front), então bloquear um novo registro aqui só atrapalha sem
+    // proteger nada. "Envio Incerto" continua travando de propósito — não
+    // se sabe se foi processado, então registrar de novo sem conferir no
+    // portal antes arriscaria duplicar (2026-09-01).
     const result = await pool.query(
       `SELECT op.*,
          (SELECT nf.idnotafiscal FROM notasfiscais nf
-           WHERE nf.idparcela = op.idparcela AND nf.status <> 'Cancelada'
+           WHERE nf.idparcela = op.idparcela AND nf.status NOT IN ('Cancelada', 'Rejeitada')
            ORDER BY nf.dtregistro DESC LIMIT 1) AS notaativaid,
          (SELECT nf.status FROM notasfiscais nf
-           WHERE nf.idparcela = op.idparcela AND nf.status <> 'Cancelada'
+           WHERE nf.idparcela = op.idparcela AND nf.status NOT IN ('Cancelada', 'Rejeitada')
            ORDER BY nf.dtregistro DESC LIMIT 1) AS notaativastatus
          FROM orcamentoparcelas op
          JOIN orcamentoempresas oe ON oe.idorcamento = op.idorcamento AND oe.idempresa = $2
@@ -1432,6 +1438,52 @@ router.get("/canceladas", verificarPermissao('faturamento', 'pesquisar'), async 
   }
 });
 
+// GET /faturamento/rejeitadas — notas com status 'Rejeitada' (a prefeitura
+// confirmadamente não emitiu) ou 'Envio Incerto' (falha de rede/timeout, não
+// se sabe se foi processado — precisa conferir no portal da prefeitura antes
+// de decidir o próximo passo). Antes só dava pra ver isso abrindo orçamento
+// por orçamento em "Emitir nota"; aba própria pra achar sem precisar saber
+// de cor qual orçamento falhou (pedido 2026-09-01).
+router.get("/rejeitadas", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
+  const idempresa = req.idempresa;
+  const { idcliente, idempresaemissora } = req.query;
+  let { dtDe, dtAte } = req.query;
+  if (dtDe && !dtAte) dtAte = dtDe;
+  if (dtAte && !dtDe) dtDe = dtAte;
+
+  try {
+    const result = await pool.query(
+      `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
+              nf.arquivoxml, nf.status, nf.mensagemenvio,
+              o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
+              op.numparcela, op.dtvencimento,
+              (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
+              em.nmfantasia AS emissora_nome, o.idempresaemissora,
+              e.nmevento AS evento_nome,
+              (nf.idempresa = $1) AS proprioambiente,
+              nf_emp.nmfantasia AS ambienteorigem_nome
+         FROM notasfiscais nf
+         JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+         LEFT JOIN clientes c ON c.idcliente = nf.idcliente
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+         LEFT JOIN empresas nf_emp ON nf_emp.idempresa = nf.idempresa
+         LEFT JOIN eventos e ON e.idevento = o.idevento
+        WHERE (nf.idempresa = $1 OR (nf.idempresa = 1 AND o.idempresaemissora = $1))
+          AND nf.status IN ('Rejeitada', 'Envio Incerto')
+          AND ($2::int IS NULL OR nf.idcliente = $2::int)
+          AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
+          AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
+        ORDER BY nf.dtregistro DESC`,
+      [idempresa, idcliente || null, idempresaemissora || null, dtDe || null, dtAte || null]
+    );
+    return res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar notas rejeitadas:", error);
+    res.status(500).json({ message: "Erro ao buscar notas rejeitadas." });
+  }
+});
+
 // POST /faturamento/xml-lote/enviar — gera, assina e MANDA de verdade o lote
 // pro Web Service síncrono da prefeitura (autenticação TLS mútua com o mesmo
 // certificado usado pra assinar o XML). Máximo 50 por lote (limite do XSD), e
@@ -1568,11 +1620,19 @@ router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), ex
           }
         }
       } else if (resultado.tipo === 'rejeitado') {
+        // Erro de cabeçalho do lote inteiro (sem ChaveRPS, numeroRps null —
+        // ver mapEvento em enviarLoteWebService.js) não tem "outro RPS" pra
+        // culpar: é a causa real, mesmo num lote de 1 nota só (ex.: timeout
+        // de conexão do lado da prefeitura, código 1999). O texto genérico só
+        // faz sentido quando existe de fato um erro citando OUTRO RPS.
+        const erroCabecalho = (resultado.erros || []).find((e) => e.numeroRps == null);
         for (const nf of linhas) {
           const erroDaNota = (resultado.erros || []).find((e) => e.numeroRps === nf.idnotafiscal);
           const mensagem = erroDaNota
             ? erroDaNota.descricao
-            : "Lote rejeitado por erro em outro RPS do mesmo envio.";
+            : erroCabecalho
+              ? `Lote rejeitado: ${erroCabecalho.descricao}`
+              : "Lote rejeitado por erro em outro RPS do mesmo envio.";
           const notaAtualizada = await client.query(
             `UPDATE notasfiscais SET status = 'Rejeitada', mensagemenvio = $1, arquivoxml = $2
               WHERE idnotafiscal = $3 AND idempresa = $4
