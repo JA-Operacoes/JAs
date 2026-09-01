@@ -856,11 +856,62 @@ router.put("/:id/recebido", verificarPermissao('faturamento', 'alterar'), exigir
   }
 });
 
+// Saudação pelo horário de Brasília, não do servidor (que pode rodar em
+// UTC) — hourCycle 'h23' evita o "24h" que hour12:false às vezes devolve.
+function saudacaoPorHorario() {
+  const hora = parseInt(
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hourCycle: 'h23', hour: '2-digit' }).format(new Date()),
+    10
+  );
+  if (hora < 12) return 'Bom dia!';
+  if (hora < 18) return 'Boa tarde!';
+  return 'Boa noite!';
+}
+
+// Texto padrão (assunto + corpo) do e-mail de envio de nota — usado tanto na
+// prévia (GET /:id/preview-email, pro financeiro ver/editar antes de mandar)
+// quanto no envio de verdade (POST /:id/enviar-email, como fallback quando
+// nada é digitado por cima). Um lugar só pra não desalinhar os dois.
+function montarEmailPadraoNota(nf) {
+  const assunto = `Nota Fiscal${nf.numeronota ? ` Nº ${nf.numeronota}` : ''} — Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` — ${nf.evento_nome}` : ''}`;
+  const corpoTexto = `${saudacaoPorHorario()}\n\nSegue em anexo a nota fiscal referente ao Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` (${nf.evento_nome})` : ''}.\n\nAtenciosamente,\n${nf.emissora_nome || 'JA System'}`;
+  return { assunto, corpoTexto };
+}
+
+// GET /faturamento/:id/preview-email — texto padrão que seria enviado, pra
+// mostrar num swal editável antes de confirmar o envio de verdade.
+router.get("/:id/preview-email", verificarPermissao('faturamento', 'pesquisar'),
+  async (req, res) => {
+    const { id } = req.params;
+    const idempresa = req.idempresa;
+    try {
+      const result = await pool.query(
+        `SELECT nf.numeronota,
+                o.nrorcamento, e.nmevento AS evento_nome,
+                em.nmfantasia AS emissora_nome
+           FROM notasfiscais nf
+           JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+           LEFT JOIN eventos e ON e.idevento = o.idevento
+           LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+          WHERE nf.idnotafiscal = $1 AND nf.idempresa = $2`,
+        [id, idempresa]
+      );
+      const nf = result.rows[0];
+      if (!nf) return res.status(404).json({ message: "Nota fiscal não encontrada." });
+      return res.json(montarEmailPadraoNota(nf));
+    } catch (error) {
+      console.error("Erro ao montar prévia do e-mail:", error);
+      res.status(500).json({ message: "Erro ao montar prévia do e-mail." });
+    }
+  });
+
 // POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
 // e-mail do cliente, por SMTP (ver utils/enviarEmail.js — usa os mesmos
 // dados de servidor de saída já configurados no Outlook de vocês). Só libera
 // depois de anexar o PDF (arquivopdf), igual pedido: sem o comprovante
-// escaneado/baixado do portal não tem o que mandar.
+// escaneado/baixado do portal não tem o que mandar. Assunto/corpo podem vir
+// customizados no body (editados no swal de prévia do front); sem eles, cai
+// no texto padrão de montarEmailPadraoNota.
 router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
   logMiddleware('NotaFiscal', { acao: 'enviou por e-mail' }),
   async (req, res) => {
@@ -893,10 +944,11 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
         return res.status(400).json({ message: "Anexe o PDF da nota antes de enviar por e-mail." });
       }
 
-      const assunto = `Nota Fiscal${nf.numeronota ? ` Nº ${nf.numeronota}` : ''} — Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` — ${nf.evento_nome}` : ''}`;
-      const corpoTexto = `Olá,\n\nSegue em anexo a nota fiscal referente ao Orçamento #${nf.nrorcamento}${nf.evento_nome ? ` (${nf.evento_nome})` : ''}.\n\nAtenciosamente,\n${nf.emissora_nome || 'JA System'}`;
+      const padrao = montarEmailPadraoNota(nf);
+      const assunto = (req.body?.assunto || '').trim() || padrao.assunto;
+      const corpoTexto = (req.body?.corpoTexto || '').trim() || padrao.corpoTexto;
 
-      await enviarEmailComAnexo({
+      const resultadoEnvio = await enviarEmailComAnexo({
         para: destinatario,
         assunto,
         corpoTexto,
@@ -911,10 +963,18 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
       res.locals.idregistroalterado = nf.idnotafiscal;
       res.locals.dadosnovos = { destinatario, notafiscal: notaAtualizada.rows[0] };
 
-      return res.json({ message: "E-mail enviado com sucesso!", notafiscal: notaAtualizada.rows[0] });
+      return res.json({
+        message: "E-mail enviado com sucesso!",
+        notafiscal: notaAtualizada.rows[0],
+        salvouEmEnviados: resultadoEnvio.salvouEmEnviados,
+        caixaEnviados: resultadoEnvio.caixaEnviados,
+      });
     } catch (error) {
       console.error("Erro ao enviar nota fiscal por e-mail:", error);
-      res.status(500).json({ message: "Erro ao enviar e-mail." });
+      // Mostra a causa de verdade (ex.: "Arquivo do anexo não encontrado",
+      // erro de autenticação SMTP etc.) — antes caía sempre na mesma
+      // mensagem genérica, escondendo o motivo real de quem ia investigar.
+      res.status(500).json({ message: `Erro ao enviar e-mail: ${error.message}` });
     }
   });
 

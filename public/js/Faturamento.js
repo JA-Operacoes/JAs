@@ -389,7 +389,7 @@ function renderizarLinhasPendentes(lista) {
       <td>${!o.proprioambiente
           ? `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(o.ambienteorigem_nome || '—')}</span>`
           : saldo > 0.009
-            ? `${parseFloat(o.faturado) > 0 ? '<span class="nf-chip rascunho" title="Já tem parcela(s) faturada(s), mas ainda falta faturar o restante">Faturada parcialmente</span> ' : ''}${temMasterFaturamento() ? `<button type="button" class="nf-row-btn" data-idorcamento="${o.idorcamento}">Emitir nota</button>` : ''}`
+            ? `${parseFloat(o.faturado) > 0 ? '<span class="nf-chip parcial" title="Já tem parcela(s) faturada(s), mas ainda falta faturar o restante"><i class="fa-solid fa-circle-half-stroke"></i> Faturada parcialmente</span> ' : ''}${temMasterFaturamento() ? `<button type="button" class="nf-row-btn" data-idorcamento="${o.idorcamento}">Emitir nota</button>` : ''}`
             : '<span class="nf-chip emitida">Faturado</span>'}</td>`;
     tbody.appendChild(tr);
   });
@@ -763,7 +763,7 @@ async function carregarParcelasNota(idorcamento) {
     if (p.status === 'Aberta') {
       botao = p.notaativaid
         ? `<button type="button" class="nf-row-btn" disabled title="Esta parcela já tem uma nota registrada">${p.notaativastatus}</button>
-           <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${p.notaativaid}" title="Gera o XML do RPS (ainda sem assinatura digital)">Baixar XML</button>`
+           <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${p.notaativaid}" title="Gera o XML do RPS (ainda sem assinatura digital)"><i class="fa-solid fa-file-code"></i> Baixar XML</button>`
         : `<button type="button" class="nf-row-btn" data-idparcela="${p.idparcela}">Selecionar</button>`;
     }
     return `
@@ -946,12 +946,12 @@ function renderizarNotasProntasParaEnvio() {
         <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
         <td>${n.emissora_nome || '—'}</td>
         <td>
-          <button type="button" class="nf-btn-acao previa" data-previa="${n.idnotafiscal}" title="Resumo legível de tudo que essa nota mandaria pra prefeitura — pra conferir antes de enviar">Prévia</button>
-          <button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>
-          ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
-          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
-          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
-          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
+          <button type="button" class="nf-btn-acao previa" data-previa="${n.idnotafiscal}" title="Resumo legível de tudo que essa nota mandaria pra prefeitura — pra conferir antes de enviar"><i class="fa-solid fa-eye"></i> Prévia</button>
+          <button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}"><i class="fa-solid fa-check"></i> Marcar emitida</button>
+          ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura"><i class="fa-solid fa-xmark"></i> Cancelar</button>` : ''}
+          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo"><i class="fa-solid fa-file-lines"></i> Ver XML</a>` : ''}
+          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank"><i class="fa-solid fa-file-lines"></i> Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}"><i class="fa-solid fa-paperclip"></i> Anexar PDF</button>`}
+          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}"><i class="fa-solid fa-file-code"></i> ${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
         </td>
       </tr>`).join('');
 
@@ -1081,21 +1081,21 @@ async function carregarEmitidas() {
         <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
         <td>
           ${n.recebido
-            ? `<span class="nf-chip emitida" title="${n.dtrecebimento ? `Recebido em ${formatarDataBR(n.dtrecebimento)}` : 'Recebido'}">Pago</span>`
-            : (estaVencidoParaRecebimento(n.dtvencimento) ? `<span class="nf-chip bloqueio">Atrasado</span>` : `<span class="nf-chip rascunho">A Receber</span>`)}
-          ${n.proprioambiente && temMasterFaturamento() ? `<br><button type="button" class="nf-btn-acao ${n.recebido ? 'cancelar' : 'confirmar'}" data-marcar-recebido="${n.idnotafiscal}" data-recebido-atual="${n.recebido ? '1' : '0'}" title="${n.recebido ? 'Cliente ainda não pagou de verdade? Desfaça aqui' : 'Confirma que o dinheiro realmente entrou (depósito/boleto compensado) — diferente de já ter emitido a nota'}">${n.recebido ? 'Desfazer' : 'Marcar como recebido'}</button>` : ''}
+            ? `<span class="nf-chip pago" title="${n.dtrecebimento ? `Recebido em ${formatarDataBR(n.dtrecebimento)}` : 'Recebido'}"><i class="fa-solid fa-circle-check"></i> Pago</span>`
+            : (estaVencidoParaRecebimento(n.dtvencimento) ? `<span class="nf-chip atrasado"><i class="fa-solid fa-clock"></i> Atrasado</span>` : `<span class="nf-chip rascunho">A Receber</span>`)}
+          ${n.proprioambiente && temMasterFaturamento() ? `<br><button type="button" class="nf-btn-acao ${n.recebido ? 'cancelar' : 'confirmar'}" data-marcar-recebido="${n.idnotafiscal}" data-recebido-atual="${n.recebido ? '1' : '0'}" title="${n.recebido ? 'Cliente ainda não pagou de verdade? Desfaça aqui' : 'Confirma que o dinheiro realmente entrou (depósito/boleto compensado) — diferente de já ter emitido a nota'}">${n.recebido ? '<i class="fa-solid fa-rotate-left"></i> Desfazer' : '<i class="fa-solid fa-check"></i> Marcar como recebido'}</button>` : ''}
         </td>
         <td>
-          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
-          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : ''}
+          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo"><i class="fa-solid fa-file-lines"></i> Ver XML</a>` : ''}
+          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank"><i class="fa-solid fa-file-lines"></i> Ver PDF</a>` : ''}
           ${n.proprioambiente
             ? `${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}
-               ${!n.arquivopdf ? `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>` : ''}
+               ${!n.arquivopdf ? `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}"><i class="fa-solid fa-paperclip"></i> Anexar PDF</button>` : ''}
                ${n.arquivopdf
-                  ? `<button type="button" class="nf-btn-acao email" data-enviar-email="${n.idnotafiscal}" data-email-cliente="${escaparAtributo(n.cliente_email || '')}" title="${n.dtenvioemailcliente ? `Já enviado em ${formatarDataBR(n.dtenvioemailcliente)} — clique pra enviar de novo` : 'Manda o PDF anexado pro e-mail do cliente'}">${n.dtenvioemailcliente ? 'Reenviar e-mail' : 'Enviar por E-mail'}</button>`
-                  : `<button type="button" class="nf-btn-acao email" disabled title="Anexe o PDF antes de poder enviar por e-mail">Enviar por E-mail</button>`}
-               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}
-               <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>`
+                  ? `<button type="button" class="nf-btn-acao email${n.dtenvioemailcliente ? ' ja-enviado' : ''}" data-enviar-email="${n.idnotafiscal}" data-email-cliente="${escaparAtributo(n.cliente_email || '')}" title="${n.dtenvioemailcliente ? `Já enviado em ${formatarDataBR(n.dtenvioemailcliente)} — clique pra enviar de novo` : 'Manda o PDF anexado pro e-mail do cliente'}">${n.dtenvioemailcliente ? '<i class="fa-solid fa-rotate-right"></i> Reenviar e-mail' : '<i class="fa-solid fa-paper-plane"></i> Enviar por E-mail'}</button>`
+                  : `<button type="button" class="nf-btn-acao email" disabled title="Anexe o PDF antes de poder enviar por e-mail"><i class="fa-solid fa-paper-plane"></i> Enviar por E-mail</button>`}
+               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service"><i class="fa-solid fa-triangle-exclamation"></i> Cancelar NF na Prefeitura</button>` : ''}
+               <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}"><i class="fa-solid fa-file-code"></i> ${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
@@ -1184,8 +1184,8 @@ async function carregarCanceladas() {
         <td${n.justificativacancelamento ? ` title="${escaparAtributo(n.justificativacancelamento)}"` : ''}>${n.justificativacancelamento ? (n.justificativacancelamento.length > 40 ? n.justificativacancelamento.slice(0, 40) + '…' : n.justificativacancelamento) : '—'}</td>
         <td>
           ${n.proprioambiente
-            ? `${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado antes do cancelamento">Ver XML</a>` : ''}
-               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+            ? `${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado antes do cancelamento"><i class="fa-solid fa-file-lines"></i> Ver XML</a>` : ''}
+               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank"><i class="fa-solid fa-file-lines"></i> Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}"><i class="fa-solid fa-paperclip"></i> Anexar PDF</button>`}
                ${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
@@ -1897,11 +1897,11 @@ async function renderHistorico(idorcamento) {
           ${n.mensagemenvio ? `<br><span class="nf-hint warn">${escaparAtributo(n.mensagemenvio)}</span>` : ''}
         </td>
         <td>
-          ${podeMarcarEmitida.includes(n.status) ? `<button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>` : ''}
-          ${podeCancelar.includes(n.status) && temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
-          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
-          ${n.status !== 'Cancelada' ? `<button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS (ainda sem assinatura digital)'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML'}</button>` : ''}
-          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+          ${podeMarcarEmitida.includes(n.status) ? `<button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}"><i class="fa-solid fa-check"></i> Marcar emitida</button>` : ''}
+          ${podeCancelar.includes(n.status) && temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura"><i class="fa-solid fa-xmark"></i> Cancelar</button>` : ''}
+          ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo"><i class="fa-solid fa-file-lines"></i> Ver XML</a>` : ''}
+          ${n.status !== 'Cancelada' ? `<button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS (ainda sem assinatura digital)'}"><i class="fa-solid fa-file-code"></i> ${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML'}</button>` : ''}
+          ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank"><i class="fa-solid fa-file-lines"></i> Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}"><i class="fa-solid fa-paperclip"></i> Anexar PDF</button>`}
         </td>`;
       tbody.appendChild(tr);
     });
@@ -2110,12 +2110,69 @@ async function enviarNotaPorEmail(idnotafiscal, emailPadrao) {
   });
   if (!destinatario) return;
 
+  // Busca o texto padrão (assunto + corpo) pra pré-preencher o swal de
+  // revisão — se falhar, deixa em branco e o usuário digita na mão (o
+  // backend ainda cai no próprio texto padrão se mandar vazio).
+  let padrao = { assunto: '', corpoTexto: '' };
   try {
-    await fetchComToken(`/faturamento/${idnotafiscal}/enviar-email`, {
+    padrao = await fetchComToken(`/faturamento/${idnotafiscal}/preview-email`);
+  } catch (err) {
+    console.error('Erro ao buscar prévia do e-mail:', err);
+  }
+
+  const { value: dadosEmail } = await Swal.fire({
+    title: 'Como o e-mail vai ser enviado',
+    html:
+      '<div style="text-align:left;">' +
+      '<label for="swal-email-assunto" style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px;">Assunto</label>' +
+      '<input id="swal-email-assunto" class="swal2-input" style="margin:0 0 16px;width:100%;max-width:100%;font-size:15px;">' +
+      '<label for="swal-email-corpo" style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px;">Corpo do e-mail</label>' +
+      '<textarea id="swal-email-corpo" class="swal2-textarea" style="margin:0;width:100%;max-width:100%;height:320px;font-size:15px;"></textarea>' +
+      '</div>',
+    width: 720,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: 'Enviar',
+    cancelButtonText: 'Cancelar',
+    reverseButtons: true,
+    didOpen: () => {
+      document.getElementById('swal-email-assunto').value = padrao.assunto || '';
+      document.getElementById('swal-email-corpo').value = padrao.corpoTexto || '';
+    },
+    preConfirm: () => {
+      const assunto = document.getElementById('swal-email-assunto').value.trim();
+      const corpoTexto = document.getElementById('swal-email-corpo').value.trim();
+      if (!assunto || !corpoTexto) {
+        Swal.showValidationMessage('Preencha o assunto e o corpo do e-mail.');
+        return false;
+      }
+      return { assunto, corpoTexto };
+    }
+  });
+  if (!dadosEmail) return;
+
+  Swal.fire({
+    title: 'Aguarde',
+    text: 'Enviando e-mail...',
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const resultado = await fetchComToken(`/faturamento/${idnotafiscal}/enviar-email`, {
       method: 'POST',
-      body: { destinatario: destinatario.trim() }
+      body: { destinatario: destinatario.trim(), assunto: dadosEmail.assunto, corpoTexto: dadosEmail.corpoTexto }
     });
-    await Swal.fire({ icon: 'success', title: 'E-mail enviado', text: `Nota enviada para ${destinatario.trim()}.` });
+    await Swal.fire({
+      icon: 'success',
+      title: 'E-mail enviado',
+      html: `Nota enviada para ${destinatario.trim()}.<br><br>` +
+        (resultado.salvouEmEnviados
+          ? `<span style="color:#046800;"><i class="fa-solid fa-check"></i> Cópia salva na pasta "Enviados" de ${resultado.caixaEnviados || 'financeiro'}.</span>`
+          : `<span style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Não deu pra salvar a cópia na pasta "Enviados" — foi mandada uma cópia de aviso por e-mail pro financeiro.</span>`)
+    });
     await carregarEmitidas();
   } catch (err) {
     console.error('Erro ao enviar nota por e-mail:', err);

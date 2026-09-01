@@ -334,6 +334,26 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-chip.emitida { background: var(--Aproved, #046800); }
 #cadModalNotaFiscal .nf-chip.cancelada { background: var(--Reject, #B50000); }
 #cadModalNotaFiscal .nf-chip.bloqueio { background: var(--Reject, #B50000); }
+/* Pago/Atrasado (recebimento do cliente) são informação, não ação — sem
+   fundo de "pílula" como os outros chips, só texto colorido em itálico com
+   ícone, pra não parecer mais um botão clicável no meio da linha. */
+#cadModalNotaFiscal .nf-chip.pago,
+#cadModalNotaFiscal .nf-chip.atrasado,
+#cadModalNotaFiscal .nf-chip.parcial {
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border-radius: 0;
+  font-style: italic;
+  font-weight: 700;
+}
+#cadModalNotaFiscal .nf-chip.pago { color: var(--Aproved, #046800); }
+#cadModalNotaFiscal .nf-chip.atrasado { color: var(--Reject, #B50000); }
+/* Mesmo amarelo escurecido usado no contorno do botão "Anexar" — o
+   #FFBD29 puro (var(--Pending)) não tem contraste suficiente como texto. */
+#cadModalNotaFiscal .nf-chip.parcial { color: #8a6110; }
 
 #cadModalNotaFiscal .nf-link {
   color: #942123; text-decoration: underline; cursor: pointer; font-size: 14.5px; margin-right: 10px;
@@ -816,6 +836,26 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-chip.emitida { background: var(--Aproved, #046800); }
 #cadModalNotaFiscal .nf-chip.cancelada { background: var(--Reject, #B50000); }
 #cadModalNotaFiscal .nf-chip.bloqueio { background: var(--Reject, #B50000); }
+/* Pago/Atrasado (recebimento do cliente) são informação, não ação — sem
+   fundo de "pílula" como os outros chips, só texto colorido em itálico com
+   ícone, pra não parecer mais um botão clicável no meio da linha. */
+#cadModalNotaFiscal .nf-chip.pago,
+#cadModalNotaFiscal .nf-chip.atrasado,
+#cadModalNotaFiscal .nf-chip.parcial {
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border-radius: 0;
+  font-style: italic;
+  font-weight: 700;
+}
+#cadModalNotaFiscal .nf-chip.pago { color: var(--Aproved, #046800); }
+#cadModalNotaFiscal .nf-chip.atrasado { color: var(--Reject, #B50000); }
+/* Mesmo amarelo escurecido usado no contorno do botão "Anexar" — o
+   #FFBD29 puro (var(--Pending)) não tem contraste suficiente como texto. */
+#cadModalNotaFiscal .nf-chip.parcial { color: #8a6110; }
 
 #cadModalNotaFiscal .nf-link {
   color: #942123; text-decoration: underline; cursor: pointer; font-size: 14.5px; margin-right: 10px;
@@ -997,36 +1037,55 @@ p.nf-subtitulo {
   opacity: 1;
 }
 
-/* Botões de ação (Prontas para Envio / Emitidas / Notas registradas) — antes
-   pareciam links sublinhados; agora são botões de verdade, uma cor por tipo
-   de ação, pra ficar fácil de reconhecer de relance qual botão é qual. */
+/* Botões de ação (Prontas para Envio / Emitidas / Canceladas / Notas
+   registradas) — contorno colorido em vez de preenchido: fundo transparente,
+   ícone + texto na cor da ação, preenche suave só no hover. Mesma cor por
+   tipo de ação de antes (pra continuar fácil de reconhecer de relance qual
+   botão é qual), só que agora como `color` (texto/borda) em vez de
+   `background` — por isso algumas cores foram escurecidas em relação ao
+   preenchido de antes (ex.: amarelo, tiffany, cinza), só pra continuar
+   legíveis como texto sobre fundo claro. */
 #cadModalNotaFiscal .nf-btn-acao {
-  display: inline-block;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
+  border: 1.5px solid color-mix(in srgb, currentColor 55%, transparent);
+  border-radius: 10px;
+  padding: 7px 13px;
   margin: 2px 5px 2px 0;
   cursor: pointer;
   text-decoration: none;
   line-height: 1.4;
   white-space: nowrap;
+  transition: background-color .12s ease, border-color .12s ease;
 }
-#cadModalNotaFiscal .nf-btn-acao:hover { filter: brightness(0.88); }
-#cadModalNotaFiscal .nf-btn-acao.confirmar { background: var(--Aproved, #046800); }
-#cadModalNotaFiscal .nf-btn-acao.cancelar { background: var(--Reject, #B50000); }
-#cadModalNotaFiscal .nf-btn-acao.ver { background: #1f6fa8; }
-#cadModalNotaFiscal .nf-btn-acao.gerar { background: #6a3fb5; }
-#cadModalNotaFiscal .nf-btn-acao.anexar { background: var(--Pending, #FFBD29); color: #4a3300; }
+#cadModalNotaFiscal .nf-btn-acao i { font-size: 12px; }
+#cadModalNotaFiscal .nf-btn-acao:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-color: currentColor;
+}
+#cadModalNotaFiscal .nf-btn-acao.confirmar { color: var(--Aproved, #046800); }
+#cadModalNotaFiscal .nf-btn-acao.cancelar { color: var(--Reject, #B50000); }
+#cadModalNotaFiscal .nf-btn-acao.ver { color: #1f6fa8; }
+#cadModalNotaFiscal .nf-btn-acao.gerar { color: #6a3fb5; }
+#cadModalNotaFiscal .nf-btn-acao.anexar { color: #8a6110; }
 /* Preto de propósito: mais grave que ".cancelar" (só local) — esse avisa a
    prefeitura de verdade e não tem como desfazer. */
-#cadModalNotaFiscal .nf-btn-acao.cancelar-webservice { background: #1a1a1a; }
-#cadModalNotaFiscal .nf-btn-acao.previa { background: #127a76; }
-#cadModalNotaFiscal .nf-btn-acao.email { background: #8a4b08; }
-#cadModalNotaFiscal .nf-btn-acao.email:disabled { background: #b7b7b7; cursor: not-allowed; filter: none; }
+#cadModalNotaFiscal .nf-btn-acao.cancelar-webservice { color: #1a1a1a; }
+#cadModalNotaFiscal .nf-btn-acao.previa { color: #127a76; }
+/* Tiffany escurecido no primeiro envio (o tom puro #0ABAB5 perde contraste
+   como texto em fundo claro); cinza médio quando já foi enviado antes —
+   deixa óbvio de relance que dá pra reenviar, sem parecer desabilitado (esse
+   cinza é mais escuro/legível que o `.email:disabled` logo abaixo, de
+   propósito, pra não confundir os dois). */
+#cadModalNotaFiscal .nf-btn-acao.email { color: #0a8f8a; }
+#cadModalNotaFiscal .nf-btn-acao.email.ja-enviado { color: #6b6b6b; }
+#cadModalNotaFiscal .nf-btn-acao.email:disabled { color: #b7b7b7; border-color: #b7b7b7; cursor: not-allowed; }
+#cadModalNotaFiscal .nf-btn-acao.email:disabled:hover { background: transparent; }
 
 /* "Limpar filtros" em cinza (mesmo tom de fundo do próprio modal) pra não
    competir visualmente com "Filtrar" — que é a ação principal e mantém a
