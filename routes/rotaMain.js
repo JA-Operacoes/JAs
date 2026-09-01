@@ -4142,8 +4142,8 @@ router.post('/confirmar-pagamento-conta',
         }
     }), async (req, res) => {
     const { idpagamento, idlancamento, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpagamento, observacao, status } = req.body;
-    const idempresa = req.headers.idempresa;
-    const statusFinal = status || 'pago';
+    const idempresa = req.idempresa;
+    const statusFinal = status || 'pendente';
     const client = await pool.connect();
 
     
