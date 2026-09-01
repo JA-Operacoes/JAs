@@ -961,6 +961,18 @@ p.nf-subtitulo {
   font-size: 15px;
 }
 #cadModalNotaFiscal .nf-total-vencido strong { color: #b50000; }
+#cadModalNotaFiscal .nf-total-pago strong { color: var(--Aproved, #046800); }
+/* Escopo de ano dos totais (Ano Realização/Vencimento/Todos os Anos) — some
+   quando vazio (período customizado, ver descricaoEscopoAnoPendentes), por
+   isso sem padding próprio; empurrado pro lado oposto dos totais (pedido:
+   discreto, não deve competir visualmente com os valores). */
+#cadModalNotaFiscal .nf-total-escopo-ano {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: #999;
+  margin-right: auto;
+  align-self: center;
+}
 
 /* Cabeçalho clicável da Visão Geral (ordenação) — a seta só aparece na coluna
    ativa; nas outras fica reservado o espaço (opacidade 0) pra não saltar o
@@ -1107,6 +1119,19 @@ p.nf-subtitulo {
 }
 #cadModalNotaFiscal .nf-grupo-compacto .nf-campo-data {
   min-width: 90px;
+}
+#cadModalNotaFiscal .nf-check-ano-atual {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+#cadModalNotaFiscal .nf-check-ano-atual input {
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 /* Impressão (Visão Geral) — escolha de colunas dentro do Swal "Escolha as
