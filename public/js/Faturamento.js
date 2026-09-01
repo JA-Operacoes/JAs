@@ -1948,6 +1948,10 @@ async function registrarNota() {
     await renderHistorico(idorcamento);
     await carregarParcelasNota(idorcamento);
     await carregarPendentes();
+    // Se essa parcela tinha uma nota Rejeitada, o backend já cancelou ela
+    // automaticamente ao registrar esta nova — atualiza a aba pra sumir com
+    // ela de lá também, sem precisar trocar de aba manualmente.
+    await atualizarRejeitadasSeVisivel();
   } catch (err) {
     console.error('Erro ao registrar nota fiscal:', err);
     aviso('error', 'Erro', err?.message || 'Não foi possível registrar a nota fiscal.');

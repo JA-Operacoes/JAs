@@ -453,12 +453,20 @@ router.post("/", verificarPermissao('faturamento', 'cadastrar'), exigirFlag('mas
         // rascunho descartável) — mas isso abre brecha pra registrar uma
         // 2ª nota pra mesma parcela enquanto a 1ª ainda está "Pronta para Envio".
         // Bloqueia aqui, direto pela tabela de notas.
+        //
+        // "Rejeitada" NÃO bloqueia mais (2026-09-01) — a prefeitura
+        // confirmadamente não emitiu, então é só substituir; a nota antiga é
+        // cancelada automaticamente mais abaixo, depois que a nova é criada
+        // (evita depender de alguém lembrar de cancelar manualmente). "Envio
+        // Incerto" continua bloqueando: não se sabe se foi processado,
+        // então precisa resolver (conferir no portal, marcar Emitida ou
+        // cancelar manualmente) antes de arriscar duplicar.
         const notaAtivaExistente = await client.query(
-          `SELECT idnotafiscal FROM notasfiscais WHERE idparcela = $1 AND status <> 'Cancelada'`,
+          `SELECT idnotafiscal FROM notasfiscais WHERE idparcela = $1 AND status NOT IN ('Cancelada', 'Rejeitada')`,
           [idparcela]
         );
         if (notaAtivaExistente.rowCount) {
-          throw new Error("Essa parcela já tem uma nota ativa (Pronta para Envio ou Emitida). Cancele a nota existente antes de registrar outra.");
+          throw new Error("Essa parcela já tem uma nota ativa (Pronta para Envio, Emitida ou Envio Incerto). Resolva a nota existente antes de registrar outra.");
         }
       }
 
@@ -482,6 +490,25 @@ router.post("/", verificarPermissao('faturamento', 'cadastrar'), exigirFlag('mas
       // A parcela só vira "Faturada" quando a nota for confirmada como
       // Emitida (PUT /:id) — registrar aqui só gera o XML, e o financeiro
       // pode descartar/refazer sem a parcela ficar travada à toa.
+
+      // Marca automaticamente qualquer nota Rejeitada antiga da mesma
+      // parcela como "substituída" — de propósito NÃO muda o status pra
+      // Cancelada: essa nota nunca foi cancelada de verdade, foi rejeitada
+      // pela prefeitura, e "Canceladas" é pra cancelamento real (local ou na
+      // prefeitura). dtsubstituicao só tira ela da fila de "precisa de
+      // atenção" (aba Rejeitadas) sem apagar o motivo original — pedido
+      // explícito pra manter histórico correto por status (2026-09-01).
+      if (idparcela) {
+        await client.query(
+          `UPDATE notasfiscais
+              SET dtsubstituicao = now(),
+                  observacao = COALESCE(observacao || E'\n', '') ||
+                    'Substituída automaticamente por nova nota registrada em ' || to_char(now(), 'DD/MM/YYYY HH24:MI') ||
+                    '. Estava Rejeitada pela prefeitura' || COALESCE(': ' || mensagemenvio, '.')
+            WHERE idparcela = $1 AND status = 'Rejeitada' AND dtsubstituicao IS NULL`,
+          [idparcela]
+        );
+      }
 
       await client.query("COMMIT");
 
@@ -555,8 +582,20 @@ router.put("/:id", verificarPermissao('faturamento', 'alterar'),
              -- errado); só cai pra now() se ninguém informou nada.
              dtemissao = COALESCE($8::date, CASE WHEN $1 = 'Emitida' AND dtemissao IS NULL THEN now() ELSE dtemissao END),
              -- Mesma coluna usada pelo cancelamento via Web Service (só muda
-             -- de fato quando o status virando aqui é 'Cancelada').
-             justificativacancelamento = CASE WHEN $1 = 'Cancelada' THEN $9 ELSE justificativacancelamento END,
+             -- de fato quando o status virando aqui é 'Cancelada'). Se a nota
+             -- estava Rejeitada/Envio Incerto antes desse cancelamento manual,
+             -- concatena esse motivo original na justificativa — senão o
+             -- rastro em Canceladas só mostra o texto digitado na hora, sem
+             -- contexto de que a prefeitura já tinha recusado/travado antes.
+             justificativacancelamento = CASE WHEN $1 = 'Cancelada' THEN
+               $9 || COALESCE(
+                 (SELECT CASE WHEN status IN ('Rejeitada', 'Envio Incerto')
+                              THEN E'\n[Estava como "' || status || '" pela prefeitura' || COALESCE(': ' || mensagemenvio, '') || ']'
+                         END
+                  FROM notasfiscais WHERE idnotafiscal = $6 AND idempresa = $7),
+                 ''
+               )
+             ELSE justificativacancelamento END,
              dtcancelamento = CASE WHEN $1 = 'Cancelada' THEN now() ELSE dtcancelamento END
          WHERE idnotafiscal = $6 AND idempresa = $7
          RETURNING *`,
@@ -1471,6 +1510,7 @@ router.get("/rejeitadas", verificarPermissao('faturamento', 'pesquisar'), async 
          LEFT JOIN eventos e ON e.idevento = o.idevento
         WHERE (nf.idempresa = $1 OR (nf.idempresa = 1 AND o.idempresaemissora = $1))
           AND nf.status IN ('Rejeitada', 'Envio Incerto')
+          AND nf.dtsubstituicao IS NULL
           AND ($2::int IS NULL OR nf.idcliente = $2::int)
           AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
           AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
