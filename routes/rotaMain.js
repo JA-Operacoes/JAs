@@ -795,7 +795,8 @@ router.get("/eventos-fechados", async (req, res) => {
             WHERE o.idevento IS NOT NULL
             AND oe.idempresa = $1
             AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
-            AND i.categoria = 'Produto(s)'
+            AND i.categoria = 'Produto(s)' AND o.status <> 'R'
+            AND (o.status = 'F' OR (o.status IN ('P', 'E') AND o.contratarstaff = true))
             GROUP BY o.idevento, o.idmontagem, lm.descmontagem
         ),
         staff_por_funcao AS ( 
@@ -824,14 +825,15 @@ router.get("/eventos-fechados", async (req, res) => {
             AND d.dt::date BETWEEN $2 AND $3
             GROUP BY se.idevento, se.idfuncao
         ), 
-        cliente_info AS ( 
+        cliente_info AS (
             SELECT DISTINCT ON (o.idevento)
                 o.idevento, c.idcliente, c.nmfantasia
             FROM orcamentos o
             JOIN clientes c ON c.idcliente = o.idcliente
             WHERE o.idevento IS NOT NULL
             AND (o.dtinirealizacao BETWEEN $2 AND $3 OR o.dtfimrealizacao BETWEEN $2 AND $3)
-            ORDER BY o.idevento, o.dtinirealizacao DESC 
+            AND o.status <> 'R'
+            ORDER BY o.idevento, o.dtinirealizacao DESC
         )
         SELECT 
             e.idevento, e.nmevento, vo.idmontagem, vo.nmlocalmontagem, vo.nrorcamento,
@@ -2966,6 +2968,13 @@ router.post('/notificacoes-financeiras/atualizar-status',
                         totalCache += vlrDiariaCache;
                         if (!isAjudaCustoPaga) totalAjdCusto += vlrDiariaAjdCusto;
                     });
+                }
+                // Este branch recalcula o totalCache do zero (a partir de vlrcache/datas), o que
+                // apaga qualquer Ajuste de Custo já Autorizado anteriormente para este mesmo
+                // staffevento (ex.: aprovar Ajuste de Custo e, em seguida, aprovar Cachê
+                // Fechado/Liberado — a segunda aprovação sobrescrevia o desconto da primeira).
+                if ((registro.statusajustecusto || '').trim() === 'Autorizado') {
+                    totalCache += vlrAjuste;
                 }
                 total = totalCache + totalAjdCusto;
 
