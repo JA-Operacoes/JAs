@@ -1545,7 +1545,7 @@ router.get('/empresas/:id', autenticarToken(), async (req, res) => {
         const idempresa = req.idempresa;
 
         const query = `
-            SELECT e.idempresa, e.nmfantasia, e.razaosocial
+            SELECT e.idempresa, e.nmfantasia, e.razaosocial, e.logo
             FROM empresas e
             INNER JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
             WHERE ue.idusuario = $1 

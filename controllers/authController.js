@@ -40,8 +40,15 @@ function arraysIguais(arr1, arr2) {
 async function cadastrarOuAtualizarUsuario(req, res) {
  
   const { nome, sobrenome, email, senha, email_original, ativo, idempresadefault, empresas} = req.body;
-   
-  console.log('Dados recebidos cadastrarOuAtualizarUsuario:', req.body);
+
+  console.log('Dados recebidos cadastrarOuAtualizarUsuario:', { nome, sobrenome, email, email_original, ativo, idempresadefault, empresas });
+
+  // Campo vazio numa alteração (email_original já cadastrado) significa "não
+  // alterar a senha" — só exige a política de senha quando ela é realmente enviada.
+  if (senha && (senha.length < 8 || !/[^A-Za-z0-9]/.test(senha))) {
+    return res.status(400).json({ erro: 'A senha deve ter pelo menos 8 caracteres e incluir pelo menos 1 caractere especial.' });
+  }
+
   try {
     // Busca o usuário pelo email original
     const { rows } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email_original]);
@@ -153,7 +160,11 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' }); 
 
     } else {
-    
+
+      if (!senha) {
+        return res.status(400).json({ erro: 'Senha é obrigatória para novo usuário.' });
+      }
+
       const { rows: usuariosComMesmoEmail } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email]);
       if (usuariosComMesmoEmail.length > 0) {
         const usuarioExistente = usuariosComMesmoEmail[0];
@@ -327,11 +338,11 @@ async function verificarNomeCompleto(req, res) {
 
 // Login
 async function login(req, res) {
-  
-  console.log("login AuthController ENTROU EM LOGIN", req.body);
 
   try {
     const { email, senha } = req.body;
+
+    console.log("login AuthController ENTROU EM LOGIN", { email });
 
     if (!email || !senha) {
       return res.status(400).json({ erro: "Email e senha são obrigatórios." });

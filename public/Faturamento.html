@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-<link rel="stylesheet" href="css/Modal/Faturamento.css?v=26">
+<link rel="stylesheet" href="css/Modal/Faturamento.css?v=30">
 
 <div id="cadModalNotaFiscal" class="modal">
   <div class="modal-content">
@@ -62,7 +62,7 @@
                 <option value="faturada">Faturadas</option>
                 <option value="parcial">Faturadas parcialmente</option>
                 <option value="aberto">Em aberto</option>
-                <option value="vencida">Vencidas</option>
+                <option value="emissao-atrasada">Emissão NF atrasada</option>
               </select>
             </div>
             <fieldset class="nf-grupo-filtro nf-grupo-compacto">
@@ -71,6 +71,9 @@
                 <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroRealizacaoDe" placeholder="dd/mm/aaaa"></div>
                 <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroRealizacaoAte" placeholder="dd/mm/aaaa"></div>
               </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria orçamentos de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfFiltroRealizacaoAnoAtual" checked> Ano atual
+              </label>
             </fieldset>
             <fieldset class="nf-grupo-filtro nf-grupo-compacto">
               <legend>Vencimento</legend>
@@ -78,6 +81,9 @@
                 <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroVencimentoDe" placeholder="dd/mm/aaaa"></div>
                 <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroVencimentoAte" placeholder="dd/mm/aaaa"></div>
               </div>
+              <label class="nf-check-ano-atual" title="Desmarcado por padrão: parcelamentos que viram o ano têm vencimento fora do ano de realização. Marque pra restringir também por ano de vencimento.">
+                <input type="checkbox" id="nfFiltroVencimentoAnoAtual"> Ano atual
+              </label>
             </fieldset>
           </div>
           <div class="BTNs">
@@ -112,10 +118,13 @@
         </div>
 
         <div class="nf-rodape-totais">
+          <span class="nf-total-escopo-ano" id="nfEscopoAnoPendentes" title="Escopo de ano aplicado aos totais abaixo, conforme os checks 'Ano atual' de Realização/Vencimento"></span>
           <span>Valor total: <strong id="nfTotalGeralValor">R$ 0,00</strong></span>
           <span>Faturado: <strong id="nfTotalGeralFaturado">R$ 0,00</strong></span>
           <span>A Faturar: <strong id="nfTotalGeralSaldo">R$ 0,00</strong></span>
-          <span class="nf-total-vencido">Vencido: <strong id="nfTotalGeralVencido">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Saldo ainda não faturado cujo vencimento já passou — diferente de 'Atrasado' aqui embaixo, que é sobre pagamento não recebido">Emissão NF atrasada: <strong id="nfTotalGeralVencido">R$ 0,00</strong></span>
+          <span class="nf-total-pago" title="Notas já Emitidas confirmadas como recebidas (dinheiro entrou de verdade)">Pago: <strong id="nfTotalGeralPago">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas já Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas">Atrasado: <strong id="nfTotalGeralAtrasadoRecebimento">R$ 0,00</strong></span>
         </div>
       </div>
 
@@ -369,6 +378,9 @@
                 <div class="nf-campo nf-campo-data"><label>De</label><input id="nfEmiFiltroDe" placeholder="dd/mm/aaaa"></div>
                 <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfEmiFiltroAte" placeholder="dd/mm/aaaa"></div>
               </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfEmiFiltroAnoAtual" checked> Ano atual
+              </label>
             </fieldset>
           </div>
           <div class="BTNs">
@@ -388,13 +400,19 @@
                 <th>Nº da nota</th>
                 <th class="nf-num">Valor</th>
                 <th>Registrada em</th>
+                <th>Recebimento</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody id="nfEmitidasBody">
-              <tr><td colspan="8">Carregando...</td></tr>
+              <tr><td colspan="9">Carregando...</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="nf-rodape-totais">
+          <span class="nf-total-pago" title="Notas Emitidas confirmadas como recebidas (dinheiro entrou de verdade), para os filtros atuais">Pago: <strong id="nfEmiTotalPago">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas, para os filtros atuais">Atrasado: <strong id="nfEmiTotalAtrasado">R$ 0,00</strong></span>
         </div>
       </div>
 
@@ -422,6 +440,9 @@
                 <div class="nf-campo nf-campo-data"><label>De</label><input id="nfCancFiltroDe" placeholder="dd/mm/aaaa"></div>
                 <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfCancFiltroAte" placeholder="dd/mm/aaaa"></div>
               </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfCancFiltroAnoAtual" checked> Ano atual
+              </label>
             </fieldset>
           </div>
           <div class="BTNs">

@@ -132,6 +132,8 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
          prox.proximovencimento,
          COALESCE(parc.totalparcelas, 0) AS totalparcelas,
          COALESCE(parc.parcelaspagas, 0) AS parcelaspagas,
+         COALESCE(recb.pago, 0) AS pago,
+         COALESCE(recb.atrasadorecebimento, 0) AS atrasadorecebimento,
          (oe.idempresa = $1) AS proprioambiente,
          oe_emp.nmfantasia AS ambienteorigem_nome
        FROM orcamentos o
@@ -178,6 +180,21 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
          FROM orcamentoparcelas
          GROUP BY idorcamento
        ) parc ON parc.idorcamento = o.idorcamento
+       LEFT JOIN (
+         -- Recebimento (regime de caixa) é sobre a NOTA já Emitida, não sobre
+         -- o orçamento — "pago" soma o que já foi confirmado recebido;
+         -- "atrasadorecebimento" soma o que ainda não foi confirmado E cujo
+         -- vencimento (da parcela ligada à nota) já passou. Mesma distinção
+         -- de "Emissão NF atrasada" (que é sobre não ter emitido a tempo) —
+         -- aqui é sobre ter emitido mas o cliente não ter pago a tempo.
+         SELECT nf.idorcamento,
+                SUM(nf.valorservico) FILTER (WHERE nf.recebido = true) AS pago,
+                SUM(nf.valorservico) FILTER (WHERE nf.recebido = false AND op.dtvencimento < CURRENT_DATE) AS atrasadorecebimento
+         FROM notasfiscais nf
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         WHERE nf.status = 'Emitida'
+         GROUP BY nf.idorcamento
+       ) recb ON recb.idorcamento = o.idorcamento
        WHERE o.status = 'F'
          AND ($2::int IS NULL OR o.idcliente = $2::int)
          AND ($3::int IS NULL OR o.idevento = $3::int)
@@ -192,7 +209,7 @@ router.get("/pendentes", verificarPermissao('faturamento', 'pesquisar'), async (
            $9::text IS NULL
            OR ($9 = 'faturada' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) <= 0.009)
            OR ($9 = 'aberto' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
-           OR ($9 = 'vencida' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
+           OR ($9 = 'emissao-atrasada' AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009
                AND prox.proximovencimento < CURRENT_DATE)
            OR ($9 = 'parcial' AND COALESCE(nf.faturado, 0) > 0
                AND (o.vlrcliente - COALESCE(nf.faturado, 0)) > 0.009)
@@ -471,7 +488,7 @@ router.post("/", verificarPermissao('faturamento', 'cadastrar'), exigirFlag('mas
     } catch (error) {
       await client.query("ROLLBACK");
       console.error("Erro ao registrar nota fiscal:", error);
-      res.status(500).json({ message: "Erro ao registrar nota fiscal.", detail: error.message });
+      res.status(500).json({ message: "Erro ao registrar nota fiscal." });
     } finally {
       client.release();
     }
@@ -632,7 +649,8 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
       try {
         certificado = carregarCertificadoDaNota(nf);
       } catch (errCert) {
-        return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+        console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+        return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
       }
 
       const xml = montarXmlCancelamentoNFe({
@@ -710,7 +728,7 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
       return res.status(422).json({ message: mensagem, tipo: resultado.tipo, erros: resultado.erros || [] });
     } catch (error) {
       console.error("Erro ao cancelar nota fiscal na prefeitura:", error);
-      res.status(500).json({ message: "Erro ao cancelar nota na prefeitura.", detail: error.message });
+      res.status(500).json({ message: "Erro ao cancelar nota na prefeitura." });
     }
   });
 
@@ -718,7 +736,8 @@ router.post("/:id/cancelar-webservice", verificarPermissao('faturamento', 'alter
 router.post("/:id/anexo", verificarPermissao('faturamento', 'alterar'), (req, res) => {
   uploadNotaFiscal(req, res, async (err) => {
     if (err) {
-      return res.status(400).json({ message: err.message });
+      console.error("Erro ao processar anexo da nota fiscal:", err);
+      return res.status(400).json({ message: "Erro ao processar o arquivo enviado. Verifique se é um PDF ou imagem de até 10MB." });
     }
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado." });
@@ -742,6 +761,99 @@ router.post("/:id/anexo", verificarPermissao('faturamento', 'alterar'), (req, re
       res.status(500).json({ message: "Erro ao anexar arquivo." });
     }
   });
+});
+
+// POST /faturamento/:id/remover-anexo — desfaz um PDF anexado errado, pra
+// poder anexar o certo no lugar ("Anexar PDF" só aparece quando arquivopdf
+// está vazio). Restrito a "master" e exige justificativa (mesma trava do
+// cancelamento) — apagar o comprovante de uma nota já emitida não é uma
+// ação qualquer.
+router.post("/:id/remover-anexo", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+  const justificativa = (req.body?.justificativa || '').trim();
+
+  if (!justificativa) {
+    return res.status(400).json({ message: "Informe a justificativa da remoção." });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT idnotafiscal, arquivopdf, observacao FROM notasfiscais WHERE idnotafiscal = $1 AND idempresa = $2`,
+      [id, idempresa]
+    );
+    const nf = result.rows[0];
+    if (!nf) return res.status(404).json({ message: "Nota fiscal não encontrada." });
+    if (!nf.arquivopdf) return res.status(400).json({ message: "Essa nota não tem PDF anexado." });
+
+    try {
+      fs.unlinkSync(path.join(__dirname, '..', nf.arquivopdf));
+    } catch (errArquivo) {
+      console.error('Não consegui apagar o arquivo antigo do PDF (removendo a referência mesmo assim):', errArquivo.message);
+    }
+
+    const observacaoNova = `${nf.observacao ? nf.observacao + '\n' : ''}PDF removido manualmente por usuário Master em ${new Date().toLocaleString('pt-BR')} — motivo: ${justificativa}.`;
+
+    const notaAtualizada = await pool.query(
+      `UPDATE notasfiscais SET arquivopdf = NULL, observacao = $1 WHERE idnotafiscal = $2 AND idempresa = $3 RETURNING *`,
+      [observacaoNova, id, idempresa]
+    );
+
+    registrarLog({
+      idexecutor: req.usuario.idusuario,
+      idempresa,
+      acao: 'removeu PDF anexado',
+      modulo: 'NotaFiscal',
+      idregistroalterado: nf.idnotafiscal,
+      dadosnovos: { justificativa }
+    }).catch((errLog) => console.error('Erro ao logar remoção de PDF anexado:', errLog));
+
+    return res.json({ message: "PDF removido com sucesso!", notafiscal: notaAtualizada.rows[0] });
+  } catch (error) {
+    console.error("Erro ao remover PDF anexado:", error);
+    res.status(500).json({ message: "Erro ao remover o PDF anexado." });
+  }
+});
+
+// PUT /faturamento/:id/recebido — confirma (ou desfaz) que o cliente pagou de
+// verdade essa nota já Emitida. Nota emitida = obrigação fiscal existe;
+// recebido = dinheiro realmente entrou (regime de caixa) — são coisas
+// diferentes, essa rota controla só a segunda. Restrito a Master (pedido
+// explícito), como cancelar/enviar/registrar.
+//
+// dtrecebimento vem do financeiro (Swal no front, ver marcarRecebido em
+// Faturamento.js) em vez de sempre usar o momento do clique — o dinheiro
+// pode ter entrado numa sexta à noite e só ser conferido/confirmado no
+// sistema na segunda-feira; sem isso, ficaria registrado como recebido
+// depois do vencimento sem ter sido de verdade.
+router.put("/:id/recebido", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'), async (req, res) => {
+  const { id } = req.params;
+  const idempresa = req.idempresa;
+  const recebido = !!req.body?.recebido;
+  const dtrecebimentoInformado = req.body?.dtrecebimento;
+  const dtrecebimento = /^\d{4}-\d{2}-\d{2}$/.test(dtrecebimentoInformado || '') ? dtrecebimentoInformado : null;
+
+  if (recebido && dtrecebimento && new Date(`${dtrecebimento}T00:00:00`) > new Date()) {
+    return res.status(400).json({ message: "A data de recebimento não pode ser no futuro." });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE notasfiscais
+          SET recebido = $1,
+              dtrecebimento = CASE WHEN $1 THEN COALESCE($4::date, now()) ELSE NULL END
+        WHERE idnotafiscal = $2 AND idempresa = $3 AND status = 'Emitida'
+        RETURNING *`,
+      [recebido, id, idempresa, dtrecebimento]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ message: "Nota fiscal não encontrada ou não está Emitida." });
+    }
+    return res.json({ message: recebido ? "Marcado como recebido!" : "Marcação de recebido desfeita.", notafiscal: result.rows[0] });
+  } catch (error) {
+    console.error("Erro ao atualizar recebimento da nota fiscal:", error);
+    res.status(500).json({ message: "Erro ao atualizar recebimento." });
+  }
 });
 
 // POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
@@ -802,7 +914,7 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
       return res.json({ message: "E-mail enviado com sucesso!", notafiscal: notaAtualizada.rows[0] });
     } catch (error) {
       console.error("Erro ao enviar nota fiscal por e-mail:", error);
-      res.status(500).json({ message: "Erro ao enviar e-mail.", detail: error.message });
+      res.status(500).json({ message: "Erro ao enviar e-mail." });
     }
   });
 
@@ -1070,7 +1182,8 @@ router.get("/:id/xml", verificarPermissao('faturamento', 'pesquisar'), async (re
     try {
       certificado = carregarCertificadoDaNota(nf);
     } catch (errCert) {
-      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+      console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+      return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
     }
 
     let notaParaGerador;
@@ -1115,7 +1228,7 @@ router.get("/:id/xml", verificarPermissao('faturamento', 'pesquisar'), async (re
     return res.send(xml);
   } catch (error) {
     console.error("Erro ao gerar XML da nota fiscal:", error);
-    res.status(500).json({ message: "Erro ao gerar XML.", detail: error.message });
+    res.status(500).json({ message: "Erro ao gerar XML." });
   }
 });
 
@@ -1178,6 +1291,7 @@ router.get("/emitidas", verificarPermissao('faturamento', 'pesquisar'), async (r
     const result = await pool.query(
       `SELECT nf.idnotafiscal, nf.idorcamento, nf.descricaoservico, nf.valorservico, nf.dtregistro,
               nf.arquivoxml, nf.arquivopdf, nf.numeronota, nf.dtenvioemailcliente,
+              nf.recebido, nf.dtrecebimento,
               o.nrorcamento, c.razaosocial AS cliente_nome, c.nmfantasia AS cliente_nmfantasia,
               op.numparcela, op.dtvencimento,
               (SELECT COUNT(*) FROM orcamentoparcelas WHERE idorcamento = nf.idorcamento) AS totalparcelas,
@@ -1307,7 +1421,8 @@ router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), ex
     try {
       certificado = carregarCertificadoDaNota(linhas[0]);
     } catch (errCert) {
-      return res.status(400).json({ message: `Não consegui abrir o certificado digital da empresa emissora: ${errCert.message}` });
+      console.error("Erro ao carregar certificado digital da empresa emissora:", errCert);
+      return res.status(400).json({ message: "Não consegui abrir o certificado digital da empresa emissora. Verifique se o certificado está configurado corretamente para esta empresa." });
     }
 
     let notasParaGerador;
@@ -1451,7 +1566,7 @@ router.post("/xml-lote/enviar", verificarPermissao('faturamento', 'alterar'), ex
     });
   } catch (error) {
     console.error("Erro ao enviar lote pro Web Service da prefeitura:", error);
-    res.status(500).json({ message: "Erro ao enviar lote.", detail: error.message });
+    res.status(500).json({ message: "Erro ao enviar lote." });
   }
 });
 

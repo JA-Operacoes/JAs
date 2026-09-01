@@ -3733,18 +3733,28 @@ async function verificaStaff() {
     btnRemoverComprovanteCascata?.addEventListener('click', async () => {
         const confirmaRemocao = await Swal.fire({
             title: 'Remover imagem da solicitação?',
-            text: 'A imagem anexada será removida ao salvar o registro.',
+            html: 'A imagem anexada será removida ao salvar o registro. Justifique a remoção:',
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'Justificativa',
             showCancelButton: true,
             confirmButtonText: 'Sim, remover',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#c0392b'
+            confirmButtonColor: '#c0392b',
+            inputValidator: (v) => { if (!v || !v.trim()) return 'Justificativa obrigatória!'; }
         });
         if (!confirmaRemocao.isConfirmed) return;
         if (fileInativarDeletarInputWire) fileInativarDeletarInputWire.value = '';
         const limparInput = document.getElementById('limparComprovanteInativarDeletar');
         if (limparInput) limparInput.value = 'true';
         atualizarWidgetComprovanteInativarDeletar(null);
+
+        // Registra no log de sistema (obslogsistema) — acumula em obsGeralNotaDatas, que o
+        // envio do formulário concatena (nunca sobrepõe) ao histórico já salvo no backend.
+        const dataHora = new Date().toLocaleString('pt-BR');
+        const nomeUsuario = (typeof obterNomeDoToken === 'function') ? obterNomeDoToken() : 'Usuário';
+        const entradaRemocao = `[COMPROVANTE REMOVIDO - Imagem Inativar/Deletar] Em ${dataHora} por ${nomeUsuario}. Justificativa: ${confirmaRemocao.value.trim()}`;
+        window.obsGeralNotaDatas = window.obsGeralNotaDatas ? `${window.obsGeralNotaDatas}\n${entradaRemocao}` : entradaRemocao;
     });
 
     qtdPessoasInput           = document.getElementById('qtdPessoas');
@@ -7328,7 +7338,12 @@ async function verificaStaff() {
                         tagDatas = datasFormatadasBR ? ` [EXCEDIDO EM ${datasFormatadasBR}]` : '';
                     }
 
-                    formData.set('obslogsistemaNovo', `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`);
+                    let obsLogSistemaNovoAditivo = `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`;
+                    if (window.obsGeralNotaDatas) {
+                        obsLogSistemaNovoAditivo += `\n${window.obsGeralNotaDatas}`;
+                        window.obsGeralNotaDatas = null;
+                    }
+                    formData.set('obslogsistemaNovo', obsLogSistemaNovoAditivo);
                 } else {
                     formData.set('ativo', 'true');
                     if (window.tipoExcecaoAtual) {
@@ -7886,15 +7901,6 @@ async function verificaStaff() {
 function obterNomeDoToken() {
     const token = localStorage.getItem('token'); // ou o nome que você usa
     if (!token) return "Usuário";
-
-    console.group("🔍 Debug: Identificação do Usuário");
-    console.log("Token bruto encontrado:", token ? "Sim (Iniciado com " + token.substring(0, 10) + "...)" : "Não encontrado");
-
-    if (!token) {
-        console.warn("Aviso: Nenhum token encontrado no localStorage/sessionStorage.");
-        console.groupEnd();
-        return "Usuário";
-    }
 
     try {
         const base64Url = token.split('.')[1];
@@ -14799,16 +14805,29 @@ document.addEventListener('click', function(e) {
         const removerBtn = e.target.closest('.remover-comprovante-btn');
         const campoNome = removerBtn.getAttribute('data-campo');
 
-        // Exibe o pop-up de confirmação antes de apagar
+        const LABELS_CAMPO_COMPROVANTE = {
+            Cache: 'Cachê',
+            AjdCusto: 'Ajuda de Custo',
+            AjdCusto2: 'Ajuda de Custo 50%',
+            ControleGastos: 'Controle de Gastos',
+            NotaFiscal: 'Nota Fiscal'
+        };
+        const labelCampo = LABELS_CAMPO_COMPROVANTE[campoNome] || campoNome;
+
+        // Exige justificativa antes de apagar — mesmo padrão usado na remoção de
+        // comprovante de item de Caixinha (onRemoverComprovanteCaixinhaItem).
         Swal.fire({
-            title: 'Você tem certeza que quer remover este comprovante?',
-            text: "Esta ação irá remover o comprovante. Você não poderá desfazê-la!",
+            title: 'Remover comprovante?',
+            html: `Este comprovante de <b>${labelCampo}</b> já foi anexado. Justifique a remoção:`,
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'Justificativa',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
             confirmButtonText: 'Sim, remover!',
-            cancelButtonText: 'Não, cancelar'
+            cancelButtonText: 'Não, cancelar',
+            inputValidator: (v) => { if (!v || !v.trim()) return 'Justificativa obrigatória!'; }
         }).then((result) => {
             // Se o usuário confirmou a remoção
             if (result.isConfirmed) {
@@ -14819,27 +14838,28 @@ document.addEventListener('click', function(e) {
                 const hiddenRemoverInput = document.getElementById(`limparComprovante${campoNome}`);
                 const fileInput = document.getElementById(`file${campoNome}`);
                 const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
-                
+
                 // Oculta a área do link/botão de remoção
                 if (mainDisplayContainer) mainDisplayContainer.style.display = 'none';
                 if (linkDisplayContainer) linkDisplayContainer.innerHTML = '';
-                
+
                 // Mostra a área de upload de arquivo
                 if (fileLabel) fileLabel.style.display = 'block';
-                
+
                 // Limpa o input do arquivo e o texto exibido
                 if (fileInput) fileInput.value = '';
                 if (fileNameDisplay) fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-                
+
                 // Seta o input hidden para indicar que o comprovante deve ser removido no servidor
                 if (hiddenRemoverInput) hiddenRemoverInput.value = 'true';
 
-                // Opcional: Mostra uma mensagem de sucesso após a remoção
-                // Swal.fire(
-                //     'Removido!',
-                //     'O comprovante foi marcado para remoção.',
-                //     'success'
-                // );
+                // Registra no log de sistema (obslogsistema) — acumula em obsGeralNotaDatas,
+                // que o envio do formulário concatena (nunca sobrepõe) ao histórico já salvo
+                // no backend (ver rotaStaff.js: obsLogSistemaFinal).
+                const dataHora = new Date().toLocaleString('pt-BR');
+                const nomeUsuario = (typeof obterNomeDoToken === 'function') ? obterNomeDoToken() : 'Usuário';
+                const entradaRemocao = `[COMPROVANTE REMOVIDO - ${labelCampo}] Em ${dataHora} por ${nomeUsuario}. Justificativa: ${result.value.trim()}`;
+                window.obsGeralNotaDatas = window.obsGeralNotaDatas ? `${window.obsGeralNotaDatas}\n${entradaRemocao}` : entradaRemocao;
             }
         });
     }

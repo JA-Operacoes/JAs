@@ -68,7 +68,7 @@ router.get("/:nrOrcamento/contrato", verificarPermissao("Orcamentos", "pesquisar
 
     } catch (error) {
         console.error("Erro ao gerar contrato:", error);
-        res.status(500).json({ error: "Erro ao gerar contrato", detail: error.message });
+        res.status(500).json({ error: "Erro ao gerar contrato." });
     } finally {
         client.release();
     }

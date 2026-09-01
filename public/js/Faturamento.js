@@ -208,16 +208,34 @@ function aoMudarEventoFiltro() {
   preencherComboFiltro('Cliente', opcoesUnicasOrdenadas(base, 'idcliente', 'cliente_nome'), idClienteAtual);
 }
 
+// "Ano atual" (ver nf-check-ano-atual no HTML — Visão Geral tem dois grupos
+// independentes, Realização/Vencimento; Emitidas/Canceladas têm só Registro)
+// só entra em ação quando os campos De/Até do próprio grupo estão vazios:
+// digitar um período manualmente já desmarca o check sozinho (ver listener
+// de input), então aqui nunca sobrescreve o que a pessoa escolheu a dedo.
+function periodoAnoAtualSeVazio(checkboxId, deId, ateId) {
+  const marcado = document.getElementById(checkboxId).checked;
+  const de = document.getElementById(deId).value.trim();
+  const ate = document.getElementById(ateId).value.trim();
+  if (!marcado || de || ate) {
+    return { de: converterDataBRParaISO(de), ate: converterDataBRParaISO(ate) };
+  }
+  const ano = new Date().getFullYear();
+  return { de: `${ano}-01-01`, ate: `${ano}-12-31` };
+}
+
 function montarQueryFiltrosPendentes() {
   const params = new URLSearchParams();
   const idcliente = document.getElementById('nfFiltroCliente').value;
   const idevento = document.getElementById('nfFiltroEvento').value;
   const idempresaemissora = document.getElementById('nfFiltroEmpresaEmissora').value;
   const statusFatura = document.getElementById('nfFiltroStatusFatura').value;
-  const dtRealizacaoDe = converterDataBRParaISO(document.getElementById('nfFiltroRealizacaoDe').value.trim());
-  const dtRealizacaoAte = converterDataBRParaISO(document.getElementById('nfFiltroRealizacaoAte').value.trim());
-  const dtVencimentoDe = converterDataBRParaISO(document.getElementById('nfFiltroVencimentoDe').value.trim());
-  const dtVencimentoAte = converterDataBRParaISO(document.getElementById('nfFiltroVencimentoAte').value.trim());
+  const periodoRealizacao = periodoAnoAtualSeVazio('nfFiltroRealizacaoAnoAtual', 'nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte');
+  const periodoVencimento = periodoAnoAtualSeVazio('nfFiltroVencimentoAnoAtual', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte');
+  const dtRealizacaoDe = periodoRealizacao.de;
+  const dtRealizacaoAte = periodoRealizacao.ate;
+  const dtVencimentoDe = periodoVencimento.de;
+  const dtVencimentoAte = periodoVencimento.ate;
 
   if (idcliente) params.set('idcliente', idcliente);
   if (idevento) params.set('idevento', idevento);
@@ -253,6 +271,9 @@ function limparFiltrosPendentes() {
   ['nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte'].forEach((id) => {
     document.getElementById(id).value = '';
   });
+  // Volta pro padrão: Ano atual em Realização, desmarcado em Vencimento.
+  document.getElementById('nfFiltroRealizacaoAnoAtual').checked = true;
+  document.getElementById('nfFiltroVencimentoAnoAtual').checked = false;
   carregarPendentes();
 }
 
@@ -276,8 +297,35 @@ function calcularTotaisLista(lista) {
     if (saldo > 0.009 && o.proximovencimento && new Date(o.proximovencimento) < hojeUTC) {
       acc.vencido += saldo;
     }
+    // Recebimento (regime de caixa) — só existe pra nota já Emitida, vem
+    // pronto agregado do backend (subquery "recb" em GET /pendentes).
+    acc.pago += parseFloat(o.pago) || 0;
+    acc.atrasadoRecebimento += parseFloat(o.atrasadorecebimento) || 0;
     return acc;
-  }, { valor: 0, faturado: 0, saldo: 0, vencido: 0 });
+  }, { valor: 0, faturado: 0, saldo: 0, vencido: 0, pago: 0, atrasadoRecebimento: 0 });
+}
+
+// Rótulo discreto no rodapé indicando qual escopo de ano está por trás dos
+// totais abaixo — mesma regra de vazio/marcado de periodoAnoAtualSeVazio,
+// só que aqui é puro texto (não refiltra nada). Some (string vazia) quando
+// a pessoa digitou um período manual em vez de usar "Ano atual": um período
+// customizado não cabe num rótulo de "Ano X", então melhor não inventar um.
+function descricaoEscopoAnoPendentes() {
+  const ano = new Date().getFullYear();
+  const vazio = (id) => !document.getElementById(id).value.trim();
+  const realizacaoAnoAtual = document.getElementById('nfFiltroRealizacaoAnoAtual').checked
+    && vazio('nfFiltroRealizacaoDe') && vazio('nfFiltroRealizacaoAte');
+  const vencimentoAnoAtual = document.getElementById('nfFiltroVencimentoAnoAtual').checked
+    && vazio('nfFiltroVencimentoDe') && vazio('nfFiltroVencimentoAte');
+
+  const partes = [];
+  if (realizacaoAnoAtual) partes.push(`Ano Realização ${ano}`);
+  if (vencimentoAnoAtual) partes.push(`Ano Vencimentos ${ano}`);
+  if (partes.length) return partes.join(' + ');
+
+  const temPeriodoManual = ['nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte']
+    .some((id) => !vazio(id));
+  return temPeriodoManual ? '' : 'Todos os Anos';
 }
 
 function atualizarTotaisGeraisPendentes(lista) {
@@ -286,6 +334,9 @@ function atualizarTotaisGeraisPendentes(lista) {
   document.getElementById('nfTotalGeralFaturado').textContent = fmtMoeda(totais.faturado);
   document.getElementById('nfTotalGeralSaldo').textContent = fmtMoeda(totais.saldo);
   document.getElementById('nfTotalGeralVencido').textContent = fmtMoeda(totais.vencido);
+  document.getElementById('nfTotalGeralPago').textContent = fmtMoeda(totais.pago);
+  document.getElementById('nfTotalGeralAtrasadoRecebimento').textContent = fmtMoeda(totais.atrasadoRecebimento);
+  document.getElementById('nfEscopoAnoPendentes').textContent = descricaoEscopoAnoPendentes();
 }
 
 let pendentesListaAtual = [];
@@ -408,22 +459,22 @@ function atualizarSetasOrdenacaoPendentes() {
 }
 
 // ---- Impressão (Visão Geral) ----
-// Logo da empresa atual (mesmo mecanismo já usado em Relatorios.js:
-// GET /relatorios/empresas/:id devolve nmfantasia, o nome do arquivo em
-// public/img/ é o nmfantasia em maiúsculas com separadores trocados por "_").
-// Caminho relativo (não localhost:3000 fixo) pra funcionar em produção também.
-let nfEmpresaLogoPath = '/img/JA_Oper.png';
+// Logo da empresa atual — vem do cadastro de Empresas (campo logo, upload de
+// verdade, ver CadEmpresa.html/rotaEmpresa.js). Nada de adivinhar o nome do
+// arquivo a partir de nmfantasia: já tentamos isso e deu errado pra EA/EXPO
+// (nmfantasia no banco não bate direito com o arquivo real).
+let nfEmpresaLogoPath = null; // null = não mostra nenhum logo (em vez de mostrar um errado)
 
 async function inicializarLogoEmpresaImpressao() {
   const idempresa = localStorage.getItem('idempresa');
   if (!idempresa) return;
   try {
     const empresa = await fetchComToken(`/relatorios/empresas/${idempresa}`);
-    if (empresa?.nmfantasia) {
-      nfEmpresaLogoPath = `/img/${empresa.nmfantasia.toUpperCase().replace(/[^A-Z0-9]/g, '_')}.png`;
+    if (empresa?.logo) {
+      nfEmpresaLogoPath = `/${empresa.logo}`;
     }
   } catch (err) {
-    console.warn('Não consegui buscar o logo da empresa pra impressão, usando o padrão:', err);
+    console.warn('Não consegui buscar o logo da empresa pra impressão:', err);
   }
 }
 
@@ -450,38 +501,48 @@ const NF_COLUNAS_IMPRESSAO = [
 // Resumo dos filtros ativos em Visão Geral, pra aparecer no cabeçalho da
 // impressão — sobretudo no modo "Só Total", que não mostra as linhas, só os
 // totais e o que foi filtrado pra chegar neles.
+// Sempre mostra os 6 filtros de Visão Geral, mesmo os não preenchidos (com
+// "Todos"/"Todas"/"—") — pedido explícito: deixa claro o escopo completo do
+// relatório em vez de só citar o que foi de fato restringido.
+// Texto do período pro cabeçalho da impressão — mostra "Ano atual (2026)"
+// quando o check está ativo e ninguém digitou nada (mesma regra de
+// periodoAnoAtualSeVazio), senão mostra o período digitado ou "Todos".
+function descricaoPeriodoImpressao(checkboxId, deId, ateId) {
+  const marcado = document.getElementById(checkboxId).checked;
+  const de = document.getElementById(deId).value.trim();
+  const ate = document.getElementById(ateId).value.trim();
+  if (marcado && !de && !ate) return `Ano atual (${new Date().getFullYear()})`;
+  if (!de && !ate) return 'Todos';
+  return `${de || '—'} a ${ate || '—'}`;
+}
+
 function resumoFiltrosPendentesAtivos() {
-  const partes = [];
   const cliente = document.getElementById('nfBuscaCliente').value.trim();
-  if (cliente) partes.push(`Cliente: ${cliente}`);
   const evento = document.getElementById('nfBuscaEvento').value.trim();
-  if (evento) partes.push(`Evento: ${evento}`);
-  // Empresa emissora sempre aparece, mesmo em "Todas" — deixa explícito o
-  // escopo do relatório em vez de simplesmente omitir quando não filtrado.
   const selectEmpresa = document.getElementById('nfFiltroEmpresaEmissora');
-  partes.push(`Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`);
   const selectStatus = document.getElementById('nfFiltroStatusFatura');
-  if (selectStatus.value) partes.push(`Status: ${selectStatus.options[selectStatus.selectedIndex].text}`);
-  const realDe = document.getElementById('nfFiltroRealizacaoDe').value.trim();
-  const realAte = document.getElementById('nfFiltroRealizacaoAte').value.trim();
-  if (realDe || realAte) partes.push(`Realização: ${realDe || '—'} a ${realAte || '—'}`);
-  const vencDe = document.getElementById('nfFiltroVencimentoDe').value.trim();
-  const vencAte = document.getElementById('nfFiltroVencimentoAte').value.trim();
-  if (vencDe || vencAte) partes.push(`Vencimento: ${vencDe || '—'} a ${vencAte || '—'}`);
-  return partes;
+
+  return [
+    `Cliente: ${cliente || 'Todos'}`,
+    `Evento: ${evento || 'Todos'}`,
+    `Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`,
+    `Status: ${selectStatus.value ? selectStatus.options[selectStatus.selectedIndex].text : 'Todas'}`,
+    `Realização do Evento: ${descricaoPeriodoImpressao('nfFiltroRealizacaoAnoAtual', 'nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte')}`,
+    `Vencimento da NF: ${descricaoPeriodoImpressao('nfFiltroVencimentoAnoAtual', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte')}`,
+  ];
 }
 
 function cabecalhoImpressaoPendentes(subtitulo) {
-  const dataHora = new Date().toLocaleString('pt-BR');
   const filtros = resumoFiltrosPendentesAtivos();
+  // Sem "Gerado em ..." aqui — o navegador já imprime data/hora sozinho no
+  // cabeçalho automático da página (pedido: informação duplicada).
   return `
-    <div class="nf-print-topo">
-      <img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">
+    <div class="nf-print-topo${nfEmpresaLogoPath ? '' : ' sem-logo'}">
+      ${nfEmpresaLogoPath ? `<img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">` : ''}
       <h1>Faturamento</h1>
     </div>
     <div class="nf-print-barra-titulo">VISÃO GERAL — ${escaparAtributo(subtitulo)}</div>
-    <p class="nf-print-geradoem">Gerado em ${dataHora}</p>
-    ${filtros.length ? `<div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>` : ''}`;
+    <div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>`;
 }
 
 // Escreve o conteúdo no iframe oculto e dispara a impressão — mesmo padrão
@@ -496,20 +557,25 @@ function imprimirHtmlEmIframe(conteudoHtml) {
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faturamento — Visão Geral</title>
     <style>
       @page { size: A4 landscape; margin: 1cm; }
+      /* Sem isso, o Chrome ignora background/cor de fundo na impressão real
+         (só mostra na pré-visualização) a menos que o usuário marque
+         "Gráficos de segundo plano" manualmente nas opções de impressão —
+         força a cor a sair sempre, sem depender dessa opção. */
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
       body { font-family: Arial, sans-serif; color: #222; margin: 0; }
       .nf-print-topo { display: flex; align-items: center; gap: 16px; background: #eef0f2; padding: 10px 16px; border-radius: 6px 6px 0 0; }
       .nf-print-logo { max-height: 40px; }
-      .nf-print-topo h1 { flex: 1; text-align: center; margin: 0; margin-right: 56px; font-size: 24px; letter-spacing: .04em; color: #2c3e50; }
-      .nf-print-barra-titulo { background: #2c3e50; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .03em; padding: 6px 16px; }
-      .nf-print-geradoem { margin: 6px 16px 0; font-size: 11px; color: #777; }
+      .nf-print-topo h1 { flex: 1; text-align: center; margin: 0; margin-right: 56px; font-size: 24px; letter-spacing: .04em; color: #050505; }
+      .nf-print-topo.sem-logo h1 { margin-right: 0; }
+      .nf-print-barra-titulo { background: #7e7e7e; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .03em; padding: 6px 16px; }
       .nf-print-filtros { margin: 8px 16px 14px; }
-      .nf-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #2c3e50; }
+      .nf-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #7e7e7e; }
       table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 0 0 12px; }
       th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
       th { background: #ddd; color: #000; font-weight: bold; }
       tbody tr:nth-child(even) { background: #f5f6f7; }
       td.num, th.num { text-align: right; }
-      .nf-print-total-geral td { background: #2c3e50; color: #fff; font-weight: bold; font-size: 12px; }
+      .nf-print-total-geral td { background: #7e7e7e; color: #fff; font-weight: bold; font-size: 12px; }
       .nf-print-vazio { margin: 0 16px; color: #777; }
     </style>
   </head><body>${conteudoHtml}</body></html>`);
@@ -521,9 +587,11 @@ function imprimirHtmlEmIframe(conteudoHtml) {
   }, 300);
 }
 
+// titulo null = sem a 1ª coluna (usado no total geral do modo "Detalhes",
+// que não é quebrado por empresa — ver gerarImpressaoDetalhes).
 function linhaTotaisImpressao(titulo, totais, destaque) {
   return `<tr${destaque ? ' class="nf-print-total-geral"' : ''}>
-    <td>${escaparAtributo(titulo)}</td>
+    ${titulo != null ? `<td>${escaparAtributo(titulo)}</td>` : ''}
     <td class="num">${fmtMoeda(totais.valor)}</td>
     <td class="num">${fmtMoeda(totais.faturado)}</td>
     <td class="num">${fmtMoeda(totais.saldo)}</td>
@@ -556,7 +624,7 @@ function gerarImpressaoSoTotal() {
     }
     corpo = `
       <table>
-        <thead><tr><th>Empresa Emissora</th><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Vencidos</th></tr></thead>
+        <thead><tr><th>Empresa Emissora</th><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>`;
   }
@@ -570,11 +638,22 @@ function gerarImpressaoDetalhes(colunasEscolhidas) {
   // Mesma ordem que está na tela (respeita clique em ordenação já feito).
   const lista = aplicarOrdenacaoAtual(pendentesListaAtual);
   const linhas = lista.map((o) => `<tr>${colunas.map((c) => `<td${c.numerica ? ' class="num"' : ''}>${c.valor(o)}</td>`).join('')}</tr>`).join('');
+
+  // Total geral (Valor total/Faturado/A Faturar/Vencidos) da lista inteira —
+  // pedido explícito, pra não precisar gerar "Só Total" à parte só pra ver
+  // os totais de uma impressão em Detalhes. Sem quebra por empresa emissora
+  // aqui (esse detalhamento é o papel do modo "Só Total").
+  const blocoTotalGeral = lista.length ? `
+    <table>
+      <thead><tr><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th></tr></thead>
+      <tbody>${linhaTotaisImpressao(null, calcularTotaisLista(lista), true)}</tbody>
+    </table>` : '';
+
   const html = cabecalhoImpressaoPendentes(`Detalhes — ${lista.length} orçamento${lista.length === 1 ? '' : 's'}`) + `
     <table>
       <thead><tr>${colunas.map((c) => `<th${c.numerica ? ' class="num"' : ''}>${c.label}</th>`).join('')}</tr></thead>
       <tbody>${linhas || `<tr><td colspan="${colunas.length}">Nenhum orçamento para os filtros selecionados.</td></tr>`}</tbody>
-    </table>`;
+    </table>` + blocoTotalGeral;
   imprimirHtmlEmIframe(html);
 }
 
@@ -871,8 +950,8 @@ function renderizarNotasProntasParaEnvio() {
           <button type="button" class="nf-btn-acao confirmar" data-marcar="${n.idnotafiscal}">Marcar emitida</button>
           ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar" data-cancelar="${n.idnotafiscal}" title="Cancela apenas no Sistema, não cancela na prefeitura">Cancelar</button>` : ''}
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
-          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+          <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
         </td>
       </tr>`).join('');
 
@@ -918,8 +997,9 @@ function montarQueryFiltrosEmitidas() {
   const params = new URLSearchParams();
   const idcliente = document.getElementById('nfFiltroEmiCliente').value;
   const idempresaemissora = document.getElementById('nfEmiFiltroEmpresaEmissora').value;
-  const dtDe = converterDataBRParaISO(document.getElementById('nfEmiFiltroDe').value.trim());
-  const dtAte = converterDataBRParaISO(document.getElementById('nfEmiFiltroAte').value.trim());
+  const periodo = periodoAnoAtualSeVazio('nfEmiFiltroAnoAtual', 'nfEmiFiltroDe', 'nfEmiFiltroAte');
+  const dtDe = periodo.de;
+  const dtAte = periodo.ate;
 
   if (idcliente) params.set('idcliente', idcliente);
   if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
@@ -933,19 +1013,47 @@ function limparFiltrosEmitidas() {
   document.getElementById('nfEmiFiltroEmpresaEmissora').value = '';
   document.getElementById('nfEmiFiltroDe').value = '';
   document.getElementById('nfEmiFiltroAte').value = '';
+  document.getElementById('nfEmiFiltroAnoAtual').checked = true;
   carregarEmitidas();
 }
 
 let emitidasTodasParaFiltro = [];
 let filtrosEmitidasPopulados = false;
 
+// Recebimento (dinheiro entrou de verdade) é diferente de emissão (obrigação
+// fiscal existe) — "Atrasado" aqui é sobre o cliente não ter pago ainda,
+// nada a ver com o "Vencida"/"Emissão NF atrasada" da Visão Geral (que é
+// sobre não ter emitido a nota a tempo). Mesma comparação em UTC-meia-noite
+// já usada em atualizarTotaisGeraisPendentes, pra não depender do fuso de
+// quem está usando o sistema.
+function estaVencidoParaRecebimento(dtvencimento) {
+  if (!dtvencimento) return false;
+  const hojeUTC = new Date();
+  hojeUTC.setUTCHours(0, 0, 0, 0);
+  return new Date(dtvencimento) < hojeUTC;
+}
+
+// Totais de recebimento (Pago/Atrasado) pros filtros atuais da aba Emitidas
+// — pedido explícito, mesmo espírito do rodapé de totais da Visão Geral.
+function atualizarTotaisEmitidas(notas) {
+  const totais = notas.reduce((acc, n) => {
+    const valor = parseFloat(n.valorservico) || 0;
+    if (n.recebido) acc.pago += valor;
+    else if (estaVencidoParaRecebimento(n.dtvencimento)) acc.atrasado += valor;
+    return acc;
+  }, { pago: 0, atrasado: 0 });
+  document.getElementById('nfEmiTotalPago').textContent = fmtMoeda(totais.pago);
+  document.getElementById('nfEmiTotalAtrasado').textContent = fmtMoeda(totais.atrasado);
+}
+
 async function carregarEmitidas() {
   const tbody = document.getElementById('nfEmitidasBody');
-  tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9">Carregando...</td></tr>';
 
   try {
     const query = montarQueryFiltrosEmitidas();
     const notas = await fetchComToken(`/faturamento/emitidas${query ? '?' + query : ''}`);
+    atualizarTotaisEmitidas(notas);
 
     if (!filtrosEmitidasPopulados) {
       filtrosEmitidasPopulados = true;
@@ -955,7 +1063,7 @@ async function carregarEmitidas() {
     }
 
     if (!notas.length) {
-      tbody.innerHTML = '<tr><td colspan="8">Nenhuma nota emitida para os filtros selecionados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9">Nenhuma nota emitida para os filtros selecionados.</td></tr>';
       return;
     }
 
@@ -972,15 +1080,22 @@ async function carregarEmitidas() {
         <td class="nf-num">${fmtMoeda(n.valorservico)}</td>
         <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
         <td>
+          ${n.recebido
+            ? `<span class="nf-chip emitida" title="${n.dtrecebimento ? `Recebido em ${formatarDataBR(n.dtrecebimento)}` : 'Recebido'}">Pago</span>`
+            : (estaVencidoParaRecebimento(n.dtvencimento) ? `<span class="nf-chip bloqueio">Atrasado</span>` : `<span class="nf-chip rascunho">A Receber</span>`)}
+          ${n.proprioambiente && temMasterFaturamento() ? `<br><button type="button" class="nf-btn-acao ${n.recebido ? 'cancelar' : 'confirmar'}" data-marcar-recebido="${n.idnotafiscal}" data-recebido-atual="${n.recebido ? '1' : '0'}" title="${n.recebido ? 'Cliente ainda não pagou de verdade? Desfaça aqui' : 'Confirma que o dinheiro realmente entrou (depósito/boleto compensado) — diferente de já ter emitido a nota'}">${n.recebido ? 'Desfazer' : 'Marcar como recebido'}</button>` : ''}
+        </td>
+        <td>
           ${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado, sem gerar de novo">Ver XML</a>` : ''}
           ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : ''}
           ${n.proprioambiente
-            ? `<button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>
+            ? `${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}
                ${!n.arquivopdf ? `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>` : ''}
                ${n.arquivopdf
                   ? `<button type="button" class="nf-btn-acao email" data-enviar-email="${n.idnotafiscal}" data-email-cliente="${escaparAtributo(n.cliente_email || '')}" title="${n.dtenvioemailcliente ? `Já enviado em ${formatarDataBR(n.dtenvioemailcliente)} — clique pra enviar de novo` : 'Manda o PDF anexado pro e-mail do cliente'}">${n.dtenvioemailcliente ? 'Reenviar e-mail' : 'Enviar por E-mail'}</button>`
                   : `<button type="button" class="nf-btn-acao email" disabled title="Anexe o PDF antes de poder enviar por e-mail">Enviar por E-mail</button>`}
-               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}`
+               ${temMasterFaturamento() ? `<button type="button" class="nf-btn-acao cancelar-webservice" data-cancelar-webservice="${n.idnotafiscal}" title="Cancela de verdade na prefeitura, via Web Service">Cancelar NF na Prefeitura</button>` : ''}
+               <button type="button" class="nf-btn-acao gerar" data-idnotafiscal="${n.idnotafiscal}" title="${n.arquivoxml ? 'Gera de novo (sobrescreve o atual) — use se algum dado mudou' : 'Gera o XML do RPS individual desta nota'}">${n.arquivoxml ? 'Gerar XML novamente' : 'Baixar XML individual'}</button>`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
@@ -997,9 +1112,15 @@ async function carregarEmitidas() {
     tbody.querySelectorAll('[data-enviar-email]').forEach((btn) => {
       btn.addEventListener('click', () => enviarNotaPorEmail(btn.dataset.enviarEmail, btn.dataset.emailCliente));
     });
+    tbody.querySelectorAll('[data-remover-pdf]').forEach((btn) => {
+      btn.addEventListener('click', () => removerPdfAnexado(btn.dataset.removerPdf));
+    });
+    tbody.querySelectorAll('[data-marcar-recebido]').forEach((btn) => {
+      btn.addEventListener('click', () => marcarRecebido(btn.dataset.marcarRecebido, btn.dataset.recebidoAtual === '1'));
+    });
   } catch (err) {
     console.error('Erro ao carregar notas emitidas:', err);
-    tbody.innerHTML = '<tr><td colspan="8">Erro ao carregar notas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
   }
 }
 
@@ -1008,8 +1129,9 @@ function montarQueryFiltrosCanceladas() {
   const params = new URLSearchParams();
   const idcliente = document.getElementById('nfFiltroCancCliente').value;
   const idempresaemissora = document.getElementById('nfCancFiltroEmpresaEmissora').value;
-  const dtDe = converterDataBRParaISO(document.getElementById('nfCancFiltroDe').value.trim());
-  const dtAte = converterDataBRParaISO(document.getElementById('nfCancFiltroAte').value.trim());
+  const periodo = periodoAnoAtualSeVazio('nfCancFiltroAnoAtual', 'nfCancFiltroDe', 'nfCancFiltroAte');
+  const dtDe = periodo.de;
+  const dtAte = periodo.ate;
 
   if (idcliente) params.set('idcliente', idcliente);
   if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
@@ -1023,6 +1145,7 @@ function limparFiltrosCanceladas() {
   document.getElementById('nfCancFiltroEmpresaEmissora').value = '';
   document.getElementById('nfCancFiltroDe').value = '';
   document.getElementById('nfCancFiltroAte').value = '';
+  document.getElementById('nfCancFiltroAnoAtual').checked = true;
   carregarCanceladas();
 }
 
@@ -1062,11 +1185,18 @@ async function carregarCanceladas() {
         <td>
           ${n.proprioambiente
             ? `${n.arquivoxml ? `<a class="nf-btn-acao ver" href="/${n.arquivoxml}" target="_blank" title="Abre o último XML gerado antes do cancelamento">Ver XML</a>` : ''}
-               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : ''}
-               ${!n.arquivoxml && !n.arquivopdf ? '—' : ''}`
+               ${n.arquivopdf ? `<a class="nf-btn-acao ver" href="/${n.arquivopdf}" target="_blank">Ver PDF</a>` : `<button type="button" class="nf-btn-acao anexar" data-anexar="${n.idnotafiscal}">Anexar PDF</button>`}
+               ${n.arquivopdf && temMasterFaturamento() ? `<button type="button" class="nf-btn-icone remover-pdf" data-remover-pdf="${n.idnotafiscal}" title="Remover PDF anexado (só Master) — libera pra anexar outro no lugar"><i class="fa-solid fa-trash"></i></button>` : ''}`
             : `<span class="nf-chip rascunho" title="Só visualização por aqui — o processo continua no ambiente de origem">Feito pelo ambiente ${escaparAtributo(n.ambienteorigem_nome || '—')}</span>`}
         </td>
       </tr>`).join('');
+
+    tbody.querySelectorAll('[data-anexar]').forEach((btn) => {
+      btn.addEventListener('click', () => anexarPdf(btn.dataset.anexar));
+    });
+    tbody.querySelectorAll('[data-remover-pdf]').forEach((btn) => {
+      btn.addEventListener('click', () => removerPdfAnexado(btn.dataset.removerPdf));
+    });
   } catch (err) {
     console.error('Erro ao carregar notas canceladas:', err);
     tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
@@ -2010,12 +2140,125 @@ function anexarPdf(idnotafiscal, idorcamento) {
       if (idorcamento) await renderHistorico(idorcamento);
       await atualizarProntasParaEnvioSeVisivel();
       await atualizarEmitidasSeVisivel();
+      await atualizarCanceladasSeVisivel();
     } catch (err) {
       console.error('Erro ao anexar arquivo:', err);
       aviso('error', 'Erro', 'Não foi possível anexar o arquivo.');
     }
   };
   input.click();
+}
+
+// Restrito a Master (botão só aparece pra quem tem a flag — ver
+// temMasterFaturamento) — desfaz um PDF anexado por engano, liberando
+// "Anexar PDF" de novo pra subir o correto. Mesma trava de justificativa do
+// cancelamento: some com o comprovante de uma nota já emitida, não é uma
+// ação qualquer.
+async function removerPdfAnexado(idnotafiscal) {
+  const { isConfirmed } = await Swal.fire({
+    icon: 'warning',
+    title: 'Remover o PDF anexado?',
+    text: 'O arquivo atual será apagado e o botão "Anexar PDF" volta a aparecer pra subir o correto no lugar.',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, remover',
+    cancelButtonText: 'Voltar',
+    reverseButtons: true,
+    focusCancel: true
+  });
+  if (!isConfirmed) return;
+
+  const { value: justificativa } = await Swal.fire({
+    icon: 'warning',
+    title: 'Justificativa da remoção',
+    input: 'textarea',
+    inputPlaceholder: 'Explique o motivo (obrigatório)...',
+    showCancelButton: true,
+    confirmButtonText: 'Confirmar remoção',
+    cancelButtonText: 'Voltar',
+    reverseButtons: true,
+    inputValidator: (valor) => {
+      if (!valor || !valor.trim()) return 'Informe a justificativa antes de confirmar.';
+    }
+  });
+  if (!justificativa) return;
+
+  try {
+    await fetchComToken(`/faturamento/${idnotafiscal}/remover-anexo`, {
+      method: 'POST',
+      body: { justificativa: justificativa.trim() }
+    });
+    await atualizarEmitidasSeVisivel();
+    await atualizarCanceladasSeVisivel();
+  } catch (err) {
+    console.error('Erro ao remover PDF anexado:', err);
+    aviso('error', 'Erro', (err.corpo && err.corpo.message) || 'Não foi possível remover o PDF anexado.');
+  }
+}
+
+// Confirma (ou desfaz) que o cliente realmente pagou — diferente de "emitir
+// a nota" (obrigação fiscal), esse é o regime de caixa: só marca quando o
+// dinheiro entrou de verdade (depósito/boleto compensado conferido pelo
+// financeiro). Restrito a Master (pedido explícito), sem justificativa
+// exigida (diferente de cancelar/remover PDF).
+async function marcarRecebido(idnotafiscal, recebidoAtual) {
+  let dtrecebimento = null;
+
+  if (recebidoAtual) {
+    const { isConfirmed } = await Swal.fire({
+      icon: 'question',
+      title: 'Desfazer marcação de recebido?',
+      text: 'Volta a aparecer como "A Receber" ou "Atrasado" (conforme o vencimento).',
+      showCancelButton: true,
+      confirmButtonText: 'Sim, desfazer',
+      cancelButtonText: 'Voltar',
+      reverseButtons: true
+    });
+    if (!isConfirmed) return;
+  } else {
+    const hoje = new Date();
+    const hojeBR = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+
+    // Data editável, pré-preenchida com hoje — o dinheiro pode ter entrado
+    // numa sexta à noite e só ser conferido/confirmado no sistema na
+    // segunda, então "agora" nem sempre é a data certa de recebimento.
+    const { value: dataDigitada } = await Swal.fire({
+      icon: 'question',
+      title: 'Confirmar recebimento',
+      html: 'Confirme só depois de já ter conferido o depósito ou o boleto compensado.<br>Informe a data em que o dinheiro <strong>realmente entrou</strong> (pode ser diferente de hoje).',
+      input: 'text',
+      inputValue: hojeBR,
+      inputPlaceholder: 'dd/mm/aaaa',
+      inputAttributes: { maxlength: '10', autocomplete: 'off' },
+      showCancelButton: true,
+      confirmButtonText: 'Sim, confirmar',
+      cancelButtonText: 'Voltar',
+      reverseButtons: true,
+      didOpen: () => {
+        const input = Swal.getInput();
+        input.addEventListener('input', () => mascararDataDigitada(input));
+      },
+      inputValidator: (valor) => {
+        const iso = converterDataBRParaISO((valor || '').trim());
+        if (!iso) return 'Informe uma data válida (dd/mm/aaaa).';
+        const hojeMeiaNoite = new Date();
+        hojeMeiaNoite.setHours(0, 0, 0, 0);
+        if (new Date(`${iso}T00:00:00`) > hojeMeiaNoite) return 'A data de recebimento não pode ser no futuro.';
+      }
+    });
+    if (!dataDigitada) return;
+    dtrecebimento = converterDataBRParaISO(dataDigitada.trim());
+  }
+
+  try {
+    await fetchComToken(`/faturamento/${idnotafiscal}/recebido`, {
+      method: 'PUT',
+      body: { recebido: !recebidoAtual, dtrecebimento }
+    });
+    await atualizarEmitidasSeVisivel();
+  } catch (err) {
+    console.error('Erro ao atualizar recebimento:', err);
+    aviso('error', 'Erro', (err.corpo && err.corpo.message) || 'Não foi possível atualizar o recebimento.');
+  }
 }
 
 // ---- Inicialização (chamada pelo loader genérico de módulos) ----
@@ -2057,8 +2300,29 @@ function configurarEventosNotaFiscal() {
     mascararDataDigitada(e.target);
   });
 
-  ['nfFiltroRealizacaoDe', 'nfFiltroRealizacaoAte', 'nfFiltroVencimentoDe', 'nfFiltroVencimentoAte'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', (e) => mascararDataDigitada(e.target));
+  // Cada par De/Até tem seu próprio check "Ano atual" (Realização/Vencimento
+  // são independentes — ver periodoAnoAtualSeVazio): digitar um período
+  // manualmente nesse grupo desmarca o check sozinho, e marcar o check de
+  // novo limpa os campos (o período digitado não faria mais sentido
+  // convivendo com "Ano atual").
+  [
+    { de: 'nfFiltroRealizacaoDe', ate: 'nfFiltroRealizacaoAte', check: 'nfFiltroRealizacaoAnoAtual' },
+    { de: 'nfFiltroVencimentoDe', ate: 'nfFiltroVencimentoAte', check: 'nfFiltroVencimentoAnoAtual' },
+    { de: 'nfEmiFiltroDe', ate: 'nfEmiFiltroAte', check: 'nfEmiFiltroAnoAtual' },
+    { de: 'nfCancFiltroDe', ate: 'nfCancFiltroAte', check: 'nfCancFiltroAnoAtual' },
+  ].forEach(({ de, ate, check }) => {
+    [de, ate].forEach((id) => {
+      document.getElementById(id).addEventListener('input', (e) => {
+        mascararDataDigitada(e.target);
+        if (e.target.value.trim()) document.getElementById(check).checked = false;
+      });
+    });
+    document.getElementById(check).addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById(de).value = '';
+        document.getElementById(ate).value = '';
+      }
+    });
   });
   document.getElementById('nfBtnFiltrarPendentes').addEventListener('click', carregarPendentes);
   document.getElementById('nfBtnLimparFiltrosPendentes').addEventListener('click', limparFiltrosPendentes);
@@ -2072,16 +2336,10 @@ function configurarEventosNotaFiscal() {
   document.getElementById('nfBtnFiltrarEmitidas').addEventListener('click', carregarEmitidas);
   document.getElementById('nfBtnLimparFiltrosEmitidas').addEventListener('click', limparFiltrosEmitidas);
   ligarComboFiltro('EmiCliente', () => {});
-  ['nfEmiFiltroDe', 'nfEmiFiltroAte'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', (e) => mascararDataDigitada(e.target));
-  });
 
   document.getElementById('nfBtnFiltrarCanceladas').addEventListener('click', carregarCanceladas);
   document.getElementById('nfBtnLimparFiltrosCanceladas').addEventListener('click', limparFiltrosCanceladas);
   ligarComboFiltro('CancCliente', () => {});
-  ['nfCancFiltroDe', 'nfCancFiltroAte'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', (e) => mascararDataDigitada(e.target));
-  });
 
   ['nfValorServico', 'nfAliquotaIss'].forEach((id) => {
     document.getElementById(id).addEventListener('input', recalcularTributos);
