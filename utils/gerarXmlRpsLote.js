@@ -38,25 +38,30 @@ const MUNICIPIO_SAO_PAULO_IBGE = "3550308";
 
 // PIS 0,65% + COFINS 3% + CSLL 1% = 4,65% (Lei 10.833/2003 art. 30) — lei
 // federal fixa, não faz parte da Reforma Tributária. O sistema guarda hoje
-// só o total retido (notasfiscais.valorpiscofinscsll); o RPS pede os três
-// valores em campos separados, então dividimos proporcionalmente aqui.
-const ALIQ_PIS = 0.0065;
-const ALIQ_COFINS = 0.03;
-const ALIQ_CSLL = 0.01;
-const ALIQ_PIS_COFINS_CSLL = ALIQ_PIS + ALIQ_COFINS + ALIQ_CSLL;
-
+// só o total retido (notasfiscais.valorpiscofinscsll), um único percentual
+// combinado configurado em Parâmetros.
+//
+// Nova sistemática dos campos de tributos federais no RPS (manual
+// "Web Service SP" v3.3.7, item 3.3.7 do changelog — vigente desde
+// 14/05/2026): ValorCSLL passou a levar o TOTAL retido de PIS+COFINS+CSLL
+// junto (documentado assim em 3 pontos do manual: "Valor da retenção do
+// CSLL, PIS e COFINS em R$" / "...do PIS, COFINS e CSLL em R$") —
+// ValorPIS/ValorCOFINS continuam campos obrigatórios no XSD mas vão
+// zerados, confirmado contra uma nota real emitida (2026-09-02, nota
+// 00001388) que mostrou exatamente essa divisão errada quando ainda
+// mandávamos os três valores separados pelas alíquotas legais.
 function arredondar2(numero) {
   return Math.round((Number(numero) || 0) * 100) / 100;
 }
 
-function separarPisCofinsCsll(valorTotalRetido) {
-  const total = Number(valorTotalRetido) || 0;
-  if (!total) return { pis: 0, cofins: 0, csll: 0 };
-  return {
-    pis: arredondar2(total * (ALIQ_PIS / ALIQ_PIS_COFINS_CSLL)),
-    cofins: arredondar2(total * (ALIQ_COFINS / ALIQ_PIS_COFINS_CSLL)),
-    csll: arredondar2(total * (ALIQ_CSLL / ALIQ_PIS_COFINS_CSLL)),
-  };
+// RetencaoPisCofins (campo novo, opcional, adicionado na mesma mudança de
+// 14/05/2026) — código que informa qual combinação de PIS/COFINS/CSLL foi
+// retida. O XSD tem 9 códigos pra combinações parciais (só PIS, só COFINS,
+// etc.), mas o sistema só retém os três juntos como um grupo único ou
+// nenhum deles — nunca um isolado — então só "3" (todos retidos) e "0"
+// (nenhum retido) fazem sentido aqui, sem precisar de tela nova pra isso.
+function codigoRetencaoPisCofins(valorTotalRetido) {
+  return (Number(valorTotalRetido) || 0) > 0 ? "3" : "0";
 }
 
 function apenasDigitos(valor) {
@@ -206,7 +211,8 @@ function montarXmlRps(dados, chavePrivadaPem) {
     emailTomador,
     discriminacaoServico,
     valorServico,
-    valorPisCofinsCsllRetido, // total retido — separamos em 3 abaixo
+    valorPisCofinsCsllRetido, // total retido — vai inteiro em ValorCSLL (ver nota acima)
+    valorIrrfRetido,
     municipioPrestacaoIbge,
     nbs, // servicos.nbs — obrigatório no layout v2 (não existia no v1)
     cIndOp, // servicos.cindop — código indicador da operação (IBSCBS)
@@ -233,7 +239,9 @@ function montarXmlRps(dados, chavePrivadaPem) {
   const tipoTributacao = tributadoForaDeSaoPaulo ? "F" : "T";
   const statusRps = "N"; // Normal
   const issRetido = false; // nunca vimos retenção de ISS nas notas reais até agora — reavaliar se algum tomador exigir
-  const { pis, cofins, csll } = separarPisCofinsCsll(valorPisCofinsCsllRetido);
+  const valorCsllCombinado = arredondar2(valorPisCofinsCsllRetido);
+  const retencaoPisCofins = codigoRetencaoPisCofins(valorPisCofinsCsllRetido);
+  const valorIrCalculado = arredondar2(valorIrrfRetido);
 
   const assinatura = montarCadeiaAssinaturaRPS({
     inscricaoMunicipalPrestador,
@@ -267,11 +275,19 @@ function montarXmlRps(dados, chavePrivadaPem) {
       ${elemento("StatusRPS", statusRps, true)}
       ${elemento("TributacaoRPS", tipoTributacao, true)}
       ${elemento("ValorDeducoes", formatarValorXml(0), true)}
-      ${elemento("ValorPIS", formatarValorXml(pis), true)}
-      ${elemento("ValorCOFINS", formatarValorXml(cofins), true)}
+      <!-- ValorPIS/ValorCOFINS obrigatórios no XSD mas vão zerados — o total
+           retido de PIS+COFINS+CSLL vai inteiro em ValorCSLL, nova
+           sistemática vigente desde 14/05/2026 (ver nota em
+           codigoRetencaoPisCofins acima). -->
+      ${elemento("ValorPIS", formatarValorXml(0), true)}
+      ${elemento("ValorCOFINS", formatarValorXml(0), true)}
       ${elemento("ValorINSS", formatarValorXml(0), true)}
-      ${elemento("ValorIR", formatarValorXml(0), true)}
-      ${elemento("ValorCSLL", formatarValorXml(csll), true)}
+      <!-- Estava fixo em 0 até 2026-09-02 mesmo quando havia retenção de
+           IRRF calculada e cobrada do cliente (notasfiscais.valorirrf) —
+           bug real, o valor nunca chegava a ser declarado pra prefeitura.
+           Corrigido: agora usa o valor de verdade. -->
+      ${elemento("ValorIR", formatarValorXml(valorIrCalculado), true)}
+      ${elemento("ValorCSLL", formatarValorXml(valorCsllCombinado), true)}
       ${elemento("CodigoServico", apenasDigitos(codigoServico), true)}
       <!-- AliquotaServicos espera fração decimal (0.025 = 2,5%), não
            percentual (2.5) — confirmado contra o ambiente real da prefeitura
@@ -294,6 +310,11 @@ function montarXmlRps(dados, chavePrivadaPem) {
            1223, 2026-08-21). municipioPrestacaoIbge já vem resolvido (código
            IBGE) por quem chamou; ver utils/buscarMunicipioIbge.js. -->
       ${elemento("MunicipioPrestacao", tributadoForaDeSaoPaulo ? municipioPrestacaoIbge : null, tributadoForaDeSaoPaulo)}
+      <!-- Campo novo (opcional), mesma mudança de 14/05/2026 — precisa vir
+           ANTES de ValorFinalCobrado nessa posição do XSD (NumeroEncapsulamento
+           / ValorTotalRecebido / RetencaoPisCofins / [ValorInicialCobrado |
+           ValorFinalCobrado], nessa ordem — TiposNFe_v02.xsd). -->
+      ${elemento("RetencaoPisCofins", retencaoPisCofins)}
       <!-- ValorInicialCobrado x ValorFinalCobrado é um <xs:choice> no XSD —
            só pode mandar um dos dois. Confirmado contra o ambiente real da
            prefeitura (2026-08-21, erro 640): ValorInicialCobrado foi
@@ -401,7 +422,7 @@ module.exports = {
   gerarXmlPedidoEnvioLoteRPS,
   montarXmlRps,
   montarCadeiaAssinaturaRPS,
-  separarPisCofinsCsll,
+  codigoRetencaoPisCofins,
   formatarValorXml,
   escaparXml,
   MUNICIPIO_SAO_PAULO_IBGE,
