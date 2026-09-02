@@ -1234,7 +1234,7 @@ input#search-aside {
     margin-bottom: 14px;
   }
   #ceo-panel-geral .ceo-status-chip {
-    border: 1px solid #ccc;
+    border: 1.5px solid #ccc;
     background: #fff;
     color: #999;
     border-radius: 20px;
@@ -1242,8 +1242,23 @@ input#search-aside {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all .15s;
+    transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .1s;
     opacity: .6;
+  }
+  /* Hover: leve elevação + sombra suave — só no estado inativo (o ativo já "pesa" visualmente
+     com a cor sólida, não precisa de mais destaque). */
+  #ceo-panel-geral .ceo-status-chip:not(.ativo):hover {
+    opacity: .85;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transform: translateY(-1px);
+  }
+  /* Chip ativo ganha um ✓ verde na frente — sempre a mesma cor de "selecionado", independente
+     da cor de fundo do chip (halo branco atrás pra continuar legível até em fundo verde, caso
+     de uma empresa cuja marca também seja verde). */
+  #ceo-panel-geral .ceo-status-chip.ativo::before {
+    content: "✓ ";
+    color: #1e9e54;
+    text-shadow: 0 0 2px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9);
   }
   /* Chip de empresa: a classe .tema-<nmfantasia> (Roots.css) escopa --primary-color/--font-color
      neste elemento — lê direto daqui, sem precisar mapear cor manualmente por empresa. */
@@ -1252,10 +1267,24 @@ input#search-aside {
     background: var(--primary-color, #2e2e2e);
     border-color: var(--primary-color, #2e2e2e);
     color: var(--font-color, #fff);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color, #2e2e2e) 45%, transparent);
+  }
+  /* Empresa sem tema cadastrado no Roots.css (.ceo-sem-marca, ver CeoMode.js) — mesmo padrão
+     outline/sólido das demais, mas em amarelo claro (não usa [class*="tema-"] de propósito,
+     pra não colidir por acidente com o seletor acima). */
+  #ceo-panel-geral .ceo-status-chip.ceo-sem-marca { border-color: var(--primary-color); color: #8a6d00; }
+  #ceo-panel-geral .ceo-status-chip.ceo-sem-marca.ativo {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--font-color);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color) 45%, transparent);
   }
   #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; }
+  /* "Todos" fica sempre num neutro escuro próprio — nunca deve se confundir com a cor real de
+     uma empresa (Roots.css) nem com o vermelho de "sem tema cadastrado" (.ceo-sem-marca). */
   #ceo-panel-geral .ceo-status-chip-todos.ativo {
     background: #2e2e2e; border-color: #2e2e2e; color: #fff; opacity: 1;
+    box-shadow: 0 2px 6px rgba(46,46,46,0.45);
   }
   /* Resultado da busca de funcionário na visualização Lista: total geral + tabela horizontal
      (uma linha por empresa) — mais fácil de comparar de uma vez do que cards verticais lado a
@@ -1281,6 +1310,15 @@ input#search-aside {
     font-size: 12px;
     background: var(--primary-color, #5a6b7b);
     color: var(--font-color, #fff);
+  }
+  /* Empresa sem tema cadastrado no Roots.css ainda (ver TEMAS_CADASTRADOS_ROOTS em CeoMode.js)
+     — amarelo claro de placeholder (vermelho foi descartado: já significa erro/rejeitado no
+     resto do sistema, um chip vermelho sólido parecia estado de erro, não "selecionado").
+     Sem escopo de #ceo-panel-geral de propósito: corPrimariaEmpresa() usa essa mesma classe
+     num elemento temporário anexado direto no <body>, pra ler a cor nos gráficos também. */
+  .ceo-sem-marca {
+    --primary-color: #f2c94c;
+    --font-color: #4a3800;
   }
   #ceo-panel-geral .ceo-geral-linha-detalhe td { padding: 16px; background: #fafafa; }
   #ceo-panel-geral .ceo-geral-linha-detalhe .ceo-geral-subabas { margin-bottom: 12px; }

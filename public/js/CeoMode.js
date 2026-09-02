@@ -1011,7 +1011,16 @@ function statusClasse(status) {
 // var(--primary-color) direto. nmfantasia PRECISA virar um nome de classe válido: espaço quebra
 // em duas classes (className = "tema-SN FOODS" gera as classes "tema-SN" e "FOODS", nenhuma bate
 // com ".tema-SN-FOODS" do Roots.css) — por isso troca espaço por hífen antes de montar a classe.
-const classeTemaEmpresa = (nmfantasia) => `tema-${String(nmfantasia).trim().replace(/\s+/g, "-")}`;
+//
+// Empresas fora desta lista (ex.: JA-EXPO, ou qualquer cadastro sem tema ainda) não têm bloco
+// .tema-X no Roots.css — o elemento então HERDAVA o --primary-color do <body> (o tema da empresa
+// logada), fazendo duas empresas diferentes ficarem com a cor idêntica. Mantenha esta lista em
+// sincronia com as classes .tema-X de public/css/Roots/Roots.css.
+const TEMAS_CADASTRADOS_ROOTS = new Set(["JA-OPER", "ES", "EA", "EP", "SN-FOODS", "TSD"]);
+const classeTemaEmpresa = (nmfantasia) => {
+    const slug = String(nmfantasia).trim().replace(/\s+/g, "-").toUpperCase();
+    return TEMAS_CADASTRADOS_ROOTS.has(slug) ? `tema-${slug}` : "ceo-sem-marca";
+};
 
 // ECharts desenha em canvas — não lê classe CSS nem var(--primary-color) direto. Pra usar a MESMA
 // cor de marca dos chips (Roots.css) nos gráficos, resolve o valor computado da variável uma vez

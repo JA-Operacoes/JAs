@@ -558,11 +558,12 @@ router.get("/geral/panorama", async (req, res) => {
 });
 
 // GET /ceo/geral/receber?agrupamento=mensal|anual|empresa&ano=YYYY&idempresas=1,2
-// Contas a receber = valor total do cliente por orçamento (vlrcliente), a mesma base usada na
-// aba Rentabilidade. Sem coluna de baixa de recebimento no schema, "recebido" aproxima pelo
-// evento já ter se realizado (dtfimrealizacao passado) e "pendente" pelo que ainda não aconteceu
-// — mesma lógica de "certo/provisionado" já usada no detector de rentabilidade. Também traz
-// lucro (lucroreal) e despesa (custo orçado: totgeralcto + totajdcto) agregados por evento.
+// Contas a receber = valor total do cliente por orçamento (vlrcliente). "Recebido" agora vem
+// do Faturamento de verdade: soma de notasfiscais.valorservico das notas Emitidas com
+// recebido=true (mesmo critério de routes/rotaFaturamento.js) — não é mais aproximação por
+// data. "Pendente" é o restante do vlrcliente que ainda não foi recebido (cobre tanto nota
+// emitida não paga quanto orçamento que ainda nem foi faturado). Também traz lucro (lucroreal)
+// e despesa (custo orçado: totgeralcto + totajdcto) agregados por evento.
 router.get("/geral/receber", async (req, res) => {
   try {
     const agrupamento = ["mensal", "anual", "empresa", "evento"].includes(req.query.agrupamento) ? req.query.agrupamento : "mensal";
@@ -613,9 +614,15 @@ router.get("/geral/receber", async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT ${selectChave} AS chave ${extraSelect},
-              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
-              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+      `WITH recebido_real AS (
+         SELECT nf.idorcamento, SUM(nf.valorservico) AS valor
+         FROM notasfiscais nf
+         WHERE nf.status = 'Emitida' AND nf.recebido = true
+         GROUP BY nf.idorcamento
+       )
+       SELECT ${selectChave} AS chave ${extraSelect},
+              SUM(LEAST(COALESCE(rr.valor, 0), COALESCE(o.vlrcliente, 0))) AS recebido,
+              SUM(GREATEST(COALESCE(o.vlrcliente, 0) - COALESCE(rr.valor, 0), 0)) AS pendente,
               SUM(COALESCE(o.lucroreal, 0)) AS lucro,
               SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa,
               SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE
@@ -624,6 +631,7 @@ router.get("/geral/receber", async (req, res) => {
                 THEN COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0) ELSE 0 END) AS despesapendente
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       LEFT JOIN recebido_real rr ON rr.idorcamento = o.idorcamento
        ${extraJoin}
        WHERE ${filtros.join(" AND ")}
        GROUP BY ${groupBy}
@@ -672,7 +680,8 @@ router.get("/geral/eventos", async (req, res) => {
 // GET /ceo/geral/evento-anos?idevento=X — compara o MESMO evento ano a ano, já quebrado por
 // empresa (o /ceo/evento-anos "normal" é escopado a uma empresa só) — dá pra somar por ano
 // (gráfico principal) OU detalhar por empresa (botão "Detalhar", só some quando um evento está
-// selecionado). Mesmas métricas de /geral/receber: recebido/pendente (vlrcliente) + lucro/despesa.
+// selecionado). Mesmas métricas de /geral/receber: recebido real (notasfiscais) + pendente
+// (resto do vlrcliente) + lucro/despesa.
 router.get("/geral/evento-anos", async (req, res) => {
   try {
     const idevento = parseInt(req.query.idevento, 10);
@@ -680,15 +689,22 @@ router.get("/geral/evento-anos", async (req, res) => {
 
     const nome = await pool.query("SELECT nmevento FROM eventos WHERE idevento = $1", [idevento]);
     const { rows } = await pool.query(
-      `SELECT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+      `WITH recebido_real AS (
+         SELECT nf.idorcamento, SUM(nf.valorservico) AS valor
+         FROM notasfiscais nf
+         WHERE nf.status = 'Emitida' AND nf.recebido = true
+         GROUP BY nf.idorcamento
+       )
+       SELECT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
               oe.idempresa, emp.nmfantasia AS nomeempresa,
-              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
-              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+              SUM(LEAST(COALESCE(rr.valor, 0), COALESCE(o.vlrcliente, 0))) AS recebido,
+              SUM(GREATEST(COALESCE(o.vlrcliente, 0) - COALESCE(rr.valor, 0), 0)) AS pendente,
               SUM(COALESCE(o.lucroreal, 0)) AS lucro,
               SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
        JOIN empresas emp ON emp.idempresa = oe.idempresa
+       LEFT JOIN recebido_real rr ON rr.idorcamento = o.idorcamento
        WHERE o.idevento = $1 AND o.status <> 'R' AND o.dtinirealizacao IS NOT NULL
        GROUP BY ano, oe.idempresa, emp.nmfantasia
        ORDER BY ano ASC, emp.nmfantasia ASC`,
