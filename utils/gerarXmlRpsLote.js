@@ -86,6 +86,30 @@ function escaparXml(valor) {
     .replace(/"/g, "&quot;");
 }
 
+// Discriminacao rejeitada pela prefeitura com "Pattern constraint failed"
+// (confirmado contra o ambiente real, 2026-09-02, código 1001 — 3 RPS do
+// mesmo lote, cada um citando seu próprio texto rejeitado). O XSD baixado
+// localmente (docs/nfse/schemas/TiposNFe_v02.xsd) não mostra o padrão exato
+// pra tpDiscriminacao, então o lado deles deve ter endurecido a validação
+// depois do nosso download. Os 3 textos rejeitados tinham em comum só dois
+// caracteres fora do padrão: travessão "—" (inserido pelos botões "Inserir
+// parcela"/"Inserir dados bancários") e "º" de "Nº" (preenchimento
+// automático da descrição) — troca esses por equivalentes ASCII antes de
+// mandar, sem depender de saber o regex exato deles. Também colapsa quebra
+// de linha em espaço — o XSD declara whiteSpace=collapse, mas não custa
+// garantir aqui também em vez de confiar cegamente que o validador deles
+// aplica isso antes do Pattern.
+function normalizarDiscriminacao(texto) {
+  return String(texto ?? "")
+    .replace(/[‒-―]/g, "-")  // travessão/en dash/em dash (U+2012–U+2015) -> hífen
+    .replace(/[‘’]/g, "'")   // aspas simples tipográficas (U+2018/U+2019)
+    .replace(/[“”]/g, '"')   // aspas duplas tipográficas (U+201C/U+201D)
+    .replace(/º/g, "o")      // º (ordinal masculino, ex.: "Nº")
+    .replace(/ª/g, "a")      // ª (ordinal feminino)
+    .replace(/\s+/g, " ")    // quebras de linha/tabs -> espaço único
+    .trim();
+}
+
 function elemento(nome, valor, obrigatorio = false) {
   if (valor === null || valor === undefined || valor === "") {
     if (obrigatorio) throw new Error(`Campo obrigatório "${nome}" está vazio.`);
@@ -264,7 +288,7 @@ function montarXmlRps(dados, chavePrivadaPem) {
       ${elementoCpfCnpj("CPFCNPJTomador", cnpjTomador)}
       ${elemento("InscricaoMunicipalTomador", apenasDigitos(inscricaoMunicipalTomador))}
       ${elemento("EmailTomador", emailTomador)}
-      ${elemento("Discriminacao", discriminacaoServico, true)}
+      ${elemento("Discriminacao", normalizarDiscriminacao(discriminacaoServico), true)}
       <!-- Só enviamos MunicipioPrestacao quando TributacaoRPS="F" (evento
            fora de São Paulo) — com "T" a prefeitura rejeita esse campo (erro
            1223, 2026-08-21). municipioPrestacaoIbge já vem resolvido (código
