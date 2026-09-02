@@ -300,10 +300,16 @@ function calcularTotaisLista(lista) {
     }
     // Recebimento (regime de caixa) — só existe pra nota já Emitida, vem
     // pronto agregado do backend (subquery "recb" em GET /pendentes).
-    acc.pago += parseFloat(o.pago) || 0;
-    acc.atrasadoRecebimento += parseFloat(o.atrasadorecebimento) || 0;
+    // "A Receber" não vem pronto (só Pago e Atrasado) — é o resto do que foi
+    // faturado que ainda não caiu em nenhum dos dois: já emitida, dentro do
+    // prazo, sem confirmação de recebido ainda.
+    const pago = parseFloat(o.pago) || 0;
+    const atrasadoRecebimento = parseFloat(o.atrasadorecebimento) || 0;
+    acc.pago += pago;
+    acc.atrasadoRecebimento += atrasadoRecebimento;
+    acc.aReceber += Math.max(0, (parseFloat(o.faturado) || 0) - pago - atrasadoRecebimento);
     return acc;
-  }, { valor: 0, faturado: 0, saldo: 0, vencido: 0, pago: 0, atrasadoRecebimento: 0 });
+  }, { valor: 0, faturado: 0, saldo: 0, vencido: 0, pago: 0, aReceber: 0, atrasadoRecebimento: 0 });
 }
 
 // Rótulo discreto no rodapé indicando qual escopo de ano está por trás dos
@@ -336,6 +342,7 @@ function atualizarTotaisGeraisPendentes(lista) {
   document.getElementById('nfTotalGeralSaldo').textContent = fmtMoeda(totais.saldo);
   document.getElementById('nfTotalGeralVencido').textContent = fmtMoeda(totais.vencido);
   document.getElementById('nfTotalGeralPago').textContent = fmtMoeda(totais.pago);
+  document.getElementById('nfTotalGeralAReceber').textContent = fmtMoeda(totais.aReceber);
   document.getElementById('nfTotalGeralAtrasadoRecebimento').textContent = fmtMoeda(totais.atrasadoRecebimento);
   document.getElementById('nfEscopoAnoPendentes').textContent = descricaoEscopoAnoPendentes();
 }
@@ -479,6 +486,36 @@ async function inicializarLogoEmpresaImpressao() {
   }
 }
 
+// Status combinado pra impressão em Detalhes — útil sobretudo quando o
+// filtro Status fica em "Todas" e a lista mistura orçamentos em situações
+// diferentes, sem nenhuma coluna que deixe isso claro de cara.
+// O status de Faturamento (base) e o de Recebimento são independentes: um
+// orçamento "Faturada parcialmente" ou até "Emissão NF atrasada" (parte
+// ainda não faturada) já pode ter uma parte faturada com recebimento em
+// dia, atrasado ou recebido — por isso o recebimento entra junto sempre que
+// existir algo faturado, não só quando está 100% faturado.
+function textoStatusImpressao(o) {
+  const saldo = parseFloat(o.saldo) || 0;
+  const faturado = parseFloat(o.faturado) || 0;
+  const hojeUTC = new Date();
+  hojeUTC.setUTCHours(0, 0, 0, 0);
+  const emissaoAtrasada = saldo > 0.009 && o.proximovencimento && new Date(o.proximovencimento) < hojeUTC;
+
+  let base;
+  if (saldo <= 0.009) base = 'Faturada';
+  else if (emissaoAtrasada) base = 'Emissão NF atrasada';
+  else base = faturado > 0.009 ? 'Faturada parcialmente' : 'Em aberto';
+
+  if (faturado <= 0.009) return base; // nada faturado ainda — não existe recebimento pra mostrar
+
+  const pago = parseFloat(o.pago) || 0;
+  const atrasadoRecebimento = parseFloat(o.atrasadorecebimento) || 0;
+  const recebimento = (faturado - pago) <= 0.009 ? 'Recebida'
+    : atrasadoRecebimento > 0.009 ? 'Recebimento Atrasado'
+    : 'A Receber';
+  return `${base}/${recebimento}`;
+}
+
 const NF_COLUNAS_IMPRESSAO = [
   { chave: 'nrorcamento', label: 'Nº orçamento', valor: (o) => o.nrorcamento },
   { chave: 'cliente', label: 'Cliente', valor: (o) => nomeClienteComFantasia(o.cliente_nome, o.cliente_nmfantasia) || '—' },
@@ -497,6 +534,7 @@ const NF_COLUNAS_IMPRESSAO = [
   { chave: 'valorTotal', label: 'Valor total', valor: (o) => fmtMoeda(o.vlrcliente), numerica: true },
   { chave: 'faturado', label: 'Faturado', valor: (o) => fmtMoeda(o.faturado), numerica: true },
   { chave: 'saldo', label: 'Saldo', valor: (o) => fmtMoeda(parseFloat(o.saldo) || 0), numerica: true },
+  { chave: 'status', label: 'Status', valor: (o) => textoStatusImpressao(o) },
 ];
 
 // Resumo dos filtros ativos em Visão Geral, pra aparecer no cabeçalho da
@@ -533,16 +571,18 @@ function resumoFiltrosPendentesAtivos() {
   ];
 }
 
-function cabecalhoImpressaoPendentes(subtitulo) {
-  const filtros = resumoFiltrosPendentesAtivos();
-  // Sem "Gerado em ..." aqui — o navegador já imprime data/hora sozinho no
-  // cabeçalho automático da página (pedido: informação duplicada).
+// Genérico o bastante pra qualquer aba com impressão (Visão Geral, Emitidas,
+// ...) — cada uma monta sua própria lista de filtros (colunas/dimensões
+// diferentes), mas o "quadro" (logo + título + barra + badges) é sempre o
+// mesmo. Sem "Gerado em ..." aqui — o navegador já imprime data/hora sozinho
+// no cabeçalho automático da página (pedido: informação duplicada).
+function cabecalhoImpressao(secao, subtitulo, filtros) {
   return `
     <div class="nf-print-topo${nfEmpresaLogoPath ? '' : ' sem-logo'}">
       ${nfEmpresaLogoPath ? `<img src="${nfEmpresaLogoPath}" alt="Logo" class="nf-print-logo" onerror="this.style.display='none'">` : ''}
       <h1>Faturamento</h1>
     </div>
-    <div class="nf-print-barra-titulo">VISÃO GERAL — ${escaparAtributo(subtitulo)}</div>
+    <div class="nf-print-barra-titulo">${escaparAtributo(secao)} — ${escaparAtributo(subtitulo)}</div>
     <div class="nf-print-filtros">${filtros.map((f) => `<span class="nf-print-badge">${escaparAtributo(f)}</span>`).join('')}</div>`;
 }
 
@@ -589,7 +629,10 @@ function imprimirHtmlEmIframe(conteudoHtml) {
 }
 
 // titulo null = sem a 1ª coluna (usado no total geral do modo "Detalhes",
-// que não é quebrado por empresa — ver gerarImpressaoDetalhes).
+// que não é quebrado por empresa — ver gerarImpressaoDetalhes). Faturamento
+// (Valor total/Faturado/A Faturar/Emissão NF atrasada) e Recebimento
+// (Recebida/A Receber/Recebimento Atrasado) juntos na mesma linha — os dois
+// já vêm prontos de calcularTotaisLista, sem custo extra de mostrar os dois.
 function linhaTotaisImpressao(titulo, totais, destaque) {
   return `<tr${destaque ? ' class="nf-print-total-geral"' : ''}>
     ${titulo != null ? `<td>${escaparAtributo(titulo)}</td>` : ''}
@@ -597,6 +640,9 @@ function linhaTotaisImpressao(titulo, totais, destaque) {
     <td class="num">${fmtMoeda(totais.faturado)}</td>
     <td class="num">${fmtMoeda(totais.saldo)}</td>
     <td class="num">${fmtMoeda(totais.vencido)}</td>
+    <td class="num">${fmtMoeda(totais.pago)}</td>
+    <td class="num">${fmtMoeda(totais.aReceber)}</td>
+    <td class="num">${fmtMoeda(totais.atrasadoRecebimento)}</td>
   </tr>`;
 }
 
@@ -625,12 +671,12 @@ function gerarImpressaoSoTotal() {
     }
     corpo = `
       <table>
-        <thead><tr><th>Empresa Emissora</th><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th></tr></thead>
+        <thead><tr><th>Empresa Emissora</th><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th><th class="num">Recebida</th><th class="num">A Receber</th><th class="num">Recebimento Atrasado</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>`;
   }
 
-  const html = cabecalhoImpressaoPendentes('Somente totais') + corpo;
+  const html = cabecalhoImpressao('VISÃO GERAL', 'Somente totais', resumoFiltrosPendentesAtivos()) + corpo;
   imprimirHtmlEmIframe(html);
 }
 
@@ -640,17 +686,17 @@ function gerarImpressaoDetalhes(colunasEscolhidas) {
   const lista = aplicarOrdenacaoAtual(pendentesListaAtual);
   const linhas = lista.map((o) => `<tr>${colunas.map((c) => `<td${c.numerica ? ' class="num"' : ''}>${c.valor(o)}</td>`).join('')}</tr>`).join('');
 
-  // Total geral (Valor total/Faturado/A Faturar/Vencidos) da lista inteira —
-  // pedido explícito, pra não precisar gerar "Só Total" à parte só pra ver
-  // os totais de uma impressão em Detalhes. Sem quebra por empresa emissora
+  // Total geral (Faturamento + Recebimento) da lista inteira — pedido
+  // explícito, pra não precisar gerar "Só Total" à parte só pra ver os
+  // totais de uma impressão em Detalhes. Sem quebra por empresa emissora
   // aqui (esse detalhamento é o papel do modo "Só Total").
   const blocoTotalGeral = lista.length ? `
     <table>
-      <thead><tr><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th></tr></thead>
+      <thead><tr><th class="num">Valor total</th><th class="num">Faturado</th><th class="num">A Faturar</th><th class="num">Emissão NF atrasada</th><th class="num">Recebida</th><th class="num">A Receber</th><th class="num">Recebimento Atrasado</th></tr></thead>
       <tbody>${linhaTotaisImpressao(null, calcularTotaisLista(lista), true)}</tbody>
     </table>` : '';
 
-  const html = cabecalhoImpressaoPendentes(`Detalhes — ${lista.length} orçamento${lista.length === 1 ? '' : 's'}`) + `
+  const html = cabecalhoImpressao('VISÃO GERAL', `Detalhes — ${lista.length} orçamento${lista.length === 1 ? '' : 's'}`, resumoFiltrosPendentesAtivos()) + `
     <table>
       <thead><tr>${colunas.map((c) => `<th${c.numerica ? ' class="num"' : ''}>${c.label}</th>`).join('')}</tr></thead>
       <tbody>${linhas || `<tr><td colspan="${colunas.length}">Nenhum orçamento para os filtros selecionados.</td></tr>`}</tbody>
@@ -1004,12 +1050,14 @@ function montarQueryFiltrosEmitidas() {
   const params = new URLSearchParams();
   const idcliente = document.getElementById('nfFiltroEmiCliente').value;
   const idempresaemissora = document.getElementById('nfEmiFiltroEmpresaEmissora').value;
+  const statusRecebimento = document.getElementById('nfEmiFiltroStatusRecebimento').value;
   const periodo = periodoAnoAtualSeVazio('nfEmiFiltroAnoAtual', 'nfEmiFiltroDe', 'nfEmiFiltroAte');
   const dtDe = periodo.de;
   const dtAte = periodo.ate;
 
   if (idcliente) params.set('idcliente', idcliente);
   if (idempresaemissora) params.set('idempresaemissora', idempresaemissora);
+  if (statusRecebimento) params.set('statusRecebimento', statusRecebimento);
   if (dtDe) params.set('dtDe', dtDe);
   if (dtAte) params.set('dtAte', dtAte);
   return params.toString();
@@ -1018,6 +1066,7 @@ function montarQueryFiltrosEmitidas() {
 function limparFiltrosEmitidas() {
   preencherComboFiltro('EmiCliente', opcoesUnicasOrdenadas(emitidasTodasParaFiltro, 'idcliente', 'cliente_nome'));
   document.getElementById('nfEmiFiltroEmpresaEmissora').value = '';
+  document.getElementById('nfEmiFiltroStatusRecebimento').value = '';
   document.getElementById('nfEmiFiltroDe').value = '';
   document.getElementById('nfEmiFiltroAte').value = '';
   document.getElementById('nfEmiFiltroAnoAtual').checked = true;
@@ -1026,6 +1075,7 @@ function limparFiltrosEmitidas() {
 
 let emitidasTodasParaFiltro = [];
 let filtrosEmitidasPopulados = false;
+let emitidasListaAtual = []; // última lista carregada (já com os filtros atuais) — usada pela impressão
 
 // Recebimento (dinheiro entrou de verdade) é diferente de emissão (obrigação
 // fiscal existe) — "Atrasado" aqui é sobre o cliente não ter pago ainda,
@@ -1040,16 +1090,23 @@ function estaVencidoParaRecebimento(dtvencimento) {
   return new Date(dtvencimento) < hojeUTC;
 }
 
-// Totais de recebimento (Pago/Atrasado) pros filtros atuais da aba Emitidas
-// — pedido explícito, mesmo espírito do rodapé de totais da Visão Geral.
+// Totais (Valor total faturado/Recebida/A Receber/Recebimento Atrasado) pros
+// filtros atuais da aba Emitidas — pedido explícito. Como aqui cada linha já
+// é uma nota Emitida, "Valor total faturado" desses filtros já é, por
+// definição, o que foi faturado no período — não precisa ir em Visão Geral
+// pra cruzar faturado x recebido, os dois aparecem juntos aqui.
 function atualizarTotaisEmitidas(notas) {
   const totais = notas.reduce((acc, n) => {
     const valor = parseFloat(n.valorservico) || 0;
+    acc.valor += valor;
     if (n.recebido) acc.pago += valor;
     else if (estaVencidoParaRecebimento(n.dtvencimento)) acc.atrasado += valor;
+    else acc.aReceber += valor;
     return acc;
-  }, { pago: 0, atrasado: 0 });
+  }, { valor: 0, pago: 0, atrasado: 0, aReceber: 0 });
+  document.getElementById('nfEmiTotalValor').textContent = fmtMoeda(totais.valor);
   document.getElementById('nfEmiTotalPago').textContent = fmtMoeda(totais.pago);
+  document.getElementById('nfEmiTotalAReceber').textContent = fmtMoeda(totais.aReceber);
   document.getElementById('nfEmiTotalAtrasado').textContent = fmtMoeda(totais.atrasado);
 }
 
@@ -1061,6 +1118,7 @@ async function carregarEmitidas() {
     const query = montarQueryFiltrosEmitidas();
     const notas = await fetchComToken(`/faturamento/emitidas${query ? '?' + query : ''}`);
     atualizarTotaisEmitidas(notas);
+    emitidasListaAtual = notas;
 
     if (!filtrosEmitidasPopulados) {
       filtrosEmitidasPopulados = true;
@@ -1088,8 +1146,8 @@ async function carregarEmitidas() {
         <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
         <td>
           ${n.recebido
-            ? `<span class="nf-chip pago" title="${n.dtrecebimento ? `Recebido em ${formatarDataBR(n.dtrecebimento)}` : 'Recebido'}"><i class="fa-solid fa-circle-check"></i> Pago</span>`
-            : (estaVencidoParaRecebimento(n.dtvencimento) ? `<span class="nf-chip atrasado"><i class="fa-solid fa-clock"></i> Atrasado</span>` : `<span class="nf-chip rascunho">A Receber</span>`)}
+            ? `<span class="nf-chip pago" title="${n.dtrecebimento ? `Recebido em ${formatarDataBR(n.dtrecebimento)}` : 'Recebido'}"><i class="fa-solid fa-circle-check"></i> Recebida</span>`
+            : (estaVencidoParaRecebimento(n.dtvencimento) ? `<span class="nf-chip atrasado"><i class="fa-solid fa-clock"></i> Recebimento Atrasado</span>` : `<span class="nf-chip rascunho">A Receber</span>`)}
           ${n.proprioambiente && temMasterFaturamento() ? `<br><button type="button" class="nf-btn-acao ${n.recebido ? 'cancelar' : 'confirmar'}" data-marcar-recebido="${n.idnotafiscal}" data-recebido-atual="${n.recebido ? '1' : '0'}" title="${n.recebido ? 'Cliente ainda não pagou de verdade? Desfaça aqui' : 'Confirma que o dinheiro realmente entrou (depósito/boleto compensado) — diferente de já ter emitido a nota'}">${n.recebido ? '<i class="fa-solid fa-rotate-left"></i> Desfazer' : '<i class="fa-solid fa-check"></i> Marcar como recebido'}</button>` : ''}
         </td>
         <td>
@@ -1129,6 +1187,80 @@ async function carregarEmitidas() {
     console.error('Erro ao carregar notas emitidas:', err);
     tbody.innerHTML = '<tr><td colspan="9">Erro ao carregar notas.</td></tr>';
   }
+}
+
+// ---- Impressão (Emitidas) ----
+// Mesma ideia do resumoFiltrosPendentesAtivos, mas com as dimensões de
+// Emitidas (Cliente/Empresa emissora/Recebimento/Registro) em vez das de
+// Visão Geral — por isso não reaproveita a mesma função, os filtros são
+// outros.
+function resumoFiltrosEmitidasAtivos() {
+  const cliente = document.getElementById('nfBuscaEmiCliente').value.trim();
+  const selectEmpresa = document.getElementById('nfEmiFiltroEmpresaEmissora');
+  const selectRecebimento = document.getElementById('nfEmiFiltroStatusRecebimento');
+
+  return [
+    `Cliente: ${cliente || 'Todos'}`,
+    `Empresa emissora: ${selectEmpresa.options[selectEmpresa.selectedIndex].text}`,
+    `Recebimento: ${selectRecebimento.value ? selectRecebimento.options[selectRecebimento.selectedIndex].text : 'Todas'}`,
+    `Registro: ${descricaoPeriodoImpressao('nfEmiFiltroAnoAtual', 'nfEmiFiltroDe', 'nfEmiFiltroAte')}`,
+  ];
+}
+
+// Texto de status pra impressão — igual ao chip da tela, mas em texto puro
+// (impressão não tem botão de ação).
+function textoStatusRecebimentoImpressao(n) {
+  if (n.recebido) return `Recebida${n.dtrecebimento ? ` (${formatarDataBR(n.dtrecebimento)})` : ''}`;
+  return estaVencidoParaRecebimento(n.dtvencimento) ? 'Recebimento Atrasado' : 'A Receber';
+}
+
+function linhaTotaisImpressaoEmitidas(totais) {
+  return `<tr class="nf-print-total-geral">
+    <td class="num">${fmtMoeda(totais.valor)}</td>
+    <td class="num">${fmtMoeda(totais.pago)}</td>
+    <td class="num">${fmtMoeda(totais.aReceber)}</td>
+    <td class="num">${fmtMoeda(totais.atrasado)}</td>
+  </tr>`;
+}
+
+// Modo único (sem escolha de colunas nem Detalhes/Só Total como em Visão
+// Geral) — aqui cada linha já é uma nota individual só, não um orçamento com
+// várias parcelas em estados diferentes, então a mesma tabela da tela +
+// totais no fim já cobre o que se precisa.
+function imprimirEmitidas() {
+  const notas = emitidasListaAtual;
+  const linhas = notas.map((n) => `<tr>
+    <td>${n.nrorcamento}</td>
+    <td>${nomeClienteComFantasia(n.cliente_nome, n.cliente_nmfantasia) || '—'}</td>
+    <td>${n.evento_nome || '—'}</td>
+    <td>${n.numparcela ? `${n.numparcela}/${n.totalparcelas}` : '—'}</td>
+    <td>${n.numeronota || '—'}</td>
+    <td class="num">${fmtMoeda(n.valorservico)}</td>
+    <td>${n.dtregistro ? formatarDataBR(n.dtregistro) : '—'}</td>
+    <td>${textoStatusRecebimentoImpressao(n)}</td>
+  </tr>`).join('');
+
+  const totais = notas.reduce((acc, n) => {
+    const valor = parseFloat(n.valorservico) || 0;
+    acc.valor += valor;
+    if (n.recebido) acc.pago += valor;
+    else if (estaVencidoParaRecebimento(n.dtvencimento)) acc.atrasado += valor;
+    else acc.aReceber += valor;
+    return acc;
+  }, { valor: 0, pago: 0, atrasado: 0, aReceber: 0 });
+
+  const blocoTotal = notas.length ? `
+    <table>
+      <thead><tr><th class="num">Valor total faturado</th><th class="num">Recebida</th><th class="num">A Receber</th><th class="num">Recebimento Atrasado</th></tr></thead>
+      <tbody>${linhaTotaisImpressaoEmitidas(totais)}</tbody>
+    </table>` : '';
+
+  const html = cabecalhoImpressao('EMITIDAS', `${notas.length} nota${notas.length === 1 ? '' : 's'}`, resumoFiltrosEmitidasAtivos()) + `
+    <table>
+      <thead><tr><th>Nº orçamento</th><th>Cliente</th><th>Evento</th><th>Parcela</th><th>Nº da nota</th><th class="num">Valor</th><th>Registrada em</th><th>Recebimento</th></tr></thead>
+      <tbody>${linhas || '<tr><td colspan="8">Nenhuma nota emitida para os filtros selecionados.</td></tr>'}</tbody>
+    </table>` + blocoTotal;
+  imprimirHtmlEmIframe(html);
 }
 
 // ---- Aba "Canceladas" ----
@@ -2364,7 +2496,7 @@ async function marcarRecebido(idnotafiscal, recebidoAtual) {
     const { isConfirmed } = await Swal.fire({
       icon: 'question',
       title: 'Desfazer marcação de recebido?',
-      text: 'Volta a aparecer como "A Receber" ou "Atrasado" (conforme o vencimento).',
+      text: 'Volta a aparecer como "A Receber" ou "Recebimento Atrasado" (conforme o vencimento).',
       showCancelButton: true,
       confirmButtonText: 'Sim, desfazer',
       cancelButtonText: 'Voltar',
@@ -2493,6 +2625,7 @@ function configurarEventosNotaFiscal() {
 
   document.getElementById('nfBtnFiltrarEmitidas').addEventListener('click', carregarEmitidas);
   document.getElementById('nfBtnLimparFiltrosEmitidas').addEventListener('click', limparFiltrosEmitidas);
+  document.getElementById('nfBtnImprimirEmitidas').addEventListener('click', imprimirEmitidas);
   ligarComboFiltro('EmiCliente', () => {});
 
   document.getElementById('nfBtnFiltrarCanceladas').addEventListener('click', carregarCanceladas);

@@ -1387,7 +1387,7 @@ router.get("/prontas-envio", verificarPermissao('faturamento', 'pesquisar'), asy
 // (por dtregistro — não existe uma "data de emissão" separada hoje).
 router.get("/emitidas", verificarPermissao('faturamento', 'pesquisar'), async (req, res) => {
   const idempresa = req.idempresa;
-  const { idcliente, idempresaemissora } = req.query;
+  const { idcliente, idempresaemissora, statusRecebimento } = req.query;
   let { dtDe, dtAte } = req.query;
   if (dtDe && !dtAte) dtAte = dtDe;
   if (dtAte && !dtDe) dtDe = dtAte;
@@ -1421,8 +1421,19 @@ router.get("/emitidas", verificarPermissao('faturamento', 'pesquisar'), async (r
           AND ($2::int IS NULL OR nf.idcliente = $2::int)
           AND ($3::int IS NULL OR o.idempresaemissora = $3::int)
           AND ($4::date IS NULL OR nf.dtregistro::date BETWEEN $4::date AND $5::date)
+          -- Filtro por Recebimento fica aqui (por NOTA), não em Visão Geral
+          -- (por ORÇAMENTO) — pedido explícito: em Visão Geral um orçamento
+          -- pode ter parcelas em estados de recebimento diferentes ao mesmo
+          -- tempo, então o filtro lá não refletia a nota específica que
+          -- interessa. Aqui cada linha já É uma nota, condição direta.
+          AND (
+            $6::text IS NULL
+            OR ($6 = 'recebida' AND nf.recebido = true)
+            OR ($6 = 'a-receber' AND nf.recebido = false AND (op.dtvencimento IS NULL OR op.dtvencimento >= CURRENT_DATE))
+            OR ($6 = 'recebimento-atrasado' AND nf.recebido = false AND op.dtvencimento < CURRENT_DATE)
+          )
         ORDER BY nf.dtregistro DESC`,
-      [idempresa, idcliente || null, idempresaemissora || null, dtDe || null, dtAte || null]
+      [idempresa, idcliente || null, idempresaemissora || null, dtDe || null, dtAte || null, statusRecebimento || null]
     );
     return res.json(result.rows);
   } catch (error) {
