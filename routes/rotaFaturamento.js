@@ -1164,6 +1164,7 @@ async function montarNotaParaGerador(nf) {
     discriminacaoServico: nf.descricaoservico,
     valorServico: nf.valorservico,
     valorPisCofinsCsllRetido: nf.valorpiscofinscsll,
+    valorIrrfRetido: nf.valorirrf,
     municipioPrestacaoIbge,
     nbs: nf.nbs,
     cIndOp: nf.cindop,
