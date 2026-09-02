@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-<link rel="stylesheet" href="css/Modal/Faturamento.css?v=31">
+<link rel="stylesheet" href="css/Modal/Faturamento.css?v=35">
 
 <div id="cadModalNotaFiscal" class="modal">
   <div class="modal-content">
@@ -57,7 +57,7 @@
               <select id="nfFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
             </div>
             <div class="nf-campo">
-              <label>Status</label>
+              <label>Status Faturamento</label>
               <select id="nfFiltroStatusFatura">
                 <option value="">Todas</option>
                 <option value="faturada">Faturadas</option>
@@ -124,8 +124,9 @@
           <span>Faturado: <strong id="nfTotalGeralFaturado">R$ 0,00</strong></span>
           <span>A Faturar: <strong id="nfTotalGeralSaldo">R$ 0,00</strong></span>
           <span class="nf-total-vencido" title="Saldo ainda não faturado cujo vencimento já passou — diferente de 'Atrasado' aqui embaixo, que é sobre pagamento não recebido">Emissão NF atrasada: <strong id="nfTotalGeralVencido">R$ 0,00</strong></span>
-          <span class="nf-total-pago" title="Notas já Emitidas confirmadas como recebidas (dinheiro entrou de verdade)">Pago: <strong id="nfTotalGeralPago">R$ 0,00</strong></span>
-          <span class="nf-total-vencido" title="Notas já Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas">Atrasado: <strong id="nfTotalGeralAtrasadoRecebimento">R$ 0,00</strong></span>
+          <span class="nf-total-pago" title="Notas já Emitidas confirmadas como recebidas (dinheiro entrou de verdade)">Recebida: <strong id="nfTotalGeralPago">R$ 0,00</strong></span>
+          <span>A Receber: <strong id="nfTotalGeralAReceber">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas já Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas">Recebimento Atrasado: <strong id="nfTotalGeralAtrasadoRecebimento">R$ 0,00</strong></span>
         </div>
       </div>
 
@@ -373,6 +374,15 @@
               <label>Empresa emissora</label>
               <select id="nfEmiFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
             </div>
+            <div class="nf-campo">
+              <label>Recebimento</label>
+              <select id="nfEmiFiltroStatusRecebimento">
+                <option value="">Todas</option>
+                <option value="recebida">Recebida</option>
+                <option value="a-receber">A Receber</option>
+                <option value="recebimento-atrasado">Recebimento Atrasado</option>
+              </select>
+            </div>
             <fieldset class="nf-grupo-filtro nf-grupo-compacto">
               <legend>Registro</legend>
               <div class="nf-grupo-compacto-campos">
@@ -387,6 +397,7 @@
           <div class="BTNs">
             <button type="button" id="nfBtnFiltrarEmitidas">Filtrar</button>
             <button type="button" id="nfBtnLimparFiltrosEmitidas" class="nf-btn-secundario">Limpar filtros</button>
+            <button type="button" id="nfBtnImprimirEmitidas" class="nf-btn-imprimir">Imprimir</button>
           </div>
         </div>
 
@@ -412,8 +423,10 @@
         </div>
 
         <div class="nf-rodape-totais">
-          <span class="nf-total-pago" title="Notas Emitidas confirmadas como recebidas (dinheiro entrou de verdade), para os filtros atuais">Pago: <strong id="nfEmiTotalPago">R$ 0,00</strong></span>
-          <span class="nf-total-vencido" title="Notas Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas, para os filtros atuais">Atrasado: <strong id="nfEmiTotalAtrasado">R$ 0,00</strong></span>
+          <span>Valor total faturado: <strong id="nfEmiTotalValor">R$ 0,00</strong></span>
+          <span class="nf-total-pago" title="Notas Emitidas confirmadas como recebidas (dinheiro entrou de verdade), para os filtros atuais">Recebida: <strong id="nfEmiTotalPago">R$ 0,00</strong></span>
+          <span>A Receber: <strong id="nfEmiTotalAReceber">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas, para os filtros atuais">Recebimento Atrasado: <strong id="nfEmiTotalAtrasado">R$ 0,00</strong></span>
         </div>
       </div>
 
