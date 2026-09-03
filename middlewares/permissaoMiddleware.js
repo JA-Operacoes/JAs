@@ -56,7 +56,7 @@ console.log('✅ Consulta permissão retornou:', rows);
 }
 // Flags especiais (transversais): não pertencem a um módulo específico, são colunas
 // booleanas em `permissoes`. Whitelist evita injeção do nome da coluna na query.
-const FLAGS_ESPECIAIS = ['master', 'financeiro', 'supremo', 'comercial', 'devs', 'rh'];
+const FLAGS_ESPECIAIS = ['master', 'financeiro', 'supremo', 'comercial', 'devs', 'rh', 'ti'];
 
 // middleware: exige que o usuário tenha QUALQUER uma das flags na empresa atual.
 // Uso: exigirFlag('rh', 'supremo')  → passa quem tiver rh OU supremo em algum módulo.

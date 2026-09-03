@@ -24,7 +24,7 @@ router.post('/cadastro', autenticarToken({ verificarEmpresa: false }),
 
             console.log('Buscando dados anteriores para:', { idusuario, modulo, idempresa }); // NOVO LOG
             const result = await db.query(
-                'SELECT idusuario, modulo, cadastrar, alterar, pesquisar, acesso, master, financeiro, supremo, comercial FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
+                'SELECT idusuario, modulo, cadastrar, alterar, pesquisar, acesso, master, financeiro, supremo, comercial, devs, rh, ti FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
                 [idusuario, modulo, idempresa]
             );
             const linha = result.rows[0] || null; // Se não encontrar, será null
@@ -46,7 +46,7 @@ router.post('/cadastro-lote', autenticarToken({ verificarEmpresa: false }),
             const modulos = Array.isArray(permissoes) ? permissoes.map((p) => p.modulo) : [];
 
             const result = await db.query(
-                'SELECT idusuario, modulo, cadastrar, alterar, pesquisar, acesso, master, financeiro, supremo, comercial, devs, rh FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND modulo = ANY($3::text[])',
+                'SELECT idusuario, modulo, cadastrar, alterar, pesquisar, acesso, master, financeiro, supremo, comercial, devs, rh, ti FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND modulo = ANY($3::text[])',
                 [idusuario, idempresa, modulos]
             );
             return {
