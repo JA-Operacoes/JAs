@@ -7,8 +7,15 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const helmet = require("helmet");
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Headers de segurança padrão (X-Powered-By, X-Content-Type-Options, X-Frame-Options,
+// Strict-Transport-Security etc.). CSP fica desligado por enquanto: o sistema usa
+// scripts inline e CDNs externos em várias telas, e ligar CSP sem mapear tudo isso
+// antes quebraria a aplicação — decisão de política pra discutir separadamente.
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // --- Banner de ambiente ---------------------------------------------------
 // Quando APP_ENV está definido (ex.: "teste"), injeta um aviso visual no topo
@@ -123,7 +130,7 @@ app.use("/pagamentos", autenticarToken(), contextoEmpresa, require("./routes/rot
 app.use("/ajustefinanceiro", autenticarToken(), contextoEmpresa, require("./routes/rotaAjusteFinanceiro"));
 app.use("/planosaude", autenticarToken(), contextoEmpresa, require("./routes/rotaPlanoSaude"));
 app.use("/servicos", autenticarToken(), contextoEmpresa, require("./routes/rotaServicos"));
-app.use("/notafiscal", autenticarToken(), contextoEmpresa, require("./routes/rotaNotaFiscal"));
+app.use("/faturamento", autenticarToken(), contextoEmpresa, require("./routes/rotaFaturamento"));
 
 app.use("/Contrato", autenticarToken(), contextoEmpresa, require("./routes/rotaContrato"));
 

@@ -1,0 +1,578 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+<link rel="stylesheet" href="css/Modal/Faturamento.css?v=35">
+
+<div id="cadModalNotaFiscal" class="modal">
+  <div class="modal-content">
+
+    <div class="Close"><button class="close" id="Fechar" type="button"> X </button></div>
+    
+    <div id="form-notafiscal">
+    <div class="title"><h1>Faturamento</h1></div>
+
+    <div class="subtitulo"><p class="nf-subtitulo">NFS-e São Paulo · emissão automática via Web Service, com acompanhamento de faturamento</p></div>
+
+    <div class="nf-tabs">
+      <button type="button" class="nf-tab-btn ativa" data-nf-tab="lista">Visão Geral</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="emissao">Emitir nota</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="envio">Prontas para Envio</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="emitidas">Emitidas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="canceladas">Canceladas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="rejeitadas">Rejeitadas</button>
+      <button type="button" class="nf-tab-btn" data-nf-tab="parametros">Parâmetros/AliquotasNF</button>
+    </div>
+
+
+
+      <!-- ===================== ABA 1 — LISTA ===================== -->
+      <div class="nf-view ativa" id="nfViewLista">
+        <p class="nf-aviso">
+          Orçamentos com status <strong>Fechado</strong> e saldo pendente de faturamento nesta empresa.
+        </p>
+
+        <div class="nf-secao">
+          <h3>Filtros</h3>
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroCliente" value="">
+                <ul id="nfListaCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo nf-campo-largo">
+              <label>Evento</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaEvento" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroEvento" value="">
+                <ul id="nfListaEvento" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <div class="nf-campo">
+              <label>Status Faturamento</label>
+              <select id="nfFiltroStatusFatura">
+                <option value="">Todas</option>
+                <option value="faturada">Faturadas</option>
+                <option value="parcial">Faturadas parcialmente</option>
+                <option value="aberto">Em aberto</option>
+                <option value="emissao-atrasada">Emissão NF atrasada</option>
+              </select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Realização</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroRealizacaoDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroRealizacaoAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria orçamentos de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfFiltroRealizacaoAnoAtual" checked> Ano atual
+              </label>
+            </fieldset>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Vencimento</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfFiltroVencimentoDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfFiltroVencimentoAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Desmarcado por padrão: parcelamentos que viram o ano têm vencimento fora do ano de realização. Marque pra restringir também por ano de vencimento.">
+                <input type="checkbox" id="nfFiltroVencimentoAnoAtual"> Ano atual
+              </label>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarPendentes">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosPendentes" class="nf-btn-secundario">Limpar filtros</button>
+            <button type="button" id="nfBtnImprimirPendentes" class="nf-btn-imprimir">Imprimir</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr id="nfTabelaPendentesHead">
+                <th data-sort="nrorcamento">Nº orçamento<span class="nf-seta"></span></th>
+                <th data-sort="cliente_nome">Cliente<span class="nf-seta"></span></th>
+                <th data-sort="evento_nome">Evento<span class="nf-seta"></span></th>
+                <th data-sort="emissora_nome">Empresa emissora<span class="nf-seta"></span></th>
+                <th data-sort="evento_cidade">Município<span class="nf-seta"></span></th>
+                <th data-sort="parcelaspagas">Parcelas<span class="nf-seta"></span></th>
+                <th data-sort="dtinirealizacao">Realização<span class="nf-seta"></span></th>
+                <th data-sort="proximovencimento">Vencimento<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="vlrcliente">Valor total<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="faturado">Faturado<span class="nf-seta"></span></th>
+                <th class="nf-num" data-sort="saldo">Saldo<span class="nf-seta"></span></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="nfTabelaPendentesBody">
+              <tr><td colspan="12">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="nf-rodape-totais">
+          <span class="nf-total-escopo-ano" id="nfEscopoAnoPendentes" title="Escopo de ano aplicado aos totais abaixo, conforme os checks 'Ano atual' de Realização/Vencimento"></span>
+          <span>Valor total: <strong id="nfTotalGeralValor">R$ 0,00</strong></span>
+          <span>Faturado: <strong id="nfTotalGeralFaturado">R$ 0,00</strong></span>
+          <span>A Faturar: <strong id="nfTotalGeralSaldo">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Saldo ainda não faturado cujo vencimento já passou — diferente de 'Atrasado' aqui embaixo, que é sobre pagamento não recebido">Emissão NF atrasada: <strong id="nfTotalGeralVencido">R$ 0,00</strong></span>
+          <span class="nf-total-pago" title="Notas já Emitidas confirmadas como recebidas (dinheiro entrou de verdade)">Recebida: <strong id="nfTotalGeralPago">R$ 0,00</strong></span>
+          <span>A Receber: <strong id="nfTotalGeralAReceber">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas já Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas">Recebimento Atrasado: <strong id="nfTotalGeralAtrasadoRecebimento">R$ 0,00</strong></span>
+        </div>
+      </div>
+
+      <!-- ===================== ABA 2 — EMISSÃO ===================== -->
+      <div class="nf-view" id="nfViewEmissao">
+        <input type="hidden" id="nfIdOrcamentoAtual">
+        <input type="hidden" id="nfIdClienteAtual">
+        <input type="hidden" id="nfIdParcelaAtual">
+
+        <div class="nf-secao">
+          <h3>Origem</h3>
+          <div class="nf-grid3">
+            <div class="nf-campo"><label>Orçamento</label><span id="nfOrigemOrcamento">—</span></div>
+            <div class="nf-campo"><label>Evento</label><span id="nfOrigemEvento">—</span></div>
+            <div class="nf-campo"><label>Realização</label><span id="nfOrigemRealizacao">—</span></div>
+            <div class="nf-campo"><label>Valor total do orçamento</label><span id="nfOrigemValor">—</span></div>
+            <div class="nf-campo nf-full"><label>Condição de pagamento (orçamento)</label><span id="nfOrigemCondicao">—</span></div>
+          </div>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Local de montagem do evento</h3>
+          <input type="hidden" id="nfIdMontagemAtual">
+          <!-- rua/bairro/cidade/estado/pais usam os MESMOS IDs globais que
+               Formataçoes.js (buscarCEP/preencherEndereco) já espera — assim
+               a busca por CEP já usada em Clientes/Empresa/Fornecedores
+               funciona aqui sem duplicar função nenhuma. Cidade/estado/país
+               ficam escondidos (não tem por que o financeiro editar isso
+               aqui), mas são preenchidos/salvos por trás dos panos pra manter
+               o cadastro compartilhado de Local de Montagem consistente com
+               o CEP. Só um modal fica aberto por vez neste sistema, então
+               reaproveitar esses IDs não colide com outras telas. -->
+          <input type="hidden" id="cidade">
+          <input type="hidden" id="estado">
+          <input type="hidden" id="pais">
+          <div class="nf-grid2">
+            <div class="nf-campo auto"><label>Local</label><input id="nfMontagemDesc" readonly></div>
+            <div class="nf-campo"><label>CEP</label><input id="cep" maxlength="9" oninput="formatCEP(this)"></div>
+            <div class="nf-campo"><label>Rua</label><input id="rua"></div>
+            <div class="nf-campo"><label>Número</label><input id="nfMontagemNumero"></div>
+            <div class="nf-campo"><label>Bairro</label><input id="bairro"></div>
+          </div>
+          <span class="nf-hint warn" id="nfAvisoMontagem">Endereço obrigatório pra prefeitura — não veio cadastrado no Local de Montagem.</span>
+        </div>
+
+        <div class="nf-secao" id="nfSecaoParcelas">
+          <h3>Parcelas deste orçamento</h3>
+          <p class="nf-hint">Orçamento parcelado — selecione a parcela aberta que esta nota vai faturar (preenche o valor automaticamente).</p>
+          <div class="nf-tabela-wrap">
+            <table class="nf-tabela">
+              <thead>
+                <tr><th>#</th><th>Descrição</th><th class="nf-num">Valor</th><th>Vencimento</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="nfParcelasBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Tomador do serviço</h3>
+          <div class="nf-grid2">
+            <div class="nf-campo auto"><label>Razão social</label><input id="nfClienteRazao" readonly></div>
+            <div class="nf-campo auto"><label>Nome fantasia</label><input id="nfClienteFantasia" readonly></div>
+            <div class="nf-campo auto"><label>CNPJ/CPF</label><input id="nfClienteCnpj" readonly></div>
+            <div class="nf-campo"><label>Inscrição municipal</label><input id="nfClienteInscMun" placeholder="Não cadastrada"></div>
+            <div class="nf-campo auto"><label>E-mail para NF-e</label><input id="nfClienteEmail" readonly></div>
+            <div class="nf-campo auto nf-full"><label>Endereço</label><input id="nfClienteEndereco" readonly></div>
+          </div>
+          <span class="nf-hint warn" id="nfAvisoInscMun">Campo obrigatório para a NFS-e Nacional — não veio cadastrado no cliente.</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="nf-hint" id="nfStatusSimplesNacional" style="display:none"></span>
+            <button type="button" id="nfBtnVerificarSimples" class="nf-btn-secundario" style="display:none;padding:2px 10px;font-size:12px;" title="Consulta de novo o regime tributário desse cliente na Receita Federal">Verificar Regime Tributário</button>
+          </div>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Serviço prestado</h3>
+          <div class="nf-grid2">
+            <div class="nf-campo nf-full">
+              <label>Código de serviço</label>
+              <select id="nfServicoSelect"></select>
+              <span class="nf-hint">Cadastrado em Serviços — NBS/cIndOp/classificação tributária vêm junto automaticamente.</span>
+            </div>
+            <div class="nf-campo auto"><label>Município da prestação</label><input id="nfMunicipioPrestacao" value="São Paulo/SP" readonly></div>
+            <div class="nf-campo">
+              <label>Valor do serviço (esta parcela)</label>
+              <input id="nfValorServico" inputmode="numeric" oninput="formatReais(this)">
+              <button type="button" class="nf-link" id="nfBtnInserirValor">Inserir na descrição do serviço</button>
+            </div>
+            <div class="nf-campo auto" id="nfCampoParcelaNum">
+              <label>Parcela selecionada</label>
+              <input id="nfParcelaSelecionadaNum" readonly>
+              <button type="button" class="nf-link" id="nfBtnInserirParcela">Inserir na descrição do serviço</button>
+            </div>
+            <div class="nf-campo" id="nfCampoParcelaVencimento">
+              <label>Vencimento da parcela</label>
+              <input id="nfParcelaVencimento" placeholder="dd/mm/aaaa">
+              <button type="button" class="nf-link" id="nfBtnInserirVencimento">Inserir na descrição do serviço</button>
+            </div>
+            <div class="nf-campo nf-full"><label>Descrição do serviço</label><textarea id="nfDescricaoServico"></textarea></div>
+          </div>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Pagamento <span class="nf-tag-interno">(controle interno)</span></h3>
+          <div class="nf-grid2">
+            <div class="nf-campo">
+              <label>Meio de pagamento</label>
+              <select id="nfMeioPagamento">
+                <option value="15">15 — Boleto bancário</option>
+                <option value="16">16 — Depósito bancário</option>
+                <option value="17">17 — PIX</option>
+                <option value="03">03 — Cartão de crédito</option>
+                <option value="04">04 — Cartão de débito</option>
+                <option value="18">18 — Transferência bancária / carteira digital</option>
+                <option value="99">99 — Outros</option>
+              </select>
+            </div>
+            <div class="nf-campo" id="nfCampoOutrosPag">
+              <label>Descrição do meio de pagamento</label>
+              <input id="nfDescricaoMeioPagamento" placeholder="Obrigatório quando o meio é Outros">
+            </div>
+            <div class="nf-campo nf-full">
+              <span class="nf-hint">Não faz parte do layout da NFS-e de São Paulo — dados bancários/vencimento vão em texto livre na descrição. Uso interno de conciliação.</span>
+            </div>
+            <div class="nf-campo nf-full" id="nfDadosBancariosEmissora">
+              <label>Dados bancários da empresa emissora</label>
+              <div class="nf-dados-bancarios" id="nfDadosBancariosConteudo"></div>
+              <button type="button" class="nf-link" id="nfBtnInserirDadosBancarios">Inserir na descrição do serviço</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Tributos</h3>
+          <p class="nf-hint" id="nfParametroEmUso">Parâmetro fiscal em uso: <strong id="nfAnoEmUso">—</strong></p>
+          <div class="nf-grid3">
+            <div class="nf-campo"><label>ISS (%)</label><input id="nfAliquotaIss" type="number" step="0.01" min="0"></div>
+            <div class="nf-campo auto"><label>Valor do ISS</label><input id="nfValorIss" readonly></div>
+            <div></div>
+            <div class="nf-campo nf-fim">
+              <label class="nf-check"><input type="checkbox" id="nfCheckIrrf"> Retém IRRF (<span id="nfLabelIrrfPct">—</span>)</label>
+            </div>
+            <div class="nf-campo auto"><label>Valor do IRRF</label><input id="nfValorIrrf" readonly></div>
+            <div></div>
+            <div class="nf-campo nf-fim">
+              <label class="nf-check"><input type="checkbox" id="nfCheckPisCofins"> Retém PIS/COFINS/CSLL (<span id="nfLabelPisCofinsPct">—</span>)</label>
+            </div>
+            <div class="nf-campo auto"><label>Valor retido</label><input id="nfValorPisCofins" readonly></div>
+            <div></div>
+          </div>
+          <span class="nf-hint warn" id="nfAvisoAliquotaIss" style="display:none">Evento fora de São Paulo — o ISS é devido no município do evento, não no de São Paulo. Digite manualmente a alíquota de ISS daquele município no campo acima.</span>
+          <div id="nfAvisoRetencaoTravada" style="display:none;align-items:center;gap:8px;">
+            <span class="nf-hint">Cliente Simples Nacional — retenção não se aplica, caixinhas travadas.</span>
+            <button type="button" id="nfBtnForcarRetencao" class="nf-btn-secundario" style="padding:1px 8px;font-size:12px;" title="Destrava as caixinhas de retenção mesmo com o cliente confirmado como Simples Nacional">Forçar mesmo assim</button>
+          </div>
+
+          <div class="nf-reforma">
+            <strong>Reforma Tributária — fase de teste <span id="nfLabelAnoParametros">2026</span> (destaque informativo)</strong>
+            <div class="linha"><span>Base de cálculo (valor − ISS)</span><span id="nfBaseCbsIbs">—</span></div>
+            <div class="linha"><span>CBS (<span id="nfLabelCbsPct">—</span>)</span><span id="nfValorCbs">—</span></div>
+            <div class="linha"><span>IBS (<span id="nfLabelIbsPct">—</span>)</span><span id="nfValorIbs">—</span></div>
+          </div>
+        </div>
+
+        <div class="nf-totais">
+          <div class="linha"><span>Tributos + retenções descontados</span><span id="nfTotalDescontos">—</span></div>
+          <div class="linha"><span>Valor líquido a receber</span><span id="nfTotalLiquido">—</span></div>
+          <div class="linha final"><span>Valor da nota</span><span id="nfTotalNota">—</span></div>
+        </div>
+
+        <div class="BTNs">
+          <button type="button" id="nfBtnRegistrar">Registrar nota</button>
+        </div>
+
+        <div class="nf-secao">
+          <h3>Notas registradas para este orçamento</h3>
+          <div class="nf-tabela-wrap">
+            <table class="nf-tabela">
+              <thead>
+                <tr><th>Descrição</th><th>Parcela</th><th>Vencimento</th><th class="nf-num">Valor</th><th>Nº nota</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="nfHistoricoBody">
+                <tr><td colspan="7">Selecione um orçamento na aba anterior.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — PRONTAS PARA ENVIO ===================== -->
+      <div class="nf-view" id="nfViewEnvio">
+        <p class="nf-aviso">
+          Todas as notas Prontas para Envio (de qualquer orçamento) — selecione quais entram no mesmo
+          arquivo de lote. Todas precisam ser da <strong>mesma empresa emissora</strong> e o máximo
+          por lote é <strong>50 notas</strong> (limite do layout da prefeitura). Já vem ordenado por
+          empresa emissora e vencimento.
+        </p>
+        <div class="nf-campo">
+          <label>Empresa emissora</label>
+          <select id="nfEnvioFiltroEmpresa" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+        </div>
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="nfEnvioMarcarTodas"></th>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Descrição</th>
+                <th>Parcela</th>
+                <th>Vencimento</th>
+                <th class="nf-num">Valor</th>
+                <th>Empresa emissora</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfEnvioBody">
+              <tr><td colspan="9">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="nf-secao nf-envio-rodape">
+          <span id="nfEnvioContagem">0 notas selecionadas</span>
+          <button type="button" id="nfBtnTestarEnvio" title="Valida contra a prefeitura de verdade, sem substituir nenhum RPS por NF-e">Testar envio</button>
+          <button type="button" id="nfBtnEnviarDireto" title="Envio de verdade — substitui o(s) RPS por NF-e na prefeitura">Enviar direto</button>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — FATURADAS ===================== -->
+      <div class="nf-view" id="nfViewEmitidas">
+        <p class="nf-aviso">Notas já emitidas (de qualquer orçamento) — reveja o XML/PDF ou anexe o comprovante se ainda faltar.</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaEmiCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroEmiCliente" value="">
+                <ul id="nfListaEmiCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfEmiFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <div class="nf-campo">
+              <label>Recebimento</label>
+              <select id="nfEmiFiltroStatusRecebimento">
+                <option value="">Todas</option>
+                <option value="recebida">Recebida</option>
+                <option value="a-receber">A Receber</option>
+                <option value="recebimento-atrasado">Recebimento Atrasado</option>
+              </select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfEmiFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfEmiFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfEmiFiltroAnoAtual" checked> Ano atual
+              </label>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarEmitidas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosEmitidas" class="nf-btn-secundario">Limpar filtros</button>
+            <button type="button" id="nfBtnImprimirEmitidas" class="nf-btn-imprimir">Imprimir</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th>Nº da nota</th>
+                <th class="nf-num">Valor</th>
+                <th>Registrada em</th>
+                <th>Recebimento</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfEmitidasBody">
+              <tr><td colspan="9">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="nf-rodape-totais">
+          <span>Valor total faturado: <strong id="nfEmiTotalValor">R$ 0,00</strong></span>
+          <span class="nf-total-pago" title="Notas Emitidas confirmadas como recebidas (dinheiro entrou de verdade), para os filtros atuais">Recebida: <strong id="nfEmiTotalPago">R$ 0,00</strong></span>
+          <span>A Receber: <strong id="nfEmiTotalAReceber">R$ 0,00</strong></span>
+          <span class="nf-total-vencido" title="Notas Emitidas cujo vencimento passou e ainda não foram confirmadas como recebidas, para os filtros atuais">Recebimento Atrasado: <strong id="nfEmiTotalAtrasado">R$ 0,00</strong></span>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — CANCELADAS ===================== -->
+      <div class="nf-view" id="nfViewCanceladas">
+        <p class="nf-aviso">Notas com status Cancelada — tanto as canceladas só localmente (nunca chegaram a ser emitidas de verdade) quanto as canceladas na prefeitura, via Web Service (essas mostram a justificativa e a data do cancelamento).</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaCancCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroCancCliente" value="">
+                <ul id="nfListaCancCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfCancFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfCancFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfCancFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfCancFiltroAnoAtual" checked> Ano atual
+              </label>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarCanceladas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosCanceladas" class="nf-btn-secundario">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th>Nº da nota</th>
+                <th class="nf-num">Valor</th>
+                <th>Cancelada em</th>
+                <th>Justificativa</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfCanceladasBody">
+              <tr><td colspan="9">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== ABA — REJEITADAS ===================== -->
+      <div class="nf-view" id="nfViewRejeitadas">
+        <p class="nf-aviso">Notas que a prefeitura recusou (status Rejeitada) ou cujo envio ficou sem confirmação (Envio Incerto — falha de rede/timeout, precisa conferir no portal da prefeitura antes de decidir o próximo passo). Nunca chegaram a virar NF-e de verdade no nosso controle.</p>
+
+        <div class="nf-secao">
+          <div class="nf-filtros-linha">
+            <div class="nf-campo nf-campo-largo">
+              <label>Cliente</label>
+              <div class="nf-combo">
+                <input type="text" id="nfBuscaRejCliente" placeholder="Todos" autocomplete="off">
+                <input type="hidden" id="nfFiltroRejCliente" value="">
+                <ul id="nfListaRejCliente" class="nf-combo-lista"></ul>
+              </div>
+            </div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <select id="nfRejFiltroEmpresaEmissora" class="nf-tamanho-select-emissora"><option value="">Todas</option></select>
+            </div>
+            <fieldset class="nf-grupo-filtro nf-grupo-compacto">
+              <legend>Registro</legend>
+              <div class="nf-grupo-compacto-campos">
+                <div class="nf-campo nf-campo-data"><label>De</label><input id="nfRejFiltroDe" placeholder="dd/mm/aaaa"></div>
+                <div class="nf-campo nf-campo-data"><label>Até</label><input id="nfRejFiltroAte" placeholder="dd/mm/aaaa"></div>
+              </div>
+              <label class="nf-check-ano-atual" title="Sem isso, a lista traria notas de todos os anos. Desmarque pra ver anos anteriores, ou digite um período acima que desmarca sozinho.">
+                <input type="checkbox" id="nfRejFiltroAnoAtual" checked> Ano atual
+              </label>
+            </fieldset>
+          </div>
+          <div class="BTNs">
+            <button type="button" id="nfBtnFiltrarRejeitadas">Filtrar</button>
+            <button type="button" id="nfBtnLimparFiltrosRejeitadas" class="nf-btn-secundario">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="nf-tabela-wrap">
+          <table class="nf-tabela">
+            <thead>
+              <tr>
+                <th>Nº orçamento</th>
+                <th>Cliente</th>
+                <th>Evento</th>
+                <th>Parcela</th>
+                <th class="nf-num">Valor</th>
+                <th>Registrada em</th>
+                <th>Status / Motivo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nfRejeitadasBody">
+              <tr><td colspan="8">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== ABA 3 — PARÂMETROS ===================== -->
+      <div class="nf-view" id="nfViewParametros">
+        <p class="nf-aviso">
+          Alíquotas de CBS/IBS e das retenções de serviço, por ano de vigência — mudam por lei
+          (CBS/IBS todo ano até 2033). Atualize aqui quando sair a portaria/nota técnica nova;
+          o cálculo da emissão passa a usar o valor novo automaticamente.
+        </p>
+        <div class="nf-secao">
+          <div class="nf-grid3">
+            <div class="nf-campo">
+              <label>Ano</label>
+              <select id="nfParamAno"></select>
+            </div>
+          </div>
+          <div class="nf-grid3 nf-mt">
+            <div class="nf-campo"><label>CBS (%)</label><input id="nfParamCbs" type="number" step="0.0001" min="0"></div>
+            <div class="nf-campo"><label>IBS (%)</label><input id="nfParamIbs" type="number" step="0.0001" min="0"></div>
+            <div></div>
+            <div class="nf-campo"><label>IRRF serviço PJ (%)</label><input id="nfParamIrrf" type="number" step="0.0001" min="0"></div>
+            <div class="nf-campo"><label>PIS/COFINS/CSLL (%)</label><input id="nfParamPisCofins" type="number" step="0.0001" min="0"></div>
+            <div></div>
+          </div>
+        </div>
+        <div class="BTNs">
+          <button type="button" id="nfBtnSalvarParametros">Salvar parâmetros</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<iframe id="nfPrintIframe" style="display:none;"></iframe>

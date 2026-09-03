@@ -1,4 +1,4 @@
-  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css?v=4">
+  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css?v=5">
     <div id="cadModalEmpresas" class="modal">
       <div class="modal-content">
           
@@ -12,6 +12,9 @@
                   
             <fieldset>
               <legend>Informações da  Empresa</legend>
+              <div class="form-2colunas nf-logo-topo">
+                <img id="previewLogo" src="#" alt="Logo da empresa" style="display:none; max-width:140px; max-height:70px; border-radius:6px; object-fit:contain;">
+              </div>
               <div class="form-2colunas">
                 <div class="form2">
                   <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
@@ -77,6 +80,8 @@
                     spellcheck="false" readonly />
                   <label for="idEmpresa">Código</label>
                 </div>
+
+                <button type="button" id="btnInserirLogo" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo</button>
               </div>
             </fieldset><br>
 
@@ -99,7 +104,7 @@
                     <label for="numero">Número</label>
                 </div>
                 <div class="form2">
-                    <input type="text" class="uppercase" class="Complemento" name="complemento"
+                    <input type="text" class="uppercase Complemento" name="complemento"
                     id="complemento" required spellcheck="false">
                     <label for="complemento">Complemento</label>
                 </div>

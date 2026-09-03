@@ -27,8 +27,6 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     const dados = await response.json();
     const { token, idusuario, nome, empresas, idempresaDefault } = dados;
 
-    console.log("token, idusuario", token, idusuario);
-
     // Limpa storage e salva dados do usuário
     localStorage.clear();
     localStorage.setItem("token", token);

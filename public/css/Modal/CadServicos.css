@@ -3,7 +3,7 @@
    #cadModalServicos. */
 
 /* Faltava isto — presente no CadFornecedores.css (que funciona). Ver nota
-   equivalente em CadNotaFiscal.css. */
+   equivalente em Faturamento.css. */
 .modal-open main,
 .modal-open header,
 .modal-open #content,
@@ -36,13 +36,13 @@
 body { font-family: "Abel", sans-serif; }
 
 /* Trava o scroll da página de fundo enquanto o modal está aberto (seletor
-   certo — ver nota em CadNotaFiscal.css sobre o typo que existe na maioria
+   certo — ver nota em Faturamento.css sobre o typo que existe na maioria
    dos outros CadXxx.css do sistema). */
 body.modal-open {
   overflow: hidden;
 }
 
-/* CAUSA RAIZ (ver CadNotaFiscal.css): Index.js força modal.style.display =
+/* CAUSA RAIZ (ver Faturamento.css): Index.js força modal.style.display =
    "block" depois de injetar o HTML, então "display:flex" aqui nunca
    funciona de verdade — a cascata flex:1/min-height:0 abaixo era inerte.
    #form-servicos ganha altura fixa em px + overflow-y:auto em vez disso. */

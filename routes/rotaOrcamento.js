@@ -2124,7 +2124,7 @@ router.get('/qtd-staff-contratado', autenticarToken(), contextoEmpresa, async (r
 
 // Dentro do seu arquivo de rotas (ex: routes/orcamentos.js)
 router.post('/verificar-duplicidade', async (req, res) => {
-    const { idOrcamento, idFuncao, setor } = req.body;
+    const { idOrcamento, idFuncao, setor, idOrcamentoItem } = req.body;
 
     try {
         if (!idOrcamento) {
@@ -2132,15 +2132,17 @@ router.post('/verificar-duplicidade', async (req, res) => {
         }
 
         const setorTrimmed = (setor || '').trim();
+        const idItemAtual = idOrcamentoItem ? Number(idOrcamentoItem) : null;
 
-        // 1. Verificar dentro do mesmo orçamento
+        // 1. Verificar dentro do mesmo orçamento (exclui a própria linha, quando já existente)
         const checkMesmoOrc = await pool.query(
             `SELECT idorcamentoitem FROM orcamentoitens
              WHERE idorcamento = $1
                AND idfuncao = $2
                AND (setor = $3 OR (setor IS NULL AND $3 = ''))
+               AND ($4::int IS NULL OR idorcamentoitem != $4::int)
              LIMIT 1`,
-            [idOrcamento, idFuncao, setorTrimmed]
+            [idOrcamento, idFuncao, setorTrimmed, idItemAtual]
         );
 
         if (checkMesmoOrc.rows.length > 0) {
@@ -2150,7 +2152,10 @@ router.post('/verificar-duplicidade', async (req, res) => {
             });
         }
 
-        // 2. Verificar em outros orçamentos do mesmo evento, cliente e ANO
+        // 2. Verificar em outros orçamentos do mesmo evento, cliente e EDIÇÃO
+        // (edicao é o campo que representa o ano/edição do evento — usar a data
+        // de realização para isso é errado, pois orçamentos de edições diferentes
+        // podem ter datas no mesmo ano civil, e vice-versa).
         const checkOutrosOrc = await pool.query(
             `SELECT oi.idorcamentoitem, o.nrorcamento
              FROM orcamentoitens oi
@@ -2158,7 +2163,7 @@ router.post('/verificar-duplicidade', async (req, res) => {
              JOIN orcamentos oatual ON oatual.idorcamento = $1
              WHERE o.idevento                            = oatual.idevento
                AND o.idcliente                           = oatual.idcliente
-               AND EXTRACT(YEAR FROM o.dtinirealizacao)  = EXTRACT(YEAR FROM oatual.dtinirealizacao)
+               AND o.edicao                               = oatual.edicao
                AND o.idorcamento                        != $1
                AND oatual.idevento                      IS NOT NULL
                AND oi.idfuncao                           = $2
@@ -3655,14 +3660,76 @@ router.put("/:id",
       }
 
       // 4. Parcelas de pagamento (orcamentoparcelas) — substitui por completo
-      // a cada salvamento, igual pavilhões/itens acima. Roda mesmo com o
-      // orçamento já fechado: empresa emissora, vencimento e parcelamento
-      // costumam ser preenchidos só depois do fechamento (a rota /fechar/:id
-      // só confere consistência, não grava parcela).
-      await client.query(`DELETE FROM orcamentoparcelas WHERE idorcamento = $1`, [idOrcamento]);
+      // a cada salvamento, igual pavilhões/itens acima, EXCETO as que estão
+      // referenciadas por notasfiscais.idparcela (FK sem ON DELETE) — apagar
+      // uma dessas quebraria a nota vinculada. Isso vale mesmo pra parcela
+      // que voltou a status 'Aberta' porque a nota foi CANCELADA: o registro
+      // da nota cancelada continua existindo (histórico) e continua
+      // referenciando o idparcela, então ela também não pode ser apagada —
+      // só não está mais travada pra edição (segue em UPDATE, não INSERT).
+      // Roda mesmo com o orçamento já fechado: empresa emissora, vencimento
+      // e parcelamento costumam ser preenchidos só depois do fechamento (a
+      // rota /fechar/:id só confere consistência, não grava parcela).
+      const parcelasReferenciadas = (
+        await client.query(
+          `SELECT op.idparcela, op.numparcela, op.vlrparcela, op.status
+             FROM orcamentoparcelas op
+            WHERE op.idorcamento = $1
+              AND EXISTS (SELECT 1 FROM notasfiscais nf WHERE nf.idparcela = op.idparcela)`,
+          [idOrcamento]
+        )
+      ).rows;
+      const referenciadaPorId = new Map(parcelasReferenciadas.map((r) => [r.idparcela, r]));
+      const numerosReferenciados = new Set(parcelasReferenciadas.map((r) => r.numparcela));
+
+      await client.query(
+        `DELETE FROM orcamentoparcelas op
+          WHERE op.idorcamento = $1
+            AND NOT EXISTS (SELECT 1 FROM notasfiscais nf WHERE nf.idparcela = op.idparcela)`,
+        [idOrcamento]
+      );
 
       if (Array.isArray(parcelas) && parcelas.length > 0) {
-        const somaParcelas = parcelas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
+        const parcelasNovas = [];
+        let somaPreservadas = 0;
+        const idsProcessados = new Set();
+
+        for (const p of parcelas) {
+          const original = p.idparcela ? referenciadaPorId.get(p.idparcela) : null;
+          if (!original) {
+            parcelasNovas.push(p);
+            continue;
+          }
+          idsProcessados.add(original.idparcela);
+          if (original.status === 'Faturada') {
+            // Nunca muda de valor — é o que já está na nota emitida.
+            somaPreservadas += parseFloat(original.vlrparcela);
+            continue;
+          }
+          // Referenciada por nota já cancelada, mas ainda 'Aberta': não pode
+          // sumir do banco, mas pode ter valor/vencimento atualizados.
+          if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
+            throw new Error(`Parcela ${p.numparcela || original.numparcela} está sem valor.`);
+          }
+          await client.query(
+            `UPDATE orcamentoparcelas SET descricao = $2, vlrparcela = $3, dtvencimento = $4
+              WHERE idparcela = $1`,
+            [p.idparcela, p.descricao || null, p.vlrparcela, p.dtvencimento || null]
+          );
+          somaPreservadas += parseFloat(p.vlrparcela);
+        }
+
+        // Parcela referenciada que o front não reenviou (ex.: usuário tentou
+        // remover a linha) continua existindo no banco — não some, então
+        // entra na soma pra validação não ficar desalinhada do que já está
+        // salvo de fato.
+        for (const original of parcelasReferenciadas) {
+          if (!idsProcessados.has(original.idparcela)) {
+            somaPreservadas += parseFloat(original.vlrparcela);
+          }
+        }
+
+        const somaParcelas = somaPreservadas + parcelasNovas.reduce((soma, p) => soma + parseFloat(p.vlrparcela || 0), 0);
         const vlrClienteNum = parseFloat(vlrCliente || 0);
         if (Math.abs(somaParcelas - vlrClienteNum) > 0.01) {
           throw new Error(
@@ -3670,15 +3737,19 @@ router.put("/:id",
           );
         }
 
-        for (let i = 0; i < parcelas.length; i++) {
-          const p = parcelas[i];
+        let numparcela = 0;
+        for (let i = 0; i < parcelasNovas.length; i++) {
+          const p = parcelasNovas[i];
           if (!p.vlrparcela || parseFloat(p.vlrparcela) <= 0) {
             throw new Error(`Parcela ${i + 1} está sem valor.`);
           }
+          do {
+            numparcela++;
+          } while (numerosReferenciados.has(numparcela));
           await client.query(
             `INSERT INTO orcamentoparcelas (idorcamento, numparcela, descricao, vlrparcela, dtvencimento)
              VALUES ($1, $2, $3, $4, $5)`,
-            [idOrcamento, i + 1, p.descricao || null, p.vlrparcela, p.dtvencimento || null]
+            [idOrcamento, numparcela, p.descricao || null, p.vlrparcela, p.dtvencimento || null]
           );
         }
       }

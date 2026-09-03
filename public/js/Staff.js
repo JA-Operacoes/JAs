@@ -24,8 +24,19 @@ const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
 const temPermissaoDevs = temPermissao("Staff", "devs");
-// Só Master e Supremo podem trocar o status de cada Caixinha — os demais só visualizam.
-const temPermissaoCaixinhaEditavel = temPermissaoMaster || temPermissao("Staff", "supremo");
+// Só Master e Supremo podem trocar manualmente o status de Caixinha e o status
+// de pagamento de Cachê/Ajuda de Custo — os demais só visualizam (input readonly).
+const temPermissaoMasterOuSupremo = temPermissaoMaster || temPermissao("Staff", "supremo");
+const temPermissaoCaixinhaEditavel = temPermissaoMasterOuSupremo;
+
+// Normaliza o status de pagamento (cru do banco, ex.: "PAGO", "pago 50%") para
+// o value exato usado nas <option> dos selects de Status do Pgto (Cachê/Ajuda).
+function normalizarStatusPgtoParaSelect(valor) {
+    const semEspacoOuPercent = (valor || '').trim().toUpperCase().replace(/\s|%/g, '');
+    if (!semEspacoOuPercent) return 'Pendente';
+    if (semEspacoOuPercent === 'PAGO50') return 'Pago50';
+    return semEspacoOuPercent.charAt(0) + semEspacoOuPercent.slice(1).toLowerCase();
+}
 
 
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
@@ -120,7 +131,6 @@ let alimentacaoInputListener = null;
 let caixinhaInputListener = null;
 let fileCacheChangeListener = null;
 let fileAjdCustoChangeListener = null;
-let fileCaixinhaChangeListener = null;
 let fileAjdCusto2ChangeListener = null;
 let fileControleGastosChangeListener = null;
 let datasEventoPicker, diariaDobradaPicker, meiaDiariaPicker;
@@ -1879,6 +1889,21 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     window.statusPgtoCacheOriginalDoBanco = eventData.statuspgto;
     statusPgtoAjudaCustoInput.value = (eventData.statuspgtoajdcto || 'Pendente').toUpperCase();
 
+    // Master/Supremo podem alterar manualmente o status de pagamento de Cachê e
+    // Ajuda de Custo — mostra o select nesse caso; os demais só veem o input (readonly).
+    const selectStatusPgtoEl = document.getElementById('selectStatusPgto');
+    const selectStatusPgtoAjudaCustoEl = document.getElementById('selectStatusPgtoAjudaCusto');
+    if (selectStatusPgtoEl) {
+        selectStatusPgtoEl.value = normalizarStatusPgtoParaSelect(eventData.statuspgto);
+        statusPagtoInput.style.display = temPermissaoMasterOuSupremo ? 'none' : '';
+        selectStatusPgtoEl.style.display = temPermissaoMasterOuSupremo ? 'block' : 'none';
+    }
+    if (selectStatusPgtoAjudaCustoEl) {
+        selectStatusPgtoAjudaCustoEl.value = normalizarStatusPgtoParaSelect(eventData.statuspgtoajdcto);
+        statusPgtoAjudaCustoInput.style.display = temPermissaoMasterOuSupremo ? 'none' : '';
+        selectStatusPgtoAjudaCustoEl.style.display = temPermissaoMasterOuSupremo ? 'block' : 'none';
+    }
+
     // Checkboxes de status do staff
     const statusStaff = (eventData.statusstaff || '').trim();
     if (ckbInativo)  ckbInativo.checked  = statusStaff === 'Inativo';
@@ -2115,7 +2140,6 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
     preencherComprovanteCampo(eventData.comppgtoajdcusto50, 'AjdCusto2');
-    preencherComprovanteCampo(eventData.comppgtocaixinha, 'Caixinha');
     preencherComprovanteCampo(eventData.compcontgastos, 'ControleGastos');
     preencherComprovanteCampo(eventData.compnotafiscal, 'NotaFiscal');
 
@@ -3301,7 +3325,9 @@ function aplicarCoresAsOpcoes(selectElementId) {
 function aplicarCorNoSelect(selectElement) {
    // console.log("Aplicando cores no select:", selectElement.id);
     const statusAtual = selectElement.value;
-    selectElement.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
+    // Pago/Suspenso: valores do novo select de pagamento por item de caixinha
+    // (onMudarStatusPgtoCaixinhaItem) — reaproveita este helper genérico.
+    selectElement.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado', 'status-Pago', 'status-Suspenso');
     if (statusAtual) {
         selectElement.classList.add('status-' + statusAtual);
         console.log("Status Atual:", statusAtual);
@@ -3707,18 +3733,28 @@ async function verificaStaff() {
     btnRemoverComprovanteCascata?.addEventListener('click', async () => {
         const confirmaRemocao = await Swal.fire({
             title: 'Remover imagem da solicitação?',
-            text: 'A imagem anexada será removida ao salvar o registro.',
+            html: 'A imagem anexada será removida ao salvar o registro. Justifique a remoção:',
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'Justificativa',
             showCancelButton: true,
             confirmButtonText: 'Sim, remover',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#c0392b'
+            confirmButtonColor: '#c0392b',
+            inputValidator: (v) => { if (!v || !v.trim()) return 'Justificativa obrigatória!'; }
         });
         if (!confirmaRemocao.isConfirmed) return;
         if (fileInativarDeletarInputWire) fileInativarDeletarInputWire.value = '';
         const limparInput = document.getElementById('limparComprovanteInativarDeletar');
         if (limparInput) limparInput.value = 'true';
         atualizarWidgetComprovanteInativarDeletar(null);
+
+        // Registra no log de sistema (obslogsistema) — acumula em obsGeralNotaDatas, que o
+        // envio do formulário concatena (nunca sobrepõe) ao histórico já salvo no backend.
+        const dataHora = new Date().toLocaleString('pt-BR');
+        const nomeUsuario = (typeof obterNomeDoToken === 'function') ? obterNomeDoToken() : 'Usuário';
+        const entradaRemocao = `[COMPROVANTE REMOVIDO - Imagem Inativar/Deletar] Em ${dataHora} por ${nomeUsuario}. Justificativa: ${confirmaRemocao.value.trim()}`;
+        window.obsGeralNotaDatas = window.obsGeralNotaDatas ? `${window.obsGeralNotaDatas}\n${entradaRemocao}` : entradaRemocao;
     });
 
     qtdPessoasInput           = document.getElementById('qtdPessoas');
@@ -3858,7 +3894,6 @@ async function verificaStaff() {
     
 
     const labelFileAjdCusto = document.getElementById('labelFileAjdCusto');
-    const labelFileCaixinha = document.getElementById('labelFileCaixinha');
 
     // Lógica para o comprovante de Ajuda de Custo
     labelFileAjdCusto.addEventListener('click', (event) => {       
@@ -3910,20 +3945,6 @@ async function verificaStaff() {
                 icon: 'warning',
                 title: 'Não é possível inserir comprovante',
                 text: 'O status de pagamento deve ser "Pago 50%" para inserir um comprovante de 50% do valor pago.',
-            });
-        }
-    });
-
-    // Lógica para o comprovante de Caixinha
-    labelFileCaixinha.addEventListener('click', (event) => {
-        const vlrCaixinha = parseFloat(caixinhaInput.value.replace(',', '.') || 0.00);
-
-        if (vlrCaixinha === 0) {
-            event.preventDefault(); // Impede a abertura do modal de upload
-            Swal.fire({
-                icon: 'warning',
-                title: 'Não é possível inserir comprovante',
-                text: 'O valor da Caixinha deve ser maior que zero para inserir um comprovante.',
             });
         }
     });
@@ -4284,6 +4305,35 @@ async function verificaStaff() {
     })
    
    
+    // Master/Supremo alterando manualmente o status de pagamento do Cachê — sincroniza
+    // o select com o input escondido (é o input que o restante do código/envio lê).
+    document.getElementById('selectStatusPgto')?.addEventListener('change', function(e) {
+        const novoStatus = e.target.value.toUpperCase();
+        statusPagtoInput.value = novoStatus;
+        statusPagtoInput.classList.remove('pendente', 'pago', 'suspenso');
+        if (novoStatus === 'PENDENTE') statusPagtoInput.classList.add('pendente');
+        else if (novoStatus === 'PAGO') statusPagtoInput.classList.add('pago');
+        else if (novoStatus === 'SUSPENSO') statusPagtoInput.classList.add('suspenso');
+    });
+
+    // Idem para a Ajuda de Custo — aqui também precisa manter o dataset.status (valor
+    // "cru", ex. PAGO50) separado do texto exibido no input (ex. "PAGO 50%"), porque é
+    // o dataset que o resto do código lê pra saber o status real (ver linha ~1960).
+    document.getElementById('selectStatusPgtoAjudaCusto')?.addEventListener('change', function(e) {
+        const novoStatus = e.target.value.toUpperCase();
+        statusPgtoAjudaCustoInput.dataset.status = novoStatus;
+        statusPgtoAjudaCustoInput.classList.remove('pendente', 'pago', 'pago50', 'suspenso');
+        if (novoStatus === 'PAGO50') {
+            statusPgtoAjudaCustoInput.value = 'PAGO 50%';
+            statusPgtoAjudaCustoInput.classList.add('pago50');
+        } else {
+            statusPgtoAjudaCustoInput.value = novoStatus;
+            if (novoStatus === 'PENDENTE') statusPgtoAjudaCustoInput.classList.add('pendente');
+            else if (novoStatus === 'PAGO') statusPgtoAjudaCustoInput.classList.add('pago');
+            else if (novoStatus === 'SUSPENSO') statusPgtoAjudaCustoInput.classList.add('suspenso');
+        }
+    });
+
     document.getElementById('selectStatusCaixinha')?.addEventListener('change', async function(e) {
         const novoStatus = e.target.value;
         const inputDescCaixinha = document.getElementById('descCaixinha');
@@ -5817,13 +5867,6 @@ async function verificaStaff() {
             else if (hiddenRemoverAjdCusto2Input.value === 'true') { comppgtoajdcusto50DoForm = ''; }
             else { comppgtoajdcusto50DoForm = currentEditingStaffEvent?.comppgtoajdcusto50 || ''; }
 
-            const fileCaixinhaInput = document.getElementById('fileCaixinha');
-            const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
-            let comppgtocaixinhaDoForm;
-            if (fileCaixinhaInput.files?.[0]) { comppgtocaixinhaDoForm = 'novo-arquivo'; }
-            else if (hiddenRemoverCaixinhaInput.value === 'true') { comppgtocaixinhaDoForm = ''; }
-            else { comppgtocaixinhaDoForm = currentEditingStaffEvent?.comppgtocaixinha || ''; }
-
             const fileControleGastosInput = document.getElementById('fileControleGastos');
             const hiddenRemoverControleGastosInput = document.getElementById('limparComprovanteControleGastos');
             let compcontrolegastosDoForm;
@@ -5916,7 +5959,21 @@ async function verificaStaff() {
                 const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivo) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
                 // Comparação pelo array inteiro (não só pelo total autorizado): adicionar uma
                 // caixinha nova Pendente não muda o total autorizado, mas é uma alteração real.
-                const houveAlteracaoCaixinha = JSON.stringify(currentEditingStaffEvent.dtcaixinha || []) !== JSON.stringify(window.dtCaixinhaAtual || []);
+                // 🐛 CORREÇÃO: o campo salvo no banco é `caixinha`, não `dtcaixinha` (que nunca
+                // existiu em currentEditingStaffEvent) — a comparação sempre dava [] !== array
+                // preenchido, forçando alterouDadosOrcamento=true (e a verificação de limite
+                // financeiro) em TODO salvamento com qualquer caixinha, mesmo só inserindo comprovante.
+                const caixinhaOriginalRaw = currentEditingStaffEvent.caixinha;
+                const caixinhaOriginalArr = Array.isArray(caixinhaOriginalRaw)
+                    ? caixinhaOriginalRaw
+                    : (typeof caixinhaOriginalRaw === 'string' ? (JSON.parse(caixinhaOriginalRaw || '[]') || []) : []);
+                const houveAlteracaoCaixinha = JSON.stringify(caixinhaOriginalArr) !== JSON.stringify(window.dtCaixinhaAtual || []);
+                // Versão "orçamentária" da comparação acima: ignora comprovante/comprovanteRemovido
+                // e justificativa de propósito — anexar/remover um comprovante (🗑, que concatena um
+                // registro na justificativa do item) é só documentação, não deveria disparar a
+                // verificação de limite financeiro; só mudança de valor/autorização/pagamento conta.
+                const semCamposDocumentais = (arr) => (arr || []).map(({ comprovante, comprovanteRemovido, justificativa, ...resto }) => resto);
+                const houveAlteracaoCaixinhaOrcamentaria = JSON.stringify(semCamposDocumentais(caixinhaOriginalArr)) !== JSON.stringify(semCamposDocumentais(window.dtCaixinhaAtual));
                 const houveAlteracaoDiariaDobrada = (dataDiariaDobradaOriginalLimpa.toString() !== periodoDobrado.toString());
                 const houveAlteracaoMeiaDiaria = (dataMeiaDiariaOriginalLimpa.toString() !== periodoMeiaDiaria.toString());
                 const houveAlteracaoDatas = JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento);
@@ -6169,10 +6226,17 @@ async function verificaStaff() {
                     logAndCheck('Comprovante Cache', normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), normalizeEmptyValue(comppgtocacheDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm)) ||
                     logAndCheck('Comprovante AjdCusto', normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto), normalizeEmptyValue(comppgtoajdcustoDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)) ||
                     logAndCheck('Comprovante AjdCusto50', normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50), normalizeEmptyValue(comppgtoajdcusto50DoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)) ||
-                    logAndCheck('Comprovante Caixinha', normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha), normalizeEmptyValue(comppgtocaixinhaDoForm), normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)) ||
                     logAndCheck('Comprovante ControleGastos', normalizeEmptyValue(currentEditingStaffEvent.compcontrolegastos), normalizeEmptyValue(compcontrolegastosDoForm), normalizeEmptyValue(currentEditingStaffEvent.compcontrolegastos) !== normalizeEmptyValue(compcontrolegastosDoForm)) ||
                     logAndCheck('Comprovante NotaFiscal', normalizeEmptyValue(currentEditingStaffEvent.compnotafiscal), normalizeEmptyValue(compnotafiscalDoForm), normalizeEmptyValue(currentEditingStaffEvent.compnotafiscal) !== normalizeEmptyValue(compnotafiscalDoForm)) ||
                     logAndCheck('Comprovante InativarDeletar', normalizeEmptyValue(currentEditingStaffEvent.compinativardeletar), normalizeEmptyValue(compinativardeletarDoForm), normalizeEmptyValue(currentEditingStaffEvent.compinativardeletar) !== normalizeEmptyValue(compinativardeletarDoForm)) ||
+                    // Comprovante por item de caixinha: só existe em memória (comprovantesCaixinhaPendentes),
+                    // não reflete em window.dtCaixinhaAtual até o backend salvar — sem isto, inserir só um
+                    // comprovante de caixinha cairia no "Nenhuma alteração detectada" e bloquearia o salvamento.
+                    logAndCheck('Comprovante Caixinha (itens)', 0, (window.comprovantesCaixinhaPendentes?.size || 0), (window.comprovantesCaixinhaPendentes?.size || 0) > 0) ||
+                    // Array de caixinha inteiro (status/statuspgto/valor/justificativa/comprovante por item)
+                    // — cobre principalmente REMOVER um comprovante já salvo (🗑, sem passar pelo Map acima,
+                    // que só existe pra upload novo), senão essa ação sozinha não contaria como alteração.
+                    logAndCheck('Array Caixinha', JSON.stringify(caixinhaOriginalArr), JSON.stringify(window.dtCaixinhaAtual || []), houveAlteracaoCaixinha) ||
                     logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginalLimpa), JSON.stringify(periodoDobrado), JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(periodoDobrado)) ||
                     logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginalLimpa), JSON.stringify(periodoMeiaDiaria), JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(periodoMeiaDiaria)) ||
                     //logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase(), (statusDiariaDobrada || '').trim().toUpperCase(), (currentEditingStaffEvent.statusdiariadobrada || '').trim().toUpperCase() != (statusDiariaDobrada || '').trim().toUpperCase()) ||
@@ -6200,7 +6264,7 @@ async function verificaStaff() {
 
                 console.log("HOUVE ALTERAÇÃO:", houveAlteracao, "ALTEROU DATAS:", houveAlteracaoDatas);
 
-                const alterouDadosOrcamento = houveAlteracaoDatas || houveAlteracaoDiariaDobrada || houveAlteracaoAjusteCusto || houveAlteracaoCaixinha || logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao);
+                const alterouDadosOrcamento = houveAlteracaoDatas || houveAlteracaoDiariaDobrada || houveAlteracaoAjusteCusto || houveAlteracaoCaixinhaOrcamentaria || logAndCheck('Função', currentEditingStaffEvent.nmfuncao?.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao?.toUpperCase() != descFuncao);
                 console.log("HOUVE ALTERAÇÃO:", houveAlteracao, "ALTEROU DATAS:", houveAlteracaoDatas, "ALTEROU FUNÇÃO:", alterouDadosOrcamento);
 
                 //if (alterouDadosOrcamento) {
@@ -6830,10 +6894,20 @@ async function verificaStaff() {
     
             let dadosMeiaDiaria = [];
             if (periodoMeiaDiaria?.length > 0) {
+                // Meia diária = metade do cachê da diária + alimentação cheia. Preserva
+                // vlr_cache/vlr_alimentacao já salvos no item (statusData) quando existirem;
+                // senão calcula a partir dos valores atuais da tela.
+                const vlrCacheMeiaAtual = parseFloat(vlrCusto.replace(',', '.')) || 0;
+                const vlrAlimMeiaAtual = parseFloat(alimentacao.replace(',', '.')) || 0;
                 dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
                     const statusData = datasMeiaDiaria.find(item => item.data === data);
                     // ✅ CORREÇÃO: Se a data for nova, forçar 'Pendente'
-                    return { data, status: statusData ? statusData.status : "Pendente" };
+                    return {
+                        data,
+                        status: statusData ? statusData.status : "Pendente",
+                        vlr_cache: statusData?.vlr_cache != null ? Number(statusData.vlr_cache) : (vlrCacheMeiaAtual / 2),
+                        vlr_alimentacao: statusData?.vlr_alimentacao != null ? Number(statusData.vlr_alimentacao) : vlrAlimMeiaAtual
+                    };
                 });
             }
 
@@ -7264,7 +7338,12 @@ async function verificaStaff() {
                         tagDatas = datasFormatadasBR ? ` [EXCEDIDO EM ${datasFormatadasBR}]` : '';
                     }
 
-                    formData.set('obslogsistemaNovo', `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`);
+                    let obsLogSistemaNovoAditivo = `${prefixo} - ${agora}.${tagDatas} Justificativa: ${window.justificativaParaSalvar}`;
+                    if (window.obsGeralNotaDatas) {
+                        obsLogSistemaNovoAditivo += `\n${window.obsGeralNotaDatas}`;
+                        window.obsGeralNotaDatas = null;
+                    }
+                    formData.set('obslogsistemaNovo', obsLogSistemaNovoAditivo);
                 } else {
                     formData.set('ativo', 'true');
                     if (window.tipoExcecaoAtual) {
@@ -7822,15 +7901,6 @@ async function verificaStaff() {
 function obterNomeDoToken() {
     const token = localStorage.getItem('token'); // ou o nome que você usa
     if (!token) return "Usuário";
-
-    console.group("🔍 Debug: Identificação do Usuário");
-    console.log("Token bruto encontrado:", token ? "Sim (Iniciado com " + token.substring(0, 10) + "...)" : "Não encontrado");
-
-    if (!token) {
-        console.warn("Aviso: Nenhum token encontrado no localStorage/sessionStorage.");
-        console.groupEnd();
-        return "Usuário";
-    }
 
     try {
         const base64Url = token.split('.')[1];
@@ -11964,6 +12034,12 @@ function limparCamposStaff() {
         }
     });
 
+    // nmFuncionario é um <select> escondido (configurarBuscaTextoFuncionarioStaff) — o campo
+    // visível é um input de busca separado, sincronizado só pelo evento "change" do select.
+    // Zerar o .value acima não dispara esse evento, então o texto visível não some sozinho.
+    const buscaFuncionarioInputLimparTudo = document.querySelector(".nmFuncionario-busca-input");
+    if (buscaFuncionarioInputLimparTudo) buscaFuncionarioInputLimparTudo.value = "";
+
     const camposExtras = ["selectStatusCustoFechado", "statusCustoFechadoTexto"];
     camposExtras.forEach(id => {
         const el = document.getElementById(id);
@@ -12220,6 +12296,12 @@ async function limparCamposStaffParcial() {
                 $(campo).val('').trigger('change.select2');
         }
     });
+
+    // nmFuncionario é um <select> escondido (configurarBuscaTextoFuncionarioStaff) — o campo
+    // visível é um input de busca separado, sincronizado só pelo evento "change" do select.
+    // Zerar o .value acima não dispara esse evento, então o texto visível não some sozinho.
+    const buscaFuncionarioInput = document.querySelector(".nmFuncionario-busca-input");
+    if (buscaFuncionarioInput) buscaFuncionarioInput.value = "";
 
     // 4. Reset de Checkboxes (Unificado)
     const checksParaLimpar = ['ajusteCustocheck', 'Caixinhacheck', 'meiaDiariacheck', 'diariaDobradacheck', 'check50', 'check100', 'viagem1Check', 'viagem2Check', 'viagem3Check'];
@@ -12539,12 +12621,13 @@ function gerarIditemCaixinha(data, valor) {
 }
 
 function caixinhaCachePago() {
-    // Bloqueia item novo/nova autorização quando o cachê JÁ foi pago OU quando a própria
-    // caixinha já foi paga (statuspgtocaixinha) — uma vez pago, a "gaveta" da caixinha
-    // fecha, mesma regra aplicada no backend (normalizarCaixinha).
+    // Bloqueia item novo/nova autorização quando o cachê JÁ foi pago OU quando algum item
+    // da própria caixinha já foi pago (statuspgto por item — statuspgtocaixinha do registro
+    // inteiro foi descontinuado) — uma vez pago, a "gaveta" fecha, mesma regra do backend
+    // (normalizarCaixinha).
     const cachePago = (window.statusPgtoCacheOriginalDoBanco || '').trim().toLowerCase().startsWith('pago');
-    const caixinhaPaga = (window.statusPgtoCaixinhaOriginalDoBanco || '').trim().toLowerCase().startsWith('pago');
-    return cachePago || caixinhaPaga;
+    const algumItemPago = (window.dtCaixinhaAtual || []).some(it => (it.statuspgto || '').trim().toLowerCase().startsWith('pago'));
+    return cachePago || algumItemPago;
 }
 
 // Recalcula os campos-resumo (legado) a partir de window.dtCaixinhaAtual — mesma regra
@@ -12580,10 +12663,10 @@ function sincronizarResumoCaixinha() {
     const campoStatusCx = document.getElementById('campoStatusCaixinha');
     if (campoStatusCx) campoStatusCx.style.display = 'none';
 
-    // "Status do Pgto Caixinha" também fica oculto — quem olha (inclusive Master, que já
-    // vê o select por item) não precisa desse campo extra pra entender o que foi decidido;
-    // o valor continua sendo mantido/enviado por baixo (regra de pagamento é única pro
-    // registro inteiro, não por item — ver caixinhaCachePago).
+    // "Status do Pgto Caixinha" (campo legado, statuspgtocaixinha do registro inteiro)
+    // também fica oculto — pagamento agora é por item (select ao lado do de autorização
+    // em cada linha, ver renderCaixinhaItems/onMudarStatusPgtoCaixinhaItem). O valor deste
+    // campo continua sendo enviado por baixo só por compatibilidade; o backend já ignora.
     if (campoPgtoCaixinha) campoPgtoCaixinha.style.display = 'none';
 
     // campoCaixinha (total autorizado) também fica sempre oculto — com 1-2 itens dava a
@@ -12602,26 +12685,28 @@ function renderCaixinhaItems() {
     itens.forEach((item) => {
         const linha = document.createElement('div');
         linha.className = 'linha-caixinha';
-        linha.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee; font-size:12px; flex-wrap:wrap;';
 
         const dataFormatada = item.data ? String(item.data).split('-').reverse().join('/') : '';
         const valorFormatado = (parseFloat(item.valor) || 0).toFixed(2).replace('.', ',');
         const justTitulo = String(item.justificativa || '').replace(/"/g, '&quot;');
         const justResumo = String(item.justificativa || '');
 
-        // infoSpan não cresce (flex:0) pra ficar coladinho no select — quem cresce e
-        // empurra o comprovante pro fim da linha é o "spacer" depois do select.
         const infoSpan = document.createElement('span');
-        infoSpan.style.cssText = 'flex:0 1 auto; min-width:0;';
+        infoSpan.className = 'caixinha-info';
         infoSpan.innerHTML = `<b>${dataFormatada}</b> — R$ ${valorFormatado} — <span title="${justTitulo}">${justResumo.slice(0, 40)}${justResumo.length > 40 ? '…' : ''}</span>`;
         linha.appendChild(infoSpan);
 
         // Só Master/Supremo podem trocar o status por item — os demais só veem o
         // status atual (badge somente leitura, sem select).
+        const labelAuth = document.createElement('span');
+        labelAuth.className = 'caixinha-mini-label';
+        labelAuth.textContent = 'Auth';
+        labelAuth.title = 'Autorização';
+        linha.appendChild(labelAuth);
+
         if (temPermissaoCaixinhaEditavel) {
             const selectStatus = document.createElement('select');
             selectStatus.className = 'caixinha-status-badge';
-            selectStatus.style.cssText = 'flex:0 0 auto;';
             ['Pendente', 'Autorizado', 'Rejeitado'].forEach(opt => {
                 const optionEl = document.createElement('option');
                 optionEl.value = opt;
@@ -12639,38 +12724,121 @@ function renderCaixinhaItems() {
         } else {
             const badgeStatus = document.createElement('span');
             badgeStatus.className = 'caixinha-status-badge status-' + (item.status || 'Pendente');
-            badgeStatus.style.cssText = 'flex:0 0 auto;';
             badgeStatus.textContent = item.status || 'Pendente';
             linha.appendChild(badgeStatus);
         }
 
+        // Status de PAGAMENTO por item (Pendente/Pago/Suspenso) — separado do status de
+        // autorização acima. Statuspgtocaixinha do registro inteiro foi descontinuado; cada
+        // item agora carrega o próprio pagamento (ver caixinhaCachePago/onMudarStatusPgtoCaixinhaItem).
+        const labelPgto = document.createElement('span');
+        labelPgto.className = 'caixinha-mini-label';
+        labelPgto.textContent = 'Pgto';
+        labelPgto.title = 'Pagamento';
+        linha.appendChild(labelPgto);
+
+        if (temPermissaoCaixinhaEditavel) {
+            const selectPgto = document.createElement('select');
+            selectPgto.className = 'caixinha-pgto-badge';
+            // Rejeitado incluído mesmo não sendo opção "normal" no Staff — o botão
+            // Rejeitar em Vencimentos (fluxo compartilhado com Cachê/Ajuda) também
+            // grava esse valor no item; sem a opção aqui o select mostraria "Pendente"
+            // por engano quando na verdade está Rejeitado.
+            ['Pendente', 'Pago', 'Suspenso', 'Rejeitado'].forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt;
+                optionEl.textContent = opt;
+                if (opt === (item.statuspgto || 'Pendente')) optionEl.selected = true;
+                selectPgto.appendChild(optionEl);
+            });
+            if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectPgto);
+            selectPgto.addEventListener('change', () => {
+                if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectPgto);
+                onMudarStatusPgtoCaixinhaItem(item.iditem, selectPgto.value, selectPgto);
+            });
+            linha.appendChild(selectPgto);
+        } else {
+            const badgePgto = document.createElement('span');
+            badgePgto.className = 'caixinha-pgto-badge status-' + (item.statuspgto || 'Pendente');
+            badgePgto.textContent = item.statuspgto || 'Pendente';
+            linha.appendChild(badgePgto);
+        }
+
         // Comprovante fica coladinho ao lado do status (não no fim da linha) — é a
         // prova referente àquele valor/status específico, faz sentido ver os dois juntos.
+        // Já anexado: mostra o link + (só Master) botão de remover com justificativa — NÃO
+        // mostra "Escolher arquivo" junto, senão pareceria que dá pra trocar livremente.
         if (item.comprovante) {
             const link = document.createElement('a');
             link.href = item.comprovante;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
-            link.textContent = '📎 ver';
-            link.style.cssText = 'font-size:11px; flex:0 0 auto;';
+            link.textContent = '📎 Ver comprovante';
+            link.className = 'caixinha-ver-comprovante';
             linha.appendChild(link);
+
+            if (temPermissaoMaster) {
+                const btnRemoverComp = document.createElement('button');
+                btnRemoverComp.type = 'button';
+                // Font Awesome em vez de emoji (🗑 não renderiza de forma legível em todo
+                // ambiente/fonte) — mesmo ícone já usado nos outros botões de remover
+                // comprovante desta tela (ver preencherComprovanteCampo).
+                btnRemoverComp.innerHTML = '<i class="fas fa-trash"></i> remover';
+                btnRemoverComp.title = 'Remover comprovante desta caixinha';
+                btnRemoverComp.className = 'caixinha-btn-remover-comprovante';
+                btnRemoverComp.addEventListener('click', () => onRemoverComprovanteCaixinhaItem(item.iditem));
+                linha.appendChild(btnRemoverComp);
+            }
         }
 
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'application/pdf,image/*';
-        fileInput.title = item.comprovante ? 'Substituir comprovante desta caixinha' : 'Enviar comprovante desta caixinha';
-        fileInput.style.cssText = 'font-size:11px; flex:0 0 auto; max-width:130px;';
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files?.[0]) {
-                window.comprovantesCaixinhaPendentes = window.comprovantesCaixinhaPendentes || new Map();
-                window.comprovantesCaixinhaPendentes.set(item.iditem, fileInput.files[0]);
+        // Upload de comprovante só faz sentido depois que ESTE item foi PAGO — antes disso
+        // (Pendente/Autorizado mas ainda não pago) não há o que comprovar. E só aparece se
+        // ainda NÃO tem comprovante — já anexado, só remove (acima) pra depois anexar de novo.
+        const itemPago = (item.statuspgto || 'Pendente').trim().toLowerCase() === 'pago';
+        if (itemPago && !item.comprovante) {
+            // Input nativo fica oculto (o texto "Nenhum arquivo selecionado" do navegador
+            // não trunca de forma legível em espaço pequeno) — gatilho é o botão estilizado.
+            // Depois de escolher, o nome do arquivo substitui o texto "anexar" no próprio
+            // botão (📎 + nome). Sem botão de cancelar aqui: antes de salvar, trocar de
+            // arquivo é só clicar de novo no botão (abre o seletor, escolhe outro, substitui
+            // o pendente) — cancelar só faz sentido pra comprovante JÁ salvo (🗑 acima, com
+            // justificativa), nada foi persistido ainda nesta etapa.
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'application/pdf,image/*';
+            fileInput.className = 'caixinha-file-input-oculto';
+
+            const btnAnexar = document.createElement('button');
+            btnAnexar.type = 'button';
+            btnAnexar.className = 'caixinha-btn-anexar';
+            btnAnexar.addEventListener('click', () => fileInput.click());
+
+            function atualizarExibicaoAnexo() {
+                const pendente = window.comprovantesCaixinhaPendentes?.get(item.iditem);
+                if (pendente) {
+                    btnAnexar.textContent = `📎 ${pendente.name}`;
+                    btnAnexar.title = `Trocar arquivo (atual: ${pendente.name})`;
+                } else {
+                    btnAnexar.textContent = '📎 anexar';
+                    btnAnexar.title = 'Enviar comprovante desta caixinha';
+                }
             }
-        });
-        linha.appendChild(fileInput);
+            atualizarExibicaoAnexo();
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files?.[0]) {
+                    window.comprovantesCaixinhaPendentes = window.comprovantesCaixinhaPendentes || new Map();
+                    window.comprovantesCaixinhaPendentes.set(item.iditem, fileInput.files[0]);
+                    atualizarExibicaoAnexo();
+                }
+            });
+
+            linha.appendChild(fileInput);
+            linha.appendChild(btnAnexar);
+        }
 
         const espacador = document.createElement('span');
-        espacador.style.cssText = 'flex:1 1 auto;';
+        espacador.className = 'caixinha-espacador';
         linha.appendChild(espacador);
 
         container.appendChild(linha);
@@ -12718,6 +12886,72 @@ async function onMudarStatusCaixinhaItem(iditem, novoStatus, selectEl) {
     renderCaixinhaItems();
     sincronizarResumoCaixinha();
     if (typeof calcularValorTotal === 'function') calcularValorTotal();
+}
+
+async function onMudarStatusPgtoCaixinhaItem(iditem, novoStatus, selectEl) {
+    const item = (window.dtCaixinhaAtual || []).find(it => it.iditem === iditem);
+    if (!item) return;
+    const statusAnterior = item.statuspgto || 'Pendente';
+    if (novoStatus === statusAnterior) return;
+
+    // Só faz sentido pagar um item já Autorizado — Pendente/Rejeitado não tem valor a pagar.
+    if (novoStatus === 'Pago' && item.status !== 'Autorizado') {
+        selectEl.value = statusAnterior;
+        if (typeof aplicarCorNoSelect === 'function') aplicarCorNoSelect(selectEl);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Não é possível marcar como Pago',
+            text: 'Só é possível pagar um item de Caixinha que já esteja Autorizado.'
+        });
+        return;
+    }
+
+    item.statuspgto = novoStatus;
+    renderCaixinhaItems();
+    sincronizarResumoCaixinha();
+}
+
+// Remove o comprovante já anexado de um item de caixinha — só Master, e só com
+// justificativa (mesmo padrão de onMudarStatusCaixinhaItem pra alteração pós-pagamento).
+// `comprovanteRemovido` é um marcador transiente: o backend (normalizarCaixinha) usa isso
+// pra saber que deve limpar o comprovante em vez de reaproveitar o antigo (rede de segurança
+// que existe pra quando o item simplesmente não veio com comprovante no payload).
+async function onRemoverComprovanteCaixinhaItem(iditem) {
+    const item = (window.dtCaixinhaAtual || []).find(it => it.iditem === iditem);
+    if (!item || !item.comprovante) return;
+
+    const { value: justificativa } = await Swal.fire({
+        title: 'Remover comprovante da Caixinha',
+        html: 'Este comprovante já foi anexado. Justifique a remoção:',
+        input: 'textarea',
+        inputLabel: 'Justificativa',
+        showCancelButton: true,
+        confirmButtonText: 'Remover',
+        confirmButtonColor: '#DC3545',
+        inputValidator: (v) => { if (!v) return 'Justificativa obrigatória!'; }
+    });
+    if (!justificativa) return;
+
+    // Concatena (não sobrepõe) — a justificativa original da solicitação continua ali, só
+    // acrescenta o registro de quem/quando removeu o comprovante e o motivo.
+    const dataFormatada = new Date().toLocaleDateString('pt-BR');
+    const nomeUsuario = (typeof obterNomeDoToken === 'function') ? obterNomeDoToken() : 'Usuário';
+    const entradaRemocao = `Comp. Removido em ${dataFormatada} por "${nomeUsuario}": ${justificativa}`;
+    item.justificativa = item.justificativa ? `${item.justificativa}\n${entradaRemocao}` : entradaRemocao;
+
+    item.comprovante = null;
+    item.comprovanteRemovido = true;
+    window.comprovantesCaixinhaPendentes?.delete(iditem);
+    renderCaixinhaItems();
+
+    // Só é removido de fato no banco quando o formulário inteiro é salvo — até lá é só um
+    // estado em memória (window.dtCaixinhaAtual), igual toda a edição por item de caixinha.
+    Swal.fire({
+        icon: 'info',
+        title: 'Comprovante marcado para remoção',
+        text: 'A remoção só fica efetiva depois que você salvar o registro clicando em "Enviar".',
+        confirmButtonText: 'Entendido'
+    });
 }
 
 document.getElementById('btnAdicionarCaixinha')?.addEventListener('click', async () => {
@@ -14142,10 +14376,22 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
             let vlrAjudaUnitario = (transporte + alimentacao);
             if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
 
-            if (qtdAtuais < qtdOriginais) {
+            // 2. Baseline da regra: quantas diárias a ajuda de custo JÁ PAGA (vlrtotajdcusto,
+            // valor travado no banco) realmente cobre — não quantas datas existiam quando o
+            // formulário foi aberto (qtdOriginais/datasOriginaisBanco é só um snapshot da
+            // sessão atual e não tem memória de sessões de edição anteriores; usar esse
+            // snapshot fazia o ajuste de uma sessão sumir se uma sessão seguinte alterasse
+            // datas de um jeito que fechasse na mesma contagem, ex.: remover e reinserir a
+            // mesma data). vlrtotajdcusto é o fato monetário permanente, então usamos ele.
+            const vlrtotajdcustoPago = parseFloat(cacheGlobal?.vlrtotajdcusto) || 0;
+            const qtdCobertaPelaAjuda = vlrAjudaUnitario > 0
+                ? Math.round(vlrtotajdcustoPago / vlrAjudaUnitario)
+                : qtdOriginais;
+
+            if (qtdAtuais < qtdCobertaPelaAjuda) {
                 // CASO A: REMOÇÃO - O funcionário recebeu ajuda de custo por dias que não vai trabalhar
                 // Descontamos esse excesso do Cachê (pois o campo Ajuda de Custo está travado/pago)
-                const qtdRemovida = qtdOriginais - qtdAtuais;
+                const qtdRemovida = qtdCobertaPelaAjuda - qtdAtuais;
                 const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
 
                 console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<< ", "background: #ff0000; color: #fff");
@@ -14160,10 +14406,10 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
                     totalCache = totalAposDesconto;
                 }
 
-            } else if (qtdAtuais > qtdOriginais) {
+            } else if (qtdAtuais > qtdCobertaPelaAjuda) {
                 // CASO B: INCLUSÃO - O funcionário vai trabalhar dias extras e precisa de ajuda de custo para eles
                 // Como a ajuda original já foi paga, somamos o valor dessas novas ajudas ao Cachê
-                const qtdAdicionada = qtdAtuais - qtdOriginais;
+                const qtdAdicionada = qtdAtuais - qtdCobertaPelaAjuda;
                 const valorParaAdicionar = qtdAdicionada * vlrAjudaUnitario;
 
                 console.log("%c >>> INCLUSÃO: Somando ajuda extra ao Cachê <<< ", "background: #008000; color: #fff");
@@ -14559,16 +14805,29 @@ document.addEventListener('click', function(e) {
         const removerBtn = e.target.closest('.remover-comprovante-btn');
         const campoNome = removerBtn.getAttribute('data-campo');
 
-        // Exibe o pop-up de confirmação antes de apagar
+        const LABELS_CAMPO_COMPROVANTE = {
+            Cache: 'Cachê',
+            AjdCusto: 'Ajuda de Custo',
+            AjdCusto2: 'Ajuda de Custo 50%',
+            ControleGastos: 'Controle de Gastos',
+            NotaFiscal: 'Nota Fiscal'
+        };
+        const labelCampo = LABELS_CAMPO_COMPROVANTE[campoNome] || campoNome;
+
+        // Exige justificativa antes de apagar — mesmo padrão usado na remoção de
+        // comprovante de item de Caixinha (onRemoverComprovanteCaixinhaItem).
         Swal.fire({
-            title: 'Você tem certeza que quer remover este comprovante?',
-            text: "Esta ação irá remover o comprovante. Você não poderá desfazê-la!",
+            title: 'Remover comprovante?',
+            html: `Este comprovante de <b>${labelCampo}</b> já foi anexado. Justifique a remoção:`,
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'Justificativa',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
             confirmButtonText: 'Sim, remover!',
-            cancelButtonText: 'Não, cancelar'
+            cancelButtonText: 'Não, cancelar',
+            inputValidator: (v) => { if (!v || !v.trim()) return 'Justificativa obrigatória!'; }
         }).then((result) => {
             // Se o usuário confirmou a remoção
             if (result.isConfirmed) {
@@ -14579,27 +14838,28 @@ document.addEventListener('click', function(e) {
                 const hiddenRemoverInput = document.getElementById(`limparComprovante${campoNome}`);
                 const fileInput = document.getElementById(`file${campoNome}`);
                 const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
-                
+
                 // Oculta a área do link/botão de remoção
                 if (mainDisplayContainer) mainDisplayContainer.style.display = 'none';
                 if (linkDisplayContainer) linkDisplayContainer.innerHTML = '';
-                
+
                 // Mostra a área de upload de arquivo
                 if (fileLabel) fileLabel.style.display = 'block';
-                
+
                 // Limpa o input do arquivo e o texto exibido
                 if (fileInput) fileInput.value = '';
                 if (fileNameDisplay) fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-                
+
                 // Seta o input hidden para indicar que o comprovante deve ser removido no servidor
                 if (hiddenRemoverInput) hiddenRemoverInput.value = 'true';
 
-                // Opcional: Mostra uma mensagem de sucesso após a remoção
-                // Swal.fire(
-                //     'Removido!',
-                //     'O comprovante foi marcado para remoção.',
-                //     'success'
-                // );
+                // Registra no log de sistema (obslogsistema) — acumula em obsGeralNotaDatas,
+                // que o envio do formulário concatena (nunca sobrepõe) ao histórico já salvo
+                // no backend (ver rotaStaff.js: obsLogSistemaFinal).
+                const dataHora = new Date().toLocaleString('pt-BR');
+                const nomeUsuario = (typeof obterNomeDoToken === 'function') ? obterNomeDoToken() : 'Usuário';
+                const entradaRemocao = `[COMPROVANTE REMOVIDO - ${labelCampo}] Em ${dataHora} por ${nomeUsuario}. Justificativa: ${result.value.trim()}`;
+                window.obsGeralNotaDatas = window.obsGeralNotaDatas ? `${window.obsGeralNotaDatas}\n${entradaRemocao}` : entradaRemocao;
             }
         });
     }
@@ -22735,7 +22995,6 @@ function limparCamposComprovantes() {
     preencherComprovanteCampo(null, 'Cache');
     preencherComprovanteCampo(null, 'AjdCusto');
     preencherComprovanteCampo(null, 'AjdCusto2');
-    preencherComprovanteCampo(null, 'Caixinha');
     preencherComprovanteCampo(null, 'ControleGastos');
 
     const mainFileInput = document.getElementById('file');

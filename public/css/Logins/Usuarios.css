@@ -275,6 +275,18 @@ color: #fff;
   font-size: 12px;
 }
 
+/* Campos de senha usam minlength (política de senha mínima) — com isso o
+   campo só fica :valid a partir de 8 caracteres, então o label ficava
+   sobreposto aos pontinhos enquanto a senha nova estava sendo digitada.
+   Aqui o label sobe assim que houver QUALQUER conteúdo digitado, sem
+   depender de o valor já ser válido. */
+.login-box .user-box.camposenha input[type="password"]:not(:placeholder-shown) ~ label {
+  top: -20px;
+  left: 0;
+  color: #bdb8b8;
+  font-size: 12px;
+}
+
 /* Botões */
 .login-box form a {
   position: relative;

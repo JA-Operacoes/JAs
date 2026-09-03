@@ -570,6 +570,18 @@ input[type="file"]{
     padding: 3px 8px;
     font-weight: bold;
     border: 1px solid #999;
+    flex: 0 0 auto;
+}
+
+/* <select> nativo tem chrome/padding próprio do navegador além do que a classe acima
+   define — sem isto fica bem maior que o badge somente-leitura (<span>) equivalente. */
+select.caixinha-status-badge,
+select.caixinha-pgto-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+    height: 20px;
+    line-height: 1;
+    width: 100px;
 }
 
 /* 1. Estilos para o status "Pendente" (Fundo Amarelo, Fonte Preta) */
@@ -606,6 +618,112 @@ input[type="file"]{
 .caixinha-status-badge option.status-Rejeitado {
     background-color: #DC3545; /* Vermelho */
     color: #FFFFFF; /* Branco */
+}
+
+/* Badge de status de PAGAMENTO por item de Caixinha (Pendente/Pago/Suspenso) — separado
+   do badge de autorização acima (.caixinha-status-badge). Mesma estrutura visual, cores
+   reaproveitadas do padrão já usado pra pagamento em #statusPgto/.status-pgto. */
+.caixinha-pgto-badge {
+    display: inline-block;
+    font-size: 11px;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: bold;
+    border: 1px solid #999;
+    flex: 0 0 auto;
+}
+
+.caixinha-pgto-badge.status-Pendente,
+.caixinha-pgto-badge option.status-Pendente {
+    background-color: #FFC107;
+    color: #000000;
+}
+
+.caixinha-pgto-badge.status-Pago,
+.caixinha-pgto-badge option.status-Pago {
+    background-color: green;
+    color: #FFFFFF;
+}
+
+.caixinha-pgto-badge.status-Suspenso,
+.caixinha-pgto-badge option.status-Suspenso {
+    background-color: rgb(35, 139, 227);
+    color: #FFFFFF;
+}
+
+.caixinha-pgto-badge.status-Rejeitado,
+.caixinha-pgto-badge option.status-Rejeitado {
+    background-color: #DC3545;
+    color: #FFFFFF;
+}
+
+/* Linha de item de Caixinha (renderCaixinhaItems, um <div> por solicitação). */
+.linha-caixinha {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+    flex-wrap: wrap;
+}
+
+/* Data — valor — justificativa resumida, coladinho no primeiro select. */
+.caixinha-info {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+/* Label curta "Auth"/"Pgto" antes de cada select/badge de status do item. */
+.caixinha-mini-label {
+    font-size: 10px;
+    color: #666;
+    font-weight: 600;
+    flex: 0 0 auto;
+}
+
+.caixinha-ver-comprovante {
+    font-size: 11px;
+    flex: 0 0 auto;
+}
+
+/* Remove comprovante JÁ salvo — só Master, com justificativa (ver
+   onRemoverComprovanteCaixinhaItem). Diferente do botão de cancelar seleção pendente abaixo. */
+.caixinha-btn-remover-comprovante {
+    font-size: 11px;
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid #DC3545;
+    color: #DC3545;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 1px 5px;
+}
+
+/* Botão que dispara o input de arquivo oculto — o nome do arquivo escolhido substitui o
+   texto "anexar" (ver atualizarExibicaoAnexo em renderCaixinhaItems), por isso trunca com "…". */
+.caixinha-btn-anexar {
+    font-size: 11px;
+    flex: 0 1 150px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px 6px;
+    border: 1px solid #000000;
+    border-radius: 3px;
+    background: #888;
+    cursor: pointer;
+    
+}
+
+.caixinha-file-input-oculto {
+    display: none;
+}
+
+/* Empurra qualquer conteúdo restante da linha pro fim, sem forçar largura fixa. */
+.caixinha-espacador {
+    flex: 1 1 auto;
 }
 
 /* Estilos para o INPUT de status (se aplicável) */

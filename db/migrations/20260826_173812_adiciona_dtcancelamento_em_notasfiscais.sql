@@ -1,0 +1,1 @@
+ALTER TABLE notasfiscais ADD COLUMN IF NOT EXISTS dtcancelamento TIMESTAMP;

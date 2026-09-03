@@ -1900,6 +1900,7 @@ input#search-aside {
 
   #ceo-panel-geral .ceo-geral-secao { margin-top: 6px; }
   #ceo-panel-geral .ceo-vazio-sutil { color: #888; font-size: 13px; margin: 0 0 14px; }
+  #ceo-panel-geral .ceo-geral-empresas-resumo { color: #444; font-size: 13px; font-weight: 600; margin: -6px 0 14px; }
   #ceo-panel-geral .ceo-geral-graficos {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -1942,8 +1943,12 @@ input#search-aside {
     color: var(--font-color, #fff);
   }
   #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; }
+  /* "Todas" usa o azul já estabelecido no dashboard pra "neutro/agregado" (mesmo tom de "Lucro
+     esperado"/"Em andamento") — nunca deve se confundir com a cor real de uma empresa (Roots.css,
+     ex.: EP também é preto) nem com o amarelo de "sem tema cadastrado" (.ceo-sem-marca). */
   #ceo-panel-geral .ceo-status-chip-todos.ativo {
-    background: #2e2e2e; border-color: #2e2e2e; color: #fff; opacity: 1;
+    background: #1f6fc4; border-color: #1f6fc4; color: #fff; opacity: 1;
+    box-shadow: 0 2px 6px rgba(31,111,196,0.45);
   }
   /* Resultado da busca de funcionário na visualização Lista: total geral + tabela horizontal
      (uma linha por empresa) — mais fácil de comparar de uma vez do que cards verticais lado a

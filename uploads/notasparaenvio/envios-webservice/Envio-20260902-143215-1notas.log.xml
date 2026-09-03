@@ -1,0 +1,107 @@
+<!-- ENVIADO -->
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <EnvioLoteRPSRequest xmlns="http://www.prefeitura.sp.gov.br/nfe">
+      <VersaoSchema>2</VersaoSchema>
+      <MensagemXML><![CDATA[<?xml version="1.0" encoding="utf-8"?>
+<ns:PedidoEnvioLoteRPS xmlns:ns="http://www.prefeitura.sp.gov.br/nfe" xmlns:tipos="http://www.prefeitura.sp.gov.br/nfe/tipos" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <Cabecalho Versao="2">
+    <CPFCNPJRemetente><CNPJ>08464457000169</CNPJ></CPFCNPJRemetente>
+    <transacao>true</transacao>
+    <dtInicio>2026-09-02</dtInicio>
+    <dtFim>2026-09-02</dtFim>
+    <QtdRPS>1</QtdRPS>
+  </Cabecalho>
+    <RPS>
+      <Assinatura>T/PClPJEt9MYNS9Pts2zkcM0Jw3CdK1XpXtI600xMStlx4YZqoSL6Oi/4seDwNHUvNHZN4A0rdDhjSJDsdWz6+aOqSptzpwMMtV/PZ//dMAGtFUyiBsuKoFIXwbDXkYO5rBl2QBifEcx00LKMH1KuexnQHePNt6snDkb0SOrP4631tv2ljhFfvK9HPvYK362iGzlNhZQ92Tj14kd3KlqLoxyVbGEzi1n3ARzxJ3VQMWicWgu9hb6tT/UqdQaVBqq0Dmf4I1o939RQcriLziwrY5N+fvEKPQeKbDcPnH2taiOqYzg0jXRRdBn8duD1OYsj7OebGaThY0qyM1kGcnRiA==</Assinatura>
+      <ChaveRPS>
+        <InscricaoPrestador>35877170</InscricaoPrestador>
+        <SerieRPS>1</SerieRPS>
+        <NumeroRPS>27</NumeroRPS>
+      </ChaveRPS>
+      <TipoRPS>RPS</TipoRPS>
+      <DataEmissao>2026-09-02</DataEmissao>
+      <StatusRPS>N</StatusRPS>
+      <TributacaoRPS>T</TributacaoRPS>
+      <ValorDeducoes>0</ValorDeducoes>
+      <ValorPIS>0</ValorPIS>
+      <ValorCOFINS>0</ValorCOFINS>
+      <ValorINSS>0</ValorINSS>
+      <ValorIR>0</ValorIR>
+      <ValorCSLL>0</ValorCSLL>
+      <CodigoServico>07161</CodigoServico>
+      <!-- AliquotaServicos espera fração decimal (0.025 = 2,5%), não
+           percentual (2.5) — confirmado contra o ambiente real da prefeitura
+           (2026-08-21, alerta 208: "aliquota informada (2,5) difere da
+           vigente (0,025)"). Na prática esse campo é ignorado quando
+           TributacaoRPS = "T" (documentado no próprio XSD), mas mandamos
+           certo mesmo assim pra não gerar alerta à toa. -->
+      <AliquotaServicos>0.0250</AliquotaServicos>
+      <ISSRetido>false</ISSRetido>
+      <!-- CPFCNPJTomador ou InscricaoMunicipalTomador: com o CNPJ do
+           tomador já preenchido, o próprio sistema da prefeitura ignora
+           Endereco/RazaoSocial/InscEstadual do tomador (busca do cadastro
+           dele) — por isso não mandamos esses campos aqui, mais simples. -->
+      <CPFCNPJTomador><CNPJ>30121180000201</CNPJ></CPFCNPJTomador>
+      
+      <EmailTomador>set@set.org.br</EmailTomador>
+      <Discriminacao>Nota fiscal referente ao contrato adicional do evento "SET EXPO ", realizado em 18/08/2026, conforme condições do Orçamento No 1460. Parcela 1 Vencimento: 05/09/2026 Depósito bancário - Banco: BRADESCO (237) - Agência: 2833 - Conta: 260030-7 (Corrente)</Discriminacao>
+      <!-- Só enviamos MunicipioPrestacao quando TributacaoRPS="F" (evento
+           fora de São Paulo) — com "T" a prefeitura rejeita esse campo (erro
+           1223, 2026-08-21). municipioPrestacaoIbge já vem resolvido (código
+           IBGE) por quem chamou; ver utils/buscarMunicipioIbge.js. -->
+      
+      <!-- ValorInicialCobrado x ValorFinalCobrado é um <xs:choice> no XSD —
+           só pode mandar um dos dois. Confirmado contra o ambiente real da
+           prefeitura (2026-08-21, erro 640): ValorInicialCobrado foi
+           descontinuado, a prefeitura agora exige ValorFinalCobrado (mesmo
+           valor — nosso valorServico já é o valor total cobrado do cliente,
+           que é exatamente o que esse campo pede: "calcula os impostos do
+           fim pro início" a partir dele). -->
+      <ValorFinalCobrado>3785.00</ValorFinalCobrado>
+      <ValorMulta>0</ValorMulta>
+      <ValorJuros>0</ValorJuros>
+      <ValorIPI>0</ValorIPI>
+      <ExigibilidadeSuspensa>0</ExigibilidadeSuspensa>
+      <NBS>118066300</NBS>
+      <!-- atvEvento: exigido pela prefeitura (confirmado 2026-08-21, erro
+           637) pro indicador de operação "040101" (evento), que é o único
+           que o sistema usa hoje — por isso sempre incluído, sem condicional.
+           Dados vêm de eventos.nmevento / orcamentos.dtinirealizacao-
+           dtfimrealizacao / localmontagem (rua/numero/bairro/cep). -->
+      <atvEvento>
+        <xNomeEvt>SET EXPO </xNomeEvt>
+        <dtIniEvt>2026-08-18</dtIniEvt>
+        <dtFimEvt>2026-08-20</dtFimEvt>
+        <end>
+          <CEP>02001900</CEP>
+          <xLgr>AVENIDA OLAVO FONTOURA</xLgr>
+          <nro>1209</nro>
+          <xBairro>SANTANA</xBairro>
+        </end>
+      </atvEvento>
+      <!-- gpPrestacao: escolha entre local no Brasil (cLocPrestacao, código
+           IBGE) ou no exterior (cPaisPrestacao) — sempre Brasil por enquanto. -->
+      <cLocPrestacao>3550308</cLocPrestacao>
+      <IBSCBS>
+        <finNFSe>0</finNFSe>
+        <indFinal>0</indFinal>
+        <cIndOp>040101</cIndOp>
+        <indDest>0</indDest>
+        <valores>
+          <trib>
+            <gIBSCBS>
+              <cClassTrib>000001</cClassTrib>
+            </gIBSCBS>
+          </trib>
+        </valores>
+      </IBSCBS>
+    </RPS>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><ds:DigestValue>CGuA7WHDxpQpz3Li1WuZ2A55p9A=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>gpVI2LB3TF0s7NwS0wz9jUtMQ6+WZEaA+C6FRxXqcKxgrZzU/70y7klmayY6kuZ7N/3pynS+htzyJkiyeVv5ntcX4mJ5oaM4IQ5OpS5QNtlxUAtqBdOVJnpOPxw0w5VxhIgqyDK7Dswm16+xyeKZDWjwWihXL3qdnOImidPp0IodANj6OOFA+ffin3bNT9n8alakMjQmvnUEPvaKAn28SAaSsSuaBBYx8u8CCQpQimNwOVCJQVY6xtbhixQhtgOsqxZSinWX5ZGgqjpw2N1QqsMdAcsqQglEC6njKFnG7qqJwgYyrBjMr4IVfKIZjipH6SpiO9jmEg9LwEtLE0HztA==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>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</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature></ns:PedidoEnvioLoteRPS>]]></MensagemXML>
+    </EnvioLoteRPSRequest>
+  </soap:Body>
+</soap:Envelope>
+
+<!-- RECEBIDO -->
+<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><soap:Body><EnvioLoteRPSResponse xmlns="http://www.prefeitura.sp.gov.br/nfe"><RetornoXML>&lt;?xml version="1.0" encoding="UTF-8"?&gt;&lt;RetornoEnvioLoteRPS xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.prefeitura.sp.gov.br/nfe"&gt;&lt;Cabecalho Versao="2" xmlns=""&gt;&lt;Sucesso&gt;true&lt;/Sucesso&gt;&lt;InformacoesLote&gt;&lt;NumeroLote&gt;1885788966&lt;/NumeroLote&gt;&lt;InscricaoPrestador&gt;35877170&lt;/InscricaoPrestador&gt;&lt;CPFCNPJRemetente&gt;&lt;CNPJ&gt;08464457000169&lt;/CNPJ&gt;&lt;/CPFCNPJRemetente&gt;&lt;DataEnvioLote&gt;2026-09-02T11:32:14&lt;/DataEnvioLote&gt;&lt;QtdNotasProcessadas&gt;1&lt;/QtdNotasProcessadas&gt;&lt;TempoProcessamento&gt;0&lt;/TempoProcessamento&gt;&lt;ValorTotalServicos&gt;0&lt;/ValorTotalServicos&gt;&lt;/InformacoesLote&gt;&lt;/Cabecalho&gt;&lt;ChaveNFeRPS xmlns=""&gt;&lt;ChaveNFe&gt;&lt;InscricaoPrestador&gt;35877170&lt;/InscricaoPrestador&gt;&lt;NumeroNFe&gt;1897&lt;/NumeroNFe&gt;&lt;CodigoVerificacao&gt;KAICZZZZ&lt;/CodigoVerificacao&gt;&lt;ChaveNotaNacional&gt;35503081208464457000169000000000189726094452942311&lt;/ChaveNotaNacional&gt;&lt;/ChaveNFe&gt;&lt;ChaveRPS&gt;&lt;InscricaoPrestador&gt;35877170&lt;/InscricaoPrestador&gt;&lt;SerieRPS&gt;1&lt;/SerieRPS&gt;&lt;NumeroRPS&gt;27&lt;/NumeroRPS&gt;&lt;/ChaveRPS&gt;&lt;/ChaveNFeRPS&gt;&lt;/RetornoEnvioLoteRPS&gt;</RetornoXML></EnvioLoteRPSResponse></soap:Body></soap:Envelope>

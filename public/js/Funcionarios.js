@@ -246,37 +246,41 @@ async function carregarTiposPlanoSaude(nomePlano, idSelecionar = null) {
   atualizarTipoPlanoSaude();
 }
 
-// ===== Autocomplete de CBO por Função =====
-// Digitar na Função busca na base local de CBO (rota /funcionarios/cbo) e mostra uma
-// lista; ao escolher, preenche o título oficial na Função e o código no campo CBO.
-let cboDebounceTimer = null;
-function configurarBuscaCBO() {
-    const inputFuncao = document.getElementById("funcao");
-    const inputCBO = document.getElementById("cbo");
-    if (!inputFuncao || !inputCBO) return; // modal ainda não montado
-
-    // Cria (ou reusa) a lista de sugestões ancorada no campo Função.
-    const wrapper = inputFuncao.parentNode;
+// ===== Autocomplete de CBO por Função (e vice-versa) =====
+// Digitar na Função OU no CBO busca na base local de CBO (rota /funcionarios/cbo, que
+// casa tanto por código quanto por nome/sinônimo) e mostra uma lista; ao escolher,
+// preenche o título oficial na Função e o código no campo CBO. Isso garante que o par
+// Função/CBO salvo sempre corresponda a um código real da tabela oficial (MTE/CBO2002)
+// — o backend também valida isso no POST/PUT como última barreira.
+// Cria (ou reusa) uma lista de sugestões ancorada ao campo informado.
+function criarListaSugestoesCBO(inputAncora, listaId) {
+    const wrapper = inputAncora.parentNode;
     wrapper.style.position = "relative";
-    let lista = document.getElementById("cbo-sugestoes");
+    let lista = document.getElementById(listaId);
     if (!lista) {
         lista = document.createElement("ul");
-        lista.id = "cbo-sugestoes";
+        lista.id = listaId;
         lista.style.cssText = "position:absolute; left:0; right:0; top:100%; z-index:60;" +
             "background:#fff; border:1px solid #ccc; border-radius:6px; max-height:240px;" +
             "overflow-y:auto; margin:2px 0 0; padding:4px; list-style:none;" +
             "box-shadow:0 4px 12px rgba(0,0,0,.15); display:none;";
         wrapper.appendChild(lista);
     }
+    return lista;
+}
 
+// Liga a busca de CBO a um campo de origem (Função ou CBO): digitar nele consulta
+// /funcionarios/cbo e, ao escolher uma sugestão, preenche os dois campos.
+function ligarAutocompleteCBO(inputOrigem, inputFuncao, inputCBO, listaId) {
+    const lista = criarListaSugestoesCBO(inputOrigem, listaId);
     const fechar = () => { lista.style.display = "none"; };
+    let timer = null;
 
-    inputFuncao.addEventListener("input", function () {
+    inputOrigem.addEventListener("input", function () {
         const termo = this.value.trim();
-        inputCBO.value = ""; // mudou a função => invalida o CBO até escolher
-        clearTimeout(cboDebounceTimer);
+        clearTimeout(timer);
         if (termo.length < 2) { fechar(); return; }
-        cboDebounceTimer = setTimeout(async () => {
+        timer = setTimeout(async () => {
             try {
                 const sugestoes = await fetchComToken(`/funcionarios/cbo?q=${encodeURIComponent(termo)}`);
                 lista.innerHTML = "";
@@ -306,10 +310,37 @@ function configurarBuscaCBO() {
         }, 350);
     });
 
-    inputFuncao.addEventListener("focus", () => { if (lista.children.length) lista.style.display = "block"; });
+    inputOrigem.addEventListener("focus", () => { if (lista.children.length) lista.style.display = "block"; });
     document.addEventListener("mousedown", (e) => {
-        if (e.target !== inputFuncao && !lista.contains(e.target)) fechar();
+        if (e.target !== inputOrigem && !lista.contains(e.target)) fechar();
     });
+}
+
+function configurarBuscaCBO() {
+    const inputFuncao = document.getElementById("funcao");
+    const inputCBO = document.getElementById("cbo");
+    if (!inputFuncao || !inputCBO) return; // modal ainda não montado
+
+    // Mudou a Função digitando => invalida o CBO até escolher uma sugestão de novo.
+    inputFuncao.addEventListener("input", () => { inputCBO.value = ""; });
+
+    ligarAutocompleteCBO(inputFuncao, inputFuncao, inputCBO, "cbo-sugestoes-funcao");
+    ligarAutocompleteCBO(inputCBO, inputFuncao, inputCBO, "cbo-sugestoes-cbo");
+}
+
+// Confere no backend se o código digitado no campo CBO é um código real da tabela
+// oficial. Usada antes de salvar, para barrar o envio de um CBO inválido cedo (o
+// backend também valida no POST/PUT, mas aqui dá o aviso sem round-trip de gravação).
+async function cboEhValido(codigo) {
+    const termo = String(codigo || "").trim();
+    if (!termo) return true; // campo vazio: quem decide se é obrigatório é a validação de campos
+    try {
+        const sugestoes = await fetchComToken(`/funcionarios/cbo?q=${encodeURIComponent(termo)}`);
+        return Array.isArray(sugestoes) && sugestoes.some((s) => s.codigo === termo);
+    } catch (err) {
+        console.error("Erro ao validar CBO:", err);
+        return true; // falha na checagem não deve travar o usuário; o backend valida de qualquer forma
+    }
 }
 
 // ===== Verificação de CPF já cadastrado (em qualquer empresa) =====
@@ -657,6 +688,16 @@ async function verificaFuncionarios() {
             if (!nome || !cpf || !rg || !celularPessoal || !perfil || !dataNascimento) {
             console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar, "apelido", apelido )
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
+            }
+
+            // Validação do CBO: só se aplica a Interno/Externo com holerite (mesmo critério
+            // que mostra o fieldset Financeiro — ver atualizarFieldsetFinanceiro). Para os
+            // demais perfis o campo fica oculto e não tem CBO; se ainda assim ele carregar um
+            // valor "preso" (ex.: sugestão importada de outra empresa via CPF), não bloqueia.
+            const perfilTemRH = perfil === "Interno" || perfil === "ExternoH";
+            if (perfilTemRH && cbo && !(await cboEhValido(cbo))) {
+                document.getElementById("cbo")?.focus();
+                return Swal.fire("CBO inválido!", `O código "${cbo}" não existe na tabela oficial de CBO. Digite a Função ou o CBO e escolha uma opção da lista de sugestões.`, "warning");
             }
             // Permissões
             const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");

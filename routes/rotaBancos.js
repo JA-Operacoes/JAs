@@ -56,7 +56,7 @@ router.get("/", verificarPermissao('Bancos', 'pesquisar'), async (req, res) => {
         }
     } catch (error) {
         console.error("❌ Erro ao buscar bancos:", error);
-        return res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+        return res.status(500).json({ error: "Erro ao buscar bancos." });
     }
 });
 
@@ -170,7 +170,7 @@ router.post("/", verificarPermissao('Bancos', 'cadastrar'),
           await client.query('ROLLBACK');
       }
       console.error("❌ Erro ao salvar banco e/ou associá-lo à empresa:", error);
-      res.status(500).json({ erro: "Erro ao salvar banco", detalhes: error.message });
+      res.status(500).json({ erro: "Erro ao salvar banco." });
   } finally {
       if (client) {
           client.release(); // Libera a conexão do pool

@@ -135,6 +135,15 @@ document.getElementById("Registrar").addEventListener("submit", async function (
       return;
     }
 
+    if (senha.length < 8 || !/[^A-Za-z0-9]/.test(senha)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Atenção',
+        text: 'A senha deve ter pelo menos 8 caracteres e incluir pelo menos 1 caractere especial.',
+      });
+      return;
+    }
+
     // if (empresasSelecionadas.length === 0) {
     //   return Swal.fire({
     //     icon: "warning",
@@ -153,9 +162,8 @@ document.getElementById("Registrar").addEventListener("submit", async function (
       });
   
       //const dados = await resposta.json();
-      console.log(dados);
-  
-      
+
+
       if (!dados || dados.erro) {
       return Swal.fire({
         icon: "error",
@@ -232,21 +240,26 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
       text: 'As senhas não coincidem.',
     });
     return;
-  } 
- 
+  }
+
+  // Campo vazio aqui significa "não alterar a senha" (ver authController.js) —
+  // só valida a senha quando o usuário realmente digitou uma senha nova.
+  if (senha && (senha.length < 8 || !/[^A-Za-z0-9]/.test(senha))) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Atenção',
+      text: 'A senha deve ter pelo menos 8 caracteres e incluir pelo menos 1 caractere especial.',
+    });
+    return;
+  }
+
   try {
-     console.log("ENTROU NO TRY", nome, sobrenome, email, senha, idempresaDefault);
-   
     const dados = await fetchComToken("/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
        body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo,idempresadefault: idempresaDefault, empresas: empresaSelecionada }),
-  
-    });
-   
-    console.log("DADOS ALTERADOS", dados);
 
-    console.log("Dados Mensagem", dados.mensagem);    
+    });
 
     if (dados.erro) {
       Swal.fire({
