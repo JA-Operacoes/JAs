@@ -6,6 +6,8 @@
   z-index: 2000 !important;
 }
 
+.ti-swal-altura-fixa { height: 240px !important; }
+
 .swal2-popup .swal2-styled {
   all: initial;
   font-family: 'Abel', sans-serif !important;
@@ -169,6 +171,261 @@
   width: 100% !important;
   box-sizing: border-box;
 }
+.ti-swal-form button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #942123;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+.ti-swal-form button.secundario { background: #888; }
+.ti-swal-form button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ===== Grid de cards de modelos de uma categoria (Estoque) ===== */
+.ti-swal-modelos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  text-align: left;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+.ti-swal-modelo-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-top: 4px solid #942123;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ti-swal-modelo-card.ti-swal-modelo-expandido { grid-column: 1 / -1; }
+.ti-swal-modelo-titulo { font-weight: 700; font-size: 14px; color: #222; }
+.ti-swal-modelo-numeros { display: flex; gap: 16px; }
+.ti-swal-modelo-numeros div { display: flex; flex-direction: column; }
+.ti-swal-modelo-numeros strong { font-size: 20px; color: #222; line-height: 1.1; }
+.ti-swal-modelo-numeros span { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .3px; }
+.ti-swal-modelo-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.ti-swal-modelo-acoes button {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #942123;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ti-swal-modelo-acoes button.secundario { background: #888; }
+.ti-swal-modelo-acoes button:disabled { opacity: .5; cursor: not-allowed; }
+.ti-swal-modelo-detalhe { margin-top: 4px; }
+
+/* Lista de e-mails de uma área: cards em coluna única, largura 100%, com scroll
+   vertical quando passar da altura máxima (em vez do grid multi-coluna dos modelos). */
+.ti-swal-lista-full {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* Card de e-mail corporativo: cabeçalho com o funcionário + campos tipo "credencial" */
+.ti-swal-email-card {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #942123;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ti-swal-email-cabecalho { display: flex; align-items: center; gap: 8px; }
+.ti-swal-email-cabecalho .material-symbols-outlined { font-size: 20px; color: #942123; }
+.ti-swal-email-nome { font-weight: 700; font-size: 14px; color: #222; }
+.ti-swal-email-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 480px) {
+  .ti-swal-email-campos { grid-template-columns: 1fr; }
+}
+.ti-swal-email-campo {
+  background: #f7f7f8;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 0;
+}
+.ti-swal-email-campo-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #999;
+  margin-bottom: 3px;
+}
+.ti-swal-email-campo-valor {
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  color: #333;
+  word-break: break-all;
+}
+.ti-swal-email-senha { display: flex; align-items: center; gap: 8px; }
+.ti-swal-email-senha .ti-swal-email-campo-valor { flex: 1; min-width: 0; }
+.ti-swal-email-senha button {
+  flex-shrink: 0;
+  padding: 3px;
+  background: transparent;
+  border: none;
+  color: #999;
+  line-height: 0;
+  cursor: pointer;
+}
+.ti-swal-email-senha button:hover { color: #942123; }
+.ti-swal-email-senha .material-symbols-outlined { font-size: 18px; }
+
+/* Tabela de unidades (reaproveitada tanto dentro do #ti-panel quanto dentro de modais Swal) */
+.ti-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.ti-tabela th, .ti-tabela td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  color: #333;
+}
+.ti-tabela-unidades { margin: 0; }
+.ti-tabela-unidades button {
+  margin-right: 4px;
+  margin-bottom: 2px;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: #942123;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ti-tabela-unidades button.secundario { background: #888; }
+
+/* Busca padrão (mesmo modelo do #rh-busca-func): input + lista suspensa filtrada */
+.ti-swal-busca { position: relative; }
+.ti-swal-busca-lista {
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  z-index: 20000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.ti-swal-busca-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }
+.ti-swal-busca-lista li:hover { background: #f0f2f5; }
+
+/* Campo de upload personalizado (cores do Roots, no lugar do <input type="file"> cru) */
+.ti-upload-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.ti-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 0.5rem;
+  user-select: none;
+  box-shadow: 0 4px 6px -1px rgba(148, 33, 35, .3), 0 2px 4px -1px rgba(148, 33, 35, .15);
+  transition: all .3s ease;
+}
+.ti-upload-btn:hover {
+  box-shadow: 0 10px 15px -3px rgba(148, 33, 35, .4), 0 4px 6px -2px rgba(148, 33, 35, .2);
+  background-color: var(--JA-dark, #641516);
+}
+.ti-upload-btn:active { opacity: .85; box-shadow: none; }
+.ti-upload-btn svg { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+.ti-upload-nome { font-size: 12px; color: #666; word-break: break-all; }
+
+/* Checkbox padrão (mesmo estilo "ios-checkbox" usado no TI Mode/CadFuncionarios) */
+.ti-swal-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+.ti-swal-check .ios-checkbox {
+  --checkbox-size: 20px;
+  --checkbox-color: #942123;
+  --checkbox-border: #ccc;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+.ti-swal-check .ios-checkbox input { display: none; }
+.ti-swal-check .checkbox-wrapper {
+  position: relative;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+}
+.ti-swal-check .checkbox-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  border: 2px solid var(--checkbox-border);
+  background: #fff;
+  transition: all 0.2s ease;
+}
+.ti-swal-check .checkbox-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 80%;
+  height: 80%;
+  color: #fff;
+  transform: scale(0);
+  transition: all 0.2s ease;
+}
+.ti-swal-check .check-path { stroke-dasharray: 40; stroke-dashoffset: 40; transition: stroke-dashoffset 0.3s ease 0.1s; }
+.ti-swal-check .ios-checkbox input:checked + .checkbox-wrapper .checkbox-bg { background: var(--checkbox-color); border-color: var(--checkbox-color); }
+.ti-swal-check .ios-checkbox input:checked + .checkbox-wrapper .checkbox-icon { transform: scale(1); }
+.ti-swal-check .ios-checkbox input:checked + .checkbox-wrapper .check-path { stroke-dashoffset: 0; }
+.ti-swal-check .ios-checkbox:hover .checkbox-wrapper { transform: scale(1.05); }
 .ti-swal-check-linha {
   display: flex;
   align-items: center;

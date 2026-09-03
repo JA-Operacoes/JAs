@@ -93,6 +93,7 @@ app.use('/utils', express.static(path.join(__dirname, 'utils')));
 // Rotas publicas sem autenticação
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
+app.use("/aprovacao-orcamento", require("./routes/rotaAprovacaoOrcamentoEquipamento")); // Links de aprovar/recusar orçamento de equipamento via e-mail
 
 // Rotas protegidas com autenticação
 app.use("/funcao",autenticarToken(), contextoEmpresa, require("./routes/rotaFuncao"));

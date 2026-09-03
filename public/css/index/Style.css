@@ -736,7 +736,6 @@ input#search-aside {
     margin: 100px auto 40px;
     padding: 0 24px 40px;
     box-sizing: border-box;
-    max-height: calc(100vh - 120px);
     font-family: var(--Font-primary);
   }
 
@@ -751,23 +750,31 @@ input#search-aside {
     display: flex;
     align-items: center;
     gap: 6px;
-    border: 1px solid #ccc;
+    border: 2px solid var(--primary-color, #942123);
     background: #fff;
-    color: #999;
+    color: var(--primary-color, #942123);
     border-radius: 20px;
     padding: 6px 16px;
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     transition: all .2s ease;
-    opacity: .6;
+    opacity: .85;
   }
   #ti-panel .ti-aba-btn .material-symbols-outlined { font-size: 18px; }
-  #ti-panel .ti-aba-btn:hover { opacity: 1; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  #ti-panel .ti-aba-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
   #ti-panel .ti-aba-btn.ativo {
     background: var(--primary-color);
     border-color: var(--primary-color);
     color: var(--font-color);
     opacity: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   #ti-panel .ti-aba-conteudo {
@@ -782,7 +789,8 @@ input#search-aside {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #777;
+    color: #555;
+    font-weight: 600;
     font-size: 14px;
     padding: 24px 4px;
   }
@@ -802,41 +810,43 @@ input#search-aside {
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    color: #999;
+    color: #666;
+    font-weight: 600;
     font-size: 13px;
     padding: 36px 20px;
     text-align: center;
+    border: 1px dashed #ccc;
+    border-radius: 10px;
   }
-  #ti-panel .ti-card-vazio .material-symbols-outlined { font-size: 32px; opacity: .5; }
+  #ti-panel .ti-card-vazio .material-symbols-outlined { font-size: 32px; color: var(--primary-color, #942123); opacity: .7; }
 
   #ti-panel .ti-dashboard-card {
     background: #fff;
-    border: 1px solid #e3e3e3;
+    border: 1px solid #ddd;
+    border-top: 4px solid var(--primary-color, #942123);
     border-radius: 12px;
     padding: 18px 20px 20px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
   }
 
   #ti-panel .ti-resumo {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 0;
+    gap: 12px;
     margin-bottom: 18px;
-    border: 1px solid #eee;
-    border-radius: 10px;
-    overflow: hidden;
   }
   #ti-panel .ti-resumo-card {
-    background: #fff;
-    padding: 12px 16px;
+    background: #fafafa;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    border-right: 1px solid #eee;
+    border: 1px solid #e6e6e6;
+    border-left: 4px solid var(--primary-color, #942123);
+    border-radius: 8px;
   }
-  #ti-panel .ti-resumo-card:last-child { border-right: none; }
-  #ti-panel .ti-resumo-card span { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
-  #ti-panel .ti-resumo-card strong { font-size: 20px; }
+  #ti-panel .ti-resumo-card span { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  #ti-panel .ti-resumo-card strong { font-size: 22px; color: #222; }
   #ti-panel .ti-resumo-card strong.pos { color: var(--Aproved); }
   #ti-panel .ti-resumo-card strong.neg { color: var(--Reject); }
 
@@ -851,7 +861,10 @@ input#search-aside {
   }
 
   #ti-panel #ti-lista-eventos,
-  #ti-panel #ti-cards-equipamentos {
+  #ti-panel #ti-cards-equipamentos,
+  #ti-panel #ti-cards-estoque,
+  #ti-panel #ti-lista-custodia,
+  #ti-panel #ti-lista-manutencao {
       height: 65vh;
       overflow-y: auto;
       padding-right: 6px;
@@ -998,18 +1011,30 @@ input#search-aside {
   }
   #ti-panel .ti-predestinacoes-lista { background: #fafafa; }
   #ti-panel .ti-tabela-unidades { margin: 0; }
-  #ti-panel .ti-tabela-unidades button { margin-right: 4px; margin-bottom: 2px; }
+  #ti-panel .ti-tabela-unidades button {
+    margin-right: 4px;
+    margin-bottom: 2px;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #ti-panel .ti-tabela-unidades button.secundario { background: #888; }
 
   /* ===== Cards de lista (Equipamentos/Estoque/Manutenção/Custódia) — mesmo
      visual do card de evento (fundo branco, radius, sombra), no lugar de
      tabela crua. ===== */
   #ti-panel .ti-card-linha {
     background: #fff;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
-    border-left: 6px solid #e3e3e3;
+    border-left: 6px solid var(--primary-color, #942123);
     padding: 12px 18px;
     margin-bottom: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     transition: box-shadow .2s ease, transform .2s ease, background-color .2s ease, color .2s ease;
   }
   #ti-panel .ti-card-linha:hover {
@@ -1023,6 +1048,14 @@ input#search-aside {
   #ti-panel .ti-card-linha:hover .ti-card-linha-sub,
   #ti-panel .ti-card-linha:hover .ti-modelo-linha {
     color: var(--font-color);
+  }
+  /* A tabela de unidades tem fundo branco próprio — não deixa o texto herdar
+     a cor branca do hover do card (senão fica invisível: branco no branco). */
+  #ti-panel .ti-card-linha:hover .ti-card-linha-detalhe,
+  #ti-panel .ti-card-linha:hover .ti-tabela,
+  #ti-panel .ti-card-linha:hover .ti-tabela th,
+  #ti-panel .ti-card-linha:hover .ti-tabela td {
+    color: #333;
   }
   #ti-panel .ti-card-linha.ti-card-categoria { border-left-color: var(--primary-color, #942123); }
   #ti-panel .ti-card-linha-topo {
@@ -1060,10 +1093,166 @@ input#search-aside {
     font-size: 13px;
   }
   #ti-panel .ti-modelo-linha:first-child { border-top: none; }
+  #ti-panel .ti-orcamento-linha-acoes { display: flex; align-items: center; gap: 6px; }
+  #ti-panel .ti-orcamento-linha-acoes button {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #ti-panel .ti-orcamento-linha-acoes button.secundario { background: #888; }
   #ti-panel .ti-card-linha-detalhe { margin-top: 10px; }
 
+  #ti-panel .ti-func-nome, #ti-panel .ti-card-clicavel { cursor: pointer; }
+
+  #ti-panel .ti-grid-quadrado {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  #ti-panel .ti-card-quadrado {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-top: 4px solid var(--primary-color, #942123);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 12px;
+    transition: box-shadow .2s ease, transform .2s ease, background-color .2s ease, color .2s ease;
+  }
+  #ti-panel .ti-card-quadrado-editar {
+    position: absolute;
+    top: 6px; right: 6px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    line-height: 0;
+  }
+  #ti-panel .ti-card-quadrado-editar .material-symbols-outlined { font-size: 16px; }
+  #ti-panel .ti-card-quadrado-editar:hover { background: rgba(0,0,0,0.08); color: #333; }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-editar { color: var(--font-color, #fff); }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-editar:hover { background: rgba(255,255,255,0.2); }
+  #ti-panel .ti-card-quadrado:hover {
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+  #ti-panel .ti-card-quadrado-nome { font-weight: 600; font-size: 13px; line-height: 1.3; }
+  #ti-panel .ti-card-quadrado-qtd { font-size: 26px; color: var(--primary-color, #942123); }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-qtd { color: var(--font-color, #fff); }
+  #ti-panel .ti-card-quadrado-legenda { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .3px; }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-legenda { color: var(--font-color, #fff); opacity: .85; }
+  #ti-panel .ti-func-nome .ti-card-linha-titulo {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #ti-panel .ti-func-seta { font-size: 18px; }
+  #ti-panel .ti-func-acoes {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-top: 1px dashed #eee;
+    margin-top: 8px;
+  }
+  #ti-panel .ti-func-acoes button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #ti-panel .ti-func-acoes button .material-symbols-outlined { font-size: 16px; }
+  #ti-panel .ti-func-acoes button.secundario { background: #888; }
+  #ti-panel .ti-func-acoes button:disabled { opacity: .5; cursor: not-allowed; }
+  #ti-panel .ti-custodia-filtros {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  #ti-panel .ti-custodia-filtros button {
+    border: none;
+    border-radius: 20px;
+    padding: 8px 18px;
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  #ti-panel .ti-custodia-filtros button:hover { filter: brightness(1.1); }
+  #ti-panel .ti-custodia-filtros button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+
+  #ti-panel .ti-subabas {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+  }
+  #ti-panel .ti-subaba-btn {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #555;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+  #ti-panel .ti-subaba-btn:hover { border-color: var(--primary-color, #942123); color: var(--primary-color, #942123); }
+  #ti-panel .ti-subaba-btn.ativo {
+    background: var(--primary-color, #942123);
+    border-color: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+  }
+
+  #ti-panel .ti-check-orcamento-wrap { margin-right: 8px; vertical-align: middle; }
+
+  #ti-panel .ti-badge-manutencao {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  #ti-panel .ti-badge-manutencao-aguardando { background: var(--Pending, #FFBD29); color: var(--Pending-color, #7a5200); }
+  #ti-panel .ti-badge-manutencao-em_andamento { background: #cfe3ff; color: #1a4a8a; }
+  #ti-panel .ti-badge-manutencao-concluida { background: var(--Aproved, #2e7d32); color: #fff; }
+  #ti-panel .ti-card-manutencao-em_andamento { border-left-color: #1a4a8a; }
+  #ti-panel .ti-card-manutencao-concluida { border-left-color: var(--Aproved, #2e7d32); opacity: .75; }
+  #ti-panel .ti-orcamento-ok { color: var(--Aproved, #2e7d32); font-weight: 600; }
+  #ti-panel .ti-orcamento-pendente { color: #b8860b; font-weight: 600; }
   #ti-panel .busca-funcionario-input {
-    border: 1px solid #e3e3e3;
+    border: 2px solid #ccc;
     border-radius: 20px;
     padding: 8px 16px;
     font-size: 14px;
@@ -1159,21 +1348,44 @@ input#search-aside {
   }
   #ti-panel .ti-cal-vazio { background: transparent; }
   #ti-panel .ti-cal-hoje { border: 1px solid var(--primary-color, #333); font-weight: 700; }
-  #ti-panel .ti-cal-com-evento { background: var(--Pending, #FFBD29); cursor: pointer; font-weight: 600; }
+  #ti-panel .ti-cal-com-evento { background: var(--primary-color, #942123); color: var(--font-color, #fff); cursor: pointer; font-weight: 600; }
+
+  /* Período corrido do mesmo evento (dias seguidos com 1 evento só): "solda" as células
+     numa barra única, preenchendo o gap do grid entre elas com a mesma cor. */
+  #ti-panel .ti-cal-merge-inicio { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  #ti-panel .ti-cal-merge-fim { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  #ti-panel .ti-cal-merge-meio { border-radius: 0; }
+  #ti-panel .ti-cal-merge-inicio::after,
+  #ti-panel .ti-cal-merge-meio::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -4px;
+    width: 4px;
+    height: 100%;
+    background: var(--primary-color, #942123);
+    z-index: 1;
+  }
+  #ti-panel .ti-cal-numero { position: relative; z-index: 2; }
   #ti-panel .ti-cal-badge {
     position: absolute;
     top: -4px;
     right: -4px;
-    background: var(--Reject, #B50000);
-    color: var(--Reject-color, #fff);
+    z-index: 3;
+    border: 2px solid #fff;
     border-radius: 50%;
     font-size: 10px;
-    width: 16px;
-    height: 16px;
+    font-weight: 700;
+    width: 17px;
+    height: 17px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
+  /* Sinaleiro de dificuldade: 1 evento = tranquilo, 2 = atenção, 3+ = difícil de gerenciar. */
+  #ti-panel .ti-cal-badge.ti-cal-nivel-facil { background: var(--Aproved, #046800); color: var(--Aproved-color, #fff); }
+  #ti-panel .ti-cal-badge.ti-cal-nivel-medio { background: var(--Pending, #FFBD29); color: var(--Pending-color, #000); }
+  #ti-panel .ti-cal-badge.ti-cal-nivel-dificil { background: var(--Reject, #B50000); color: var(--Reject-color, #fff); }
   #ti-panel .ti-cal-detalhe button {
     border: 1px solid var(--primary-color, #999);
     background: #fff;

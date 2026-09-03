@@ -19,8 +19,10 @@ router.get("/", verificarPermissao('Equipamentos', 'pesquisar'), async (req, res
       const result = await pool.query(
         `SELECT e.* FROM equipamentos e
           INNER JOIN equipamentoempresas ee ON ee.idequip = e.idequip
-          WHERE ee.idempresa = $1 AND e.descEquip ILIKE $2 LIMIT 1`,
-        [idempresa, `%${descEquip}%`]
+          WHERE ee.idempresa = $1 AND e.descEquip ILIKE $2
+          ORDER BY (LOWER(e.descEquip) = LOWER($3)) DESC, LENGTH(e.descEquip) ASC
+          LIMIT 1`,
+        [idempresa, `%${descEquip}%`, descEquip]
       );
       return result.rows.length
         ? res.json(result.rows[0])
