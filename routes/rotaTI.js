@@ -1639,51 +1639,107 @@ router.post("/orcamentos-compra/enviar-aprovacao",
           ? Number(o.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
           : null;
 
+        const nomeEquip = `${o.descequip}${o.patrimonio ? ` <span style="color:#999;font-weight:400;">(${o.patrimonio})</span>` : ""}`;
+
+        // Markup único (tabelas + bgcolor sólido), compatível com Outlook clássico (motor Word).
+        // Os cantos arredondados/botão em pílula vêm das classes "ja-*" definidas no <style> do
+        // cabeçalho do e-mail — clientes modernos aplicam, o Outlook clássico ignora essas
+        // propriedades (border-radius) silenciosamente e mostra a mesma estrutura em retângulo.
         blocosHtml.push(`
-          <div style="background:#ffffff;border:1px solid #ececec;border-left:4px solid #942123;border-radius:12px;padding:20px 22px;margin-bottom:16px;font-family:'Segoe UI',Arial,sans-serif;">
-            <table role="presentation" width="100%" style="border-collapse:collapse;">
-              <tr>
-                <td style="vertical-align:top;">
-                  <p style="margin:0 0 4px;font-size:15px;color:#1a1a1a;font-weight:700;">${o.descequip}${o.patrimonio ? ` <span style="color:#999;font-weight:400;">(${o.patrimonio})</span>` : ""}</p>
-                  ${o.descricao ? `<p style="margin:0 0 10px;color:#666;font-size:13px;line-height:1.5;">${o.descricao}</p>` : ""}
-                  <p style="margin:0 0 14px;color:#666;font-size:13px;">🏢 Fornecedor: <strong style="color:#333;">${o.fornecedor || "não informado"}</strong></p>
-                </td>
-                <td style="vertical-align:top; text-align:right; white-space:nowrap; padding-left:16px;">
-                  <div style="background:#fdf1f1;border-radius:10px;padding:10px 16px;display:inline-block;">
-                    <div style="font-size:10px;color:#942123;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Valor</div>
-                    <div style="font-size:18px;color:#942123;font-weight:700;">${valorFormatado ? "R$ " + valorFormatado : "—"}</div>
-                  </div>
-                </td>
-              </tr>
-            </table>
-            <a href="${arquivoUrl}" target="_blank" style="display:inline-block;margin-bottom:16px;color:#942123;font-size:12px;font-weight:600;text-decoration:none;border:1px solid #f0d3d3;border-radius:20px;padding:5px 14px;">📎 Ver orçamento anexado</a>
-            <div>
-              <a href="${linkAprovar}" style="background:#2e7d32;color:#fff;padding:11px 26px;border-radius:24px;text-decoration:none;margin-right:10px;font-weight:700;font-size:13px;display:inline-block;">✓ Aprovar</a>
-              <a href="${linkRecusar}" style="background:#942123;color:#fff;padding:11px 26px;border-radius:24px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">✕ Recusar</a>
-            </div>
-          </div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-bottom:16px;">
+            <tr>
+              <td bgcolor="#ffffff" class="ja-card" style="border:1px solid #ececec;border-left:4px solid #c1272d;padding:20px 22px;font-family:'Segoe UI',Arial,sans-serif;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td valign="top">
+                      <p style="margin:0 0 4px;font-size:15px;color:#1a1a1a;font-weight:700;">${nomeEquip}</p>
+                      ${o.descricao ? `<p style="margin:0 0 10px;color:#666;font-size:13px;line-height:1.5;">${o.descricao}</p>` : ""}
+                      <p style="margin:0 0 14px;color:#666;font-size:13px;">Fornecedor: <strong style="color:#333;">${o.fornecedor || "não informado"}</strong></p>
+                    </td>
+                    <td valign="top" align="right" width="140" style="white-space:nowrap;padding-left:16px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right" style="border-collapse:collapse;">
+                        <tr>
+                          <td bgcolor="#fdeaea" class="ja-valorbox" align="center" style="padding:10px 16px;">
+                            <div style="font-size:10px;color:#c1272d;font-weight:700;text-transform:uppercase;">Valor</div>
+                            <div style="font-size:18px;color:#c1272d;font-weight:700;">${valorFormatado ? "R$ " + valorFormatado : "—"}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:14px 0 16px;">
+                  <tr>
+                    <td class="ja-pill" style="border:1px solid #f0d3d3;padding:5px 14px;">
+                      <a href="${arquivoUrl}" target="_blank" style="color:#c1272d;font-size:12px;font-weight:600;text-decoration:none;">📎 Ver orçamento anexado</a>
+                    </td>
+                  </tr>
+                </table>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td bgcolor="#2e7d32" class="ja-btn" align="center" style="padding:11px 26px;">
+                      <a href="${linkAprovar}" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;">✓ Aprovar</a>
+                    </td>
+                    <td width="10"></td>
+                    <td bgcolor="#c1272d" class="ja-btn" align="center" style="padding:11px 26px;">
+                      <a href="${linkRecusar}" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;">✕ Recusar</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         `);
       }
 
       const nomeSolicitante = remetente.nome || "A equipe de TI";
       const plural = result.rowCount > 1;
 
+      const tituloEmail = `Aprovação de orçamento${plural ? "s" : ""} de manutenção`;
+      const textoIntro = `Olá! <strong>${nomeSolicitante}</strong> está solicitando sua aprovação pra ${plural ? `os ${result.rowCount} orçamentos` : "o orçamento"} de manutenção de equipamento abaixo. Dá uma olhada nos detalhes e responda com um clique — não precisa entrar no sistema.`;
+      const textoRodape = "Este é um e-mail automático do sistema interno da JA Promoções. Cada link acima registra sua decisão direto, sem precisar logar em lugar nenhum.";
+
       const html = `
-        <div style="max-width:580px;margin:0 auto;font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;padding:24px 0;">
-          <div style="background:linear-gradient(135deg,#942123,#641516);padding:26px 28px;border-radius:14px 14px 0 0;">
-            <span style="color:#fff;font-weight:700;font-size:13px;letter-spacing:1px;opacity:.85;">JA SISTEMA · TI</span>
-            <h1 style="color:#fff;font-size:20px;margin:8px 0 0;">Aprovação de orçamento${plural ? "s" : ""} de manutenção</h1>
-          </div>
-          <div style="background:#ffffff;padding:26px 28px;border:1px solid #eee;border-top:none;">
-            <p style="margin:0 0 20px;font-size:14px;color:#444;line-height:1.6;">
-              Olá! <strong>${nomeSolicitante}</strong> está solicitando sua aprovação pra ${plural ? `os ${result.rowCount} orçamentos` : "o orçamento"} de manutenção de equipamento abaixo. Dá uma olhada nos detalhes e responda com um clique — não precisa entrar no sistema.
-            </p>
-            ${blocosHtml.join("")}
-          </div>
-          <div style="background:#ffffff;border:1px solid #eee;border-top:none;border-radius:0 0 14px 14px;padding:16px 28px;">
-            <p style="font-size:11px;color:#aaa;margin:0;">Este é um e-mail automático do sistema interno da JA Promoções. Cada link acima registra sua decisão direto, sem precisar logar em lugar nenhum.</p>
-          </div>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            /* Decorações só cosméticas — clientes modernos (Gmail, Outlook novo, Apple Mail)
+               aplicam; o Outlook clássico (motor Word) ignora essas propriedades sem quebrar
+               o layout, porque a estrutura em si (tabelas + bgcolor) é a mesma pros dois. */
+            .ja-wrap { border-radius:14px; overflow:hidden; }
+            .ja-header { background:linear-gradient(135deg,#c1272d,#7a1113); }
+            .ja-card { border-radius:12px; }
+            .ja-valorbox { border-radius:10px; }
+            .ja-pill { border-radius:20px; }
+            .ja-btn { border-radius:24px; }
+          </style>
+        </head>
+        <body style="margin:0;padding:0;">
+          <table role="presentation" class="ja-wrap" width="580" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;font-family:'Segoe UI',Arial,sans-serif;">
+            <tr>
+              <td bgcolor="#c1272d" class="ja-header" style="padding:26px 28px;">
+                <span style="color:#ffffff;font-weight:700;font-size:13px;letter-spacing:1px;">JA SISTEMA · TI</span>
+                <h1 style="color:#ffffff;font-size:20px;margin:8px 0 0;">${tituloEmail}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#ffffff" style="padding:26px 28px;border:1px solid #eee;border-top:none;">
+                <p style="margin:0 0 20px;font-size:14px;color:#444;line-height:1.6;">
+                  ${textoIntro}
+                </p>
+                ${blocosHtml.join("")}
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#ffffff" style="border:1px solid #eee;border-top:none;padding:16px 28px;">
+                <p style="font-size:11px;color:#aaa;margin:0;">${textoRodape}</p>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
       `;
 
       await enviarEmail({ to: emails.join(","), subject: "Orçamentos de equipamento pendentes de aprovação", html, remetente });
