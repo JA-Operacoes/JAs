@@ -224,6 +224,80 @@ document.getElementById("tabela")?.addEventListener("change", async function (e)
   }
 });
 
+// Correção "tela cheia sobe sozinha ao marcar/desmarcar checkbox": ao
+// clicar num checkbox de linha (.checkbox__trigger, dentro de um
+// .checkbox-wrapper-33), o input real fica visualmente escondido
+// (visuallyhidden) — ao receber foco no clique, o navegador tenta
+// "scrollIntoView" automaticamente esse elemento escondido em QUALQUER
+// ancestral rolável (não só o container ".table": pode ser o próprio
+// #itensSecaoCompleta, o modal por trás dele, html/body ou a window),
+// empurrando o conteúdo pra cima e escondendo os botões/inputs do topo.
+// Trava só o scrollTop da ".table" não bastava porque o deslocamento podia
+// estar acontecendo em outro ancestral. Em vez de adivinhar qual container
+// é o culpado, snapshot de TODOS os ancestrais roláveis (+ window/html/body)
+// no pointerdown e reforça esses valores continuamente por um tempo curto
+// via requestAnimationFrame — cobre qualquer forma que o navegador use pra
+// aplicar esse scroll (evento "scroll" nem sempre é a única via).
+(function corrigirScrollAoFocarCheckboxItens() {
+  const secao = document.getElementById("itensSecaoCompleta");
+  if (!secao) return;
+
+  function coletarAncestraisRolaveis(elemento) {
+    const alvos = [];
+    let node = elemento;
+    while (node && node !== document.documentElement && node.parentElement) {
+      if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+        alvos.push(node);
+      }
+      node = node.parentElement;
+    }
+    return alvos;
+  }
+
+  let rafId = null;
+  let fimTrava = 0;
+
+  function reforcarScroll(snapshot) {
+    if (Date.now() > fimTrava) {
+      rafId = null;
+      return;
+    }
+    snapshot.forEach(function (item) {
+      if (item.el.scrollTop !== item.top) item.el.scrollTop = item.top;
+      if (item.el.scrollLeft !== item.left) item.el.scrollLeft = item.left;
+    });
+    if (window.scrollY !== snapshot.windowY || window.scrollX !== snapshot.windowX) {
+      window.scrollTo(snapshot.windowX, snapshot.windowY);
+    }
+    rafId = requestAnimationFrame(function () {
+      reforcarScroll(snapshot);
+    });
+  }
+
+  secao.addEventListener(
+    "pointerdown",
+    function (e) {
+      const wrapper = e.target.closest && e.target.closest(".checkbox-wrapper-33");
+      if (!wrapper) return;
+
+      const ancestrais = coletarAncestraisRolaveis(wrapper);
+      const snapshot = ancestrais.map(function (el) {
+        return { el, top: el.scrollTop, left: el.scrollLeft };
+      });
+      snapshot.windowX = window.scrollX;
+      snapshot.windowY = window.scrollY;
+
+      fimTrava = Date.now() + 600;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(function () {
+          reforcarScroll(snapshot);
+        });
+      }
+    },
+    true
+  );
+})();
+
 const selectFuncao = document.getElementById("selectFuncao");
 if (selectFuncao) {
   selectFuncao.addEventListener("change", function () {
