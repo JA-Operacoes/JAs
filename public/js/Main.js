@@ -7677,31 +7677,41 @@ async function mostrarPedidosUsuario() {
 
                 const idGrupo = p.idpedido || p.idaditivoextra || Math.random();
                 const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`;
-                const chaveAgrupamento = ehItemFuncao ? (nmfuncao || funcionarioOuFuncao) : funcionarioOuFuncao;
-                const solicitanteAtual = p.nomeSolicitante || "N/D"; 
+                // Agrupa por idfuncionario (id real, vindo do backend) sempre que disponível —
+                // assim TODAS as solicitações do mesmo funcionário (diretas, aditivo, vaga
+                // excedida etc.) caem num único accordion, mesmo quando o nome/função exibido
+                // varia por categoria. Sem idfuncionario (item ligado só a uma função, sem
+                // funcionário associado), mantém o agrupamento antigo por nome/função.
+                const chaveAgrupamento = p.idfuncionario
+                    ? `funcionario-${p.idfuncionario}`
+                    : (ehItemFuncao ? (nmfuncao || funcionarioOuFuncao) : funcionarioOuFuncao);
+                const solicitanteAtual = p.nomeSolicitante || "N/D";
 
-                const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
-               
+                const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random();
+
                 if (p.categoria === 'statuscacheliberado') {
                     p.categoria_item = 'statuscacheliberado';
                 }
-              
+
                 const categoria = p.categoria_item || "geral";
                 const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
 
-                if (chavesDosItensAdicionados.has(chaveItemUnico)) return; 
+                if (chavesDosItensAdicionados.has(chaveItemUnico)) return;
                 chavesDosItensAdicionados.add(chaveItemUnico);
-                
+
                 if (!pedidosAgrupados[chaveAgrupamento]) {
                     pedidosAgrupados[chaveAgrupamento] = {
                         evento: evento,
-                        funcionario: funcionario, 
+                        funcionario: funcionario || (p.idfuncionario ? (p.nomefuncionario || null) : null),
                         nmfuncao: nmfuncao,
+                        idfuncionario: p.idfuncionario || null,
                         idpedido: p.idpedido,
-                        dtCriacao: p.dtCriacao, 
-                        todosSolicitantes: new Set(), 
-                        registrosOriginais: [] 
+                        dtCriacao: p.dtCriacao,
+                        todosSolicitantes: new Set(),
+                        registrosOriginais: []
                     };
+                } else if (!pedidosAgrupados[chaveAgrupamento].funcionario && (funcionario || p.nomefuncionario)) {
+                    pedidosAgrupados[chaveAgrupamento].funcionario = funcionario || p.nomefuncionario;
                 }
 
                 if (solicitanteAtual) {
@@ -7720,13 +7730,15 @@ async function mostrarPedidosUsuario() {
 
             // (Extra Bonificado + Diária Dobrada são mesclados no backend — sem reagrupamento manual)
 
-            pedidosFinal.sort((a, b) => {
-                const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
-                const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
-                if (nomeA < nomeB) return -1;
-                if (nomeA > nomeB) return 1;
-                return 0;
-            });
+            // Agrupado por funcionário (idusuarioalvo), ordenado da solicitação mais recente para a
+            // mais antiga — a query já traz as linhas nessa ordem, aqui só preservamos isso no
+            // reagrupamento (antes sobrescrevíamos com ordem alfabética por nome).
+            const dataMaisRecente = (grupo) => (grupo.registrosOriginais || []).reduce((max, r) => {
+                const ts = new Date(r.criado_em || r.dtCriacao || 0).getTime();
+                return ts > max ? ts : max;
+            }, 0);
+
+            pedidosFinal.sort((a, b) => dataMaisRecente(b) - dataMaisRecente(a));
             
             if (!pedidosFinal.length) { 
                 lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
@@ -7941,7 +7953,7 @@ async function mostrarPedidosUsuario() {
             const targetContainer = document.getElementById(listContainerId);
             if (targetContainer) {
                 targetContainer.classList.remove('hidden'); targetContainer.style.display = 'flex';
-                targetContainer.style.visibility = 'visible'; targetContainer.style.height = 'auto';
+                targetContainer.style.visibility = 'visible'; targetContainer.style.height = '100%';
             }
 
             const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
@@ -7960,6 +7972,54 @@ async function mostrarPedidosUsuario() {
             }
             if (abasPrincipaisContainer) abasPrincipaisContainer.style.display = 'flex';
         }
+    });
+
+    // 🔎 BUSCA POR FUNCIONÁRIO E POR SOLICITANTE (filtra a lista já carregada, sem nova requisição)
+    lista.oninput = null;
+    lista.addEventListener('input', function(event) {
+        const buscaInput = event.target.closest('[data-busca]');
+        if (!buscaInput) return;
+
+        const categoria = buscaInput.getAttribute('data-categoria');
+        const subAbasContainer = lista.querySelector(`.sub-abas-pedidos[data-categoria="${categoria}"]`);
+        const subTabAtiva = subAbasContainer ? subAbasContainer.querySelector('.sub-tab-btn.ativa') : null;
+        if (!subTabAtiva) return;
+
+        const status = subTabAtiva.getAttribute('data-status');
+        const listContainerId = subTabAtiva.getAttribute('data-list-id');
+
+        // Remove acentos e caixa pra não obrigar o usuário a digitar igual ao que está no banco
+        // (ex.: "joao" acha "João", "gustavo" acha "Gustavo Lima").
+        const normalizarBusca = (texto) => (texto || '')
+            .toString()
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .toLowerCase()
+            .trim();
+
+        const termoFuncionario = normalizarBusca(lista.querySelector(`[data-busca="funcionario"][data-categoria="${categoria}"]`)?.value);
+        const termoSolicitante = normalizarBusca(lista.querySelector(`[data-busca="solicitante"][data-categoria="${categoria}"]`)?.value);
+
+        const listaPedidosBase = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+        const listaFiltrada = (listaPedidosBase || [])
+            // Busca por solicitante filtra dentro do grupo: mostra só os pedidos daquela
+            // pessoa, não o accordion inteiro (que pode ter pedidos de vários solicitantes).
+            .map(grupo => {
+                if (!termoSolicitante) return grupo;
+                const registrosFiltrados = (grupo.registrosOriginais || []).filter(r => {
+                    const nomeSol = normalizarBusca(r.nomeSolicitante || r.nomesolicitante || r.solicitante_nome);
+                    return nomeSol.includes(termoSolicitante);
+                });
+                return { ...grupo, registrosOriginais: registrosFiltrados };
+            })
+            .filter(grupo => {
+                const nomeFuncionario = normalizarBusca(grupo.funcionario || grupo.nmfuncao);
+                const passaFuncionario = !termoFuncionario || nomeFuncionario.includes(termoFuncionario);
+                const temRegistros = (grupo.registrosOriginais || []).length > 0;
+                return passaFuncionario && temRegistros;
+            });
+
+        renderizarPedidos(listaFiltrada, listContainerId, categoria, status, podeAprovar);
     });
 }
 
@@ -8002,6 +8062,10 @@ function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
                     <i class="fas fa-arrow-left"></i> Voltar
                 </button>
                 ${tabButtons}
+            </div>
+            <div class="pedidos-busca-container">
+                <input type="text" class="busca-funcionario-input" data-busca="funcionario" data-categoria="${categoria}" placeholder="Buscar por funcionário..." autocomplete="off">
+                <input type="text" class="busca-funcionario-input" data-busca="solicitante" data-categoria="${categoria}" placeholder="Buscar por solicitante..." autocomplete="off">
             </div>
             <div class="sub-tabs-content">
                 ${tabContents}
@@ -10566,6 +10630,19 @@ function cardBonificadoDiariaDobrada(pedido, statusDesejado, podeAprovar) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+    // Autorizados/Rejeitados vêm em ordem alfabética (A-Z); Pendentes mantém a ordem que
+    // já vinha (agrupado por idfuncionario, mais recente primeiro) — não mexer nessa.
+    const statusOrdenacaoLower = (statusDesejado || '').toLowerCase();
+    const STATUS_AUTORIZADO_ORDEM = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+    const STATUS_REJEITADO_ORDEM = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+    if (statusOrdenacaoLower === STATUS_AUTORIZADO_ORDEM || statusOrdenacaoLower === STATUS_REJEITADO_ORDEM) {
+        pedidosCompletos = [...pedidosCompletos].sort((a, b) => {
+            const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+            const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+            return nomeA.localeCompare(nomeB, 'pt-BR');
+        });
+    }
+
     window.pedidosCompletosGlobais = pedidosCompletos;
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -10808,7 +10885,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             : (grupo.nmfuncao || pedidosDoGrupo[0]?.descFuncao || 'SOLICITAÇÃO DE FUNÇÃO');
 
         const p = pedidosDoGrupo[0];
-        const solicitantesGrupo = p.nomesolicitante || p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+        // Sempre o solicitante da requisição mais recente do grupo (não a primeira do array) —
+        // um mesmo funcionário/idfuncionario pode acumular pedidos de solicitantes diferentes.
+        const ultimoPedidoDoGrupo = pedidosDoGrupo.reduce((maisRecente, atual) => {
+            const dataAtual = new Date(atual.dtCriacao || atual.criado_em || 0).getTime();
+            const dataMaisRecente = new Date(maisRecente.dtCriacao || maisRecente.criado_em || 0).getTime();
+            return dataAtual > dataMaisRecente ? atual : maisRecente;
+        }, p);
+        const solicitantesGrupo = ultimoPedidoDoGrupo.nomesolicitante || ultimoPedidoDoGrupo.nomeSolicitante
+            || ultimoPedidoDoGrupo.solicitante_nome || ultimoPedidoDoGrupo.funcionario || "N/D";
 
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario";
