@@ -17286,7 +17286,32 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
         atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
         // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
-        
+
+        // --- MODO FOCO: bloco escolhido nos botões de acesso rápido já abre expandido,
+        // escondendo o resumo (cards/avisos) e o outro bloco pra ocupar toda a tela.
+        const focoAtivo = window._focoVencimentoAtivo || null;
+        const wrapperEventosEl = conteudoGeral.querySelector('#container-mestre-eventos');
+        const wrapperContasEl = conteudoGeral.querySelector('#wrapper-contas');
+        const btnMestreEventosEl = wrapperEventosEl?.previousElementSibling;
+        const btnMestreContasEl = wrapperContasEl?.previousElementSibling;
+
+        if (valoresResumoElement) valoresResumoElement.style.display = focoAtivo ? 'none' : '';
+
+        // A barra do acordeão (título + totais) só aparece quando o bloco está em foco —
+        // no modo normal a navegação é 100% pelos botões de acesso rápido, então repetir
+        // a barra recolhida no meio da tela é redundante (pedido da usuária 2026-09-09).
+        if (btnMestreEventosEl && wrapperEventosEl) {
+            const abrir = focoAtivo === 'eventos';
+            btnMestreEventosEl.style.display = abrir ? '' : 'none';
+            wrapperEventosEl.style.display = abrir ? 'block' : 'none';
+            btnMestreEventosEl.classList.toggle('active', abrir);
+        }
+        if (btnMestreContasEl && wrapperContasEl) {
+            const abrir = focoAtivo === 'contas';
+            btnMestreContasEl.style.display = abrir ? '' : 'none';
+            wrapperContasEl.style.display = abrir ? 'block' : 'none';
+            btnMestreContasEl.classList.toggle('active', abrir);
+        }
 
     } catch (error) {
         console.error("Erro:", error);
@@ -20594,6 +20619,44 @@ function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
     subFiltroWrapper.className = "sub-filtro";
     filtrosContainer.appendChild(subFiltroWrapper);
 
+    // 3. Botões de Foco (acesso rápido): abrem um dos dois blocos (Staff / Contas)
+    // já expandido, escondendo o resumo e o outro bloco pra usar toda a tela.
+    const focoContainer = document.createElement("div");
+    focoContainer.className = "foco-vencimentos-container";
+    focoContainer.innerHTML = `
+        <button type="button" class="btn-foco-vencimento" data-foco="eventos">📅 Pagamentos de Staff</button>
+        <button type="button" class="btn-foco-vencimento" data-foco="contas">💸 Contas a Pagar</button>
+        <button type="button" class="btn-fechar-foco-vencimento" style="display:none;">✕ Fechar</button>
+    `;
+    filtrosContainer.appendChild(focoContainer);
+
+    const btnFocoEventos = focoContainer.querySelector('[data-foco="eventos"]');
+    const btnFocoContas = focoContainer.querySelector('[data-foco="contas"]');
+    const btnFecharFoco = focoContainer.querySelector('.btn-fechar-foco-vencimento');
+
+    function atualizarBotoesFoco() {
+        const foco = window._focoVencimentoAtivo || null;
+        btnFocoEventos.classList.toggle('active', foco === 'eventos');
+        btnFocoContas.classList.toggle('active', foco === 'contas');
+        btnFecharFoco.style.display = foco ? 'inline-flex' : 'none';
+    }
+
+    function alternarFoco(valor) {
+        window._focoVencimentoAtivo = window._focoVencimentoAtivo === valor ? null : valor;
+        atualizarBotoesFoco();
+        carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+    }
+
+    btnFocoEventos.onclick = () => alternarFoco('eventos');
+    btnFocoContas.onclick = () => alternarFoco('contas');
+    btnFecharFoco.onclick = () => {
+        window._focoVencimentoAtivo = null;
+        atualizarBotoesFoco();
+        carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+    };
+
+    atualizarBotoesFoco();
+
     function montarOpcoes(titulo, valores) {
         return `
             <label class="label-select">${titulo}</label>
@@ -20833,8 +20896,10 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     valoresResumoElement.className = "resumo-periodo-vencimentos";
     
     const conteudoGeral = document.createElement("div");
-    conteudoGeral.className = "conteudo-geral"; 
-    
+    conteudoGeral.className = "conteudo-geral";
+
+    window._focoVencimentoAtivo = null; // Sempre começa no modo normal (resumo visível)
+
     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 
