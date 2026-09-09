@@ -12927,17 +12927,18 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
     return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
 }
 
-window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null) {
+window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null, iditem = null) {
     const file = input.files[0];
     if (!file) return;
 
     const formData = new FormData();
-  
+
 
     formData.append('idStaff', idStaff);
     formData.append('tipo', tipo);
     formData.append('contexto', tipo); // Garante que o contexto chegue preenchido
-    
+    if (iditem !== null && iditem !== undefined) formData.append('iditem', iditem); // Caixinha: identifica o item dentro do array
+
     // O arquivo deve ser o ÚLTIMO campo adicionado
     // Verifique se no backend você usa upload.single('arquivo') ou 'comprovante'
     formData.append('arquivo', file);
@@ -13104,15 +13105,16 @@ window.criarHTMLComprovantes = function(f, tipo) {
 };
 
 
-function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
-    const idInput = `file-${tipo}-${idStaff}`;
+function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null, iditem = null) {
+    const idInput = `file-${tipo}-${idStaff}${iditem !== null ? '-' + iditem : ''}`;
     const idFuncAttr = (idFuncionario !== null) ? idFuncionario : 'null';
+    const idItemAttr = (iditem !== null) ? `'${iditem}'` : 'null';
 
     return `
         <div class="upload-container-uiverse" style="display: inline-block;">
-            <input type="file" id="${idInput}" style="display:none" 
-                   onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncAttr})">
-            <button class="btn-uiverse-comprovante" 
+            <input type="file" id="${idInput}" style="display:none"
+                   onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncAttr}, ${idItemAttr})">
+            <button class="btn-uiverse-comprovante"
                     onclick="document.getElementById('${idInput}').click()"
                     style="display: flex; align-items: center; background: #212121; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold;">
                 <i class="fas fa-upload" style="margin-right:5px;"></i> COMPROVANTE
@@ -15377,7 +15379,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             comprovanteCx = item.comprovante
                                 ? `<a href="${item.comprovante}" target="_blank" class="btn-ver-comp" title="Ver comprovante"><i class="fas fa-file-invoice"></i></a>`
                                 : (estaPagoCx
-                                    ? '<span style="font-size:9px; color:#999;">Sem comprovante</span>'
+                                    ? renderBotaoUploadUiverse(f.idstaffevento, 'caixinha', null, item.iditem)
                                     : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
                         }
 
