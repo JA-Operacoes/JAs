@@ -1261,6 +1261,25 @@ input#search-aside {
   }
   #ti-panel .busca-funcionario-input:focus { border-color: var(--primary-color); }
 
+  /* Busca por funcionário/solicitante no card "Pedidos e Solicitações" (mesma cara do ti-panel) */
+  #painelDetalhes .pedidos-busca-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  #painelDetalhes .pedidos-busca-container .busca-funcionario-input {
+    flex: 1;
+    min-width: 180px;
+    border: 2px solid #ccc;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    outline: none;
+    background: #fff;
+  }
+  #painelDetalhes .pedidos-busca-container .busca-funcionario-input:focus { border-color: var(--primary-color); }
+
   #ti-panel .ti-btn-listagem-separacao {
     margin-top: 8px;
     border: 1px solid var(--primary-color, #999);
