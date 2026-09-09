@@ -1736,7 +1736,8 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         }
 
         const queryBase = `
-            SELECT 
+            WITH solicitacoes_agrupadas AS (
+            SELECT
                 MIN(s.idsolicitacao)   AS id_log,
                 s.idregistroalterado   AS idstaffevento,
                 s.idusuariosolicitante AS idexecutor,
@@ -1791,7 +1792,12 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 se.datasevento, s.categoria_log, s.chaveitem, s.status, o.dtfiminfradesmontagem,
                 o.dtfimdesmontagem, s.idfuncionario, se.vlralimentacao, se.vlrtransporte,
                 se.vlrcache, se.dtdiariadobrada, se.dtmeiadiaria
-            ORDER BY MIN(s.dtsolicitacao) DESC
+            )
+            SELECT * FROM solicitacoes_agrupadas
+            ORDER BY
+                MAX(criado_em) OVER (PARTITION BY idusuarioalvo) DESC NULLS LAST,
+                idusuarioalvo,
+                criado_em DESC
         `;
 
         const { rows } = await pool.query(queryBase, params);
@@ -1966,6 +1972,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 dataDecisao: r.datadecisao,
                 funcionario: (categoriaReal === 'statusvagaexcedida' && r.tiposolicitacao !== 'FuncExcedido') ? null : (r.nomefuncionario || '-'),
                 nomefuncionario: r.nomefuncionario,
+                idfuncionario: r.idusuarioalvo || null,
                 evento: r.evento || '-',
                 dtCriacao: r.criado_em,
                 dtsolicitada: r.dtsolicitada_agrupada,
