@@ -143,6 +143,16 @@
             <div class="nf-campo"><label>Evento</label><span id="nfOrigemEvento">—</span></div>
             <div class="nf-campo"><label>Realização</label><span id="nfOrigemRealizacao">—</span></div>
             <div class="nf-campo"><label>Valor total do orçamento</label><span id="nfOrigemValor">—</span></div>
+            <div class="nf-campo">
+              <label>Empresa emissora</label>
+              <span id="nfOrigemEmissora" style="display:none;">—</span>
+              <div id="nfOrigemEmissoraEdicao" style="display:flex; gap:6px; align-items:center;">
+                <select id="nfOrigemEmissoraSelect" class="nf-tamanho-select-emissora" style="flex:1;"></select>
+                <button type="button" id="nfBtnSalvarEmissora" class="nf-btn-secundario" style="white-space:nowrap;padding:4px 10px;font-size:11px;line-height:1.3;text-align:center;">Troca Empresa<br>Salva no Orçamento</button>
+              </div>
+              <small id="nfAvisoEmissoraBloqueada" style="display:none; color:#666;">Já tem nota fiscal emitida — não é mais possível trocar a empresa emissora.</small>
+            </div>
+            <div class="nf-campo"><label>CNPJ da emissora</label><span id="nfOrigemEmissoraCnpj">—</span></div>
             <div class="nf-campo nf-full"><label>Condição de pagamento (orçamento)</label><span id="nfOrigemCondicao">—</span></div>
           </div>
         </div>

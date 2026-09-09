@@ -3407,10 +3407,15 @@ router.get("/vencimentos", async (req, res) => {
         const dtBaseAjuda = dtInicioInfraMontagem ?? dtInicioMontagem;
 
         const staffsProcessados = staffs.map(s => {
-            const vC = parseFloat(s.totalcache_full) || 0;
-            const vA = parseFloat(s.totalajudacusto_full) || 0;
-            const vX = parseFloat(s.totalcaixinha_full) || 0;
-            
+            // Math.max(0, ...): um ajuste de custo pode zerar/negativar o cachê de alguém (ex.:
+            // funcionário interno que não recebe cachê, só ajuda de custo — vlrtotcache fica
+            // negativo). Sem isso, esse valor negativo abatia o total do EVENTO (chT/ajT/cxT) e
+            // qualquer bucket de status que essa pessoa estivesse (Pago/Suspenso/Recusado/
+            // Pendente), fazendo o resumo mostrar menos do que a soma real dos casos positivos.
+            const vC = Math.max(0, parseFloat(s.totalcache_full) || 0);
+            const vA = Math.max(0, parseFloat(s.totalajudacusto_full) || 0);
+            const vX = Math.max(0, parseFloat(s.totalcaixinha_full) || 0);
+
             chT += vC; ajT += vA; cxT += vX;
 
             const calcPago = (status, amount) => {
@@ -4064,7 +4069,7 @@ router.get('/contas-pagar', async (req, res) => {
         // Holerites (RH) do ano inteiro, por funcionário/mês — sempre uma linha por
         // competência (real quando já existe holerite salvo, ou PREVISÃO calculada na hora,
         // igual ao /rh/folha) pra casar com o mês efetivamente projetado na tela de Vencimentos.
-        const { obterParametros, contarDiasUteis, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA } = require('./rotaRH').helpersFolha;
+        const { obterParametros, contarDiasUteis, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior } = require('./rotaRH').helpersFolha;
 
         const funcsFolha = (await pool.query(
             `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
@@ -4076,19 +4081,55 @@ router.get('/contas-pagar', async (req, res) => {
             [idEmpresa, PERFIS_FOLHA]
         )).rows;
 
-        const paramsFolha = await obterParametros(anoFiltro);
+        // "mes" abaixo é o VENCIMENTO (1=Jan..12=Dez de anoFiltro) — dias úteis/parâmetros
+        // fiscais usam o mês TRABALHADO (o anterior, ver competenciaAnterior em rotaRH.js).
+        // Vencimento de Janeiro cai na competência de Dezembro do ANO ANTERIOR a anoFiltro, por
+        // isso os parâmetros fiscais são cacheados por ano conforme forem precisando, em vez de
+        // buscar uma vez só (o ano da competência pode não ser o mesmo de anoFiltro).
+        const paramsPorAno = {};
+        const obterParametrosCache = async (ano) => {
+            if (!(ano in paramsPorAno)) paramsPorAno[ano] = await obterParametros(ano);
+            return paramsPorAno[ano];
+        };
 
         const holerites = [];
+        // Benefícios (VA/VT) viram uma linha PRÓPRIA em Contas a Pagar, separada do salário —
+        // vencem no último dia útil do próprio mês (sem defasagem) e são conferidos/pagos à
+        // parte (ver PUT /rh/holerite/:id/conferir-beneficios e /pagar-beneficios), porque saem
+        // por meio e em data diferente do salário (boleto bilhete único x pix/cartão ticket).
+        const beneficios = [];
         for (const f of funcsFolha) {
             for (let mes = 1; mes <= 12; mes++) {
+                // INSS/IRRF usam a tabela do mês TRABALHADO do salário (o anterior); dias úteis
+                // de VA/VT usam o mês vigente direto (benefício não tem defasagem).
+                const { ano: anoComp } = competenciaAnterior(mes, anoFiltro);
                 const diasUteis = contarDiasUteis(anoFiltro, mes);
+                const paramsFolha = await obterParametrosCache(anoComp);
                 // Gera e persiste o holerite mensal automaticamente (réplica do mês anterior +
                 // INSS/IRRF recalculado) — o RH não precisa mais entrar todo mês pra salvar; só
                 // quando precisar ajustar algo. Meses sequenciais dentro do mesmo loop (await),
                 // então o mês N já pode replicar o mês N-1 recém-persistido.
                 await garantirHoleriteMensal(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
                 const linha = await computarLinhaFolha(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
-                holerites.push({ ...linha, mes, ano: anoFiltro });
+                // Ainda não conferido na lista do RH (rh-panel) → conta como PREVISÃO em
+                // Financeiro (entra no Previsto/A Vencer geral, mas nunca pode virar "Pago" nem
+                // aparecer como conta pronta pra pagar — o front já trata origem !== 'real'
+                // assim). Só vira "real" (pronto pra pagar de fato) depois de conferido (ver PUT
+                // /rh/holerite/:id/conferir). Não pode sumir do array: senão some também do
+                // Previsto/Total Anual, que devem contar a projeção mesmo sem conferência.
+                holerites.push({ ...linha, origem: linha.conferido ? linha.origem : "previsao", mes, ano: anoFiltro });
+
+                if (linha.beneficios > 0) {
+                    const diaVcto = ultimoDiaUtil(anoFiltro, mes);
+                    beneficios.push({
+                        idfuncionario: linha.idfuncionario, nome: linha.nome, idholerite: linha.idholerite,
+                        origem: linha.conferidoBeneficios ? "real" : "previsao",
+                        status: linha.statusBeneficios, dtpagamento: linha.dtpagamentoBeneficios,
+                        liquido: linha.beneficios,
+                        mes, ano: anoFiltro,
+                        dtvcto: `${anoFiltro}-${String(mes).padStart(2, "0")}-${String(diaVcto).padStart(2, "0")}`,
+                    });
+                }
             }
         }
 
@@ -4100,26 +4141,35 @@ router.get('/contas-pagar', async (req, res) => {
         // daquela competência — o filtro de período (mensal/semanal/etc) na tela é quem
         // decide se a linha aparece ou não, não a data de hoje.
 
+        // 13º é tratado pelo ANO CHEIO do filtro direto (não tem a defasagem vencimento×
+        // competência do salário mensal), por isso usa os parâmetros de anoFiltro mesmo,
+        // reaproveitando o cache já montado no loop mensal acima se ele já buscou esse ano.
+        const paramsAnoFiltro = await obterParametrosCache(anoFiltro);
+
         const eventos13 = [];
         for (const f of funcsFolha) {
-            await garantirHolerite13(idEmpresa, f, 11, anoFiltro, "1", paramsFolha);
-            const parcela1 = await computarLinha13(idEmpresa, f, 11, anoFiltro, "1", paramsFolha);
+            await garantirHolerite13(idEmpresa, f, 11, anoFiltro, "1", paramsAnoFiltro);
+            const parcela1 = await computarLinha13(idEmpresa, f, 11, anoFiltro, "1", paramsAnoFiltro);
+            // Mesma lógica do salário mensal: não conferido ainda conta como previsão (Previsto/
+            // A Vencer), só não pode virar "Pago" nem aparecer como conta pronta pra pagar.
             if (parcela1.idholerite) {
                 eventos13.push({
-                    ...parcela1, mes: 11, ano: anoFiltro, dtvcto: `${anoFiltro}-11-20`,
+                    ...parcela1, origem: parcela1.conferido ? parcela1.origem : "previsao",
+                    mes: 11, ano: anoFiltro, dtvcto: `${anoFiltro}-11-20`,
                 });
             }
 
-            await garantirHolerite13(idEmpresa, f, 12, anoFiltro, "2", paramsFolha);
-            const parcela2 = await computarLinha13(idEmpresa, f, 12, anoFiltro, "2", paramsFolha);
+            await garantirHolerite13(idEmpresa, f, 12, anoFiltro, "2", paramsAnoFiltro);
+            const parcela2 = await computarLinha13(idEmpresa, f, 12, anoFiltro, "2", paramsAnoFiltro);
             if (parcela2.idholerite) {
                 eventos13.push({
-                    ...parcela2, mes: 12, ano: anoFiltro, dtvcto: `${anoFiltro}-12-30`,
+                    ...parcela2, origem: parcela2.conferido ? parcela2.origem : "previsao",
+                    mes: 12, ano: anoFiltro, dtvcto: `${anoFiltro}-12-30`,
                 });
             }
         }
 
-        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13 });
+        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });
     }

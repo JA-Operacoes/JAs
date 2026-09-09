@@ -68,6 +68,51 @@ function aviso(icon, title, text) {
   alert(`${title}\n${text || ''}`);
 }
 
+function formatarCnpjExibicaoNF(cnpj) {
+  if (!cnpj) return '—';
+  const digitos = String(cnpj).replace(/\D/g, '');
+  if (digitos.length !== 14) return cnpj;
+  return digitos.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+}
+
+// Lista de empresas emissoras (mesma rota já usada em Orcamentos.js pra
+// escolher a emissora na criação do orçamento) — cacheada porque a lista
+// de empresas praticamente nunca muda dentro de uma sessão.
+let cacheEmpresasEmissorasNF = null;
+async function popularSelectEmpresaEmissoraNF(idempresaemissoraAtual) {
+  const select = document.getElementById('nfOrigemEmissoraSelect');
+  if (!select) return;
+  if (!cacheEmpresasEmissorasNF) {
+    cacheEmpresasEmissorasNF = await fetchComToken('/orcamentos/empresas');
+  }
+  select.innerHTML = cacheEmpresasEmissorasNF
+    .map((e) => `<option value="${e.idempresa}">${e.nmfantasia} — ${formatarCnpjExibicaoNF(e.cnpj)}</option>`)
+    .join('');
+  select.value = idempresaemissoraAtual || '';
+}
+
+async function salvarEmpresaEmissoraNF() {
+  const idorcamento = document.getElementById('nfIdOrcamentoAtual').value;
+  const select = document.getElementById('nfOrigemEmissoraSelect');
+  const idempresaemissora = select.value;
+  if (!idorcamento || !idempresaemissora) return;
+
+  try {
+    const resultado = await fetchComToken(`/faturamento/orcamento/${idorcamento}/empresa-emissora`, {
+      method: 'PATCH',
+      body: { idempresaemissora },
+    });
+
+    // Recarrega tudo (inclui os dados bancários da nova emissora, exibidos
+    // na aba "Pagamento" — só vêm completos no GET /orcamento/:id).
+    await abrirEmissaoParaOrcamento(idorcamento);
+
+    aviso('success', 'Empresa emissora atualizada', `Agora a nota sai por ${resultado.emissora_nome}.`);
+  } catch (erro) {
+    aviso('error', 'Não foi possível trocar a empresa emissora', erro?.message || 'Tente novamente.');
+  }
+}
+
 // ---- Abas ----
 function mudarAba(nome) {
   document.querySelectorAll('#cadModalNotaFiscal .nf-tab-btn').forEach((b) =>
@@ -1680,7 +1725,19 @@ async function abrirEmissaoParaOrcamento(idorcamento) {
     document.getElementById('nfOrigemRealizacao').textContent =
       `${formatarDataBR(dados.dtinirealizacao)}${dados.dtfimrealizacao ? ' – ' + formatarDataBR(dados.dtfimrealizacao) : ''}`;
     document.getElementById('nfOrigemValor').textContent = fmtMoeda(dados.vlrcliente);
+    document.getElementById('nfOrigemEmissoraCnpj').textContent = formatarCnpjExibicaoNF(dados.emissora_cnpj);
     document.getElementById('nfOrigemCondicao').textContent = dados.formapagamento || '—';
+
+    // Só Master pode trocar a empresa emissora, e só enquanto o orçamento
+    // ainda não tiver nenhuma nota fiscal EMITIDA (ver PATCH
+    // /faturamento/orcamento/:id/empresa-emissora) — nos outros casos mostra
+    // só o texto, sem o select/botão de salvar.
+    const podeEditarEmissora = temMasterFaturamento() && !dados.tem_nota_emitida;
+    document.getElementById('nfOrigemEmissora').style.display = podeEditarEmissora ? 'none' : '';
+    document.getElementById('nfOrigemEmissoraEdicao').style.display = podeEditarEmissora ? 'flex' : 'none';
+    document.getElementById('nfAvisoEmissoraBloqueada').style.display = dados.tem_nota_emitida ? 'block' : 'none';
+    document.getElementById('nfOrigemEmissora').textContent = dados.emissora_nome || '—';
+    if (podeEditarEmissora) await popularSelectEmpresaEmissoraNF(dados.idempresaemissora);
 
     document.getElementById('nfClienteRazao').value = dados.razaosocial || '';
     document.getElementById('nfClienteFantasia').value = dados.cliente_nmfantasia || '';
@@ -2403,7 +2460,7 @@ async function enviarNotaPorEmail(idnotafiscal, emailPadrao) {
       html: `Nota enviada para ${destinatario.trim()}.<br><br>` +
         (resultado.salvouEmEnviados
           ? `<span style="color:#046800;"><i class="fa-solid fa-check"></i> Cópia salva na pasta "Enviados" de ${resultado.caixaEnviados || 'financeiro'}.</span>`
-          : `<span style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Não deu pra salvar a cópia na pasta "Enviados" — foi mandada uma cópia de aviso por e-mail pro financeiro.</span>`)
+          : `<span style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Não deu pra salvar a cópia na pasta "Enviados" — foi mandada uma cópia de aviso por e-mail pra ${resultado.caixaEnviados || 'você'}.</span>`)
     });
     await carregarEmitidas();
   } catch (err) {
@@ -2563,6 +2620,7 @@ function configurarEventosNotaFiscal() {
     atualizarDadosBancarios();
   });
   document.getElementById('nfBtnInserirDadosBancarios').addEventListener('click', inserirDadosBancariosNaDescricao);
+  document.getElementById('nfBtnSalvarEmissora').addEventListener('click', salvarEmpresaEmissoraNF);
   document.getElementById('nfBtnVerificarSimples').addEventListener('click', () => {
     const idcliente = document.getElementById('nfIdClienteAtual').value;
     const idorcamento = document.getElementById('nfIdOrcamentoAtual').value;
