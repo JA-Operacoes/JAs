@@ -31,6 +31,7 @@ const { carregarCertificado } = require('../utils/assinarXmlRpsLote');
 const { enviarLoteRPS } = require('../utils/enviarLoteWebService');
 const { montarXmlCancelamentoNFe } = require('../utils/gerarXmlCancelamentoNFe');
 const { enviarEmailComAnexo } = require('../utils/enviarEmail');
+const { decifrar } = require('../utils/criptografia');
 const { buscarCodigoIbge } = require('../utils/buscarMunicipioIbge');
 const { buscarSimplesNacional } = require('../utils/buscarSimplesNacional');
 const registrarLog = require('../utils/logger');
@@ -251,7 +252,9 @@ router.get("/orcamento/:idorcamento", verificarPermissao('faturamento', 'pesquis
          lm.idmontagem, lm.descmontagem, lm.rua AS montagem_rua, lm.numero AS montagem_numero,
          lm.bairro AS montagem_bairro, lm.cep AS montagem_cep,
          lm.cidademontagem AS montagem_cidade, lm.ufmontagem AS montagem_uf,
+         o.idempresaemissora,
          em.nmfantasia AS emissora_nome,
+         em.cnpj AS emissora_cnpj,
          b.nmbanco AS emissora_banconome,
          b.codbanco AS emissora_bancocodigo,
          em.agencia AS emissora_agencia,
@@ -261,7 +264,10 @@ router.get("/orcamento/:idorcamento", verificarPermissao('faturamento', 'pesquis
          em.tipoconta AS emissora_tipoconta,
          em.pix AS emissora_pix,
          COALESCE(fat.faturado, 0) AS faturado,
-         (o.vlrcliente - COALESCE(fat.faturado, 0)) AS saldo
+         (o.vlrcliente - COALESCE(fat.faturado, 0)) AS saldo,
+         EXISTS (
+           SELECT 1 FROM notasfiscais nfe WHERE nfe.idorcamento = o.idorcamento AND nfe.status = 'Emitida'
+         ) AS tem_nota_emitida
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento AND oe.idempresa = $2
        LEFT JOIN clientes c ON c.idcliente = o.idcliente
@@ -414,6 +420,81 @@ router.patch("/parcela/:idparcela", verificarPermissao('faturamento', 'alterar')
     res.status(500).json({ message: "Erro ao atualizar vencimento da parcela." });
   }
 });
+
+// PATCH /faturamento/orcamento/:idorcamento/empresa-emissora — troca qual
+// empresa (CNPJ) emite a nota fiscal desse orçamento, direto na aba "Emitir
+// nota". Bloqueado se já existe alguma nota EMITIDA pra esse orçamento: as
+// telas de Faturamento (pendentes/faturadas/recebimento) buscam a empresa
+// emissora ao vivo via orcamentos.idempresaemissora (a nota não guarda uma
+// cópia própria) — trocar depois de já emitida faria a nota já emitida (com
+// CNPJ real registrado na prefeitura) aparecer nos relatórios como se fosse
+// de outra empresa. Restrito a "master" (mesmo nível do resto do ciclo de
+// vida da nota — registrar/enviar/cancelar).
+router.patch("/orcamento/:idorcamento/empresa-emissora", verificarPermissao('faturamento', 'alterar'), exigirFlag('master'),
+  logMiddleware("Orcamentos", {
+    buscarDadosAnteriores: async (req) => {
+      const result = await pool.query(
+        `SELECT o.idorcamento, o.idempresaemissora, em.nmfantasia AS emissora_nome, em.cnpj AS emissora_cnpj
+           FROM orcamentos o
+           LEFT JOIN empresas em ON em.idempresa = o.idempresaemissora
+          WHERE o.idorcamento = $1`,
+        [req.params.idorcamento]
+      );
+      return { dadosanteriores: result.rows[0] || null, idregistroalterado: req.params.idorcamento };
+    }
+  }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const { idorcamento } = req.params;
+    const idempresaemissora = parseInt(req.body?.idempresaemissora, 10);
+
+    if (!idempresaemissora) {
+      return res.status(400).json({ message: "Selecione a empresa emissora." });
+    }
+
+    try {
+      const empresaExiste = await pool.query(`SELECT idempresa FROM empresas WHERE idempresa = $1`, [idempresaemissora]);
+      if (!empresaExiste.rowCount) {
+        return res.status(400).json({ message: "Empresa emissora inválida." });
+      }
+
+      const notaJaEmitida = await pool.query(
+        `SELECT 1 FROM notasfiscais WHERE idorcamento = $1 AND status = 'Emitida' LIMIT 1`,
+        [idorcamento]
+      );
+      if (notaJaEmitida.rowCount) {
+        return res.status(409).json({ message: "Este orçamento já tem nota fiscal emitida — a empresa emissora não pode mais ser trocada." });
+      }
+
+      const result = await pool.query(
+        `UPDATE orcamentos o
+            SET idempresaemissora = $1
+           FROM orcamentoempresas oe
+          WHERE o.idorcamento = $2
+            AND oe.idorcamento = o.idorcamento
+            AND oe.idempresa = $3
+          RETURNING o.idorcamento, o.idempresaemissora`,
+        [idempresaemissora, idorcamento, idempresa]
+      );
+
+      if (!result.rowCount) {
+        return res.status(404).json({ message: "Orçamento não encontrado para esta empresa." });
+      }
+
+      const emissora = await pool.query(
+        `SELECT nmfantasia AS emissora_nome, cnpj AS emissora_cnpj FROM empresas WHERE idempresa = $1`,
+        [idempresaemissora]
+      );
+
+      res.locals.idregistroalterado = idorcamento;
+      res.locals.dadosnovos = { idorcamento, idempresaemissora, ...emissora.rows[0] };
+
+      return res.json({ message: "Empresa emissora atualizada.", ...emissora.rows[0], idempresaemissora });
+    } catch (error) {
+      console.error("Erro ao atualizar empresa emissora do orçamento:", error);
+      res.status(500).json({ message: "Erro ao atualizar empresa emissora." });
+    }
+  });
 
 // POST /notafiscal — registra uma nota (rascunho ou já emitida no portal)
 // Restrito a "master" (pedido explícito) — igual ao resto do ciclo de vida
@@ -951,12 +1032,14 @@ router.get("/:id/preview-email", verificarPermissao('faturamento', 'pesquisar'),
   });
 
 // POST /faturamento/:id/enviar-email — manda o PDF da nota já Emitida pro
-// e-mail do cliente, por SMTP (ver utils/enviarEmail.js — usa os mesmos
-// dados de servidor de saída já configurados no Outlook de vocês). Só libera
-// depois de anexar o PDF (arquivopdf), igual pedido: sem o comprovante
-// escaneado/baixado do portal não tem o que mandar. Assunto/corpo podem vir
-// customizados no body (editados no swal de prévia do front); sem eles, cai
-// no texto padrão de montarEmailPadraoNota.
+// e-mail do cliente, por SMTP (ver utils/enviarEmail.js), sempre a partir da
+// conta de e-mail corporativo (tiemailcorporativo) do usuário ativo — não
+// existe mais fallback silencioso pra uma conta padrão do .env, assim fica
+// registrado no provedor quem de fato mandou aquele e-mail pro cliente. Só
+// libera depois de anexar o PDF (arquivopdf), igual pedido: sem o
+// comprovante escaneado/baixado do portal não tem o que mandar.
+// Assunto/corpo podem vir customizados no body (editados no swal de prévia
+// do front); sem eles, cai no texto padrão de montarEmailPadraoNota.
 router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
   logMiddleware('NotaFiscal', { acao: 'enviou por e-mail' }),
   async (req, res) => {
@@ -969,6 +1052,32 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
     }
 
     try {
+      const idusuarioAtivo = req.usuario?.idusuario;
+      const meuEmail = idusuarioAtivo
+        ? await pool.query(
+            `SELECT email, senha_cifrada FROM tiemailcorporativo WHERE idusuario = $1 AND idempresa = $2 LIMIT 1`,
+            [idusuarioAtivo, idempresa]
+          )
+        : { rowCount: 0 };
+
+      if (!meuEmail.rowCount) {
+        return res.status(400).json({
+          message: "Você não possui nenhum e-mail corporativo sincronizado. Entre em contato com o pessoal do Sistema ou com os Devs pra configurar isso.",
+        });
+      }
+
+      let remetente;
+      try {
+        remetente = {
+          email: meuEmail.rows[0].email,
+          senha: decifrar(meuEmail.rows[0].senha_cifrada),
+          nome: req.usuario?.nomeusuario || null,
+        };
+      } catch (erroDecifrar) {
+        console.error("Erro ao decifrar senha do e-mail do usuário ativo:", erroDecifrar);
+        return res.status(500).json({ message: "Erro ao acessar o e-mail corporativo sincronizado. Entre em contato com o TI." });
+      }
+
       const result = await pool.query(
         `SELECT nf.idnotafiscal, nf.arquivopdf, nf.numeronota, nf.status,
                 o.nrorcamento, e.nmevento AS evento_nome,
@@ -998,6 +1107,7 @@ router.post("/:id/enviar-email", verificarPermissao('faturamento', 'alterar'),
         assunto,
         corpoTexto,
         anexo: { nome: `NotaFiscal-${nf.numeronota || nf.idnotafiscal}.pdf`, caminhoRelativo: nf.arquivopdf },
+        remetente,
       });
 
       const notaAtualizada = await pool.query(
