@@ -2661,6 +2661,57 @@ body.dark .indicador-evento {
   height: 50px;
 }
 
+.foco-vencimentos-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.btn-foco-vencimento {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 2px solid var(--primary-color, #800000);
+  background: #ffffff;
+  color: var(--primary-color, #800000);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-foco-vencimento:hover {
+  background: var(--primary-color10, #8000001a);
+}
+
+.btn-foco-vencimento.active {
+  background: var(--primary-color, #800000);
+  color: #ffffff;
+}
+
+.btn-fechar-foco-vencimento {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 2px solid #888;
+  background: #ffffff;
+  color: #444;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-fechar-foco-vencimento:hover {
+  background: #f1f1f1;
+}
+
 .filtros-Evt {
   display: flex;
   align-items: center;
