@@ -2126,6 +2126,25 @@ input#search-aside {
     padding: 4px 6px;
     font-size: 14px;
   }
+  #rh-panel .rh-select-label {
+    font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .5px;
+    margin-left: 4px; cursor: help;
+  }
+
+  /* Chips "Vencimento × Mês trabalhado" — o dropdown seleciona o vencimento; dias
+     úteis/VA/VT/INSS/IRRF usam o mês anterior a esse (ver competenciaHtml em RH.js). */
+  #rh-panel .rh-competencia { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  #rh-panel .rh-mes-chip {
+    display: flex; flex-direction: column; gap: 1px; padding: 6px 14px;
+    border-radius: 8px; border-left: 3px solid transparent;
+  }
+  #rh-panel .rh-mes-chip span { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #888; }
+  #rh-panel .rh-mes-chip strong { font-size: 14px; }
+  #rh-panel .rh-mes-chip.venc { background: #fdeceb; border-left-color: #942123; }
+  #rh-panel .rh-mes-chip.venc strong { color: #942123; }
+  #rh-panel .rh-mes-chip.trab { background: #e7eefc; border-left-color: #3a63c0; }
+  #rh-panel .rh-mes-chip.trab strong { color: #3a63c0; }
+  #rh-panel .rh-mes-seta { color: #bbb; font-size: 16px; }
   #rh-panel .rh-busca-func { position: relative; }
   #rh-panel #rh-busca-func {
     border: none;
@@ -2235,20 +2254,76 @@ input#search-aside {
 
   /* Visão geral da folha do mês (tabela por funcionário) */
   #rh-panel .rh-folha { margin-bottom: 20px; }
+  #rh-panel .rh-folha-busca {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    padding: 8px 12px; background: #fff; border: 1px solid #ececec; border-radius: 8px; max-width: 320px;
+  }
+  #rh-panel .rh-folha-busca .material-symbols-outlined { color: #999; font-size: 20px; }
+  #rh-panel .rh-folha-busca input {
+    border: none; outline: none; flex: 1; font-size: 13px; padding: 0;
+  }
   #rh-panel .rh-folha-tab { width: 100%; border-collapse: collapse; font-size: 14px; }
   #rh-panel .rh-folha-tab th,
   #rh-panel .rh-folha-tab td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ececec; }
   #rh-panel .rh-folha-tab th {
     font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; font-weight: 600;
   }
-  #rh-panel .rh-folha-tab td:nth-child(2),
   #rh-panel .rh-folha-tab td:nth-child(3),
   #rh-panel .rh-folha-tab td:nth-child(4),
-  #rh-panel .rh-folha-tab th:nth-child(2),
+  #rh-panel .rh-folha-tab td:nth-child(5),
   #rh-panel .rh-folha-tab th:nth-child(3),
-  #rh-panel .rh-folha-tab th:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
-  #rh-panel .rh-folha-tab tbody tr { cursor: pointer; transition: background .12s; }
-  #rh-panel .rh-folha-tab tbody tr:hover { background: #f4f7ff; }
+  #rh-panel .rh-folha-tab th:nth-child(4),
+  #rh-panel .rh-folha-tab th:nth-child(5) { text-align: right; font-variant-numeric: tabular-nums; }
+  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha { cursor: pointer; transition: background .12s; }
+  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:hover { background: #f4f7ff; }
+
+  /* 13º salário: só aparece em nov/dez (vencimento de cada parcela), lista separada da folha
+     mensal — sem benefícios (VA/VT), por isso só tem uma coluna de conferência. */
+  #rh-panel .rh-folha-13 { margin-top: 28px; }
+  #rh-panel .rh-folha-13 h4 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: #555; }
+
+  /* Coluna do "▸" que expande o detalhe (proventos/benefícios/descontos) de cada linha —
+     sempre visível, mesmo pra quem só tem "rh" e não abre o holerite individual. */
+  #rh-panel .rh-folha-tab td.rh-expand-col { width: 28px; padding-right: 0; }
+  #rh-panel .rh-expand-btn {
+    background: none; border: none; cursor: pointer; font-size: 13px; color: #888;
+    width: 22px; height: 22px; border-radius: 4px; padding: 0;
+  }
+  #rh-panel .rh-expand-btn:hover { background: #eaeef5; color: #333; }
+  #rh-panel .rh-cell-vazia { color: #bbb; }
+
+  /* Botão/badge de conferência — a marca de que alguém já bateu o olho nos valores da
+     competência antes dela virar conta a pagar de verdade (ver PUT /holerite/:id/conferir). */
+  #rh-panel .rh-btn-conferir {
+    background: #942123; color: #fff; border: none; border-radius: 6px; padding: 5px 12px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  #rh-panel .rh-btn-conferir:hover { background: #7a1b1d; }
+  #rh-panel .rh-badge.badge-conferido { background: #e3f5ea; color: #1e9e54; }
+  #rh-panel .rh-link-desfazer {
+    background: none; border: none; color: #999; font-size: 11px; text-decoration: underline;
+    cursor: pointer; margin-left: 6px; padding: 0;
+  }
+  #rh-panel .rh-link-desfazer:hover { color: #942123; }
+
+  /* Resumo em texto direto embaixo do nome — dá pra conferir sem abrir o "▸" (ver
+     montarResumoInline em RH.js); quando tem muito item, quebra linha em vez de estourar
+     a tabela ou cortar texto. */
+  #rh-panel .rh-resumo-inline { display: block; font-size: 11.5px; color: #999; margin-top: 2px; }
+  #rh-panel .rh-resumo-inline b { color: #777; font-weight: 600; }
+
+  /* Linha de detalhe (proventos/benefícios/descontos), read-only — some/aparece com o "▸". */
+  #rh-panel .rh-folha-tab tr.rh-folha-detalhe td { background: #fafbfc; padding: 14px 20px; cursor: default; }
+  #rh-panel .rh-folha-detalhe-cont { display: flex; flex-wrap: wrap; gap: 24px; font-size: 13px; }
+  #rh-panel .rh-detalhe-linha-topo { display: flex; flex-direction: column; gap: 2px; }
+  #rh-panel .rh-detalhe-linha-topo span { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .3px; }
+  #rh-panel .rh-detalhe-grupo strong {
+    display: block; font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px;
+  }
+  #rh-panel .rh-detalhe-grupo ul { list-style: none; margin: 0; padding: 0; }
+  #rh-panel .rh-detalhe-grupo li { display: flex; gap: 14px; padding: 2px 0; }
+  #rh-panel .rh-detalhe-grupo li span:first-child { color: #555; }
+  #rh-panel .rh-detalhe-grupo li span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
 
   /* Botão "voltar para a lista" no topo do holerite */
   #rh-panel .rh-voltar {
@@ -2339,6 +2414,7 @@ input#search-aside {
   #rh-panel .rh-cadastro { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
   #rh-panel .rh-cadastro > div { display: flex; flex-direction: column; gap: 4px; }
   #rh-panel .rh-cadastro #rh-dependentes { width: 90px; }
+  #rh-panel .rh-cadastro-nota { display: block; margin: 6px 0 18px; font-size: 12px; color: #999; font-style: italic; }
   #rh-panel .rh-calc-info { display: block; margin-top: 8px; font-size: 12px; color: #1f6fc4; }
   #rh-panel .rh-plano-detalhe { margin-top: 10px; padding: 8px 12px; background: #f6f8fa; border: 1px solid #e0e4e8; border-radius: 8px; font-size: 12px; color: #333; }
   #rh-panel .rh-plano-detalhe > strong { display: block; margin-bottom: 4px; color: #555; text-transform: uppercase; letter-spacing: .3px; font-size: 11px; }
