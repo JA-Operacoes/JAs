@@ -15744,7 +15744,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     const dtVcto = new Date(a, m - 1, d);
                     dtVcto.setHours(0,0,0,0);
 
-                    if (dtVcto < hojeRelativo) {
+                    if (ehMesmoDia(dtVcto, hojeRelativo)) {
+                        acc.hoje += valorPendente;
+                    } else if (dtVcto < hojeRelativo) {
                         acc.vencido += valorPendente;
                     } else {
                         acc.aVencer += valorPendente;
@@ -15754,15 +15756,37 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // Pagos (Soma tudo)
                 acc.pago += (parseFloat(ev.cache?.pago) || 0) + (parseFloat(ev.ajuda?.pago) || 0) + (parseFloat(ev.caixinha?.pago) || 0);
 
-                // Pendentes (Classifica individualmente Ajuda e Cachê)
+                // Evento sem funcionários cadastrados ainda fica na aba "Aguardando Staff" (ver
+                // categoriasFiltro logo abaixo, na montagem dos itens) — o pendente dele NÃO é
+                // vencido/hoje/a vencer/suspenso pra quem filtra a tela, então também não pode
+                // virar nenhum desses buckets aqui, senão o header soma dinheiro que nenhuma aba
+                // mostra (era essa a causa do "A Vencer" do header não bater com a aba A Vencer).
+                const temFuncionarios = ev.funcionarios && ev.funcionarios.length > 0;
+                if (!temFuncionarios) {
+                    acc.aguardando += (parseFloat(ev.ajuda?.pendente) || 0) + (parseFloat(ev.cache?.pendente) || 0) + (parseFloat(ev.caixinha?.pendente) || 0);
+                    acc.total = acc.pago + acc.vencido + acc.hoje + acc.aVencer + acc.suspenso + acc.aguardando;
+                    return acc;
+                }
+
+                // Pendentes (Classifica individualmente Ajuda, Cachê e Caixinha por data própria)
                 classificar(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
                 classificar(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
-                // Caixinha geralmente não tem data de vencimento separada, somamos no A Vencer por padrão se houver
-                acc.aVencer += (parseFloat(ev.caixinha?.pendente) || 0);
+                const cxPendenteMestre = parseFloat(ev.caixinha?.pendente) || 0;
+                if (ev.dataVencimentoCaixinha && ev.dataVencimentoCaixinha !== '---') {
+                    classificar(ev.dataVencimentoCaixinha, cxPendenteMestre);
+                } else {
+                    // Sem data própria pra classificar: mantém o comportamento antigo (cai em A Vencer)
+                    acc.aVencer += cxPendenteMestre;
+                }
 
-                acc.total = acc.pago + acc.vencido + acc.aVencer;
+                // Suspenso é campo à parte de "pendente" (ver ajSuspenso/chSuspenso mais acima
+                // no arquivo) — antes não entrava em NENHUM bucket aqui (nem vencido, nem a
+                // vencer, nem total), ficando invisível também pro lado de Staff.
+                acc.suspenso += (parseFloat(ev.ajuda?.suspenso) || 0) + (parseFloat(ev.cache?.suspenso) || 0) + (parseFloat(ev.caixinha?.suspenso) || 0);
+
+                acc.total = acc.pago + acc.vencido + acc.hoje + acc.aVencer + acc.suspenso + acc.aguardando;
                 return acc;
-            }, { pago: 0, vencido: 0, aVencer: 0, total: 0 });
+            }, { pago: 0, vencido: 0, hoje: 0, aVencer: 0, total: 0, suspenso: 0, aguardando: 0 });
 
             const btnMestreEventos = document.createElement('button');
             btnMestreEventos.className = 'accordion-mestre-header';            
@@ -15783,10 +15807,25 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <span class="label-categoria" style="color: #d9534f;">VENCIDOS:</span>
                             <span class="ap" style="color: #d9534f; font-weight: bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
                         </div>
+                        ${resumoStaffMestre.hoje > 0 ? `
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria" style="color: #b8860b;">HOJE:</span>
+                            <span class="ap" style="color: #b8860b; font-weight: bold;">${formatarMoeda(resumoStaffMestre.hoje)}</span>
+                        </div>` : ''}
                         <div class="fin-resumo-item">
                             <span class="label-categoria" style="color: #007bff;">A VENCER:</span>
                             <span class="ap" style="color: #007bff; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
                         </div>
+                        ${resumoStaffMestre.suspenso > 0 ? `
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria" style="color: #c05621;" title="Nem vencido nem a vencer — pausado até alguém reativar ou resolver.">SUSPENSO:</span>
+                            <span class="ap" style="color: #c05621; font-weight: bold;">${formatarMoeda(resumoStaffMestre.suspenso)}</span>
+                        </div>` : ''}
+                        ${resumoStaffMestre.aguardando > 0 ? `
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria" style="color: #6c757d;" title="Evento ainda sem funcionários cadastrados — não entra em Vencidos/Hoje/A Vencer até ter staff.">AGUARDANDO STAFF:</span>
+                            <span class="ap" style="color: #6c757d; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aguardando)}</span>
+                        </div>` : ''}
                         <div class="fin-resumo-item orcado">
                             <span class="label-categoria">TOTAL:</span>
                             <strong>${formatarMoeda(resumoStaffMestre.total)}</strong>
@@ -15924,10 +15963,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 const ajPendente = parseFloat(evento.ajuda?.pendente) || 0;
                 const chPendente = parseFloat(evento.cache?.pendente) || 0;
+                const cxPendente = parseFloat(evento.caixinha?.pendente) || 0;
 
                 const ajSuspenso  = parseFloat(evento.ajuda?.suspenso)  || 0;
                 const chSuspenso  = parseFloat(evento.cache?.suspenso)  || 0;
-                const temSuspenso = (ajSuspenso > 0 || chSuspenso > 0);
+                const cxSuspenso  = parseFloat(evento.caixinha?.suspenso) || 0;
+                const temSuspenso = (ajSuspenso > 0 || chSuspenso > 0 || cxSuspenso > 0);
 
                 const hojeBR = hojeRelativo.toLocaleDateString('pt-BR');
 
@@ -15935,16 +15976,16 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // console.log("Evento:", evento.nomeEvento,"cache completa:", evento.cache);
                 // console.log("Evento:", evento.nomeEvento, "ajRecusado:", ajRecusado, "chRecusado:", chRecusado);
 
-                let detalheVencidos = { cache: 0, ajuda: 0 };
-                let detalheHoje = { cache: 0, ajuda: 0 };
-                let detalheAVencer = { cache: 0, ajuda: 0 };
-                
+                let detalheVencidos = { cache: 0, ajuda: 0, caixinha: 0 };
+                let detalheHoje = { cache: 0, ajuda: 0, caixinha: 0 };
+                let detalheAVencer = { cache: 0, ajuda: 0, caixinha: 0 };
+
                 let temVencido = false;
                 let temHoje = false;
                 let temAVencer = false;
 
                 // --- 1. CLASSIFICAÇÃO DOS VALORES ---
-                
+
                 // Processar Ajuda
                 if (evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== '---' && ajPendente > 0) {
                     const [d, m, a] = evento.dataVencimentoAjuda.split('/').map(Number);
@@ -15977,6 +16018,31 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     }
                 }
 
+                // Processar Caixinha — antes essa parte era jogada direto em "a vencer" sem
+                // olhar a data nem entrar em temPendente/temAVencer, então um evento só com
+                // caixinha pendente (ajuda/cachê já pagos) virava "Liquidado" pra aba de
+                // filtro mas ainda somava no card de A Vencer, sobrando dinheiro que nenhuma
+                // aba mostrava.
+                if (evento.dataVencimentoCaixinha && evento.dataVencimentoCaixinha !== '---' && cxPendente > 0) {
+                    const [d, m, a] = evento.dataVencimentoCaixinha.split('/').map(Number);
+                    const dtVcto = new Date(a, m - 1, d);
+                    if (dtVcto < hojeRelativo) {
+                        detalheVencidos.caixinha += cxPendente;
+                        temVencido = true;
+                    } else if (evento.dataVencimentoCaixinha === hojeBR) {
+                        detalheHoje.caixinha += cxPendente;
+                        temHoje = true;
+                    } else {
+                        detalheAVencer.caixinha += cxPendente;
+                        temAVencer = true;
+                    }
+                } else if (cxPendente > 0) {
+                    // Sem data de vencimento própria: mantém o comportamento antigo (cai em
+                    // "a vencer" por padrão) só quando realmente não há data pra classificar.
+                    detalheAVencer.caixinha += cxPendente;
+                    temAVencer = true;
+                }
+
                 // --- 2. MONTAGEM DOS TEXTOS DE ALERTA (ACUMULATIVOS) ---
                 let alertasTexto = [];
 
@@ -15984,6 +16050,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     let partesV = [];
                     if (detalheVencidos.ajuda > 0) partesV.push(`Ajuda: ${formatarMoeda(detalheVencidos.ajuda)}`);
                     if (detalheVencidos.cache > 0) partesV.push(`Cachê: ${formatarMoeda(detalheVencidos.cache)}`);
+                    if (detalheVencidos.caixinha > 0) partesV.push(`Caixinha: ${formatarMoeda(detalheVencidos.caixinha)}`);
                     alertasTexto.push(`
                         <span style="display: inline-flex; align-items: center; gap: 4px;">
                             <span class="dot-alerta" style="background-color: #d9534f;"></span>
@@ -15995,6 +16062,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     let partesH = [];
                     if (detalheHoje.ajuda > 0) partesH.push(`Ajuda: ${formatarMoeda(detalheHoje.ajuda)}`);
                     if (detalheHoje.cache > 0) partesH.push(`Cachê: ${formatarMoeda(detalheHoje.cache)}`);
+                    if (detalheHoje.caixinha > 0) partesH.push(`Caixinha: ${formatarMoeda(detalheHoje.caixinha)}`);
                     alertasTexto.push(`
                         <span style="display: inline-flex; align-items: center; gap: 4px;">
                             <span class="dot-alerta" style="background-color: #ffcc00; animation: pulsar-amarelo 1.5s infinite;"></span>
@@ -16006,6 +16074,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     let partesA = [];
                     if (detalheAVencer.ajuda > 0) partesA.push(`Ajuda: ${formatarMoeda(detalheAVencer.ajuda)}`);
                     if (detalheAVencer.cache > 0) partesA.push(`Cachê: ${formatarMoeda(detalheAVencer.cache)}`);
+                    if (detalheAVencer.caixinha > 0) partesA.push(`Caixinha: ${formatarMoeda(detalheAVencer.caixinha)}`);
                     alertasTexto.push(`
                         <span style="display: inline-flex; align-items: center; gap: 4px;">
                             <span class="dot-alerta" style="background-color: #007bff; box-shadow: none;"></span>
@@ -16017,13 +16086,27 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // Regra: Se tiver algo vencido, ele cai na categoria 'vencidos' para o botão vermelho.
                 // Se não tiver vencido mas tiver algo hoje, cai na categoria 'hoje' para o botão amarelo.
                
-                const temPendente = (ajPendente > 0 || chPendente > 0);
+                const temPendente = (ajPendente > 0 || chPendente > 0 || cxPendente > 0);
                 const temFuncionarios = evento.funcionarios && evento.funcionarios.length > 0;
 
 
 
                 let statusParaFiltro = "liquidado";
                 let subStatusHtml = "";
+
+                // Badge de Suspenso reaproveitável — um evento pode estar Vencido/Hoje/A Vencer
+                // NUM componente e Suspenso em OUTRO ao mesmo tempo (ex.: Cachê suspenso, Ajuda
+                // ainda a vencer). Antes esse badge só aparecia quando suspenso era a ÚNICA coisa
+                // no evento; nos outros casos o valor suspenso ficava sem nenhuma indicação de
+                // texto (só a cor laranja na grade de valores).
+                const suspensoBadgeHtml = temSuspenso ? `
+                        <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #c5b3e6; padding: 2px 8px; border-radius: 4px; background: #f3effe;">
+                            <i class="fas fa-ban" style="color: #ff7b00; font-size: 12px;"></i>
+                            <strong style="color:#ff7b00; font-size: 13px;">SUSPENSO</strong>
+                            ${ajSuspenso > 0 ? `<span style="color:#ff7b00; font-size:12px;">— Ajuda: ${formatarMoeda(ajSuspenso)}</span>` : ''}
+                            ${chSuspenso > 0 ? `<span style="color:#ff7b00; font-size:12px;">— Cachê: ${formatarMoeda(chSuspenso)}</span>` : ''}
+                            ${cxSuspenso > 0 ? `<span style="color:#ff7b00; font-size:12px;">— Caixinha: ${formatarMoeda(cxSuspenso)}</span>` : ''}
+                        </span>` : '';
 
                 // if (!temFuncionarios) {
                 //     statusParaFiltro = "aguardando";
@@ -16061,28 +16144,20 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 } else if (temVencido) {
                     statusParaFiltro = "vencidos";
-                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}</div>`;
+                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}${suspensoBadgeHtml}</div>`;
 
                 } else if (temHoje) {
                     statusParaFiltro = "hoje";
-                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}</div>`;
+                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}${suspensoBadgeHtml}</div>`;
 
                 } else if (temAVencer) {
                     statusParaFiltro = "a_vencer";
-                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}</div>`;
+                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}${suspensoBadgeHtml}</div>`;
 
                 } else if (temSuspenso && !temPendente) {
                     // Só cai aqui se não tiver NADA pendente além do suspenso
                     statusParaFiltro = "suspenso";
-                    subStatusHtml = `
-                        <div style="margin-top: 4px;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #c5b3e6; padding: 2px 8px; border-radius: 4px; background: #f3effe;">
-                                <i class="fas fa-ban" style="color: #ff7b00; font-size: 12px;"></i>
-                                <strong style="color:#ff7b00; font-size: 13px;">SUSPENSO</strong>
-                                ${ajSuspenso > 0 ? `<span style="color:#ff7b00; font-size:12px;">— Ajuda: ${formatarMoeda(ajSuspenso)}</span>` : ''}
-                                ${chSuspenso > 0 ? `<span style="color:#ff7b00; font-size:12px;">— Cachê: ${formatarMoeda(chSuspenso)}</span>` : ''}
-                            </span>
-                        </div>`;
+                    subStatusHtml = `<div style="margin-top: 4px;">${suspensoBadgeHtml}</div>`;
 
                 } else if (!temPendente) {
                     statusParaFiltro = "liquidado";
@@ -16098,25 +16173,52 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
 
                 // Guarda o status calculado no próprio evento pra busca por evento (mais abaixo)
-                // saber pra qual aba pular sem precisar recalcular tudo de novo.
+                // saber pra qual aba pular sem precisar recalcular tudo de novo — esse aqui
+                // continua sendo só a categoria de MAIOR prioridade (não precisa ser lista, é só
+                // pra clicar num botão de aba específico).
                 evento._statusFiltroCalculado = statusParaFiltro;
+
+                // data-status-filtro (usado pelo clique nas abas, ver filtrarEventosNaTela)
+                // precisa marcar TODAS as categorias que se aplicam ao evento, não só a de maior
+                // prioridade — um evento com Ajuda vencida e Cachê a vencer, por exemplo, tem
+                // dinheiro genuíno nos dois estados. Antes ele só ficava marcado "vencidos" e
+                // sumia da aba "A Vencer" mesmo tendo uma parte real lá.
+                const categoriasFiltro = [];
+                if (!temFuncionarios) {
+                    categoriasFiltro.push('aguardando');
+                } else {
+                    if (temVencido) categoriasFiltro.push('vencidos');
+                    if (temHoje) categoriasFiltro.push('hoje');
+                    if (temAVencer) categoriasFiltro.push('a_vencer');
+                    // Suspenso é independente de ter outra parte pendente (ex.: Cachê suspenso
+                    // mas Ajuda ainda a vencer) — mesmo raciocínio de vencidos/hoje/a_vencer
+                    // acima. Antes só entrava aqui quando NADA mais estava pendente, escondendo
+                    // o evento da aba "Suspensos" mesmo tendo dinheiro suspenso de verdade nele
+                    // (o cabeçalho somava esse valor, mas nenhuma aba mostrava o evento).
+                    if (temSuspenso) categoriasFiltro.push('suspenso');
+                    if (!temPendente && !temSuspenso) categoriasFiltro.push('liquidado');
+                }
 
                 // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
                 const item = document.createElement("div");
                 item.className = "accordion-item";
-                item.setAttribute("data-status-filtro", statusParaFiltro);
+                item.setAttribute("data-status-filtro", categoriasFiltro.join(' '));
                 item.setAttribute("data-evento-id", evento.idevento);
                 
 
         
                 // --- FUNÇÃO AUXILIAR PARA MONTAR O VALOR COLORIDO NA DIREITA ---
 
-                const montarValorColorido = (vencido, hoje, aVencer) => {
+                const montarValorColorido = (vencido, hoje, aVencer, suspenso) => {
                     let html = [];
                     if (vencido > 0) html.push(`<span style="color:#d9534f; font-weight:bold;">${formatarMoeda(vencido)}</span>`);
                     if (hoje > 0) html.push(`<span style="color:#f0ad4e; font-weight:bold;">${formatarMoeda(hoje)}</span>`);
                     if (aVencer > 0) html.push(`<span style="color:#007bff; font-weight:bold;">${formatarMoeda(aVencer)}</span>`);
-                    
+                    // Suspenso pode coexistir com vencido/hoje/a vencer no MESMO componente
+                    // (ex.: Cachê suspenso e Ajuda ainda a vencer) — sem isso, esse valor ficava
+                    // fora da linha de valores, mesmo o evento agora aparecendo na aba Suspensos.
+                    if (suspenso > 0) html.push(`<span style="color:#ff7b00; font-weight:bold;" title="Suspenso">${formatarMoeda(suspenso)}</span>`);
+
                     return html.length > 0 ? html.join('<br>') : `<span style="color:#666;">${formatarMoeda(0)}</span>`;
                 };
 
@@ -16136,17 +16238,25 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CACHÊ:</span>
                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.cache?.pago || 0)}</span>
                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
-                                ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache)}
+                                ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache, chSuspenso)}
                             </div>
                         </div>
-                        
+
                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">AJUDA:</span>
                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.ajuda?.pago || 0)}</span>
                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
-                                ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda)}
+                                ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda, ajSuspenso)}
                             </div>
                         </div>
+                        ${(evento.caixinha?.pago > 0 || cxPendente > 0) ? `
+                        <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
+                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CAIXINHA:</span>
+                            <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.caixinha?.pago || 0)}</span>
+                            <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
+                                ${montarValorColorido(detalheVencidos.caixinha, detalheHoje.caixinha, detalheAVencer.caixinha, cxSuspenso)}
+                            </div>
+                        </div>` : ''}
                     </div>
                     
                     <button class="btn-foco-evento" style="
@@ -16659,6 +16769,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 if (!h.idfuncionario) return;
                 mapaHolerites.set(`${h.idfuncionario}-${h.ano}-${h.mes}`, h);
             });
+            // Benefícios (VA/VT): sempre linha própria, sem lançamento cadastrado equivalente
+            // (nunca existiu esse conceito em Vencimentos) — por isso não passa pelo loop de
+            // "casar com lançamento" acima, vai direto pro fallback logo abaixo.
+            const mapaBeneficios = new Map();
+            (resContas.beneficios || []).forEach(b => {
+                if (!b.idfuncionario) return;
+                mapaBeneficios.set(`${b.idfuncionario}-${b.ano}-${b.mes}`, b);
+            });
             // Rastreia quais holerites mensais foram "encontrados" por algum lançamento
             // projetado — sobra disso vira linha própria mais abaixo (funcionário sem
             // lançamento cadastrado em Vencimentos, ex: cadastro criado só pelo RH).
@@ -16671,30 +16789,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const vctoBase = (typeof converterData === 'function') ? converterData(dataOriginalStr) : new Date(dataOriginalStr);
                 if (!vctoBase || isNaN(vctoBase)) return;
 
-                const ehFixo = (c.tiporepeticao === "FIXO" || c.indeterminado === true);
-                const ehParcelado = (c.tiporepeticao === "PARCELADO");
-                let maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
-
-                for (let i = 0; i < maxLoop; i++) {
-                    let dProj;
-                    if (ehFixo) {
-                        // Indeterminado/FIXO: projeta direto nos 12 meses do ANO FILTRADO, não a
-                        // partir do ano do vctobase original — senão um lançamento antigo (ex:
-                        // vctobase de 2025) nunca alcança anos futuros (2026, 2027...), já que o
-                        // loop só teria 12 iterações a partir do próprio ano do vctobase.
-                        dProj = new Date(anoFiltro, i, vctoBase.getDate(), 12, 0, 0);
-                        if (dProj < vctoBase) continue; // não mostra competência anterior ao início do lançamento
-                    } else {
-                        dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
-                    }
-
-                    if (dProj.getFullYear() !== anoFiltro) {
-                        if (dProj.getFullYear() > anoFiltro) break;
-                        continue;
-                    }
-
+                // Datas de vencimento projetadas desse lançamento dentro do ano filtrado (FIXO,
+                // PARCELADO ou ÚNICO) — ver expandirOcorrenciasNoAno, reaproveitada também pelo
+                // card lateral "Financeiro" (carregarDadosVencimentos).
+                expandirOcorrenciasNoAno(c, anoFiltro).forEach(dProj => {
                     const chaveMes = `${c.idlancamento}-${dProj.getFullYear()}-${dProj.getMonth()}`;
-                    if (mesesProcessadosNoLoop.has(chaveMes)) continue;
+                    if (mesesProcessadosNoLoop.has(chaveMes)) return;
 
                     // 2. BUSCA DADO REAL OU PROJETA
                     const dadoReal = mapaDadosReais.get(chaveMes);
@@ -16720,19 +16820,23 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             statusFinal = "Pago";
                             statusFiltro = "liquidado";
                         } else {
-                            // Só aqui, se não for suspenso nem pago, olhamos a data
-                            statusFinal = (dProj < hoje) ? "Atrasado" : "Pendente";
-                            statusFiltro = (dProj < hoje) ? "vencidos" : "a_vencer";
+                            // Só aqui, se não for suspenso nem pago, olhamos a data — "Hoje" é
+                            // categoria própria (não fica escondida dentro de "a vencer"), senão
+                            // o total de A Vencer conta esse dinheiro mas ele some da aba certa.
+                            if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                            else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
+                            else { statusFinal = "Pendente"; statusFiltro = "a_vencer"; }
                         }
-                        
+
                         // 4. VALORES
                         valorTotal = parseFloat(dadoReal.vlrreal || dadoReal.valor || dadoReal.vlrestimado || 0);
                         valorPago = (statusFinal === "Pago") ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
 
                     } else {
-                        // Para projeções que não existem no banco, mantemos a lógica original
-                        statusFinal = dProj < hoje ? "Atrasado" : "Projeção";
-                        statusFiltro = dProj < hoje ? "vencidos" : "a_vencer";
+                        // Para projeções que não existem no banco, mesma regra de "Hoje" acima.
+                        if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                        else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
+                        else { statusFinal = "Projeção"; statusFiltro = "a_vencer"; }
                         valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
                         valorPago = 0;
                     }
@@ -16764,7 +16868,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     });
 
                     mesesProcessadosNoLoop.add(chaveMes);
-                }
+                });
             });
 
             // 13º salário: geral e no mesmo período pra todo mundo, por isso entra direto como
@@ -16773,7 +16877,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // de lançamentos acima. Férias/rescisão não entram aqui: só aparecem quando o RH
             // já gerou o holerite manualmente na tela de RH.
             (resContas.eventos13 || []).forEach(ev => {
-                const statusFinalTreze = ev.status === 'Pago' ? 'pago' : 'pendente';
+                // Mesma comparação de data usada acima pro caso "sem lançamento" (dProj < hoje)
+                // — sem isso, um 13º de mês já passado (ex: julho, se filtro olhar meses
+                // anteriores) ficava sempre em "a_vencer", nunca em "vencidos".
+                const dtvctoTreze = new Date(ev.dtvcto + 'T12:00:00');
+                const foiPagoTreze = ev.status === 'Pago';
+                const ehHojeTreze = !foiPagoTreze && ehMesmoDia(dtvctoTreze, hoje);
+                const statusFinalTreze = foiPagoTreze ? 'pago' : (ehHojeTreze ? 'hoje' : 'pendente');
+                const statusFiltroTreze = foiPagoTreze ? 'liquidado' : (ehHojeTreze ? 'hoje' : (dtvctoTreze < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `13-${ev.idfuncionario}-${ev.mes}-${ev.ano}`,
                     idpagamento: null,
@@ -16787,7 +16898,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     valorTotal: parseFloat(ev.liquido || 0),
                     valorPago: statusFinalTreze === 'pago' ? parseFloat(ev.liquido || 0) : 0,
                     status: statusFinalTreze,
-                    statusFiltro: statusFinalTreze,
+                    statusFiltro: statusFiltroTreze,
                     idholerite: ev.idholerite,
                     holerite_mes: ev.mes,
                     holerite_ano: ev.ano,
@@ -16808,10 +16919,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // senão o funcionário simplesmente some da tela mesmo tendo folha ativa.
             mapaHolerites.forEach((h, chave) => {
                 if (holeritesUsados.has(chave)) return;
+                // Mesma comparação de data do caso "sem lançamento" acima (dProj < hoje) — sem
+                // isso, um salário de mês já passado (ex: julho, filtrando o semestre) ficava
+                // sempre em "a_vencer", nunca em "vencidos".
+                const dtvctoMensal = new Date(h.ano, h.mes - 1, 5, 12, 0, 0);
                 const statusHol = (h.status || 'Previsão');
-                const statusFinalMensal = h.origem === 'real'
-                    ? (String(statusHol).toLowerCase() === 'pago' ? 'pago' : 'pendente')
-                    : 'projecao';
+                const foiPagoMensal = h.origem === 'real' && String(statusHol).toLowerCase() === 'pago';
+                const ehHojeMensal = !foiPagoMensal && ehMesmoDia(dtvctoMensal, hoje);
+                const statusFinalMensal = foiPagoMensal ? 'pago' : (ehHojeMensal ? 'hoje' : (h.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFiltroMensal = foiPagoMensal ? 'liquidado' : (ehHojeMensal ? 'hoje' : (dtvctoMensal < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `salario-${h.idfuncionario}-${h.mes}-${h.ano}`,
                     idpagamento: null,
@@ -16825,7 +16941,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     valorTotal: parseFloat(h.liquido || 0),
                     valorPago: statusFinalMensal === 'pago' ? parseFloat(h.liquido || 0) : 0,
                     status: statusFinalMensal,
-                    statusFiltro: statusFinalMensal === 'pago' ? 'liquidado' : (statusFinalMensal === 'pendente' ? 'a_vencer' : 'a_vencer'),
+                    statusFiltro: statusFiltroMensal,
                     idholerite: h.idholerite,
                     holerite_mes: h.mes,
                     holerite_ano: h.ano,
@@ -16836,6 +16952,44 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     holerite_proventos: parseFloat(h.proventos || 0),
                     holerite_descontos: parseFloat(h.descontos || 0),
                     holerite_liquido: parseFloat(h.liquido || 0)
+                });
+            });
+
+            // Benefícios (VA/VT): mesmo padrão do salário avulso acima, mas com vencimento e
+            // status/pagamento PRÓPRIOS (ver PUT /rh/holerite/:id/pagar-beneficios) — não reusa
+            // o "Pago" do salário porque saem em data e por meio diferentes.
+            mapaBeneficios.forEach((b) => {
+                const dtvctoBenef = new Date(b.dtvcto + 'T12:00:00');
+                const statusBenefRaw = (b.status || 'Previsão');
+                const foiPagoBenef = b.origem === 'real' && String(statusBenefRaw).toLowerCase() === 'pago';
+                const ehHojeBenef = !foiPagoBenef && ehMesmoDia(dtvctoBenef, hoje);
+                const statusFinalBenef = foiPagoBenef ? 'pago' : (ehHojeBenef ? 'hoje' : (b.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFiltroBenef = foiPagoBenef ? 'liquidado' : (ehHojeBenef ? 'hoje' : (dtvctoBenef < hoje ? 'vencidos' : 'a_vencer'));
+                contasProjetadas.push({
+                    idlancamento: `beneficios-${b.idfuncionario}-${b.mes}-${b.ano}`,
+                    idpagamento: null,
+                    tipovinculo: 'funcionario',
+                    holerite_tipo13: false,
+                    holerite_beneficios: true,
+                    nome_vinculo: b.nome,
+                    observacao: 'Benefícios (VA/VT)',
+                    idfuncionario_vinculo: b.idfuncionario,
+                    vencimento: b.dtvcto.split('-').reverse().join('/'),
+                    dtvcto: b.dtvcto,
+                    valorTotal: parseFloat(b.liquido || 0),
+                    valorPago: statusFinalBenef === 'pago' ? parseFloat(b.liquido || 0) : 0,
+                    status: statusFinalBenef,
+                    statusFiltro: statusFiltroBenef,
+                    idholerite: b.idholerite,
+                    holerite_mes: b.mes,
+                    holerite_ano: b.ano,
+                    holerite_origem: b.origem,
+                    status_holerite: b.status,
+                    holerite_dtpagamento: b.dtpagamento,
+                    holerite_comprovante: null,
+                    holerite_proventos: 0,
+                    holerite_descontos: 0,
+                    holerite_liquido: parseFloat(b.liquido || 0)
                 });
             });
 
@@ -16929,12 +17083,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 } 
                 else if (statusC === "atrasado") {
                     acc.vencidos += v;
-                } 
+                }
+                else if (statusC === "hoje") {
+                    acc.hoje += v;
+                }
                 else {
                     acc.aVencer += v;
                 }
                 return acc;
-            }, { pago: 0, vencidos: 0, aVencer: 0, total: 0, suspensos: 0 });
+            }, { pago: 0, vencidos: 0, hoje: 0, aVencer: 0, total: 0, suspensos: 0 });
 
 
             // 4. RENDERIZAÇÃO
@@ -16958,9 +17115,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <div class="fin-resumo-item">
                                 <span class="label-categoria">PAGO:</span> <span class="pg">${formatarMoeda(resumo.pago)}</span>
                                 <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span> <span class="ap" style="color:#d9534f;">${formatarMoeda(resumo.vencidos)}</span>
+                                ${resumo.hoje > 0 ? `<span class="label-categoria" style="margin-left:15px; color:#b8860b;">HOJE:</span> <span class="ap" style="color:#b8860b;">${formatarMoeda(resumo.hoje)}</span>` : ''}
                                 <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span> <span class="ap" style="color:#007bff;">${formatarMoeda(resumo.aVencer)}</span>
+                                ${resumo.suspensos > 0 ? `<span class="label-categoria" style="margin-left:15px; color:#c05621;" title="Nem vencida nem a vencer — pausada até alguém reativar ou resolver.">SUSPENSO:</span> <span class="ap" style="color:#c05621;">${formatarMoeda(resumo.suspensos)}</span>` : ''}
                                 <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
-                                    <span class="label-categoria" style="color:#333;">TOTAL:</span> 
+                                    <span class="label-categoria" style="color:#333;">TOTAL:</span>
                                     <strong style="color:#333; font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
                                 </span>
                             </div>
@@ -16991,7 +17150,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     { id: 'vencidos', label: 'Atrasadas', color: '#d9534f' },
                     { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },
                     { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
-                    { id: 'vencer em 5 dias', label: 'Vence em 5 dias', color: '#17a2b8' },
+                    { id: 'vence_5_dias', label: 'Vence em 5 dias', color: '#17a2b8' },
                     { id: 'liquidado', label: 'Pagas', color: '#28a745' }
                 ];
 
@@ -17086,15 +17245,6 @@ function filtrarEventosNaTela(statusAlvo) {
     console.log(`Filtrando por: ${statusAlvo}`);
 
     itens.forEach(item => {
-        // Funcionário usa rowspan (célula de nome mesclada) — esconder linhas no meio do
-        // grupo via display:none quebra o rowspan no Chrome. Esse grupo sempre mostra
-        // todas as linhas, independente do filtro rápido ativo.
-        if (item.classList.contains("sem-filtro-rapido-por-linha")) {
-            item.style.display = "block";
-            item.querySelectorAll(".item-financeiro-linha").forEach(linha => { linha.style.display = ""; });
-            return;
-        }
-
         // Verifica se este item é um grupo do financeiro (tem linhas dentro)
         const linhasInternas = item.querySelectorAll(".item-financeiro-linha");
 
@@ -17115,11 +17265,29 @@ function filtrarEventosNaTela(statusAlvo) {
             // Mostra o grupo (ex: Fornecedor) apenas se sobrar alguma linha visível
             item.style.display = (statusAlvo === 'todos' || temFilhoVisivel) ? "block" : "none";
 
+            // Refinamento por funcionário: o grupo "Funcionários" reúne VÁRIAS pessoas dentro
+            // do mesmo accordion-item (cada uma com seu próprio cabeçalho de nome + linha de
+            // total, ligados às categorias dela por data-func-chave) — sem isso, o cabeçalho de
+            // quem não tem nenhuma categoria batendo com o filtro ficava visível do mesmo jeito,
+            // um nome "órfão" sem dado nenhum embaixo. Aqui só mostra o cabeçalho/total de cada
+            // funcionário se sobrou pelo menos uma categoria DELE visível.
+            const chavesVisiveis = new Set();
+            item.querySelectorAll(".item-financeiro-linha[data-func-chave]").forEach(linha => {
+                if (linha.style.display !== "none") chavesVisiveis.add(linha.getAttribute("data-func-chave"));
+            });
+            item.querySelectorAll("[data-func-chave]:not(.item-financeiro-linha)").forEach(linha => {
+                linha.style.display = chavesVisiveis.has(linha.getAttribute("data-func-chave")) ? "" : "none";
+            });
+
         } else {
             // --- LÓGICA PARA STAFF (ITENS ÚNICOS) ---
-            // Mantém a lógica original que você disse que funcionava
-            const statusDoItem = item.getAttribute("data-status-filtro");
-            if (statusAlvo === 'todos' || statusDoItem === statusAlvo) {
+            // data-status-filtro pode ter MAIS DE UMA categoria separada por espaço (ex:
+            // "vencidos a_vencer", quando o evento tem Ajuda vencida e Cachê a vencer ao mesmo
+            // tempo) — por isso agora checa se a categoria clicada está na lista, não igualdade
+            // exata (que só batia com a categoria de maior prioridade e escondia o evento das
+            // outras abas onde ele também tinha dinheiro de verdade).
+            const categoriasDoItem = (item.getAttribute("data-status-filtro") || "").split(" ");
+            if (statusAlvo === 'todos' || categoriasDoItem.includes(statusAlvo)) {
                 item.style.display = "block";
             } else {
                 item.style.display = "none";
@@ -17879,11 +18047,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
         : `<small style="color:#28a745; font-weight: bold; display:block; margin-top:4px;">✓ LIQUIDADO</small>`;
 
     const item = document.createElement("div");
-    // Funcionário usa rowspan (célula de nome mesclada) na sua tabela — o filtro rápido
-    // (Hoje/Vencidos/Todos) esconde linhas via display:none, e o Chrome não recalcula
-    // corretamente um rowspan quando uma linha do meio do grupo é escondida/mostrada.
-    // Por isso esse grupo fica de fora do filtro por linha (ver filtrarEventosNaTela).
-    item.className = "accordion-item item-financeiro" + (ehFuncionario ? " sem-filtro-rapido-por-linha" : "");
+    item.className = "accordion-item item-financeiro";
     
     let statusParaFiltro = "a_vencer";
     if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
@@ -17990,9 +18154,15 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 const urlEncoded = urlComp ? encodeURIComponent(urlComp) : '';
 
                                 let vExibicao = statusC === 'pago' ? parseFloat(c.vlrpago || c.vlrreal || 0) : parseFloat(c.vlrreal || c.vlrestimado || 0);
-                                const dataExibicao = c.dtvcto ? c.dtvcto.split('-').reverse().join('/') : '---';
+                                // Fornecedor: c.dtvcto vem de uma coluna date/timestamp do Postgres, que o
+                                // pg serializa com hora (ex: "2026-07-05T00:00:00.000Z") — sem cortar isso,
+                                // a comparação de string com hojeBR/hojeISO abaixo nunca bate (nem em
+                                // "Hoje" nem em "Vence em 5 dias"). Funcionário já manda "YYYY-MM-DD" puro,
+                                // então o slice(0,10) não muda nada pra ele.
+                                const dtvctoLimpo = c.dtvcto ? String(c.dtvcto).slice(0, 10) : "";
+                                const dataExibicao = dtvctoLimpo ? dtvctoLimpo.split('-').reverse().join('/') : '---';
                                 const pgtoExibicao = (c.dtpgto && c.dtpgto !== '---') ? c.dtpgto.substring(0, 10).split('-').reverse().join('/') : '---';
-                                const vctoISO = c.dtvcto || "";
+                                const vctoISO = dtvctoLimpo;
 
                                 let estiloVencido = ""; let avisoStatus = ""; let filterLinha = "";
                                 if (ehSuspenso) { filterLinha = "suspenso"; }
@@ -18025,7 +18195,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // agora inclui o comprovante junto (ver imprimirHoleriteExterno em RH.js),
                                 // então sem comprovante anexado não tem o que juntar na impressão ainda.
                                 const temComprovanteHolerite = !!(c.holerite_comprovante && c.holerite_comprovante !== '---');
-                                const celulaHolerite = ehFuncionario ? `
+                                // Benefícios não tem holerite/comprovante próprio pra imprimir (é o
+                                // mesmo documento do salário) — essa célula não se aplica aqui.
+                                const celulaHolerite = c.holerite_beneficios ? `
+                                    <td style="text-align:center;"><small style="color:#999;">—</small></td>` : ehFuncionario ? `
                                     <td class="celula-holerite-imprimir" style="text-align:center;">
                                         ${temComprovanteHolerite ? `
                                         <a href="javascript:void(0)"
@@ -18060,11 +18233,22 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // nunca do lançamento/conta genérico (que nem reflete o valor real do
                                 // holerite, como visto com salários desatualizados/duplicados).
                                 const jaPagoHolerite = statusHolerite === 'pago';
+                                // Ainda não conferido na lista do RH (holerite_origem !== 'real') — é só
+                                // projeção, não tem o que pagar de verdade ainda (ver PUT
+                                // /rh/holerite/:id/conferir). Sem essa trava, o botão PAGAR aparecia mesmo
+                                // pra competências futuras/nunca revisadas.
+                                const conferidoHolerite = c.holerite_origem === 'real';
+                                // Benefícios chama uma rota de pagamento PRÓPRIA (pagar-beneficios) —
+                                // mesmo idholerite do salário, mas status/dtpagamento em colunas
+                                // separadas, então marcar um não mexe no outro.
+                                const funcaoPagar = c.holerite_beneficios ? 'pagarBeneficiosFuncionario' : 'pagarHoleriteFuncionario';
                                 const btnPagarHolerite = jaPagoHolerite
                                     ? '<i class="fas fa-lock"></i>'
-                                    : c.idholerite
-                                        ? `<button type="button" onclick="pagarHoleriteFuncionario(${c.idholerite}, this)" class="btn-pago"><i class="fas fa-money-bill-wave"></i> PAGAR</button>`
-                                        : `<span title="Abra o holerite pra gerar antes de pagar" style="color:#999; font-size:11px; font-style:italic;">Gerar no holerite</span>`;
+                                    : !conferidoHolerite
+                                        ? `<span title="Ainda não conferido na tela de RH — some daqui até ser conferido" style="color:#999; font-size:11px; font-style:italic;">Previsto</span>`
+                                        : c.idholerite
+                                            ? `<button type="button" onclick="${funcaoPagar}(${c.idholerite}, this)" class="btn-pago"><i class="fas fa-money-bill-wave"></i> PAGAR</button>`
+                                            : `<span title="Abra o holerite pra gerar antes de pagar" style="color:#999; font-size:11px; font-style:italic;">Gerar no holerite</span>`;
 
                                 // Coluna inteira (header + célula) só existe pra quem tem permissão
                                 // master/supremo/devs — ver podeVerAcoesFinanceiro no topo da função.
@@ -18089,7 +18273,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     ? `<td class="celula-data-pagamento" style="text-align:center;">${dtPagtoHolerite}</td>`
                                     : `<td style="text-align:center;">${pgtoExibicao}</td>`;
 
-                                const celulaComprovante = ehFuncionario ? `
+                                // Benefícios: sem upload de comprovante próprio ainda (o idholerite é o
+                                // mesmo do salário — subir um comprovante aqui misturaria com o do
+                                // salário). Só mostra se já foi pago ou não.
+                                const celulaComprovante = c.holerite_beneficios ? `
+                                    <td style="text-align:center;">
+                                        <small style="color:#999; font-style: italic;">${statusHolerite === 'pago' ? 'Pago' : 'Aguardando Pagamento'}</small>
+                                    </td>` : ehFuncionario ? `
                                     <td class="celula-comprovante-holerite" style="text-align:center;">
                                         ${(c.holerite_comprovante && c.holerite_comprovante !== '---')
                                             ? `<a href="javascript:void(0)"
@@ -18128,26 +18318,34 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 const valorLinha = ehFuncionario ? parseFloat(c.holerite_liquido || 0) : vExibicao;
 
-                                // Funcionário: célula de nome mesclada (rowspan) + pill de categoria por
-                                // linha. Guardamos as peças soltas pra montar o rowspan DEPOIS deste map,
-                                // já sabendo o tamanho real do grupo (categorias + linha de total).
+                                // Funcionário: nome vem numa linha de cabeçalho própria do grupo (ver
+                                // linhaNomeHeader, montada depois deste map) — cada linha de categoria
+                                // (Salário/13º) fica só com o pill + os dados dela, sem célula de nome
+                                // mesclada. Isso existe pra cada categoria poder ser escondida pelo filtro
+                                // rápido (Hoje/Vencidos/A Vencer...) sem depender de rowspan — o Chrome não
+                                // recalculava direito um rowspan quando uma linha do meio do grupo sumia
+                                // (display:none), então esse grupo inteiro ficava fora do filtro por linha
+                                // (ver "sem-filtro-rapido-por-linha", removido junto com esta mudança).
                                 if (ehFuncionario) {
-                                    const categoriaLabel = c.holerite_tipo13 ? (c.observacao || '13º salário') : 'Salário';
-                                    const categoriaClasse = c.holerite_tipo13
+                                    const categoriaLabel = c.holerite_beneficios ? 'Benefícios (VA/VT)' : c.holerite_tipo13 ? (c.observacao || '13º salário') : 'Salário';
+                                    const categoriaClasse = c.holerite_beneficios ? 'badge-beneficios' : c.holerite_tipo13
                                         ? (c.holerite_mes === 11 ? 'badge-13-1' : 'badge-13-2')
                                         : 'badge-salario';
-                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
-                                    // border-bottom fixo no inline style: a célula (rowspan) pertence
-                                    // fisicamente à 1ª <tr> do grupo, que leva a classe "sem borda" pra
-                                    // tirar a linha ENTRE as categorias — sem isso ela também perderia a
-                                    // borda de fechamento do grupo. Inline sempre vence a regra de classe.
-                                    const nomeCel = (rowspanAttr) => `<td${rowspanAttr} style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
-                                                <strong>${c.nome_vinculo || '---'}</strong>
-                                            </td>`;
+                                    // data-func-chave: liga essa categoria ao cabeçalho de nome e à linha de
+                                    // total do MESMO funcionário NA MESMA competência (montados depois, fora
+                                    // do map) — sem o mês/ano na chave, o André de julho e o André de
+                                    // setembro (mesmo idfuncionario, meses diferentes) ficariam com a mesma
+                                    // chave, e um cabeçalho apareceria "emprestado" do outro mês. Várias
+                                    // pessoas (e vários meses da MESMA pessoa) dividem o grupo "Funcionários"
+                                    // inteiro na tela — ver filtrarEventosNaTela.
+                                    const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
+                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
+                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"></td>`;
                                     const restoCels = `
                                             <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
-                                            <td style="text-align:center;">${dataExibicao}</td>
+                                            <td style="text-align:center;">
+                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}${dataExibicao}
+                                            </td>
                                             ${celulaAcoes}
                                             ${celulaStatus}
                                             ${celulaDataPagamento}
@@ -18156,11 +18354,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(valorLinha)}</strong></td>
                                         </tr>`;
                                     return {
-                                        // abreLinha/restoCels fixos por linha; a célula de nome (1ª linha,
-                                        // com rowspan) é decidida depois deste map, já sabendo o total de
-                                        // linhas reais do grupo (categorias + total).
                                         abreLinha, nomeCel, restoCels,
                                         idfunc: c.idfuncionario_vinculo || c.nome_vinculo || '',
+                                        nomeVinculo: c.nome_vinculo || '---',
+                                        mesHolerite, anoHolerite,
                                         valorLinha,
                                     };
                                 }
@@ -18183,10 +18380,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                             if (ehFuncionario) {
                                 // Agrupa as linhas (já computadas como objetos) por funcionário, preservando
-                                // a ordem de aparição: a célula de nome vem UMA VEZ, com rowspan calculado
-                                // a partir do tamanho REAL do próprio array `grupo` (nunca um número
-                                // "adivinhado" separadamente) — cobre as linhas de categoria + a linha de
-                                // total, então nunca fica dessincronizado com o número de <tr> emitidos.
+                                // a ordem de aparição.
                                 const porFunc = new Map();
                                 linhasObjs.forEach((l) => {
                                     if (!porFunc.has(l.idfunc)) porFunc.set(l.idfunc, []);
@@ -18197,31 +18391,46 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     const temTotal = grupo.length > 1;
                                     const totalFunc = grupo.reduce((soma, l) => soma + (l.valorLinha || 0), 0);
 
-                                    // Célula de nome MESCLADA (rowspan) cobrindo só as linhas de CATEGORIA
-                                    // (não a linha de total) — o total precisa ocupar a largura inteira da
-                                    // tabela, do nome até o valor, então não pode ficar "atrás" do rowspan.
-                                    // Essa tabela fica de fora do filtro rápido por linha (ver
-                                    // "sem-filtro-rapido-por-linha" em filtrarEventosNaTela) justamente pra
-                                    // não quebrar esse rowspan escondendo linhas do meio do grupo.
+                                    // Nome do funcionário numa linha de cabeçalho própria (SEM a classe
+                                    // "item-financeiro-linha") — por isso o filtro rápido por linha
+                                    // (filtrarEventosNaTela) nunca esconde ela pelo status. Em vez disso, ela
+                                    // carrega o MESMO data-func-chave das categorias desse funcionário —
+                                    // várias pessoas dividem o mesmo grupo "Funcionários" na tela, então
+                                    // filtrarEventosNaTela usa essa chave pra saber se sobrou alguma
+                                    // categoria DESTE funcionário visível, e só aí mostra o cabeçalho/total
+                                    // dele (senão ficaria um nome "órfão" sem nenhum dado embaixo). Substitui
+                                    // a antiga célula com rowspan, que o Chrome não recalculava direito
+                                    // quando uma linha do meio do grupo era escondida por um filtro.
+                                    const funcChaveGrupo = `${grupo[0].idfunc}-${grupo[0].mesHolerite}-${grupo[0].anoHolerite}`;
+                                    const linhaNomeHeader = `
+                                        <tr class="linha-nome-funcionario" data-func-chave="${funcChaveGrupo}">
+                                            <td colspan="${totalColunas}" style="padding:6px 10px; background:#f8f9fa; border-top:2px solid #dee2e6;">
+                                                <strong>${grupo[0].nomeVinculo}</strong>
+                                            </td>
+                                        </tr>`;
+
                                     // Sem borda entre as linhas de categoria do MESMO funcionário — quando
                                     // há total, ele fecha o grupo (border-top); sem total, a própria (única)
                                     // linha leva a borda de fechamento reforçada, pra separar bem do próximo
                                     // funcionário.
-                                    const linhasCategorias = grupo.map((l, idx) => {
-                                        const cel = idx === 0 ? l.nomeCel(grupo.length > 1 ? ` rowspan="${grupo.length}"` : '') : '';
-                                        const linha = l.abreLinha + cel + l.restoCels;
+                                    const linhasCategorias = grupo.map((l) => {
+                                        const linha = l.abreLinha + l.nomeCel + l.restoCels;
                                         return temTotal
                                             ? linha.replace('class="item-financeiro-linha', 'class="item-financeiro-linha grupo-funcionario-sem-borda')
                                             : linha.replace('class="item-financeiro-linha', 'class="item-financeiro-linha grupo-funcionario-fechamento');
                                     }).join('');
 
+                                    // Total também fora de "item-financeiro-linha" — de novo, não deve ser
+                                    // escondido individualmente pelo filtro rápido (ela nem tinha
+                                    // data-status-filtro próprio antes, então em qualquer filtro que não
+                                    // fosse "todos" já sumia sozinha, mesmo com categorias visíveis).
                                     const linhaTotal = temTotal ? `
-                                        <tr class="item-financeiro-linha linha-total-funcionario grupo-funcionario-fechamento">
+                                        <tr class="linha-total-funcionario grupo-funcionario-fechamento" data-func-chave="${funcChaveGrupo}">
                                             <td colspan="${totalColunas - 1}" style="text-align:right; padding:8px;">TOTAL DO FUNCIONÁRIO</td>
                                             <td style="text-align:right; padding:8px;"><strong>${formatarMoeda(totalFunc)}</strong></td>
                                         </tr>` : '';
 
-                                    return linhasCategorias + linhaTotal;
+                                    return linhaNomeHeader + linhasCategorias + linhaTotal;
                                 }).join('');
 
                                 return headerMes + linhasAgrupadas;
@@ -19008,6 +19217,55 @@ window.uploadComprovanteHolerite = uploadComprovanteHolerite;
 // Main.js é carregado como <script type="module">, então funções declaradas aqui não ficam
 // no escopo global sozinhas — precisam ser expostas em window pra funcionar em onclick inline.
 window.pagarHoleriteFuncionario = pagarHoleriteFuncionario;
+
+// Marca como pago o BENEFÍCIO (VA/VT) de uma competência — rota própria (PUT
+// /rh/holerite/:id/pagar-beneficios), separada do salário: mesmo idholerite, mas
+// status_beneficios/dtpagamento_beneficios são colunas à parte, então não mexe no
+// pagamento do salário desse mesmo holerite.
+async function pagarBeneficiosFuncionario(idholerite, btnEl) {
+    if (!idholerite) return;
+    const conf = await Swal.fire({
+        title: 'Confirmar pagamento?',
+        text: 'O benefício (VA/VT) será marcado como PAGO.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    try {
+        const res = await fetchComToken(`/rh/holerite/${idholerite}/pagar-beneficios`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pago: true })
+        });
+        if (res && res.ok) {
+            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+
+            const linha = btnEl ? btnEl.closest('tr') : null;
+            if (linha) {
+                btnEl.outerHTML = '<i class="fas fa-lock"></i>';
+                const pilulaStatus = linha.querySelector('.status-pilula');
+                if (pilulaStatus) {
+                    pilulaStatus.className = 'status-pilula status-pago';
+                    pilulaStatus.textContent = 'PAGO';
+                }
+                const celulaData = linha.querySelector('.celula-data-pagamento');
+                if (celulaData) {
+                    celulaData.textContent = (res.dtpagamento_beneficios ? String(res.dtpagamento_beneficios).substring(0, 10) : new Date().toISOString().substring(0, 10)).split('-').reverse().join('/');
+                }
+                linha.style.transition = 'background-color 0.5s ease';
+                linha.style.backgroundColor = '#f0fff4';
+            }
+        } else {
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível confirmar o pagamento.', 'error');
+        }
+    } catch (err) {
+        Swal.fire('Erro', 'Não foi possível confirmar o pagamento.', 'error');
+    }
+}
+window.pagarBeneficiosFuncionario = pagarBeneficiosFuncionario;
 // }
 
 async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
@@ -19241,6 +19499,49 @@ function formatarDataParaExibir(dataRaw) {
 }
 
 
+// Compara só a data (ano/mês/dia), ignorando a hora — dProj/vctoBase costumam ser construídos
+// com hora=12 (pra evitar problema de fuso horário virando o dia), então nunca dá pra comparar
+// getTime() direto contra um "hoje" que normalmente está com hora=0.
+function ehMesmoDia(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+}
+
+// Expande um lançamento (FIXO/PARCELADO/ÚNICO) nas datas de vencimento projetadas DENTRO de um
+// ano específico — ÚNICA implementação desse cálculo no arquivo. Reaproveitada pela montagem de
+// contasProjetadas (a lista detalhada da tela) e por carregarDadosVencimentos (card lateral
+// "Financeiro"), que antes tinha a própria versão com dois bugs: ignorava lançamentos
+// PARCELADO por completo, e pra FIXO expandia a partir do ano do vctobase original em vez do
+// ano filtrado direto — um lançamento com mais de ~11 meses nunca alcançava anos futuros.
+function expandirOcorrenciasNoAno(c, anoFiltro) {
+    const dataOriginalStr = c.vctobase || c.dtvcto;
+    const vctoBase = (typeof converterData === 'function') ? converterData(dataOriginalStr) : new Date(dataOriginalStr);
+    if (!vctoBase || isNaN(vctoBase)) return [];
+
+    const ehFixo = (c.tiporepeticao === "FIXO" || c.indeterminado === true);
+    const ehParcelado = (c.tiporepeticao === "PARCELADO");
+    const maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
+
+    const ocorrencias = [];
+    for (let i = 0; i < maxLoop; i++) {
+        let dProj;
+        if (ehFixo) {
+            // Indeterminado/FIXO: projeta direto nos 12 meses do ANO FILTRADO, não a partir do
+            // ano do vctobase original — senão um lançamento antigo nunca alcança anos futuros.
+            dProj = new Date(anoFiltro, i, vctoBase.getDate(), 12, 0, 0);
+            if (dProj < vctoBase) continue; // não mostra competência anterior ao início do lançamento
+        } else {
+            dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+        }
+
+        if (dProj.getFullYear() !== anoFiltro) {
+            if (dProj.getFullYear() > anoFiltro) break;
+            continue;
+        }
+        ocorrencias.push(dProj);
+    }
+    return ocorrencias;
+}
+
 function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element) {
     if (!element) return;
 
@@ -19259,14 +19560,26 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
         dataLimiteExibicao = new Date(ano, mes - 1, dia, 0, 0, 0);
     }
 
-    let sVenc = 0, sAVenc = 0, sPago = 0;
-    let cVenc = 0, cAVenc = 0, cPago = 0;
+    let sVenc = 0, sAVenc = 0, sPago = 0, sSusp = 0, sHoje = 0, sAguardando = 0;
+    let cVenc = 0, cAVenc = 0, cPago = 0, cSusp = 0, cHoje = 0;
     let totAditivos = 0;
 
     // --- PROCESSAR EVENTOS (STAFF) ---
     eventosVisiveis.forEach(ev => {
         // PAGO: Soma sempre se o evento está visível
         sPago += (parseFloat(ev.ajuda?.pago || 0) + parseFloat(ev.cache?.pago || 0) + parseFloat(ev.caixinha?.pago || 0));
+        // Suspenso é campo à parte de "pendente" — antes não entrava em nenhum bucket aqui.
+        sSusp += (parseFloat(ev.ajuda?.suspenso || 0) + parseFloat(ev.cache?.suspenso || 0) + parseFloat(ev.caixinha?.suspenso || 0));
+
+        // Evento sem funcionários cadastrados fica na aba "Aguardando Staff" (mesma regra usada
+        // na montagem do acordeão) — o pendente dele não é vencido/hoje/a vencer pra quem
+        // filtra a tela, então não pode entrar nesses buckets aqui também, senão o card do
+        // topo soma dinheiro que nenhuma aba mostra.
+        const temFuncionariosEv = ev.funcionarios && ev.funcionarios.length > 0;
+        if (!temFuncionariosEv) {
+            sAguardando += (parseFloat(ev.ajuda?.pendente) || 0) + (parseFloat(ev.cache?.pendente) || 0) + (parseFloat(ev.caixinha?.pendente) || 0);
+            return;
+        }
 
         const classificarStaff = (dataStr, valor) => {
             if (!dataStr || dataStr === '---' || valor <= 0) return;
@@ -19276,7 +19589,9 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
             // FILTRO DIÁRIO: Se a data de vencimento for maior que a data selecionada, IGNORA no resumo
             if (filtroTipo === 'diario' && dVcto > dataLimiteExibicao) return;
 
-            if (dVcto < hoje) {
+            if (ehMesmoDia(dVcto, hoje)) {
+                sHoje += valor;
+            } else if (dVcto < hoje) {
                 sVenc += valor;
             } else {
                 sAVenc += valor;
@@ -19285,10 +19600,14 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
 
         classificarStaff(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
         classificarStaff(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
-        
-        // Caixinha: No diário, só entra se o evento for na data selecionada
-        if (filtroTipo !== 'diario') {
-            sAVenc += parseFloat(ev.caixinha?.pendente || 0);
+
+        // Caixinha: antes ia direto pra "a vencer" sem olhar data nem o filtro diário —
+        // agora usa a própria data de vencimento (mesma regra de Ajuda/Cachê acima).
+        const cxPendenteEv = parseFloat(ev.caixinha?.pendente) || 0;
+        if (ev.dataVencimentoCaixinha && ev.dataVencimentoCaixinha !== '---') {
+            classificarStaff(ev.dataVencimentoCaixinha, cxPendenteEv);
+        } else if (filtroTipo !== 'diario') {
+            sAVenc += cxPendenteEv;
         }
 
         // Aditivos
@@ -19300,42 +19619,108 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
 
     // --- PROCESSAR CONTAS ---
     contasVisiveis.forEach(c => {
-        const status = (c.status || '').toLowerCase();
         // Funcionário (salário/13º) usa valorTotal/valorPago, não vlrestimado/vlrreal/vlrpago
         // (esses são só dos lançamentos normais) — sem isso o custo do funcionário some do
         // resumo (soma 0) mesmo com o holerite certo e pago.
         const vBase = parseFloat(c.vlrreal || c.valor || c.vlrestimado || c.valorTotal || 0);
 
-        if (status === 'pago') {
+        // Confia em c.statusFiltro — já vem pronto ('liquidado'|'suspenso'|'vencidos'|
+        // 'a_vencer'), calculado UMA VEZ só na montagem de contasProjetadas (mesmo campo que o
+        // resumo do acordeão "Contas a Pagar" usa). Antes esta função recalculava vencido/a
+        // vencer do zero a partir da data crua, e o "hoje" desse recálculo podia não bater
+        // exatamente com o "hoje" usado lá na montagem — daí os dois números divergirem.
+        if (c.statusFiltro === 'liquidado') {
             cPago += parseFloat(c.vlrpago || c.valorPago || vBase);
-        } else {
-            const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
-            if (dStr) {
-                const [ano, mes, dia] = dStr.split('-').map(Number);
-                const dVcto = new Date(ano, mes - 1, dia, 0, 0, 0);
-
-                // FILTRO DIÁRIO: Se a data da conta for maior que a selecionada, IGNORA no resumo
-                if (filtroTipo === 'diario' && dVcto > dataLimiteExibicao) return;
-
-                if (dVcto < hoje) cVenc += vBase; else cAVenc += vBase;
-            } else {
-                if (filtroTipo !== 'diario') cAVenc += vBase;
-            }
+            return;
         }
+        if (c.statusFiltro === 'suspenso') {
+            // Suspensa é um terceiro estado, nem vencida nem a vencer — mas continua sendo
+            // dinheiro de verdade (pode voltar a ficar ativa a qualquer momento), por isso tem
+            // card próprio (ver Suspenso Geral) em vez de simplesmente desaparecer da conta.
+            cSusp += vBase;
+            return;
+        }
+
+        // FILTRO DIÁRIO: isso aqui é só "esse item cabe no dia selecionado na tela?" —
+        // diferente de vencido/a vencer (que já vem pronto acima), por isso continua
+        // comparando contra a data ESCOLHIDA na tela, não o "hoje" real.
+        if (filtroTipo === 'diario') {
+            const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
+            if (!dStr) return;
+            const [ano, mes, dia] = dStr.split('-').map(Number);
+            const dVcto = new Date(ano, mes - 1, dia, 0, 0, 0);
+            if (dVcto > dataLimiteExibicao) return;
+        }
+
+        if (c.statusFiltro === 'vencidos') cVenc += vBase;
+        else if (c.statusFiltro === 'hoje') cHoje += vBase;
+        else cAVenc += vBase;
     });
 
+    // --- ALERTA DE VENCIMENTO (Hoje / Próximos dias) ---
+    // Contador dinâmico (não fixo em "5 dias"): pega o vencimento mais próximo dentro da
+    // janela de 1 a 5 dias, separado por Staff/Contas, pra saber quem mencionar no aviso.
+    let temHojeStaff = false, temHojeContas = false;
+    let diasProximoStaff = null, diasProximoContas = null;
+    const registrarDiasAlerta = (dVcto, ehStaff) => {
+        const dias = Math.round((dVcto.getTime() - hoje.getTime()) / 86400000);
+        if (dias === 0) { if (ehStaff) temHojeStaff = true; else temHojeContas = true; return; }
+        if (dias > 0 && dias <= 5) {
+            if (ehStaff) diasProximoStaff = (diasProximoStaff === null) ? dias : Math.min(diasProximoStaff, dias);
+            else diasProximoContas = (diasProximoContas === null) ? dias : Math.min(diasProximoContas, dias);
+        }
+    };
+    eventosVisiveis.forEach(ev => {
+        const checarAlertaStaff = (dataStr, valor) => {
+            if (!dataStr || dataStr === '---' || valor <= 0) return;
+            const [d, m, a] = dataStr.split('/').map(Number);
+            registrarDiasAlerta(new Date(a, m - 1, d, 0, 0, 0), true);
+        };
+        checarAlertaStaff(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
+        checarAlertaStaff(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
+    });
+    contasVisiveis.forEach(c => {
+        // 'hoje' também entra aqui (registrarDiasAlerta calcula dias=0 e marca temHojeContas) —
+        // só vencido/pago/suspenso ficam de fora, esses não são "vencimento futuro/hoje".
+        if (c.statusFiltro !== 'a_vencer' && c.statusFiltro !== 'hoje') return;
+        const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
+        if (!dStr) return;
+        const [ano, mes, dia] = dStr.split('-').map(Number);
+        registrarDiasAlerta(new Date(ano, mes - 1, dia, 0, 0, 0), false);
+    });
+
+    const fontesHoje = [temHojeStaff && 'Staff', temHojeContas && 'Contas'].filter(Boolean);
+    const alertaHojeHtml = fontesHoje.length ? `
+        <div class="alerta-vencimento alerta-hoje">⚠️ Temos vencimento${fontesHoje.length > 1 ? 's' : ''} em ${fontesHoje.join(' e ')} Hoje</div>` : '';
+
+    let alertaProximoHtml = '';
+    if (diasProximoStaff !== null || diasProximoContas !== null) {
+        const menorDias = Math.min(diasProximoStaff ?? Infinity, diasProximoContas ?? Infinity);
+        const fontesProximo = [diasProximoStaff === menorDias && 'Staff', diasProximoContas === menorDias && 'Contas'].filter(Boolean);
+        alertaProximoHtml = `
+        <div class="alerta-vencimento alerta-proximo">⏳ Próximo vencimento em ${menorDias} dia${menorDias > 1 ? 's' : ''} — ${fontesProximo.join(' e ')}</div>`;
+    }
+
     const vGeral = sVenc + cVenc;
+    const hGeral = sHoje + cHoje;
     const aVGeral = sAVenc + cAVenc;
     const pGeral = sPago + cPago;
 
     element.innerHTML = `
         <div class="resumo-detalhado">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; width: 100%;gap: 8px; text-align: center;">
-                
+            <div style="display: grid; grid-template-columns: repeat(6, 1fr); width: 100%;gap: 8px; text-align: center;">
+
                 <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
-                    <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>                   
+                    <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>
                     <div style="font-size: 14px; color: #742a2a; border-top: 1px solid #feb2b2; padding-top: 4px;">
                         Staff: ${formatarMoeda(sVenc)} | Contas: ${formatarMoeda(cVenc)}
+                    </div>
+                </div>
+
+                <div style="background: #fff8e6; padding: 10px; border-radius: 8px; border: 1px solid #f0ad4e;">
+                    <h4 style="margin:0; font-size: 16px; color: #b45f06; text-transform: uppercase;">Hoje Geral (no período): ${formatarMoeda(hGeral)}</h4>
+                    <div style="font-size: 14px; color: #8a4b05; border-top: 1px solid #f0ad4e; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sHoje)} | Contas: ${formatarMoeda(cHoje)}
                     </div>
                 </div>
 
@@ -19347,20 +19732,48 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
                 </div>
 
                 <div style="background: #f0fff4; padding: 10px; border-radius: 8px; border: 1px solid #9ae6b4;">
-                    <h4 style="margin:0; font-size: 16px; color: #2f855a; text-transform: uppercase;">Pago Geral (no período): ${formatarMoeda(pGeral)}</h4>             
+                    <h4 style="margin:0; font-size: 16px; color: #2f855a; text-transform: uppercase;">Pago Geral (no período): ${formatarMoeda(pGeral)}</h4>
                     <div style="font-size: 14px; color: #22543d; border-top: 1px solid #9ae6b4; padding-top: 4px;">
                         Staff: ${formatarMoeda(sPago)} | Contas: ${formatarMoeda(cPago)}
                     </div>
                 </div>
-                <div style="background: white; padding: 10px; border-radius: 8px; border: 1px solid #babebb;">
-                    <h4 style="margin:0; font-size: 16px; color: #010101; text-transform: uppercase;">Total Geral: ${formatarMoeda((sVenc+cVenc) + (sAVenc+cAVenc) + (sPago+cPago))}</h4>                    
-                    <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
-                        Staff: ${formatarMoeda(sVenc+sAVenc+sPago)} | Contas: ${formatarMoeda(cVenc+cAVenc+cPago)}
+
+                <div style="background: #fffaf0; padding: 10px; border-radius: 8px; border: 1px solid #fbd38d;" title="Nem vencida nem a vencer — pausada até alguém reativar ou resolver.">
+                    <h4 style="margin:0; font-size: 16px; color: #c05621; text-transform: uppercase;">Suspenso (no período): ${formatarMoeda(sSusp + cSusp)}</h4>
+                    <div style="font-size: 14px; color: #7b341e; border-top: 1px solid #fbd38d; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sSusp)} | Contas: ${formatarMoeda(cSusp)}
                     </div>
-                </div>                
-            </div>            
-            
+                </div>
+
+                <div style="background: white; padding: 10px; border-radius: 8px; border: 1px solid #babebb;">
+                    <h4 style="margin:0; font-size: 16px; color: #010101; text-transform: uppercase;">Total Geral: ${formatarMoeda((sVenc+cVenc) + (sHoje+cHoje) + (sAVenc+cAVenc) + (sPago+cPago) + (sSusp+cSusp) + sAguardando)}</h4>
+                    <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sVenc+sHoje+sAVenc+sPago+sSusp+sAguardando)} | Contas: ${formatarMoeda(cVenc+cHoje+cAVenc+cPago+cSusp)}
+                        ${sAguardando > 0 ? `<br><span style="color:#6c757d;" title="Evento de Staff ainda sem funcionários cadastrados">Aguardando Staff: ${formatarMoeda(sAguardando)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            ${alertaHojeHtml}
+            ${alertaProximoHtml}
         </div>`;
+
+    if (!document.getElementById('estilo-alerta-vencimento')) {
+        const estilo = document.createElement('style');
+        estilo.id = 'estilo-alerta-vencimento';
+        estilo.textContent = `
+            @keyframes piscar-alerta-vencimento { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+            .alerta-vencimento {
+                margin-top: 10px; padding: 10px 16px; border-radius: 8px; font-weight: bold;
+                text-align: center; animation: piscar-alerta-vencimento 1.2s ease-in-out infinite;
+            }
+            .alerta-vencimento.alerta-hoje { background: #fff8e6; color: #b45f06; border: 2px solid #f0ad4e; }
+            .alerta-vencimento.alerta-proximo { background: #e8f7f9; color: #0f6674; border: 2px solid #17a2b8; }
+            @media (prefers-reduced-motion: reduce) {
+                .alerta-vencimento { animation: none; }
+            }
+        `;
+        document.head.appendChild(estilo);
+    }
 }
 
 function exibirToastSucesso(mensagem = 'Status atualizado!') {
@@ -19827,10 +20240,11 @@ async function carregarDadosVencimentos(anoFiltro) {
     hoje.setHours(0, 0, 0, 0);
 
     let soma = {
-        ajAVencer: 0, ajVencidos: 0, ajPagos: 0,
-        chAVencer: 0, chVencidos: 0, chPagos: 0,
-        cxAVencer: 0, cxPagos: 0,
-        contasAVencer: 0, contasVencidas: 0, contasPagos: 0
+        ajAVencer: 0, ajVencidos: 0, ajPagos: 0, ajSuspenso: 0, ajHoje: 0,
+        chAVencer: 0, chVencidos: 0, chPagos: 0, chSuspenso: 0, chHoje: 0,
+        cxAVencer: 0, cxVencidos: 0, cxPagos: 0, cxSuspenso: 0, cxHoje: 0,
+        contasAVencer: 0, contasVencidas: 0, contasPagos: 0, contasSuspensas: 0, contasHoje: 0,
+        staffAguardando: 0
     };
 
     try {
@@ -19842,30 +20256,62 @@ async function carregarDadosVencimentos(anoFiltro) {
         // --- 1. PROCESSAR STAFF ---
         if (resStaff?.eventos) {
             resStaff.eventos.forEach(ev => {
-                const ajP = parseFloat(ev.ajuda?.pendente) || 0;
                 const ajPg = parseFloat(ev.ajuda?.pago || ev.ajuda?.pagos || 0);
+                const chPgAntesCheck = parseFloat(ev.cache?.pago || ev.cache?.pagos || 0);
                 soma.ajPagos += ajPg;
+                soma.chPagos += chPgAntesCheck;
+                soma.cxPagos += parseFloat(ev.caixinha?.pago) || 0;
+
+                // Evento sem funcionários cadastrados fica em "Aguardando Staff" (mesma regra
+                // usada no acordeão/card do topo) — pendente dele não é vencido/hoje/a vencer
+                // pra nenhuma aba, então não pode virar nenhum desses buckets aqui também.
+                const temFuncionariosEv = ev.funcionarios && ev.funcionarios.length > 0;
+                if (!temFuncionariosEv) {
+                    soma.staffAguardando += (parseFloat(ev.ajuda?.pendente) || 0) + (parseFloat(ev.cache?.pendente) || 0) + (parseFloat(ev.caixinha?.pendente) || 0);
+                    return;
+                }
+
+                const ajP = parseFloat(ev.ajuda?.pendente) || 0;
                 if (ajP > 0 && ev.dataVencimentoAjuda) {
                     const parts = ev.dataVencimentoAjuda.split('/');
                     const dV = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 12, 0, 0);
                     if (dV.getFullYear() === ano) {
-                        if (dV < hoje) soma.ajVencidos += ajP;
+                        if (ehMesmoDia(dV, hoje)) soma.ajHoje += ajP;
+                        else if (dV < hoje) soma.ajVencidos += ajP;
                         else soma.ajAVencer += ajP;
                     }
                 }
                 const chP = parseFloat(ev.cache?.pendente) || 0;
-                const chPg = parseFloat(ev.cache?.pago || ev.cache?.pagos || 0);
-                soma.chPagos += chPg;
                 if (chP > 0 && ev.dataVencimentoCache && ev.dataVencimentoCache !== 'N/A') {
                     const partsC = ev.dataVencimentoCache.split('/');
                     const dC = new Date(parseInt(partsC[2]), parseInt(partsC[1]) - 1, parseInt(partsC[0]), 12, 0, 0);
                     if (dC.getFullYear() === ano) {
-                        if (dC < hoje) soma.chVencidos += chP;
+                        if (ehMesmoDia(dC, hoje)) soma.chHoje += chP;
+                        else if (dC < hoje) soma.chVencidos += chP;
                         else soma.chAVencer += chP;
                     }
                 }
-                soma.cxPagos += parseFloat(ev.caixinha?.pago) || 0;
-                soma.cxAVencer += parseFloat(ev.caixinha?.pendente) || 0;
+
+                // Caixinha: antes ia direto pra "a vencer" sem olhar data — agora usa a
+                // própria data de vencimento (mesma regra de Ajuda/Cachê acima).
+                const cxP = parseFloat(ev.caixinha?.pendente) || 0;
+                if (cxP > 0 && ev.dataVencimentoCaixinha && ev.dataVencimentoCaixinha !== 'N/A' && ev.dataVencimentoCaixinha !== '---') {
+                    const partsX = ev.dataVencimentoCaixinha.split('/');
+                    const dX = new Date(parseInt(partsX[2]), parseInt(partsX[1]) - 1, parseInt(partsX[0]), 12, 0, 0);
+                    if (dX.getFullYear() === ano) {
+                        if (ehMesmoDia(dX, hoje)) soma.cxHoje += cxP;
+                        else if (dX < hoje) soma.cxVencidos += cxP;
+                        else soma.cxAVencer += cxP;
+                    }
+                } else if (cxP > 0) {
+                    soma.cxAVencer += cxP;
+                }
+
+                // Suspenso é campo à parte de "pendente" — antes não entrava em nenhum bucket
+                // aqui (nem vencido, nem a vencer), ficando invisível também nesse painel.
+                soma.ajSuspenso += parseFloat(ev.ajuda?.suspenso) || 0;
+                soma.chSuspenso += parseFloat(ev.cache?.suspenso) || 0;
+                soma.cxSuspenso += parseFloat(ev.caixinha?.suspenso) || 0;
             });
         }
 
@@ -19890,29 +20336,33 @@ async function carregarDadosVencimentos(anoFiltro) {
             const vPago = Number(c.vlrpago || c.valorPago || 0);
 
             if (status === 'pago') soma.contasPagos += (vPago || vTotal);
-            else {
-                if (vctoReal < hoje) soma.contasVencidas += vTotal;
+            else if (status === 'suspenso') {
+                // Terceiro estado, nem vencida nem a vencer — card/linha própria (Suspensas),
+                // mesma ideia do resumo do acordeão "Contas a Pagar" e do card do topo.
+                soma.contasSuspensas += vTotal;
+            } else {
+                if (ehMesmoDia(vctoReal, hoje)) soma.contasHoje += vTotal;
+                else if (vctoReal < hoje) soma.contasVencidas += vTotal;
                 else soma.contasAVencer += vTotal;
             }
         });
 
+        // Ocorrências projetadas (meses ainda sem "pagamentos" gravado) do MESMO lançamento —
+        // ver expandirOcorrenciasNoAno, a mesma função que monta a lista detalhada da tela.
+        // Antes esse cálculo era próprio daqui e tinha dois bugs: ignorava lançamentos
+        // PARCELADO por completo, e pra FIXO expandia a partir do ano do vctobase original em
+        // vez do ano filtrado direto (um lançamento com mais de ~11 meses nunca alcançava anos
+        // futuros).
         listaContas.forEach(c => {
-            if (!(c.tiporepeticao === "FIXO" || c.indeterminado === true)) return;
-            const dStr = (c.vctobase || c.dtvcto || "").substring(0, 10);
-            const vctoBase = new Date(dStr + "T12:00:00");
             const vProj = Number(c.vlrreal || c.valor || c.vlrestimado || c.valorTotal || 0);
-
-            for (let i = 1; i < 12; i++) {
-                const dParcela = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
-                if (dParcela.getFullYear() === ano) {
-                    const chaveProj = `${c.idlancamento || c.nome_vinculo}-${dParcela.getMonth()}`;
-                    if (!ocupacaoMensal[chaveProj]) {
-                        if (dParcela < hoje) soma.contasVencidas += vProj;
-                        else soma.contasAVencer += vProj;
-                        ocupacaoMensal[chaveProj] = true; 
-                    }
-                }
-            }
+            expandirOcorrenciasNoAno(c, ano).forEach(dParcela => {
+                const chaveProj = `${c.idlancamento || c.nome_vinculo}-${dParcela.getMonth()}`;
+                if (ocupacaoMensal[chaveProj]) return;
+                if (ehMesmoDia(dParcela, hoje)) soma.contasHoje += vProj;
+                else if (dParcela < hoje) soma.contasVencidas += vProj;
+                else soma.contasAVencer += vProj;
+                ocupacaoMensal[chaveProj] = true;
+            });
         });
 
         // --- 2.5 PROCESSAR HOLERITES (SALÁRIO/13º) ---
@@ -19927,7 +20377,8 @@ async function carregarDadosVencimentos(anoFiltro) {
             const pago = h.origem === 'real' && String(h.status || '').toLowerCase() === 'pago';
             if (pago) { soma.contasPagos += vTotal; return; }
             const dVcto = new Date(ano, h.mes - 1, 5, 12, 0, 0);
-            if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
+            else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
         });
         (resContas?.eventos13 || []).forEach(ev => {
             if (ev.ano !== ano) return;
@@ -19936,7 +20387,21 @@ async function carregarDadosVencimentos(anoFiltro) {
             const pago = ev.origem === 'real' && String(ev.status || '').toLowerCase() === 'pago';
             if (pago) { soma.contasPagos += vTotal; return; }
             const dVcto = new Date((ev.dtvcto || "") + "T12:00:00");
-            if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
+            else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+        });
+        // Benefícios (VA/VT) — mesma ideia do salário/13º acima, só que "pago" olha
+        // status_beneficios (via linha.status já vem daí, ver /contas-pagar em rotaMain.js) e
+        // vencimento é o dtvcto próprio (último dia útil do mês), não dia 5.
+        (resContas?.beneficios || []).forEach(b => {
+            if (b.ano !== ano) return;
+            const vTotal = Number(b.liquido || 0);
+            if (vTotal <= 0) return;
+            const pago = b.origem === 'real' && String(b.status || '').toLowerCase() === 'pago';
+            if (pago) { soma.contasPagos += vTotal; return; }
+            const dVcto = new Date((b.dtvcto || "") + "T12:00:00");
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
+            else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
         });
 
         // --- 3. ATUALIZAÇÃO DA UI (STAFF + CONTAS) ---
@@ -19947,25 +20412,49 @@ async function carregarDadosVencimentos(anoFiltro) {
         };
 
         const totalPagos = soma.ajPagos + soma.chPagos + soma.cxPagos + soma.contasPagos;
-        const totalVencidos = soma.ajVencidos + soma.chVencidos + soma.contasVencidas;
+        const totalVencidos = soma.ajVencidos + soma.chVencidos + soma.cxVencidos + soma.contasVencidas;
         const totalAVencer = soma.ajAVencer + soma.chAVencer + soma.cxAVencer + soma.contasAVencer;
+        // "Hoje" é um terceiro estado temporal (nem vencido nem a vencer) — mesma regra do
+        // card do topo "Hoje Geral" e do resumo dos acordeões: antes esse dinheiro entrava
+        // junto de "A Vencer" aqui, fazendo esse total divergir do que aparecia nas outras telas.
+        const staffHoje = soma.ajHoje + soma.chHoje + soma.cxHoje;
+        const totalHoje = staffHoje + soma.contasHoje;
+        // Suspensa é um terceiro estado (nem vencida nem a vencer) — só existe do lado de
+        // Contas/Fornecedores hoje (Staff/eventos não têm esse conceito), mas ainda é dinheiro
+        // de verdade, por isso entra no Total Geral/Total Anual (mesma regra do card do topo
+        // "Total Geral" e do resumo do acordeão "Contas a Pagar"). Staff também tem suspenso
+        // (Ajuda/Cachê podem ser suspensos por evento) — antes ficava invisível aqui também.
+        const staffSuspenso = soma.ajSuspenso + soma.chSuspenso + soma.cxSuspenso;
+        const totalSuspensas = staffSuspenso + soma.contasSuspensas;
+        // Aguardando Staff: evento sem funcionários cadastrados ainda (mesma regra do
+        // acordeão/card do topo) — não é vencido/hoje/a vencer/suspenso pra nenhuma aba, mas
+        // ainda é dinheiro real, por isso entra no Total Geral.
+        const totalAguardando = soma.staffAguardando;
 
         // Cards Superiores
-        safeSetText('vencimentosTotal', totalAVencer); 
+        safeSetText('vencimentosTotal', totalAVencer);
         safeSetText('vencimentosPagos', totalPagos);
         safeSetText('vencimentosVencidas', totalVencidos);
-        safeSetText('vencTotalGeral', totalPagos + totalVencidos + totalAVencer);
+        safeSetText('vencHojeGeral', totalHoje);
+        safeSetText('vencSuspensasGeral', totalSuspensas);
+        safeSetText('vencTotalGeral', totalPagos + totalVencidos + totalHoje + totalAVencer + totalSuspensas + totalAguardando);
 
         // Seção Contas
-        safeSetText('vencTotalContas', soma.contasPagos + soma.contasVencidas + soma.contasAVencer);
+        safeSetText('vencTotalContas', soma.contasPagos + soma.contasVencidas + soma.contasHoje + soma.contasAVencer + soma.contasSuspensas);
         safeSetText('vencContasPagos', soma.contasPagos);
         safeSetText('vencContasVencidas', soma.contasVencidas);
+        safeSetText('vencContasHoje', soma.contasHoje);
         safeSetText('vencContasPendente', soma.contasAVencer);
+        safeSetText('vencContasSuspensas', soma.contasSuspensas);
 
         // --- SEÇÃO STAFF (RESTURADA) ---
-        const totalStaff = (soma.ajPagos + soma.chPagos + soma.cxPagos) + (soma.ajAVencer + soma.chAVencer + soma.cxAVencer) + (soma.ajVencidos + soma.chVencidos);
+        const totalStaff = (soma.ajPagos + soma.chPagos + soma.cxPagos) + (soma.ajAVencer + soma.chAVencer + soma.cxAVencer) + (soma.ajVencidos + soma.chVencidos + soma.cxVencidos) + staffHoje + staffSuspenso + totalAguardando;
         safeSetText('vencTotalStaff', totalStaff);
-        
+        safeSetText('vencAjudaSuspenso', soma.ajSuspenso);
+        safeSetText('vencCacheSuspenso', soma.chSuspenso);
+        safeSetText('vencAjudaHoje', soma.ajHoje);
+        safeSetText('vencCacheHoje', soma.chHoje);
+
         // Ajuda
         safeSetText('vencAjudaPagos', soma.ajPagos);
         safeSetText('vencAjudaVencidos', soma.ajVencidos);
