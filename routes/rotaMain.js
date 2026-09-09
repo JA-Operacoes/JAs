@@ -3436,27 +3436,39 @@ router.get("/vencimentos", async (req, res) => {
 
             chP += calcPago(s.statuspgto, vC);
             ajP += calcPago(s.statuspgtoajdcto, vA);
-            cxP += calcPago(s.statuscaixinha, vX);
 
             chS += calcSuspenso(s.statuspgto, vC);
             ajS += calcSuspenso(s.statuspgtoajdcto, vA);
-            cxS += calcSuspenso(s.statuscaixinha, vX);
 
             chR += calcRecusado(s.statuspgto, vC);
             ajR += calcRecusado(s.statuspgtoajdcto, vA);
-            cxR += calcRecusado(s.statuscaixinha, vX);
+
+            // Caixinha: statuspgtocaixinha (flag única do registro) foi descontinuada em
+            // 2026-08-24 — pagamento virou statuspgto por item, dentro do array `caixinha`
+            // (ver migration 20260824_161153_..._caixinha_valor_pago.sql). Somar aqui pela
+            // flag congelada (s.statuscaixinha, nunca mais atualizada) fazia cxP nunca sair
+            // de 0 — todo valor de caixinha ficava "pendente" pro resumo/lista de
+            // Vencimentos mesmo já pago por item, aparecendo como Vencido. Soma por item
+            // Autorizado, igual caixinha_valor_pago() faz no banco.
+            const caixinhaArray = Array.isArray(s.caixinha) ? s.caixinha : [];
+            caixinhaArray.filter(it => it.status === 'Autorizado').forEach(it => {
+                const vItem = Math.max(0, parseFloat(it.valor) || 0);
+                const statusPgtoItem = it.statuspgto || 'Pendente';
+                cxP += calcPago(statusPgtoItem, vItem);
+                cxS += calcSuspenso(statusPgtoItem, vItem);
+                cxR += calcRecusado(statusPgtoItem, vItem);
+            });
 
             // --- LÓGICA DE ESCALA REAL (VENCIMENTOS) ---
             const startD = normalizarParaDate(s.periodo_eventoini_all);
             const endD = normalizarParaDate(s.periodo_eventofim_all);
-            
+
             if (startD && (!minEscalaStaff || startD < minEscalaStaff)) minEscalaStaff = startD;
             if (endD && (!maxEscalaStaff || endD > maxEscalaStaff)) maxEscalaStaff = endD;
 
             // Itens de caixinha (autorizados + pendentes) pra exibir individualmente nos
             // Vencimentos, com a justificativa de cada um — Rejeitado não representa mais
             // valor em aberto, então não precisa aparecer aqui.
-            const caixinhaArray = Array.isArray(s.caixinha) ? s.caixinha : [];
             const itensCaixinha = caixinhaArray
                 .filter(it => it.status === 'Autorizado' || it.status === 'Pendente')
                 .map(it => ({
@@ -3889,7 +3901,7 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
             );
             return resultAjuste.rows[0] ? { dadosanteriores: resultAjuste.rows[0], idregistroalterado: idStaff } : null;
         }
-        const query = `SELECT idstaffevento, comppgtocache, comppgtocache50, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto FROM staffeventos WHERE idstaffevento = $1`;
+        const query = `SELECT idstaffevento, comppgtocache, comppgtocache50, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto, caixinha FROM staffeventos WHERE idstaffevento = $1`;
         const result = await pool.query(query, [idStaff]);
         return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
     }
@@ -3940,10 +3952,35 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMidd
         }
         else if (tipo === 'caixinha') {
             // comppgtocaixinha (comprovante único pro registro) foi descontinuada — cada
-            // caixinha agora tem seu próprio comprovante dentro do array `caixinha`, e essa
-            // tela não sabe pra qual item específico este upload seria. Envie item a item
-            // pela tela do Staff.
-            return res.status(400).json({ error: "Envie o comprovante de cada caixinha individualmente pela tela do Staff (uma por item)." });
+            // caixinha agora tem seu próprio comprovante dentro do array `caixinha`,
+            // identificado por iditem (mesmo padrão de /vencimentos/update-status).
+            const { iditem } = req.body;
+            if (!iditem) {
+                return res.status(400).json({ error: "iditem obrigatório para anexar comprovante de Caixinha." });
+            }
+
+            const resultCx = await pool.query(
+                `UPDATE staffeventos se SET caixinha = (
+                    SELECT jsonb_agg(
+                        CASE WHEN elem->>'iditem' = $1 THEN elem || jsonb_build_object('comprovante', $2::text) ELSE elem END
+                    )
+                    FROM jsonb_array_elements(se.caixinha) elem
+                 )
+                 FROM staffempresas sem
+                 WHERE se.idstaffevento = $3 AND sem.idstaff = se.idstaff AND sem.idempresa = $4
+                 RETURNING se.*`,
+                [String(iditem), pathArquivo, idStaff, idempresa]
+            );
+
+            if (resultCx.rowCount === 0) {
+                return res.status(404).json({ error: "Funcionário não encontrado no evento." });
+            }
+
+            res.locals.acao = 'cadastrou';
+            res.locals.idregistroalterado = idStaff;
+            res.locals.dadosnovos = resultCx.rows[0];
+
+            return res.json({ success: true, path: pathArquivo, colunaDestino: 'caixinha' });
         }
         else if (tipo === 'ajuda_50') {
             coluna = 'comppgtoajdcusto50';
