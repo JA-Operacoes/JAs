@@ -7775,14 +7775,62 @@ async function mostrarPedidosUsuario() {
                 funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
             };
 
+            // Espelha a lógica de matching de renderizarPedidos (campos com aprovação
+            // própria — Diária Dobrada, Meia Diária, Caixinha etc — não herdam o status
+            // do pedido mãe) pra que o número do badge bata com o que realmente é
+            // renderizado em cada sub-aba. Um mesmo registro pode contar em mais de um
+            // status (ex.: mãe autorizada mas Diária Dobrada ainda pendente).
+            function pedidoTemStatus(pedidoOriginal, statusDesejado) {
+                const statusMaeReal = (pedidoOriginal.status_aprovacao || pedidoOriginal.status || '').toLowerCase().trim();
+
+                if (pedidoOriginal.isComboExtraDobrada) {
+                    const stBonif   = (pedidoOriginal.dadosBonificado?.status_aprovacao || 'pendente').toLowerCase();
+                    const stDobrada = (pedidoOriginal.dadosDobrada?.status_aprovacao    || 'pendente').toLowerCase();
+                    return (statusDesejado === STATUS_PENDENTE_LOWER   && (stBonif === 'pendente'   || stDobrada === 'pendente'))
+                        || (statusDesejado === STATUS_AUTORIZADO_LOWER && stBonif === 'autorizado' && stDobrada === 'autorizado')
+                        || (statusDesejado === STATUS_REJEITADO_LOWER  && (stBonif === 'rejeitado'  || stDobrada === 'rejeitado'));
+                }
+
+                if (pedidoOriginal.isComboFuncExcedidoAditivo || pedidoOriginal.isComboFuncExcedidoVaga) {
+                    const admSolsBucket = pedidoOriginal.dadosAditivo?.solicitacoes_individuais || [];
+                    const feSolsBucket  = pedidoOriginal.dadosFuncExcedido?.solicitacoes_individuais || [];
+                    const statusDaSol = (s) => (s.status || 'pendente').toLowerCase().trim();
+                    const algumaCom = (sols, st) => sols.some(s => statusDaSol(s) === st);
+                    return (statusDesejado === STATUS_PENDENTE_LOWER   && (algumaCom(admSolsBucket, 'pendente')   || algumaCom(feSolsBucket, 'pendente')))
+                        || (statusDesejado === STATUS_AUTORIZADO_LOWER && (algumaCom(admSolsBucket, 'autorizado') || algumaCom(feSolsBucket, 'autorizado')))
+                        || (statusDesejado === STATUS_REJEITADO_LOWER  && (algumaCom(admSolsBucket, 'rejeitado')  || algumaCom(feSolsBucket, 'rejeitado')));
+                }
+
+                if (statusMaeReal === statusDesejado) return true;
+
+                const camposTodos = [
+                    "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada",
+                    "statuscustofechado", "statuscacheliberado", "statusvagaexcedida",
+                    "statusvagasreaproveitadas", CAMPO_ADITIVO_EXTRA
+                ];
+                const camposSincronizadosComMae = ['statusaditivoextra', 'statusvagaexcedida', 'statusvagasreaproveitadas', CAMPO_ADITIVO_EXTRA];
+
+                return camposTodos.some(campo => {
+                    const itens = safeParse(pedidoOriginal[campo]).filter(it => it !== null && it !== undefined);
+                    return itens.some(it => {
+                        if (camposSincronizadosComMae.includes(campo) && (statusMaeReal === 'autorizado' || statusMaeReal === 'rejeitado')) {
+                            return statusMaeReal === statusDesejado;
+                        }
+                        const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
+                        return String(s).toLowerCase().trim() === statusDesejado;
+                    });
+                });
+            }
+
             function contarStatus(listaDeGrupos, categoriaDestino) {
                 statusCountsFinal[categoriaDestino] = { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 };
                 listaDeGrupos.forEach(grupo => {
                     (grupo.registrosOriginais || []).forEach(item => {
-                        const st = item.status_aprovacao?.toLowerCase(); 
-                        if (statusCountsFinal[categoriaDestino][st] !== undefined) {
-                            statusCountsFinal[categoriaDestino][st]++;
-                        }
+                        [STATUS_PENDENTE_LOWER, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER].forEach(st => {
+                            if (pedidoTemStatus(item, st)) {
+                                statusCountsFinal[categoriaDestino][st]++;
+                            }
+                        });
                     });
                 });
             }
@@ -10698,8 +10746,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     return;
                 }
 
+                // Campos com workflow de aprovação PRÓPRIO (Diária Dobrada, Meia Diária,
+                // Caixinha, Ajuste de Custo, Custo Fechado, Cachê Liberado) não podem herdar
+                // o status do pedido mãe — cada um é aprovado/rejeitado independentemente
+                // (ex.: combo Extra Bonificado + Diária Dobrada trata os dois status à parte,
+                // ver isComboExtraDobrada acima). Só os campos que o backend mantém em sincronia
+                // com o mãe (camposJson, linha ~10615) devem usar o statusMaeReal como atalho.
+                const camposSincronizadosComMae = ['statusaditivoextra', 'statusvagaexcedida', 'statusvagasreaproveitadas', CAMPO_ADITIVO_EXTRA];
                 const itensFiltrados = itens.filter(it => {
-                    if (statusMaeReal === 'autorizado' || statusMaeReal === 'rejeitado') {
+                    if (camposSincronizadosComMae.includes(campo) && (statusMaeReal === 'autorizado' || statusMaeReal === 'rejeitado')) {
                         return statusMaeReal === statusDesejado;
                     }
                     const s = (typeof it === 'object' && it !== null) ? (it.status || 'pendente') : it;
@@ -19673,7 +19728,10 @@ function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null, idit
     // Se vier iditemCaixinha sem idEventoContexto, ainda precisa do 'null' na posição pra
     // não desalinhar os argumentos posicionais de alterarStatusStaff.
     const argEventoContexto = idEventoContexto != null ? `, ${idEventoContexto}` : (iditemCaixinha ? ', null' : '');
-    const argIditem = iditemCaixinha ? `, ${JSON.stringify(iditemCaixinha)}` : '';
+    // iditemCaixinha é string (vem do backend); usamos aspas simples porque o
+    // atributo onclick="..." é delimitado por aspas duplas — JSON.stringify geraria
+    // aspas duplas literais no meio do atributo e quebraria o HTML.
+    const argIditem = iditemCaixinha ? `, '${String(iditemCaixinha).replace(/'/g, "\\'")}'` : '';
 
     // 1. Caso Comum: Já está Pago ou Finalizado
     if (statusLimpo === 'Pago' || statusLimpo === 'Pago 100%'|| statusLimpo === 'Rejeitado') {
