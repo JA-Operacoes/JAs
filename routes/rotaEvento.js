@@ -287,7 +287,7 @@ router.post("/", verificarPermissao('Eventos', 'cadastrar'),
         await client.query('ROLLBACK');
       }
       console.error("❌ Erro ao salvar evento e/ou associá-lo à empresa/clientes:", error);
-      res.status(500).json({ erro: "Erro ao salvar evento." });
+      res.status(500).json({ erro: "Erro ao salvar evento", detalhes: error.message });
     } finally {
       if (client) {
         client.release();

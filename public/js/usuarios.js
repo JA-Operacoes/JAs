@@ -58,7 +58,7 @@ function aplicarRegraAcessoNaLinha(linha) {
 // .acessos-especiais-global-row) aplicado, no momento de salvar, a todos os módulos
 // que estiverem com "Acesso" marcado (ver btnsalvarPermissao). Não liga o Acesso
 // sozinho (decisão: acesso especial não deve dar acesso ao módulo).
-const CAMPOS_ESPECIAIS_GLOBAL = ['supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs'];
+const CAMPOS_ESPECIAIS_GLOBAL = ['supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs', 'ti'];
 
 function configurarAcessosEspeciaisGlobal() {
   CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {

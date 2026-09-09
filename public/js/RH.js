@@ -118,6 +118,29 @@ function presetItens(tipo, salariobase) {
 let holeriteAtual = null; // último holerite carregado (para salvar/pagar)
 let empresaAtual = null;  // dados do empregador (empresa logada), p/ cabeçalho do holerite
 
+// Master e Supremo têm acesso total (lista + holerite individual, com todos os campos
+// editáveis). Quem só tem "rh" (sem master/supremo) fica restrito à lista: nada editável,
+// só a conferência (ver PUT /rh/holerite/:id/conferir) — o backend (rotaRH.js, `apenasEdicao`)
+// já bloqueia isso de novo em cada rota de detalhe/edição, isso aqui é só a UI.
+// Chips "Vencimento × Mês trabalhado" — o dropdown "Mês" seleciona o VENCIMENTO (quando o
+// salário é pago); o mês efetivamente trabalhado (usado pra dias úteis/VA/VT/INSS/IRRF) é
+// sempre o anterior a esse. Destacado nos dois lugares onde isso pode confundir: a lista
+// (rh-competencia) e o título do holerite mensal (renderHolerite).
+function competenciaHtml(mesVenc, anoVenc, mesTrab, anoTrab) {
+  return `
+    <div class="rh-mes-chip venc"><span>Vencimento</span><strong>${MESES[mesVenc - 1]}/${anoVenc}</strong></div>
+    <span class="rh-mes-seta">→</span>
+    <div class="rh-mes-chip trab"><span>Mês trabalhado</span><strong>${MESES[mesTrab - 1]}/${anoTrab}</strong></div>
+  `;
+}
+
+function podeAbrirDetalhe() {
+  // As flags rh/master/supremo desse módulo ficam no permissoes.modulo = "Staff" — não existe
+  // um módulo "RH" dedicado (mesma convenção já usada no filtro de Alíquotas em Index.js e no
+  // controle de comprovante aqui embaixo).
+  return (window.temPermissao?.("Staff", "master") ?? false) || (window.temPermissao?.("Staff", "supremo") ?? false);
+}
+
 // ===== Montagem do painel (lazy, só na 1ª ativação) =====
 function montarPainel() {
   if (document.getElementById("rh-panel")) return;
@@ -134,15 +157,16 @@ function montarPainel() {
     <div class="rh-header">
       <h2>RH — Holerite Virtual</h2>
       <div class="rh-controls">
-        <span class="material-symbols-outlined">search</span>
+        <span id="rh-busca-icone" class="material-symbols-outlined">search</span>
         <div class="rh-busca-func">
-          <input type="text" id="rh-busca-func" placeholder="Buscar funcionário..." autocomplete="off">
+          <input type="text" id="rh-busca-func" placeholder="Buscar Holerite do funcionário..." autocomplete="off">
           <input type="hidden" id="rh-func-id" value="">
           <ul id="rh-func-lista" class="rh-func-lista" style="display:none;"></ul>
         </div>
         <select id="rh-select-tipo">
           ${TIPOS_HOLERITE.map((t) => `<option value="${t.v}" ${t.v === tipoSel ? "selected" : ""}>${t.label}</option>`).join("")}
         </select>
+        <span class="rh-select-label" title="Mês em que o salário é pago — o mês TRABALHADO é o anterior a esse.">Vencimento</span>
         <select id="rh-select-mes">
           ${MESES.map((m, i) => `<option value="${i + 1}" ${i + 1 === mesSel ? "selected" : ""}>${m}</option>`).join("")}
         </select>
@@ -152,6 +176,7 @@ function montarPainel() {
         <button type="button" id="rh-aliquotas" class="secundario" title="Editar alíquotas (INSS/IRRF/FGTS)">⚙️ Alíquotas</button>
       </div>
     </div>
+    <div id="rh-competencia" class="rh-competencia" style="display:none;"></div>
     <div id="rh-resumo" class="rh-resumo" style="display:none;"></div>
     <div id="rh-folha" class="rh-folha"></div>
     <div id="rh-detalhe" style="display:none;">
@@ -178,7 +203,16 @@ function montarPainel() {
 
   document.getElementById("rh-voltar").addEventListener("click", mostrarLista);
 
-  carregarFuncionarios();
+  // Quem só tem "rh" (sem master/supremo) não abre o holerite de ninguém — busca de
+  // funcionário e o seletor de tipo (mensal/férias/13º/rescisão) só existem pra abrir um
+  // holerite específico, então somem daqui. O mês/ano continua (filtra a lista também).
+  if (podeAbrirDetalhe()) {
+    carregarFuncionarios();
+  } else {
+    document.getElementById("rh-busca-icone").style.display = "none";
+    document.querySelector(".rh-busca-func").style.display = "none";
+    document.getElementById("rh-select-tipo").style.display = "none";
+  }
   carregarFolha();
   carregarEmpresa();
 }
@@ -273,6 +307,10 @@ async function carregarFuncionarios() {
 }
 
 function onFuncChange(id) {
+  // Segunda trava (a 1ª é nem oferecer o clique — ver carregarFolha): quem só tem "rh" não
+  // abre o holerite de ninguém, nem por aqui. O backend (rotaRH.js, `apenasEdicao`) barra de
+  // novo se mesmo assim chegar uma chamada direta pra GET /rh/holerite.
+  if (id && !podeAbrirDetalhe()) return;
   if (id) {
     mostrarHolerite();
     carregarHolerite(id);
@@ -351,6 +389,19 @@ function renderHolerite(h) {
   document.getElementById("rh-titulo").textContent =
     `${h.nome} — ${MESES[h.mes - 1]}/${h.ano} · ${rotuloTipo}`;
 
+  // Mensal: h.mes/h.ano é o VENCIMENTO — mostra também o mês efetivamente trabalhado
+  // (h.competenciaMes/competenciaAno, vindo do backend). Nos demais tipos essa distinção não
+  // se aplica (férias/13º/rescisão têm data própria), então some.
+  const elComp = document.getElementById("rh-competencia");
+  if (elComp) {
+    if (h.tipo === "mensal" && h.competenciaMes && h.competenciaAno) {
+      elComp.style.display = "flex";
+      elComp.innerHTML = competenciaHtml(h.mes, h.ano, h.competenciaMes, h.competenciaAno);
+    } else {
+      elComp.style.display = "none";
+    }
+  }
+
   const t = totaisHolerite(h, incluirBeneficios);
   const proventos = (h.itens || []).filter((i) => i.tipo === "P");
   const beneficios = (h.itens || []).filter((i) => i.tipo === "B");
@@ -388,7 +439,7 @@ function renderHolerite(h) {
             </div>
             <div class="registro">
                 <h1>Demonstrativo de Pagamento </h1>
-                <span>${mesSel}/${anoSel}</span>
+                <span>${h.tipo === "mensal" ? `${h.competenciaMes}/${h.competenciaAno}` : `${h.mes}/${h.ano}`}</span>
                 <br>
                 <span class="rh-badge badge-${pago ? "pago" : "pendente"}">${pago ? "✅ Pago" : "⏳ Pendente"}</span>
             </div>
@@ -431,8 +482,17 @@ function renderHolerite(h) {
           <label>Dependentes</label>
           <input type="number" step="1" min="0" id="rh-dependentes" value="${Number(h.dependentes) || 0}">
         </div>
+        <div>
+          <label>Vale-Alimentação (dia)</label>
+          <input type="text" id="rh-valealim-dia" oninput="formatReais(this)" value="${formatarReaisInput(h.valealimDia)}">
+        </div>
+        <div>
+          <label>Vale-Transporte (dia)</label>
+          <input type="text" id="rh-valetrnsp-dia" oninput="formatReais(this)" value="${formatarReaisInput(h.valetrnspDia)}">
+        </div>
         <button type="button" id="rh-salvar-base" class="secundario">Salvar no cadastro</button>
       </div>
+      <small class="rh-cadastro-nota">Esses 4 valores vêm do cadastro do funcionário e valem pra todos os meses — mudar aqui e salvar atualiza o cadastro dele (não só esta competência). O total de VA/VT abaixo (em Benefícios) é o valor/dia × dias úteis.</small>
 
       ${h.tipo === "13" ? `
       <div class="rh-bloco rh-13">
@@ -876,18 +936,37 @@ function recalcular() {
   set("liquido", t.liquido);
 }
 
+// Grava Salário/Dependentes/VA-dia/VT-dia no CADASTRO do funcionário (funcionarioempresas) —
+// vale pra todos os meses dele, não só esta competência, por isso pede confirmação antes.
 async function salvarSalarioBase() {
   const salariobase = desformatarReais(document.getElementById("rh-salariobase").value);
   const dependentes = parseInt(document.getElementById("rh-dependentes").value, 10) || 0;
+  const valealim = desformatarReais(document.getElementById("rh-valealim-dia").value);
+  const valetrnsp = desformatarReais(document.getElementById("rh-valetrnsp-dia").value);
+
+  const confirmacao = await Swal.fire({
+    icon: "question",
+    title: "Salvar no cadastro?",
+    html: `Isso atualiza o cadastro de <strong>${holeriteAtual.nome}</strong> pra sempre (não só a competência atual):<br><br>
+      Salário: <strong>${formatarReaisInput(salariobase)}</strong> · Dependentes: <strong>${dependentes}</strong><br>
+      Vale-Alimentação/dia: <strong>${formatarReaisInput(valealim)}</strong> · Vale-Transporte/dia: <strong>${formatarReaisInput(valetrnsp)}</strong>`,
+    showCancelButton: true,
+    confirmButtonText: "Salvar",
+    cancelButtonText: "Cancelar",
+  });
+  if (!confirmacao.isConfirmed) return;
+
   try {
     await fetchComToken(`/rh/funcionario/${holeriteAtual.idfuncionario}/salario`, {
-      method: "PUT", body: { salariobase, dependentes },
+      method: "PUT", body: { salariobase, dependentes, valealim, valetrnsp },
     });
     holeriteAtual.dependentes = dependentes;
-    alert("Salário base e dependentes atualizados no cadastro do funcionário.");
+    holeriteAtual.valealimDia = valealim;
+    holeriteAtual.valetrnspDia = valetrnsp;
+    Swal.fire({ icon: "success", title: "Cadastro atualizado", timer: 1800, showConfirmButton: false });
   } catch (err) {
     console.error("Erro ao salvar salário base (RH):", err);
-    alert("Erro ao salvar o cadastro.");
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível salvar o cadastro.", confirmButtonText: "Ok" });
   }
 }
 
@@ -931,9 +1010,12 @@ async function atualizarBasesCalculadas() {
   const h = lerHolerite();
   if (!h.idfuncionario) return;
   try {
+    // INSS/IRRF são da tabela do ano TRABALHADO, não do ano de vencimento — só diverge na
+    // virada de ano (vencimento Jan/N corresponde a competência Dez/N-1).
+    const anoTabela = (h.tipo === "mensal" && h.competenciaAno) ? h.competenciaAno : h.ano;
     const r = await fetchComToken("/rh/holerite/calcular", {
       method: "POST",
-      body: { idfuncionario: h.idfuncionario, mes: h.mes, ano: h.ano, salariobase: h.salariobase, itens: h.itens },
+      body: { idfuncionario: h.idfuncionario, mes: h.mes, ano: anoTabela, salariobase: h.salariobase, itens: h.itens },
     });
     pintarBases(r);
   } catch (err) {
@@ -945,9 +1027,12 @@ async function calcularEncargos() {
   const h = lerHolerite();
   const info = document.getElementById("rh-calc-info");
   try {
+    // INSS/IRRF são da tabela do ano TRABALHADO, não do ano de vencimento — só diverge na
+    // virada de ano (vencimento Jan/N corresponde a competência Dez/N-1).
+    const anoTabela = (h.tipo === "mensal" && h.competenciaAno) ? h.competenciaAno : h.ano;
     const r = await fetchComToken("/rh/holerite/calcular", {
       method: "POST",
-      body: { idfuncionario: h.idfuncionario, mes: h.mes, ano: h.ano, salariobase: h.salariobase, itens: h.itens },
+      body: { idfuncionario: h.idfuncionario, mes: h.mes, ano: anoTabela, salariobase: h.salariobase, itens: h.itens },
     });
     setDescontoPorDescricao("INSS", r.inss);
     setDescontoPorDescricao("IRRF", r.irrf);
@@ -1131,11 +1216,18 @@ async function carregarFolha() {
   try {
     const data = await fetchComToken(`/rh/folha?mes=${mesSel}&ano=${anoSel}`);
     const linhas = data.linhas || [];
+    const linhas13 = data.linhas13 || [];
     const t = data.totais || { proventos: 0, descontos: 0, liquido: 0, pagos: 0, pendentes: 0, previsoes: 0, qtd: 0 };
 
     // Só exibe a lista/totais quando estamos no modo lista; no holerite isto roda em 2º
     // plano (ex.: após salvar/pagar) e não deve reaparecer por cima do holerite.
     if (!emModoLista()) return;
+
+    const elComp = document.getElementById("rh-competencia");
+    if (elComp && data.mesComp && data.anoComp) {
+      elComp.style.display = "flex";
+      elComp.innerHTML = competenciaHtml(mesSel, anoSel, data.mesComp, data.anoComp);
+    }
 
     if (elTot) {
       elTot.style.display = "grid";
@@ -1153,36 +1245,179 @@ async function carregarFolha() {
       return;
     }
 
+    const podeEditar = podeAbrirDetalhe();
     const badge = (l) => {
       if (l.origem !== "real") return `<span class="rh-badge badge-previsao">Previsão</span>`;
       const cls = l.status === "Pago" ? "badge-pago" : "badge-pendente";
       return `<span class="rh-badge ${cls}">${l.status}</span>`;
     };
+    // Duas colunas de conferência, independentes: salário (vence dia 5 do mês de vencimento) e
+    // benefícios/VA-VT (vencem no último dia útil do próprio mês vigente, sem defasagem) — uma
+    // não trava a outra. Sem holerite real não tem o que conferir (previsão). `campo` decide
+    // qual rota chamar no clique (ver PUT /rh/holerite/:id/conferir[-beneficios]).
+    const conferenciaCel = (l, campo) => {
+      if (l.origem !== "real") return `<span class="rh-cell-vazia">—</span>`;
+      const ok = campo === "sal" ? l.conferido : l.conferidoBeneficios;
+      const quandoRaw = campo === "sal" ? l.conferidoEm : l.conferidoBeneficiosEm;
+      if (ok) {
+        const quando = quandoRaw ? new Date(quandoRaw).toLocaleDateString("pt-BR") : "";
+        return `<span class="rh-badge badge-conferido" title="Conferido em ${quando}">✔ Conferido</span>
+                <button type="button" class="rh-link-desfazer" data-desconferir="${campo}:${l.idholerite}">desfazer</button>`;
+      }
+      return `<button type="button" class="rh-btn-conferir" data-conferir="${campo}:${l.idholerite}">Conferir</button>`;
+    };
 
     elTab.innerHTML = `
+      <div class="rh-folha-busca">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="rh-folha-busca" placeholder="Buscar por nome na lista..." autocomplete="off">
+      </div>
       <table class="rh-folha-tab">
         <thead>
-          <tr><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status</th></tr>
+          <tr><th></th><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status Pgto</th><th>Confer. Salário</th><th>Confer. Benefícios</th></tr>
         </thead>
         <tbody>
           ${linhas.map((l) => `
-            <tr data-id="${l.idfuncionario}" data-nome="${(l.nome || "").replace(/"/g, "&quot;")}" title="Abrir holerite">
-              <td>${l.nome || ""}</td>
+            <tr class="rh-folha-linha" data-id="${l.idfuncionario}" data-nome="${escHtml(l.nome)}" title="${podeEditar ? "Abrir holerite" : "Ver detalhes"}">
+              <td class="rh-expand-col"><button type="button" class="rh-expand-btn" data-expand="${l.idfuncionario}" title="Ver detalhes">▸</button></td>
+              <td>${l.nome || ""}${montarResumoInline(l)}</td>
               <td>${formatarReaisInput(l.proventos)}</td>
               <td>${formatarReaisInput(l.descontos)}</td>
               <td><strong>${formatarReaisInput(l.liquido)}</strong></td>
               <td>${badge(l)}</td>
+              <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
+              <td class="rh-col-conferencia">${conferenciaCel(l, "benef")}</td>
+            </tr>
+            <tr class="rh-folha-detalhe" data-detalhe-de="${l.idfuncionario}" style="display:none;">
+              <td colspan="8">${montarDetalheLinha(l)}</td>
             </tr>`).join("")}
         </tbody>
-      </table>`;
+      </table>
+      ${linhas13.length ? `
+      <div class="rh-folha-13">
+        <h4>13º Salário — ${linhas13[0].parcela === "1" ? "1ª parcela" : "2ª parcela"} (vencimento ${MESES[mesSel - 1]}/${anoSel})</h4>
+        <table class="rh-folha-tab">
+          <thead>
+            <tr><th>Funcionário</th><th>Líquido</th><th>Status Pgto</th><th>Conferência</th></tr>
+          </thead>
+          <tbody>
+            ${linhas13.map((l) => `
+              <tr>
+                <td>${l.nome || ""}</td>
+                <td><strong>${formatarReaisInput(l.liquido)}</strong></td>
+                <td>${badge(l)}</td>
+                <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : ""}`;
 
-    elTab.querySelectorAll("tbody tr").forEach((tr) => {
-      tr.addEventListener("click", () => selecionarFuncionarioDaFolha(tr.dataset.id, tr.dataset.nome));
+    elTab.querySelectorAll(".rh-expand-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const detalheRow = elTab.querySelector(`tr.rh-folha-detalhe[data-detalhe-de="${btn.dataset.expand}"]`);
+        if (!detalheRow) return;
+        const aberto = detalheRow.style.display !== "none";
+        detalheRow.style.display = aberto ? "none" : "table-row";
+        btn.textContent = aberto ? "▸" : "▾";
+      });
     });
+    elTab.querySelectorAll("[data-conferir]").forEach((btn) => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); conferirHolerite(btn.dataset.conferir, true); });
+    });
+    elTab.querySelectorAll("[data-desconferir]").forEach((btn) => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); conferirHolerite(btn.dataset.desconferir, false); });
+    });
+    // Trava extra na célula inteira (não só no botão/link): clicar na badge "✔ Conferido"
+    // (que não tem ação própria) ou em qualquer espaço vazio da célula não pode abrir a linha.
+    elTab.querySelectorAll("td.rh-col-conferencia").forEach((td) => {
+      td.addEventListener("click", (e) => e.stopPropagation());
+    });
+
+    elTab.querySelectorAll("tr.rh-folha-linha").forEach((tr) => {
+      if (podeEditar) {
+        tr.addEventListener("click", () => selecionarFuncionarioDaFolha(tr.dataset.id, tr.dataset.nome));
+      } else {
+        // Sem acesso à tela individual: a linha só expande/recolhe o detalhe (mesma ação do
+        // botão ▸), não navega pra lugar nenhum — a lista aqui é só pra conferência.
+        tr.style.cursor = "default";
+        tr.addEventListener("click", () => tr.querySelector(".rh-expand-btn")?.click());
+      }
+    });
+
+    // Filtro por nome — só esconde/mostra linhas já carregadas (sem nova busca no backend),
+    // não mexe nos totais do topo (eles continuam refletindo a folha inteira do mês).
+    const inputBusca = document.getElementById("rh-folha-busca");
+    if (inputBusca) {
+      inputBusca.addEventListener("input", () => {
+        const termo = inputBusca.value.toLowerCase().trim();
+        elTab.querySelectorAll("tr.rh-folha-linha").forEach((tr) => {
+          const bate = tr.dataset.nome.toLowerCase().includes(termo);
+          tr.style.display = bate ? "" : "none";
+          const detalhe = elTab.querySelector(`tr.rh-folha-detalhe[data-detalhe-de="${tr.dataset.id}"]`);
+          if (detalhe && !bate) detalhe.style.display = "none";
+        });
+      });
+    }
   } catch (err) {
     console.error("Erro ao carregar folha (RH):", err);
     elTab.innerHTML = '<p class="rh-vazio">Erro ao carregar a folha do mês.</p>';
     if (elTot) elTot.style.display = "none";
+  }
+}
+
+// Escapa texto pra uso seguro tanto em conteúdo HTML quanto em atributo (aspas duplas).
+const escHtml = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Resuminho em texto, direto embaixo do nome — dá pra conferir sem clicar em nada; o "▸"
+// (montarDetalheLinha) continua existindo pra quem quiser ver tudo organizado em colunas,
+// principalmente quando a lista de itens é mais longa e o resumo fica comprido.
+function montarResumoInline(l) {
+  const partes = [`Base <b>${formatarReaisInput(l.salariobase)}</b>`];
+  (l.itens || []).forEach((i) => {
+    partes.push(`${escHtml(i.descricao)} <b>${formatarReaisInput(i.valor)}</b>`);
+  });
+  return `<span class="rh-resumo-inline">${partes.join(" · ")}</span>`;
+}
+
+// Detalhe read-only (proventos/benefícios/descontos) de UMA linha da lista — nada aqui é
+// editável, é só o suficiente pra "conferência ser 100%" sem precisar abrir o holerite.
+function montarDetalheLinha(l) {
+  const itens = l.itens || [];
+  const grupo = (titulo, filtro) => {
+    const lista = itens.filter(filtro);
+    if (!lista.length) return "";
+    return `
+      <div class="rh-detalhe-grupo">
+        <strong>${titulo}</strong>
+        <ul>${lista.map((i) => `<li><span>${escHtml(i.descricao)}</span><span>${formatarReaisInput(i.valor)}</span></li>`).join("")}</ul>
+      </div>`;
+  };
+  const corpo = [
+    grupo("Proventos", (i) => i.tipo === "P"),
+    grupo("Benefícios (não-tributáveis)", (i) => i.tipo === "B"),
+    grupo("Descontos", (i) => i.tipo === "D"),
+  ].join("");
+  return `
+    <div class="rh-folha-detalhe-cont">
+      <div class="rh-detalhe-linha-topo"><span>Salário base</span><strong>${formatarReaisInput(l.salariobase)}</strong></div>
+      ${corpo || '<p class="rh-vazio">Sem itens lançados nesta competência.</p>'}
+    </div>`;
+}
+
+// Confirma (ou desfaz) a conferência mensal direto da lista — sem abrir o holerite. Enquanto
+// não conferido, o financeiro (Contas a Pagar) não enxerga esse valor como pronto pra pagar.
+// `chave` vem como "sal:123" ou "benef:123" (ver conferenciaCel) — decide qual das duas rotas
+// chamar, já que salário e benefícios são conferidos (e vencem) separados.
+async function conferirHolerite(chave, conferido) {
+  const [campo, idholerite] = chave.split(":");
+  const rota = campo === "benef" ? "conferir-beneficios" : "conferir";
+  try {
+    await fetchComToken(`/rh/holerite/${idholerite}/${rota}`, { method: "PUT", body: { conferido } });
+    carregarFolha();
+  } catch (err) {
+    console.error("Erro ao conferir holerite (RH):", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível registrar a conferência.", confirmButtonText: "Ok" });
   }
 }
 
@@ -1505,11 +1740,12 @@ function initRH() {
   const link = li?.querySelector("a");
   if (!li || !link) return;
 
-  // RH mode só para quem tem a flag 'rh' OU 'supremo'.
+  // RH mode: 'rh' (lista + conferência), 'master' ou 'supremo' (lista + holerite individual).
   const temPermissaoRH = temPermissao("Staff", "rh");
-  const temPermissaoSupremo = temPermissao("Staff", "master");
-  
-  const temAcessoRH = temPermissaoRH || temPermissaoSupremo
+  const temPermissaoMaster = temPermissao("Staff", "master");
+  const temPermissaoSupremo = temPermissao("Staff", "supremo");
+
+  const temAcessoRH = temPermissaoRH || temPermissaoMaster || temPermissaoSupremo
 
   if (!temAcessoRH) {
     li.style.display = "none";

@@ -209,6 +209,14 @@ window.temPermissao = function (modulo, acao) {
         document.querySelector("li.Devs")?.style.setProperty("display", "none");
         return;
       }
+    } else if (modulo === "Contas" || modulo === "TipoConta") {
+      // Reestruturação de Contas a Pagar: Lançamentos passou a usar só Plano de
+      // Contas, então Contas/Tipo de Conta ficam ocultos do menu pro Financeiro
+      // por ora (tabelas e telas continuam intactas, visíveis só a devs/supremo).
+      if (!temPermissao("Staff", "devs") && !temPermissao("Staff", "supremo")) {
+        botao.style.display = "none";
+        return;
+      }
     } else if (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar")) {
       botao.style.display = "none";
       return;

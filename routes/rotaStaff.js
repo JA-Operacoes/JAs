@@ -1128,7 +1128,6 @@ router.post('/orcamento/saldo-equipe',
                         WHERE oi.idorcamento IN (SELECT idorcamento FROM orcamentos_validos)
                           AND f.idequipe = $6
                           AND oi.categoria = 'Produto(s)'
-                          AND NOT (oi.adicional = true AND COALESCE(oi.vlrdiaria, 0) = 0)
                     ), 0) AS vlr_total_orcado_equipe,
                     COALESCE((
                         SELECT SUM(se.vlrtotcache + COALESCE(se.vlrtotajdcusto, 0))
@@ -1350,9 +1349,7 @@ router.post("/orcamento/vagas-disponiveis",
                      WHERE oi_sub.idorcamento IN (SELECT idorcamento FROM orcamentos_validos) -- 🎯 Escopo Global do Evento
                        AND f_sub.idequipe = f.idequipe
                        AND oi_sub.categoria = 'Produto(s)'
-                       AND NOT (
-                           oi_sub.adicional = true AND COALESCE(oi_sub.vlrdiaria, 0) = 0
-                       )) AS vlr_total_orcado_equipe,
+                       ) AS vlr_total_orcado_equipe,
 
                     -- 🔥 SUBQUERY 2 MULTI-ORÇAMENTO: Soma o gasto real acumulado de TODOS os orçamentos válidos combinados
                     (

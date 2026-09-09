@@ -1130,6 +1130,7 @@ function montarPainelGeral() {
 
         <div id="ceo-geral-func-graficos" class="ceo-geral-secao">
             <p class="ceo-vazio-sutil" id="ceo-geral-graficos-legenda">Panorama do grupo inteiro (todos os funcionários) no ano — o que já é certo (contratado, pago ou pendente de pagamento) e a provisão de custo acumulada.</p>
+            <p class="ceo-geral-empresas-resumo" id="ceo-func-empresas-resumo"></p>
             <div class="ceo-geral-graficos">
                 <div class="ceo-chart-card">
                     <h3>Contratado no ano — Pago × Pendente</h3>
@@ -1149,6 +1150,7 @@ function montarPainelGeral() {
 
         <div id="ceo-geral-contas-graficos" class="ceo-geral-secao" style="display:none;">
             <p class="ceo-vazio-sutil">Dado bruto de saída (custo orçado dos eventos) — sem cálculo de lucro/saldo aqui, isso já existe na aba Rentabilidade.</p>
+            <p class="ceo-geral-empresas-resumo" id="ceo-pagar-empresas-resumo"></p>
             <div class="filtros" style="margin-bottom:14px;">
                 <div class="filtro-grupo">
                     <label class="label-select">Agrupar por</label>
@@ -1199,12 +1201,13 @@ function montarPainelGeral() {
         </div>
 
         <div id="ceo-geral-contas-receber-lista" class="ceo-geral-secao" style="display:none;">
-            <p class="ceo-vazio-sutil">Valor total do cliente (vlrcliente) por orçamento. "Recebido" = evento já realizado; "Pendente" = ainda por acontecer.</p>
+            <p class="ceo-vazio-sutil">Valor total do cliente (vlrcliente) por orçamento, partido pelo status real de faturamento (nota fiscal) e negociação: Recebido, A Receber, Recebimento Atrasado, A Faturar e Em Negociação.</p>
             <div id="ceo-geral-colunas-contas-receber" class="ceo-geral-resultado"></div>
         </div>
 
         <div id="ceo-geral-contas-receber-graficos" class="ceo-geral-secao" style="display:none;">
             <p class="ceo-vazio-sutil">Dado bruto de entrada (valor do cliente) — sem cálculo de lucro/saldo aqui, isso já existe na aba Rentabilidade.</p>
+            <p class="ceo-geral-empresas-resumo" id="ceo-receber-empresas-resumo"></p>
             <div class="filtros" style="margin-bottom:14px;">
                 <div class="filtro-grupo">
                     <label class="label-select">Agrupar por</label>
@@ -1252,7 +1255,7 @@ function montarPainelGeral() {
             </div>
             <div class="ceo-geral-graficos">
                 <div class="ceo-chart-card">
-                    <h3>A receber — Recebido × Pendente</h3>
+                    <h3>A receber — Recebido / A Receber / Atrasado / A Faturar / Em Negociação</h3>
                     <div id="chart-contas-receber-contratado" class="ceo-chart"></div>
                 </div>
                 <div class="ceo-chart-card">
@@ -1371,7 +1374,30 @@ function mostrarSecaoGeral() {
 
 // Redesenha o conteúdo da combinação modo+visualização atual, sem duplicar a lógica de troca
 // nos chips de empresa/ano (eles só chamam isto).
+// "Valores referentes a: Todas as Empresas" (ou a lista de nomes, quando é um subconjunto) —
+// mostrado acima dos gráficos de cada aba, pra nunca ficar em dúvida se o filtro de empresas
+// (chips no topo) está restringindo o que está sendo exibido.
+function atualizarResumoEmpresasGeral() {
+    let texto = "Valores referentes a: nenhuma empresa selecionada";
+    if (empresasSelecionadasGeral && empresasGeral.length > 0) {
+        const todas = empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
+        if (todas) {
+            texto = "Valores referentes a: Todas as Empresas";
+        } else {
+            const nomes = empresasGeral
+                .filter((e) => empresasSelecionadasGeral.has(e.idempresa))
+                .map((e) => e.nmfantasia);
+            if (nomes.length > 0) texto = `Valores referentes a: ${nomes.join(", ")}`;
+        }
+    }
+    ["ceo-func-empresas-resumo", "ceo-pagar-empresas-resumo", "ceo-receber-empresas-resumo"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = texto;
+    });
+}
+
 function atualizarConteudoAtivoGeral() {
+    atualizarResumoEmpresasGeral();
     if (modoAtivoGeral === "funcionarios") {
         if (visualizacaoAtivaGeral === "lista") renderColunasGeral();
         else carregarGraficosFuncionariosGeral();
@@ -1411,10 +1437,19 @@ function renderFiltroEmpresasGeral() {
     const chipTodos = box.querySelector(".ceo-status-chip-todos");
     const chipsIndividuais = Array.from(box.querySelectorAll(".ceo-status-chip:not(.ceo-status-chip-todos)"));
 
+    // "Todas" agora é on/off de verdade: se já estão todas selecionadas, o clique desmarca tudo
+    // (mostra o estado vazio); senão, marca todas — mesmo gesto de clique dos chips individuais.
     chipTodos.addEventListener("click", () => {
-        empresasGeral.forEach((e) => empresasSelecionadasGeral.add(e.idempresa));
-        chipsIndividuais.forEach((chip) => chip.classList.add("ativo"));
-        chipTodos.classList.add("ativo");
+        const todasSelecionadas = empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
+        if (todasSelecionadas) {
+            empresasSelecionadasGeral.clear();
+            chipsIndividuais.forEach((chip) => chip.classList.remove("ativo"));
+            chipTodos.classList.remove("ativo");
+        } else {
+            empresasGeral.forEach((e) => empresasSelecionadasGeral.add(e.idempresa));
+            chipsIndividuais.forEach((chip) => chip.classList.add("ativo"));
+            chipTodos.classList.add("ativo");
+        }
         atualizarConteudoAtivoGeral();
         atualizarComparativoSeAberto();
     });
@@ -1772,40 +1807,6 @@ function renderGraficosPanoramaGeral(idContratado, idProvisao, dados, descontosP
     }, true);
 }
 
-// Dois gráficos genéricos de DADO BRUTO (sem cálculo de lucro/saldo) — usado tanto por Contas a
-// pagar (Paga×Pendente) quanto por Contas a receber (Recebido×Pendente): 1) barras empilhadas por
-// categoria (mês/ano/o que for), 2) linha do acumulado (soma das duas séries) no mesmo eixo.
-function renderGraficosBrutoGeral(idBarras, idAcumulado, categorias, serieA, serieB, labelA, labelB, corA, corB) {
-    if (typeof echarts === "undefined") return;
-    const tooltipMoeda = { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => moeda(v) };
-    const yMoeda = { type: "value", axisLabel: { formatter: fmtMoedaCurta } };
-    const xAxis = { type: "category", data: categorias };
-
-    const cBarras = obterChart(idBarras);
-    if (cBarras) cBarras.setOption({
-        tooltip: tooltipMoeda,
-        legend: { bottom: 0, data: [labelA, labelB] },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
-        xAxis, yAxis: yMoeda,
-        series: [
-            { name: labelA, type: "bar", stack: "total", color: corA, data: serieA },
-            { name: labelB, type: "bar", stack: "total", color: corB, data: serieB },
-        ],
-    }, true);
-
-    const acumulado = [];
-    let soma = 0;
-    for (let i = 0; i < categorias.length; i++) { soma += (serieA[i] || 0) + (serieB[i] || 0); acumulado.push(soma); }
-
-    const cAcumulado = obterChart(idAcumulado);
-    if (cAcumulado) cAcumulado.setOption({
-        tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
-        grid: { left: 70, right: 20, top: 30, bottom: 30 },
-        xAxis, yAxis: yMoeda,
-        series: [{ name: "Acumulado", type: "line", areaStyle: {}, color: "#1f6fc4", data: acumulado }],
-    }, true);
-}
-
 // Mesmos 2 gráficos, mas quebrando CADA período por empresa — cada empresa vira seu próprio
 // segmento dentro da barra (cor de marca sólida = labelA, mesma cor com transparência = labelB),
 // e o acumulado vira uma linha por empresa em vez de uma soma única. "linhasPorEmpresa" é um
@@ -1855,6 +1856,52 @@ function renderGraficosBrutoPorEmpresaGeral(idBarras, idAcumulado, categorias, l
         grid: { left: 70, right: 20, top: 30, bottom: 50 },
         xAxis, yAxis: yMoeda,
         series: seriesAcumulado,
+    }, true);
+}
+
+// As 5 categorias reais de Contas a Receber (ver /ceo/geral/receber em rotaCeo.js) — cor conta
+// uma história de progressão: verde = já caiu na conta, azul = a caminho no prazo, vermelho =
+// atrasado (mesmo tom de "erro/rejeitado" já usado no resto do app — atraso É um alerta de
+// verdade aqui), âmbar = fechado mas ainda sem nota emitida, cinza = nem fechou ainda.
+const CATEGORIAS_RECEBER_GERAL = [
+    { chave: "recebido", label: "Recebido", cor: "#1e9e54" },
+    { chave: "a_receber", label: "A Receber", cor: "#1f6fc4" },
+    { chave: "recebimento_atrasado", label: "Recebimento Atrasado", cor: "#dc2e2e" },
+    { chave: "a_faturar", label: "A Faturar", cor: "#e0a106" },
+    { chave: "em_negociacao", label: "Em Negociação", cor: "#8a8f98" },
+];
+
+// Mesmos 2 gráficos (barras empilhadas + acumulado), mas com N categorias em vez de 2 fixas —
+// usado só por Contas a Receber (Contas a Pagar continua com renderGraficosBrutoGeral, 2 séries).
+// "series" = array de { label, cor, data } (data alinhado com "categorias").
+function renderGraficosCategoriasGeral(idBarras, idAcumulado, categorias, series) {
+    if (typeof echarts === "undefined") return;
+    const tooltipMoeda = { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => moeda(v) };
+    const yMoeda = { type: "value", axisLabel: { formatter: fmtMoedaCurta } };
+    const xAxis = { type: "category", data: categorias };
+
+    const cBarras = obterChart(idBarras);
+    if (cBarras) cBarras.setOption({
+        tooltip: tooltipMoeda,
+        legend: { bottom: 0, data: series.map((s) => s.label) },
+        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        xAxis, yAxis: yMoeda,
+        series: series.map((s) => ({ name: s.label, type: "bar", stack: "total", color: s.cor, data: s.data })),
+    }, true);
+
+    const acumulado = [];
+    let soma = 0;
+    for (let i = 0; i < categorias.length; i++) {
+        soma += series.reduce((s, serie) => s + (serie.data[i] || 0), 0);
+        acumulado.push(soma);
+    }
+
+    const cAcumulado = obterChart(idAcumulado);
+    if (cAcumulado) cAcumulado.setOption({
+        tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
+        grid: { left: 70, right: 20, top: 30, bottom: 30 },
+        xAxis, yAxis: yMoeda,
+        series: [{ name: "Acumulado", type: "line", areaStyle: {}, color: "#1f6fc4", data: acumulado }],
     }, true);
 }
 
@@ -2121,13 +2168,15 @@ function limparEventoReceberGeral() {
 
 let linhasEventoAnosGeral = null; // cache das linhas cruas (por ano+empresa) do evento selecionado, pro botão "Detalhar por empresa"
 
-// Gráficos / Contas a receber (BRUTO — sem lucro/saldo, isso é papel da aba Rentabilidade) —
-// dois modos:
-// 1) Normal: "Recebido" (evento já realizado) × "Pendente" (ainda por acontecer), por MÊS do ano
-//    selecionado ou por ANO (todos), conforme agrupamentoReceberGeral; mesReceberGeral filtra um mês só.
-// 2) Evento selecionado: mesma métrica, mas comparando o MESMO evento ano a ano (soma as empresas
-//    por ano pro gráfico principal; as linhas cruas por empresa ficam cacheadas pro botão
-//    "Detalhar por empresa", que só aparece nesse modo).
+// Gráficos / Contas a receber (BRUTO — sem lucro/saldo, isso é papel da aba Rentabilidade) — as
+// 5 categorias reais empilhadas (CATEGORIAS_RECEBER_GERAL), somadas entre as empresas
+// selecionadas (o detalhe por empresa fica pra tabela abaixo — 5 categorias × N empresas na
+// mesma barra ficaria ilegível). Dois modos:
+// 1) Normal: por MÊS do ano selecionado ou por ANO (todos), conforme agrupamentoReceberGeral;
+//    mesReceberGeral filtra um mês só.
+// 2) Evento selecionado: mesma métrica, mas comparando o MESMO evento ano a ano (soma as
+//    empresas por ano); as linhas cruas por empresa ficam cacheadas pro botão "Detalhar por
+//    empresa", que só aparece nesse modo.
 async function carregarGraficosContasReceberGeral() {
     if (!empresasSelecionadasGeral) return;
     try {
@@ -2137,18 +2186,15 @@ async function carregarGraficosContasReceberGeral() {
 
             const porAno = new Map();
             linhasEventoAnosGeral.forEach((r) => {
-                const acc = porAno.get(r.ano) || { recebido: 0, pendente: 0 };
-                acc.recebido += Number(r.recebido) || 0;
-                acc.pendente += Number(r.pendente) || 0;
+                const acc = porAno.get(r.ano) || Object.fromEntries(CATEGORIAS_RECEBER_GERAL.map((c) => [c.chave, 0]));
+                CATEGORIAS_RECEBER_GERAL.forEach((c) => { acc[c.chave] += Number(r[c.chave]) || 0; });
                 porAno.set(r.ano, acc);
             });
             const anos = Array.from(porAno.keys()).sort((a, b) => a - b);
-            renderGraficosBrutoGeral(
+            renderGraficosCategoriasGeral(
                 "chart-contas-receber-contratado", "chart-contas-receber-provisao",
                 anos.map(String),
-                anos.map((a) => porAno.get(a).recebido),
-                anos.map((a) => porAno.get(a).pendente),
-                "Recebido", "Pendente", "#1e9e54", "#e0a106",
+                CATEGORIAS_RECEBER_GERAL.map((c) => ({ label: c.label, cor: c.cor, data: anos.map((a) => porAno.get(a)[c.chave]) })),
             );
 
             const detalheAberto = document.getElementById("ceo-receber-detalhe")?.style.display !== "none";
@@ -2157,7 +2203,6 @@ async function carregarGraficosContasReceberGeral() {
         }
 
         const params = paramsReceberGeral(agrupamentoReceberGeral);
-        params.set("porEmpresa", "1");
         const data = await fetchComToken(`/ceo/geral/receber?${params.toString()}`);
         const linhas = (data && data.linhas) || [];
 
@@ -2168,18 +2213,14 @@ async function carregarGraficosContasReceberGeral() {
             ? categorias.indexOf(String(chave))
             : (parseInt(chave, 10) || 1) - 1;
 
-        const linhasPorEmpresa = linhas
-            .map((r) => ({
-                idempresa: r.idempresa, nomeempresa: r.nmfantasia,
-                idx: indiceDaChave(r.chave),
-                a: Number(r.recebido) || 0, b: Number(r.pendente) || 0,
-            }))
-            .filter((r) => r.idx >= 0 && r.idx < categorias.length);
+        const series = CATEGORIAS_RECEBER_GERAL.map((c) => ({ label: c.label, cor: c.cor, data: Array(categorias.length).fill(0) }));
+        linhas.forEach((r) => {
+            const idx = indiceDaChave(r.chave);
+            if (idx < 0 || idx >= categorias.length) return;
+            series.forEach((s, i) => { s.data[idx] += Number(r[CATEGORIAS_RECEBER_GERAL[i].chave]) || 0; });
+        });
 
-        renderGraficosBrutoPorEmpresaGeral(
-            "chart-contas-receber-contratado", "chart-contas-receber-provisao",
-            categorias, linhasPorEmpresa, "Recebido", "Pendente",
-        );
+        renderGraficosCategoriasGeral("chart-contas-receber-contratado", "chart-contas-receber-provisao", categorias, series);
     } catch (err) {
         console.error("Erro ao carregar contas a receber (CEO Geral):", err);
     }
@@ -2210,35 +2251,29 @@ function renderDetalheEmpresaEventoGeral(linhas) {
     const linhasOrdenadas = [...linhas].sort((a, b) => a.ano - b.ano || (a.nomeempresa || "").localeCompare(b.nomeempresa || ""));
     const itens = linhasOrdenadas.map((r) => ({
         label: `${r.nomeempresa} · ${r.ano}`,
-        recebido: Number(r.recebido) || 0,
-        pendente: Number(r.pendente) || 0,
+        ...Object.fromEntries(CATEGORIAS_RECEBER_GERAL.map((c) => [c.chave, Number(r[c.chave]) || 0])),
     }));
 
-    // Ranking: maior recebido, maior pendente e menor recebido entre empresa×ano — bate o olho
-    // sem precisar ler o gráfico linha a linha.
-    const maiorRecebido = itens.reduce((a, b) => (b.recebido > a.recebido ? b : a));
-    const maiorPendente = itens.reduce((a, b) => (b.pendente > a.pendente ? b : a));
-    const menorRecebido = itens.reduce((a, b) => (b.recebido < a.recebido ? b : a));
-    if (rankingEl) rankingEl.innerHTML = `
-        <div class="ceo-resumo-card"><span>Maior recebido</span><strong class="pos">${moedaGeral(maiorRecebido.recebido)}</strong><small>${maiorRecebido.label}</small></div>
-        <div class="ceo-resumo-card"><span>Maior pendente</span><strong>${moedaGeral(maiorPendente.pendente)}</strong><small>${maiorPendente.label}</small></div>
-        <div class="ceo-resumo-card"><span>Menor recebido</span><strong>${moedaGeral(menorRecebido.recebido)}</strong><small>${menorRecebido.label}</small></div>
-    `;
+    // Total de cada categoria somado entre todas as empresa×ano do evento — mais direto que um
+    // ranking de maior/menor linha única quando são 5 categorias em vez de 2.
+    if (rankingEl) rankingEl.innerHTML = CATEGORIAS_RECEBER_GERAL.map((c) => {
+        const total = itens.reduce((s, i) => s + i[c.chave], 0);
+        return `<div class="ceo-resumo-card"><span>${c.label}</span><strong style="color:${c.cor}">${moedaGeral(total)}</strong></div>`;
+    }).join("");
 
     if (typeof echarts === "undefined") return;
     const nomes = itens.map((i) => nomeCurto(i.label, 24));
     const c = obterChart("chart-contas-receber-eventos");
     if (c) c.setOption({
         tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
-        legend: { bottom: 0, data: ["Recebido", "Pendente"] },
+        legend: { bottom: 0, data: CATEGORIAS_RECEBER_GERAL.map((cat) => cat.label) },
         grid: { left: 70, right: 20, top: 30, bottom: 90 },
         xAxis: { type: "category", data: nomes, axisLabel: { rotate: 30, interval: 0, fontSize: 10 } },
         yAxis: { type: "value", axisLabel: { formatter: fmtMoedaCurta } },
         dataZoom: itens.length > 15 ? [{ type: "slider", xAxisIndex: 0, start: 0, end: (15 / itens.length) * 100, height: 14, bottom: 60 }] : [],
-        series: [
-            { name: "Recebido", type: "line", color: "#1e9e54", data: itens.map((i) => i.recebido) },
-            { name: "Pendente", type: "line", color: "#e0a106", data: itens.map((i) => i.pendente) },
-        ],
+        series: CATEGORIAS_RECEBER_GERAL.map((cat) => ({
+            name: cat.label, type: "line", color: cat.cor, data: itens.map((i) => i[cat.chave]),
+        })),
     }, true);
 }
 
@@ -2258,32 +2293,36 @@ async function renderColunasContasReceberGeral() {
             return;
         }
 
-        let totRecebido = 0, totPendente = 0;
+        const totais = Object.fromEntries(CATEGORIAS_RECEBER_GERAL.map((c) => [c.chave, 0]));
         const linhasHtml = empresasVisiveis.map((e) => {
             const r = porEmpresa.get(e.idempresa);
-            const recebido = Number(r.recebido) || 0, pendente = Number(r.pendente) || 0;
-            totRecebido += recebido; totPendente += pendente;
+            const valores = CATEGORIAS_RECEBER_GERAL.map((c) => Number(r[c.chave]) || 0);
+            valores.forEach((v, i) => { totais[CATEGORIAS_RECEBER_GERAL[i].chave] += v; });
+            const total = valores.reduce((s, v) => s + v, 0);
             return `<tr>
                 <td><span class="ceo-geral-empresa-tag ${classeTemaEmpresa(e.nmfantasia)}">${e.nmfantasia}</span></td>
-                <td class="pos">${moedaGeral(recebido)}</td>
-                <td>${moedaGeral(pendente)}</td>
-                <td>${moedaGeral(recebido + pendente)}</td>
+                ${valores.map((v) => `<td>${moedaGeral(v)}</td>`).join("")}
+                <td>${moedaGeral(total)}</td>
             </tr>`;
         }).join("");
 
+        const totalGeral = CATEGORIAS_RECEBER_GERAL.reduce((s, c) => s + totais[c.chave], 0);
+        const cardsResumo = CATEGORIAS_RECEBER_GERAL.map((c) =>
+            `<div class="ceo-resumo-card"><span>${c.label}</span><strong style="color:${c.cor}">${moedaGeral(totais[c.chave])}</strong></div>`
+        ).join("");
+
         cont.innerHTML = `
             <div class="ceo-resumo ceo-geral-total-geral">
-                <div class="ceo-resumo-card"><span>Recebido (todas as empresas)</span><strong class="pos">${moedaGeral(totRecebido)}</strong></div>
-                <div class="ceo-resumo-card"><span>Pendente (todas as empresas)</span><strong>${moedaGeral(totPendente)}</strong></div>
-                <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totRecebido + totPendente)}</strong></div>
+                ${cardsResumo}
+                <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totalGeral)}</strong></div>
             </div>
             <div class="ceo-geral-tabela-wrap">
                 <table class="ceo-geral-tabela-empresas">
-                    <thead><tr><th>Empresa</th><th>Recebido</th><th>Pendente</th><th>Total</th></tr></thead>
+                    <thead><tr><th>Empresa</th>${CATEGORIAS_RECEBER_GERAL.map((c) => `<th>${c.label}</th>`).join("")}<th>Total</th></tr></thead>
                     <tbody>${linhasHtml}</tbody>
                 </table>
             </div>
-            <p class="ceo-vazio-sutil" style="margin-top:12px;">Valor total do cliente (vlrcliente) por orçamento. "Recebido" = evento já realizado; "Pendente" = ainda por acontecer.</p>`;
+            <p class="ceo-vazio-sutil" style="margin-top:12px;">Valor total do cliente (vlrcliente) por orçamento, partido pelo status real de faturamento/recebimento (routes/rotaCeo.js explica cada categoria).</p>`;
     } catch (err) {
         console.error("Erro ao carregar contas a receber - lista (CEO Geral):", err);
     }

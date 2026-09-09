@@ -67,6 +67,7 @@ async function listarPermissoesPorUsuario(req, res) {
       comercial: !!row.comercial,
       devs: !!row.devs,
       rh: !!row.rh,
+      ti: !!row.ti,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -84,7 +85,7 @@ async function upsertPermissao(client, idusuario, modulo, idempresa, flags) {
   const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
   const {
     acesso, cadastrar, alterar, pesquisar, apagar,
-    master, financeiro, supremo, comercial, devs, rh
+    master, financeiro, supremo, comercial, devs, rh, ti
   } = flags;
 
   const { rows } = await client.query(
@@ -95,19 +96,19 @@ async function upsertPermissao(client, idusuario, modulo, idempresa, flags) {
   if (rows.length > 0) {
     const updateResult = await client.query(`
       UPDATE permissoes
-      SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11
-      WHERE idusuario = $12 AND modulo = $13 AND idempresa = $14
+      SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11, ti = $12
+      WHERE idusuario = $13 AND modulo = $14 AND idempresa = $15
       RETURNING id;
-    `, [!!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, idusuario, moduloFormatado, idempresa]);
+    `, [!!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, idusuario, moduloFormatado, idempresa]);
 
     return { idpermissao: updateResult.rows[0]?.id || null, acao: 'atualizou' };
   }
 
   const insertResult = await client.query(`
-    INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, idempresa)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, ti, idempresa)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING id;
-  `, [idusuario, moduloFormatado, !!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, idempresa]);
+  `, [idusuario, moduloFormatado, !!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, idempresa]);
 
   return { idpermissao: insertResult.rows[0].id, acao: 'cadastrou' };
 }
@@ -146,7 +147,8 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     supremo,
     comercial,
     devs,
-    rh
+    rh,
+    ti
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
@@ -162,7 +164,7 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
   try {
     const { idpermissao, acao } = await upsertPermissao(
       db, idusuario, modulo, idempresa,
-      { acesso, cadastrar, alterar, pesquisar, apagar, master, financeiro, supremo, comercial, devs, rh }
+      { acesso, cadastrar, alterar, pesquisar, apagar, master, financeiro, supremo, comercial, devs, rh, ti }
     );
 
     await garantirVinculoEmpresa(db, idusuario, idempresa, ativo);
@@ -213,7 +215,8 @@ async function listarGradePermissoes(req, res) {
         COALESCE(p.supremo, false)     AS supremo,
         COALESCE(p.comercial, false)   AS comercial,
         COALESCE(p.devs, false)        AS devs,
-        COALESCE(p.rh, false)          AS rh
+        COALESCE(p.rh, false)          AS rh,
+        COALESCE(p.ti, false)          AS ti
       FROM modulos m
       LEFT JOIN permissoes p ON LOWER(p.modulo) = LOWER(m.modulo) AND p.idusuario = $1 AND p.idempresa = $2
       ORDER BY m.modulo

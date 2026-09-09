@@ -12,6 +12,13 @@ const pool = require("../db/conexaoDB");
 const { contextoEmpresa } = require("../middlewares/authMiddlewares");
 const { exigirFlag } = require("../middlewares/permissaoMiddleware");
 
+// Tela individual do holerite (abrir/editar/pagar/anexar comprovante) — exige master OU
+// supremo. Quem só tem "rh" (sem essas flags) fica restrito à lista (GET /folha) + confirmar
+// (PUT /holerite/:id/conferir), sem entrar no detalhe de ninguém (ver front-end RH.js,
+// podeAbrirDetalhe()). Router mount (server.js) já libera rh/master/supremo pro módulo todo;
+// isso aqui reforça de novo, rota a rota, só nas que são tela individual/edição de verdade.
+const apenasEdicao = exigirFlag("master", "supremo");
+
 // Só master/dev pode ALTERAR comprovantes (trocar um já anexado ou remover). O primeiro
 // anexo é liberado para o usuário de RH; a partir daí a mudança é restrita.
 async function podeAlterarComprovante(idusuario, idempresa) {
@@ -482,6 +489,17 @@ function feriadosDoAno(ano) {
 }
 
 // Conta dias úteis (seg–sex) do mês, descontando os feriados acima.
+// O mês/ano escolhido na tela (dropdown "Mês") é o VENCIMENTO — quando o salário é pago —,
+// não o mês trabalhado: por decisão do financeiro (2026-09), quem trabalha em Agosto recebe
+// em Setembro. Por isso dias úteis/VA/VT/INSS/IRRF do holerite MENSAL usam o mês ANTERIOR ao
+// selecionado; o que fica gravado em folhaholerite.mes/ano continua sendo o vencimento (não
+// muda o schema nem holerites já existentes — só a conta feita a partir de hoje em diante).
+function competenciaAnterior(mesVencimento, anoVencimento) {
+  return mesVencimento === 1
+    ? { mes: 12, ano: anoVencimento - 1 }
+    : { mes: mesVencimento - 1, ano: anoVencimento };
+}
+
 function contarDiasUteis(ano, mes) {
   const feriados = feriadosDoAno(ano);
   const ultimoDia = new Date(ano, mes, 0).getDate();
@@ -495,6 +513,24 @@ function contarDiasUteis(ano, mes) {
     dias++;
   }
   return dias;
+}
+
+// Vencimento dos BENEFÍCIOS (VA/VT) — último dia útil do próprio mês vigente (sem defasagem,
+// diferente do salário que vence dia 5 do mês seguinte): VT via bilhete único depende de
+// boleto/compensação (por isso é programado uns dias antes, mas o alvo é entrar até o último
+// dia útil); VA/VC via PIX/cartão ticket é rápido e cabe no mesmo prazo.
+function ultimoDiaUtil(ano, mes) {
+  const feriados = feriadosDoAno(ano);
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  for (let d = ultimoDia; d >= 1; d--) {
+    const data = new Date(ano, mes - 1, d);
+    const dow = data.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const isoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (feriados.has(isoDia)) continue;
+    return d;
+  }
+  return ultimoDia;
 }
 
 
@@ -543,12 +579,18 @@ router.get("/empresas", async (req, res) => {
 });
 
 // PUT /rh/funcionario/:id/salario — atualiza salário base e dependentes no cadastro.
-router.put("/funcionario/:id/salario", async (req, res) => {
+// PUT /rh/funcionario/:id/salario — grava no CADASTRO do funcionário (funcionarioempresas),
+// não numa competência específica: salário/dependentes já salvavam aqui; valealim/valetrnsp
+// (valor/dia de VA/VT) entraram junto porque não existia nenhum jeito de corrigi-los "pra
+// sempre" a partir do holerite — só editando o total de um mês, que não voltava pro cadastro.
+router.put("/funcionario/:id/salario", apenasEdicao, async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idfuncionario = parseInt(req.params.id, 10);
     const salariobase = Number(req.body.salariobase ?? req.body.salario) || 0;
     const dependentes = parseInt(req.body.dependentes, 10) || 0;
+    const valealim = Number(req.body.valealim) || 0;
+    const valetrnsp = Number(req.body.valetrnsp) || 0;
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
@@ -560,10 +602,11 @@ router.put("/funcionario/:id/salario", async (req, res) => {
     if (dono.rowCount === 0) return res.status(400).json({ error: "Funcionário não encontrado nesta empresa." });
 
     await pool.query(
-      `UPDATE funcionarioempresas SET salario = $1, dependentes = $2 WHERE idfuncionario = $3 AND idempresa = $4`,
-      [salariobase, dependentes, idfuncionario, idempresa]
+      `UPDATE funcionarioempresas SET salario = $1, dependentes = $2, valealim = $3, valetrnsp = $4
+        WHERE idfuncionario = $5 AND idempresa = $6`,
+      [salariobase, dependentes, valealim, valetrnsp, idfuncionario, idempresa]
     );
-    res.json({ ok: true, salariobase, dependentes });
+    res.json({ ok: true, salariobase, dependentes, valealim, valetrnsp });
   } catch (error) {
     console.error("ERRO RH /funcionario/:id/salario:", error);
     res.status(500).json({ error: error.message });
@@ -620,7 +663,7 @@ router.put("/parametros/:ano", async (req, res) => {
 
 // POST /rh/holerite/calcular — calcula INSS/IRRF do holerite SEM persistir.
 // Body: { idfuncionario, mes, ano, salariobase, itens:[{tipo,descricao,valor}] }
-router.post("/holerite/calcular", async (req, res) => {
+router.post("/holerite/calcular", apenasEdicao, async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const { idfuncionario, ano, salariobase } = req.body;
@@ -671,7 +714,7 @@ router.post("/holerite/calcular", async (req, res) => {
 // Body: { idfuncionario, ano, salariobase?, admissao?, desligamento, motivo,
 //         avisoPrevio, feriasVencidas, saldoFgts }
 // Devolve { proventos:[...], descontos:[...], resumo:{...} } prontos p/ o holerite.
-router.post("/rescisao/calcular", async (req, res) => {
+router.post("/rescisao/calcular", apenasEdicao, async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const { idfuncionario, ano } = req.body;
@@ -711,7 +754,7 @@ router.post("/rescisao/calcular", async (req, res) => {
 
 // GET /rh/holerite?idfuncionario=&mes=&ano= — holerite da competência.
 // Se ainda não existir, devolve um rascunho (não persistido) com o salário base atual.
-router.get("/holerite", async (req, res) => {
+router.get("/holerite", apenasEdicao, async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idfuncionario = parseInt(req.query.idfuncionario, 10);
@@ -732,10 +775,14 @@ router.get("/holerite", async (req, res) => {
     );
     if (func.rowCount === 0) return res.status(404).json({ error: "Funcionário não encontrado nesta empresa." });
     const funcionario = func.rows[0];
-    // Valores de VA/VT por DIA (cadastro) e dias úteis da competência (seg–sex − feriados).
+    // Valores de VA/VT por DIA (cadastro) e dias úteis do mês VIGENTE (seg–sex − feriados) —
+    // benefício é "trabalha e recebe" no mesmo mês (sem defasagem), diferente do salário, que é
+    // "trabalha num mês e recebe no seguinte" (ver competenciaAnterior, usada só pra saber em
+    // qual mês/ano o salário foi trabalhado e qual tabela de INSS/IRRF vale).
     const valealimDia = Number(funcionario.valealim) || 0;
     const valetrnspDia = Number(funcionario.valetrnsp) || 0;
     const diasUteis = contarDiasUteis(ano, mes);
+    const competencia = tipo === "mensal" ? competenciaAnterior(mes, ano) : { mes, ano };
 
     // Plano de saúde: desconto por faixa etária (titular + dependentes) na competência.
     let planoSaude = { total: 0, itens: [] };
@@ -753,6 +800,7 @@ router.get("/holerite", async (req, res) => {
       funcao: funcionario.funcao, cbo: funcionario.cbo,
       admissao: funcionario.admissao, dependentes: funcionario.dependentes,
       valealimDia, valetrnspDia, diasUteis, planoSaude,
+      competenciaMes: competencia.mes, competenciaAno: competencia.ano,
     };
 
     const head = await pool.query(
@@ -817,7 +865,7 @@ router.get("/holerite", async (req, res) => {
 
 // POST /rh/holerite — cria/atualiza o holerite da competência e substitui seus itens.
 // Body: { idfuncionario, mes, ano, salariobase, obs, itens:[{tipo:'P'|'D', descricao, valor}] }
-router.post("/holerite", async (req, res) => {
+router.post("/holerite", apenasEdicao, async (req, res) => {
   const client = await pool.connect();
   try {
     const idempresa = req.idempresa;
@@ -836,12 +884,16 @@ router.post("/holerite", async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Upsert do cabeçalho (não mexe em status/dtpagamento já existentes).
+    // Upsert do cabeçalho (não mexe em status/dtpagamento já existentes). Qualquer edição
+    // desfaz uma conferência anterior (rh-panel > lista > "Conferir") — o financeiro só deve
+    // enxergar valores que já refletem o que foi de fato salvo por último.
     const up = await client.query(
       `INSERT INTO folhaholerite (idempresa, idfuncionario, mes, ano, tipo, salariobase, obs)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (idempresa, idfuncionario, mes, ano, tipo)
-       DO UPDATE SET salariobase = EXCLUDED.salariobase, obs = EXCLUDED.obs
+       DO UPDATE SET salariobase = EXCLUDED.salariobase, obs = EXCLUDED.obs,
+                      conferido = false, conferido_em = NULL, conferido_por = NULL,
+                      conferido_beneficios = false, conferido_beneficios_em = NULL, conferido_beneficios_por = NULL
        RETURNING idholerite`,
       [idempresa, idfuncionario, mes, ano, tipo, Number(salariobase) || 0, obs || null]
     );
@@ -872,7 +924,7 @@ router.post("/holerite", async (req, res) => {
 
 // PUT /rh/holerite/:id/pagar — alterna o status de pagamento do holerite.
 // Body: { pago: true|false }. pago=true => 'Pago' + dtpagamento (hoje); false => 'Pendente'.
-router.put("/holerite/:id/pagar", async (req, res) => {
+router.put("/holerite/:id/pagar", apenasEdicao, async (req, res) => {
   try {
     const idempresa = req.idempresa;
     const idholerite = parseInt(req.params.id, 10);
@@ -898,9 +950,99 @@ router.put("/holerite/:id/pagar", async (req, res) => {
   }
 });
 
+// PUT /rh/holerite/:id/pagar-beneficios — mesma ideia do /pagar, mas separada porque
+// benefícios (VA/VT) são pagos em data e por meio diferente do salário (boleto/pix, não é o
+// pagamento em conta corrente do salário) — status_beneficios/dtpagamento_beneficios são
+// colunas próprias, sem afetar status/dtpagamento (que continuam sendo só do salário).
+router.put("/holerite/:id/pagar-beneficios", apenasEdicao, async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idholerite = parseInt(req.params.id, 10);
+    const pago = req.body.pago !== false; // default: marcar como pago
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+
+    const { rowCount, rows } = await pool.query(
+      `UPDATE folhaholerite
+         SET status_beneficios = $1,
+             dtpagamento_beneficios = CASE WHEN $2 THEN CURRENT_DATE ELSE NULL END
+       WHERE idholerite = $3 AND idempresa = $4
+       RETURNING idholerite, status_beneficios, dtpagamento_beneficios`,
+      [pago ? "Pago" : "Pendente", pago, idholerite, idempresa]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+    res.json({ ok: true, ...rows[0] });
+  } catch (error) {
+    console.error("ERRO RH /holerite/:id/pagar-beneficios:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /rh/holerite/:id/conferir — marca (ou desfaz) a conferência mensal, direto pela LISTA
+// (rh-folha), sem precisar abrir a tela individual. Enquanto não conferido, o holerite não
+// entra em Financeiro > Contas a Pagar (ver GET /contas-pagar em rotaMain.js) — é o jeito de
+// quem só tem acesso à lista (ex.: Master) aprovar a competência antes dela virar conta a
+// pagar de verdade. Qualquer edição no holerite (POST /holerite) desfaz essa marca de novo.
+// Body: { conferido: true|false }. conferido=true => grava quem/quando; false => limpa.
+router.put("/holerite/:id/conferir", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idholerite = parseInt(req.params.id, 10);
+    const conferido = req.body.conferido !== false; // default: confirmar
+    const idusuario = req.usuario?.idusuario || null;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+
+    const { rowCount, rows } = await pool.query(
+      `UPDATE folhaholerite
+         SET conferido = $1,
+             conferido_em = CASE WHEN $1 THEN NOW() ELSE NULL END,
+             conferido_por = CASE WHEN $1 THEN $2::integer ELSE NULL END
+       WHERE idholerite = $3 AND idempresa = $4
+       RETURNING idholerite, conferido, conferido_em, conferido_por`,
+      [conferido, idusuario, idholerite, idempresa]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+    res.json({ ok: true, ...rows[0] });
+  } catch (error) {
+    console.error("ERRO RH /holerite/:id/conferir:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /rh/holerite/:id/conferir-beneficios — mesma ideia do /conferir, mas separada porque
+// salário e benefícios (VA/VT) vencem em dias diferentes (salário: dia 5 do mês de
+// vencimento; benefícios: último dia útil do próprio mês vigente, sem defasagem) — conferir
+// um não pode travar o outro. Body: { conferido: true|false }.
+router.put("/holerite/:id/conferir-beneficios", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idholerite = parseInt(req.params.id, 10);
+    const conferido = req.body.conferido !== false; // default: confirmar
+    const idusuario = req.usuario?.idusuario || null;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+
+    const { rowCount, rows } = await pool.query(
+      `UPDATE folhaholerite
+         SET conferido_beneficios = $1,
+             conferido_beneficios_em = CASE WHEN $1 THEN NOW() ELSE NULL END,
+             conferido_beneficios_por = CASE WHEN $1 THEN $2::integer ELSE NULL END
+       WHERE idholerite = $3 AND idempresa = $4
+       RETURNING idholerite, conferido_beneficios, conferido_beneficios_em, conferido_beneficios_por`,
+      [conferido, idusuario, idholerite, idempresa]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+    res.json({ ok: true, ...rows[0] });
+  } catch (error) {
+    console.error("ERRO RH /holerite/:id/conferir-beneficios:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /rh/holerite/:id/comprovante — anexa (ou substitui) o comprovante de pagamento.
 // multipart/form-data, campo "comprovante" (imagem/PDF/JFIF, até 10MB).
-router.post("/holerite/:id/comprovante", (req, res) => {
+router.post("/holerite/:id/comprovante", apenasEdicao, (req, res) => {
   uploadComprovanteRH(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     try {
@@ -1034,10 +1176,10 @@ const VT_DESC = "Vale-Transporte";
 // precisa da mesma competência sempre "preenchida" (real ou prevista) pra casar com a conta
 // projetada na tela de Vencimentos.
 async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
-  const salariobase = Number(f.salario) || 0;
-
   const head = (await pool.query(
-    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante
+    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante, h.salariobase,
+            h.conferido, h.conferido_em, h.conferido_beneficios, h.conferido_beneficios_em,
+            h.status_beneficios, h.dtpagamento_beneficios
        FROM folhaholerite h
       WHERE h.idempresa = $1 AND h.idfuncionario = $2 AND h.mes = $3 AND h.ano = $4
         AND COALESCE(h.tipo,'mensal') = 'mensal'`,
@@ -1045,6 +1187,10 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
   )).rows[0];
 
   if (head) {
+    // Mês já salvo: usa o salário CONGELADO naquele holerite (h.salariobase), não o do
+    // cadastro atual — senão a lista mostraria um total diferente do que está de fato gravado
+    // (e do que o holerite individual exibe), se o salário do cadastro mudar depois.
+    const salariobase = Number(head.salariobase) || 0;
     const itens = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
       [head.idholerite]
@@ -1053,15 +1199,24 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
     return {
       idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
       origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
+      conferido: head.conferido, conferidoEm: head.conferido_em,
+      conferidoBeneficios: head.conferido_beneficios, conferidoBeneficiosEm: head.conferido_beneficios_em,
+      statusBeneficios: head.status_beneficios, dtpagamentoBeneficios: head.dtpagamento_beneficios,
+      salariobase, itens,
       proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
     };
   }
+
+  const salariobase = Number(f.salario) || 0;
 
   const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis);
   const t = calcularTotais(salariobase, itens);
   return {
     idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
     origem: "previsao", status: "Previsão", dtpagamento: null, comprovante: null,
+    conferido: false, conferidoEm: null, conferidoBeneficios: false, conferidoBeneficiosEm: null,
+    statusBeneficios: "Previsão", dtpagamentoBeneficios: null,
+    salariobase, itens,
     proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
   };
 }
@@ -1084,15 +1239,30 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
   )).rows[0];
 
   if (ant) {
-    // Replica os itens do mês anterior; recalcula só VA/VT pelos dias úteis do mês atual.
-    return (await pool.query(
+    // Replica os itens do mês anterior; recalcula VA/VT pelos dias úteis do mês atual e
+    // INSS/IRRF pela tabela de alíquotas vigente sobre o salário atual — não pode só copiar o
+    // valor do mês passado, porque salário/dependentes/alíquota podem ter mudado de lá pra cá.
+    // Atualiza os que já existiam (por descrição) e GARANTE que VA/VT/INSS/IRRF sempre existam
+    // (insere se o mês replicado não tinha — histórico incompleto de antes desse cálculo
+    // existir); outros descontos/proventos manuais (ex.: bônus, plano de saúde) não são mexidos.
+    const inss = calcularINSS(salariobase, params);
+    const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
+    const itensAnteriores = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
       [ant.idholerite]
     )).rows.map((i) => {
       if (i.tipo === "B" && i.descricao === VA_DESC) return { ...i, valor: va };
       if (i.tipo === "B" && i.descricao === VT_DESC) return { ...i, valor: vt };
+      if (i.tipo === "D" && i.descricao === "INSS") return { ...i, valor: inss };
+      if (i.tipo === "D" && i.descricao === "IRRF") return { ...i, valor: ir.irrf };
       return i;
     });
+    const tem = (descricao) => itensAnteriores.some((i) => i.descricao === descricao);
+    if (!tem(VA_DESC)) itensAnteriores.push({ tipo: "B", descricao: VA_DESC, valor: va });
+    if (!tem(VT_DESC)) itensAnteriores.push({ tipo: "B", descricao: VT_DESC, valor: vt });
+    if (!tem("INSS")) itensAnteriores.push({ tipo: "D", descricao: "INSS", valor: inss });
+    if (!tem("IRRF")) itensAnteriores.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+    return itensAnteriores;
   }
 
   // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base).
@@ -1144,7 +1314,7 @@ async function computarLinha13(idempresa, f, mes, ano, parcela, params) {
   const salariobase = Number(f.salario) || 0;
 
   const head = (await pool.query(
-    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante
+    `SELECT h.idholerite, h.status, h.dtpagamento, h.comprovante, h.conferido, h.conferido_em
        FROM folhaholerite h
       WHERE h.idempresa = $1 AND h.idfuncionario = $2 AND h.mes = $3 AND h.ano = $4 AND h.tipo = '13'`,
     [idempresa, f.idfuncionario, mes, ano]
@@ -1159,6 +1329,7 @@ async function computarLinha13(idempresa, f, mes, ano, parcela, params) {
     return {
       idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
       origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
+      conferido: head.conferido, conferidoEm: head.conferido_em,
       proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
     };
   }
@@ -1186,6 +1357,7 @@ async function computarLinha13(idempresa, f, mes, ano, parcela, params) {
   return {
     idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
     origem: "previsao", status: "Previsão", dtpagamento: null, comprovante: null,
+    conferido: false, conferidoEm: null,
     proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
   };
 }
@@ -1250,7 +1422,12 @@ router.get("/folha", async (req, res) => {
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
     if (!mes || !ano) return res.status(400).json({ error: "mes e ano obrigatórios." });
 
-    const params = await obterParametros(ano);
+    // mes/ano aqui são o VENCIMENTO do salário (o que a tela seleciona) — a tabela de
+    // INSS/IRRF usa o mês TRABALHADO do salário (o anterior, ver competenciaAnterior()), mas
+    // dias úteis de VA/VT usam o mês VIGENTE direto (benefício não tem defasagem: trabalha e
+    // recebe no mesmo mês).
+    const { mes: mesComp, ano: anoComp } = competenciaAnterior(mes, ano);
+    const params = await obterParametros(anoComp);
     const diasUteis = contarDiasUteis(ano, mes);
 
     const funcs = (await pool.query(
@@ -1280,7 +1457,23 @@ router.get("/folha", async (req, res) => {
       { proventos: 0, descontos: 0, liquido: 0, pagos: 0, pendentes: 0, previsoes: 0, qtd: linhas.length }
     );
 
-    res.json({ linhas, totais, mes, ano, diasUteis });
+    // 13º só existe no mês exato de vencimento de cada parcela (20/11 = 1ª, 30/12 = 2ª) — não
+    // tem defasagem vencimento×competência nem benefícios (VA/VT), por isso fica numa lista
+    // separada (linhas13), fora dos totais/resumo mensal de cima. Mesmo botão "Conferir" da
+    // parte de cima (PUT /holerite/:id/conferir) — só entra em Contas a Pagar depois disso
+    // (ver GET /contas-pagar em rotaMain.js).
+    const linhas13 = [];
+    if (mes === 11 || mes === 12) {
+      const parcela = mes === 11 ? "1" : "2";
+      const params13 = await obterParametros(ano);
+      for (const f of funcs) {
+        await garantirHolerite13(idempresa, f, mes, ano, parcela, params13);
+        const linha13 = await computarLinha13(idempresa, f, mes, ano, parcela, params13);
+        if (linha13.idholerite) linhas13.push({ ...linha13, parcela });
+      }
+    }
+
+    res.json({ linhas, linhas13, totais, mes, ano, mesComp, anoComp, diasUteis });
   } catch (error) {
     console.error("ERRO RH /folha:", error);
     res.status(500).json({ error: error.message });
@@ -1289,6 +1482,9 @@ router.get("/folha", async (req, res) => {
 
 // Helpers reaproveitados por routes/rotaMain.js (GET /contas-pagar) pra casar cada conta de
 // funcionário projetada com a folha (real ou prevista) da mesma competência.
-router.helpersFolha = { obterParametros, contarDiasUteis, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA };
+router.helpersFolha = {
+  obterParametros, contarDiasUteis, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13,
+  garantirHolerite13, PERFIS_FOLHA, competenciaAnterior, calcularINSS, calcularIRRF, VA_DESC, VT_DESC,
+};
 
 module.exports = router;

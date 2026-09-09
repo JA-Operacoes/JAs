@@ -1,200 +1,212 @@
 <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-<link rel="stylesheet" href="css/Modal/CadLancamentos.css"> 
+<link rel="stylesheet" href="css/Modal/CadLancamentos.css?v=16">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 
 <div id="cadModalLancamentos" class="modal">
     <div class="modal-content">
-        
+
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
 
-        <div id="form-lancamentos"> 
-            <div class="title">
-                <h1>Lançamentos Financeiros</h1>
-            </div>
+        <div id="lc-painel">
+        <div class="title">
+            <h1>Lançamentos Financeiros</h1>           
+        </div>
+        <br>
+        <div class="lc-tabs">
+            <button type="button" class="lc-tab-btn ativa" data-lc-tab="lista"><i class="fa-solid fa-file-invoice-dollar"></i> Lançamentos</button>
+            <button type="button" class="lc-tab-btn" data-lc-tab="planocontas"><i class="fa-solid fa-sitemap"></i> Plano de Contas</button>
+            <button type="button" class="lc-tab-btn" data-lc-tab="centrocusto"><i class="fa-solid fa-building"></i> Centro de Custo</button>
+        </div>
 
+        <div class="lc-view ativa" id="lcViewLista">
             <form method="post" id="form-lancamentos" name="form-lancamentos" autocomplete="on">
-                <fieldset>
-                    <legend>Dados do Lançamento</legend>
-                    
-                    <div class="form-3colunas">
-                        <div class="form">
-                            <input type="text" name="idLancamento" id="idLancamento" readonly>
-                            <label for="idLancamento">Código</label>
-                        </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" name="descricao" id="descricao" spellcheck="false" placeholder=" ">
-                            <label for="descricao">Descrição (Opcional - Caso vazio, usará Nome da Conta)</label>
-                        </div>
-                        
-                        
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Ativo</p>
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                </label>
+                    <div class="lc-secao-linha">
+                    <div class="lc-secao">
+                        <h3>Identificação</h3>
+                        <div class="form-3colunas">
+                            <div class="form">
+                                <input type="text" name="idLancamento" id="idLancamento" readonly>
+                                <label for="idLancamento">Código</label>
                             </div>
-                        </div>
-                    </div>  
-                                        
-                    <div class="form-3colunas">
-                        <div class="form">                            
-                            <select name="idConta" id="idContaSelect" class="required">
-                                <option value="" disabled selected></option>                        
-                            </select>
-                            <label for="idContaSelect">Selecione a Conta</label>
-                        </div>
-
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Cliente</p>
-                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkCliente" name="tipoVinculo" value="cliente" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                </label>
+                            <div class="form">
+                                <input type="text" class="uppercase" name="descricao" id="descricao" spellcheck="false" placeholder=" " required>
+                                <label for="descricao">Descrição do Lançamento</label>
                             </div>
-                        </div>
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Fornecedor</p>
-                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFornecedor" name="tipoVinculo" value="fornecedor" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                </label>
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Ativo</p>
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Funcionário</p>
-                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFuncionario" name="tipoVinculo" value="funcionario" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        
-
-                        <div id="containerPerfilFuncionario" style="margin-left: 20px; margin-top: 10px;">
-                            <label>
-                                <input type="radio" name="perfilFuncionario" value="funcionário" class="perfil-radio" disabled> Registrado
-                            </label>
-                            <label style="margin-left: 15px;">
-                                <input type="radio" name="perfilFuncionario" value="free-lancer" class="perfil-radio" disabled> Sem Registro
-                            </label>                        
-                        </div>
-                        <div class="form" id="containerVinculo"> 
-                            <select name="idVinculo" id="idVinculo" class="required">
-                                <option value="" disabled selected></option>
-                            </select>
-                            <label for="idVinculo" id="labelVinculo">Selecione o Vínculo</label> 
-                        </div>
-
-                        <div class="field-group-checkbox">                            
-                            <input id="locadoCheck" type="checkbox" />
-                            <label for="locadoCheck" class="label-inline">Locado</label>                                                 
                         </div>
                     </div>
 
-                    <div class="form-3colunas">
-                        <div class="form">                                            
-                            <select name="tpConta" id="tpConta" class="required">
-                                <option value="" disabled selected></option>
-                            </select>
-                            <label for="tpConta">Tipo de Conta</label>
-                        </div>
+                    <div class="lc-secao">
+                        <h3>Classificação Financeira</h3>
+                        <div class="form-3colunas">
+                            <div class="form">
+                                <select name="idPlanoContas" id="idPlanoContasSelect" class="required">
+                                    <option value="" disabled selected></option>
+                                </select>
+                                <label for="idPlanoContasSelect">Plano de Contas</label>
+                            </div>
+                            <div class="form">
+                                <select name="centroCusto" id="centroCusto"  class="required">
+                                    <option value="" disabled selected></option>
+                                </select>
+                                <label for="centroCusto">Centro Custo</label>
+                            </div>
+                            <div class="form">
+                                <select name="empresaPagadora" id="empresaPagadora"  class="required">
+                                    <option value="" disabled selected></option>
+                                </select>
+                                <label for="empresaPagadora">Empresa Pagadora</label>
+                            </div>
 
-                        <div class="form">                        
-                            <select name="centroCusto" id="centroCusto"  class="required">
-                                <option value="" disabled selected></option>
-                            </select>
-                            <label for="centroCusto">Centro Custo</label>
-                        </div>
-
-                        <div class="form">                        
-                            <select name="empresaPagadora" id="empresaPagadora"  class="required">
-                                <option value="" disabled selected></option>
-                            </select>
-                            <label for="empresaPagadora">Empresa Pagadora</label>
+                            <div class="field-group-checkbox">
+                                <input id="locadoCheck" type="checkbox" />
+                                <label for="locadoCheck" class="label-inline">Imóvel Locado</label>
+                            </div>
                         </div>
                     </div>
+                    </div>
 
-                    
-       
+                    <div class="lc-secao-linha">
+                    <div class="lc-secao">
+                        <h3>Vínculo</h3>
+                        <div class="lc-vinculo-tipo">
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Cliente</p>
+                                        <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkCliente" name="tipoVinculo" value="cliente" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Fornecedor</p>
+                                        <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFornecedor" name="tipoVinculo" value="fornecedor" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Funcionário</p>
+                                        <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFuncionario" name="tipoVinculo" value="funcionario" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
 
-                    <div class="form-3colunas">
-                        <div class="form">
-                            <input type="text" name="vlrEstimado" id="vlrEstimado" required>
-                            <label for="vlrEstimado">Valor Estimado (R$)</label>
-                        </div>
-
-                        <div class="form">
-                            <input type="date" name="dtRecebimento" id="dtRecebimento" required>
-                            <label for="dtRecebimento">Recebimento Conta</label>
-                        </div>
-                        <div class="form">
-                            <input type="date" name="vctoBase" id="vctoBase" required>
-                            <label for="vctoBase">Vencimento Base</label>
-                        </div>
-                        <div class="form">
-                            <select name="periodicidade" id="periodicidade">
-                                <option value="MENSAL">Mensal</option>
-                                <option value="UNICO">Único</option>
-                                <option value="SEMANAL">Semanal</option>
-                                <option value="BIMESTRAL">Bimestral</option>
-                                <option value="TRIMESTRAL">Trimestral</option>
-                                <option value="SEMESTRAL">Semestral</option>
-                                <option value="ANUAL">Anual</option>
-                            </select>
-                        </div>
-                        <div class="form">
-                            <select name="tipoRepeticao" id="tipoRepeticao">
-                                <option value="FIXO">Fixo</option>
-                                <option value="PARCELADO">Parcelado</option>
-                            </select>
-                        </div>
-                        <div class="form">
-                            <input type ="text" name="qtdeParcelas" id="qtdeParcelas">
-                            <label for="qtdeParcelas">Qtde Parcelas</label>
-                        </div>
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Indeterminado</p>
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="indeterminado" name="indeterminado" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
+                            <div id="containerPerfilFuncionario">
+                                <label>
+                                    <input type="radio" name="perfilFuncionario" value="funcionário" class="perfil-radio" disabled> Registrado
+                                </label>
+                                <label style="margin-left: 15px;">
+                                    <input type="radio" name="perfilFuncionario" value="free-lancer" class="perfil-radio" disabled> Sem Registro
                                 </label>
                             </div>
-                        </div> 
-                        
-                        <div class="form" id="containerTermino">
-                            <input type="date" name="dtTermino" id="dtTermino">
-                            <label for="dtTermino">Data de Término</label>
-                        </div>                       
+                        </div>
+
+                        <div class="form-3colunas">
+                            <div class="form" id="containerVinculo">
+                                <select name="idVinculo" id="idVinculo" class="required">
+                                    <option value="" disabled selected></option>
+                                </select>
+                                <label for="idVinculo" id="labelVinculo">Escolha um Vínculo acima entre Cliente, Fornecedor ou Funcionário</label>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="lc-secao">
+                        <h3>Recorrência e Valores</h3>
+                        <div class="form-3colunas">
+                            <div class="form">
+                                <input type="text" name="vlrEstimado" id="vlrEstimado" required>
+                                <label for="vlrEstimado">Valor Estimado (R$)</label>
+                            </div>
+
+                            <div class="form">
+                                <input type="date" name="dtRecebimento" id="dtRecebimento" required>
+                                <label for="dtRecebimento">Recebimento Conta</label>
+                            </div>
+                            <div class="form">
+                                <input type="date" name="vctoBase" id="vctoBase" required>
+                                <label for="vctoBase">Vencimento Base</label>
+                            </div>
+                        </div>
+                        <div class="form-3colunas">
+                            <div class="form">
+                                <select name="periodicidade" id="periodicidade">
+                                    <option value="MENSAL">Mensal</option>
+                                    <option value="UNICO">Único</option>
+                                    <option value="SEMANAL">Semanal</option>
+                                    <option value="BIMESTRAL">Bimestral</option>
+                                    <option value="TRIMESTRAL">Trimestral</option>
+                                    <option value="SEMESTRAL">Semestral</option>
+                                    <option value="ANUAL">Anual</option>
+                                </select>
+                            </div>
+                            <div class="form">
+                                <select name="tipoRepeticao" id="tipoRepeticao">
+                                    <option value="FIXO">Fixo</option>
+                                    <option value="PARCELADO">Parcelado</option>
+                                </select>
+                            </div>
+                            <div class="form">
+                                <input type ="text" name="qtdeParcelas" id="qtdeParcelas">
+                                <label for="qtdeParcelas">Qtde Parcelas</label>
+                            </div>
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Indeterminado</p>
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id="indeterminado" name="indeterminado" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form" id="containerTermino">
+                                <input type="date" name="dtTermino" id="dtTermino">
+                                <label for="dtTermino">Data de Término</label>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
                     <div class="form-1coluna">
                         <div class="form">
                             <input type="text" class="uppercase" name="observacao" id="observacao" required>
@@ -202,14 +214,94 @@
                         </div>
                     </div>
                     <div id="container-previa"></div>
+            </form>
+        </div>
+
+        <div class="lc-view" id="lcViewPlanoContas">
+            <form id="lcFormPlanoContas" autocomplete="off">
+                <fieldset>
+                    <legend>Cadastre o Plano de Contas</legend>
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input hidden type="text" id="lcPlanoContaId" readonly>
+                        </div>
+                        <div class="form">
+                            <input type="text" id="lcPlanoContaCodigo" spellcheck="false">
+                            <label for="lcPlanoContaCodigo">Código Plano de Contas</label>
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" id="lcPlanoContaNome" spellcheck="false">
+                            <label for="lcPlanoContaNome">Nome do Plano de Contas</label>
+                        </div>
+                    </div>
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Plano de Conta Ativo</p>
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="lcPlanoContaAtivo" checked />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
                 </fieldset>
             </form>
         </div>
 
-        <div class="BTNs">
-            <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-            <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
-            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        <div class="lc-view" id="lcViewCentroCusto">
+            <form id="lcFormCentroCusto" autocomplete="off">
+                <fieldset>
+                    <legend>Cadastre o Centro de Custo</legend>
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input hidden type="text" id="lcCentroCustoId" readonly>
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" id="lcCentroCustoSigla" spellcheck="false">
+                            <label for="lcCentroCustoSigla">Sigla</label>
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" id="lcCentroCustoNome" spellcheck="false">
+                            <label for="lcCentroCustoNome">Nome do Centro de Custo</label>
+                        </div>
+                    </div>
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Centro de Custo Ativo</p>
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="lcCentroCustoAtivo" checked />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        </div>
+
+        <div class="BTNs lc-btns ativa" id="lcBtnsLista" data-lc-tab="lista">
+            <button class="bntPesquisar" id="Pesquisar" type="button"><span class="material-symbols-outlined">search</span> Pesquisar</button>
+            <button class="bntLimpar" id="Limpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
+        </div>
+
+        <div class="BTNs lc-btns" id="lcBtnsPlanoContas" data-lc-tab="planocontas">
+            <button class="bntPesquisar" id="lcPlanoContaPesquisar" type="button"><span class="material-symbols-outlined">search</span> Pesquisar</button>
+            <button class="bntLimpar" id="lcPlanoContaLimpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
+            <button class="btnEnviar" id="lcPlanoContaEnviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
+        </div>
+
+        <div class="BTNs lc-btns" id="lcBtnsCentroCusto" data-lc-tab="centrocusto">
+            <button class="bntPesquisar" id="lcCentroCustoPesquisar" type="button"><span class="material-symbols-outlined">search</span> Pesquisar</button>
+            <button class="bntLimpar" id="lcCentroCustoLimpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
+            <button class="btnEnviar" id="lcCentroCustoEnviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
         </div>
     </div>
 </div>

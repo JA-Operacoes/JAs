@@ -201,7 +201,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
                 COALESCE(f.nome, forn.nmfantasia, c.nmfantasia) AS nome_vinculo,
                 -- Dados extras das tabelas relacionadas
                 cc.nmcentrocusto,
-                tc.nmtipoconta,
+                pc.nmplanocontas,
                 ep.nmfantasia
             FROM lancamentos l
             -- Joins para Vínculos
@@ -211,7 +211,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
             LEFT JOIN clientes c ON l.idvinculo = c.idcliente AND l.tipovinculo = 'cliente'
             -- Joins para Auxiliares Financeiros
             LEFT JOIN centrocusto cc ON l.idcentrocusto = cc.idcentrocusto
-            LEFT JOIN tipoconta tc ON l.idtipoconta = tc.idtipoconta
+            LEFT JOIN planocontas pc ON l.idplanocontas = pc.idplanocontas
             LEFT JOIN empresas ep ON l.idempresa = ep.idempresa
             WHERE l.idempresa = $1
         `;
@@ -262,47 +262,46 @@ router.put("/:id",
     async (req, res) => {
         const id = req.params.id;
         const idempresa = req.idempresa;
-        const { 
-            idConta, idCentroCusto, idTipoConta, idEmpresaPagadora, // Novos campos financeiros
+        const {
+            idCentroCusto, idEmpresaPagadora, idPlanoContas,        // Novos campos financeiros
             idVinculo, tipoVinculo,                                 // Novos campos de vínculo
-            descricao, vlrEstimado, 
-            vctoBase, periodicidade, tipoRepeticao, 
+            descricao, vlrEstimado,
+            vctoBase, periodicidade, tipoRepeticao,
             dtTermino, indeterminado, ativo, locado,
             qtdParcelas, dtRecebimento, observacao
         } = req.body;
 
         try {
             const result = await pool.query(
-                `UPDATE public.lancamentos 
-                SET idconta = $1, descricao = $2, vlrestimado = $3, 
-                    vctobase = $4, periodicidade = $5, tiporepeticao = $6, 
-                    dttermino = $7, indeterminado = $8, ativo = $9, locado = $10,
-                    qtdeparcelas = $11, dtrecebimento = $12, observacao = $13,
-                    idcentrocusto = $14, idtipoconta = $15, idempresapagadora = $16,
-                    idvinculo = $17, tipovinculo = $18
-                WHERE idlancamento = $19 AND idempresa = $20
+                `UPDATE public.lancamentos
+                SET descricao = $1, vlrestimado = $2,
+                    vctobase = $3, periodicidade = $4, tiporepeticao = $5,
+                    dttermino = $6, indeterminado = $7, ativo = $8, locado = $9,
+                    qtdeparcelas = $10, dtrecebimento = $11, observacao = $12,
+                    idcentrocusto = $13, idplanocontas = $14, idempresapagadora = $15,
+                    idvinculo = $16, tipovinculo = $17
+                WHERE idlancamento = $18 AND idempresa = $19
                 RETURNING *`,
                 [
-                    idConta, 
-                    descricao?.toUpperCase(), 
-                    vlrEstimado, 
-                    vctoBase, 
-                    periodicidade, 
-                    tipoRepeticao, 
+                    descricao?.toUpperCase(),
+                    vlrEstimado,
+                    vctoBase,
+                    periodicidade,
+                    tipoRepeticao,
                     dtTermino || null,
-                    indeterminado, 
-                    ativo, 
-                    locado, 
+                    indeterminado,
+                    ativo,
+                    locado,
                     qtdParcelas || null,
-                    dtRecebimento || null, 
+                    dtRecebimento || null,
                     observacao || null,
-                    idCentroCusto || null,   // $14
-                    idTipoConta || null,     // $15
-                    idEmpresaPagadora || null,// $16
-                    idVinculo || null,       // $17
-                    tipoVinculo || null,     // $18
-                    id,                      // $19
-                    idempresa                // $20
+                    idCentroCusto || null,   // $13
+                    idPlanoContas || null,   // $14
+                    idEmpresaPagadora || null,// $15
+                    idVinculo || null,       // $16
+                    tipoVinculo || null,     // $17
+                    id,                      // $18
+                    idempresa                // $19
                 ]
             );
 
@@ -329,62 +328,60 @@ router.post("/",
     }),
     async (req, res) => {
         const idempresa = req.idempresa;
-        const { 
-            idConta, idCentroCusto, idTipoConta, idEmpresaPagadora, // Novos campos financeiros
+        const {
+            idCentroCusto, idEmpresaPagadora, idPlanoContas,        // Novos campos financeiros
             idVinculo, tipoVinculo,                                 // Novos campos de vínculo
-            descricao, vlrEstimado, 
-            vctoBase, periodicidade, tipoRepeticao, 
-            dtTermino, indeterminado, ativo, locado, 
+            descricao, vlrEstimado,
+            vctoBase, periodicidade, tipoRepeticao,
+            dtTermino, indeterminado, ativo, locado,
             qtdParcelas, dtRecebimento, observacao
         } = req.body;
 
-        const client = await pool.connect(); 
+        const client = await pool.connect();
 
         try {
-            await client.query('BEGIN'); 
+            await client.query('BEGIN');
 
             const resLanc = await client.query(
                 `INSERT INTO public.lancamentos (
-                    idempresa, idconta, idcentrocusto, idtipoconta, idempresapagadora,
-                    idvinculo, tipovinculo, descricao, 
-                    vlrestimado, vctobase, periodicidade, tiporepeticao, 
-                    dttermino, indeterminado, ativo, locado, 
+                    idempresa, idcentrocusto, idplanocontas, idempresapagadora,
+                    idvinculo, tipovinculo, descricao,
+                    vlrestimado, vctobase, periodicidade, tiporepeticao,
+                    dttermino, indeterminado, ativo, locado,
                     qtdeparcelas, dtrecebimento, observacao
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                 RETURNING idlancamento`,
                 [
                     idempresa,           // $1
-                    idConta,             // $2
-                    idCentroCusto || null, // $3
-                    idTipoConta || null,   // $4
-                    idEmpresaPagadora || null, // $5
-                    idVinculo || null,     // $6
-                    tipoVinculo || null,   // $7
-                    descricao?.toUpperCase(), // $8
-                    vlrEstimado,         // $9
-                    vctoBase,            // $10
-                    periodicidade,       // $11
-                    tipoRepeticao,       // $12
-                    dtTermino || null,   // $13
-                    indeterminado,       // $14
-                    ativo,               // $15
-                    locado,              // $16
-                    qtdParcelas || null, // $17
-                    dtRecebimento || null, // $18
-                    observacao || null   // $19
+                    idCentroCusto || null, // $2
+                    idPlanoContas || null, // $3
+                    idEmpresaPagadora || null, // $4
+                    idVinculo || null,     // $5
+                    tipoVinculo || null,   // $6
+                    descricao?.toUpperCase(), // $7
+                    vlrEstimado,         // $8
+                    vctoBase,            // $9
+                    periodicidade,       // $10
+                    tipoRepeticao,       // $11
+                    dtTermino || null,   // $12
+                    indeterminado,       // $13
+                    ativo,               // $14
+                    locado,              // $15
+                    qtdParcelas || null, // $16
+                    dtRecebimento || null, // $17
+                    observacao || null   // $18
                 ]
             );
 
             const idlancamento = resLanc.rows[0].idlancamento;
-            await client.query('COMMIT'); 
+            await client.query('COMMIT');
 
             res.locals.acao = 'cadastrou';
             res.locals.idregistroalterado = idlancamento;
             res.locals.dadosNovos = { // ✅ era dadosnovos
                 idlancamento,
-                idconta: idConta,
                 idcentrocusto: idCentroCusto || null,
-                idtipoconta: idTipoConta || null,
+                idplanocontas: idPlanoContas || null,
                 idempresapagadora: idEmpresaPagadora || null,
                 idvinculo: idVinculo || null,
                 tipovinculo: tipoVinculo || null,

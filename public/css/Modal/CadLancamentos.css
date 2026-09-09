@@ -35,23 +35,29 @@
   z-index: 1000; /* Fica acima do overlay */  
 } 
 
-/* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+/* Estilo opcional para o modal (você pode personalizar conforme necessário).
+   overflow:hidden aqui é essencial — sem ele, conteúdo que ultrapasse a altura
+   fixa do modal vaza visualmente para fora da caixa (era a causa real dos
+   botões "sumindo" no fundo escuro). Padrão idêntico ao usado no Faturamento. */
 #cadModalLancamentos.modal {
   position: fixed;
-  top: 50%; /* Alinha verticalmente ao centro */
-  left: 50%; /* Alinha horizontalmente ao centro */   
-  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background-color: #4d4d4d;
   padding: 5px;
-  margin-top: 10px;
   width: 1560px; /* Ajuste o tamanho conforme necessário */
-  height: 850px;
+  max-width: 96vw;
+  height: 860px;
+  overflow: hidden;
+  border-radius: 10px;
   font-size: 16px;
   z-index: 9999;
+  box-sizing: border-box;
 }
 
-#cadModalLancamentos.modal-content{
-  height: 590px;
+#cadModalLancamentos .modal-content {
+  overflow: hidden;
 }
 
 #cadModalLancamentos.modal-open{
@@ -99,37 +105,174 @@ body{
 }
 
 
-#form-lancamentos {
+/* ===== Painel cinza rolável (só título + abas + formulário) =====
+   Os botões (Pesquisar/Limpar/Enviar) ficam FORA deste painel, igual ao
+   padrão do Cadastro de Clientes — sempre visíveis, sobre o cinza escuro do
+   modal, nunca dentro da área com scroll.
+   Altura fixa: 900px do modal - padding do modal (10px) - .Close (25px) -
+   barra de botões fora do painel (~55px). */
+#cadModalLancamentos #lc-painel {
   font-family: "Abel", sans-serif;
-  display: flex;                
-  flex-direction: column; 
-  justify-content: center;
-  background-color: white;
-  max-width: 1540px;   
-  width: 100%;  
-  height: 770px; 
-  margin: 0 auto;         
-  padding: 10px;                
-  background-color: #cacaca; 
-  border: #ce0303;    
-  border-radius: 10px;      
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 780px;
+  background-color: #cacaca;
+  max-width: 1540px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px;
+  border-radius: 10px;
   overflow-y: auto;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Barra de botões fixa fora do painel — só a da aba ativa aparece */
+#cadModalLancamentos .lc-btns {
+  display: none;
+  max-width: 1540px;
+  width: 100%;
+  margin: 10px auto 0;
+  box-sizing: border-box;
+}
+#cadModalLancamentos .lc-btns.ativa {
+  display: flex;
+}
+
+/* ===== Abas ===== */
+#cadModalLancamentos .lc-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px 6px;
+}
+#cadModalLancamentos .lc-tab-btn {
+  font-family: "Abel", sans-serif;
+  font-size: 17px;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 2px solid transparent;
+  color: #4b4b4b;
+  padding: 8px 22px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+#cadModalLancamentos .lc-tab-btn i {
+  font-size: 15px;
+}
+#cadModalLancamentos .lc-tab-btn.ativa {
+  color: #fff;
+  background: var(--primary-color, #942123);
+  border-color: var(--border-color, #ce0303);
+}
+
+#cadModalLancamentos .lc-view {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+#cadModalLancamentos .lc-view.ativa {
+  display: flex;
 }
 
 fieldset {
   display: flex;
   flex-direction: column;
   width: 780px;
-  height: 680px;
+  min-height: 680px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* A aba de Lançamentos não usa fieldset/legend (as seções já têm título
+   próprio) — o form assume o mesmo papel de layout que o fieldset dava,
+   usando a largura toda do painel para caber as seções lado a lado. */
+#cadModalLancamentos #lcViewLista form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Plano de Contas e Centro de Custo têm bem poucos campos — o min-height
+   genérico do fieldset (680px) deixava um vazio enorme embaixo. */
+#cadModalLancamentos #lcViewPlanoContas fieldset,
+#cadModalLancamentos #lcViewCentroCusto fieldset {
+  min-height: 0;
 }
 
 legend{
   margin-left: 20px;
   padding: 0 10px;
+}
+
+/* ===== Duas seções lado a lado (economiza altura) =====
+   align-items:stretch (o padrão do flexbox) faz as duas seções da mesma
+   linha terem sempre a mesma altura, em vez de cada uma ficar do tamanho
+   do seu próprio conteúdo. */
+#cadModalLancamentos .lc-secao-linha {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+#cadModalLancamentos .lc-secao-linha .lc-secao {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== Seções internas do formulário (agrupam campos relacionados) =====
+   Replica o efeito nativo de fieldset/legend (borda com um "corte" onde o
+   título fica) individualmente em cada seção, já que não usamos mais um
+   único fieldset envolvendo o formulário inteiro. */
+#cadModalLancamentos .lc-secao {
+  position: relative;
+  border: 1px solid var(--dark-color, #4b4b4b);
+  border-radius: 10px;
+  padding: 14px 16px 8px;
+  margin: 14px 0 14px;
+}
+#cadModalLancamentos .lc-secao h3 {
+  position: absolute;
+  top: -11px;
+  left: 14px;
+  background: #cacaca;
+  font-family: "Abel", sans-serif;
+  font-size: 15px;
+  color: #4b4b4b;
+  margin: 0;
+  padding: 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#cadModalLancamentos .lc-secao .form-3colunas {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+/* ===== Linha de tipo de vínculo (Cliente/Fornecedor/Funcionário + perfil) ===== */
+#cadModalLancamentos .lc-vinculo-tipo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px;
+}
+#cadModalLancamentos #containerPerfilFuncionario {
+  display: none;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 250px;
+  margin-left: 20px;
+}
+#cadModalLancamentos #containerPerfilFuncionario.visivel {
+  display: flex;
 }
 
 .form-2colunas{
@@ -198,12 +341,16 @@ input#observacao{
 }
 
 input#descricao{
-  width: 600px;
+  width: 500px;
 }
 
 select#descricao{
-  width: 600px;
+  width: 490px;
 } 
+
+select#idVinculo{
+  width: 500px;
+}
 
 input#qtdeParcelas{
   width: 90px;
@@ -257,7 +404,7 @@ select#periodicidade, select#tipoRepeticao{
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 350px; 
+  width: 200px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -267,6 +414,58 @@ select#periodicidade, select#tipoRepeticao{
   background: transparent;
   color: #000000;
   outline: none;
+}
+
+/* ===== Select2 (busca conforme digita) — mesmo visual dos selects nativos =====
+   O Select2 insere seu próprio container logo após o <select> original (que
+   fica oculto) — usamos o seletor de irmão adjacente para dar a cada campo a
+   mesma largura que o select nativo já tinha. */
+#cadModalLancamentos .select2-container {
+  width: 200px !important;
+}
+#cadModalLancamentos #idPlanoContasSelect + .select2-container,
+#cadModalLancamentos #centroCusto + .select2-container,
+#cadModalLancamentos #empresaPagadora + .select2-container {
+  width: 300px !important;
+}
+#cadModalLancamentos #idVinculo + .select2-container,
+#cadModalLancamentos #descricao + .select2-container {
+  width: 490px !important;
+}
+#cadModalLancamentos .select2-container--default .select2-selection--single {
+  border: 1px solid #000000 !important;
+  border-radius: 6px !important;
+  height: 30px !important;
+  background: transparent !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+#cadModalLancamentos .select2-container--default .select2-selection--single .select2-selection__rendered {
+  font-family: var(--Font-primary) !important;
+  font-size: 13px !important;
+  color: #000000 !important;
+  padding-left: 8px !important;
+  line-height: 28px !important;
+}
+#cadModalLancamentos .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 28px !important;
+  right: 5px !important;
+}
+#cadModalLancamentos .select2-container--default.select2-container--focus .select2-selection--single,
+#cadModalLancamentos .select2-container--default.select2-container--open .select2-selection--single {
+  border: 1px solid #000000 !important;
+  outline: none !important;
+}
+#cadModalLancamentos .select2-container--default .select2-results__option {
+  font-size: 12px !important;
+  font-family: var(--Font-primary) !important;
+  padding: 4px 8px !important;
+}
+#cadModalLancamentos .select2-container--default .select2-search--dropdown .select2-search__field {
+  font-size: 13px !important;
+  font-family: var(--Font-primary) !important;
+  height: 25px !important;
 }
 
 
@@ -302,14 +501,12 @@ button.close {
 
 .form label, .form-2colunas label, .form2 label{
   position: absolute;
-  top: 50%;
   transform: translateY(-50%);
   color: #000000;
-  font-size: 19px;
+  font-size: 13px;
   pointer-events: none;
   transition: 0.3s;
-  left: 20px;
- 
+  align-items: center;
 }
 
 .form3 label{
@@ -336,7 +533,7 @@ select:focus ~ label,
 select:valid ~ label{
   top: 0;
   left: 25%;
-  font-size: 15px;
+  font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
@@ -344,9 +541,20 @@ select:valid ~ label{
 input:not([value=""]) ~ label {
   top: -5px;
   left: 2%;
-  font-size: 15px;
+  font-size: 12px;
   padding: 0 2px;
-  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+  background: #cacaca;
+}
+
+/* Classe adicionada via JS (ex.: label do Vínculo ao marcar Funcionário,
+   quando o select fica temporariamente disabled e :valid não dispara) —
+   sobe o label independente do estado do campo irmão. */
+#cadModalLancamentos label.active {
+  top: 0;
+  left: 25%;
+  font-size: 12px;
+  padding: 0 2px;
+  background: #cacaca;
 }
 
 input[type=date]{
@@ -369,7 +577,7 @@ input#id{
 #idlancamento:focus + label {
   top: 0;
   left: 25%;
-  font-size: 15px;
+  font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
@@ -629,15 +837,6 @@ input#id{
 }
 
 
-/* Ajuste para o Container de Perfil caber sem quebrar */
-#containerPerfilFuncionario {
-    display: flex;
-    flex-wrap: nowrap; /* Impede que "Sem Registro" caia para a linha de baixo */
-    align-items: center;
-    min-width: 250px; /* Garante espaço para os textos Registrado/Sem Registro */
-}
-
-
 @-webkit-keyframes ripple-33 {
   from {
     transform: scale(0);
@@ -697,6 +896,14 @@ button.Close {
   text-align: center;
   justify-content: space-between;
   margin-top: 10px;
+}
+
+#cadModalLancamentos .BTNs button {
+  align-items: center;
+  gap: 8px;
+}
+#cadModalLancamentos .BTNs .material-symbols-outlined {
+  font-size: 20px;
 }
 
 .Enviar:hover,

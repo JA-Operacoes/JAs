@@ -558,11 +558,17 @@ router.get("/geral/panorama", async (req, res) => {
 });
 
 // GET /ceo/geral/receber?agrupamento=mensal|anual|empresa&ano=YYYY&idempresas=1,2
-// Contas a receber = valor total do cliente por orçamento (vlrcliente), a mesma base usada na
-// aba Rentabilidade. Sem coluna de baixa de recebimento no schema, "recebido" aproxima pelo
-// evento já ter se realizado (dtfimrealizacao passado) e "pendente" pelo que ainda não aconteceu
-// — mesma lógica de "certo/provisionado" já usada no detector de rentabilidade. Também traz
-// lucro (lucroreal) e despesa (custo orçado: totgeralcto + totajdcto) agregados por evento.
+// Contas a receber = valor total do cliente por orçamento (vlrcliente), partido em 5 categorias
+// (sempre mutuamente exclusivas, cobrindo o vlrcliente inteiro de cada orçamento não Rejeitado):
+//   - recebido            : notasfiscais Emitida + recebido=true.
+//   - a_receber           : Emitida + recebido=false, dentro do prazo (ou sem parcela vinculada,
+//                           caso em que não dá pra provar atraso).
+//   - recebimento_atrasado: Emitida + recebido=false, com orcamentoparcelas.dtvencimento vencido.
+//   - a_faturar           : só orçamentos Fechados (status='F') — o que falta faturar (vlrcliente
+//                           menos o que já foi Emitida, cobre fechamento parcial também).
+//   - em_negociacao       : orçamentos ainda não fechados nem rejeitados (status IN 'A'/'P'/'E' —
+//                           Aberto/Proposta/Em Fechamento) — valor inteiro, ainda não há o que faturar.
+// Também traz lucro (lucroreal) e despesa (custo orçado: totgeralcto + totajdcto) agregados.
 router.get("/geral/receber", async (req, res) => {
   try {
     const agrupamento = ["mensal", "anual", "empresa", "evento"].includes(req.query.agrupamento) ? req.query.agrupamento : "mensal";
@@ -576,7 +582,7 @@ router.get("/geral/receber", async (req, res) => {
     const mes = parseInt(req.query.mes, 10); // opcional — 1-12, filtra pra um mês específico em QUALQUER agrupamento
     const filtros = ["o.status <> 'R'", "o.idevento IS NOT NULL", "o.dtinirealizacao IS NOT NULL"];
     const params = [];
-    if (temFiltroEmpresa) { params.push(idempresas); filtros.push(`oe.idempresa = ANY($${params.length}::int[])`); }
+    if (temFiltroEmpresa) { params.push(idempresas); filtros.push(`ee.idempresa = ANY($${params.length}::int[])`); }
     // "anual" mostra todos os anos disponíveis (não filtra); mensal/empresa são sempre de um ano.
     if (agrupamento !== "anual") { params.push(ano); filtros.push(`EXTRACT(YEAR FROM o.dtinirealizacao) = $${params.length}`); }
     if (Number.isInteger(mes) && mes >= 1 && mes <= 12) { params.push(mes); filtros.push(`EXTRACT(MONTH FROM o.dtinirealizacao) = $${params.length}`); }
@@ -586,9 +592,9 @@ router.get("/geral/receber", async (req, res) => {
       selectChave = "EXTRACT(YEAR FROM o.dtinirealizacao)::int";
       groupBy = selectChave;
     } else if (agrupamento === "empresa") {
-      selectChave = "oe.idempresa";
-      groupBy = "oe.idempresa, emp.nmfantasia";
-      extraJoin = "JOIN empresas emp ON emp.idempresa = oe.idempresa";
+      selectChave = "ee.idempresa";
+      groupBy = "ee.idempresa, emp.nmfantasia";
+      extraJoin = "JOIN empresas emp ON emp.idempresa = ee.idempresa";
       extraSelect = ", emp.nmfantasia";
     } else if (agrupamento === "evento") {
       // Detalhe por evento (não por período) — pra achar onde está a maior despesa e o
@@ -606,16 +612,47 @@ router.get("/geral/receber", async (req, res) => {
     // porEmpresa=1 (só válido com mensal/anual) quebra cada período também por empresa — usado
     // pelos gráficos pra empilhar visualmente "o que é de cada empresa" dentro da mesma barra.
     if (req.query.porEmpresa === "1" && (agrupamento === "mensal" || agrupamento === "anual")) {
-      extraJoin = "JOIN empresas emp ON emp.idempresa = oe.idempresa";
-      extraSelect = ", oe.idempresa, emp.nmfantasia";
-      groupBy += ", oe.idempresa, emp.nmfantasia";
+      extraJoin = "JOIN empresas emp ON emp.idempresa = ee.idempresa";
+      extraSelect = ", ee.idempresa, emp.nmfantasia";
+      groupBy += ", ee.idempresa, emp.nmfantasia";
       orderBy = "chave, emp.nmfantasia";
     }
 
     const { rows } = await pool.query(
-      `SELECT ${selectChave} AS chave ${extraSelect},
-              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
-              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+      `WITH empresa_efetiva AS (
+         -- A quem esse orçamento pertence de fato: idempresaemissora quando preenchido (ex.:
+         -- orçamento processado no ambiente JA-OPER mas emitido/faturado por outra empresa —
+         -- ver "empréstimo entre ambientes"), senão a empresa vinculada normalmente
+         -- (orcamentoempresas). MIN() é só uma trava determinística pro caso raro de mais de um
+         -- vínculo — na prática cada orçamento tem só um.
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       ),
+       notas_por_orcamento AS (
+         SELECT
+           nf.idorcamento,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = true
+             THEN nf.valorservico ELSE 0 END) AS recebido,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false
+                     AND (op.dtvencimento IS NULL OR op.dtvencimento >= CURRENT_DATE)
+             THEN nf.valorservico ELSE 0 END) AS a_receber,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false AND op.dtvencimento < CURRENT_DATE
+             THEN nf.valorservico ELSE 0 END) AS recebimento_atrasado,
+           SUM(CASE WHEN nf.status = 'Emitida' THEN nf.valorservico ELSE 0 END) AS total_faturado
+         FROM notasfiscais nf
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         GROUP BY nf.idorcamento
+       )
+       SELECT ${selectChave} AS chave ${extraSelect},
+              SUM(COALESCE(np.recebido, 0)) AS recebido,
+              SUM(COALESCE(np.a_receber, 0)) AS a_receber,
+              SUM(COALESCE(np.recebimento_atrasado, 0)) AS recebimento_atrasado,
+              SUM(CASE WHEN o.status = 'F'
+                THEN GREATEST(COALESCE(o.vlrcliente, 0) - COALESCE(np.total_faturado, 0), 0)
+                ELSE 0 END) AS a_faturar,
+              SUM(CASE WHEN o.status IN ('A', 'P', 'E') THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS em_negociacao,
               SUM(COALESCE(o.lucroreal, 0)) AS lucro,
               SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa,
               SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE
@@ -623,7 +660,8 @@ router.get("/geral/receber", async (req, res) => {
               SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL
                 THEN COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0) ELSE 0 END) AS despesapendente
        FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+       LEFT JOIN notas_por_orcamento np ON np.idorcamento = o.idorcamento
        ${extraJoin}
        WHERE ${filtros.join(" AND ")}
        GROUP BY ${groupBy}
@@ -672,7 +710,8 @@ router.get("/geral/eventos", async (req, res) => {
 // GET /ceo/geral/evento-anos?idevento=X — compara o MESMO evento ano a ano, já quebrado por
 // empresa (o /ceo/evento-anos "normal" é escopado a uma empresa só) — dá pra somar por ano
 // (gráfico principal) OU detalhar por empresa (botão "Detalhar", só some quando um evento está
-// selecionado). Mesmas métricas de /geral/receber: recebido/pendente (vlrcliente) + lucro/despesa.
+// selecionado). Mesmas 5 categorias de /geral/receber (recebido/a_receber/recebimento_atrasado/
+// a_faturar/em_negociacao) + lucro/despesa.
 router.get("/geral/evento-anos", async (req, res) => {
   try {
     const idevento = parseInt(req.query.idevento, 10);
@@ -680,17 +719,46 @@ router.get("/geral/evento-anos", async (req, res) => {
 
     const nome = await pool.query("SELECT nmevento FROM eventos WHERE idevento = $1", [idevento]);
     const { rows } = await pool.query(
-      `SELECT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
-              oe.idempresa, emp.nmfantasia AS nomeempresa,
-              SUM(CASE WHEN o.dtfimrealizacao < CURRENT_DATE THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS recebido,
-              SUM(CASE WHEN o.dtfimrealizacao >= CURRENT_DATE OR o.dtfimrealizacao IS NULL THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS pendente,
+      `WITH empresa_efetiva AS (
+         -- Mesma regra de /geral/receber: idempresaemissora quando preenchido, senão a empresa
+         -- vinculada normalmente (orcamentoempresas).
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       ),
+       notas_por_orcamento AS (
+         SELECT
+           nf.idorcamento,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = true
+             THEN nf.valorservico ELSE 0 END) AS recebido,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false
+                     AND (op.dtvencimento IS NULL OR op.dtvencimento >= CURRENT_DATE)
+             THEN nf.valorservico ELSE 0 END) AS a_receber,
+           SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false AND op.dtvencimento < CURRENT_DATE
+             THEN nf.valorservico ELSE 0 END) AS recebimento_atrasado,
+           SUM(CASE WHEN nf.status = 'Emitida' THEN nf.valorservico ELSE 0 END) AS total_faturado
+         FROM notasfiscais nf
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+         GROUP BY nf.idorcamento
+       )
+       SELECT EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano,
+              ee.idempresa, emp.nmfantasia AS nomeempresa,
+              SUM(COALESCE(np.recebido, 0)) AS recebido,
+              SUM(COALESCE(np.a_receber, 0)) AS a_receber,
+              SUM(COALESCE(np.recebimento_atrasado, 0)) AS recebimento_atrasado,
+              SUM(CASE WHEN o.status = 'F'
+                THEN GREATEST(COALESCE(o.vlrcliente, 0) - COALESCE(np.total_faturado, 0), 0)
+                ELSE 0 END) AS a_faturar,
+              SUM(CASE WHEN o.status IN ('A', 'P', 'E') THEN COALESCE(o.vlrcliente, 0) ELSE 0 END) AS em_negociacao,
               SUM(COALESCE(o.lucroreal, 0)) AS lucro,
               SUM(COALESCE(o.totgeralcto, 0) + COALESCE(o.totajdcto, 0)) AS despesa
        FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       JOIN empresas emp ON emp.idempresa = oe.idempresa
+       JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+       JOIN empresas emp ON emp.idempresa = ee.idempresa
+       LEFT JOIN notas_por_orcamento np ON np.idorcamento = o.idorcamento
        WHERE o.idevento = $1 AND o.status <> 'R' AND o.dtinirealizacao IS NOT NULL
-       GROUP BY ano, oe.idempresa, emp.nmfantasia
+       GROUP BY ano, ee.idempresa, emp.nmfantasia
        ORDER BY ano ASC, emp.nmfantasia ASC`,
       [idevento]
     );

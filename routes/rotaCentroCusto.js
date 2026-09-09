@@ -14,25 +14,26 @@ router.use(contextoEmpresa);
 // GET todas ou por nome
 router.get("/", verificarPermissao('centrocusto', 'pesquisar'), async (req, res) => {
     const { nmCentrocusto, sigla } = req.query; // Pega ambos da query string
-  
+    const idempresa = req.idempresa;
+
     try {
-        let query = `SELECT * FROM centrocusto WHERE 1=1`;
-        let params = [];
+        let query = `SELECT * FROM centrocusto WHERE idempresa = $1`;
+        let params = [idempresa];
 
         if (nmCentrocusto) {
-            query += ` AND nmcentrocusto ILIKE $1`;
+            query += ` AND nmcentrocusto ILIKE $2`;
             params.push(nmCentrocusto);
         } else if (sigla) {
-            query += ` AND sigla = $1`; // Busca exata para sigla
+            query += ` AND sigla = $2`; // Busca exata para sigla
             params.push(sigla.toUpperCase());
         } else {
-            // Busca todos se não houver filtro
-            const result = await pool.query(`SELECT * FROM centrocusto ORDER BY nmcentrocusto ASC`);
+            // Busca todos (desta empresa) se não houver filtro
+            const result = await pool.query(`SELECT * FROM centrocusto WHERE idempresa = $1 ORDER BY nmcentrocusto ASC`, [idempresa]);
             return res.json(result.rows);
         }
 
         const result = await pool.query(query, params);
-        
+
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Nenhum registro encontrado" });
         }

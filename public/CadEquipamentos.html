@@ -15,30 +15,65 @@
                 <h1>Cadastro de Equipamentos</h1>
             </div>
 
-            <form  method="post"  id="form" name="form" autocomplete="on">
-    
-                <fieldset>
-                    <div class="form">
-                        <input type="text" name="idEquip" id="idEquip" readonly spellcheck="false">
-                        <label for ="idEquip">Codigo</label>
-                    </div>
-                    <legend>Cadastre o Equipamento</legend>
-                    <div class ="form">
-                        <input type="text" class="uppercase" name="descEquip" id="descEquip"  required spellcheck="false">
-                        <label for = "descEquip"> Equipamentos </label>
-                    </div>
-                    <div class ="form-2colunas">
+            <form id="form" name="form" autocomplete="off">
+
+                <section class="equip-secao">
+                    <h3>Cadastre o Equipamento</h3>
+                    <div class="container-planos">
+                        <div class="form2 form2-codigo">
+                            <input type="text" name="idEquip" id="idEquip" class="input" readonly spellcheck="false">
+                            <label class="user-label" for="idEquip">Código</label>
+                        </div>
                         <div class="form2">
-                            <input type="text" name="ctoEquip" id="ctoEquip"  required spellcheck="false">
-                            <label for = "ctoEquip"> Custo </label>
-                        </div>
-                        <div class="form2">         
-                            <input type="text" name="vdaEquip" id="vdaEquip" required spellcheck="false">
-                            <label for ="vdaEquip"> Venda </label>
+                            <input type="text" name="descEquip" id="descEquip" class="input uppercase" required spellcheck="false">
+                            <label class="user-label" for="descEquip">Equipamento</label>
                         </div>
                     </div>
-                </fieldset>
+                    
+                    <div class="container-planos">
+                        <div class="form2">
+                            <input type="text" name="ctoEquip" id="ctoEquip" oninput="formatReais(this)" value="0" class="input" required spellcheck="false">
+                            <label class="user-label" for="ctoEquip">Custo</label>
+                        </div>
+                        <div class="form2">
+                            <input type="text" name="vdaEquip" id="vdaEquip" class="input" oninput="formatReais(this)" value="0" required spellcheck="false">
+                            <label class="user-label"  for="vdaEquip">Venda</label>
+                        </div>
+                    </div>
+                </section>
+
             </form>
+            <br>
+            <section class="equip-secao" id="fieldset-modelos-equipamento">
+                <h3>Modelos (marca / modelo)</h3>
+                <p class="equip-hint">O estoque (unidades/patrimônios) é controlado na aba Estoque do TI Mode.</p>
+                <table class="equip-tabela" id="tabela-modelos-equipamento">
+                    <thead>
+                        <tr>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Qtd. mínima</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-modelos-equipamento"></tbody>
+                </table>
+                <button class="equip-add" id="btnAdicionarModelo" type="button">+ Adicionar modelo</button>
+            </section>
+
+            <section class="equip-secao" id="fieldset-complementos-equipamento">
+                <h3>Complementos</h3>
+                <table class="equip-tabela" id="tabela-complementos-equipamento">
+                    <thead>
+                        <tr>
+                            <th>Itens</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-complementos-equipamento"></tbody>
+                </table>
+                <button class="equip-add" id="btnAdicionarComplemento" type="button">+ Adicionar</button>
+            </section>
         </div>
         <div class="BTNs">
             <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>

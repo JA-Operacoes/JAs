@@ -3760,6 +3760,11 @@ display: none;
     color: #92400e;
     border: 1px solid #fcd34d;
 }
+.badge-beneficios {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
 .badge-ferias {
     background: #ecfdf5;
     color: #065f46;

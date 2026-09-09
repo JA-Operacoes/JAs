@@ -1,4 +1,6 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { configurarAbaPlanoContas } from './LancamentosPlanoContasTab.js';
+import { configurarAbaCentroCusto } from './LancamentosCentroCustoTab.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -16,6 +18,92 @@ let limparButtonListener = null;
 let enviarButtonListener = null;
 let pesquisarButtonListener = null;
 
+function removerAcentos(texto) {
+    return String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+// Busca conforme digita (Select2), ignorando acentos dos dois lados da comparação
+function aplicarBuscaIncremental(seletor, placeholder, extra) {
+    const el = document.querySelector(seletor);
+    if (!el || typeof $ === "undefined" || !$.fn || !$.fn.select2) return;
+
+    const $el = $(el);
+    if ($el.hasClass("select2-hidden-accessible")) {
+        $el.select2('destroy');
+    }
+    $el.select2(Object.assign({
+        placeholder: typeof placeholder === "string" ? placeholder : "Selecione...",
+        allowClear: false,
+        width: '100%',
+        matcher: function (params, data) {
+            if ($.trim(params.term) === '') return data;
+            if (typeof data.text === 'undefined') return null;
+            const termo = removerAcentos(params.term).toLowerCase();
+            const texto = removerAcentos(data.text).toLowerCase();
+            return texto.indexOf(termo) > -1 ? data : null;
+        }
+    }, extra || {}));
+    $el.off('select2:select.lc select2:unselect.lc').on('select2:select.lc select2:unselect.lc', function () {
+        this.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+}
+
+// Mapa DESCRICAO (maiúscula) -> lançamento completo, usado pelo combobox de descrição
+let mapaDescricaoLancamento = {};
+
+// Campo de Descrição sempre como combobox: escolhe um lançamento existente
+// (carrega os dados dele) ou digita um nome novo (segue como cadastro).
+async function configurarComboboxDescricao() {
+    try {
+        const lista = await fetchComToken("/lancamentos");
+        if (!lista || !Array.isArray(lista)) return;
+
+        mapaDescricaoLancamento = {};
+        lista.forEach(item => {
+            mapaDescricaoLancamento[String(item.descricao).trim().toUpperCase()] = item;
+        });
+
+        let el = document.querySelector("#descricao");
+        if (!el) return;
+
+        if (el.tagName !== "SELECT") {
+            const select = document.createElement("select");
+            select.id = "descricao";
+            select.name = "descricao";
+            select.required = true;
+            select.className = "uppercase";
+            el.parentNode.replaceChild(select, el);
+            el = select;
+
+            el.addEventListener("change", async function () {
+                const valor = this.value.trim();
+                if (!valor) return;
+
+                const lancamento = mapaDescricaoLancamento[valor.toUpperCase()];
+                if (lancamento) {
+                    await preencherCampos(lancamento);
+                    renderizarPrevia();
+                }
+                // Se não encontrado: é uma descrição nova digitada pelo usuário,
+                // segue pronta para um cadastro — nada mais a fazer além de validar.
+                validarFormulario();
+            });
+        }
+
+        const valorAtual = el.value;
+        el.innerHTML = '<option value="" selected></option>';
+        lista.forEach(item => {
+            const opt = new Option(`${item.descricao} - R$ ${item.vlrestimado}`, item.descricao);
+            el.add(opt);
+        });
+        if (valorAtual) el.value = valorAtual;
+
+        aplicarBuscaIncremental("#descricao", "Digite ou selecione um lançamento...", { tags: true });
+    } catch (error) {
+        console.error("Erro ao configurar combobox de descrição:", error);
+    }
+}
+
 const tipoRepeticao = document.querySelector("#tipoRepeticao");
 const qtdParcelasInput = document.querySelector("#qtdeParcelas");
 const indeterminadoCheck = document.querySelector("#indeterminado");
@@ -26,7 +114,6 @@ const vctoBaseInput = document.querySelector("#vctoBase");
 if (typeof window.LancamentoOriginal === "undefined") {
     window.LancamentoOriginal = {
         idLancamento: "",
-        idconta: "",
         idcentrocusto: "",
         descricao: "",
         vlrestimado: "",
@@ -56,20 +143,20 @@ async function verificaLancamento() {
     const campoTermino = document.querySelector("#dtTermino");    
 
     validarFormulario();
-    gerenciarCampos(); 
+    gerenciarCampos();
     renderizarPrevia();
-    carregarSelectContas();
-    carregarSelectTipoConta();
+    carregarSelectPlanoContas();
     carregarSelectEmpresaPagadora();
     carregarSelectCentroCusto();
+    configurarComboboxDescricao();
     configurarEventosVinculo();
 
     // --- GATILHOS AUTOMÁTICOS ---
-    // Adicionamos os novos campos: #idVinculo, #tpConta, #empresaPagadora, #centroCusto
+    // Adicionamos os novos campos: #idVinculo, #empresaPagadora, #centroCusto
     const camposGatilho = [
-        "#idContaSelect", "#centroCusto", "#vlrEstimado", "#vctoBase", 
-        "#periodicidade", "#tipoRepeticao", "#dtTermino", "#indeterminado", 
-        "#qtdeParcelas", "#idVinculo", "#tpConta", "#empresaPagadora"
+        "#idPlanoContasSelect", "#centroCusto", "#vlrEstimado", "#vctoBase",
+        "#periodicidade", "#tipoRepeticao", "#dtTermino", "#indeterminado",
+        "#qtdeParcelas", "#idVinculo", "#empresaPagadora"
     ];
         
     camposGatilho.forEach(seletor => {
@@ -140,71 +227,18 @@ async function verificaLancamento() {
 
         const elDtRec = document.querySelector("#dtRecebimento");
         const dtRecebimento = (elDtRec && elDtRec.value.trim() !== "") ? elDtRec.value : null;
-        
-        const idTipoConta = document.querySelector("#tpConta").value; 
-        const idEmpresaPagadora = document.querySelector("#empresaPagadora").value;        
-       
+
+        const idPlanoContas = document.querySelector("#idPlanoContasSelect").value;
+        const idEmpresaPagadora = document.querySelector("#empresaPagadora").value;
 
         // Validação de Parcelados
         if (tipoRepeticao === "PARCELADO" && !dtTermino && !indeterminado) {
             return Swal.fire("Erro", "Para lançamentos parcelados, a data de término é obrigatória.", "error");
         }
 
-        // 1. GESTÃO DA DESCRIÇÃO (EDIÇÃO vs CADASTRO)
-        let descricaoInput = document.querySelector("#descricao").value.trim().toUpperCase();
-        let descricaoFinal = descricaoInput;
+        // Descrição é sempre digitada manualmente pelo Financeiro
+        const descricaoFinal = document.querySelector("#descricao").value.trim().toUpperCase();
 
-        // Se estiver vazio e NÃO for edição, tenta gerar descrição automática
-        // if (!descricaoFinal && !idLancamento) {
-        //     const selectConta = document.querySelector("#idContaSelect");
-        //     if (selectConta && selectConta.selectedIndex >= 0) {
-        //         descricaoFinal = selectConta.options[selectConta.selectedIndex].text.toUpperCase();
-        //     }
-        // }
-
-        if (!descricaoFinal && !idLancamento) {
-            // Função para capturar texto e limitar tamanho
-            const obterTextoLimitado = (seletor, limite = 40) => {
-                const el = document.querySelector(seletor);
-                if (el && el.selectedIndex >= 0) {
-                    let texto = el.options[el.selectedIndex].text.toUpperCase().trim();
-                    
-                    // Ignora placeholders e IDs numéricos acidentais
-                    if (texto.includes("SELECIONE") || texto === "" || !isNaN(texto)) return "";
-                    
-                    // Corta se for maior que o limite e adiciona .. se necessário
-                    return texto.length > limite ? texto.substring(0, limite).trim() : texto;
-                }
-                return "";
-            };
-
-            // Captura com limites individuais para não estourar os ~255 do banco
-            const nomeConta     = obterTextoLimitado("#idContaSelect", 50);
-            const nomeVinculo   = obterTextoLimitado("#idVinculo", 50); // Ajustado para pegar o TEXT do select
-            const nomePlano     = obterTextoLimitado("#planoContas", 40);
-            const nomeCentro    = obterTextoLimitado("#centroCusto", 40);
-            const nomeEmpresa   = obterTextoLimitado("#empresaPagadora", 30);
-            const nomeTipoConta = obterTextoLimitado("#tpConta", 30);
-
-            // Filtra partes vazias
-            const partes = [
-                nomeConta, 
-                nomeVinculo, 
-                nomePlano, 
-                nomeCentro, 
-                nomeEmpresa, 
-                nomeTipoConta
-            ].filter(p => p !== "");
-
-            // Une tudo e garante que o total final não passe de 250 (margem de segurança)
-            let resultadoParcial = partes.join(" - ");
-            descricaoFinal = resultadoParcial.length > 250 
-                ? resultadoParcial.substring(0, 247) + "..." 
-                : resultadoParcial;
-        }
-        
-
-        // Se ainda assim estiver vazio, impede o envio
         if (!descricaoFinal) {
             return Swal.fire("Erro", "Por favor, preencha a descrição do lançamento.", "warning");
         }
@@ -219,7 +253,7 @@ async function verificaLancamento() {
         const idCentroCusto = document.querySelector("#centroCusto")?.value;
 
         const dados = {
-            idConta: document.querySelector("#idContaSelect").value,
+            idPlanoContas: idPlanoContas,
             descricao: descricaoFinal,
             vlrEstimado: parseFloat(document.querySelector("#vlrEstimado").value) || 0,
             vctoBase: document.querySelector("#vctoBase").value,
@@ -235,8 +269,7 @@ async function verificaLancamento() {
             tipoVinculo: tipoVinculo,
             idVinculo: idVinculo,
             idCentroCusto: idCentroCusto,
-            idEmpresaPagadora: idEmpresaPagadora,
-            idTipoConta: idTipoConta
+            idEmpresaPagadora: idEmpresaPagadora
         };
 
         console.log("Dados a serem enviados:", dados);
@@ -302,53 +335,17 @@ async function verificaLancamento() {
     };
 
     // --- Listener: PESQUISAR ---
+    // O campo Descrição já é sempre um combobox com busca incremental (ver
+    // configurarComboboxDescricao) — Pesquisar só re-sincroniza com os dados
+    // mais recentes do banco, mantido como atalho redundante a pedido.
     botaoPesquisar.onclick = async (e) => {
         e.preventDefault();
         const temPermissaoPesquisar = temPermissao('Lancamentos', 'pesquisar');
         if (!temPermissaoPesquisar) return Swal.fire("Acesso negado", "Sem permissão.", "warning");
 
         limparCamposLancamento();
-        
-        try {
-            const lista = await fetchComToken("/lancamentos");
-            if (!lista || lista.length === 0) return Swal.fire("Info", "Nenhum lançamento encontrado.", "info");
-
-            const select = criarSelectPesquisa(lista);
-            const inputDesc = document.querySelector("#descricao");
-            const labelDesc = document.querySelector('label[for="descricao"]');
-            
-            if (labelDesc) labelDesc.style.display = 'none'; 
-
-            inputDesc.parentNode.replaceChild(select, inputDesc);            
-
-            select.addEventListener("change", async function() {
-                const idEscolhido = this.value;
-                if (!idEscolhido) return; // Evita erro se selecionar o placeholder
-
-                const lancamento = lista.find(l => String(l.idlancamento) === String(idEscolhido));
-                
-                if (lancamento) {
-                    // 1. Usamos await pois o preencherCampos carrega dados do banco para os selects de vínculo
-                    await preencherCampos(lancamento);
-                    
-                    // 2. Renderiza a prévia visual
-                    renderizarPrevia(); 
-                    
-                    // 3. Restaura o input de descrição com o texto do lançamento escolhido
-                    const novoInput = restaurarInputDescricao(lancamento.descricao);
-                    this.parentNode.replaceChild(novoInput, this);
-                    if (labelDesc) labelDesc.style.display = 'block';
-
-                    // 4. Força uma nova validação para liberar o botão "Enviar/Alterar"
-                    validarFormulario();
-                }
-            });
-        } catch (error) {
-            Swal.fire("Erro", "Erro ao pesquisar.", "error");
-        }
+        await configurarComboboxDescricao();
     };
-
-    adicionarEventoBlurDescricao();
 }
 
 
@@ -530,51 +527,31 @@ function calcularPreviaParcelas(dados) {
 }
 
 
-async function carregarSelectContas() {
-    const selectConta = document.querySelector("#idContaSelect");
-    if (!selectConta) return;
+async function carregarSelectPlanoContas() {
+    const selectPlanoContas = document.querySelector("#idPlanoContasSelect");
+    if (!selectPlanoContas) return;
+
+    const valorAtual = selectPlanoContas.value;
 
     try {
-        // Rota simples de contas sem a necessidade de joins complexos aqui
-        const contas = await fetchComToken('/lancamentos/contas');
-        selectConta.innerHTML = '<option value="" disabled selected>Selecione a Conta</option>';
+        const planos = await fetchComToken('/planocontas');
+        selectPlanoContas.innerHTML = '<option value="" disabled selected>Selecione o Plano de Contas</option>';
 
-        if (contas && Array.isArray(contas)) {
-            contas.forEach(conta => {
-                if (conta.ativo) {
+        if (planos && Array.isArray(planos)) {
+            planos.forEach(plano => {
+                if (plano.ativo) {
                     const option = document.createElement("option");
-                    option.value = conta.idconta;
-                    const nomeExibicao = `${conta.nmconta} | ${conta.nmplanocontas || 'Sem Plano de Contas'}`;
-                    option.textContent = nomeExibicao;
-                    selectConta.appendChild(option);
+                    option.value = plano.idplanocontas;
+                    option.textContent = `${plano.codigo} - ${plano.nmplanocontas}`;
+                    selectPlanoContas.appendChild(option);
                 }
             });
         }
+
+        if (valorAtual) selectPlanoContas.value = valorAtual;
+        aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
     } catch (error) {
-        console.error("Erro ao carregar select de contas:", error);
-    }
-}
-
-async function carregarSelectTipoConta() {
-    const selectTpConta = document.querySelector("#tpConta");
-    if (!selectTpConta) return;
-
-    try {
-        const tipos = await fetchComToken('/lancamentos/tipoconta');
-        selectTpConta.innerHTML = '<option value="" disabled selected>Selecione o Tipo de Conta</option>';
-
-        if (tipos && Array.isArray(tipos)) {
-            tipos.forEach(tipo => {
-                if (tipo.ativo) {
-                    const option = document.createElement("option");
-                    option.value = tipo.idtipoconta;
-                    option.textContent = tipo.nmtipoconta;
-                    selectTpConta.appendChild(option);
-                }
-            });
-        }
-    } catch (error) {
-        console.error("Erro ao carregar tipos de conta:", error);
+        console.error("Erro ao carregar select de plano de contas:", error);
     }
 }
 
@@ -595,6 +572,7 @@ async function carregarSelectEmpresaPagadora() {
                 //}
             });
         }
+        aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
     } catch (error) {
         console.error("Erro ao carregar empresas:", error);
     }
@@ -617,6 +595,7 @@ async function carregarSelectCentroCusto() {
                 //}
             });
         }
+        aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
     } catch (error) {
         console.error("Erro ao carregar centro de custo:", error);
     }
@@ -630,6 +609,12 @@ function configurarEventosVinculo() {
     const containerPerfil = document.querySelector('#containerPerfilFuncionario');
     const perfilRadios = document.querySelectorAll('.perfil-radio');
     const selectVinculo = document.querySelector('#idVinculo');
+
+    // Fica desabilitado até escolher Cliente/Fornecedor/Funcionário
+    if (selectVinculo) {
+        selectVinculo.disabled = true;
+        aplicarBuscaIncremental("#idVinculo", "");
+    }
 
     checks.forEach(check => {
         check.addEventListener('change', async function() {
@@ -653,14 +638,16 @@ function configurarEventosVinculo() {
 
                 if (this.value === 'funcionario') {
                     perfilRadios.forEach(r => r.disabled = false);
-                    containerPerfil.style.opacity = "1";
+                    if (containerPerfil) containerPerfil.classList.add('visivel');
                     if (selectVinculo) selectVinculo.disabled = true;
+                    if (labelVinculo) labelVinculo.classList.add('active'); // Sobe o label
                 } else {
                     perfilRadios.forEach(r => {
                         r.disabled = true;
                         r.checked = false;
                     });
-                    
+                    if (containerPerfil) containerPerfil.classList.remove('visivel');
+
                     if (selectVinculo) {
                         selectVinculo.disabled = false;
                         await carregarDadosVinculo(this.value);
@@ -691,12 +678,16 @@ function configurarEventosVinculo() {
 
     function limparEBloquearVinculos() {
         // --- RESET DO LABEL PARA O PADRÃO ---
-        if (labelVinculo) labelVinculo.textContent = 'Selecione o Vínculo';
+        if (labelVinculo) {
+            labelVinculo.textContent = 'Selecione o Vínculo';
+            labelVinculo.classList.remove('active');
+        }
 
         perfilRadios.forEach(r => {
             r.checked = false;
             r.disabled = true;
         });
+        if (containerPerfil) containerPerfil.classList.remove('visivel');
         if (selectVinculo) {
             selectVinculo.value = "";
             selectVinculo.disabled = true;
@@ -724,10 +715,10 @@ async function carregarDadosVinculo(tipo, perfilSelecionado) {
         
         console.log("Chamando URL:", url); // Aqui você verá se o perfil está indo corretamente
 
-        const dados = await fetchComToken(url); 
+        const dados = await fetchComToken(url);
 
         selectVinculo.innerHTML = '<option value="" disabled selected>Selecione...</option>';
-        
+
         if (!dados || dados.length === 0) {
             selectVinculo.innerHTML = '<option value="" disabled selected>Nenhum registro encontrado</option>';
             return;
@@ -743,6 +734,8 @@ async function carregarDadosVinculo(tipo, perfilSelecionado) {
     } catch (error) {
         console.error(`Erro ao carregar ${tipo}:`, error);
         selectVinculo.innerHTML = '<option value="" disabled selected>Erro ao carregar dados</option>';
+    } finally {
+        aplicarBuscaIncremental("#idVinculo", "");
     }
 }
 
@@ -862,7 +855,7 @@ async function preencherCampos(lancamento) {
     };
 
     setCampo("#idLancamento", lancamento.idlancamento);
-    setCampo("#idContaSelect", lancamento.idconta);
+    setCampo("#idPlanoContasSelect", lancamento.idplanocontas);
     setCampo("#descricao", lancamento.descricao);
     setCampo("#vlrEstimado", lancamento.vlrestimado);
     setCampo("#periodicidade", lancamento.periodicidade);
@@ -909,15 +902,13 @@ async function preencherCampos(lancamento) {
             checkVinculo.checked = true;
 
             // 1. Primeiro, garantimos que o container principal do vínculo apareça
-            const containerVinculo = document.querySelector("#containerVinculo");
             const selectVinculo = document.querySelector("#idVinculo");
-            
-            if (containerVinculo) containerVinculo.style.display = 'block';
+
             if (selectVinculo) selectVinculo.disabled = false;
 
             if (lancamento.tipovinculo === 'funcionario') {
                 const containerPerfil = document.querySelector('#containerPerfilFuncionario');
-                if (containerPerfil) containerPerfil.style.display = 'block';
+                if (containerPerfil) containerPerfil.classList.add('visivel');
 
                 let valorRadioPerfil = "";
                 const p = String(lancamento.perfil_vinculo || "").toLowerCase();
@@ -947,44 +938,47 @@ async function preencherCampos(lancamento) {
             // 2. Agora que a lista foi montada pelo carregarDadosVinculo, setamos o ID
             if (selectVinculo && lancamento.idvinculo) {
                 selectVinculo.value = String(lancamento.idvinculo);
-                
+
                 // Dispara o evento change caso existam outras dependências ligadas ao select
                 selectVinculo.dispatchEvent(new Event('change'));
+                aplicarBuscaIncremental("#idVinculo", "");
             }
         }
-    
+
     }
 
     if (inputLocado) inputLocado.checked = !!lancamento.locado;
 
-    const selectTp = document.querySelector("#tpConta");
-    if (selectTp) {
-        // Suporta tanto o ID vindo como Integer quanto o legado vindo como String
-        const valorBanco = String(lancamento.idtipoconta || lancamento.tpconta); 
-        selectTp.value = valorBanco;
+    const selectPlano = document.querySelector("#idPlanoContasSelect");
+    if (selectPlano && lancamento.idplanocontas) {
+        const valorBanco = String(lancamento.idplanocontas);
+        selectPlano.value = valorBanco;
 
-        if (selectTp.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
-            console.warn("Aviso: Tipo de conta legado ou não encontrado:", valorBanco);
+        if (selectPlano.selectedIndex <= 0) {
+            console.warn("Aviso: Plano de contas não encontrado:", valorBanco);
         }
+        aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
     }
 
     const selectEmpPagadora = document.querySelector("#empresaPagadora");
     if (selectEmpPagadora) {
         // Suporta tanto o ID vindo como Integer quanto o legado vindo como String
-        const valorBanco = String(lancamento.idempresapagadora || lancamento.empresaPagadora); 
+        const valorBanco = String(lancamento.idempresapagadora || lancamento.empresaPagadora);
         selectEmpPagadora.value = valorBanco;
         if (selectEmpPagadora.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
             console.warn("Aviso: Empresa Pagadora legada ou não encontrada:", valorBanco);
         }
+        aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
     }
 
     const selectCentroCusto = document.querySelector("#centroCusto");
     if (selectCentroCusto) {
-        const valorBanco = String(lancamento.idcentrocusto || lancamento.centrocusto); 
+        const valorBanco = String(lancamento.idcentrocusto || lancamento.centrocusto);
         selectCentroCusto.value = valorBanco;
         if (selectCentroCusto.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
             console.warn("Aviso: Centro de Custo não encontrado:", valorBanco);
-        }   
+        }
+        aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
     }
 
     // Sincronização da Interface
@@ -1017,13 +1011,16 @@ function limparCamposLancamento() {
     const dtTermino = document.querySelector("#dtTermino");
     if (dtTermino) dtTermino.disabled = false;
 
-    // 3. Resete de Combos (tpconta, centrocusto, empresapagadora)
+    // 3. Resete de Combos (planocontas, centrocusto, empresapagadora)
     // Forçamos o valor vazio para garantir que o label do Materialize/CSS volte ao normal
-    const camposSelect = ["#tpConta", "#centroCusto", "#empresaPagadora", "#idContaSelect"];
+    const camposSelect = ["#idPlanoContasSelect", "#centroCusto", "#empresaPagadora"];
     camposSelect.forEach(seletor => {
         const el = document.querySelector(seletor);
         if (el) el.value = "";
     });
+    aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
+    aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
+    aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
 
     // 4. Resete de Vínculos (Lógica que criamos)
     const checksVinculo = document.querySelectorAll('.tipo-vinculo');
@@ -1039,20 +1036,12 @@ function limparCamposLancamento() {
     if (selectVinculo) {
         selectVinculo.value = "";
         selectVinculo.disabled = true; // Bloqueia o select de nomes
+        aplicarBuscaIncremental("#idVinculo", "");
     }
 
-    const containerVinculo = document.querySelector("#containerVinculo");
-    if (containerVinculo) {
-        // Se você quer que ele fique SEMPRE visível, mude para 'block' ou remova a linha
-        containerVinculo.style.display = 'block'; 
-    }
-    
-    // Se o perfil do funcionário também deve ficar visível mas "apagado" (opacidade baixa)
+    // Registrado/Sem Registro só aparece quando "Funcionário" está marcado
     const containerPerfil = document.querySelector("#containerPerfilFuncionario");
-    if (containerPerfil) {
-        containerPerfil.style.display = 'block'; // Garante que não suma
-        // Opcional: containerPerfil.style.opacity = "0.5"; // Deixa clarinho enquanto não seleciona
-    }
+    if (containerPerfil) containerPerfil.classList.remove('visivel');
 
     // Reset do Label dinâmico do Vínculo para o padrão
     const labelVinculo = document.querySelector('label[for="idVinculo"]');
@@ -1065,14 +1054,12 @@ function limparCamposLancamento() {
         containerPrevia.style.display = "none";
     }
 
-    const inputDesc = document.querySelector("#descricao");
-    if (inputDesc && inputDesc.tagName === "SELECT") {
-        const novoInput = restaurarInputDescricao("");
-        inputDesc.parentNode.replaceChild(novoInput, inputDesc);
+    // Descrição é sempre o combobox — só limpa a seleção, sem trocar de volta para input
+    const selectDesc = document.querySelector("#descricao");
+    if (selectDesc && selectDesc.tagName === "SELECT") {
+        selectDesc.value = "";
+        aplicarBuscaIncremental("#descricao", "Digite ou selecione um lançamento...", { tags: true });
     }
-
-    const labelDesc = document.querySelector('label[for="descricao"]');
-    if (labelDesc) labelDesc.style.display = 'block';
 
     // 6. Finalização
     window.LancamentoOriginal = {};
@@ -1085,10 +1072,9 @@ function limparCamposLancamento() {
 function validarFormulario() {
     const valor = document.querySelector("#vlrEstimado").value;
     const vcto = document.querySelector("#vctoBase").value;
-    const contaMestre = document.querySelector("#idContaSelect").value; // Conta Bancária
-    
+
     // --- NOVOS CAMPOS FINANCEIROS ---
-    const tpConta = document.querySelector("#tpConta").value; // Tipo de Conta
+    const idPlanoContas = document.querySelector("#idPlanoContasSelect").value;
     const centroCusto = document.querySelector("#centroCusto").value;
     const empresaPag = document.querySelector("#empresaPagadora").value;
 
@@ -1108,8 +1094,7 @@ function validarFormulario() {
     // 1. Validações Básicas (Financeiro)
     if (!valor || valor <= 0) erros.push("Valor Estimado");
     if (!vcto) erros.push("Vencimento Base");
-    if (!contaMestre) erros.push("Conta Bancária");
-    if (!tpConta) erros.push("Tipo de Conta");
+    if (!idPlanoContas) erros.push("Plano de Contas");
     if (!centroCusto) erros.push("Centro de Custo");
     if (!empresaPag) erros.push("Empresa Pagadora");
     
@@ -1153,61 +1138,32 @@ function validarFormulario() {
     }
 }
 
-function adicionarEventoBlurDescricao() {
-    const input = document.querySelector("#descricao");
-    if (!input) return;
-    input.addEventListener("blur", async function () {
-        if (window.ultimoClique?.id === "Limpar" || window.ultimoClique?.id === "Pesquisar") return;
-        const desc = this.value.trim();
-        if (!desc || document.querySelector("#idLancamento").value) return;
+function mudarAba(nome) {
+    document.querySelectorAll('#cadModalLancamentos .lc-tab-btn').forEach((b) =>
+        b.classList.toggle('ativa', b.dataset.lcTab === nome));
 
-        // Tenta buscar se já existe lançamento com essa descrição
-        try {
-            const dados = await fetchComToken(`/lancamentos?descricao=${encodeURIComponent(desc)}`);
-            if (dados && dados.length > 0) {
-                const res = await Swal.fire({
-                    title: "Lançamento encontrado",
-                    text: "Deseja carregar os dados deste lançamento?",
-                    icon: "question",
-                    showCancelButton: true
-                });
-                if (res.isConfirmed) preencherCampos(dados[0]);
-            }
-        } catch (e) { console.log("Novo lançamento detectado"); }
-    });
+    const nomesView = { lista: 'lcViewLista', planocontas: 'lcViewPlanoContas', centrocusto: 'lcViewCentroCusto' };
+    document.querySelectorAll('#cadModalLancamentos .lc-view').forEach((v) =>
+        v.classList.toggle('ativa', v.id === nomesView[nome]));
+
+    document.querySelectorAll('#cadModalLancamentos .lc-btns').forEach((b) =>
+        b.classList.toggle('ativa', b.dataset.lcTab === nome));
 }
 
-function criarSelectPesquisa(lista) {
-    const sel = document.createElement("select");
-    sel.id = "descricao";
-    sel.className = "form";
-    sel.innerHTML = '<option value="" disabled selected>Selecione um Lançamento...</option>';
-    lista.forEach(item => {
-        const opt = new Option(`${item.descricao} - R$ ${item.vlrestimado}`, item.idlancamento);
-        sel.add(opt);
+function configurarAbasLancamentos() {
+    document.querySelectorAll('#cadModalLancamentos .lc-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => mudarAba(btn.dataset.lcTab));
     });
-    return sel;
-}
-
-function restaurarInputDescricao(valor) {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "descricao";
-    input.className = "form uppercase";
-    input.value = valor;
-    input.addEventListener("input", function() {
-        this.value = this.value.toUpperCase();
-        validarFormulario();
-    });
-    return input;
+    configurarAbaPlanoContas(carregarSelectPlanoContas);
+    configurarAbaCentroCusto(carregarSelectCentroCusto);
 }
 
 function configurarEventosLancamentos() {
     console.log("Configurando eventos Lancamentos...");
     verificaLancamento(); // Carrega os Funcao ao abrir o modal
-    adicionarEventoBlurDescricao();
+    configurarAbasLancamentos();
     console.log("Entrou configurar Funcao no LANCAMENTOS.js.");
-} 
+}
 window.configurarEventosLancamentos = configurarEventosLancamentos;
 
 function configurarEventosEspecificos(modulo) {

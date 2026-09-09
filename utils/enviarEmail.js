@@ -1,12 +1,14 @@
 // utils/enviarEmail.js
 //
-// Envio de e-mail via SMTP genérico (nodemailer) — funciona com qualquer
-// provedor que dê usuário/senha de SMTP (Outlook/Microsoft 365, uma caixa de
-// hospedagem própria, etc.), configurado pelas variáveis de ambiente abaixo.
-// Não é específico de nenhum provedor de propósito: o financeiro/TI só
-// precisa colocar no .env os dados de SMTP de saída que já usam no Outlook
-// (Configurações da conta > servidor de saída), sem precisar de nada extra
-// no código.
+// Envio de e-mail via SMTP genérico (nodemailer) — sempre pela conta de
+// e-mail corporativo (tiemailcorporativo) da pessoa logada que disparou o
+// envio, nunca por uma conta única do .env: assim fica registrado no
+// provedor quem de fato mandou aquele e-mail pro cliente, em vez de tudo
+// sair como "financeiro@...". SMTP_HOST/SMTP_PORT/SMTP_SECURE no .env só
+// definem o servidor de saída (mesmo provedor pra todas as contas
+// @japromocoes.com.br); usuário/senha vêm do remetente informado pelo
+// chamador (ver rotaFaturamento.js, que resolve isso a partir do usuário
+// ativo antes de chamar enviarEmailComAnexo).
 "use strict";
 
 const fs = require("fs");
@@ -15,26 +17,23 @@ const nodemailer = require("nodemailer");
 const MailComposer = require("nodemailer/lib/mail-composer");
 const { ImapFlow } = require("imapflow");
 
-let transporter = null;
-
-function obterTransportador() {
-  if (transporter) return transporter;
-
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    throw new Error("SMTP não configurado — preencha SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS no .env.");
+// Não cacheado — é montado na hora com a senha decifrada do
+// tiemailcorporativo do remetente ativo, que muda a cada chamada.
+function criarTransportadorPara(email, senha) {
+  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE } = process.env;
+  if (!SMTP_HOST || !email || !senha) {
+    throw new Error("SMTP não configurado — preencha SMTP_HOST/SMTP_PORT no .env e verifique o e-mail corporativo do remetente.");
   }
 
-  transporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
     // Porta 465 é SSL direto (secure=true); 587/25 usam STARTTLS
     // (secure=false, o nodemailer negocia o TLS depois de conectar) — esse é
     // o padrão da maioria dos provedores, incluindo Microsoft 365.
     secure: SMTP_SECURE === 'true' || Number(SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    auth: { user: email, pass: senha },
   });
-  return transporter;
 }
 
 // SMTP puro (o que o transportador acima faz) só entrega o e-mail — quem
@@ -44,15 +43,14 @@ function obterTransportador() {
 // replicamos essa segunda etapa na mão: reconstrói a mensagem crua (mesmo
 // conteúdo/anexo que foi enviado) e grava com IMAP APPEND na pasta certa.
 //
-// Reaproveita host/usuário/senha do próprio SMTP por padrão (é a mesma
-// caixa) — só precisa de variáveis IMAP_* separadas se o provedor usar um
-// host diferente pra IMAP. Se IMAP não estiver configurável (faltando
-// host/usuário/senha), simplesmente não tenta — o e-mail já foi entregue
-// via SMTP de qualquer forma, isso aqui é só o registro.
-async function salvarCopiaEnviados(mailOptions) {
+// Login IMAP usa o mesmo e-mail/senha do remetente (é a mesma caixa que
+// mandou por SMTP) — só precisa de IMAP_HOST separado se o provedor usar um
+// host diferente do SMTP pra IMAP. Se IMAP não estiver configurável
+// (faltando host), simplesmente não tenta — o e-mail já foi entregue via
+// SMTP de qualquer forma, isso aqui é só o registro.
+async function salvarCopiaEnviados(mailOptions, remetente) {
   const host = process.env.IMAP_HOST || process.env.SMTP_HOST;
-  const user = process.env.IMAP_USER || process.env.SMTP_USER;
-  const pass = process.env.IMAP_PASS || process.env.SMTP_PASS;
+  const { email: user, senha: pass } = remetente;
   if (!host || !user || !pass) return;
 
   const mensagemCrua = await new Promise((resolve, reject) => {
@@ -89,6 +87,7 @@ async function encontrarPastaEnviados(client) {
   const candidatos = [
     'Sent', 'INBOX.Sent', 'Sent Items', 'INBOX.Sent Items',
     'Enviados', 'INBOX.Enviados', 'Enviadas', 'INBOX.Enviadas',
+    'Itens Enviados', 'INBOX.Itens Enviados',
   ];
   const porNome = pastas.find((p) => candidatos.some((c) => c.toLowerCase() === p.path.toLowerCase()));
   if (porNome) return porNome.path;
@@ -100,12 +99,12 @@ async function encontrarPastaEnviados(client) {
 }
 
 // Quando a cópia em "Enviados" falha, manda o mesmo e-mail (mesmo anexo) de
-// novo, só que como cópia pro financeiro — pra não perder o registro de que
-// aquilo foi enviado, já que não deu pra guardar na pasta certa. Se ATÉ essa
-// cópia falhar (SMTP fora do ar etc.), só loga: o e-mail original pro
-// cliente já foi entregue de qualquer forma, isso aqui é só um extra.
-async function enviarCopiaFalhaEnviados(transportador, mailOptionsOriginal, motivoFalha) {
-  const copiaPara = process.env.EMAIL_COPIA_FALHA_ENVIADOS || process.env.SMTP_USER;
+// novo, só que como cópia pro próprio remetente — pra não perder o registro
+// de que aquilo foi enviado, já que não deu pra guardar na pasta certa. Se
+// ATÉ essa cópia falhar (SMTP fora do ar etc.), só loga: o e-mail original
+// pro cliente já foi entregue de qualquer forma, isso aqui é só um extra.
+async function enviarCopiaFalhaEnviados(transportador, mailOptionsOriginal, motivoFalha, remetente) {
+  const copiaPara = process.env.EMAIL_COPIA_FALHA_ENVIADOS || remetente.email;
   if (!copiaPara) return;
 
   const aviso =
@@ -123,9 +122,15 @@ async function enviarCopiaFalhaEnviados(transportador, mailOptionsOriginal, moti
 
 // `anexo` é opcional: { nome, caminhoRelativo } (caminho relativo à raiz do
 // projeto, mesmo padrão de arquivopdf/arquivoxml salvos em notasfiscais).
-async function enviarEmailComAnexo({ para, assunto, corpoTexto, corpoHtml, anexo }) {
-  const remetenteNome = process.env.SMTP_FROM_NOME || 'JA System';
-  const transportador = obterTransportador();
+// `remetente` é obrigatório: { email, senha, nome } — a conta de e-mail
+// corporativo (tiemailcorporativo) da pessoa que disparou o envio. Quem
+// resolve isso a partir do usuário ativo é o chamador (rotaFaturamento.js);
+// aqui não existe fallback pra uma conta genérica do .env.
+async function enviarEmailComAnexo({ para, assunto, corpoTexto, corpoHtml, anexo, remetente }) {
+  if (!remetente?.email || !remetente?.senha) {
+    throw new Error("Remetente não informado — é preciso o e-mail corporativo (tiemailcorporativo) de quem está enviando.");
+  }
+  const transportador = criarTransportadorPara(remetente.email, remetente.senha);
 
   const anexos = [];
   if (anexo?.caminhoRelativo) {
@@ -137,7 +142,7 @@ async function enviarEmailComAnexo({ para, assunto, corpoTexto, corpoHtml, anexo
   }
 
   const mailOptions = {
-    from: `"${remetenteNome}" <${process.env.SMTP_USER}>`,
+    from: remetente.nome ? `"${remetente.nome}" <${remetente.email}>` : remetente.email,
     to: para,
     subject: assunto,
     text: corpoTexto,
@@ -150,15 +155,15 @@ async function enviarEmailComAnexo({ para, assunto, corpoTexto, corpoHtml, anexo
   // Devolve pro chamador se a cópia em "Enviados" deu certo (e em qual
   // caixa) — o front usa isso pra confirmar no swal de sucesso, em vez de só
   // dizer "e-mail enviado" e deixar a dúvida se ficou registrado ou não.
-  const caixaEnviados = process.env.IMAP_USER || process.env.SMTP_USER;
+  const caixaEnviados = remetente.email;
   let salvouEmEnviados = false;
   try {
-    await salvarCopiaEnviados(mailOptions);
+    await salvarCopiaEnviados(mailOptions, remetente);
     salvouEmEnviados = true;
   } catch (err) {
     console.error('Aviso: e-mail entregue, mas não consegui salvar a cópia em "Enviados":', err.message);
     try {
-      await enviarCopiaFalhaEnviados(transportador, mailOptions, err.message);
+      await enviarCopiaFalhaEnviados(transportador, mailOptions, err.message, remetente);
     } catch (errCopia) {
       console.error('Também não consegui mandar a cópia de aviso por falha ao salvar em "Enviados":', errCopia.message);
     }

@@ -100,6 +100,7 @@ app.use('/utils', express.static(path.join(__dirname, 'utils')));
 // Rotas publicas sem autenticação
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
+app.use("/aprovacao-orcamento", require("./routes/rotaAprovacaoOrcamentoEquipamento")); // Links de aprovar/recusar orçamento de equipamento via e-mail
 
 // Rotas protegidas com autenticação
 app.use("/funcao",autenticarToken(), contextoEmpresa, require("./routes/rotaFuncao"));
@@ -137,8 +138,12 @@ app.use("/index", autenticarToken(), require("./routes/rotaIndex"));
 app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
 app.use("/ceo", autenticarToken(), contextoEmpresa, exigirFlag('supremo'), require("./routes/rotaCeo"));
-app.use("/rh", autenticarToken(), contextoEmpresa, exigirFlag('rh', 'supremo'), require("./routes/rotaRH"));
+// Master entra no módulo igual Supremo (lista + tela individual do holerite). Quem só tem
+// "rh" (sem master/supremo) fica restrito à lista — rotaRH.js reforça isso rota a rota nas
+// que são tela individual/edição (ver `apenasEdicao` no arquivo).
+app.use("/rh", autenticarToken(), contextoEmpresa, exigirFlag('rh', 'supremo', 'master'), require("./routes/rotaRH"));
 app.use("/logs", autenticarToken(), contextoEmpresa, exigirFlag('devs', 'supremo'), require("./routes/rotaLogs"));
+app.use("/ti", autenticarToken(), contextoEmpresa, exigirFlag('ti', 'supremo'), require("./routes/rotaTI"));
 
 
 // Logo após as outras rotas protegidas, no mesmo padrão:
