@@ -1,7 +1,7 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 import { configurarAbaPlanoContas } from './LancamentosPlanoContasTab.js';
 import { configurarAbaCentroCusto } from './LancamentosCentroCustoTab.js';
-import { ligarBuscaComSugestoes } from './formatacoes.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
