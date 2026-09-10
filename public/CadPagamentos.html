@@ -26,7 +26,7 @@
 
                         <div class="form2">
                             <label class="user-label" for="descLancamento">Lançamento (Conta)</label>
-                            <input type="text" class="input" id="descLancamento" autocomplete="off" placeholder="Digite para buscar (ex: Luz, Condomínio, Salário...)">
+                            <input type="text" class="input uppercase" id="descLancamento" autocomplete="off" placeholder="Digite para buscar (ex: Luz, Condomínio, Salário...)">
                             <select name="idLancamento" id="idLancamentoSelect" required style="display:none;">
                                 <option value="" disabled selected>Selecione o Lançamento (Conta)...</option>
                             </select>
@@ -40,7 +40,7 @@
                         </div>
                         <div class="form2">
                             <label class="user-label" for="vlrPrevisto">Valor Previsto (R$)</label>
-                            <input type="text" class="input" name="vlrPrevisto" id="vlrPrevisto" readonly>
+                            <input type="text" class="input" name="vlrPrevisto" id="vlrPrevisto" oninput="formatReais(this)" readonly>
                         </div>
                         <div class="form2">
                             <label class="user-label" for="numParcela">Nº Parcela</label>
@@ -48,7 +48,7 @@
                         </div>
                         <div class="form2">
                             <label class="user-label" for="vlrReal">Valor Real (R$)</label>
-                            <input type="text" class="input" name="vlrReal" id="vlrReal" required>
+                            <input type="text" class="input" name="vlrReal" id="vlrReal" oninput="formatReais(this)" required>
                         </div>
                     </div>
 
@@ -60,17 +60,17 @@
 
                         <div class="form2">
                             <label class="user-label" for="vlrDespesasAtraso">Despesas Atraso (R$)</label>
-                            <input type="text" class="input" name="vlrDespesasAtraso" id="vlrDespesasAtraso" required>
+                            <input type="text" class="input" name="vlrDespesasAtraso" id="vlrDespesasAtraso" oninput="formatReais(this)" required>
                         </div>
 
                         <div class="form2">
                             <label class="user-label" for="vlrDesconto">Desconto (R$)</label>
-                            <input type="text" class="input" name="vlrDesconto" id="vlrDesconto" required>
+                            <input type="text" class="input" name="vlrDesconto" id="vlrDesconto" oninput="formatReais(this)" required>
                         </div>
 
                         <div class="form2">
                             <label class="user-label" for="vlrPago">Valor Efetivamente Pago (R$)</label>
-                            <input type="text" class="input" name="vlrPago" id="vlrPago" required>
+                            <input type="text" class="input" name="vlrPago" id="vlrPago" oninput="formatReais(this)" required>
                         </div>
                     </div>
 
@@ -96,7 +96,7 @@
                         <div class="pdf" style="display: none;">
                             <div class="collumn" id="colunaImagemConta">
                                 <h5>Imagem da Conta/Boleto</h5>
-                                <div class="containerPDF">
+                                <div class="containerPDF" id="containerInputConta">
                                     <button type="button" id="btnEscolherArquivoConta" class="btn-upload-arquivo" onclick="document.getElementById('arquivoConta').click()">
                                         <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
@@ -116,7 +116,7 @@
                         
                             <div class="collumn" id="colunaComprovante">
                                 <h5>Comprovante de Pagamento</h5>
-                                <div class="containerPDF">
+                                <div class="containerPDF" id="containerInputComprovante">
                                     <button type="button" id="btnEscolherComprovante" class="btn-upload-arquivo" onclick="document.getElementById('comprovantePagto').click()">
                                         <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
@@ -147,7 +147,8 @@
                                         <th>Valor Pago</th>
                                         <th>Data Pago</th>
                                         <th>Status</th>
-                                        <th>Observação</th> <th>Ações</th>
+                                        <th>Observação</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="corpoHistoricoPagto">

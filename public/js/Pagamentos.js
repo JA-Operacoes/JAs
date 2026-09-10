@@ -1,5 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
-import { ligarBuscaComSugestoes } from './formatacoes.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 let lancamentosCache = []; // usado pela busca com sugestões do campo Lançamento (Conta)
 
@@ -27,9 +27,14 @@ function formatarDataBR(dataStr) {
 
 function prepararNumeroParaEnvio(valor) {
     if (!valor) return 0;
-    let sValor = valor.toString();
-    if (sValor.includes('.') && sValor.includes(',')) sValor = sValor.replace(/\./g, '');
-    return parseFloat(sValor.replace(',', '.'));
+    return parseFloat(window.desformatarReais(valor)) || 0;
+}
+
+// Formata um valor numérico (vindo do banco) no mesmo padrão mascarado
+// ("R$ 1.234,56") usado pelos inputs com oninput="formatReais(this)".
+function formatarMoedaExibicao(valor) {
+    const num = parseFloat(valor) || 0;
+    return "R$ " + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // --- FUNÇÕES DE LÓGICA ---
@@ -162,7 +167,7 @@ async function carregarHistoricoPagto(idLanc) {
 
             // O botão agora aparece para quem tem permissão de 'alterar'
             const btnEditarHTML = temAcessoAoBotaoEdicao
-                ? `<button type="button" class="btn-editar-tabela" title="${eSupremo ? 'Editar parcela completa' : 'Complementar anexos'}">✏️</button>` 
+                ? `<button type="button" class="btn-editar-tabela" title="${eSupremo ? 'Editar parcela completa' : 'Complementar anexos'}"><i class="ri-pencil-line"></i></button>` 
                 : '';
 
             tr.innerHTML = `
@@ -249,23 +254,22 @@ async function preencherParaEdicao(p) {
                 if (selectLanc) selectLanc.value = p.idlancamento;
 
                 // Preenche campos de exibição de valores estimados
-                const elDesc = document.querySelector("#descLancamento"); 
+                const elDesc = document.querySelector("#descLancamento");
                 const elVlrPrev = document.querySelector("#vlrPrevisto");
                 if (elDesc) elDesc.value = dadosLanc.descricao || "";
                 if (elVlrPrev) {
-                    elVlrPrev.value = parseFloat(dadosLanc.vlrestimado || 0)
-                        .toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    elVlrPrev.value = formatarMoedaExibicao(dadosLanc.vlrestimado);
                 }
             }
 
             // 2. Preenchimento dos campos da parcela vindo do objeto 'p'
             document.querySelector("#numParcela").value = p.numparcela;
-            document.querySelector("#vlrReal").value = parseFloat(p.vlrreal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.querySelector("#vlrPago").value = parseFloat(p.vlrpago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.querySelector("#vlrReal").value = formatarMoedaExibicao(p.vlrreal);
+            document.querySelector("#vlrPago").value = formatarMoedaExibicao(p.vlrpago);
             document.querySelector("#dtvcto").value = p.dtvcto ? p.dtvcto.split('T')[0] : "";
             document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
-            document.querySelector("#vlrDespesasAtraso").value = parseFloat(p.vlratraso || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.querySelector("#vlrDesconto").value = parseFloat(p.vlrdesconto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.querySelector("#vlrDespesasAtraso").value = formatarMoedaExibicao(p.vlratraso);
+            document.querySelector("#vlrDesconto").value = formatarMoedaExibicao(p.vlrdesconto);
             document.querySelector("#observacaoPagto").value = p.observacao || "";
             document.querySelector("#statusPagto").checked = (p.status && p.status.toLowerCase() === 'pago');
 
@@ -358,19 +362,19 @@ async function salvarPagamento(event) {
             `;
         }
 
-        const htmlAtraso = (parseFloat(vlrAtrasoStr.replace(',', '.')) > 0) ? `<p><b>Atraso:</b> <span style="color:red">+ R$ ${vlrAtrasoStr}</span></p>` : '';
-        const htmlDesconto = (parseFloat(vlrDescontoStr.replace(',', '.')) > 0) ? `<p><b>Desconto:</b> <span style="color:blue">- R$ ${vlrDescontoStr}</span></p>` : '';
+        const htmlAtraso = (parseFloat(window.desformatarReais(vlrAtrasoStr)) > 0) ? `<p><b>Atraso:</b> <span style="color:red">+ ${vlrAtrasoStr}</span></p>` : '';
+        const htmlDesconto = (parseFloat(window.desformatarReais(vlrDescontoStr)) > 0) ? `<p><b>Desconto:</b> <span style="color:blue">- ${vlrDescontoStr}</span></p>` : '';
 
         const confirmacao = await Swal.fire({
             title: tituloSwal,
             html: `
                 <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
                     <p><b>Parcela:</b> ${numParcela}º</p>
-                    <p><b>Valor Base:</b> R$ ${vlrRealStr}</p>
+                    <p><b>Valor Base:</b> ${vlrRealStr}</p>
                     ${htmlAtraso}
                     ${htmlDesconto}
                     <hr style="margin: 8px 0;">
-                    <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>R$ ${vlrPagoStr}</b></mark></p>
+                    <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>${vlrPagoStr}</b></mark></p>
                 </div>
                 ${htmlBotoes}`,
             icon: 'question',
@@ -450,9 +454,10 @@ function podeVerAnexosPagamento() {
 
 // Mostra/esconde a área de anexos conforme:
 // - permissão (master|supremo|dev) — sem ela, fica sempre escondida;
-// - checkbox "Pagamento Confirmado" — desmarcado, some tudo;
-// - a coluna de Comprovante só aparece depois que a Imagem da Conta/Boleto foi anexada
-//   (já enviada, ou recém-escolhida no input antes de salvar).
+// - Imagem da Conta/Boleto não depende de o pagamento estar confirmado — a conta pode
+//   chegar antes de ser paga, então esse upload fica sempre disponível.
+// - só o Comprovante de Pagamento fica travado até o checkbox "Pagamento Confirmado"
+//   estar marcado (não faz sentido comprovante de algo ainda não pago).
 function atualizarVisibilidadeAnexos() {
     const pdfContainer = document.querySelector(".pdf");
     if (!pdfContainer) return;
@@ -460,18 +465,14 @@ function atualizarVisibilidadeAnexos() {
     const colunaComprovante = document.getElementById("colunaComprovante");
     const confirmado = document.querySelector("#statusPagto")?.checked;
 
-    if (!podeVerAnexosPagamento() || !confirmado) {
+    if (!podeVerAnexosPagamento()) {
         pdfContainer.style.display = "none";
         return;
     }
 
     pdfContainer.style.display = "flex";
 
-    const inputConta = document.getElementById("arquivoConta");
-    const temImagemConta = (inputConta?.files?.length > 0) ||
-        document.getElementById("imagemContaDisplay")?.style.display === "block";
-
-    if (colunaComprovante) colunaComprovante.style.display = temImagemConta ? "" : "none";
+    if (colunaComprovante) colunaComprovante.style.display = confirmado ? "" : "none";
 }
 
 function carregarAnexosExistentes(p) {
@@ -490,18 +491,22 @@ function carregarAnexosExistentes(p) {
     // --- 1. Lógica para Imagem da Conta (Boleto) ---
     if (p.imagemconta) {
         document.getElementById('imagemContaDisplay').style.display = "block";
+        // Já tem arquivo: esconde a área de seleção (botão + "Nenhum arquivo selecionado"),
+        // deixa só o label e os botões Ver/Remover.
+        const containerInputConta = document.getElementById('containerInputConta');
+        if (containerInputConta) containerInputConta.style.display = "none";
         if (inputConta) inputConta.disabled = true;
         const btnConta = document.getElementById('btnEscolherArquivoConta');
         if (btnConta) btnConta.disabled = true;
 
-        // Liberado se 'podeApagarAnexo' for true, independente de ser Supremo
+        // Sem permissão de apagar, nem mostra a opção — não precisa saber que existe.
         const btnLixeiraConta = podeApagarAnexo
             ? `<button type="button" onclick="marcarParaLimpar('imagemConta')" class="btn-remover-anexo" title="Remover boleto">${svgLixeiraAnexo}Remover</button>`
-            : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
+            : '';
 
         containerConta.innerHTML = `
             <div style="display: flex; gap: 5px; align-items: center;">
-                <a href="/uploads/contas/imagemboleto/${p.imagemconta}" target="_blank" class="btn-view-file">👁️ Ver Conta</a>
+                <a href="/uploads/contas/imagemboleto/${p.imagemconta}" target="_blank" class="btn-view-file"><i class="ri-eye-line"></i>Ver Conta</a>
                 ${btnLixeiraConta}
             </div>`;
     }
@@ -509,14 +514,16 @@ function carregarAnexosExistentes(p) {
     // --- 2. Lógica para Comprovante de Pagamento ---
     if (p.comprovantepgto) {
         document.getElementById('comprovantePagtoDisplay').style.display = "block";
+        const containerInputComprovante = document.getElementById('containerInputComprovante');
+        if (containerInputComprovante) containerInputComprovante.style.display = "none";
         if (inputComp) inputComp.disabled = true;
         const btnComp = document.getElementById('btnEscolherComprovante');
         if (btnComp) btnComp.disabled = true;
 
-        // Liberado se 'podeApagarAnexo' for true
+        // Sem permissão de apagar, nem mostra a opção — não precisa saber que existe.
         const btnLixeiraComp = podeApagarAnexo
             ? `<button type="button" onclick="marcarParaLimpar('comprovante')" class="btn-remover-anexo" title="Remover comprovante">${svgLixeiraAnexo}Remover</button>`
-            : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
+            : '';
 
         containerComp.innerHTML = `
             <div style="display: flex; gap: 5px; align-items: center;">
@@ -642,6 +649,8 @@ function marcarParaLimpar(tipo) {
             if (tipo === 'comprovante') {
                 document.getElementById('limparComprovantePagto').value = "true";
                 document.getElementById('comprovantePagtoDisplay').style.display = "none";
+                const containerInputComprovante = document.getElementById('containerInputComprovante');
+                if (containerInputComprovante) containerInputComprovante.style.display = "";
                 const input = document.getElementById('comprovantePagto');
                 input.disabled = false;
                 const btnComp = document.getElementById('btnEscolherComprovante');
@@ -652,6 +661,8 @@ function marcarParaLimpar(tipo) {
             if (tipo === 'imagemConta') {
                 document.getElementById('limparComprovanteImagem').value = "true";
                 document.getElementById('imagemContaDisplay').style.display = "none";
+                const containerInputConta = document.getElementById('containerInputConta');
+                if (containerInputConta) containerInputConta.style.display = "";
                 const input = document.getElementById('arquivoConta');
                 input.disabled = false;
                 const btnConta = document.getElementById('btnEscolherArquivoConta');
@@ -688,9 +699,7 @@ function configurarEventosPagamentos() {
     
     const parseMoeda = (valor) => {
         if (!valor) return 0;
-        // Remove espaços, troca vírgula por ponto
-        let limpo = valor.toString().replace(/\s/g, '').replace(',', '.');
-        return parseFloat(limpo) || 0;
+        return parseFloat(window.desformatarReais(valor)) || 0;
     };
 
     const calcularTotalEfetivo = () => {
@@ -712,24 +721,17 @@ function configurarEventosPagamentos() {
 
         // Cálculo: Real + Atraso - Desconto
         const resultado = valorBase + valorAtraso - valorDesconto;
-        
-        // Formata para 2 casas decimais e volta para vírgula se quiser exibir padrão BR
-        vlrEfetivo.value = resultado.toFixed(2).replace('.', ',');
+
+        // Mesmo formato mascarado dos demais campos ("R$ 1.234,56")
+        vlrEfetivo.value = "R$ " + resultado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         // Notifica outros scripts que o valor mudou
         vlrEfetivo.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    // Aplicar a troca de vírgula por ponto no "blur" (quando sai do campo)
     [atraso, desconto, vlrReal].forEach(campo => {
         if (campo) {
-            campo.addEventListener('blur', (e) => {
-                // Troca vírgula por ponto visualmente no campo ao sair
-                e.target.value = e.target.value.replace(',', '.');
-                calcularTotalEfetivo();
-            });
-
-            // Também calcula enquanto digita (opcional, remova se preferir apenas no sair)
+            campo.addEventListener('blur', calcularTotalEfetivo);
             campo.addEventListener('input', calcularTotalEfetivo);
         }
     });

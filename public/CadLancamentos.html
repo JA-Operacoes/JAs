@@ -56,20 +56,23 @@
                         <h3>Classificação Financeira</h3>
                         <div class="form-3colunas">
                             <div class="form2">
-                                <label class="user-label" for="idPlanoContasSelect">Plano de Contas</label>
-                                <select name="idPlanoContas" id="idPlanoContasSelect" class="input required">
+                                <label class="user-label" for="idPlanoContasBusca">Plano de Contas</label>
+                                <input type="text" class="input uppercase" id="idPlanoContasBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="idPlanoContas" id="idPlanoContasSelect" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
                             </div>
                             <div class="form2">
-                                <label class="user-label" for="centroCusto">Centro Custo</label>
-                                <select name="centroCusto" id="centroCusto" class="input required">
+                                <label class="user-label" for="centroCustoBusca">Centro Custo</label>
+                                <input type="text" class="input uppercase" id="centroCustoBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="centroCusto" id="centroCusto" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
                             </div>
                             <div class="form2">
-                                <label class="user-label" for="empresaPagadora">Empresa Pagadora</label>
-                                <select name="empresaPagadora" id="empresaPagadora" class="input required">
+                                <label class="user-label" for="empresaPagadoraBusca">Empresa Pagadora</label>
+                                <input type="text" class="input uppercase" id="empresaPagadoraBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="empresaPagadora" id="empresaPagadora" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
                             </div>
