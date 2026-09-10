@@ -15,110 +15,70 @@
             </div>
 
             <form id="form" name="form">
-                <fieldset>
-                    <legend>Dados da Baixa / Pagamento</legend>
-                    
-                    <div class="form-3colunas">
-                        <div class="form">
-                            <input type="text" name="idPagamento" id="idPagamento" readonly>
-                            <label for="idPagamento">ID Pagto</label>
+                <section class="pagamento-secao">
+                    <h3>Dados da Baixa / Pagamento</h3>
+
+                    <div class="pagamento-campos pagamento-campos-lanc">
+                        <div class="form2">
+                            <label class="user-label" for="idPagamento">ID Pagto</label>
+                            <input type="text" class="input" name="idPagamento" id="idPagamento" readonly>
                         </div>
-                        
-                        <div class="form" style="grid-column: span 2;">
-                            <select name="idLancamento" id="idLancamentoSelect" required>
+
+                        <div class="form2">
+                            <label class="user-label" for="descLancamento">Lançamento (Conta)</label>
+                            <input type="text" class="input" id="descLancamento" autocomplete="off" placeholder="Digite para buscar (ex: Luz, Condomínio, Salário...)">
+                            <select name="idLancamento" id="idLancamentoSelect" required style="display:none;">
                                 <option value="" disabled selected>Selecione o Lançamento (Conta)...</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-3colunas">
-                         <div class="form">
-                            <input type="date" name="dtvcto" id="dtvcto" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
-                            <label for="dtvcto">Vencimento Original</label>
+                    <div class="pagamento-campos">
+                        <div class="form2">
+                            <label class="user-label" for="dtvcto">Vencimento Original</label>
+                            <input type="date" class="input" name="dtvcto" id="dtvcto" readonly>
                         </div>
-                        <div class="form">
-                            <input type="text" name="vlrPrevisto" id="vlrPrevisto" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
-                            <label for="vlrPrevisto">Valor Previsto (R$)</label>
+                        <div class="form2">
+                            <label class="user-label" for="vlrPrevisto">Valor Previsto (R$)</label>
+                            <input type="text" class="input" name="vlrPrevisto" id="vlrPrevisto" readonly>
                         </div>
-                        <div class="form">
-                            <input type="number" name="numParcela" id="numParcela" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
-                            <label for="numParcela">Nº Parcela</label>
+                        <div class="form2">
+                            <label class="user-label" for="numParcela">Nº Parcela</label>
+                            <input type="number" class="input" name="numParcela" id="numParcela" readonly>
                         </div>
-                        <div class="form">
-                            <input type="text" name="vlrReal" id="vlrReal" required>
-                            <label for="vlrReal">Valor Real (R$)</label>
-                        </div>
-                    </div>
-
-                    <div class="form-2colunas">
-                        <div class="form">
-                            <input type="date" name="dtpgto" id="dtpgto" required>
-                            <label for="dtpgto">Data do Pagamento</label>
-                        </div>
-
-                        <div class="form">
-                            <input type="text" name="vlrDespesasAtraso" id="vlrDespesasAtraso" required>
-                            <label for="vlrDespesasAtraso">Despesas Atraso (R$)</label>
-                        </div>
-
-                        <div class="form">
-                            <input type="text" name="vlrDesconto" id="vlrDesconto" required>
-                            <label for="vlrDesconto">Desconto (R$)</label>
-                        </div>
-                        
-                        <div class="form">
-                            <input type="text" name="vlrPago" id="vlrPago" required>
-                            <label for="vlrPago">Valor Efetivamente Pago (R$)</label>
-                        </div>
-                        
-                    </div>
-
-                    <div class="form-1coluna">
-                        <div class="form">
-                            <input type="text" class="uppercase" name="observacao" id="observacaoPagto" required>
-                            <label for="observacaoPagto">Observações</label>
+                        <div class="form2">
+                            <label class="user-label" for="vlrReal">Valor Real (R$)</label>
+                            <input type="text" class="input" name="vlrReal" id="vlrReal" required>
                         </div>
                     </div>
 
-                    
-                    <div class="pdf" style="display: none;">
-                        <div class="collumn">
-                            <h5>Imagem da Conta/Boleto</h5>
-                            <div class="containerPDF">
-                                <label for="arquivoConta" class="footerPDF" name="footerPDF[]">
-                                    <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                    </svg>
-                                    <p id="fileNameConta" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                                </label>
-                                <input id="arquivoConta" class="filePDFInput" type="file" name="imagemConta" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                            </div>
-                            <div id="imagemContaDisplay" style="display: none; margin-top: 10px;">
-                                <div id="linkContainerConta"></div>
-                            </div>
+                    <div class="pagamento-campos">
+                        <div class="form2">
+                            <label class="user-label" for="dtpgto">Data do Pagamento</label>
+                            <input type="date" class="input" name="dtpgto" id="dtpgto" required>
                         </div>
-                        
-                        <br>
-                    
-                        <div class="collumn">
-                            <h5>Comprovante de Pagamento</h5>
-                            <div class="containerPDF">
-                                <label for="comprovantePagto" class="footerPDF" name="footerPDF[]">
-                                    <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-                                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                                    </svg>
-                                    <p id="fileNameComprovante" class="fileNamePDF">Nenhum arquivo selecionado</p>
-                                </label>
-                                <input id="comprovantePagto" class="filePDFInput" type="file" name="comprovantePagamento" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
-                            </div>
-                            <div id="comprovantePagtoDisplay" style="display: none; margin-top: 10px;">
-                                <div id="linkContainerComprovante"></div>
-                            </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrDespesasAtraso">Despesas Atraso (R$)</label>
+                            <input type="text" class="input" name="vlrDespesasAtraso" id="vlrDespesasAtraso" required>
                         </div>
-                        <input type="hidden" name="limparComprovanteImagem" id="limparComprovanteImagem" value="false">
-                        <input type="hidden" name="limparComprovantePagto" id="limparComprovantePagto" value="false">
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrDesconto">Desconto (R$)</label>
+                            <input type="text" class="input" name="vlrDesconto" id="vlrDesconto" required>
+                        </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrPago">Valor Efetivamente Pago (R$)</label>
+                            <input type="text" class="input" name="vlrPago" id="vlrPago" required>
+                        </div>
+                    </div>
+
+                    <div class="pagamento-campos pagamento-campos-1col">
+                        <div class="form2">
+                            <label class="user-label" for="observacaoPagto">Observações</label>
+                            <input type="text" class="input uppercase" name="observacao" id="observacaoPagto" required>
+                        </div>
                     </div>
 
                     <div class="form-checkbox" style="margin-top: 15px;">
@@ -133,8 +93,49 @@
                                 </span>
                             </label>
                         </div>
-                    </div>                     
-                    
+                        <div class="pdf" style="display: none;">
+                            <div class="collumn" id="colunaImagemConta">
+                                <h5>Imagem da Conta/Boleto</h5>
+                                <div class="containerPDF">
+                                    <button type="button" id="btnEscolherArquivoConta" class="btn-upload-arquivo" onclick="document.getElementById('arquivoConta').click()">
+                                        <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
+                                            <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#ffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path>
+                                        </svg>
+                                        Imagem da Conta
+                                    </button>
+                                    <p id="fileNameConta" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                    <input id="arquivoConta" class="filePDFInput" type="file" name="imagemConta" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                                </div>
+                                <div id="imagemContaDisplay" style="display: none; margin-top: 10px;">
+                                    <div id="linkContainerConta"></div>
+                                </div>
+                            </div>
+                            
+                            <br>
+                        
+                            <div class="collumn" id="colunaComprovante">
+                                <h5>Comprovante de Pagamento</h5>
+                                <div class="containerPDF">
+                                    <button type="button" id="btnEscolherComprovante" class="btn-upload-arquivo" onclick="document.getElementById('comprovantePagto').click()">
+                                        <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
+                                            <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#ffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path>
+                                        </svg>
+                                        Adicionar Comprovante
+                                    </button>
+                                    <p id="fileNameComprovante" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                    <input id="comprovantePagto" class="filePDFInput" type="file" name="comprovantePagamento" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                                </div>
+                                <div id="comprovantePagtoDisplay" style="display: none; margin-top: 10px;">
+                                    <div id="linkContainerComprovante"></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="limparComprovanteImagem" id="limparComprovanteImagem" value="false">
+                            <input type="hidden" name="limparComprovantePagto" id="limparComprovantePagto" value="false">
+                        </div>
+                    </div>
+
                     <div class="previa-lancamentos">
                         <h3>Histórico de Pagamentos deste Lançamento</h3>
                         <div class="table-container">
@@ -154,7 +155,7 @@
                             </table>
                         </div>
                     </div>
-                </fieldset>
+                </section>
             </form>
         </div>
 

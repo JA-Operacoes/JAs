@@ -35,21 +35,19 @@
   z-index: 1000; /* Fica acima do overlay */  
 } 
 
-/* Estilo opcional para o modal (você pode personalizar conforme necessário).
-   overflow:hidden aqui é essencial — sem ele, conteúdo que ultrapasse a altura
-   fixa do modal vaza visualmente para fora da caixa (era a causa real dos
-   botões "sumindo" no fundo escuro). Padrão idêntico ao usado no Faturamento. */
+/* Estilo do modal (responsivo, mesma moldura do CadPlanoSaude/CadPagamentos) */
 #cadModalLancamentos.modal {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
   background-color: #4d4d4d;
-  padding: 5px;
-  width: 1560px; /* Ajuste o tamanho conforme necessário */
+  padding: 6px;
+  width: 1560px;
   max-width: 96vw;
-  height: 860px;
-  overflow: hidden;
+  max-height: 92vh;
   border-radius: 10px;
   font-size: 16px;
   z-index: 9999;
@@ -57,23 +55,16 @@
 }
 
 #cadModalLancamentos .modal-content {
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* deixa o painel interno rolar */
 }
 
 #cadModalLancamentos.modal-open{
-  /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;
 }
-
-/* --- Estilização conforme Equipamentos (Alinhamento) --- */
-#cadModalLancamentos .form {
-    margin: 20px 12px;
-    display: flex;
-    align-items: center;
-}
-
-
 
 /* Quando o modal estiver visível */
 .modal-open #modal-overlay, 
@@ -115,7 +106,8 @@ body{
   font-family: "Abel", sans-serif;
   display: flex;
   flex-direction: column;
-  height: 780px;
+  flex: 1;
+  min-height: 0;
   background-color: #cacaca;
   max-width: 1540px;
   width: 100%;
@@ -178,39 +170,17 @@ body{
   display: flex;
 }
 
-fieldset {
-  display: flex;
-  flex-direction: column;
-  width: 780px;
-  min-height: 680px;
-  background-color: transparent;
-  border-color: var(--dark-color);
-  margin: 0 auto;
-  box-sizing: border-box;
-}
-
-/* A aba de Lançamentos não usa fieldset/legend (as seções já têm título
-   próprio) — o form assume o mesmo papel de layout que o fieldset dava,
-   usando a largura toda do painel para caber as seções lado a lado. */
-#cadModalLancamentos #lcViewLista form {
+/* Nenhuma aba usa mais fieldset/legend — todas as seções (inclusive Plano de
+   Contas e Centro de Custo) usam o mesmo cartão .lc-secao com título próprio. */
+#cadModalLancamentos #lcViewLista form,
+#cadModalLancamentos #lcViewPlanoContas form,
+#cadModalLancamentos #lcViewCentroCusto form {
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
   box-sizing: border-box;
-}
-
-/* Plano de Contas e Centro de Custo têm bem poucos campos — o min-height
-   genérico do fieldset (680px) deixava um vazio enorme embaixo. */
-#cadModalLancamentos #lcViewPlanoContas fieldset,
-#cadModalLancamentos #lcViewCentroCusto fieldset {
-  min-height: 0;
-}
-
-legend{
-  margin-left: 20px;
-  padding: 0 10px;
 }
 
 /* ===== Duas seções lado a lado (economiza altura) =====
@@ -252,14 +222,39 @@ legend{
   letter-spacing: 0.5px;
 }
 #cadModalLancamentos .lc-secao .form-3colunas {
-  justify-content: flex-start;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  justify-content: center;
+  justify-items: stretch;
+  align-items: end;
+  width: 100%;
+}
+
+/* Linha "Identificação": Código é um inteiro curto e não editável (não
+   precisa esticar), Descrição é o campo principal (ganha o espaço restante)
+   e Ativo fica encostado na ponta direita da linha. */
+#cadModalLancamentos .lc-secao .form-3colunas.form-identificacao {
+  grid-template-columns: minmax(120px, 200px) 1fr auto;
+}
+
+/* Plano de Contas / Centro de Custo: forms enxutos (poucos campos) — em vez
+   de esticar por toda a largura do painel (1500px) e sobrar um vazio enorme,
+   viram um cartão centralizado e proporcional ao próprio conteúdo. */
+#cadModalLancamentos .lc-secao-simples {
+  padding-bottom: 18px;
+}
+#cadModalLancamentos .lc-secao-simples .form-3colunas {
+  margin-bottom: 16px;
+}
+#cadModalLancamentos .lc-secao-simples .form-checkbox {
+  justify-content: center;
 }
 
 /* ===== Linha de tipo de vínculo (Cliente/Fornecedor/Funcionário + perfil) ===== */
 #cadModalLancamentos .lc-vinculo-tipo {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 4px;
   margin: 12px;
@@ -275,197 +270,215 @@ legend{
   display: flex;
 }
 
+/* ===== Radio "Registrado / Sem Registro" (perfil do Funcionário) =====
+   Radio nativo escondido por trás de um círculo custom, no mesmo estilo
+   visual (cor do tema, foco, disabled) dos checkboxes modernizados. */
+#cadModalLancamentos #containerPerfilFuncionario label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+#cadModalLancamentos .perfil-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid #c9c9c9;
+  border-radius: 50%;
+  background: #ffffff;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+#cadModalLancamentos .perfil-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--primary-color, #942123);
+  transform: scale(0);
+  transition: transform 0.2s ease;
+}
+#cadModalLancamentos .perfil-radio:checked {
+  border-color: var(--primary-color, #942123);
+}
+#cadModalLancamentos .perfil-radio:checked::after {
+  transform: scale(1);
+}
+#cadModalLancamentos .perfil-radio:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+#cadModalLancamentos .perfil-radio:focus-visible {
+  box-shadow: 0 0 0 4px var(--primary-color10, rgba(148, 33, 35, 0.12));
+}
+#cadModalLancamentos .perfil-radio:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .form-2colunas{
   display: flex;
-  gap: 0.5px; /* Espaço entre os inputs */
-  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  flex-wrap: wrap;
+  gap: 14px 16px;
   justify-content: center;
 }
 
 .form-3colunas{
   display: flex;
   flex-direction: row;
-  justify-content: space-evenly;
-  align-items: center;
-  max-width: 300;
-  gap: 0,5px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 14px 16px;
 }
 
-.form, .form2, .form3, .form-checkbox{
+/* ===== Campos (label estática acima do input, mesmo padrão do CadPagamentos —
+   evita a sobreposição que dava em campos readonly/data/select, onde o
+   "flutuar ao preencher" baseado em :valid não funciona) ===== */
+#cadModalLancamentos .form2 {
   position: relative;
   display: flex;
-  justify-content: center;
-  margin: 12px;
-  gap:5px;
-}
-
-
-.form input{
-  font-family:  var(--Font-primary);
-  width: 350px;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 0 15px;
-  border: 1px solid #000000;
-  background: transparent;
-  color: #000000;
-  outline: none;
-}
-
-input#observacao{
+  flex-direction: column;
   width: 100%;
 }
 
-.form2 input{
-  flex: 1;
+#cadModalLancamentos .form-checkbox {
+  position: relative;
+}
+
+#cadModalLancamentos .form2 .user-label {
+  order: -1;
+  font-size: 12.5px;
+  color: #333;
+  margin-bottom: 4px;
+  pointer-events: none;
+}
+
+#cadModalLancamentos .form2 .input {
+  height: 38px;
+  box-sizing: border-box;
+  border: solid 2px #9e9e9e;
+  border-radius: 10px;
+  background-color: #ffffff;
+  padding: 0 12px;
+  font-size: 15px;
   font-family: var(--Font-primary);
-  width: 200px;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 0 20px;
-  border: 1px solid #000000;
-  background: transparent;
   color: #000000;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: light;
+  transition: border 150ms cubic-bezier(0.4,0,0.2,1);
 }
 
-#idLancamento{
-  width: 80px;
+#cadModalLancamentos .form2 .input:focus {
+  border-color: var(--border-color, #b51d1d);
 }
 
-#vlrEstimado
-{
-  width: 180px;
+#cadModalLancamentos .form2 .input[readonly],
+#cadModalLancamentos .form2 .input:disabled {
+  background-color: #eaeaea;
+  color: #555;
+  cursor: not-allowed;
+  opacity: 1;
 }
 
-input#descricao{
-  width: 500px;
+#cadModalLancamentos .form2 select.input {
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
 }
 
-select#descricao{
-  width: 490px;
-} 
-
-select#idVinculo{
-  width: 500px;
-}
-
-input#qtdeParcelas{
-  width: 90px;
-}
-
-select#periodicidade, select#tipoRepeticao{
-    width: 130px;
-}
-
-/* select#idContaSelect{
-    width: 500px;
-} */
-
-/* Seleciona o container (.form) que contém especificamente o idContaSelect */
-/* Container do campo específico */
-/* .form:has(#idContaSelect) {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
-    height: auto !important; 
-    min-height: 55px; 
-} */
-
-/* O Label acima do campo */
-/* label[for="idContaSelect"] {
-    position: static !important;
-    order: -1;
-    margin-bottom: 4px !important; /
-    transform: none !important;
-    font-size: 12px !important;
-    font-weight: bold;
-}
-
-/* O Select com a altura corrigida */
-/*#idContaSelect {
-    display: block !important;
-    height: 30px !important; 
-    width: 520px !important;
-    padding: 0 10px !important;
-    line-height: 30px !important;
-} */
-
-.form2 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px; /* espaço entre os campos */
-  align-items: center; /* aqui é o segredo do alinhamento */
-}
-
-.form select {
-  border-radius: 5px;
-  flex: 1;
+/* Textarea de Observações — mesma pele dos demais campos, mas multi-linha */
+#cadModalLancamentos .form2 textarea.input {
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  resize: vertical;
   font-family: var(--Font-primary);
-  width: 200px;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 0 8px;
-  margin-top: -1px;
-  border: 1px solid #000000;
-  background: transparent;
-  color: #000000;
-  outline: none;
 }
+
+/* Larguras específicas de cada campo — escopadas com o mesmo nível de
+   especificidade do default acima (#cadModalLancamentos .form2 .input) para
+   garantir que a sobrescrita realmente valha (um `#id{width:...}` sozinho
+   tem menos peso que a regra com duas classes e perde a cascata). */
+#cadModalLancamentos .form2 .input { width: 100%; }
+
+/* Campos que devem esticar e preencher o espaço restante da linha, em vez de
+   uma largura fixa "no chute" (Descrição do Lançamento e Vínculo). */
+#cadModalLancamentos .form2.form2-grow {
+  flex: 1 1 240px;
+}
+#cadModalLancamentos .form2.form2-grow .input {
+  width: 100%;
+}
+
+/* Observações ocupa a linha inteira (é a única .form2 do .form-1coluna) */
+#cadModalLancamentos .form-1coluna .form2 { width: 100%; }
+#cadModalLancamentos .form-1coluna .form2 .input { width: 100%; }
 
 /* ===== Select2 (busca conforme digita) — mesmo visual dos selects nativos =====
    O Select2 insere seu próprio container logo após o <select> original (que
    fica oculto) — usamos o seletor de irmão adjacente para dar a cada campo a
    mesma largura que o select nativo já tinha. */
 #cadModalLancamentos .select2-container {
-  width: 200px !important;
-}
-#cadModalLancamentos #idPlanoContasSelect + .select2-container,
-#cadModalLancamentos #centroCusto + .select2-container,
-#cadModalLancamentos #empresaPagadora + .select2-container {
-  width: 300px !important;
-}
-#cadModalLancamentos #idVinculo + .select2-container,
-#cadModalLancamentos #descricao + .select2-container {
-  width: 490px !important;
+  width: 100% !important;
 }
 #cadModalLancamentos .select2-container--default .select2-selection--single {
-  border: 1px solid #000000 !important;
-  border-radius: 6px !important;
-  height: 30px !important;
-  background: transparent !important;
+  border: solid 2px #9e9e9e !important;
+  border-radius: 10px !important;
+  height: 38px !important;
+  background-color: #ffffff !important;
   outline: none !important;
   display: flex !important;
   align-items: center !important;
+  transition: border 150ms cubic-bezier(0.4,0,0.2,1);
 }
 #cadModalLancamentos .select2-container--default .select2-selection--single .select2-selection__rendered {
   font-family: var(--Font-primary) !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   color: #000000 !important;
-  padding-left: 8px !important;
-  line-height: 28px !important;
+  padding-left: 12px !important;
+  line-height: 34px !important;
 }
 #cadModalLancamentos .select2-container--default .select2-selection--single .select2-selection__arrow {
-  height: 28px !important;
-  right: 5px !important;
+  height: 36px !important;
+  right: 8px !important;
 }
 #cadModalLancamentos .select2-container--default.select2-container--focus .select2-selection--single,
 #cadModalLancamentos .select2-container--default.select2-container--open .select2-selection--single {
-  border: 1px solid #000000 !important;
+  border-color: var(--border-color, #b51d1d) !important;
   outline: none !important;
 }
-#cadModalLancamentos .select2-container--default .select2-results__option {
-  font-size: 12px !important;
-  font-family: var(--Font-primary) !important;
-  padding: 4px 8px !important;
+#cadModalLancamentos .select2-dropdown {
+  border: solid 2px #9e9e9e !important;
+  border-radius: 10px !important;
+  overflow: hidden;
 }
-#cadModalLancamentos .select2-container--default .select2-search--dropdown .select2-search__field {
+#cadModalLancamentos .select2-container--default .select2-results__option {
   font-size: 13px !important;
   font-family: var(--Font-primary) !important;
-  height: 25px !important;
+  padding: 6px 10px !important;
+}
+#cadModalLancamentos .select2-container--default .select2-search--dropdown {
+  padding: 6px;
+}
+#cadModalLancamentos .select2-container--default .select2-search--dropdown .select2-search__field {
+  font-size: 14px !important;
+  font-family: var(--Font-primary) !important;
+  height: 32px !important;
+  border: solid 2px #9e9e9e !important;
+  border-radius: 8px !important;
+  padding: 0 8px !important;
+  outline: none !important;
 }
 
 
@@ -485,101 +498,12 @@ button.close {
 }
 
 
-.form3 input{
-  flex: 1;
-  font-family: var(--Font-primary);
-  width: 270px;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 0 20px;
-  border: 1px solid #000000;
-  background: transparent;
-  color: #000000;
-  outline: none;
-}
-
-.form label, .form-2colunas label, .form2 label{
-  position: absolute;
-  transform: translateY(-50%);
-  color: #000000;
-  font-size: 13px;
-  pointer-events: none;
-  transition: 0.3s;
-  align-items: center;
-}
-
-.form3 label{
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #000000;
-  font-size: 19px;
-  pointer-events: none;
-  transition: 0.3s;
-}
-
 .uppercase {
   text-transform: uppercase;
 }
 
-input:focus{
-  border: 2px solid var(--border-color);
-}
-
-input:focus ~ label,
-input:valid ~ label,
-select:focus ~ label,
-select:valid ~ label{
-  top: 0;
-  left: 25%;
-  font-size: 12px;
-  padding: 0 2px;
-  background: #cacaca;
-}
-
-input:not([value=""]) ~ label {
-  top: -5px;
-  left: 2%;
-  font-size: 12px;
-  padding: 0 2px;
-  background: #cacaca;
-}
-
-/* Classe adicionada via JS (ex.: label do Vínculo ao marcar Funcionário,
-   quando o select fica temporariamente disabled e :valid não dispara) —
-   sobe o label independente do estado do campo irmão. */
-#cadModalLancamentos label.active {
-  top: 0;
-  left: 25%;
-  font-size: 12px;
-  padding: 0 2px;
-  background: #cacaca;
-}
-
-input[type=date]{
-  width: 150px;
-  height: 30px;
-  font-size: 17px;
-}
-
 input[type=file]{
   display: none;
-}
-
-
-input#id{
-  width: 70px;
-}
-
-
-#idlancamento.has-value + label,
-#idlancamento:focus + label {
-  top: 0;
-  left: 25%;
-  font-size: 12px;
-  padding: 0 2px;
-  background: #cacaca;
 }
 
 /* --- CHECKBOX CUSTOMIZADO (CORRIGIDO) --- */
@@ -610,16 +534,9 @@ input#id{
 }
 
 .checkbox-wrapper-33 {
-  --s-xsmall: 0.625em;
-  --s-small: 1.2em;
-  --border-width: 1px;
-  --c-primary: #0c6400;
-  --c-primary-20-percent-opacity: rgba(17, 232, 35, 0.2);
-  --c-primary-10-percent-opacity: rgba(42, 232, 17, 0.1);
-  --t-base: 0.4s;
-  --t-fast: 0.2s;
-  --e-in: ease-in;
-  --e-out: cubic-bezier(0.11, 0.29, 0.18, 0.98);
+  --checkbox-size: 24px;
+  --checkbox-color: var(--primary-color, #942123);
+  --checkbox-bg: var(--primary-color10, rgba(148, 33, 35, 0.12));
 }
 
 .checkbox-wrapper-33 .visuallyhidden {
@@ -641,44 +558,31 @@ input#id{
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  color: rgb(0, 0, 0);
+  gap: 10px;
+  color: #333;
 }
 
 .checkbox-wrapper-33 .checkbox + .checkbox {
-  margin-top: var(--s-small);
+  margin-top: 10px;
 }
 
 .checkbox-wrapper-33 .checkbox__symbol {
-  display: inline-block;
   display: flex;
-  margin-right: calc(var(--s-small) * 0.7);
-  border: var(--border-width) solid var(--c-primary);
+  align-items: center;
+  justify-content: center;
   position: relative;
-  border-radius: 0.1em;
-  width: 1.5em;
-  height: 1.5em;
-  transition: box-shadow var(--t-base) var(--e-out),
-    background-color var(--t-base);
-  box-shadow: 0 0 0 0 var(--c-primary-10-percent-opacity);
-}
-
-.checkbox-wrapper-33 .checkbox__symbol:after {
-  content: "";
-  position: absolute;
-  top: 0.5em;
-  left: 0.5em;
-  width: 0.25em;
-  height: 0.25em;
-  background-color: var(--c-primary-20-percent-opacity);
-  opacity: 0;
-  border-radius: 3em;
-  transform: scale(1);
-  transform-origin: 50% 50%;
+  flex-shrink: 0;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  border: 2px solid #c9c9c9;
+  border-radius: 7px;
+  background: #ffffff;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .checkbox-wrapper-33 .checkbox .icon-checkbox {
-  width: 1em;
-  height: 1em;
+  width: 68%;
+  height: 68%;
   margin: auto;
   fill: none;
   stroke-width: 3;
@@ -686,23 +590,39 @@ input#id{
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-miterlimit: 10;
-  color: var(--c-primary);
+  color: #ffffff;
   display: inline-block;
+  transform: scale(0);
+  transition: transform 0.2s ease;
 }
 
 .checkbox-wrapper-33 .checkbox .icon-checkbox path {
-  transition: stroke-dashoffset var(--t-fast) var(--e-in);
-  stroke-dasharray: 30px, 31px;
-  stroke-dashoffset: 31px;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  transition: stroke-dashoffset 0.3s ease 0.1s;
 }
 
 .checkbox-wrapper-33 .checkbox__textwrapper {
   margin: 0;
+  font-size: 14px;
 }
 
-.checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol:after {
-  -webkit-animation: ripple-33 1.5s var(--e-out);
-  animation: ripple-33 1.5s var(--e-out);
+.checkbox-wrapper-33 .checkbox:hover .checkbox__symbol {
+  transform: scale(1.05);
+}
+
+.checkbox-wrapper-33 .checkbox:active .checkbox__symbol {
+  transform: scale(0.95);
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol {
+  background: var(--checkbox-color);
+  border-color: var(--checkbox-color);
+  animation: checkbox-bounce-33 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol .icon-checkbox {
+  transform: scale(1);
 }
 
 .checkbox-wrapper-33
@@ -710,12 +630,16 @@ input#id{
   + .checkbox__symbol
   .icon-checkbox
   path {
-  transition: stroke-dashoffset var(--t-base) var(--e-out);
-  stroke-dashoffset: 0px;
+  stroke-dashoffset: 0;
 }
 
 .checkbox-wrapper-33 .checkbox__trigger:focus + .checkbox__symbol {
-  box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
+  box-shadow: 0 0 0 4px var(--checkbox-bg);
+}
+
+@keyframes checkbox-bounce-33 {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
 }
 
 
@@ -785,36 +709,6 @@ input#id{
 }
 
 
-/* Container que agrupa o checkbox e o label */
-.field-group-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-top: 15px;
-    margin-left: 12px; /* Alinha com a margem dos outros campos */
-}
-
-/* Estilo do Input Checkbox */
-.field-group-checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    margin: 0;
-}
-
-/* Correção específica para o Label do Checkbox */
-/* Usamos classes específicas para ignorar as regras de '.form label' */
-.field-group-checkbox label.label-checkbox {
-    position: relative !important; /* Remove o 'absolute' da linha 173 */
-    top: auto !important;          /* Remove o 'top: 50%' da linha 174 */
-    left: auto !important;         /* Remove o 'left: 20px' da linha 179 */
-    transform: none !important;    /* Remove o centralizador vertical */
-    color: #000000 !important;
-    font-size: 20px;
-    pointer-events: auto !important; /* Permite clicar no texto para marcar o box */
-    cursor: pointer;
-    white-space: nowrap;
-}
 
 /* Quando o container ou o label contém um input desabilitado */
 #containerPerfilFuncionario label:has(input:disabled) {
