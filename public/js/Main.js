@@ -16880,6 +16880,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         }
 
         console.log("DADOS CONTAS", resContas);
+        // Só existe período (dInicioComp/dFimComp) calculado dentro do bloco de contas abaixo —
+        // por isso o FGTS estimado também precisa ser calculado lá dentro; aqui fica só a variável
+        // pronta pra usar depois em atualizarResumoGeralEstatico (fora do bloco, sem período
+        // nenhum se não houver contas).
+        let fgtsEstimado = 0;
         if (resContas.sucesso && resContas.contas) {
             // const hoje = new Date();
             // hoje.setHours(0, 0, 0, 0);
@@ -17341,6 +17346,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 setTimeout(atualizarContadoresFiltrosContas, 300);
             }
+
+            // FGTS estimado (8% sobre salário+proventos tributáveis) dos funcionários de folha no
+            // MESMO período em tela (dInicioComp/dFimComp calculados acima) — direto de
+            // resContas.holerites (uma linha por funcionário/mês, sem risco de duplicar contando
+            // por lançamento). Só informativo: vira conta de verdade quando alguém lançar a guia
+            // (GRF) manualmente em Contas, não é gerado automaticamente aqui.
+            const fgtsAliquota = Number(resContas.fgtsAliquota) || 0.08;
+            fgtsEstimado = (resContas.holerites || []).reduce((soma, h) => {
+                const dtHolerite = new Date(h.ano, h.mes - 1, 1, 12, 0, 0);
+                if (dtHolerite < dInicioComp || dtHolerite > dFimComp) return soma;
+                return soma + (Number(h.proventos) || 0) * fgtsAliquota;
+            }, 0);
        }
 
         console.log("✅ AGORA HÁ ITENS?", contasProjetadas.length);
@@ -17369,7 +17386,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         filtrarEventosNaTela(filtroAtivo);
 
         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
-        atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
+        atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement, fgtsEstimado);
         // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
 
         // --- MODO FOCO: bloco escolhido nos botões de acesso rápido já abre expandido,
@@ -19709,7 +19726,7 @@ function expandirOcorrenciasNoAno(c, anoFiltro) {
     return ocorrencias;
 }
 
-function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element) {
+function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element, fgtsEstimado = 0) {
     if (!element) return;
 
     // 1. Pegamos as referências do filtro de tela
@@ -19875,7 +19892,7 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
 
     element.innerHTML = `
         <div class="resumo-detalhado">
-            <div style="display: grid; grid-template-columns: repeat(6, 1fr); width: 100%;gap: 8px; text-align: center;">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); width: 100%;gap: 8px; text-align: center;">
 
                 <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
                     <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>
@@ -19917,6 +19934,13 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
                     <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
                         Staff: ${formatarMoeda(sVenc+sHoje+sAVenc+sPago+sSusp+sAguardando)} | Contas: ${formatarMoeda(cVenc+cHoje+cAVenc+cPago+cSusp)}
                         ${sAguardando > 0 ? `<br><span style="color:#6c757d;" title="Evento de Staff ainda sem funcionários cadastrados">Aguardando Staff: ${formatarMoeda(sAguardando)}</span>` : ''}
+                    </div>
+                </div>
+
+                <div style="background: #f5f0ff; padding: 10px; border-radius: 8px; border: 1px solid #d6bcfa;" title="8% sobre o bruto (salário + proventos tributáveis) dos funcionários no período — não é um lançamento, é só o valor esperado pra conferir contra a guia (GRF) quando ela chegar.">
+                    <h4 style="margin:0; font-size: 16px; color: #553c9a; text-transform: uppercase;">FGTS Estimado (no período): ${formatarMoeda(fgtsEstimado)}</h4>
+                    <div style="font-size: 14px; color: #44337a; border-top: 1px solid #d6bcfa; padding-top: 4px;">
+                        Confira contra a guia (GRF) ao lançar em Contas
                     </div>
                 </div>
             </div>
