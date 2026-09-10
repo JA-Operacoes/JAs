@@ -1,4 +1,7 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { ligarBuscaComSugestoes } from './formatacoes.js';
+
+let lancamentosCache = []; // usado pela busca com sugestões do campo Lançamento (Conta)
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -58,10 +61,11 @@ async function carregarLancamentosParaPagto() {
 
     try {
         const lancamentos = await fetchComToken("/pagamentos/lancamentos");
-        
+        lancamentosCache = lancamentos;
+
         // Mantém a opção padrão (placeholder)
         select.innerHTML = '<option value="" disabled selected>Selecione o Lançamento...</option>';
-        
+
         lancamentos.forEach(l => {
             const opt = document.createElement("option");
             opt.value = l.idlancamento;
@@ -72,38 +76,7 @@ async function carregarLancamentosParaPagto() {
             select.appendChild(opt);
         });
 
-        // --- INICIALIZAÇÃO DA BUSCA (SELECT2) ---
-        // Destruímos qualquer instância anterior para evitar duplicidade ao recarregar
-        if ($(select).hasClass("select2-hidden-accessible")) {
-            $(select).select2('destroy');
-        }
-
-        $(select).select2({
-            placeholder: "Digite para buscar (ex: Luz, Condomínio, Salário...)",
-            allowClear: true,
-            width: '100%',
-            // Esta opção garante que ele procure tanto no ID quanto na Descrição
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                
-                // Busca ignorando maiúsculas/minúsculas
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
-            }
-        });
-
-        // Vincula o evento do Select2 ao seu onchange nativo que já está funcionando
-        $(select).on('select2:select', function (e) {
-            this.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        $(select).on('select2:unselect', function (e) {
-            this.value = "";
-            this.dispatchEvent(new Event('change', { bubbles: true }));
-        });
+        configurarBuscaLancamento();
 
         console.log("✅ Select de lançamentos populado com sucesso.");
         return true; // Indica que terminou
@@ -111,6 +84,33 @@ async function carregarLancamentosParaPagto() {
         console.error("Erro ao carregar lançamentos:", error);
         return false;
     }
+}
+
+// Busca com sugestões (padrão do sistema, ver public/js/formatacoes.js) para o campo
+// "Lançamento (Conta)": filtra em memória a lista já carregada por carregarLancamentosParaPagto
+// e, ao escolher, sincroniza o <select id="idLancamentoSelect"> (escondido) que o restante
+// do módulo usa para ler .value/.selectedOptions[0].dataset e disparar o 'change' existente.
+let buscaLancamentoLigada = false;
+function configurarBuscaLancamento() {
+    const inputBusca = document.querySelector("#descLancamento");
+    if (!inputBusca || buscaLancamentoLigada) return;
+    buscaLancamentoLigada = true;
+
+    ligarBuscaComSugestoes(
+        inputBusca,
+        "lancamento-sugestoes",
+        (termo) => lancamentosCache.filter(l =>
+            `${l.idlancamento} - ${l.descricao}`.toLowerCase().includes(termo.toLowerCase())
+        ),
+        (l) => `${l.idlancamento} - ${l.descricao}`,
+        (l) => {
+            const select = document.querySelector("#idLancamentoSelect");
+            inputBusca.value = `${l.idlancamento} - ${l.descricao}`;
+            select.value = l.idlancamento;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+        { mensagemVazia: "Nenhum lançamento encontrado" }
+    );
 }
 
 async function buscarDadosParcela(idLanc, vctoBaseOriginal) {
@@ -283,7 +283,8 @@ async function preencherParaEdicao(p) {
 
             // 4. Carrega Anexos e atualiza Botão Principal
             carregarAnexosExistentes(p);
-            
+            atualizarVisibilidadeAnexos();
+
             const btnEnviar = document.querySelector("#Enviar");
             if (btnEnviar) {
                 btnEnviar.textContent = eSupremo ? "Atualizar Parcela" : "Salvar Anexos";
@@ -437,6 +438,42 @@ async function salvarPagamento(event) {
 }
 
 
+// Ícone usado no botão .btn-remover-anexo (Uiverse.io by SpatexDEV)
+const svgLixeiraAnexo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor">
+    <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64s14.3 32 32 32H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
+</svg>`;
+
+// Só master|supremo|dev enxergam a área de anexos (imagem da conta/boleto e comprovante).
+function podeVerAnexosPagamento() {
+    return typeof temPermissao === "function" ? temPermissao("Pagamentos", "supremo") : false;
+}
+
+// Mostra/esconde a área de anexos conforme:
+// - permissão (master|supremo|dev) — sem ela, fica sempre escondida;
+// - checkbox "Pagamento Confirmado" — desmarcado, some tudo;
+// - a coluna de Comprovante só aparece depois que a Imagem da Conta/Boleto foi anexada
+//   (já enviada, ou recém-escolhida no input antes de salvar).
+function atualizarVisibilidadeAnexos() {
+    const pdfContainer = document.querySelector(".pdf");
+    if (!pdfContainer) return;
+
+    const colunaComprovante = document.getElementById("colunaComprovante");
+    const confirmado = document.querySelector("#statusPagto")?.checked;
+
+    if (!podeVerAnexosPagamento() || !confirmado) {
+        pdfContainer.style.display = "none";
+        return;
+    }
+
+    pdfContainer.style.display = "flex";
+
+    const inputConta = document.getElementById("arquivoConta");
+    const temImagemConta = (inputConta?.files?.length > 0) ||
+        document.getElementById("imagemContaDisplay")?.style.display === "block";
+
+    if (colunaComprovante) colunaComprovante.style.display = temImagemConta ? "" : "none";
+}
+
 function carregarAnexosExistentes(p) {
     const containerComp = document.getElementById('linkContainerComprovante');
     const containerConta = document.getElementById('linkContainerConta');
@@ -454,10 +491,12 @@ function carregarAnexosExistentes(p) {
     if (p.imagemconta) {
         document.getElementById('imagemContaDisplay').style.display = "block";
         if (inputConta) inputConta.disabled = true;
+        const btnConta = document.getElementById('btnEscolherArquivoConta');
+        if (btnConta) btnConta.disabled = true;
 
         // Liberado se 'podeApagarAnexo' for true, independente de ser Supremo
-        const btnLixeiraConta = podeApagarAnexo 
-            ? `<button type="button" onclick="marcarParaLimpar('imagemConta')" class="btn-limpar-anexo" title="Remover boleto">🗑️</button>` 
+        const btnLixeiraConta = podeApagarAnexo
+            ? `<button type="button" onclick="marcarParaLimpar('imagemConta')" class="btn-remover-anexo" title="Remover boleto">${svgLixeiraAnexo}Remover</button>`
             : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
 
         containerConta.innerHTML = `
@@ -471,10 +510,12 @@ function carregarAnexosExistentes(p) {
     if (p.comprovantepgto) {
         document.getElementById('comprovantePagtoDisplay').style.display = "block";
         if (inputComp) inputComp.disabled = true;
+        const btnComp = document.getElementById('btnEscolherComprovante');
+        if (btnComp) btnComp.disabled = true;
 
         // Liberado se 'podeApagarAnexo' for true
-        const btnLixeiraComp = podeApagarAnexo 
-            ? `<button type="button" onclick="marcarParaLimpar('comprovante')" class="btn-limpar-anexo" title="Remover comprovante">🗑️</button>` 
+        const btnLixeiraComp = podeApagarAnexo
+            ? `<button type="button" onclick="marcarParaLimpar('comprovante')" class="btn-remover-anexo" title="Remover comprovante">${svgLixeiraAnexo}Remover</button>`
             : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
 
         containerComp.innerHTML = `
@@ -512,6 +553,8 @@ function configurarUploads() {
                             🔍 Pré-visualizar Selecionado
                         </a>`;
                 }
+
+                atualizarVisibilidadeAnexos();
             });
         }
     });
@@ -581,6 +624,8 @@ function limparFormularioTotalmente(limparTabela = true) {
         i.dispatchEvent(new Event('input', { bubbles: true }));
         i.dispatchEvent(new Event('change', { bubbles: true }));
     });
+
+    atualizarVisibilidadeAnexos();
 }
 
 
@@ -599,18 +644,22 @@ function marcarParaLimpar(tipo) {
                 document.getElementById('comprovantePagtoDisplay').style.display = "none";
                 const input = document.getElementById('comprovantePagto');
                 input.disabled = false;
-                input.parentElement.onclick = null; // REMOVE O ALERTA
+                const btnComp = document.getElementById('btnEscolherComprovante');
+                if (btnComp) btnComp.disabled = false;
                 document.getElementById('fileNameComprovante').textContent = "Selecione novo arquivo...";
-            } 
-            
+            }
+
             if (tipo === 'imagemConta') {
                 document.getElementById('limparComprovanteImagem').value = "true";
                 document.getElementById('imagemContaDisplay').style.display = "none";
                 const input = document.getElementById('arquivoConta');
                 input.disabled = false;
-                input.parentElement.onclick = null; // REMOVE O ALERTA
+                const btnConta = document.getElementById('btnEscolherArquivoConta');
+                if (btnConta) btnConta.disabled = false;
                 document.getElementById('fileNameConta').textContent = "Selecione nova imagem...";
             }
+
+            atualizarVisibilidadeAnexos();
         }
     });
 }
@@ -736,8 +785,13 @@ function configurarEventosPagamentos() {
                     campoDtPgto.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             }
+
+            atualizarVisibilidadeAnexos();
         });
     }
+
+    // Estado inicial (modal recém-aberto, antes de qualquer clique no checkbox)
+    atualizarVisibilidadeAnexos();
 
     if (enviarBtn) enviarBtn.onclick = (e) => salvarPagamento(e);
     if (limparBtn) limparBtn.onclick = () => {
