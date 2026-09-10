@@ -423,24 +423,45 @@ router.get("/geral/funcionario", async (req, res) => {
     const idempresa = req.query.idempresa ? parseInt(req.query.idempresa, 10) : null;
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+    const filtroMesHolerite = temMesFiltro ? `AND h.mes = ${mesFiltro}` : "";
+    const filtroMesStaff = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const filtroMesAjuste = temMesFiltro ? `AND EXTRACT(MONTH FROM af.dtlancamento) = ${mesFiltro}` : "";
+
     const filtroEmpresaHolerite = idempresa ? "AND h.idempresa = $3" : "";
     const filtroEmpresaStaff = idempresa ? "AND oe.idempresa = $3" : "";
     const filtroEmpresaAjuste = idempresa ? "AND af.idempresa = $3" : "";
     const params = idempresa ? [idfuncionario, ano, idempresa] : [idfuncionario, ano];
 
-    const holerites = await pool.query(
+    // conferido/conferido_beneficios seguem a mesma regra do Financeiro > Contas a Pagar
+    // (Vencimentos): enquanto o RH não confere a competência, ela só existe como previsão —
+    // mesmo já tendo linha gravada em folhaholerite com status 'Pendente'. Salário e Benefícios
+    // (VA/VT) conferem e pagam em momentos diferentes, por isso a origem é calculada em separado
+    // pra cada um (rotaMain.js/rotaRH.js já fazem o mesmo em Vencimentos).
+    const holeritesRaw = await pool.query(
       `SELECT h.idholerite, h.idempresa, emp.nmfantasia AS nomeempresa, h.mes, h.ano, h.tipo,
-              h.status, h.salariobase, h.dtpagamento,
-              COALESCE(SUM(CASE WHEN i.tipo IN ('P','B') THEN i.valor ELSE 0 END), 0) AS proventos,
+              h.status, h.salariobase, h.dtpagamento, h.conferido,
+              h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios,
+              COALESCE(SUM(CASE WHEN i.tipo = 'P' THEN i.valor ELSE 0 END), 0) AS proventos,
+              COALESCE(SUM(CASE WHEN i.tipo = 'B' THEN i.valor ELSE 0 END), 0) AS beneficios,
               COALESCE(SUM(CASE WHEN i.tipo = 'D' THEN i.valor ELSE 0 END), 0) AS descontos
        FROM folhaholerite h
        JOIN empresas emp ON emp.idempresa = h.idempresa
        LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
-       WHERE h.idfuncionario = $1 AND h.ano = $2 ${filtroEmpresaHolerite}
-       GROUP BY h.idholerite, h.idempresa, emp.nmfantasia, h.mes, h.ano, h.tipo, h.status, h.salariobase, h.dtpagamento
+       WHERE h.idfuncionario = $1 AND h.ano = $2 ${filtroEmpresaHolerite} ${filtroMesHolerite}
+       GROUP BY h.idholerite, h.idempresa, emp.nmfantasia, h.mes, h.ano, h.tipo, h.status, h.salariobase,
+                h.dtpagamento, h.conferido, h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios
        ORDER BY h.mes ASC`,
       params
     );
+    const holerites = {
+      rows: holeritesRaw.rows.map((h) => ({
+        ...h,
+        origem: h.conferido ? "real" : "previsao",
+        origemBeneficios: h.conferido_beneficios ? "real" : "previsao",
+      })),
+    };
 
     const staff = await pool.query(
       `SELECT se.idstaffevento, se.idevento, se.nmevento, se.nmcliente, o.idorcamento,
@@ -456,7 +477,7 @@ router.get("/geral/funcionario", async (req, res) => {
        WHERE se.idfuncionario = $1
          AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
          AND se.statusstaff <> 'Deletado'
-         ${filtroEmpresaStaff}
+         ${filtroEmpresaStaff} ${filtroMesStaff}
        ORDER BY o.dtinirealizacao ASC`,
       params
     );
@@ -470,7 +491,7 @@ router.get("/geral/funcionario", async (req, res) => {
        WHERE af.idfuncionario = $1
          AND EXTRACT(YEAR FROM af.dtlancamento) = $2
          AND af.status = 'Pago'
-         ${filtroEmpresaAjuste}
+         ${filtroEmpresaAjuste} ${filtroMesAjuste}
        ORDER BY af.dtlancamento ASC`,
       params
     );
@@ -496,22 +517,41 @@ router.get("/geral/panorama", async (req, res) => {
       .filter((n) => Number.isInteger(n));
     const temFiltro = idempresas.length > 0;
 
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+    const filtroMesHolerite = temMesFiltro ? `AND h.mes = ${mesFiltro}` : "";
+    const filtroMesStaff = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const filtroMesAjuste = temMesFiltro ? `AND EXTRACT(MONTH FROM af.dtlancamento) = ${mesFiltro}` : "";
+
     const filtroHolerite = temFiltro ? "AND h.idempresa = ANY($2::int[])" : "";
     const filtroStaff = temFiltro ? "AND oe.idempresa = ANY($2::int[])" : "";
     const filtroAjuste = temFiltro ? "AND af.idempresa = ANY($2::int[])" : "";
     const params = temFiltro ? [ano, idempresas] : [ano];
 
+    // Salário (P - D) e Benefícios (B) conferem/pagam em separado (mesmas colunas usadas em
+    // Vencimentos): só entra como "pago" quando conferido E status correspondente = 'Pago';
+    // caso contrário é previsão, mesmo já existindo a linha em folhaholerite.
     const holerite = await pool.query(
-      `SELECT h.mes,
-              COALESCE(SUM(CASE WHEN h.status = 'Pago'
-                THEN (CASE WHEN i.tipo IN ('P','B') THEN i.valor WHEN i.tipo = 'D' THEN -i.valor ELSE 0 END)
-                ELSE 0 END), 0) AS pago,
-              COALESCE(SUM(CASE WHEN h.status <> 'Pago'
-                THEN (CASE WHEN i.tipo IN ('P','B') THEN i.valor WHEN i.tipo = 'D' THEN -i.valor ELSE 0 END)
-                ELSE 0 END), 0) AS pendente
+      `WITH itens AS (
+         SELECT idholerite,
+                COALESCE(SUM(CASE WHEN tipo = 'P' THEN valor ELSE 0 END), 0) AS proventos,
+                COALESCE(SUM(CASE WHEN tipo = 'B' THEN valor ELSE 0 END), 0) AS beneficios,
+                COALESCE(SUM(CASE WHEN tipo = 'D' THEN valor ELSE 0 END), 0) AS descontos
+         FROM folhaitens
+         GROUP BY idholerite
+       )
+       SELECT h.mes,
+              COALESCE(SUM(
+                (CASE WHEN h.conferido AND h.status = 'Pago' THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END) +
+                (CASE WHEN h.conferido_beneficios AND h.status_beneficios = 'Pago' THEN COALESCE(it.beneficios,0) ELSE 0 END)
+              ), 0) AS pago,
+              COALESCE(SUM(
+                (CASE WHEN NOT (h.conferido AND h.status = 'Pago') THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END) +
+                (CASE WHEN NOT (h.conferido_beneficios AND h.status_beneficios = 'Pago') THEN COALESCE(it.beneficios,0) ELSE 0 END)
+              ), 0) AS pendente
        FROM folhaholerite h
-       LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
-       WHERE h.ano = $1 ${filtroHolerite}
+       LEFT JOIN itens it ON it.idholerite = h.idholerite
+       WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
        GROUP BY h.mes`,
       params
     );
@@ -534,7 +574,7 @@ router.get("/geral/panorama", async (req, res) => {
        WHERE EXTRACT(YEAR FROM o.dtinirealizacao) = $1
          AND se.statusstaff <> 'Deletado'
          AND o.dtinirealizacao IS NOT NULL
-         ${filtroStaff}
+         ${filtroStaff} ${filtroMesStaff}
        GROUP BY EXTRACT(MONTH FROM o.dtinirealizacao)`,
       params
     );
@@ -545,7 +585,7 @@ router.get("/geral/panorama", async (req, res) => {
       `SELECT EXTRACT(MONTH FROM af.dtlancamento)::int AS mes,
               COALESCE(SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END), 0) AS pago
        FROM staffajustefinanceiro af
-       WHERE EXTRACT(YEAR FROM af.dtlancamento) = $1 AND af.status = 'Pago' ${filtroAjuste}
+       WHERE EXTRACT(YEAR FROM af.dtlancamento) = $1 AND af.status = 'Pago' ${filtroAjuste} ${filtroMesAjuste}
        GROUP BY EXTRACT(MONTH FROM af.dtlancamento)`,
       params
     );
@@ -554,6 +594,108 @@ router.get("/geral/panorama", async (req, res) => {
   } catch (error) {
     console.error("ERRO CEO /geral/panorama:", error);
     res.status(500).json({ error: "Erro ao carregar panorama geral." });
+  }
+});
+
+// GET /ceo/geral/funcionarios-resumo?ano=YYYY&idempresas=1,2,3 — mesma agregação de
+// /geral/panorama (holerite + staff em eventos + ajustes pagos), só que por FUNCIONÁRIO em vez
+// de por mês — alimenta a "Lista" da Visão Geral quando nenhum funcionário específico foi
+// buscado ainda, pro modo Lista deixar de exigir seleção antes de mostrar algo (mesma paridade
+// que o modo Gráfico já tem: mostra o grupo inteiro por padrão, e um funcionário só quando
+// buscado). Um funcionário só aparece aqui se tiver QUALQUER atividade no ano (holerite, staff
+// ou ajuste pago) — não é a lista de cadastro inteira, é só quem tem valor a mostrar.
+router.get("/geral/funcionarios-resumo", async (req, res) => {
+  try {
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresas = String(req.query.idempresas || "")
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter((n) => Number.isInteger(n));
+    const temFiltro = idempresas.length > 0;
+
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+    const filtroMesHolerite = temMesFiltro ? `AND h.mes = ${mesFiltro}` : "";
+    const filtroMesStaff = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const filtroMesAjuste = temMesFiltro ? `AND EXTRACT(MONTH FROM af.dtlancamento) = ${mesFiltro}` : "";
+
+    const filtroHolerite = temFiltro ? "AND h.idempresa = ANY($2::int[])" : "";
+    const filtroStaff = temFiltro ? "AND oe.idempresa = ANY($2::int[])" : "";
+    const filtroAjuste = temFiltro ? "AND af.idempresa = ANY($2::int[])" : "";
+    const params = temFiltro ? [ano, idempresas] : [ano];
+
+    const { rows } = await pool.query(
+      `WITH itens AS (
+         SELECT idholerite,
+                COALESCE(SUM(CASE WHEN tipo = 'P' THEN valor ELSE 0 END), 0) AS proventos,
+                COALESCE(SUM(CASE WHEN tipo = 'B' THEN valor ELSE 0 END), 0) AS beneficios,
+                COALESCE(SUM(CASE WHEN tipo = 'D' THEN valor ELSE 0 END), 0) AS descontos
+         FROM folhaitens
+         GROUP BY idholerite
+       ),
+       holerite_func AS (
+         SELECT h.idfuncionario,
+                COALESCE(SUM(
+                  (CASE WHEN h.conferido AND h.status = 'Pago' THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END) +
+                  (CASE WHEN h.conferido_beneficios AND h.status_beneficios = 'Pago' THEN COALESCE(it.beneficios,0) ELSE 0 END)
+                ), 0) AS pago,
+                COALESCE(SUM(
+                  (CASE WHEN NOT (h.conferido AND h.status = 'Pago') THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END) +
+                  (CASE WHEN NOT (h.conferido_beneficios AND h.status_beneficios = 'Pago') THEN COALESCE(it.beneficios,0) ELSE 0 END)
+                ), 0) AS pendente
+         FROM folhaholerite h
+         LEFT JOIN itens it ON it.idholerite = h.idholerite
+         WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
+         GROUP BY h.idfuncionario
+       ),
+       staff_func AS (
+         SELECT se.idfuncionario,
+                COALESCE(SUM(
+                  (CASE WHEN se.statuspgto = 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                  (CASE WHEN se.statuspgtoajdcto = 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                  (CASE WHEN se.statuspgtocaixinha = 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+                ), 0) AS pago,
+                COALESCE(SUM(
+                  (CASE WHEN se.statuspgto <> 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                  (CASE WHEN se.statuspgtoajdcto <> 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                  (CASE WHEN se.statuspgtocaixinha <> 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+                ), 0) AS pendente
+         FROM staffeventos se
+         JOIN orcamentos o ON o.idorcamento = se.idorcamento
+         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         WHERE EXTRACT(YEAR FROM o.dtinirealizacao) = $1
+           AND se.statusstaff <> 'Deletado' AND o.dtinirealizacao IS NOT NULL
+           ${filtroStaff} ${filtroMesStaff}
+         GROUP BY se.idfuncionario
+       ),
+       ajuste_func AS (
+         SELECT af.idfuncionario,
+                COALESCE(SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END), 0) AS pago
+         FROM staffajustefinanceiro af
+         WHERE EXTRACT(YEAR FROM af.dtlancamento) = $1 AND af.status = 'Pago' ${filtroAjuste} ${filtroMesAjuste}
+         GROUP BY af.idfuncionario
+       ),
+       todos AS (
+         SELECT idfuncionario FROM holerite_func
+         UNION SELECT idfuncionario FROM staff_func
+         UNION SELECT idfuncionario FROM ajuste_func
+       )
+       SELECT f.idfuncionario, f.nome,
+              COALESCE(hf.pago,0) + COALESCE(sf.pago,0) + COALESCE(aj.pago,0) AS pago,
+              COALESCE(hf.pendente,0) + COALESCE(sf.pendente,0) AS pendente
+       FROM todos
+       JOIN funcionarios f ON f.idfuncionario = todos.idfuncionario
+       LEFT JOIN holerite_func hf ON hf.idfuncionario = todos.idfuncionario
+       LEFT JOIN staff_func sf ON sf.idfuncionario = todos.idfuncionario
+       LEFT JOIN ajuste_func aj ON aj.idfuncionario = todos.idfuncionario
+       ORDER BY f.nome ASC`,
+      params
+    );
+
+    res.json({ ano, funcionarios: rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/funcionarios-resumo:", error);
+    res.status(500).json({ error: "Erro ao carregar resumo de funcionários." });
   }
 });
 
@@ -631,15 +773,22 @@ router.get("/geral/receber", async (req, res) => {
          GROUP BY o.idorcamento, o.idempresaemissora
        ),
        notas_por_orcamento AS (
+         -- Recebido/A receber/Atrasado usam o valor LÍQUIDO (valorservico menos ISS/IRRF/
+         -- PIS-COFINS-CSLL retidos na fonte) — é o que realmente cai na conta, não o valor bruto
+         -- do serviço. "a_faturar" continua em cima do bruto (comparado com vlrcliente, que
+         -- também é bruto — mesma base dos dois lados).
          SELECT
            nf.idorcamento,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = true
-             THEN nf.valorservico ELSE 0 END) AS recebido,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS recebido,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false
                      AND (op.dtvencimento IS NULL OR op.dtvencimento >= CURRENT_DATE)
-             THEN nf.valorservico ELSE 0 END) AS a_receber,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS a_receber,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false AND op.dtvencimento < CURRENT_DATE
-             THEN nf.valorservico ELSE 0 END) AS recebimento_atrasado,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS recebimento_atrasado,
            SUM(CASE WHEN nf.status = 'Emitida' THEN nf.valorservico ELSE 0 END) AS total_faturado
          FROM notasfiscais nf
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
@@ -673,6 +822,309 @@ router.get("/geral/receber", async (req, res) => {
   } catch (error) {
     console.error("ERRO CEO /geral/receber:", error);
     res.status(500).json({ error: "Erro ao carregar contas a receber." });
+  }
+});
+
+// Expande as ocorrências de UM lançamento (FIXO/PARCELADO/único) dentro de um ano — mesma lógica
+// de expandirOcorrenciasNoAno (public/js/Main.js), portada pro servidor porque aqui precisamos
+// agregar em massa (todas as empresas do grupo de uma vez), não uma tela por vez. Necessário
+// porque parcelas futuras de lançamento recorrente NÃO são pré-geradas em `pagamentos` (isso só
+// acontece quando alguém confirma o pagamento) — sem essa expansão, meses futuros de um aluguel
+// mensal, por exemplo, sumiriam do "pendente".
+function expandirOcorrenciasLancamentoAno(l, ano) {
+  const vctoBase = new Date(l.vctobase);
+  if (isNaN(vctoBase.getTime())) return [];
+  const ehFixo = l.tiporepeticao === "FIXO" || l.indeterminado === true;
+  const ehParcelado = l.tiporepeticao === "PARCELADO";
+  const maxLoop = ehParcelado ? (parseInt(l.qtdeparcelas, 10) || 1) : (ehFixo ? 12 : 1);
+  const dttermino = l.dttermino ? new Date(l.dttermino) : null;
+  const dia = vctoBase.getDate();
+  const ocorrencias = [];
+  for (let i = 0; i < maxLoop; i++) {
+    let dProj;
+    if (ehFixo) {
+      dProj = new Date(ano, i, dia);
+      if (dProj < vctoBase) continue;
+      if (dttermino && dProj > dttermino) continue;
+    } else {
+      dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, dia);
+    }
+    if (dProj.getFullYear() !== ano) continue;
+    ocorrencias.push(dProj);
+  }
+  return ocorrencias;
+}
+
+// GET /ceo/geral/pagar?agrupamento=mensal|anual|empresa&ano=YYYY&idempresas=1,2&mes=X&porEmpresa=1
+// Despesa REAL do grupo (substitui o custo orçado do evento que "Contas a Pagar" usava antes) —
+// combina duas fontes bem diferentes:
+//  1) Fornecedores/Outros: lancamentos + pagamentos, expandindo FIXO/PARCELADO em JS (ver
+//     expandirOcorrenciasLancamentoAno acima) — parcelas ainda sem pagamento gravado usam
+//     vlrestimado como pendente. Lançamentos de funcionário Interno/ExternoH ficam de fora daqui
+//     (já entram pela folha, item 2) — Freelancer/Externo sem holerite continuam contando aqui,
+//     mesma reclassificação que GET /contas-pagar já faz por empresa.
+//  2) Funcionários: folhaholerite + staffeventos + staffajustefinanceiro, mesma regra de
+//     /geral/panorama e /geral/funcionarios-resumo (conferido+status='Pago' = pago; resto =
+//     pendente; ajuste só conta quando 'Pago').
+// "Suspenso" fica fora dos dois buckets (não é dívida ativa agora).
+router.get("/geral/pagar", async (req, res) => {
+  try {
+    const agrupamento = ["mensal", "anual", "empresa"].includes(req.query.agrupamento) ? req.query.agrupamento : "mensal";
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresas = String(req.query.idempresas || "")
+      .split(",").map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n));
+    const temFiltro = idempresas.length > 0;
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+    const porEmpresa = req.query.porEmpresa === "1";
+
+    const { PERFIS_FOLHA } = require("./rotaRH").helpersFolha;
+
+    // matriz[idempresa] = array de 12 posições { pago, pendente } (mes 1 no índice 0).
+    const matriz = new Map();
+    const bucketDe = (idempresa, mes) => {
+      if (!matriz.has(idempresa)) matriz.set(idempresa, Array.from({ length: 12 }, () => ({ pago: 0, pendente: 0 })));
+      return matriz.get(idempresa)[mes - 1];
+    };
+
+    // ===== 1) Fornecedores/Outros =====
+    const paramsLancs = [PERFIS_FOLHA];
+    let filtroLancEmpresa = "";
+    if (temFiltro) { paramsLancs.push(idempresas); filtroLancEmpresa = `AND l.idempresa = ANY($${paramsLancs.length}::int[])`; }
+
+    const lancs = (await pool.query(
+      `SELECT l.idlancamento, l.idempresa, l.tiporepeticao, l.qtdeparcelas, l.indeterminado, l.dttermino, l.vctobase, l.vlrestimado
+         FROM lancamentos l
+         LEFT JOIN funcionarioempresas fe
+           ON lower(trim(l.tipovinculo)) = 'funcionario' AND fe.idfuncionario = l.idvinculo AND fe.idempresa = l.idempresa
+        WHERE l.ativo = true
+          AND NOT (lower(trim(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') = ANY($1))
+          ${filtroLancEmpresa}`,
+      paramsLancs
+    )).rows;
+
+    const idsLancs = lancs.map((l) => l.idlancamento);
+    const pagamentosPorLanc = new Map(); // "idlancamento-mes" -> row de pagamentos
+    if (idsLancs.length) {
+      const pags = (await pool.query(
+        `SELECT idlancamento, dtvcto, status, vlrreal, vlrprevisto
+           FROM pagamentos
+          WHERE idlancamento = ANY($1::int[]) AND EXTRACT(YEAR FROM dtvcto) = $2`,
+        [idsLancs, ano]
+      )).rows;
+      pags.forEach((p) => {
+        const d = new Date(p.dtvcto);
+        pagamentosPorLanc.set(`${p.idlancamento}-${d.getMonth() + 1}`, p);
+      });
+    }
+
+    lancs.forEach((l) => {
+      expandirOcorrenciasLancamentoAno(l, ano).forEach((dProj) => {
+        const mes = dProj.getMonth() + 1;
+        if (temMesFiltro && mes !== mesFiltro) return;
+        const real = pagamentosPorLanc.get(`${l.idlancamento}-${mes}`);
+        const status = (real?.status || "").toLowerCase();
+        if (status === "suspenso") return;
+        const valor = real
+          ? (Number(real.vlrreal) || Number(real.vlrprevisto) || Number(l.vlrestimado) || 0)
+          : (Number(l.vlrestimado) || 0);
+        const b = bucketDe(l.idempresa, mes);
+        if (status === "pago") b.pago += valor; else b.pendente += valor;
+      });
+    });
+
+    // ===== 2) Funcionários (folha + staff + ajustes) — mesma regra de /geral/panorama =====
+    const filtroHolerite = temFiltro ? "AND h.idempresa = ANY($2::int[])" : "";
+    const filtroStaff = temFiltro ? "AND oe.idempresa = ANY($2::int[])" : "";
+    const filtroAjuste = temFiltro ? "AND af.idempresa = ANY($2::int[])" : "";
+    const paramsFunc = temFiltro ? [ano, idempresas] : [ano];
+    const filtroMesHolerite = temMesFiltro ? `AND h.mes = ${mesFiltro}` : "";
+    const filtroMesStaff = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const filtroMesAjuste = temMesFiltro ? `AND EXTRACT(MONTH FROM af.dtlancamento) = ${mesFiltro}` : "";
+
+    const holerite = await pool.query(
+      `WITH itens AS (
+         SELECT idholerite,
+                COALESCE(SUM(CASE WHEN tipo = 'P' THEN valor ELSE 0 END), 0) AS proventos,
+                COALESCE(SUM(CASE WHEN tipo = 'B' THEN valor ELSE 0 END), 0) AS beneficios,
+                COALESCE(SUM(CASE WHEN tipo = 'D' THEN valor ELSE 0 END), 0) AS descontos
+         FROM folhaitens GROUP BY idholerite
+       )
+       SELECT h.idempresa, h.mes,
+              COALESCE(SUM(CASE WHEN h.conferido AND h.status = 'Pago' THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END), 0)
+                + COALESCE(SUM(CASE WHEN h.conferido_beneficios AND h.status_beneficios = 'Pago' THEN COALESCE(it.beneficios,0) ELSE 0 END), 0) AS pago,
+              COALESCE(SUM(CASE WHEN NOT (h.conferido AND h.status = 'Pago') THEN COALESCE(it.proventos,0) - COALESCE(it.descontos,0) ELSE 0 END), 0)
+                + COALESCE(SUM(CASE WHEN NOT (h.conferido_beneficios AND h.status_beneficios = 'Pago') THEN COALESCE(it.beneficios,0) ELSE 0 END), 0) AS pendente
+       FROM folhaholerite h
+       LEFT JOIN itens it ON it.idholerite = h.idholerite
+       WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
+       GROUP BY h.idempresa, h.mes`,
+      paramsFunc
+    );
+    holerite.rows.forEach((r) => {
+      const b = bucketDe(r.idempresa, r.mes);
+      b.pago += Number(r.pago) || 0;
+      b.pendente += Number(r.pendente) || 0;
+    });
+
+    const staff = await pool.query(
+      `SELECT oe.idempresa, EXTRACT(MONTH FROM o.dtinirealizacao)::int AS mes,
+              COALESCE(SUM(
+                (CASE WHEN se.statuspgto = 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtoajdcto = 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtocaixinha = 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+              ), 0) AS pago,
+              COALESCE(SUM(
+                (CASE WHEN se.statuspgto <> 'Pago' THEN COALESCE(se.vlrtotcache, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtoajdcto <> 'Pago' THEN COALESCE(se.vlrtotajdcusto, 0) ELSE 0 END) +
+                (CASE WHEN se.statuspgtocaixinha <> 'Pago' THEN COALESCE(se.vlrcaixinha, 0) ELSE 0 END)
+              ), 0) AS pendente
+       FROM staffeventos se
+       JOIN orcamentos o ON o.idorcamento = se.idorcamento
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       WHERE EXTRACT(YEAR FROM o.dtinirealizacao) = $1
+         AND se.statusstaff <> 'Deletado' AND o.dtinirealizacao IS NOT NULL
+         ${filtroStaff} ${filtroMesStaff}
+       GROUP BY oe.idempresa, EXTRACT(MONTH FROM o.dtinirealizacao)`,
+      paramsFunc
+    );
+    staff.rows.forEach((r) => {
+      const b = bucketDe(r.idempresa, r.mes);
+      b.pago += Number(r.pago) || 0;
+      b.pendente += Number(r.pendente) || 0;
+    });
+
+    const ajustes = await pool.query(
+      `SELECT af.idempresa, EXTRACT(MONTH FROM af.dtlancamento)::int AS mes,
+              COALESCE(SUM(CASE WHEN af.tipo = 'Credito' THEN af.valor ELSE -af.valor END), 0) AS pago
+       FROM staffajustefinanceiro af
+       WHERE EXTRACT(YEAR FROM af.dtlancamento) = $1 AND af.status = 'Pago' ${filtroAjuste} ${filtroMesAjuste}
+       GROUP BY af.idempresa, EXTRACT(MONTH FROM af.dtlancamento)`,
+      paramsFunc
+    );
+    ajustes.rows.forEach((r) => {
+      bucketDe(r.idempresa, r.mes).pago += Number(r.pago) || 0; // sem "pendente" comparável
+    });
+
+    // ===== 3) Staff ainda não (ou só parcialmente) cadastrado, de evento recém-concluído =====
+    // Cachê pode ser lançado em staffeventos até 2 dias depois do fim do evento (desmontagem ou
+    // desmontagem-infra, o que for mais tarde) — dentro dessa janela, "sem staff cadastrado
+    // ainda" é normal, não falta de fato. Só depois de 2 dias o evento é considerado encerrado
+    // de verdade; o que faltar cadastrar até lá vira previsão pelo valor ORÇADO (orcamentoitens,
+    // custo de staff), descontado do que já foi cadastrado (comparação por orçamento inteiro, não
+    // por função individual). Conta no mês de INÍCIO da realização (dtinirealizacao), mesma
+    // referência que o resto do painel já usa — não no mês da desmontagem, que pode cair no mês
+    // seguinte.
+    const filtroProvisaoEmpresa = temFiltro ? "AND ee.idempresa = ANY($2::int[])" : "";
+    const filtroProvisaoMes = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const provisaoStaff = await pool.query(
+      `WITH empresa_efetiva AS (
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       ),
+       staff_orcado AS (
+         SELECT idorcamento, SUM(COALESCE(totgeralitem, 0)) AS orcado
+         FROM orcamentoitens WHERE idfuncao IS NOT NULL GROUP BY idorcamento
+       ),
+       staff_cadastrado AS (
+         SELECT idorcamento, SUM(COALESCE(vlrtotcache, 0) + COALESCE(vlrtotajdcusto, 0)) AS cadastrado
+         FROM staffeventos WHERE statusstaff <> 'Deletado' GROUP BY idorcamento
+       )
+       SELECT ee.idempresa, EXTRACT(MONTH FROM o.dtinirealizacao)::int AS mes,
+              GREATEST(COALESCE(so.orcado, 0) - COALESCE(sc.cadastrado, 0), 0) AS faltante
+       FROM orcamentos o
+       JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+       LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
+       LEFT JOIN staff_cadastrado sc ON sc.idorcamento = o.idorcamento
+       WHERE o.status <> 'R'
+         AND EXTRACT(YEAR FROM o.dtinirealizacao) = $1
+         AND GREATEST(COALESCE(o.dtfimdesmontagem, '1900-01-01'), COALESCE(o.dtfiminfradesmontagem, '1900-01-01'))
+             BETWEEN CURRENT_DATE - INTERVAL '2 days' AND CURRENT_DATE
+         ${filtroProvisaoEmpresa} ${filtroProvisaoMes}`,
+      temFiltro ? [ano, idempresas] : [ano]
+    );
+    provisaoStaff.rows.forEach((r) => {
+      const faltante = Number(r.faltante) || 0;
+      if (faltante > 0) bucketDe(r.idempresa, r.mes).pendente += faltante;
+    });
+
+    // ===== Reduz a matriz conforme o agrupamento pedido =====
+    let linhas = [];
+    if (agrupamento === "empresa") {
+      const empresasInfo = (await pool.query(`SELECT idempresa, nmfantasia FROM empresas`)).rows;
+      const nomePorId = new Map(empresasInfo.map((e) => [e.idempresa, e.nmfantasia]));
+      linhas = Array.from(matriz.entries()).map(([idempresa, meses]) => ({
+        chave: idempresa, idempresa, nmfantasia: nomePorId.get(idempresa) || "",
+        despesapaga: meses.reduce((s, m) => s + m.pago, 0),
+        despesapendente: meses.reduce((s, m) => s + m.pendente, 0),
+      }));
+    } else if (agrupamento === "anual") {
+      let pago = 0, pendente = 0;
+      matriz.forEach((meses) => meses.forEach((m) => { pago += m.pago; pendente += m.pendente; }));
+      linhas = [{ chave: ano, despesapaga: pago, despesapendente: pendente }];
+    } else if (porEmpresa) {
+      const empresasInfo = (await pool.query(`SELECT idempresa, nmfantasia FROM empresas`)).rows;
+      const nomePorId = new Map(empresasInfo.map((e) => [e.idempresa, e.nmfantasia]));
+      matriz.forEach((meses, idempresa) => {
+        meses.forEach((m, idx) => {
+          if (m.pago === 0 && m.pendente === 0) return;
+          linhas.push({ chave: idx + 1, idempresa, nmfantasia: nomePorId.get(idempresa) || "", despesapaga: m.pago, despesapendente: m.pendente });
+        });
+      });
+    } else {
+      const totalPorMes = Array.from({ length: 12 }, () => ({ pago: 0, pendente: 0 }));
+      matriz.forEach((meses) => meses.forEach((m, idx) => { totalPorMes[idx].pago += m.pago; totalPorMes[idx].pendente += m.pendente; }));
+      linhas = totalPorMes.map((m, idx) => ({ chave: idx + 1, despesapaga: m.pago, despesapendente: m.pendente }));
+    }
+
+    res.json({ agrupamento, ano, linhas });
+  } catch (error) {
+    console.error("ERRO CEO /geral/pagar:", error);
+    res.status(500).json({ error: "Erro ao carregar contas a pagar." });
+  }
+});
+
+// GET /ceo/geral/previsao-recebimento?ano=YYYY&idempresas=1,2 — quanto está "a_receber" (líquido,
+// ainda não recebido) e é ESPERADO pra cada mês, segundo orcamentoparcelas.dtvencimento — diferente
+// do resto de /geral/receber, que agrupa pelo mês do EVENTO (dtinirealizacao); aqui o que importa é
+// quando o dinheiro é esperado, não quando o evento acontece. Nota emitida sem parcela vinculada
+// (dtvencimento nulo) não entra — não tem como prever o mês.
+router.get("/geral/previsao-recebimento", async (req, res) => {
+  try {
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const idempresas = String(req.query.idempresas || "")
+      .split(",").map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n));
+    const temFiltro = idempresas.length > 0;
+
+    const params = [ano];
+    let filtroEmpresa = "";
+    if (temFiltro) { params.push(idempresas); filtroEmpresa = "AND ee.idempresa = ANY($2::int[])"; }
+
+    const { rows } = await pool.query(
+      `WITH empresa_efetiva AS (
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       )
+       SELECT EXTRACT(MONTH FROM op.dtvencimento)::int AS mes,
+              SUM(nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)) AS previsto
+       FROM notasfiscais nf
+       JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+       JOIN empresa_efetiva ee ON ee.idorcamento = nf.idorcamento
+       WHERE nf.status = 'Emitida' AND nf.recebido = false
+         AND EXTRACT(YEAR FROM op.dtvencimento) = $1
+         ${filtroEmpresa}
+       GROUP BY EXTRACT(MONTH FROM op.dtvencimento)
+       ORDER BY mes`,
+      params
+    );
+    res.json({ ano, linhas: rows });
+  } catch (error) {
+    console.error("ERRO CEO /geral/previsao-recebimento:", error);
+    res.status(500).json({ error: "Erro ao carregar previsão de recebimento." });
   }
 });
 
@@ -728,15 +1180,20 @@ router.get("/geral/evento-anos", async (req, res) => {
          GROUP BY o.idorcamento, o.idempresaemissora
        ),
        notas_por_orcamento AS (
+         -- Mesmo ajuste de /geral/receber: recebido/a_receber/atrasado em valor líquido
+         -- (descontando ISS/IRRF/PIS-COFINS-CSLL retidos), pra bater com a tela principal.
          SELECT
            nf.idorcamento,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = true
-             THEN nf.valorservico ELSE 0 END) AS recebido,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS recebido,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false
                      AND (op.dtvencimento IS NULL OR op.dtvencimento >= CURRENT_DATE)
-             THEN nf.valorservico ELSE 0 END) AS a_receber,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS a_receber,
            SUM(CASE WHEN nf.status = 'Emitida' AND nf.recebido = false AND op.dtvencimento < CURRENT_DATE
-             THEN nf.valorservico ELSE 0 END) AS recebimento_atrasado,
+             THEN nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)
+             ELSE 0 END) AS recebimento_atrasado,
            SUM(CASE WHEN nf.status = 'Emitida' THEN nf.valorservico ELSE 0 END) AS total_faturado
          FROM notasfiscais nf
          LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela

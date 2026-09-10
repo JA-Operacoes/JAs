@@ -4213,7 +4213,13 @@ router.get('/contas-pagar', async (req, res) => {
             }
         }
 
-        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios });
+        // fgtsAliquota: alíquota vigente do ano filtrado (padrão 8%) — o front usa isso pra
+        // estimar o FGTS do período (card "FGTS Estimado" em Contas a Pagar); é só informativo,
+        // pra conferir contra a guia (GRF) quando alguém lançar ela manualmente em Contas.
+        res.json({
+            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios,
+            fgtsAliquota: Number(paramsAnoFiltro.fgts_aliquota) || 0.08,
+        });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });
     }
