@@ -9,6 +9,9 @@ import { fetchComToken } from '/utils/utils.js';
 const formatarReaisInput = (v) =>
   "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Data (ISO ou Date) -> texto BR ("dd/mm/aaaa"), com fallback pra quando não tem valor.
+const formatData = (d) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+
 // Texto formatado ("R$ 3.000,00" ou "3.000,00") -> número puro (3000). Vazio => 0.
 const desformatarReais = (valor) => {
   if (valor === null || valor === undefined || valor === "") return 0;
@@ -1266,15 +1269,25 @@ async function carregarFolha() {
       }
       return `<button type="button" class="rh-btn-conferir" data-conferir="${campo}:${l.idholerite}">Conferir</button>`;
     };
+    // VA/VT individuais vêm dos itens da competência (descrições fixas — ver VA_DESC/VT_DESC em
+    // rotaRH.js); "Total Benefícios" continua sendo l.beneficios (soma de TODO item tipo 'B',
+    // então já cobre VA+VT e qualquer outro benefício que venha a existir).
+    const valorItemBenef = (l, descricao) => (l.itens || []).find((i) => i.tipo === "B" && i.descricao === descricao)?.valor || 0;
 
     elTab.innerHTML = `
-      <div class="rh-folha-busca">
-        <span class="material-symbols-outlined">search</span>
-        <input type="text" id="rh-folha-busca" placeholder="Buscar por nome na lista..." autocomplete="off">
+      <div class="rh-folha-toolbar">
+        <div class="rh-folha-busca">
+          <span class="material-symbols-outlined">search</span>
+          <input type="text" id="rh-folha-busca" placeholder="Buscar por nome na lista..." autocomplete="off">
+        </div>
+        <div class="rh-folha-toolbar-acoes">
+          <button type="button" id="rh-folha-imprimir-lista" class="rh-btn-print"><span class="material-symbols-outlined">checklist</span>Imprimir lista</button>
+          <button type="button" id="rh-folha-imprimir-holerites" class="rh-btn-print"><span class="material-symbols-outlined">print</span>Imprimir Todos Holerites</button>
+        </div>
       </div>
       <table class="rh-folha-tab">
         <thead>
-          <tr><th></th><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status Pgto</th><th>Confer. Salário</th><th>Confer. Benefícios</th></tr>
+          <tr><th></th><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status Pgto</th><th>Confer. Salário</th><th>VA</th><th>VT</th><th>Total Benefícios</th><th>Confer. Benefícios</th></tr>
         </thead>
         <tbody>
           ${linhas.map((l) => `
@@ -1286,10 +1299,13 @@ async function carregarFolha() {
               <td><strong>${formatarReaisInput(l.liquido)}</strong></td>
               <td>${badge(l)}</td>
               <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
+              <td>${formatarReaisInput(valorItemBenef(l, "Vale-Alimentação"))}</td>
+              <td>${formatarReaisInput(valorItemBenef(l, "Vale-Transporte"))}</td>
+              <td>${formatarReaisInput(l.beneficios)}</td>
               <td class="rh-col-conferencia">${conferenciaCel(l, "benef")}</td>
             </tr>
             <tr class="rh-folha-detalhe" data-detalhe-de="${l.idfuncionario}" style="display:none;">
-              <td colspan="8">${montarDetalheLinha(l)}</td>
+              <td colspan="11">${montarDetalheLinha(l)}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -1357,6 +1373,42 @@ async function carregarFolha() {
           const detalhe = elTab.querySelector(`tr.rh-folha-detalhe[data-detalhe-de="${tr.dataset.id}"]`);
           if (detalhe && !bate) detalhe.style.display = "none";
         });
+      });
+    }
+
+    // As duas impressões respeitam a mesma busca (linhas visíveis na hora do clique).
+    const linhasVisiveisAgora = () => {
+      const idsVisiveis = new Set(
+        Array.from(elTab.querySelectorAll("tr.rh-folha-linha"))
+          .filter((tr) => tr.style.display !== "none")
+          .map((tr) => tr.dataset.id)
+      );
+      return linhas.filter((l) => idsVisiveis.has(String(l.idfuncionario)));
+    };
+
+    // "Imprimir lista": o relatório da tela (nome + valores + status de conferência), inclusive
+    // as linhas ainda em Previsão — útil pra bater o olho/assinar que a folha toda foi revisada.
+    const btnImprimirLista = document.getElementById("rh-folha-imprimir-lista");
+    if (btnImprimirLista) {
+      btnImprimirLista.addEventListener("click", () => {
+        imprimirListaConferencia(linhasVisiveisAgora(), mesSel, anoSel);
+      });
+    }
+
+    // "Imprimir holerites": os documentos de verdade (2 vias cada) — só quem já está PAGO (ex.:
+    // 10 pagos + 50 pendentes na tela = imprime só os 10). Pendente/Previsão ainda pode mudar
+    // antes do pagamento, então não é hora de gerar o documento definitivo pro funcionário.
+    const btnImprimirHolerites = document.getElementById("rh-folha-imprimir-holerites");
+    if (btnImprimirHolerites) {
+      btnImprimirHolerites.addEventListener("click", () => {
+        const listaImprimir = linhasVisiveisAgora()
+          .filter((l) => l.origem === "real" && l.status === "Pago")
+          .map((l) => ({ idfuncionario: l.idfuncionario, mes: mesSel, ano: anoSel, tipo: "mensal" }));
+        if (!listaImprimir.length) {
+          Swal.fire("Nada para imprimir", "Nenhum holerite pago nessa lista — só é possível imprimir depois do pagamento.", "warning");
+          return;
+        }
+        imprimirHoleritesEmLote(listaImprimir);
       });
     }
   } catch (err) {
@@ -1550,6 +1602,72 @@ async function abrirHoleriteExterno(idfuncionario, mes, ano, tipo = "mensal") {
   tentar();
 }
 window.abrirHoleriteRH = abrirHoleriteExterno;
+
+// Imprime o relatório da lista (nome + valores + status de conferência) — NÃO são os holerites
+// de verdade (2 vias cada, ver imprimirHoleritesEmLote logo abaixo), é o resumo da tela em si,
+// inclusive linhas em Previsão — serve pra bater o olho/assinar que a folha toda foi revisada.
+function imprimirListaConferencia(linhasImprimir, mes, ano) {
+  if (!Array.isArray(linhasImprimir) || !linhasImprimir.length) {
+    Swal.fire("Nada para imprimir", "Nenhum funcionário nessa lista.", "warning");
+    return;
+  }
+  const win = window.open("", "_blank");
+  if (!win) { Swal.fire("Bloqueado", "Permita pop-ups para imprimir.", "warning"); return; }
+
+  const css = `
+    @page { size: A4 landscape; margin: 12mm; }
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; color: #111; }
+    h2 { font-size: 16px; margin: 0 0 4px; }
+    .rh-print-sub { font-size: 12px; color: #555; margin: 0 0 16px; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+    th { background: #efefef; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
+    td.v { text-align: right; white-space: nowrap; }
+    .rh-print-rodape { margin-top: 20px; font-size: 11px; color: #666; }
+  `;
+
+  const valorItemBenef = (l, descricao) => (l.itens || []).find((i) => i.tipo === "B" && i.descricao === descricao)?.valor || 0;
+
+  const linhasHtml = linhasImprimir.map((l) => {
+    const ehReal = l.origem === "real";
+    const statusPgto = ehReal ? l.status : "Previsão";
+    const confSalario = ehReal ? (l.conferido ? "Conferido" : "Pendente") : "—";
+    const confBenef = ehReal ? (l.conferidoBeneficios ? "Conferido" : "Pendente") : "—";
+    return `<tr>
+      <td>${escHtml(l.nome)}</td>
+      <td class="v">${formatarReaisInput(l.proventos)}</td>
+      <td class="v">${formatarReaisInput(l.descontos)}</td>
+      <td class="v">${formatarReaisInput(l.liquido)}</td>
+      <td>${escHtml(statusPgto)}</td>
+      <td>${confSalario}</td>
+      <td class="v">${formatarReaisInput(valorItemBenef(l, "Vale-Alimentação"))}</td>
+      <td class="v">${formatarReaisInput(valorItemBenef(l, "Vale-Transporte"))}</td>
+      <td class="v">${formatarReaisInput(l.beneficios)}</td>
+      <td>${confBenef}</td>
+    </tr>`;
+  }).join("");
+
+  const empresaNome = empresaAtual?.razaosocial || empresaAtual?.nmfantasia || "";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lista de Conferência</title><style>${css}</style></head>
+    <body>
+      <h2>Lista de Conferência — Folha de ${MESES[mes - 1]}/${ano}</h2>
+      <p class="rh-print-sub">${escHtml(empresaNome)}${empresaNome ? " — " : ""}${linhasImprimir.length} funcionário(s)</p>
+      <table>
+        <thead>
+          <tr><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status Pgto</th><th>Confer. Salário</th><th>VA</th><th>VT</th><th>Total Benefícios</th><th>Confer. Benefícios</th></tr>
+        </thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+      <p class="rh-print-rodape">Impresso em ${new Date().toLocaleString("pt-BR")}</p>
+    </body></html>`;
+
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.onafterprint = () => win.close();
+  try { win.print(); } catch (e) {}
+}
 
 // Imprime em lote os holerites de uma lista de competências (usado pelo botão "Imprimir
 // todos" em Vencimentos > Contas a Pagar > Funcionário — respeita o que já está filtrado
@@ -1757,6 +1875,13 @@ function initRH() {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     const ativo = document.body.classList.toggle("rh-mode");
+    if (ativo) {
+      // Só um "modo de tela cheia" por vez — sem isso, ligar RH com o CEO Mode (ou T.I) já
+      // ativo dividia a tela entre os dois painéis (mesma regra espelhada em CeoMode.js/TIMode.js).
+      document.body.classList.remove("ceo-mode", "ti-mode");
+      const iconeCeo = document.querySelector("li.Ceo .material-symbols-outlined");
+      if (iconeCeo) iconeCeo.textContent = "finance";
+    }
     if (icone) icone.textContent = ativo ? "logout" : "";
     if (ativo) montarPainel();
   });
