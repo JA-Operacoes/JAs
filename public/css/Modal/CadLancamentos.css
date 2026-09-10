@@ -47,7 +47,7 @@
   padding: 6px;
   width: 1560px;
   max-width: 96vw;
-  max-height: 92vh;
+  max-height: 100vh;
   border-radius: 10px;
   font-size: 16px;
   z-index: 9999;
@@ -57,6 +57,7 @@
 #cadModalLancamentos .modal-content {
   display: flex;
   flex-direction: column;
+  height: 90vh;
   flex: 1;
   min-height: 0; /* deixa o painel interno rolar */
 }

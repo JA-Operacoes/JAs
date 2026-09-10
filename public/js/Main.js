@@ -16962,10 +16962,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             statusFinal = "Pago";
                             statusFiltro = "liquidado";
                         } else {
-                            // Só aqui, se não for suspenso nem pago, olhamos a data — "Hoje" é
-                            // categoria própria (não fica escondida dentro de "a vencer"), senão
-                            // o total de A Vencer conta esse dinheiro mas ele some da aba certa.
-                            if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                            // "Hoje" continua existindo como categoria própria pro FILTRO (aba
+                            // "Hoje" e o total do resumo) — mas a coluna STATUS sempre mostra
+                            // "Pendente" enquanto não for pago, pra não confundir com um status
+                            // de fato ("Pendente"/"Pago"/"Suspenso"). O badge "HOJE" ao lado da
+                            // descrição já avisa que vence hoje.
+                            if (ehMesmoDia(dProj, hoje)) { statusFinal = "Pendente"; statusFiltro = "hoje"; }
                             else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
                             else { statusFinal = "Pendente"; statusFiltro = "a_vencer"; }
                         }
@@ -16975,11 +16977,17 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         valorPago = (statusFinal === "Pago") ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
 
                     } else {
-                        // Para projeções que não existem no banco, mesma regra de "Hoje" acima.
-                        if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                        // Para projeções que não existem no banco ainda: "hoje" continua valendo
+                        // pro filtro, mas a coluna STATUS mostra "Pendente" (ver comentário acima).
+                        if (ehMesmoDia(dProj, hoje)) { statusFinal = "Pendente"; statusFiltro = "hoje"; }
                         else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
                         else { statusFinal = "Projeção"; statusFiltro = "a_vencer"; }
-                        valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
+                        // IMPORTANTE: usa só c.vlrestimado (valor vigente do lançamento), nunca
+                        // c.vlrreal/c.valor — esses dois vêm do pagamento JÁ REALIZADO que o LEFT
+                        // JOIN trouxe junto com esse lançamento (ex: setembro já pago a R$200,00) e
+                        // vazavam pra projeção de meses futuros sem pagamento gerado ainda,
+                        // ignorando uma alteração posterior do valor estimado (ex: pra R$200,90).
+                        valorTotal = parseFloat(c.vlrestimado || 0);
                         valorPago = 0;
                     }
 
@@ -16997,6 +17005,22 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         valorPago: valorPago,
                         status: statusFinal,
                         statusFiltro: statusFiltro,
+                        // Sem dadoReal, o spread acima veio de `c` — que é o lançamento JUNTO
+                        // COM o pagamento mais recente já realizado (ex: setembro pago). Sem
+                        // isso, esses campos do pagamento de outro mês vazavam pra cá: a "Data
+                        // Pagamento" de outubro mostrava a data de setembro, e o idpagamento
+                        // vazado fazia o botão PAGAR de outubro atualizar o registro de
+                        // setembro em vez de criar um novo.
+                        ...(!dadoReal ? {
+                            idpagamento: null,
+                            dtpgto: null,
+                            imagemconta: null,
+                            comprovantepgto: null,
+                            observacao: null,
+                            numparcela: null,
+                            vlrpago: null,
+                            vlrreal: null,
+                        } : {}),
                         idholerite: holeriteMes ? holeriteMes.idholerite : null,
                         holerite_mes: holeriteMes ? holeriteMes.mes : (dProj.getMonth() + 1),
                         holerite_ano: holeriteMes ? holeriteMes.ano : dProj.getFullYear(),
@@ -17025,7 +17049,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const dtvctoTreze = new Date(ev.dtvcto + 'T12:00:00');
                 const foiPagoTreze = ev.status === 'Pago';
                 const ehHojeTreze = !foiPagoTreze && ehMesmoDia(dtvctoTreze, hoje);
-                const statusFinalTreze = foiPagoTreze ? 'pago' : (ehHojeTreze ? 'hoje' : 'pendente');
+                const statusFinalTreze = foiPagoTreze ? 'pago' : (ehHojeTreze ? 'pendente' : (dtvctoTreze < hoje ? 'atrasado' : 'pendente'));
                 const statusFiltroTreze = foiPagoTreze ? 'liquidado' : (ehHojeTreze ? 'hoje' : (dtvctoTreze < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `13-${ev.idfuncionario}-${ev.mes}-${ev.ano}`,
@@ -17068,7 +17092,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const statusHol = (h.status || 'Previsão');
                 const foiPagoMensal = h.origem === 'real' && String(statusHol).toLowerCase() === 'pago';
                 const ehHojeMensal = !foiPagoMensal && ehMesmoDia(dtvctoMensal, hoje);
-                const statusFinalMensal = foiPagoMensal ? 'pago' : (ehHojeMensal ? 'hoje' : (h.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFinalMensal = foiPagoMensal ? 'pago' : (ehHojeMensal ? 'pendente' : (dtvctoMensal < hoje ? 'atrasado' : (h.origem === 'real' ? 'pendente' : 'projecao')));
                 const statusFiltroMensal = foiPagoMensal ? 'liquidado' : (ehHojeMensal ? 'hoje' : (dtvctoMensal < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `salario-${h.idfuncionario}-${h.mes}-${h.ano}`,
@@ -17105,7 +17129,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const statusBenefRaw = (b.status || 'Previsão');
                 const foiPagoBenef = b.origem === 'real' && String(statusBenefRaw).toLowerCase() === 'pago';
                 const ehHojeBenef = !foiPagoBenef && ehMesmoDia(dtvctoBenef, hoje);
-                const statusFinalBenef = foiPagoBenef ? 'pago' : (ehHojeBenef ? 'hoje' : (b.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFinalBenef = foiPagoBenef ? 'pago' : (ehHojeBenef ? 'pendente' : (dtvctoBenef < hoje ? 'atrasado' : (b.origem === 'real' ? 'pendente' : 'projecao')));
                 const statusFiltroBenef = foiPagoBenef ? 'liquidado' : (ehHojeBenef ? 'hoje' : (dtvctoBenef < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `beneficios-${b.idfuncionario}-${b.mes}-${b.ano}`,
@@ -17285,7 +17309,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
                 const containerFiltrosContas = document.createElement("div");
                 containerFiltrosContas.className = "filtros-rapidos-contas";
-                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
 
                 const opcoesContas = [
                     { id: 'todos', label: 'Tudo', color: '#343a40' },
@@ -17296,16 +17320,31 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     { id: 'liquidado', label: 'Pagas', color: '#28a745' }
                 ];
 
+                // Filtro de status (botões) + busca por texto (vínculo/descrição) combinados —
+                // guardamos o status ativo aqui pra busca não "esquecer" a aba selecionada.
+                let statusContasAtivo = 'todos';
+
+                const inputBuscaContas = document.createElement("input");
+                inputBuscaContas.type = "text";
+                inputBuscaContas.id = "buscaContasAPagar";
+                inputBuscaContas.placeholder = "🔎 Buscar por vínculo ou descrição...";
+                inputBuscaContas.autocomplete = "off";
+                inputBuscaContas.style = "flex: 1; min-width: 220px; padding: 6px 10px; border-radius: 15px; border: 1px solid #ccc; font-size: 12px;";
+                inputBuscaContas.addEventListener("input", () => {
+                    aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
+                });
+
                 opcoesContas.forEach(opt => {
                     const btn = document.createElement("button");
-                    btn.setAttribute("data-label-base", opt.label); 
-                    btn.setAttribute("data-filtro-id", opt.id); 
+                    btn.setAttribute("data-label-base", opt.label);
+                    btn.setAttribute("data-filtro-id", opt.id);
                     btn.innerText = opt.label;
                     btn.className = "btn-filtro-financeiro";
                     btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
-                    
+
                     btn.onclick = () => {
-                        filtrarEventosNaTela(opt.id);
+                        statusContasAtivo = opt.id;
+                        aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
                             b.style.background = "white"; b.style.color = b.style.borderColor;
                         });
@@ -17314,6 +17353,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     containerFiltrosContas.appendChild(btn);
                 });
 
+                containerFiltrosContas.appendChild(inputBuscaContas);
                 wrapperContas.appendChild(containerFiltrosContas);
                 accordionContainer.appendChild(btnMestreContas);
                 accordionContainer.appendChild(wrapperContas);
@@ -17460,6 +17500,40 @@ function filtrarEventosNaTela(statusAlvo) {
                 item.style.display = "none";
             }
         }
+    });
+}
+
+// Filtro combinado (status + busca por texto) só pra seção "Contas a Pagar" — scoped ao
+// wrapperContas pra não mexer no filtro de Staff, que usa filtrarEventosNaTela globalmente.
+function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca) {
+    const termo = (termoBusca || "").trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+    wrapperContas.querySelectorAll(".accordion-item").forEach(item => {
+        let temFilhoVisivel = false;
+
+        item.querySelectorAll(".item-financeiro-linha").forEach(linha => {
+            const statusLinha = linha.getAttribute("data-status-filtro");
+            const bateStatus = (statusAlvo === 'todos' || statusLinha === statusAlvo);
+
+            const textoLinha = linha.textContent.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            const bateTexto = !termo || textoLinha.includes(termo);
+
+            const mostrar = bateStatus && bateTexto;
+            linha.style.display = mostrar ? "" : "none";
+            if (mostrar) temFilhoVisivel = true;
+        });
+
+        item.style.display = temFilhoVisivel ? "block" : "none";
+
+        // Mesmo refinamento por funcionário do filtrarEventosNaTela: só mostra o
+        // cabeçalho/total de cada pessoa se sobrou alguma categoria dela visível.
+        const chavesVisiveis = new Set();
+        item.querySelectorAll(".item-financeiro-linha[data-func-chave]").forEach(linha => {
+            if (linha.style.display !== "none") chavesVisiveis.add(linha.getAttribute("data-func-chave"));
+        });
+        item.querySelectorAll("[data-func-chave]:not(.item-financeiro-linha)").forEach(linha => {
+            linha.style.display = chavesVisiveis.has(linha.getAttribute("data-func-chave")) ? "" : "none";
+        });
     });
 }
 
@@ -18434,11 +18508,11 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 const celulaStatus = ehFuncionario
                                     ? `<td style="text-align:center;"><span class="status-pilula status-${statusHolerite}">${(c.status_holerite || 'Previsão').toUpperCase()}</span></td>`
-                                    : `<td style="text-align:center;"><span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span></td>`;
+                                    : `<td id="celula-status-${c.idlancamento}" style="text-align:center;"><span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span></td>`;
 
                                 const celulaDataPagamento = ehFuncionario
                                     ? `<td class="celula-data-pagamento" style="text-align:center;">${dtPagtoHolerite}</td>`
-                                    : `<td style="text-align:center;">${pgtoExibicao}</td>`;
+                                    : `<td id="celula-data-pgto-${c.idlancamento}" style="text-align:center;">${pgtoExibicao}</td>`;
 
                                 // Benefícios: sem upload de comprovante próprio ainda (o idholerite é o
                                 // mesmo do salário — subir um comprovante aqui misturaria com o do
@@ -18464,7 +18538,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             )
                                         }
                                     </td>` : `
-                                    <td style="text-align:center;">
+                                    <td id="celula-comprovante-${c.idlancamento}" style="text-align:center;">
                                         ${(c.comprovantepgto && c.comprovantepgto !== '---')
                                             ? `<a href="javascript:void(0)"
                                                 onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
@@ -18507,7 +18581,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
                                     const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
-                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"></td>`;
+                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+                                        </td>`;
                                     const restoCels = `
                                             <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
                                             <td style="text-align:center;">
@@ -18530,7 +18607,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 }
 
                                 return `
-                                    <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
@@ -18569,12 +18646,6 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // a antiga célula com rowspan, que o Chrome não recalculava direito
                                     // quando uma linha do meio do grupo era escondida por um filtro.
                                     const funcChaveGrupo = `${grupo[0].idfunc}-${grupo[0].mesHolerite}-${grupo[0].anoHolerite}`;
-                                    const linhaNomeHeader = `
-                                        <tr class="linha-nome-funcionario" data-func-chave="${funcChaveGrupo}">
-                                            <td colspan="${totalColunas}" style="padding:6px 10px; background:#f8f9fa; border-top:2px solid #dee2e6;">
-                                                <strong>${grupo[0].nomeVinculo}</strong>
-                                            </td>
-                                        </tr>`;
 
                                     // Sem borda entre as linhas de categoria do MESMO funcionário — quando
                                     // há total, ele fecha o grupo (border-top); sem total, a própria (única)
@@ -18597,7 +18668,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             <td style="text-align:right; padding:8px;"><strong>${formatarMoeda(totalFunc)}</strong></td>
                                         </tr>` : '';
 
-                                    return linhaNomeHeader + linhasCategorias + linhaTotal;
+                                    return linhasCategorias + linhaTotal;
                                 }).join('');
 
                                 return headerMes + linhasAgrupadas;
@@ -18885,7 +18956,10 @@ function renderBotaoPagamento(c) {
 
     const textoObs = (c.observacao || c.observacao_vencimento || "").replace(/[\n\r]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '\\"');
     const dataVcto = c.dtvcto || c.vencimento || "";
-    const valorParaPagar = c.vlrprevisto || c.valor || 0;
+    // valorTotal é o campo já corrigido (usa vlrestimado vigente quando ainda não existe
+    // pagamento pra essa parcela) — c.vlrprevisto/c.valor podem vir "contaminados" do
+    // pagamento de outro mês já realizado (ver o spread em contasProjetadas.push).
+    const valorParaPagar = c.valorTotal || c.vlrprevisto || c.valor || 0;
     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
     const vinculo = (c.tipovinculo || "").toLowerCase();
 
@@ -18918,7 +18992,10 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
         return d;
     }
 
-    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento));
+    // "YYYY-MM-DD" puro vira UTC-meia-noite se passado direto pro Date(), o que em
+    // fusos negativos (Brasil, UTC-3) volta pro dia anterior — daí marcar como
+    // atrasado um pagamento feito no próprio dia do vencimento. Força horário local.
+    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento + 'T00:00:00'));
     const eAtrasado = isFuncionario ? false : (dataHojeObj > dataVencimentoUtil);
     const vencimentoFormatado = vencimento.split('-').reverse().join('/');
 
@@ -18938,7 +19015,7 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 <div class="swal-row">
                     <div class="swal-col">
                         <label>Valor Original (R$):</label>
-                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
+                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" readonly style="background: #f8f9fa;">
                     </div>
                     <div class="swal-col">
                         <label>Vencimento Original:</label>
@@ -18950,20 +19027,20 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                     ${eAtrasado ? `
                     <div class="swal-col">
                         <label style="color: #d9534f;">Atraso (Juros/Multa):</label>
-                        <input id="swal-vlr-atraso" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #d9534f;">
+                        <input id="swal-vlr-atraso" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ 0,00" style="border-color: #d9534f;">
                     </div>
                     ` : `<input id="swal-vlr-atraso" type="hidden" value="0">`}
-                    
+
                     <div class="swal-col">
                         <label style="color: #0275d8;">Desconto (R$):</label>
-                        <input id="swal-vlr-desconto" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #0275d8;">
+                        <input id="swal-vlr-desconto" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ 0,00" style="border-color: #0275d8;">
                     </div>
                 </div>
 
                 <div class="swal-row">
                     <div class="swal-col">
                         <label style="color: #28a745;">Valor Total Pago (R$):</label>
-                        <input id="swal-vlrpago" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
+                        <input id="swal-vlrpago" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
                     </div>
                     <div class="swal-col">
                         <label>Data do Pagamento:</label>
@@ -18990,18 +19067,22 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
             const inputTotal = document.getElementById('swal-vlrpago');
 
             const calcularTotal = () => {
-                const total = parseFloat(inputOriginal.value || 0) + parseFloat(inputAtraso.value || 0) - parseFloat(inputDesconto.value || 0);
-                inputTotal.value = total.toFixed(2);
+                const original = parseFloat(window.desformatarReais(inputOriginal.value)) || 0;
+                const atraso = parseFloat(window.desformatarReais(inputAtraso.value)) || 0;
+                const desconto = parseFloat(window.desformatarReais(inputDesconto.value)) || 0;
+                const total = original + atraso - desconto;
+                inputTotal.value = "R$ " + total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             };
 
             if(inputAtraso) inputAtraso.addEventListener('input', calcularTotal);
             inputDesconto.addEventListener('input', calcularTotal);
         },
         preConfirm: () => {
-            const vlrTotal = document.getElementById('swal-vlrpago').value;
+            const vlrTotal = window.desformatarReais(document.getElementById('swal-vlrpago').value);
+            const vlrOriginal = window.desformatarReais(document.getElementById('swal-vlr-original').value);
             const dataPgto = document.getElementById('swal-dtpgto').value;
-            const vlrAtraso = parseFloat(document.getElementById('swal-vlr-atraso')?.value || 0);
-            const vlrDesconto = parseFloat(document.getElementById('swal-vlr-desconto').value || 0);
+            const vlrAtraso = parseFloat(window.desformatarReais(document.getElementById('swal-vlr-atraso')?.value)) || 0;
+            const vlrDesconto = parseFloat(window.desformatarReais(document.getElementById('swal-vlr-desconto').value)) || 0;
             let obsFinal = document.getElementById('swal-obs').value.trim();
 
             if (!vlrTotal || !dataPgto) return Swal.showValidationMessage('Preencha os campos obrigatórios!');
@@ -19022,12 +19103,13 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 obsFinal = obsFinal !== obsExistente.trim() ? `${obsFinal} | ${tags.trim()}` : `${obsExistente.trim()} | ${tags.trim()}`;
             }
 
-            return { 
-                vlrpago: vlrTotal, 
-                dtpagamento: dataPgto, 
+            return {
+                vlrpago: vlrTotal,
+                vlrreal: vlrOriginal,
+                dtpagamento: dataPgto,
                 observacao: obsFinal,
-                vlrAtraso: vlrAtraso, 
-                vlrDesconto: vlrDesconto 
+                vlrAtraso: vlrAtraso,
+                vlrDesconto: vlrDesconto
             };
         }
     });
@@ -19040,7 +19122,7 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
     // }
     // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
     if (formValues) {
-        const { vlrpago, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
+        const { vlrpago, vlrreal, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
         
         // Prepara o texto de resumo (Acréscimo ou Desconto)
         let resumoAjuste = "";
@@ -19072,14 +19154,15 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
         // --- 4. ENVIO FINAL: Só acontece se o "Sim" for clicado ---
         if (confirmacao.isConfirmed) {
             enviarBaixaPagamento(
-                idPagamento, 
-                idLancamento, 
-                vlrpago, 
-                dtpagamento, 
-                vencimento, 
-                observacao, 
-                vlrAtraso, 
-                vlrDesconto
+                idPagamento,
+                idLancamento,
+                vlrpago,
+                dtpagamento,
+                vencimento,
+                observacao,
+                vlrAtraso,
+                vlrDesconto,
+                vlrreal
             );
         }
     }
@@ -19149,17 +19232,19 @@ window.abrirModalPagamento = abrirModalPagamento;
 //     }
 // }
 
-async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
+async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto, vlrreal) {
     try {
         const corpoRequisicao = {
             idpagamento: idPagamento,
             idlancamento: idLancamento,
             vlrpago: parseFloat(vlrpago),
+            vlrreal: parseFloat(vlrreal) || parseFloat(vlrpago),
             dtpagamento: dtpagamento,
             dtvcto: dtvcto,
             observacao: observacao,
             vlratraso: parseFloat(vlratraso),
-            vlrdesconto: parseFloat(vlrdesconto)
+            vlrdesconto: parseFloat(vlrdesconto),
+            status: 'pago'
         };
 
         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
@@ -19186,11 +19271,52 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
             if (container) {
                 // Substitui os botões por um ícone de check (estilo "pago")
                 container.innerHTML = `<i class="fas fa-check-double" style="color: #2E8B57; font-size: 1.2rem;" title="Pago agora"></i>`;
-                
+
                 // Opcional: muda a cor da linha para indicar sucesso sem removê-la
                 if (linha) {
                     linha.style.backgroundColor = '#f0fff4'; // Verde bem clarinho
                     linha.style.transition = 'background-color 0.5s ease';
+                }
+            }
+
+            // Atualiza Status e Data Pagamento na hora — antes só apareciam corretos
+            // depois de recarregar a página, porque essas células não eram tocadas aqui.
+            const celulaStatus = document.getElementById(`celula-status-${idLancamento}`);
+            if (celulaStatus) {
+                celulaStatus.innerHTML = `<span class="status-pilula status-pago">PAGO</span>`;
+            }
+            const celulaDataPgto = document.getElementById(`celula-data-pgto-${idLancamento}`);
+            if (celulaDataPgto && dtpagamento) {
+                celulaDataPgto.textContent = dtpagamento.split('-').reverse().join('/');
+            }
+
+            // Antes de existir um pagamento pra essa parcela, os inputs de upload da
+            // linha (up_img_/up_comp_) nasceram com id vazio/undefined (c.idpagamento
+            // ainda não existia). Agora que o pagamento foi criado, reaponta esses
+            // inputs pro idpagamento real — senão o upload seguinte falha (400).
+            if (linha && dados.idpagamento) {
+                linha.querySelectorAll('input[type="file"][id^="up_img_"], input[type="file"][id^="up_comp_"]').forEach(inp => {
+                    const ehImagem = inp.id.startsWith('up_img_');
+                    const prefixo = ehImagem ? 'up_img_' : 'up_comp_';
+                    const tipoUpload = ehImagem ? 'imagem' : 'comprovante';
+                    const novoId = prefixo + dados.idpagamento;
+                    inp.id = novoId;
+                    inp.setAttribute('onchange', `uploadArquivoFinanceiro(this, '${dados.idpagamento}', '${tipoUpload}')`);
+                    const icone = inp.nextElementSibling;
+                    if (icone) icone.setAttribute('onclick', `document.getElementById('${novoId}').click()`);
+                });
+
+                // A célula de Comprovante só mostra o upload quando status === 'pago' —
+                // até agora ela foi renderizada como "Aguardando Pagamento" (sem input
+                // nenhum pra reapontar acima). Libera o upload aqui, na hora, sem reload.
+                const celulaComprovante = document.getElementById(`celula-comprovante-${idLancamento}`);
+                if (celulaComprovante && !celulaComprovante.querySelector('a')) {
+                    const novoIdComp = `up_comp_${dados.idpagamento}`;
+                    celulaComprovante.innerHTML = `
+                        <div>
+                            <input type="file" style="display:none" id="${novoIdComp}" onchange="uploadArquivoFinanceiro(this, '${dados.idpagamento}', 'comprovante')">
+                            <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('${novoIdComp}').click()"></i>
+                        </div>`;
                 }
             }
         } else {
@@ -19570,7 +19696,7 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     if (!arquivo) return;
 
     if (!id || id === 'undefined') {
-        alert("Erro: ID não identificado.");
+        Swal.fire('Erro', 'ID não identificado.', 'error');
         return;
     }
 
@@ -19580,7 +19706,7 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     const htmlOriginal = container.innerHTML;
 
     // Feedback de carregamento
-    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: #007bff; font-size: 18px;"></i>`;
+    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: var(--primary-color); font-size: 18px;"></i>`;
 
     const formData = new FormData();
     formData.append('idPagamento', id);
@@ -19616,11 +19742,12 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
                 setTimeout(() => linhaInteira.classList.remove('linha-flash-sucesso'), 2000);
             }
         } else {
-            alert("❌ Erro: " + (res.error || res.message));
+            Swal.fire('Erro', res.error || res.message || 'Não foi possível enviar o arquivo.', 'error');
             container.innerHTML = htmlOriginal;
         }
     } catch (err) {
         console.error("Erro:", err);
+        Swal.fire('Erro', 'Falha ao comunicar com o servidor.', 'error');
         container.innerHTML = htmlOriginal;
     }
 };
