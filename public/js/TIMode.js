@@ -2962,7 +2962,15 @@ function initTIMode() {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     const ativo = document.body.classList.toggle("ti-mode");
-    if (ativo) montarPainelTI();
+    if (ativo) {
+      // Só um "modo de tela cheia" por vez — mesma regra espelhada em CeoMode.js/RH.js.
+      document.body.classList.remove("ceo-mode", "rh-mode");
+      const iconeCeo = document.querySelector("li.Ceo .material-symbols-outlined");
+      if (iconeCeo) iconeCeo.textContent = "finance";
+      const iconeRH = document.querySelector("li.RH .material-symbols-outlined");
+      if (iconeRH) iconeRH.textContent = "";
+      montarPainelTI();
+    }
   });
 }
 
