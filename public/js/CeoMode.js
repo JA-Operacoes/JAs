@@ -176,7 +176,7 @@ function analisarEvento(ev) {
 function montarPainel() {
     if (document.getElementById("ceo-panel")) return;
 
-    const main = document.getElementById("conteudo");
+    const main = document.getElementById("ceo-panel-wrapper") || document.getElementById("conteudo");
     if (!main) return;
 
     const panel = document.createElement("div");
@@ -735,7 +735,17 @@ function obterChart(id) {
     const el = document.getElementById(id);
     if (!el || typeof echarts === "undefined") return null;
     let inst = echarts.getInstanceByDom(el);
-    if (!inst) inst = echarts.init(el);
+    if (!inst) {
+        inst = echarts.init(el);
+        // O ECharts só re-mede o container sozinho no evento de resize da JANELA — trocar de
+        // modo/Exibição, ligar "Dividir tela" etc. muda a largura via CSS (grid/flex) sem disparar
+        // esse evento, então o gráfico ficava preso no tamanho medido na primeira renderização
+        // (esticado ou espremido conforme o container mudasse depois). ResizeObserver cobre
+        // qualquer mudança de layout, não só a janela.
+        if (typeof ResizeObserver !== "undefined") {
+            new ResizeObserver(() => inst.resize()).observe(el);
+        }
+    }
     return inst;
 }
 
@@ -1059,7 +1069,7 @@ let empresasSelecionadasGeral = null; // Set de idempresa ativos nas colunas (nu
 function montarPainelGeral() {
     if (document.getElementById("ceo-panel-geral")) return;
 
-    const main = document.getElementById("conteudo");
+    const main = document.getElementById("ceo-panel-wrapper") || document.getElementById("conteudo");
     if (!main) return;
 
     const panel = document.createElement("div");
@@ -1085,9 +1095,13 @@ function montarPainelGeral() {
                         <input class="input" type="radio" name="ceo-geral-modo" id="ceo-geral-modo-contas-receber" value="contas_receber">
                         <label class="btn" for="ceo-geral-modo-contas-receber"><span class="span">🧾 Contas a receber</span></label>
                     </div>
+                    <div class="option">
+                        <input class="input" type="radio" name="ceo-geral-modo" id="ceo-geral-modo-comparativo" value="comparativo">
+                        <label class="btn" for="ceo-geral-modo-comparativo"><span class="span">⚖️ Comparar A Receber × A Pagar</span></label>
+                    </div>
                 </div>
             </div>
-            <div class="filtro-grupo">
+            <div class="filtro-grupo" id="ceo-geral-exibicao-grupo">
                 <label class="label-select">Exibição</label>
                 <div class="wrapper wrapper-exibicao">
                     <div class="option">
@@ -1097,6 +1111,10 @@ function montarPainelGeral() {
                     <div class="option">
                         <input class="input" type="radio" name="ceo-geral-view" id="ceo-geral-view-graficos" value="graficos" checked>
                         <label class="btn" for="ceo-geral-view-graficos"><span class="span">📊 Gráficos</span></label>
+                    </div>
+                    <div class="option">
+                        <input class="input" type="radio" name="ceo-geral-view" id="ceo-geral-view-split" value="split">
+                        <label class="btn" for="ceo-geral-view-split"><span class="span">🗂️ Dividir tela</span></label>
                     </div>
                 </div>
             </div>
@@ -1114,13 +1132,66 @@ function montarPainelGeral() {
             </div>
         </div>
 
-        <div id="ceo-geral-busca-funcionario-wrap" class="ceo-geral-secao">
-            <div class="wrapper select-wrapper busca-funcionario-wrapper">
-                <input type="text" id="ceo-busca-funcionario" class="busca-funcionario-input" placeholder="Buscar funcionário..." autocomplete="off">
-                <i class="ri-search-line"></i>
-                <ul id="ceo-busca-funcionario-lista" class="busca-funcionario-lista" style="display:none;"></ul>
+        <div id="ceo-geral-busca-funcionario-wrap" class="ceo-geral-secao filtros" style="margin-bottom:14px;">
+            <div class="filtro-grupo">
+                <label class="label-select">&nbsp;</label>
+                <div class="wrapper select-wrapper busca-funcionario-wrapper">
+                    <input type="text" id="ceo-busca-funcionario" class="busca-funcionario-input" placeholder="Buscar funcionário..." autocomplete="off">
+                    <i class="ri-search-line"></i>
+                    <ul id="ceo-busca-funcionario-lista" class="busca-funcionario-lista" style="display:none;"></ul>
+                </div>
+            </div>
+            <div class="filtro-grupo">
+                <label class="label-select">Mês</label>
+                <div class="wrapper select-wrapper">
+                    <select id="ceo-func-select-mes" class="select-simples">
+                        <option value="">Todos os meses</option>
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
             </div>
         </div>
+
+        <div id="ceo-geral-pagar-filtros-wrap" class="ceo-geral-secao filtros" style="display:none; margin-bottom:14px;">
+            <div class="filtro-grupo">
+                <label class="label-select">Mês</label>
+                <div class="wrapper select-wrapper">
+                    <select id="ceo-pagar-select-mes" class="select-simples">
+                        <option value="">Todos os meses</option>
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="ceo-geral-receber-filtros-wrap" class="ceo-geral-secao filtros" style="display:none; margin-bottom:14px;">
+            <div class="filtro-grupo">
+                <label class="label-select">Mês</label>
+                <div class="wrapper select-wrapper">
+                    <select id="ceo-receber-select-mes" class="select-simples">
+                        <option value="">Todos os meses</option>
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="ceo-geral-split-wrap" class="ceo-geral-split-wrap" style="display:none;"></div>
 
         <div id="ceo-geral-func-lista" class="ceo-geral-secao" style="display:none;">
             <p id="ceo-geral-vazio" class="ceo-vazio">Busque e selecione um funcionário para ver, empresa por empresa, tudo que ele já recebeu ou vai receber no ano.</p>
@@ -1144,12 +1215,12 @@ function montarPainelGeral() {
         </div>
 
         <div id="ceo-geral-contas-lista" class="ceo-geral-secao" style="display:none;">
-            <p class="ceo-vazio-sutil">Custo orçado dos eventos (staff + equipamento + suprimento). "Paga" = evento já realizado; "Pendente" = ainda por acontecer. Ainda não é o módulo de lançamentos (fornecedores/contratos/impostos) — é a saída bruta que já temos de dado real hoje.</p>
+            <p class="ceo-vazio-sutil">Despesa real do grupo: Fornecedores/Outros (lançamentos de Contas a Pagar, inclusive parcelas futuras ainda não confirmadas) + Funcionários (folha/staff/ajustes). "Paga" = já confirmado; "Pendente" = ainda em aberto ou só previsto (ex.: lançamento recorrente sem parcela do mês ainda lançada).</p>
             <div id="ceo-geral-colunas-contas" class="ceo-geral-resultado"></div>
         </div>
 
         <div id="ceo-geral-contas-graficos" class="ceo-geral-secao" style="display:none;">
-            <p class="ceo-vazio-sutil">Dado bruto de saída (custo orçado dos eventos) — sem cálculo de lucro/saldo aqui, isso já existe na aba Rentabilidade.</p>
+            <p class="ceo-vazio-sutil">Dado bruto de saída (fornecedores/outros + folha de funcionários) — sem cálculo de lucro/saldo aqui, isso já existe na aba Rentabilidade.</p>
             <p class="ceo-geral-empresas-resumo" id="ceo-pagar-empresas-resumo"></p>
             <div class="filtros" style="margin-bottom:14px;">
                 <div class="filtro-grupo">
@@ -1165,28 +1236,6 @@ function montarPainelGeral() {
                         </div>
                     </div>
                 </div>
-                <div class="filtro-grupo">
-                    <label class="label-select">Mês</label>
-                    <div class="wrapper select-wrapper">
-                        <select id="ceo-pagar-select-mes" class="select-simples">
-                            <option value="">Todos os meses</option>
-                            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-                            <option value="3">Março</option><option value="4">Abril</option>
-                            <option value="5">Maio</option><option value="6">Junho</option>
-                            <option value="7">Julho</option><option value="8">Agosto</option>
-                            <option value="9">Setembro</option><option value="10">Outubro</option>
-                            <option value="11">Novembro</option><option value="12">Dezembro</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filtro-grupo">
-                    <label class="label-select">&nbsp;</label>
-                    <button type="button" id="ceo-pagar-comparar-btn" class="secundario">⚖️ Comparar entrada × saída</button>
-                </div>
-            </div>
-            <div id="ceo-pagar-comparativo" style="display:none; margin-bottom:18px;">
-                <p class="ceo-vazio-sutil">Cruza os dois dados brutos — Recebido (entrada) de Contas a receber × Despesa (saída) de Contas a pagar — no ano e nas empresas selecionadas no topo.</p>
-                <div id="ceo-pagar-comparativo-resultado" class="ceo-resumo"></div>
             </div>
             <div class="ceo-geral-graficos">
                 <div class="ceo-chart-card">
@@ -1223,20 +1272,6 @@ function montarPainelGeral() {
                     </div>
                 </div>
                 <div class="filtro-grupo">
-                    <label class="label-select">Mês</label>
-                    <div class="wrapper select-wrapper">
-                        <select id="ceo-receber-select-mes" class="select-simples">
-                            <option value="">Todos os meses</option>
-                            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-                            <option value="3">Março</option><option value="4">Abril</option>
-                            <option value="5">Maio</option><option value="6">Junho</option>
-                            <option value="7">Julho</option><option value="8">Agosto</option>
-                            <option value="9">Setembro</option><option value="10">Outubro</option>
-                            <option value="11">Novembro</option><option value="12">Dezembro</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filtro-grupo">
                     <label class="label-select">Comparar evento entre anos</label>
                     <div class="wrapper select-wrapper busca-funcionario-wrapper" style="width:300px;">
                         <input type="text" id="ceo-busca-evento-receber" class="busca-funcionario-input" placeholder="Buscar evento..." autocomplete="off">
@@ -1244,14 +1279,6 @@ function montarPainelGeral() {
                     </div>
                     <button type="button" id="ceo-receber-evento-limpar" class="secundario" style="display:none;">Limpar</button>
                 </div>
-                <div class="filtro-grupo">
-                    <label class="label-select">&nbsp;</label>
-                    <button type="button" id="ceo-receber-comparar-btn" class="secundario">⚖️ Comparar entrada × saída</button>
-                </div>
-            </div>
-            <div id="ceo-receber-comparativo" style="display:none; margin-bottom:18px;">
-                <p class="ceo-vazio-sutil">Cruza os dois dados brutos — Recebido (entrada) de Contas a receber × Despesa (saída) de Contas a pagar — no ano e nas empresas selecionadas no topo.</p>
-                <div id="ceo-receber-comparativo-resultado" class="ceo-resumo"></div>
             </div>
             <div class="ceo-geral-graficos">
                 <div class="ceo-chart-card">
@@ -1261,6 +1288,10 @@ function montarPainelGeral() {
                 <div class="ceo-chart-card">
                     <h3>A receber acumulado no período</h3>
                     <div id="chart-contas-receber-provisao" class="ceo-chart"></div>
+                </div>
+                <div class="ceo-chart-card">
+                    <h3>Previsão de recebimento por mês (líquido, ainda não recebido)</h3>
+                    <div id="chart-contas-receber-previsao" class="ceo-chart"></div>
                 </div>
             </div>
             <button type="button" id="ceo-receber-detalhar" class="secundario" style="margin-top:14px; display:none;">🔍 Detalhar por empresa</button>
@@ -1273,7 +1304,39 @@ function montarPainelGeral() {
             </div>
         </div>
 
-        <p class="ceo-nota">Contas a pagar/receber de todas as empresas ainda não entram com dados reais aqui — esses módulos serão implementados antes de ser incorporados à Visão Geral.</p>
+        <div id="ceo-geral-comparativo" class="ceo-geral-secao" style="display:none;">
+            <p class="ceo-vazio-sutil">Cruza Contas a receber × Contas a pagar em duas versões — "Disponível pra investir" (só o que já é certo: recebido de verdade × já pago de verdade) e "Provisão de Disponível a Investir" (somando também o que ainda está previsto dos dois lados: a receber + atrasado + a faturar de um lado, pendente do outro). "Em Negociação" aparece à parte, entre parênteses — ainda não é previsão confiável (orçamento não fechado), mas fica visível como alerta pra correr atrás.</p>
+            <p class="ceo-geral-empresas-resumo" id="ceo-comparativo-empresas-resumo"></p>
+            <div class="filtros" style="margin-bottom:14px;">
+                <div class="filtro-grupo">
+                    <label class="label-select">Mês</label>
+                    <div class="wrapper select-wrapper">
+                        <select id="ceo-comparativo-select-mes" class="select-simples">
+                            <option value="">Todos os meses</option>
+                            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                            <option value="3">Março</option><option value="4">Abril</option>
+                            <option value="5">Maio</option><option value="6">Junho</option>
+                            <option value="7">Julho</option><option value="8">Agosto</option>
+                            <option value="9">Setembro</option><option value="10">Outubro</option>
+                            <option value="11">Novembro</option><option value="12">Dezembro</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="ceo-comparativo-resultado" class="ceo-resumo" style="margin-bottom:18px;"></div>
+            <div class="ceo-geral-graficos">
+                <div class="ceo-chart-card">
+                    <h3>A Receber × A Pagar (certo) por mês</h3>
+                    <div id="chart-comparativo-certo" class="ceo-chart"></div>
+                </div>
+                <div class="ceo-chart-card">
+                    <h3>A Receber × A Pagar (previsão) por mês</h3>
+                    <div id="chart-comparativo-previsao" class="ceo-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <p class="ceo-nota">Contas a pagar já usa dado real (lançamentos + folha) de todas as empresas. Contas a receber ainda depende da marcação manual de "recebido" em Faturamento (sem conciliação bancária automática).</p>
     `;
     main.appendChild(panel);
 
@@ -1294,7 +1357,7 @@ function montarPainelGeral() {
 
     document.getElementById("ceo-receber-select-mes").addEventListener("change", (e) => {
         mesReceberGeral = e.target.value;
-        carregarGraficosContasReceberGeral();
+        atualizarConteudoAtivoGeral(); // recarrega Lista e/ou Gráficos, conforme a exibição ativa
     });
 
     const inputEvento = document.getElementById("ceo-busca-evento-receber");
@@ -1310,8 +1373,6 @@ function montarPainelGeral() {
     });
     document.getElementById("ceo-receber-evento-limpar").addEventListener("click", limparEventoReceberGeral);
     document.getElementById("ceo-receber-detalhar").addEventListener("click", alternarDetalheReceberGeral);
-    document.getElementById("ceo-pagar-comparar-btn").addEventListener("click", () => alternarComparativoGeral("pagar"));
-    document.getElementById("ceo-receber-comparar-btn").addEventListener("click", () => alternarComparativoGeral("receber"));
     panel.querySelectorAll('input[name="ceo-pagar-agrupamento"]').forEach((r) =>
         r.addEventListener("change", (e) => {
             if (!e.target.checked) return;
@@ -1320,7 +1381,7 @@ function montarPainelGeral() {
         }));
     document.getElementById("ceo-pagar-select-mes").addEventListener("change", (e) => {
         mesPagarGeral = e.target.value;
-        carregarGraficosContasGeral();
+        atualizarConteudoAtivoGeral(); // recarrega Lista e/ou Gráficos, conforme a exibição ativa
     });
 
     document.getElementById("ceo-geral-select-ano").addEventListener("change", () => {
@@ -1329,7 +1390,6 @@ function montarPainelGeral() {
         } else {
             atualizarConteudoAtivoGeral();
         }
-        atualizarComparativoSeAberto();
     });
 
     const input = document.getElementById("ceo-busca-funcionario");
@@ -1344,11 +1404,23 @@ function montarPainelGeral() {
         const lista = document.getElementById("ceo-busca-funcionario-lista");
         if (lista && !lista.contains(e.target) && e.target !== input) lista.style.display = "none";
     });
+
+    document.getElementById("ceo-func-select-mes").addEventListener("change", (e) => {
+        mesFuncionariosGeral = e.target.value;
+        if (funcionarioSelecionadoGeral) carregarDetalheFuncionarioGeral(funcionarioSelecionadoGeral);
+        else atualizarConteudoAtivoGeral();
+    });
+
+    document.getElementById("ceo-comparativo-select-mes").addEventListener("change", (e) => {
+        mesComparativoGeral = e.target.value;
+        atualizarConteudoAtivoGeral();
+    });
 }
 
 // ===== Modo (Funcionários/Contas) e visualização (Lista/Gráficos) da Visão Geral =====
 let modoAtivoGeral = "funcionarios";
 let visualizacaoAtivaGeral = "graficos"; // padrão de abertura — precisa bater com o "checked" do radio no HTML
+let mesFuncionariosGeral = ""; // "" (ano inteiro) | "1".."12" — quanto o funcionário (ou o grupo) recebeu num mês específico
 
 const SECOES_GERAL = {
     "funcionarios:lista": "ceo-geral-func-lista",
@@ -1359,17 +1431,77 @@ const SECOES_GERAL = {
     "contas_receber:graficos": "ceo-geral-contas-receber-graficos",
 };
 
-function mostrarSecaoGeral() {
-    const ativa = SECOES_GERAL[`${modoAtivoGeral}:${visualizacaoAtivaGeral}`];
+// Devolve lista/gráficos pro lugar original (logo antes do wrapper de split) — os 3 wraps de
+// filtro sempre visíveis (busca de funcionário, Mês de Pagar, Mês de Receber) ficam TODOS antes do
+// splitWrap no HTML (igual a busca de funcionário já era), então "antes do splitWrap" continua
+// sendo a posição certa pra qualquer um dos 3 pares Lista/Gráficos, sem depender de qual modo é.
+// (Colocar algum desses filtros DEPOIS do splitWrap — como cheguei a fazer com Pagar/Receber — faz
+// ele só aparecer abaixo do conteúdo quando "Dividir tela" está ativo, porque o splitWrap, sendo
+// anterior no DOM, desenha ali mesmo antes de chegar no filtro.)
+function devolverSecoesDoSplitGeral(splitWrap) {
     Object.values(SECOES_GERAL).forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.style.display = id === ativa ? "" : "none";
+        if (!el) return;
+        if (splitWrap && el.parentElement === splitWrap) splitWrap.before(el);
+        el.style.display = "none";
     });
-    // Busca de funcionário fica visível nas duas visualizações (Lista/Gráficos) do modo
-    // Funcionários — no modo Gráfico, um funcionário selecionado troca o panorama do GRUPO
-    // pelo panorama individual dele (ver carregarGraficosFuncionariosGeral).
+}
+
+function mostrarSecaoGeral() {
+    const splitWrap = document.getElementById("ceo-geral-split-wrap");
+    const comparativoEl = document.getElementById("ceo-geral-comparativo");
+
+    // "Comparar A Receber × A Pagar" não participa de Lista/Gráficos/Dividir tela — é uma seção única,
+    // sempre com cards + gráfico mensal próprio, então a Exibição some pra não sugerir uma escolha
+    // que não faz efeito nenhum.
+    const exibicaoGrupo = document.getElementById("ceo-geral-exibicao-grupo");
+    if (exibicaoGrupo) exibicaoGrupo.style.display = modoAtivoGeral === "comparativo" ? "none" : "";
+
+    if (modoAtivoGeral === "comparativo") {
+        if (splitWrap) splitWrap.style.display = "none";
+        devolverSecoesDoSplitGeral(splitWrap);
+        if (comparativoEl) comparativoEl.style.display = "";
+        const buscaWrap = document.getElementById("ceo-geral-busca-funcionario-wrap");
+        if (buscaWrap) buscaWrap.style.display = "none";
+        const pagarFiltrosWrapOculto = document.getElementById("ceo-geral-pagar-filtros-wrap");
+        if (pagarFiltrosWrapOculto) pagarFiltrosWrapOculto.style.display = "none";
+        const receberFiltrosWrapOculto = document.getElementById("ceo-geral-receber-filtros-wrap");
+        if (receberFiltrosWrapOculto) receberFiltrosWrapOculto.style.display = "none";
+        return;
+    }
+    if (comparativoEl) comparativoEl.style.display = "none";
+
+    const idLista = SECOES_GERAL[`${modoAtivoGeral}:lista`];
+    const idGraficos = SECOES_GERAL[`${modoAtivoGeral}:graficos`];
+    const elLista = document.getElementById(idLista);
+    const elGraficos = document.getElementById(idGraficos);
+
+    // Sempre devolve lista/gráficos pro lugar original antes de decidir o que mostrar — evita que
+    // uma seção fique "presa" dentro do wrapper depois de trocar de modo (Funcionários -> Contas,
+    // por ex.) enquanto Dividir Tela estava ativo.
+    devolverSecoesDoSplitGeral(splitWrap);
+
+    if (visualizacaoAtivaGeral === "split" && splitWrap && elLista && elGraficos) {
+        splitWrap.appendChild(elLista);
+        splitWrap.appendChild(elGraficos);
+        elLista.style.display = "";
+        elGraficos.style.display = "";
+        splitWrap.style.display = "flex";
+    } else {
+        if (splitWrap) splitWrap.style.display = "none";
+        const ativa = document.getElementById(SECOES_GERAL[`${modoAtivoGeral}:${visualizacaoAtivaGeral}`]);
+        if (ativa) ativa.style.display = "";
+    }
+
+    // Busca de funcionário e os filtros de Mês (Funcionários/Pagar/Receber) ficam visíveis nas
+    // três visualizações (Lista/Gráficos/Dividir tela) do modo correspondente — não só dentro de
+    // Gráficos, senão o filtro "some" pra quem está na Lista e o Mês escolhido nunca chega lá.
     const buscaWrap = document.getElementById("ceo-geral-busca-funcionario-wrap");
     if (buscaWrap) buscaWrap.style.display = modoAtivoGeral === "funcionarios" ? "" : "none";
+    const pagarFiltrosWrap = document.getElementById("ceo-geral-pagar-filtros-wrap");
+    if (pagarFiltrosWrap) pagarFiltrosWrap.style.display = modoAtivoGeral === "contas" ? "" : "none";
+    const receberFiltrosWrap = document.getElementById("ceo-geral-receber-filtros-wrap");
+    if (receberFiltrosWrap) receberFiltrosWrap.style.display = modoAtivoGeral === "contas_receber" ? "" : "none";
 }
 
 // Redesenha o conteúdo da combinação modo+visualização atual, sem duplicar a lógica de troca
@@ -1390,23 +1522,66 @@ function atualizarResumoEmpresasGeral() {
             if (nomes.length > 0) texto = `Valores referentes a: ${nomes.join(", ")}`;
         }
     }
-    ["ceo-func-empresas-resumo", "ceo-pagar-empresas-resumo", "ceo-receber-empresas-resumo"].forEach((id) => {
+    ["ceo-func-empresas-resumo", "ceo-pagar-empresas-resumo", "ceo-receber-empresas-resumo", "ceo-comparativo-empresas-resumo"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.textContent = texto;
     });
 }
 
+// Com 0 empresas selecionadas, "idempresas=" vazio na querystring NÃO significa "nenhuma" pro
+// back-end — significa "sem filtro" (ele ignora o parâmetro e devolve TODAS as empresas). Por
+// isso não dá pra só deixar a busca de cada aba seguir normal: precisa interceptar aqui, antes de
+// qualquer fetch, e limpar visualmente tudo (senão a tela mantém o último resultado carregado,
+// como se ainda estivesse filtrando por alguma empresa).
+function limparConteudoGeralSemEmpresa() {
+    ["ceo-geral-colunas", "ceo-geral-colunas-contas", "ceo-geral-colunas-contas-receber", "ceo-comparativo-resultado"]
+        .forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = "";
+        });
+
+    const vazioFunc = document.getElementById("ceo-geral-vazio");
+    if (vazioFunc) { vazioFunc.textContent = "Nenhuma empresa selecionada."; vazioFunc.style.display = ""; }
+    const tituloFunc = document.getElementById("ceo-geral-titulo");
+    if (tituloFunc) tituloFunc.style.display = "none";
+
+    [
+        "chart-geral-contratado", "chart-geral-provisao",
+        "chart-contas-contratado", "chart-contas-provisao",
+        "chart-contas-receber-contratado", "chart-contas-receber-provisao", "chart-contas-receber-previsao",
+        "chart-contas-receber-eventos",
+        "chart-comparativo-certo", "chart-comparativo-previsao",
+    ].forEach((id) => {
+        const c = obterChart(id);
+        if (c) c.clear();
+    });
+
+    const detalheReceber = document.getElementById("ceo-receber-detalhe");
+    if (detalheReceber) detalheReceber.style.display = "none";
+}
+
 function atualizarConteudoAtivoGeral() {
     atualizarResumoEmpresasGeral();
+    if (empresasSelecionadasGeral && empresasSelecionadasGeral.size === 0) {
+        limparConteudoGeralSemEmpresa();
+        return;
+    }
+    // "Dividir tela" renderiza os dois lados de uma vez — nenhuma das duas chamadas depende
+    // da outra, cada uma só preenche o próprio container por id.
+    const mostraLista = visualizacaoAtivaGeral === "lista" || visualizacaoAtivaGeral === "split";
+    const mostraGraficos = visualizacaoAtivaGeral === "graficos" || visualizacaoAtivaGeral === "split";
     if (modoAtivoGeral === "funcionarios") {
-        if (visualizacaoAtivaGeral === "lista") renderColunasGeral();
-        else carregarGraficosFuncionariosGeral();
+        if (mostraLista) renderColunasGeral();
+        if (mostraGraficos) carregarGraficosFuncionariosGeral();
     } else if (modoAtivoGeral === "contas") {
-        if (visualizacaoAtivaGeral === "lista") renderColunasContasGeral();
-        else carregarGraficosContasGeral();
+        if (mostraLista) renderColunasContasGeral();
+        if (mostraGraficos) carregarGraficosContasGeral();
     } else if (modoAtivoGeral === "contas_receber") {
-        if (visualizacaoAtivaGeral === "lista") renderColunasContasReceberGeral();
-        else carregarGraficosContasReceberGeral();
+        if (mostraLista) renderColunasContasReceberGeral();
+        if (mostraGraficos) carregarGraficosContasReceberGeral();
+    } else if (modoAtivoGeral === "comparativo") {
+        carregarComparativoGeral();
+        carregarGraficosComparativoGeral();
     }
 }
 
@@ -1451,7 +1626,6 @@ function renderFiltroEmpresasGeral() {
             chipTodos.classList.add("ativo");
         }
         atualizarConteudoAtivoGeral();
-        atualizarComparativoSeAberto();
     });
     chipsIndividuais.forEach((chip) => {
         chip.addEventListener("click", () => {
@@ -1464,7 +1638,6 @@ function renderFiltroEmpresasGeral() {
             chip.classList.toggle("ativo", empresasSelecionadasGeral.has(id));
             chipTodos.classList.toggle("ativo", empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa)));
             atualizarConteudoAtivoGeral();
-            atualizarComparativoSeAberto();
         });
     });
 }
@@ -1538,11 +1711,13 @@ async function carregarDetalheFuncionarioGeral(funcionario) {
 
     vazio.style.display = "none";
     document.getElementById("ceo-geral-titulo").style.display = "block";
-    document.getElementById("ceo-geral-titulo").textContent = `${funcionario.nome} — ${ano}`;
+    const sufixoPeriodo = mesFuncionariosGeral ? MESES_NOME_COMPLETO_GERAL[parseInt(mesFuncionariosGeral, 10) - 1] : ano;
+    document.getElementById("ceo-geral-titulo").textContent = `${funcionario.nome} — ${sufixoPeriodo}`;
 
     // Busca sempre todas as empresas de uma vez (sem idempresa) — os chips filtram no cliente,
     // sem precisar refazer a requisição a cada clique numa coluna.
     const params = new URLSearchParams({ idfuncionario: funcionario.idfuncionario, ano });
+    if (mesFuncionariosGeral) params.set("mes", mesFuncionariosGeral);
 
     try {
         dadosFuncionarioGeral = await fetchComToken(`/ceo/geral/funcionario?${params.toString()}`) || { holerites: [], staff: [], ajustes: [] };
@@ -1569,17 +1744,39 @@ function calcularTotaisEmpresaGeral(empresa, { holerites, staff, ajustes }) {
     const staffEmp = staff.filter((s) => s.idempresa === empresa.idempresa);
     const ajustesEmp = ajustes.filter((a) => a.idempresa === empresa.idempresa);
 
+    // Salário e Benefícios (VA/VT) conferem/pagam em momentos diferentes (mesma regra de
+    // Vencimentos): "origem" só vira "real" (podendo contar como Pago) depois de conferido pelo
+    // RH — antes disso a linha é sempre exibida como Previsão, mesmo já existindo no banco.
     let totPagoHolerite = 0, totPrevHolerite = 0;
-    const linhasHolerite = holeritesEmp.map((h) => {
-        const valor = (Number(h.proventos) || 0) - (Number(h.descontos) || 0);
-        totPrevHolerite += valor;
-        if (h.status === "Pago") totPagoHolerite += valor;
-        return `<tr>
-            <td>${String(h.mes).padStart(2, "0")}/${h.ano} ${h.tipo === "13" ? "(13º)" : ""}</td>
-            <td class="${statusClasse(h.status)}">${h.status}</td>
+    const linhasHolerite = holeritesEmp.flatMap((h) => {
+        const competencia = `${String(h.mes).padStart(2, "0")}/${h.ano} ${h.tipo === "13" ? "(13º)" : ""}`;
+        const linhas = [];
+
+        const valorSalario = (Number(h.proventos) || 0) - (Number(h.descontos) || 0);
+        const statusSalario = h.origem === "real" ? h.status : "Previsão";
+        totPrevHolerite += valorSalario;
+        if (h.origem === "real" && h.status === "Pago") totPagoHolerite += valorSalario;
+        linhas.push(`<tr>
+            <td>${competencia}</td>
+            <td class="${statusClasse(statusSalario)}">${statusSalario}</td>
             <td>${moedaGeral(h.proventos)}</td>
             <td>${moedaGeral(h.descontos)}</td>
-        </tr>`;
+        </tr>`);
+
+        const valorBeneficios = Number(h.beneficios) || 0;
+        if (valorBeneficios) {
+            const statusBeneficios = h.origemBeneficios === "real" ? h.status_beneficios : "Previsão";
+            totPrevHolerite += valorBeneficios;
+            if (h.origemBeneficios === "real" && h.status_beneficios === "Pago") totPagoHolerite += valorBeneficios;
+            linhas.push(`<tr>
+                <td>${competencia} (Benefícios)</td>
+                <td class="${statusClasse(statusBeneficios)}">${statusBeneficios}</td>
+                <td>${moedaGeral(valorBeneficios)}</td>
+                <td>${moedaGeral(0)}</td>
+            </tr>`);
+        }
+
+        return linhas;
     }).join("") || '<tr><td colspan="4" class="ceo-vazio">Sem holerites.</td></tr>';
 
     let totPagoStaff = 0, totPrevStaff = 0;
@@ -1667,13 +1864,79 @@ function montarLinhaEmpresaGeral({ empresa, totalPago, totalPrevisto, TOTAIS_ABA
     return linhaPrincipal + linhaDetalhe;
 }
 
+// Lista (sem funcionário buscado ainda): todo mundo com atividade no ano, agregado por
+// funcionário (holerite + staff em eventos + ajustes pagos — mesma regra de /geral/panorama,
+// só que por pessoa em vez de por mês). Clicar num nome entra no detalhe de sempre (mesmo
+// caminho de buscarFuncionariosGeral). Refeita a cada troca de ano/chip de empresa.
+async function renderTodosFuncionariosGeral(cont) {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    const todasSelecionadas = !empresasSelecionadasGeral || empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
+    const idsFiltro = todasSelecionadas ? [] : empresasGeral.filter((e) => empresasSelecionadasGeral.has(e.idempresa)).map((e) => e.idempresa);
+
+    cont.innerHTML = '<p class="ceo-vazio-sutil">Carregando...</p>';
+    try {
+        const params = new URLSearchParams({ ano });
+        if (idsFiltro.length) params.set("idempresas", idsFiltro.join(","));
+        if (mesFuncionariosGeral) params.set("mes", mesFuncionariosGeral);
+        const resp = await fetchComToken(`/ceo/geral/funcionarios-resumo?${params.toString()}`);
+        const lista = resp?.funcionarios || [];
+
+        if (!lista.length) {
+            cont.innerHTML = `<p class="ceo-vazio">Nenhum funcionário com valor ${textoPeriodoFuncionariosGeral()}/empresas selecionadas.</p>`;
+            return;
+        }
+
+        const linhas = lista.map((f) => {
+            const pago = Number(f.pago) || 0;
+            const previsto = pago + (Number(f.pendente) || 0);
+            return `<tr class="ceo-geral-linha-funcionario-geral" data-id="${f.idfuncionario}" data-nome="${f.nome}">
+                <td>${f.nome}</td>
+                <td class="pos">${moedaGeral(pago)}</td>
+                <td>${moedaGeral(previsto)}</td>
+            </tr>`;
+        }).join("");
+
+        cont.innerHTML = `
+            <p class="ceo-vazio-sutil">Todos os funcionários com valor ${textoPeriodoFuncionariosGeral()} — clique num nome pra ver o detalhe por empresa (ou busque um específico acima).</p>
+            <div class="ceo-geral-tabela-wrap">
+                <table class="ceo-geral-tabela-empresas">
+                    <thead><tr><th>Funcionário</th><th>Pago</th><th>Previsto</th></tr></thead>
+                    <tbody>${linhas}</tbody>
+                </table>
+            </div>`;
+
+        cont.querySelectorAll(".ceo-geral-linha-funcionario-geral").forEach((tr) => {
+            tr.addEventListener("click", () => {
+                const input = document.getElementById("ceo-busca-funcionario");
+                if (input) input.value = tr.dataset.nome;
+                funcionarioSelecionadoGeral = { idfuncionario: tr.dataset.id, nome: tr.dataset.nome };
+                carregarDetalheFuncionarioGeral(funcionarioSelecionadoGeral);
+            });
+        });
+    } catch (err) {
+        console.error("Erro ao carregar resumo de todos os funcionários (CEO Geral):", err);
+        cont.innerHTML = '<p class="ceo-vazio">Erro ao carregar a lista de funcionários.</p>';
+    }
+}
+
 // Redesenha a tabela horizontal (total geral + uma linha por empresa) conforme os chips ativos —
 // sem buscar de novo (dadosFuncionarioGeral já tem tudo, o filtro por empresa é só um recorte no
 // cliente). Empresa sem NENHUM registro (nem holerite, nem staff, nem ajuste pago) pro
 // funcionário/ano atual não entra na tabela — nada a mostrar.
 function renderColunasGeral() {
     const cont = document.getElementById("ceo-geral-colunas");
+    const vazio = document.getElementById("ceo-geral-vazio");
     if (!cont) return;
+
+    // Sem funcionário buscado ainda: mesma paridade que o modo Gráfico já tem (mostra o grupo
+    // inteiro por padrão) — em vez do aviso "busque um funcionário", lista todo mundo com
+    // atividade no ano/empresas selecionadas; clicar num nome abre o detalhe de sempre.
+    if (!funcionarioSelecionadoGeral) {
+        if (vazio) vazio.style.display = "none";
+        renderTodosFuncionariosGeral(cont);
+        return;
+    }
+
     if (!dadosFuncionarioGeral || !empresasSelecionadasGeral) { cont.innerHTML = ""; return; }
 
     const { holerites, staff, ajustes } = dadosFuncionarioGeral;
@@ -1733,6 +1996,15 @@ function renderColunasGeral() {
 // buscado um funcionário/conta específico. Reaproveita obterChart()/moeda()/fmtMoedaCurta() já
 // usados nos gráficos de Rentabilidade. =====
 const MESES_GERAL = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_NOME_COMPLETO_GERAL = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+// "no ano" (sem filtro) ou "em <Mês>" (com o filtro de Mês da aba Funcionários aplicado) — usado
+// nos textos descritivos da Lista/Gráficos pra deixar claro qual período está em tela.
+function textoPeriodoFuncionariosGeral() {
+    return mesFuncionariosGeral ? `em ${MESES_NOME_COMPLETO_GERAL[parseInt(mesFuncionariosGeral, 10) - 1]}` : "no ano";
+}
 
 // Junta as 3 origens (holerite/staff/ajustes) em dois arrays de 12 posições (Pago/Pendente).
 // Ajuste financeiro só entra como "Pago" (mesma regra do backend — só conta quando confirmado).
@@ -1776,7 +2048,7 @@ function renderGraficosPanoramaGeral(idContratado, idProvisao, dados, descontosP
     if (cContratado) cContratado.setOption({
         tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => moeda(v) },
         legend: { bottom: 0, data: legendaContratado },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
         xAxis: { type: "category", data: MESES_GERAL },
         yAxis: { type: "value", axisLabel: { formatter: fmtMoedaCurta } },
         series: seriesContratado,
@@ -1800,7 +2072,7 @@ function renderGraficosPanoramaGeral(idContratado, idProvisao, dados, descontosP
     if (cProvisao) cProvisao.setOption({
         tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
         legend: { bottom: 0, data: legendaProvisao },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
         xAxis: { type: "category", data: MESES_GERAL },
         yAxis: { type: "value", axisLabel: { formatter: fmtMoedaCurta } },
         series: seriesProvisao,
@@ -1836,7 +2108,7 @@ function renderGraficosBrutoPorEmpresaGeral(idBarras, idAcumulado, categorias, l
     if (cBarras) cBarras.setOption({
         tooltip: tooltipMoeda,
         legend: { bottom: 0, data: Array.from(empresas.values()).map((e) => e.nome) },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
         xAxis, yAxis: yMoeda,
         series: seriesBarras,
     }, true);
@@ -1853,7 +2125,7 @@ function renderGraficosBrutoPorEmpresaGeral(idBarras, idAcumulado, categorias, l
     if (cAcumulado) cAcumulado.setOption({
         tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
         legend: { bottom: 0, data: Array.from(empresas.values()).map((e) => e.nome) },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
         xAxis, yAxis: yMoeda,
         series: seriesAcumulado,
     }, true);
@@ -1884,7 +2156,7 @@ function renderGraficosCategoriasGeral(idBarras, idAcumulado, categorias, series
     if (cBarras) cBarras.setOption({
         tooltip: tooltipMoeda,
         legend: { bottom: 0, data: series.map((s) => s.label) },
-        grid: { left: 70, right: 20, top: 30, bottom: 50 },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
         xAxis, yAxis: yMoeda,
         series: series.map((s) => ({ name: s.label, type: "bar", stack: "total", color: s.cor, data: s.data })),
     }, true);
@@ -1899,7 +2171,7 @@ function renderGraficosCategoriasGeral(idBarras, idAcumulado, categorias, series
     const cAcumulado = obterChart(idAcumulado);
     if (cAcumulado) cAcumulado.setOption({
         tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
-        grid: { left: 70, right: 20, top: 30, bottom: 30 },
+        grid: { left: 95, right: 20, top: 30, bottom: 30 },
         xAxis, yAxis: yMoeda,
         series: [{ name: "Acumulado", type: "line", areaStyle: {}, color: "#1f6fc4", data: acumulado }],
     }, true);
@@ -1910,13 +2182,24 @@ function renderGraficosCategoriasGeral(idBarras, idAcumulado, categorias, series
 // espera — usado quando um funcionário está selecionado, pra trocar o panorama do GRUPO pelo dele.
 function agruparPorMesDoFuncionarioGeral({ holerites, staff, ajustes }, empresasSelecionadas) {
     const descontos = Array(12).fill(0);
-    const holerite = (holerites || [])
+    const holerite = [];
+    // Salário e Benefícios contam como "pago" só quando conferidos (mesma regra de Vencimentos) —
+    // ver calcularTotaisEmpresaGeral, que aplica exatamente essa mesma lógica na lista/detalhe.
+    (holerites || [])
         .filter((h) => empresasSelecionadas.has(h.idempresa))
-        .map((h) => {
-            const valor = (Number(h.proventos) || 0) - (Number(h.descontos) || 0);
+        .forEach((h) => {
             const idx = (parseInt(h.mes, 10) || 1) - 1;
             if (idx >= 0 && idx <= 11) descontos[idx] += Number(h.descontos) || 0;
-            return { mes: h.mes, pago: h.status === "Pago" ? valor : 0, pendente: h.status !== "Pago" ? valor : 0 };
+
+            const valorSalario = (Number(h.proventos) || 0) - (Number(h.descontos) || 0);
+            const pagoSalario = h.origem === "real" && h.status === "Pago";
+            holerite.push({ mes: h.mes, pago: pagoSalario ? valorSalario : 0, pendente: pagoSalario ? 0 : valorSalario });
+
+            const valorBeneficios = Number(h.beneficios) || 0;
+            if (valorBeneficios) {
+                const pagoBeneficios = h.origemBeneficios === "real" && h.status_beneficios === "Pago";
+                holerite.push({ mes: h.mes, pago: pagoBeneficios ? valorBeneficios : 0, pendente: pagoBeneficios ? 0 : valorBeneficios });
+            }
         });
 
     const staffAgrupado = (staff || [])
@@ -1946,17 +2229,18 @@ async function carregarGraficosFuncionariosGeral() {
     const legenda = document.getElementById("ceo-geral-graficos-legenda");
 
     if (funcionarioSelecionadoGeral && dadosFuncionarioGeral) {
-        if (legenda) legenda.textContent = `Panorama de ${funcionarioSelecionadoGeral.nome} no ano — o que já é certo (pago ou pendente), a provisão de custo acumulada e os descontos (em vermelho) — dá pra comparar se ainda compensa manter o regime dele (CLT × PJ/MEI).`;
+        if (legenda) legenda.textContent = `Panorama de ${funcionarioSelecionadoGeral.nome} ${textoPeriodoFuncionariosGeral()} — o que já é certo (pago ou pendente), a provisão de custo acumulada e os descontos (em vermelho) — dá pra comparar se ainda compensa manter o regime dele (CLT × PJ/MEI).`;
         const dados = agruparPorMesDoFuncionarioGeral(dadosFuncionarioGeral, empresasSelecionadasGeral);
         renderGraficosPanoramaGeral("chart-geral-contratado", "chart-geral-provisao", dados, dados.descontos);
         return;
     }
 
-    if (legenda) legenda.textContent = "Panorama do grupo inteiro (todos os funcionários) no ano — o que já é certo (contratado, pago ou pendente de pagamento) e a provisão de custo acumulada.";
+    if (legenda) legenda.textContent = `Panorama do grupo inteiro (todos os funcionários) ${textoPeriodoFuncionariosGeral()} — o que já é certo (contratado, pago ou pendente de pagamento) e a provisão de custo acumulada.`;
     const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
     const todas = empresasGeral.length > 0 && empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
     const params = new URLSearchParams({ ano });
     if (!todas) params.set("idempresas", Array.from(empresasSelecionadasGeral).join(","));
+    if (mesFuncionariosGeral) params.set("mes", mesFuncionariosGeral);
 
     try {
         const data = await fetchComToken(`/ceo/geral/panorama?${params.toString()}`);
@@ -1966,66 +2250,168 @@ async function carregarGraficosFuncionariosGeral() {
     }
 }
 
-// Resumo Entrada × Saída × Saldo — usado pelo botão global "⚖️ Comparar entrada × saída", que
-// cruza o bruto de Contas a receber (entrada) com o de Contas a pagar (saída). Saldo positivo =
-// sobra pra investir; negativo = estourou. Não aparece mais dentro de cada aba individualmente —
-// cada uma agora só mostra o próprio dado bruto (lucro/saldo já é o papel da aba Rentabilidade).
-function renderSaldoEntradaSaidaGeral(containerId, totalEntrada, totalSaida, labelEntrada, labelSaida) {
+// Resumo A Receber × A Pagar × Saldo — aba própria "⚖️ Comparar A Receber × A Pagar". Separa o que já é
+// CERTO (recebido de verdade × já pago de verdade) do que é PROVISÃO (soma também a_receber +
+// recebimento_atrasado + a_faturar de Contas a receber e o pendente de Contas a pagar) — misturar
+// os dois numa conta só fazia o "Disponível pra investir" comparar entrada real com saída que já
+// incluía previsão, o que não fecha (não é comparação de mesma natureza). "Em Negociação" (orçamento
+// ainda não fechado) não entra na soma — é informativo só, mostrado entre parênteses ao lado da
+// Previsão a Receber, pra alertar o CEO a correr atrás em vez de já contar como certo.
+function renderSaldoEntradaSaidaGeral(containerId, dados) {
     const el = document.getElementById(containerId);
     if (!el) return;
-    const saldo = totalEntrada - totalSaida;
+    const saldoCerto = dados.recebidoReal - dados.pagoReal;
+    const saldoProvisao = (dados.recebidoReal + dados.aReceberPrevisao) - (dados.pagoReal + dados.pagarPrevisao);
+    const notaNegociacao = dados.emNegociacao > 0
+        ? ` <small>(+ ${moedaGeral(dados.emNegociacao)} em negociação)</small>`
+        : "";
+    // Aqui não repete o valor de "Em Negociação" (isso já está na nota da Previsão a Receber) —
+    // mostra o RESULTADO: o saldo final que a Provisão de Disponível a Investir alcançaria se toda
+    // negociação em aberto fechasse (entrasse de fato na Previsão a Receber).
+    const saldoProvisaoSeNegociacaoFechar = saldoProvisao + dados.emNegociacao;
+    const notaNegociacaoSaldo = dados.emNegociacao > 0
+        ? ` <small>(chegaria a ${moedaGeral(saldoProvisaoSeNegociacaoFechar)} se fechar as negociações em aberto)</small>`
+        : "";
     el.innerHTML = `
-        <div class="ceo-resumo-card"><span>${labelEntrada}</span><strong class="pos">${moedaGeral(totalEntrada)}</strong></div>
-        <div class="ceo-resumo-card"><span>${labelSaida}</span><strong class="neg">${moedaGeral(totalSaida)}</strong></div>
-        <div class="ceo-resumo-card"><span>Disponível pra investir</span><strong class="${saldo < 0 ? "neg" : "pos"}">${moedaGeral(saldo)}</strong></div>
+        <div class="ceo-resumo-card"><span>Recebido (certo)</span><strong class="pos">${moedaGeral(dados.recebidoReal)}</strong></div>
+        <div class="ceo-resumo-card"><span>Pago (certo)</span><strong class="neg">${moedaGeral(dados.pagoReal)}</strong></div>
+        <div class="ceo-resumo-card"><span>Disponível pra investir</span><strong class="${saldoCerto < 0 ? "neg" : "pos"}">${moedaGeral(saldoCerto)}</strong></div>
+        <div class="ceo-resumo-card"><span>Previsão a receber</span><strong class="pos">${moedaGeral(dados.aReceberPrevisao)}</strong>${notaNegociacao}</div>
+        <div class="ceo-resumo-card"><span>Previsão a pagar</span><strong class="neg">${moedaGeral(dados.pagarPrevisao)}</strong></div>
+        <div class="ceo-resumo-card"><span>Provisão de Disponível a Investir</span><strong class="${saldoProvisao < 0 ? "neg" : "pos"}">${moedaGeral(saldoProvisao)}</strong>${notaNegociacaoSaldo}</div>
     `;
 }
 
-// Botão "⚖️ Comparar entrada × saída" — existe em duas cópias (dentro dos filtros de gráficos de
-// Contas a pagar e de Contas a receber), cada uma com seu próprio box/resultado, mas as duas
-// mostram exatamente a mesma conta (só a localização na tela muda conforme onde foi clicado).
-async function alternarComparativoGeral(prefixo) {
-    const box = document.getElementById(`ceo-${prefixo}-comparativo`);
-    if (!box) return;
-    const abrindo = box.style.display === "none";
-    box.style.display = abrindo ? "" : "none";
-    if (abrindo) await carregarComparativoGeral(prefixo);
+let mesComparativoGeral = ""; // "" (ano inteiro) | "1".."12" — filtro PRÓPRIO do comparativo, não
+                               // depende do "Mês" de Contas a Pagar nem de Contas a Receber (evita
+                               // o bug de herdar o filtro errado conforme onde foi clicado).
+
+// Ano/empresas selecionados no topo + o Mês próprio do comparativo (se algum estiver marcado).
+function paramsAnoEmpresasGeral(agrupamento) {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    const params = new URLSearchParams({ agrupamento, ano });
+    const todas = empresasGeral.length > 0 && empresasSelecionadasGeral && empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
+    if (empresasSelecionadasGeral && !todas) params.set("idempresas", Array.from(empresasSelecionadasGeral).join(","));
+    if (mesComparativoGeral) params.set("mes", mesComparativoGeral);
+    return params;
 }
 
-function atualizarComparativoSeAberto() {
-    ["pagar", "receber"].forEach((prefixo) => {
-        const box = document.getElementById(`ceo-${prefixo}-comparativo`);
-        if (box && box.style.display !== "none") carregarComparativoGeral(prefixo);
-    });
-}
-
-async function carregarComparativoGeral(prefixo) {
+async function carregarComparativoGeral() {
     try {
-        const params = paramsReceberGeral("empresa"); // reaproveita ano/idempresas já resolvidos
-        const data = await fetchComToken(`/ceo/geral/receber?${params.toString()}`);
-        const linhas = (data && data.linhas) || [];
-        const totalEntrada = linhas.reduce((s, r) => s + (Number(r.recebido) || 0), 0);
-        const totalSaida = linhas.reduce((s, r) => s + (Number(r.despesa) || 0), 0);
-        renderSaldoEntradaSaidaGeral(`ceo-${prefixo}-comparativo-resultado`, totalEntrada, totalSaida, "Recebido (entrada)", "Despesa (saída)");
+        const params = paramsAnoEmpresasGeral("empresa");
+        const [dataReceber, dataPagar] = await Promise.all([
+            fetchComToken(`/ceo/geral/receber?${params.toString()}`),
+            fetchComToken(`/ceo/geral/pagar?${params.toString()}`),
+        ]);
+        const linhasReceber = (dataReceber && dataReceber.linhas) || [];
+        const linhasPagar = (dataPagar && dataPagar.linhas) || [];
+        renderSaldoEntradaSaidaGeral("ceo-comparativo-resultado", {
+            recebidoReal: linhasReceber.reduce((s, r) => s + (Number(r.recebido) || 0), 0),
+            // "Ainda vai receber" = a_receber (dentro do prazo) + recebimento_atrasado (vencido, mas
+            // ainda esperado) + a_faturar (evento já fechado, só falta emitir a NF — praticamente
+            // certo). "Em Negociação" fica de fora daqui, ver emNegociacao abaixo.
+            aReceberPrevisao: linhasReceber.reduce((s, r) =>
+                s + (Number(r.a_receber) || 0) + (Number(r.recebimento_atrasado) || 0) + (Number(r.a_faturar) || 0), 0),
+            emNegociacao: linhasReceber.reduce((s, r) => s + (Number(r.em_negociacao) || 0), 0),
+            pagoReal: linhasPagar.reduce((s, r) => s + (Number(r.despesapaga) || 0), 0),
+            pagarPrevisao: linhasPagar.reduce((s, r) => s + (Number(r.despesapendente) || 0), 0),
+        });
     } catch (err) {
         console.error("Erro ao carregar comparativo entrada×saída (CEO Geral):", err);
     }
+}
+
+// Gráfico mensal próprio do comparativo — sempre os 12 meses do ano selecionado (não depende do
+// filtro de mês de Contas a Pagar/Receber), pra dar a visão "quanto entrou × quanto saiu" mês a mês
+// que antes só existia misturada dentro de cada aba individual.
+async function carregarGraficosComparativoGeral() {
+    if (!empresasSelecionadasGeral) return;
+    try {
+        const params = paramsAnoEmpresasGeral("mensal");
+        const [dataReceber, dataPagar] = await Promise.all([
+            fetchComToken(`/ceo/geral/receber?${params.toString()}`),
+            fetchComToken(`/ceo/geral/pagar?${params.toString()}`),
+        ]);
+        const linhasReceber = (dataReceber && dataReceber.linhas) || [];
+        const linhasPagar = (dataPagar && dataPagar.linhas) || [];
+
+        const entradaCerta = Array(12).fill(0), entradaPrevisao = Array(12).fill(0);
+        linhasReceber.forEach((r) => {
+            const idx = (parseInt(r.chave, 10) || 1) - 1;
+            if (idx < 0 || idx > 11) return;
+            entradaCerta[idx] += Number(r.recebido) || 0;
+            entradaPrevisao[idx] += (Number(r.a_receber) || 0) + (Number(r.recebimento_atrasado) || 0) + (Number(r.a_faturar) || 0);
+        });
+
+        const saidaCerta = Array(12).fill(0), saidaPrevisao = Array(12).fill(0);
+        linhasPagar.forEach((r) => {
+            const idx = (parseInt(r.chave, 10) || 1) - 1;
+            if (idx < 0 || idx > 11) return;
+            saidaCerta[idx] += Number(r.despesapaga) || 0;
+            saidaPrevisao[idx] += Number(r.despesapendente) || 0;
+        });
+
+        renderGraficosComparativoGeral(entradaCerta, saidaCerta, entradaPrevisao, saidaPrevisao);
+    } catch (err) {
+        console.error("Erro ao carregar gráfico do comparativo entrada×saída (CEO Geral):", err);
+    }
+}
+
+function renderGraficosComparativoGeral(entradaCerta, saidaCerta, entradaPrevisao, saidaPrevisao) {
+    if (typeof echarts === "undefined") return;
+    const tooltipMoeda = { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => moeda(v) };
+    const yMoeda = { type: "value", axisLabel: { formatter: fmtMoedaCurta } };
+    const xAxis = { type: "category", data: MESES_GERAL };
+
+    const cCerto = obterChart("chart-comparativo-certo");
+    if (cCerto) cCerto.setOption({
+        tooltip: tooltipMoeda,
+        legend: { bottom: 0, data: ["Recebido", "Pago"] },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
+        xAxis, yAxis: yMoeda,
+        series: [
+            { name: "Recebido", type: "bar", color: "#1e9e54", data: entradaCerta },
+            { name: "Pago", type: "bar", color: "#dc2e2e", data: saidaCerta },
+        ],
+    }, true);
+
+    const cPrevisao = obterChart("chart-comparativo-previsao");
+    if (cPrevisao) cPrevisao.setOption({
+        tooltip: tooltipMoeda,
+        legend: { bottom: 0, data: ["Previsão a receber", "Previsão a pagar"] },
+        grid: { left: 95, right: 20, top: 30, bottom: 50 },
+        xAxis, yAxis: yMoeda,
+        series: [
+            { name: "Previsão a receber", type: "bar", color: "#1f6fc4", data: entradaPrevisao },
+            { name: "Previsão a pagar", type: "bar", color: "#e0a106", data: saidaPrevisao },
+        ],
+    }, true);
 }
 
 // ===== Contas a pagar (REAL — custo orçado do evento, o mesmo já usado na Rentabilidade) =====
 let agrupamentoPagarGeral = "mensal"; // "mensal" | "anual"
 let mesPagarGeral = "";               // "" (todos) | "1".."12"
 
+// Monta os parâmetros comuns (ano/idempresas/mês) pro endpoint /ceo/geral/pagar, respeitando os
+// chips de empresa ativos e o Mês PRÓPRIO de Contas a Pagar (mesFuncionariosGeral/mesReceberGeral
+// são de outras abas — usar o errado aqui já causou o gráfico filtrar e a lista não, ou vice-versa).
+function paramsPagarGeral(agrupamento) {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    const params = new URLSearchParams({ agrupamento, ano });
+    const todas = empresasGeral.length > 0 && empresasSelecionadasGeral && empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
+    if (empresasSelecionadasGeral && !todas) params.set("idempresas", Array.from(empresasSelecionadasGeral).join(","));
+    if (mesPagarGeral) params.set("mes", mesPagarGeral);
+    return params;
+}
+
 // Gráficos / Contas a pagar: dado bruto de saída — Paga (evento já realizado) × Pendente (ainda
 // por acontecer), e o acumulado no período. Sem lucro/saldo aqui (isso é a aba Rentabilidade).
 async function carregarGraficosContasGeral() {
     if (!empresasSelecionadasGeral) return;
     try {
-        const params = paramsReceberGeral(agrupamentoPagarGeral);
-        params.delete("mes");
-        if (mesPagarGeral) params.set("mes", mesPagarGeral);
+        const params = paramsPagarGeral(agrupamentoPagarGeral);
         params.set("porEmpresa", "1");
-        const data = await fetchComToken(`/ceo/geral/receber?${params.toString()}`);
+        const data = await fetchComToken(`/ceo/geral/pagar?${params.toString()}`);
         const linhas = (data && data.linhas) || [];
 
         const categorias = agrupamentoPagarGeral === "anual"
@@ -2056,12 +2442,12 @@ async function renderColunasContasGeral() {
     if (!cont || !empresasSelecionadasGeral) return;
 
     try {
-        const data = await fetchComToken(`/ceo/geral/receber?${paramsReceberGeral("empresa").toString()}`);
+        const data = await fetchComToken(`/ceo/geral/pagar?${paramsPagarGeral("empresa").toString()}`);
         const porEmpresa = new Map((data?.linhas || []).map((r) => [r.chave, r]));
         const empresasVisiveis = empresasGeral.filter((e) => empresasSelecionadasGeral.has(e.idempresa) && porEmpresa.has(e.idempresa));
 
         if (empresasVisiveis.length === 0) {
-            cont.innerHTML = '<p class="ceo-vazio">Nenhum orçamento com evento/data de realização para este ano nas empresas selecionadas.</p>';
+            cont.innerHTML = '<p class="ceo-vazio">Nenhuma despesa (fornecedores/outros ou folha) nas empresas selecionadas.</p>';
             return;
         }
 
@@ -2177,8 +2563,39 @@ let linhasEventoAnosGeral = null; // cache das linhas cruas (por ano+empresa) do
 // 2) Evento selecionado: mesma métrica, mas comparando o MESMO evento ano a ano (soma as
 //    empresas por ano); as linhas cruas por empresa ficam cacheadas pro botão "Detalhar por
 //    empresa", que só aparece nesse modo.
+// Previsão de recebimento por mês (independe de ter um evento selecionado no comparativo —
+// é sempre "quando o dinheiro do grupo/empresas filtradas é esperado", não por evento).
+async function carregarPrevisaoRecebimentoGeral() {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    const params = new URLSearchParams({ ano });
+    const idsFiltro = empresasSelecionadasGeral && empresasGeral.length && !empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa))
+        ? empresasGeral.filter((e) => empresasSelecionadasGeral.has(e.idempresa)).map((e) => e.idempresa)
+        : [];
+    if (idsFiltro.length) params.set("idempresas", idsFiltro.join(","));
+
+    try {
+        const data = await fetchComToken(`/ceo/geral/previsao-recebimento?${params.toString()}`);
+        const porMes = Array(12).fill(0);
+        (data?.linhas || []).forEach((r) => {
+            const idx = (parseInt(r.mes, 10) || 1) - 1;
+            if (idx >= 0 && idx < 12) porMes[idx] = Number(r.previsto) || 0;
+        });
+        const chart = obterChart("chart-contas-receber-previsao");
+        if (chart) chart.setOption({
+            tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v) => moeda(v) },
+            grid: { left: 95, right: 20, top: 20, bottom: 30 },
+            xAxis: { type: "category", data: MESES_GERAL },
+            yAxis: { type: "value", axisLabel: { formatter: fmtMoedaCurta } },
+            series: [{ name: "Previsto", type: "bar", color: "#1f6fc4", data: porMes }],
+        }, true);
+    } catch (err) {
+        console.error("Erro ao carregar previsão de recebimento (CEO Geral):", err);
+    }
+}
+
 async function carregarGraficosContasReceberGeral() {
     if (!empresasSelecionadasGeral) return;
+    carregarPrevisaoRecebimentoGeral();
     try {
         if (eventoSelecionadoReceberGeral) {
             const data = await fetchComToken(`/ceo/geral/evento-anos?idevento=${eventoSelecionadoReceberGeral.idevento}`);
@@ -2267,7 +2684,7 @@ function renderDetalheEmpresaEventoGeral(linhas) {
     if (c) c.setOption({
         tooltip: { trigger: "axis", valueFormatter: (v) => moeda(v) },
         legend: { bottom: 0, data: CATEGORIAS_RECEBER_GERAL.map((cat) => cat.label) },
-        grid: { left: 70, right: 20, top: 30, bottom: 90 },
+        grid: { left: 95, right: 20, top: 30, bottom: 90 },
         xAxis: { type: "category", data: nomes, axisLabel: { rotate: 30, interval: 0, fontSize: 10 } },
         yAxis: { type: "value", axisLabel: { formatter: fmtMoedaCurta } },
         dataZoom: itens.length > 15 ? [{ type: "slider", xAxisIndex: 0, start: 0, end: (15 / itens.length) * 100, height: 14, bottom: 60 }] : [],
@@ -2331,14 +2748,14 @@ async function renderColunasContasReceberGeral() {
 // ===== Toggle do CeoMode =====
 // Acesso restrito a quem tem a flag especial "supremo" (ver docs/PERMISSOES.md).
 // O backend (rotas /ceo/*) é quem realmente bloqueia; isto aqui é só UX.
-// "CEO MODE" no menu é só o gatilho do dropdown (mesmo padrão hover de Devs/Cadastro); quem
-// abre/fecha e troca de painel são os itens do submenu ("Rentabilidade por Evento", "Visão Geral").
+// Mesmo padrão de RH/T.I (public/js/RH.js, public/js/TIMode.js): um clique no item do menu
+// liga/desliga o modo direto (sem dropdown); "Rentabilidade por Evento" e "Visão Geral" viram
+// pílulas fixas no topo do conteúdo, dentro de #ceo-panel-wrapper. O CSS (body.ceo-mode
+// #ceo-panel-wrapper) cuida de mostrar/esconder o wrapper inteiro sozinho.
 function initCeoMode() {
     const li = document.querySelector("li.Ceo");
     const linkPrincipal = li?.querySelector(":scope > a");
-    const itemRentabilidade = document.getElementById("ceo-item-rentabilidade");
-    const itemGeral = document.getElementById("ceo-item-geral");
-    if (!li || !linkPrincipal || !itemRentabilidade || !itemGeral) return;
+    if (!li || !linkPrincipal) return;
 
     const temAcesso = window.temPermissao?.("Staff", "supremo") ?? false;
     if (!temAcesso) {
@@ -2348,48 +2765,62 @@ function initCeoMode() {
     li.style.display = "";
 
     const icone = linkPrincipal.querySelector(".material-symbols-outlined");
-    let painelAtivo = null; // "rentabilidade" | "geral" | null
 
-    function mostrarPainel(nome) {
-        const panelRent = document.getElementById("ceo-panel");
-        const panelGeral = document.getElementById("ceo-panel-geral");
-        if (panelRent) panelRent.style.display = nome === "rentabilidade" ? "" : "none";
-        if (panelGeral) panelGeral.style.display = nome === "geral" ? "" : "none";
-        painelAtivo = nome;
-    }
-
-    function abrirPainel(nome, montar) {
-        if (!document.body.classList.contains("ceo-mode")) {
-            document.body.classList.add("ceo-mode");
-            if (icone) icone.textContent = "logout";
-            linkPrincipal.title = "Sair do CEO Mode";
-        }
-        montar();
-        mostrarPainel(nome);
-    }
-
-    itemRentabilidade.addEventListener("click", (e) => {
+    linkPrincipal.addEventListener("click", (e) => {
         e.preventDefault();
-        if (document.body.classList.contains("ceo-mode") && painelAtivo === "rentabilidade") {
-            document.body.classList.remove("ceo-mode");
-            if (icone) icone.textContent = "finance";
-            linkPrincipal.title = "CEO Mode";
-            mostrarPainel(null);
-            return;
+        const ativo = document.body.classList.toggle("ceo-mode");
+        if (ativo) {
+            // Só um "modo de tela cheia" por vez — mesma regra espelhada em RH.js/TIMode.js.
+            document.body.classList.remove("rh-mode", "ti-mode");
+            const iconeRH = document.querySelector("li.RH .material-symbols-outlined");
+            if (iconeRH) iconeRH.textContent = "";
         }
-        abrirPainel("rentabilidade", montarPainel);
+        if (icone) icone.textContent = ativo ? "logout" : "finance";
+        linkPrincipal.title = ativo ? "Sair do CEO Mode" : "CEO Mode";
+        if (ativo) {
+            montarAbasCeo();
+            trocarAbaCeo("rentabilidade");
+        }
+    });
+}
+
+// Barra de pílulas (Rentabilidade por Evento / Visão Geral) — mesmo padrão visual e de
+// comportamento das abas do T.I. (ver montarPainelTI/trocarAbaTI em public/js/TIMode.js).
+function montarAbasCeo() {
+    if (document.getElementById("ceo-panel-abas")) return;
+    const conteudo = document.getElementById("conteudo");
+    if (!conteudo) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "ceo-panel-wrapper";
+
+    const abas = document.createElement("div");
+    abas.id = "ceo-panel-abas";
+    abas.className = "ceo-abas";
+    abas.innerHTML = `
+        <button type="button" class="ceo-aba-btn" data-aba="rentabilidade"><span class="material-symbols-outlined">monitoring</span>Rentabilidade por Evento</button>
+        <button type="button" class="ceo-aba-btn" data-aba="geral"><span class="material-symbols-outlined">groups</span>Visão Geral</button>
+    `;
+    abas.querySelectorAll(".ceo-aba-btn").forEach((btn) => {
+        btn.addEventListener("click", () => trocarAbaCeo(btn.dataset.aba));
     });
 
-    itemGeral.addEventListener("click", (e) => {
-        e.preventDefault();
-        if (document.body.classList.contains("ceo-mode") && painelAtivo === "geral") {
-            document.body.classList.remove("ceo-mode");
-            if (icone) icone.textContent = "finance";
-            linkPrincipal.title = "CEO Mode";
-            mostrarPainel(null);
-            return;
-        }
-        abrirPainel("geral", montarPainelGeral);
+    wrapper.appendChild(abas);
+    conteudo.appendChild(wrapper);
+}
+
+// Monta (se preciso) e exibe a aba escolhida, marcando a pílula correspondente como ativa.
+function trocarAbaCeo(nome) {
+    if (nome === "rentabilidade") montarPainel();
+    else montarPainelGeral();
+
+    const panelRent = document.getElementById("ceo-panel");
+    const panelGeral = document.getElementById("ceo-panel-geral");
+    if (panelRent) panelRent.style.display = nome === "rentabilidade" ? "" : "none";
+    if (panelGeral) panelGeral.style.display = nome === "geral" ? "" : "none";
+
+    document.querySelectorAll("#ceo-panel-abas .ceo-aba-btn").forEach((btn) => {
+        btn.classList.toggle("ativo", btn.dataset.aba === nome);
     });
 }
 
