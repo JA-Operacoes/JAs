@@ -114,8 +114,16 @@ function configurarBuscaLancamento() {
             select.value = l.idlancamento;
             select.dispatchEvent(new Event('change', { bubbles: true }));
         },
-        { mensagemVazia: "Nenhum lançamento encontrado" }
+        // minChars:0 — sem isso, clicar no campo vazio não mostra nada (só digitando
+        // 2+ letras a busca dispara), parecendo que os lançamentos "não carregaram".
+        { mensagemVazia: "Nenhum lançamento encontrado", minChars: 0 }
     );
+
+    // Ao focar um campo ainda vazio, mostra a lista inteira de uma vez (dispara o
+    // mesmo "input" que a busca escuta, só que com termo vazio == sem filtro).
+    inputBusca.addEventListener("focus", () => {
+        if (!inputBusca.value.trim()) inputBusca.dispatchEvent(new Event("input"));
+    });
 }
 
 async function buscarDadosParcela(idLanc, vctoBaseOriginal) {
@@ -679,7 +687,7 @@ window.marcarParaLimpar = marcarParaLimpar;
 
 // --- CONFIGURAÇÃO DOS EVENTOS ---
 
-function configurarEventosPagamentos() {
+export function configurarEventosPagamentos() {
 
     configurarUploads();
     carregarLancamentosParaPagto();
