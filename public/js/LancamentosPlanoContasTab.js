@@ -15,7 +15,7 @@ export function configurarAbaPlanoContas(aoSalvar) {
         const novoInput = document.createElement("input");
         novoInput.type = "text";
         novoInput.id = "lcPlanoContaNome";
-        novoInput.className = "uppercase";
+        novoInput.className = "input uppercase";
         novoInput.value = valor || "";
         novoInput.addEventListener("input", function () {
             this.value = this.value.toUpperCase();
@@ -51,6 +51,7 @@ export function configurarAbaPlanoContas(aoSalvar) {
 
             const select = document.createElement("select");
             select.id = "lcPlanoContaNome";
+            select.className = "input";
             select.innerHTML = '<option value="" disabled selected>Selecione um Plano de Contas...</option>' +
                 lista.map(p => `<option value="${p.idplanocontas}">${p.codigo} - ${p.nmplanocontas}</option>`).join("");
 

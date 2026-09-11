@@ -1,6 +1,7 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 import { configurarAbaPlanoContas } from './LancamentosPlanoContasTab.js';
 import { configurarAbaCentroCusto } from './LancamentosCentroCustoTab.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -20,6 +21,50 @@ let pesquisarButtonListener = null;
 
 function removerAcentos(texto) {
     return String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+// Busca com sugestões (padrão do sistema, ver ligarBuscaComSugestoes em Formataçoes.js) pra
+// um <select> escondido, no lugar do Select2 (visual/comportamento diferente do resto do
+// sistema). O <select> continua existindo (mesmo id) só pra o resto do código ler/setar
+// .value sem precisar mudar mais nada — só a busca/exibição passam a ser feitas pelo
+// <input> ao lado dele.
+const buscasSelectOcultoLigadas = new Set();
+function ligarBuscaSelectOculto(idInputBusca, idSelectOculto, idListaSugestoes, mensagemVazia) {
+    const inputBusca = document.querySelector(idInputBusca);
+    const selectOculto = document.querySelector(idSelectOculto);
+    if (!inputBusca || !selectOculto || buscasSelectOcultoLigadas.has(idSelectOculto)) return;
+    buscasSelectOcultoLigadas.add(idSelectOculto);
+
+    const listaOpcoes = () => Array.from(selectOculto.options)
+        .filter(o => o.value !== "")
+        .map(o => ({ value: o.value, label: o.textContent }));
+
+    ligarBuscaComSugestoes(
+        inputBusca,
+        idListaSugestoes,
+        (termo) => {
+            const termoBusca = removerAcentos(termo).toLowerCase();
+            return listaOpcoes().filter(o => removerAcentos(o.label).toLowerCase().includes(termoBusca));
+        },
+        (o) => o.label,
+        (o) => {
+            inputBusca.value = o.label;
+            selectOculto.value = o.value;
+            selectOculto.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+        { mensagemVazia: mensagemVazia || "Nenhum resultado encontrado" }
+    );
+}
+
+// Sincroniza o texto exibido no <input> de busca com a opção atualmente selecionada no
+// <select> escondido — chamar depois de popular as opções ou de setar o .value via código
+// (ex: ao carregar um lançamento existente para edição).
+function sincronizarTextoBuscaSelect(idInputBusca, idSelectOculto) {
+    const inputBusca = document.querySelector(idInputBusca);
+    const selectOculto = document.querySelector(idSelectOculto);
+    if (!inputBusca || !selectOculto) return;
+    const opcaoSelecionada = selectOculto.options[selectOculto.selectedIndex];
+    inputBusca.value = (opcaoSelecionada && opcaoSelecionada.value !== "") ? opcaoSelecionada.textContent : "";
 }
 
 // Busca conforme digita (Select2), ignorando acentos dos dois lados da comparação
@@ -48,11 +93,14 @@ function aplicarBuscaIncremental(seletor, placeholder, extra) {
     });
 }
 
-// Mapa DESCRICAO (maiúscula) -> lançamento completo, usado pelo combobox de descrição
+// Mapa DESCRICAO (maiúscula) -> lançamento completo, usado pela busca de descrição
 let mapaDescricaoLancamento = {};
+let buscaDescricaoLigada = false;
 
-// Campo de Descrição sempre como combobox: escolhe um lançamento existente
-// (carrega os dados dele) ou digita um nome novo (segue como cadastro).
+// Campo de Descrição: busca com sugestões (padrão do sistema, ver
+// public/js/formatacoes.js) — digita e escolhe um lançamento existente (carrega
+// os dados dele) ou só segue digitando um nome novo (cadastro). Continua sendo
+// um <input> comum o tempo todo, sem trocar para <select>.
 async function configurarComboboxDescricao() {
     try {
         const lista = await fetchComToken("/lancamentos");
@@ -63,44 +111,36 @@ async function configurarComboboxDescricao() {
             mapaDescricaoLancamento[String(item.descricao).trim().toUpperCase()] = item;
         });
 
-        let el = document.querySelector("#descricao");
+        const el = document.querySelector("#descricao");
         if (!el) return;
 
-        if (el.tagName !== "SELECT") {
-            const select = document.createElement("select");
-            select.id = "descricao";
-            select.name = "descricao";
-            select.required = true;
-            select.className = "uppercase";
-            el.parentNode.replaceChild(select, el);
-            el = select;
+        if (!buscaDescricaoLigada) {
+            buscaDescricaoLigada = true;
 
-            el.addEventListener("change", async function () {
-                const valor = this.value.trim();
-                if (!valor) return;
-
-                const lancamento = mapaDescricaoLancamento[valor.toUpperCase()];
-                if (lancamento) {
-                    await preencherCampos(lancamento);
+            ligarBuscaComSugestoes(
+                el,
+                "descricao-sugestoes",
+                (termo) => {
+                    const termoBusca = removerAcentos(termo).toLowerCase();
+                    return Object.values(mapaDescricaoLancamento).filter(item =>
+                        removerAcentos(item.descricao).toLowerCase().includes(termoBusca)
+                    );
+                },
+                (item) => `${item.descricao} - R$ ${item.vlrestimado}`,
+                async (item) => {
+                    el.value = item.descricao;
+                    await preencherCampos(item);
                     renderizarPrevia();
-                }
-                // Se não encontrado: é uma descrição nova digitada pelo usuário,
-                // segue pronta para um cadastro — nada mais a fazer além de validar.
-                validarFormulario();
-            });
+                    validarFormulario();
+                },
+                { mensagemVazia: "Nenhum lançamento encontrado — segue como cadastro novo" }
+            );
+
+            // Descrição nova digitada (sem escolher sugestão) também precisa revalidar o formulário
+            el.addEventListener("input", () => validarFormulario());
         }
-
-        const valorAtual = el.value;
-        el.innerHTML = '<option value="" selected></option>';
-        lista.forEach(item => {
-            const opt = new Option(`${item.descricao} - R$ ${item.vlrestimado}`, item.descricao);
-            el.add(opt);
-        });
-        if (valorAtual) el.value = valorAtual;
-
-        aplicarBuscaIncremental("#descricao", "Digite ou selecione um lançamento...", { tags: true });
     } catch (error) {
-        console.error("Erro ao configurar combobox de descrição:", error);
+        console.error("Erro ao configurar busca de descrição:", error);
     }
 }
 
@@ -255,7 +295,7 @@ async function verificaLancamento() {
         const dados = {
             idPlanoContas: idPlanoContas,
             descricao: descricaoFinal,
-            vlrEstimado: parseFloat(document.querySelector("#vlrEstimado").value) || 0,
+            vlrEstimado: parseFloat(window.desformatarReais(document.querySelector("#vlrEstimado").value)) || 0,
             vctoBase: document.querySelector("#vctoBase").value,
             periodicidade: document.querySelector("#periodicidade").value,
             tipoRepeticao: tipoRepeticao,
@@ -325,7 +365,11 @@ async function verificaLancamento() {
             });
 
             await Swal.fire("Sucesso!", "Lançamento salvo com sucesso.", "success");
-            
+
+            // Atualiza o cache do autocomplete de Descrição (mapaDescricaoLancamento),
+            // senão selecionar o mesmo lançamento de novo trazia os dados de antes da edição.
+            await configurarComboboxDescricao();
+
             // Limpa e fecha/reseta se necessário
             limparCamposLancamento();
             renderizarPrevia(); 
@@ -549,7 +593,8 @@ async function carregarSelectPlanoContas() {
         }
 
         if (valorAtual) selectPlanoContas.value = valorAtual;
-        aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
+        ligarBuscaSelectOculto("#idPlanoContasBusca", "#idPlanoContasSelect", "planocontas-sugestoes");
+        sincronizarTextoBuscaSelect("#idPlanoContasBusca", "#idPlanoContasSelect");
     } catch (error) {
         console.error("Erro ao carregar select de plano de contas:", error);
     }
@@ -572,7 +617,8 @@ async function carregarSelectEmpresaPagadora() {
                 //}
             });
         }
-        aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
+        ligarBuscaSelectOculto("#empresaPagadoraBusca", "#empresaPagadora", "empresapagadora-sugestoes");
+        sincronizarTextoBuscaSelect("#empresaPagadoraBusca", "#empresaPagadora");
     } catch (error) {
         console.error("Erro ao carregar empresas:", error);
     }
@@ -595,7 +641,8 @@ async function carregarSelectCentroCusto() {
                 //}
             });
         }
-        aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
+        ligarBuscaSelectOculto("#centroCustoBusca", "#centroCusto", "centrocusto-sugestoes");
+        sincronizarTextoBuscaSelect("#centroCustoBusca", "#centroCusto");
     } catch (error) {
         console.error("Erro ao carregar centro de custo:", error);
     }
@@ -747,7 +794,7 @@ function renderizarPrevia() {
     // 1. Define o ano atual dinamicamente para evitar o erro de ReferenceError
     const anoAtual = new Date().getFullYear();
 
-    const vlr = document.querySelector("#vlrEstimado").value;
+    const vlr = window.desformatarReais(document.querySelector("#vlrEstimado").value);
     const vcto = document.querySelector("#vctoBase").value;
 
     // Se os campos essenciais estiverem vazios, mostra o informativo
@@ -857,7 +904,11 @@ async function preencherCampos(lancamento) {
     setCampo("#idLancamento", lancamento.idlancamento);
     setCampo("#idPlanoContasSelect", lancamento.idplanocontas);
     setCampo("#descricao", lancamento.descricao);
-    setCampo("#vlrEstimado", lancamento.vlrestimado);
+    const vlrEstimadoEl = document.querySelector("#vlrEstimado");
+    if (vlrEstimadoEl) {
+        const vlrNum = parseFloat(lancamento.vlrestimado) || 0;
+        vlrEstimadoEl.value = "R$ " + vlrNum.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     setCampo("#periodicidade", lancamento.periodicidade);
     setCampo("#tipoRepeticao", lancamento.tiporepeticao);
     setCampo("#observacao", lancamento.observacao);
@@ -957,7 +1008,8 @@ async function preencherCampos(lancamento) {
         if (selectPlano.selectedIndex <= 0) {
             console.warn("Aviso: Plano de contas não encontrado:", valorBanco);
         }
-        aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
+        ligarBuscaSelectOculto("#idPlanoContasBusca", "#idPlanoContasSelect", "planocontas-sugestoes");
+        sincronizarTextoBuscaSelect("#idPlanoContasBusca", "#idPlanoContasSelect");
     }
 
     const selectEmpPagadora = document.querySelector("#empresaPagadora");
@@ -968,7 +1020,8 @@ async function preencherCampos(lancamento) {
         if (selectEmpPagadora.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
             console.warn("Aviso: Empresa Pagadora legada ou não encontrada:", valorBanco);
         }
-        aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
+        ligarBuscaSelectOculto("#empresaPagadoraBusca", "#empresaPagadora", "empresapagadora-sugestoes");
+        sincronizarTextoBuscaSelect("#empresaPagadoraBusca", "#empresaPagadora");
     }
 
     const selectCentroCusto = document.querySelector("#centroCusto");
@@ -978,7 +1031,8 @@ async function preencherCampos(lancamento) {
         if (selectCentroCusto.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
             console.warn("Aviso: Centro de Custo não encontrado:", valorBanco);
         }
-        aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
+        ligarBuscaSelectOculto("#centroCustoBusca", "#centroCusto", "centrocusto-sugestoes");
+        sincronizarTextoBuscaSelect("#centroCustoBusca", "#centroCusto");
     }
 
     // Sincronização da Interface
@@ -1011,16 +1065,19 @@ function limparCamposLancamento() {
     const dtTermino = document.querySelector("#dtTermino");
     if (dtTermino) dtTermino.disabled = false;
 
-    // 3. Resete de Combos (planocontas, centrocusto, empresapagadora)
-    // Forçamos o valor vazio para garantir que o label do Materialize/CSS volte ao normal
-    const camposSelect = ["#idPlanoContasSelect", "#centroCusto", "#empresaPagadora"];
-    camposSelect.forEach(seletor => {
-        const el = document.querySelector(seletor);
+    // 3. Resete de Combos (planocontas, centrocusto, empresapagadora) — limpa o select
+    // escondido e o input de busca visível junto.
+    const camposSelectComBusca = [
+        ["#idPlanoContasSelect", "#idPlanoContasBusca"],
+        ["#centroCusto", "#centroCustoBusca"],
+        ["#empresaPagadora", "#empresaPagadoraBusca"]
+    ];
+    camposSelectComBusca.forEach(([seletorSelect, seletorBusca]) => {
+        const el = document.querySelector(seletorSelect);
         if (el) el.value = "";
+        const inputBusca = document.querySelector(seletorBusca);
+        if (inputBusca) inputBusca.value = "";
     });
-    aplicarBuscaIncremental("#idPlanoContasSelect", "Selecione o Plano de Contas");
-    aplicarBuscaIncremental("#centroCusto", "Selecione o Centro de Custo");
-    aplicarBuscaIncremental("#empresaPagadora", "Selecione a Empresa Pagadora");
 
     // 4. Resete de Vínculos (Lógica que criamos)
     const checksVinculo = document.querySelectorAll('.tipo-vinculo');
@@ -1054,12 +1111,9 @@ function limparCamposLancamento() {
         containerPrevia.style.display = "none";
     }
 
-    // Descrição é sempre o combobox — só limpa a seleção, sem trocar de volta para input
-    const selectDesc = document.querySelector("#descricao");
-    if (selectDesc && selectDesc.tagName === "SELECT") {
-        selectDesc.value = "";
-        aplicarBuscaIncremental("#descricao", "Digite ou selecione um lançamento...", { tags: true });
-    }
+    // Descrição: só limpa o texto digitado/selecionado (continua sendo um input comum)
+    const campoDescricao = document.querySelector("#descricao");
+    if (campoDescricao) campoDescricao.value = "";
 
     // 6. Finalização
     window.LancamentoOriginal = {};
@@ -1070,7 +1124,7 @@ function limparCamposLancamento() {
 
 
 function validarFormulario() {
-    const valor = document.querySelector("#vlrEstimado").value;
+    const valor = window.desformatarReais(document.querySelector("#vlrEstimado").value);
     const vcto = document.querySelector("#vctoBase").value;
 
     // --- NOVOS CAMPOS FINANCEIROS ---

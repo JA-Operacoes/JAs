@@ -402,7 +402,6 @@ input#search-aside {
   .Relatorios,
   .Financeiro,
   .Usuarios,
-  .Ceo,
   .Devs{
     position: relative;
     display: flex;
@@ -416,7 +415,6 @@ input#search-aside {
   .Relatorios .drop,
   .Financeiro .drop,
   .Usuarios .drop,
-  .Ceo .drop,
   .Devs .drop{
     position:absolute;
     max-height: none;
@@ -428,22 +426,12 @@ input#search-aside {
     transition: .2s;
   }
 
-  /* Sem top/left explícitos, o navegador usa a "posição estática" do item pra decidir onde
-     a caixa absoluta cai — com só 1 link (a maioria dos outros tem vários), isso calculou
-     errado e a caixa ficou em cima do "CEO MODE" em vez de abaixo. Fixando aqui sem mexer
-     nos outros dropdowns, que já funcionam do jeito que estão. */
-  .Ceo .drop {
-    top: 100%;
-    left: 0;
-  }
-
   /* /submenu/ */
   .Cadastro .drop a,
   .Orcamento .drop a,
   .Relatorios .drop a,
   .Financeiro .drop a,
   .Usuarios .drop a,
-  .Ceo .drop a,
   .Devs .drop a{
     display: block;
     color: white;
@@ -456,18 +444,8 @@ input#search-aside {
   .Relatorios:hover .drop,
   .Financeiro:hover .drop,
   .Usuarios:hover .drop,
-  .Ceo:hover .drop,
   .Devs:hover .drop{
     height: 300px;
-  }
-
-  /* CEO Mode tem só 1 item no dropdown — a altura fixa de 300px (regra genérica acima)
-     deixaria uma caixa vazia enorme; aqui a altura acompanha o conteúdo. */
-  .Ceo:hover .drop,
-  .Ceo:hover .drop-content {
-      overflow: visible !important;
-      display: block !important;
-      height: auto !important;
   }
 
   /* SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
@@ -660,7 +638,6 @@ input#search-aside {
     .Relatorios .drop,
     .Financeiro .drop,
     .Usuarios .drop,
-    .Ceo .drop,
     .Devs .drop{
       position: static;
       width: 100%;
@@ -707,6 +684,57 @@ input#search-aside {
   /* estado visual do ícone quando o modo está ativo */
   body.ceo-mode #menu-horizontal li.Ceo a {
     color: #dc2e2e; /* destaque "sair" — alinhado ao vermelho já usado no tema */
+  }
+
+  #ceo-panel-wrapper { display: none; }
+
+  body.ceo-mode #ceo-panel-wrapper {
+    display: block;
+    width: 100%;
+    max-width: 20000px;
+    margin: 100px auto 40px;
+    padding: 0 24px 40px;
+    box-sizing: border-box;
+    font-family: var(--Font-primary);
+  }
+
+  /* ===== Abas do CEO Mode (Rentabilidade por Evento / Visão Geral) — mesmo padrão visual das
+     pílulas do T.I. (#ti-panel .ti-aba-btn), pra manter os dois "modos de tela cheia" consistentes. */
+  #ceo-panel-wrapper .ceo-abas {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  #ceo-panel-wrapper .ceo-aba-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 2px solid var(--primary-color, #942123);
+    background: #fff;
+    color: var(--primary-color, #942123);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    opacity: .85;
+  }
+  #ceo-panel-wrapper .ceo-aba-btn .material-symbols-outlined { font-size: 18px; }
+  #ceo-panel-wrapper .ceo-aba-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  #ceo-panel-wrapper .ceo-aba-btn.ativo {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--font-color);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   /* ===== TI Mode: tela limpa, só o header visível ===== */
@@ -1261,6 +1289,25 @@ input#search-aside {
   }
   #ti-panel .busca-funcionario-input:focus { border-color: var(--primary-color); }
 
+  /* Busca por funcionário/solicitante no card "Pedidos e Solicitações" (mesma cara do ti-panel) */
+  #painelDetalhes .pedidos-busca-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  #painelDetalhes .pedidos-busca-container .busca-funcionario-input {
+    flex: 1;
+    min-width: 180px;
+    border: 2px solid #ccc;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    outline: none;
+    background: #fff;
+  }
+  #painelDetalhes .pedidos-busca-container .busca-funcionario-input:focus { border-color: var(--primary-color); }
+
   #ti-panel .ti-btn-listagem-separacao {
     margin-top: 8px;
     border: 1px solid var(--primary-color, #999);
@@ -1404,7 +1451,10 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
-    margin: 100px auto 40px;
+    /* Sem margin-top: 100px aqui — quem afasta do header fixo já é o #ceo-panel-wrapper (que
+       envolve a barra de pílulas + este painel); duplicar o afastamento deixava um vão enorme
+       entre as pílulas e o título "CEO Mode — ...". */
+    margin: 0 auto 40px;
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -1766,7 +1816,9 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
-    margin: 100px auto 40px;
+    /* Sem margin-top: 100px aqui — mesma razão do #ceo-panel acima (quem afasta do header já é
+       o #ceo-panel-wrapper). */
+    margin: 0 auto 40px;
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -1862,7 +1914,9 @@ input#search-aside {
   /* "Exibição" (Lista/Gráficos) — texto mais curto que "Visão", pill um pouco mais justa. */
   #ceo-panel-geral .wrapper-exibicao .btn { padding: 0 12px; }
   i.ri-search-line { padding: 10px;}
-  .wrapper.wrapper-exibicao {  width: 165px; }
+  /* Largura de conteúdo (não mais fixa em 165px) — esse valor era calibrado só pras 2 opções
+     originais (Lista/Gráficos) e cortava a 3ª ("Dividir tela") assim que ela foi adicionada. */
+  .wrapper.wrapper-exibicao { width: auto; }
 
   /* Busca de funcionário — mesma cara do busca-evento do card "Eventos em Aberto"
      (Main.css: .busca-evento-input/.busca-evento-lista), reproduzida aqui escopada ao painel. */
@@ -1964,6 +2018,37 @@ input#search-aside {
   #ceo-panel-geral .ceo-geral-tabela-empresas td.neg { color: #dc2e2e; font-weight: 700; }
   #ceo-panel-geral .ceo-geral-linha-empresa { cursor: pointer; transition: background .15s; }
   #ceo-panel-geral .ceo-geral-linha-empresa:hover { background: #f7f7f7; }
+  #ceo-panel-geral .ceo-geral-linha-funcionario-geral { cursor: pointer; transition: background .15s; }
+  #ceo-panel-geral .ceo-geral-linha-funcionario-geral:hover { background: #f7f7f7; }
+
+  /* "Dividir tela": Lista e Gráficos lado a lado, cada um ocupando metade — os dois elementos
+     originais (#ceo-geral-*-lista / #ceo-geral-*-graficos) são só realocados pra dentro deste
+     wrapper em tempo de execução (ver mostrarSecaoGeral em CeoMode.js), sem duplicar conteúdo. */
+  #ceo-panel-geral .ceo-geral-split-wrap {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  #ceo-panel-geral .ceo-geral-split-wrap > .ceo-geral-secao {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-top: 0;
+    /* Cada lado rola por conta própria — a página em si não tem scroll (#conteudo é
+       position:fixed), então sem isso o conteúdo mais alto (normalmente o de Gráficos) ficava
+       preso atrás do limite do painel, sem jeito de rolar até o fim. */
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  #ceo-panel-geral .ceo-geral-split-wrap > .ceo-geral-secao + .ceo-geral-secao {
+    border-left: 1px solid #eee;
+    padding-left: 24px;
+  }
+  /* Dentro da metade "Gráficos" não sobra largura pros 2 gráficos lado a lado (grid normal
+     exige min 360px cada) — em Dividir Tela eles empilham em coluna única. */
+  #ceo-panel-geral .ceo-geral-split-wrap .ceo-geral-graficos {
+    grid-template-columns: 1fr;
+  }
   #ceo-panel-geral .ceo-geral-linha-empresa.expandida { background: #f0f2f5; }
   #ceo-panel-geral .ceo-geral-expandir { color: #999; text-align: center; width: 24px; }
   #ceo-panel-geral .ceo-geral-empresa-tag {
@@ -2254,8 +2339,25 @@ input#search-aside {
 
   /* Visão geral da folha do mês (tabela por funcionário) */
   #rh-panel .rh-folha { margin-bottom: 20px; }
+  #rh-panel .rh-folha-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
+  }
+  #rh-panel .rh-folha-toolbar-acoes { display: flex; gap: 8px; }
+  /* Botões de impressão — pílula vermelha (mesmo padrão das abas de CEO Mode/T.I.), de propósito
+     diferente do .secundario cinza usado em "Alíquotas": aqui é fundo branco + borda vermelha em
+     repouso, vira vermelho sólido só no hover/clique. */
+  #rh-panel .rh-btn-print {
+    display: flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 16px;
+    border: 2px solid #942123; border-radius: 20px;
+    background: #fff; color: #942123;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .2s ease;
+  }
+  #rh-panel .rh-btn-print .material-symbols-outlined { font-size: 18px; }
+  #rh-panel .rh-btn-print:hover { background: #942123; color: #fff; }
   #rh-panel .rh-folha-busca {
-    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
     padding: 8px 12px; background: #fff; border: 1px solid #ececec; border-radius: 8px; max-width: 320px;
   }
   #rh-panel .rh-folha-busca .material-symbols-outlined { color: #999; font-size: 20px; }
@@ -2271,9 +2373,15 @@ input#search-aside {
   #rh-panel .rh-folha-tab td:nth-child(3),
   #rh-panel .rh-folha-tab td:nth-child(4),
   #rh-panel .rh-folha-tab td:nth-child(5),
+  #rh-panel .rh-folha-tab td:nth-child(8),
+  #rh-panel .rh-folha-tab td:nth-child(9),
+  #rh-panel .rh-folha-tab td:nth-child(10),
   #rh-panel .rh-folha-tab th:nth-child(3),
   #rh-panel .rh-folha-tab th:nth-child(4),
-  #rh-panel .rh-folha-tab th:nth-child(5) { text-align: right; font-variant-numeric: tabular-nums; }
+  #rh-panel .rh-folha-tab th:nth-child(5),
+  #rh-panel .rh-folha-tab th:nth-child(8),
+  #rh-panel .rh-folha-tab th:nth-child(9),
+  #rh-panel .rh-folha-tab th:nth-child(10) { text-align: right; font-variant-numeric: tabular-nums; }
   #rh-panel .rh-folha-tab tbody tr.rh-folha-linha { cursor: pointer; transition: background .12s; }
   #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:hover { background: #f4f7ff; }
 

@@ -1736,7 +1736,8 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
         }
 
         const queryBase = `
-            SELECT 
+            WITH solicitacoes_agrupadas AS (
+            SELECT
                 MIN(s.idsolicitacao)   AS id_log,
                 s.idregistroalterado   AS idstaffevento,
                 s.idusuariosolicitante AS idexecutor,
@@ -1791,7 +1792,12 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 se.datasevento, s.categoria_log, s.chaveitem, s.status, o.dtfiminfradesmontagem,
                 o.dtfimdesmontagem, s.idfuncionario, se.vlralimentacao, se.vlrtransporte,
                 se.vlrcache, se.dtdiariadobrada, se.dtmeiadiaria
-            ORDER BY MIN(s.dtsolicitacao) DESC
+            )
+            SELECT * FROM solicitacoes_agrupadas
+            ORDER BY
+                MAX(criado_em) OVER (PARTITION BY idusuarioalvo) DESC NULLS LAST,
+                idusuarioalvo,
+                criado_em DESC
         `;
 
         const { rows } = await pool.query(queryBase, params);
@@ -1966,6 +1972,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                 dataDecisao: r.datadecisao,
                 funcionario: (categoriaReal === 'statusvagaexcedida' && r.tiposolicitacao !== 'FuncExcedido') ? null : (r.nomefuncionario || '-'),
                 nomefuncionario: r.nomefuncionario,
+                idfuncionario: r.idusuarioalvo || null,
                 evento: r.evento || '-',
                 dtCriacao: r.criado_em,
                 dtsolicitada: r.dtsolicitada_agrupada,
@@ -4206,7 +4213,13 @@ router.get('/contas-pagar', async (req, res) => {
             }
         }
 
-        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios });
+        // fgtsAliquota: alíquota vigente do ano filtrado (padrão 8%) — o front usa isso pra
+        // estimar o FGTS do período (card "FGTS Estimado" em Contas a Pagar); é só informativo,
+        // pra conferir contra a guia (GRF) quando alguém lançar ela manualmente em Contas.
+        res.json({
+            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios,
+            fgtsAliquota: Number(paramsAnoFiltro.fgts_aliquota) || 0.08,
+        });
     } catch (error) {
         res.status(500).json({ sucesso: false, erro: error.message });
     }
@@ -4228,7 +4241,7 @@ router.post('/confirmar-pagamento-conta',
             } : null;
         }
     }), async (req, res) => {
-    const { idpagamento, idlancamento, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpagamento, observacao, status } = req.body;
+    const { idpagamento, idlancamento, vlrpago, vlrreal, vlratraso, vlrdesconto, dtvcto, dtpagamento, observacao, status } = req.body;
     const idempresa = req.idempresa;
     const statusFinal = status || 'pendente';
     const client = await pool.connect();
@@ -4255,30 +4268,30 @@ router.post('/confirmar-pagamento-conta',
             // Adicionado idempresa no INSERT
             const insertQuery = `
                 INSERT INTO pagamentos (
-                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto,  
-                    status, numparcela, dtpgto, observacao, vlratraso, vlrdesconto
+                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto,
+                    status, numparcela, dtpgto, observacao, vlratraso, vlrdesconto, vlrreal
                 )
                 VALUES (
                     $1, $2,
-                    (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
-                    $3, $4, $5, 
-                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-                    $6, $7, $8, $9
+                    (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1),
+                    $3, $4, $5,
+                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1),
+                    $6, $7, $8, $9, $10
                 ) RETURNING idpagamento;`;
-            
-            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao, vlratraso, vlrdesconto]);
+
+            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao, vlratraso, vlrdesconto, vlrreal ?? vlrpago]);
             idFinal = resInsert.rows[0].idpagamento;
         } else {
             idFinal = registroExistente.idpagamento;
             // 🟧 LOG DE UPDATE (Fundo laranja)
             console.log(`\x1b[43m ⚠️ [CENÁRIO: UPDATE] \x1b[0m Atualizando registro ID: ${idFinal}`);
-            
+
             const updateQuery = `
-                UPDATE pagamentos 
-                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4, vlratraso = $5, vlrdesconto = $6 
-                WHERE idpagamento = $7 AND idempresa = $8;`;
-            
-            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, idFinal, idempresa]);
+                UPDATE pagamentos
+                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4, vlratraso = $5, vlrdesconto = $6, vlrreal = $7
+                WHERE idpagamento = $8 AND idempresa = $9;`;
+
+            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, vlrreal ?? vlrpago, idFinal, idempresa]);
         }
 
         await client.query('COMMIT');
@@ -4338,6 +4351,12 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         return res.status(400).json({ error: "Nenhum arquivo enviado." });
     }
 
+    // 1.1 Sem idpagamento válido não há linha em `pagamentos` para gravar o anexo
+    // (acontece em lançamentos futuros/recorrentes cuja parcela ainda não foi gerada).
+    if (!idPagamento || isNaN(parseInt(idPagamento, 10))) {
+        return res.status(400).json({ error: "Este lançamento ainda não possui uma parcela de pagamento gerada, então não é possível anexar o arquivo ainda." });
+    }
+
     // 2. Definimos o que vai para o banco: APENAS o nome gerado pelo Multer
     // Isso evita caminhos duplicados como "uploads/contas/uploads/contas..."
     const nomeArquivoNoBanco = req.file.filename;
@@ -4381,11 +4400,12 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         //     colunaDestino: coluna 
         // });
 
-        res.json({ 
-            success: true, 
-            // Ajuste o prefixo conforme sua estrutura de pastas (ex: /uploads/contas/)
-            path: `/uploads/contas/${nomeArquivoNoBanco}`, 
-            colunaDestino: coluna 
+        const subpasta = coluna === 'imagemconta' ? 'imagemboleto' : 'comprovantespgto';
+
+        res.json({
+            success: true,
+            path: `/uploads/contas/${subpasta}/${nomeArquivoNoBanco}`,
+            colunaDestino: coluna
         });
 
     } catch (error) {

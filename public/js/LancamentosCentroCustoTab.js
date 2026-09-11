@@ -15,7 +15,7 @@ export function configurarAbaCentroCusto(aoSalvar) {
         const novoInput = document.createElement("input");
         novoInput.type = "text";
         novoInput.id = "lcCentroCustoNome";
-        novoInput.className = "uppercase";
+        novoInput.className = "input uppercase";
         novoInput.value = valor || "";
         novoInput.addEventListener("input", function () {
             this.value = this.value.toUpperCase();
@@ -51,6 +51,7 @@ export function configurarAbaCentroCusto(aoSalvar) {
 
             const select = document.createElement("select");
             select.id = "lcCentroCustoNome";
+            select.className = "input";
             select.innerHTML = '<option value="" disabled selected>Selecione um Centro de Custo...</option>' +
                 lista.map(c => `<option value="${c.idcentrocusto}">${c.sigla} - ${c.nmcentrocusto}</option>`).join("");
 

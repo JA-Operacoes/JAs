@@ -993,6 +993,43 @@ router.put("/holerite/:id/conferir", async (req, res) => {
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
     if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
 
+    // Confirmando (não desfazendo) uma competência MENSAL: grava agora o snapshot definitivo
+    // de salário/itens a partir do cadastro atual — é este o momento em que ela deixa de ser
+    // rascunho (computarLinhaFolha recalcula ao vivo do cadastro enquanto conferido=false;
+    // depois de conferido, passa a usar o que foi congelado aqui). 13º não entra (preset
+    // próprio, sem VA/VT — ver computarLinha13).
+    if (conferido) {
+      const linha = (await pool.query(
+        `SELECT idfuncionario, mes, ano, COALESCE(tipo,'mensal') AS tipo
+           FROM folhaholerite WHERE idholerite = $1 AND idempresa = $2`,
+        [idholerite, idempresa]
+      )).rows[0];
+      if (!linha) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+
+      if (linha.tipo === "mensal") {
+        const func = (await pool.query(
+          `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
+             FROM funcionarios f JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
+            WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
+          [linha.idfuncionario, idempresa]
+        )).rows[0];
+        if (func) {
+          const params = await obterParametros(linha.ano);
+          const diasUteis = contarDiasUteis(linha.ano, linha.mes);
+          const salariobase = Number(func.salario) || 0;
+          const itensNovos = montarItensDoZero(func, params, diasUteis);
+          await pool.query(`UPDATE folhaholerite SET salariobase = $1 WHERE idholerite = $2`, [salariobase, idholerite]);
+          await pool.query(`DELETE FROM folhaitens WHERE idholerite = $1`, [idholerite]);
+          for (const i of itensNovos) {
+            await pool.query(
+              `INSERT INTO folhaitens (idholerite, tipo, descricao, valor) VALUES ($1, $2, $3, $4)`,
+              [idholerite, i.tipo, i.descricao, i.valor]
+            );
+          }
+        }
+      }
+    }
+
     const { rowCount, rows } = await pool.query(
       `UPDATE folhaholerite
          SET conferido = $1,
@@ -1187,9 +1224,27 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
   )).rows[0];
 
   if (head) {
-    // Mês já salvo: usa o salário CONGELADO naquele holerite (h.salariobase), não o do
-    // cadastro atual — senão a lista mostraria um total diferente do que está de fato gravado
-    // (e do que o holerite individual exibe), se o salário do cadastro mudar depois.
+    // Enquanto NÃO conferido, a competência ainda é rascunho: recalcula salário/itens do
+    // cadastro atual a cada leitura (mesmo já tendo idholerite gravado) — senão uma mudança de
+    // salário/VA/VT no cadastro nunca aparece pra ninguém, porque a linha nasceu (e ficou presa)
+    // com o valor de quando foi pré-gerada, meses atrás. Só depois de conferido é que o valor
+    // vira definitivo (ver PUT /holerite/:id/conferir, que grava o snapshot na hora de confirmar).
+    if (!head.conferido) {
+      const salariobase = Number(f.salario) || 0;
+      const itens = montarItensDoZero(f, params, diasUteis);
+      const t = calcularTotais(salariobase, itens);
+      return {
+        idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
+        origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
+        conferido: head.conferido, conferidoEm: head.conferido_em,
+        conferidoBeneficios: head.conferido_beneficios, conferidoBeneficiosEm: head.conferido_beneficios_em,
+        statusBeneficios: head.status_beneficios, dtpagamentoBeneficios: head.dtpagamento_beneficios,
+        salariobase, itens,
+        proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
+      };
+    }
+    // Conferido: agora sim usa o salário CONGELADO naquele holerite (h.salariobase) — snapshot
+    // gravado no momento da conferência, não muda mais se o cadastro mudar depois.
     const salariobase = Number(head.salariobase) || 0;
     const itens = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
@@ -1219,6 +1274,24 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
     salariobase, itens,
     proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
   };
+}
+
+// VA/VT + INSS/IRRF de uma competência mensal calculados do zero, só a partir do cadastro
+// atual do funcionário — sem olhar histórico de mês anterior. Usado tanto por
+// montarItensPrevisaoMensal (quando não há mês anterior pra replicar) quanto por
+// computarLinhaFolha (enquanto a competência ainda não foi conferida — ver ali).
+function montarItensDoZero(f, params, diasUteis) {
+  const salariobase = Number(f.salario) || 0;
+  const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
+  const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
+  const inss = calcularINSS(salariobase, params);
+  const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
+  return [
+    { tipo: "B", descricao: VA_DESC, valor: va },
+    { tipo: "B", descricao: VT_DESC, valor: vt },
+    { tipo: "D", descricao: "INSS", valor: inss },
+    { tipo: "D", descricao: "IRRF", valor: ir.irrf },
+  ];
 }
 
 // Monta os itens (VA/VT + INSS/IRRF) de uma competência mensal sem holerite salvo ainda —
@@ -1266,14 +1339,7 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
   }
 
   // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base).
-  const inss = calcularINSS(salariobase, params);
-  const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
-  return [
-    { tipo: "B", descricao: VA_DESC, valor: va },
-    { tipo: "B", descricao: VT_DESC, valor: vt },
-    { tipo: "D", descricao: "INSS", valor: inss },
-    { tipo: "D", descricao: "IRRF", valor: ir.irrf },
-  ];
+  return montarItensDoZero(f, params, diasUteis);
 }
 
 // Garante que existe um holerite MENSAL real (persistido) pra competência — cria com o
@@ -1485,6 +1551,7 @@ router.get("/folha", async (req, res) => {
 router.helpersFolha = {
   obterParametros, contarDiasUteis, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13,
   garantirHolerite13, PERFIS_FOLHA, competenciaAnterior, calcularINSS, calcularIRRF, VA_DESC, VT_DESC,
+  montarItensDoZero,
 };
 
 module.exports = router;

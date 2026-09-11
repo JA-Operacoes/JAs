@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-<link rel="stylesheet" href="css/Modal/CadLancamentos.css?v=16">
+<link rel="stylesheet" href="css/Modal/CadLancamentos.css?v=17">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 
 <div id="cadModalLancamentos" class="modal">
@@ -13,7 +13,7 @@
 
         <div id="lc-painel">
         <div class="title">
-            <h1>Lançamentos Financeiros</h1>           
+            <h1>Lançamentos Financeiros</h1>
         </div>
         <br>
         <div class="lc-tabs">
@@ -27,14 +27,14 @@
                     <div class="lc-secao-linha">
                     <div class="lc-secao">
                         <h3>Identificação</h3>
-                        <div class="form-3colunas">
-                            <div class="form">
-                                <input type="text" name="idLancamento" id="idLancamento" readonly>
-                                <label for="idLancamento">Código</label>
+                        <div class="form-3colunas form-identificacao">
+                            <div class="form2">
+                                <label class="user-label" for="idLancamento">Código</label>
+                                <input type="text" class="input" name="idLancamento" id="idLancamento" readonly>
                             </div>
-                            <div class="form">
-                                <input type="text" class="uppercase" name="descricao" id="descricao" spellcheck="false" placeholder=" " required>
-                                <label for="descricao">Descrição do Lançamento</label>
+                            <div class="form2 form2-grow">
+                                <label class="user-label" for="descricao">Descrição do Lançamento</label>
+                                <input type="text" class="input uppercase" name="descricao" id="descricao" autocomplete="off" spellcheck="false" placeholder="Digite ou selecione um lançamento..." required>
                             </div>
                             <div class="form-checkbox">
                                 <div class="checkbox-wrapper-33">
@@ -55,28 +55,40 @@
                     <div class="lc-secao">
                         <h3>Classificação Financeira</h3>
                         <div class="form-3colunas">
-                            <div class="form">
-                                <select name="idPlanoContas" id="idPlanoContasSelect" class="required">
+                            <div class="form2">
+                                <label class="user-label" for="idPlanoContasBusca">Plano de Contas</label>
+                                <input type="text" class="input uppercase" id="idPlanoContasBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="idPlanoContas" id="idPlanoContasSelect" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
-                                <label for="idPlanoContasSelect">Plano de Contas</label>
                             </div>
-                            <div class="form">
-                                <select name="centroCusto" id="centroCusto"  class="required">
+                            <div class="form2">
+                                <label class="user-label" for="centroCustoBusca">Centro Custo</label>
+                                <input type="text" class="input uppercase" id="centroCustoBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="centroCusto" id="centroCusto" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
-                                <label for="centroCusto">Centro Custo</label>
                             </div>
-                            <div class="form">
-                                <select name="empresaPagadora" id="empresaPagadora"  class="required">
+                            <div class="form2">
+                                <label class="user-label" for="empresaPagadoraBusca">Empresa Pagadora</label>
+                                <input type="text" class="input uppercase" id="empresaPagadoraBusca" autocomplete="off" placeholder="Digite para buscar...">
+                                <select name="empresaPagadora" id="empresaPagadora" style="display:none;" required>
                                     <option value="" disabled selected></option>
                                 </select>
-                                <label for="empresaPagadora">Empresa Pagadora</label>
                             </div>
 
-                            <div class="field-group-checkbox">
-                                <input id="locadoCheck" type="checkbox" />
-                                <label for="locadoCheck" class="label-inline">Imóvel Locado</label>
+                            <div class="form-checkbox">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <p class="checkbox__textwrapper">Imóvel Locado</p>
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id="locadoCheck" name="locado" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -137,11 +149,11 @@
                         </div>
 
                         <div class="form-3colunas">
-                            <div class="form" id="containerVinculo">
-                                <select name="idVinculo" id="idVinculo" class="required">
+                            <div class="form2 form2-grow" id="containerVinculo">
+                                <label class="user-label" for="idVinculo" id="labelVinculo">Escolha um Vínculo acima entre Cliente, Fornecedor ou Funcionário</label>
+                                <select name="idVinculo" id="idVinculo" class="input required">
                                     <option value="" disabled selected></option>
                                 </select>
-                                <label for="idVinculo" id="labelVinculo">Escolha um Vínculo acima entre Cliente, Fornecedor ou Funcionário</label>
                             </div>
                         </div>
                     </div>
@@ -149,23 +161,24 @@
                     <div class="lc-secao">
                         <h3>Recorrência e Valores</h3>
                         <div class="form-3colunas">
-                            <div class="form">
-                                <input type="text" name="vlrEstimado" id="vlrEstimado" required>
-                                <label for="vlrEstimado">Valor Estimado (R$)</label>
+                            <div class="form2">
+                                <label class="user-label" for="vlrEstimado">Valor Estimado (R$)</label>
+                                <input type="text" class="input" name="vlrEstimado" id="vlrEstimado" oninput="formatReais(this)" required>
                             </div>
 
-                            <div class="form">
-                                <input type="date" name="dtRecebimento" id="dtRecebimento" required>
-                                <label for="dtRecebimento">Recebimento Conta</label>
+                            <div class="form2">
+                                <label class="user-label" for="dtRecebimento">Recebimento Conta</label>
+                                <input type="date" class="input" name="dtRecebimento" id="dtRecebimento" required>
                             </div>
-                            <div class="form">
-                                <input type="date" name="vctoBase" id="vctoBase" required>
-                                <label for="vctoBase">Vencimento Base</label>
+                            <div class="form2">
+                                <label class="user-label" for="vctoBase">Vencimento Base</label>
+                                <input type="date" class="input" name="vctoBase" id="vctoBase" required>
                             </div>
                         </div>
                         <div class="form-3colunas">
-                            <div class="form">
-                                <select name="periodicidade" id="periodicidade">
+                            <div class="form2">
+                                <label class="user-label" for="periodicidade">Periodicidade</label>
+                                <select name="periodicidade" id="periodicidade" class="input">
                                     <option value="MENSAL">Mensal</option>
                                     <option value="UNICO">Único</option>
                                     <option value="SEMANAL">Semanal</option>
@@ -175,15 +188,16 @@
                                     <option value="ANUAL">Anual</option>
                                 </select>
                             </div>
-                            <div class="form">
-                                <select name="tipoRepeticao" id="tipoRepeticao">
+                            <div class="form2">
+                                <label class="user-label" for="tipoRepeticao">Tipo de Repetição</label>
+                                <select name="tipoRepeticao" id="tipoRepeticao" class="input">
                                     <option value="FIXO">Fixo</option>
                                     <option value="PARCELADO">Parcelado</option>
                                 </select>
                             </div>
-                            <div class="form">
-                                <input type ="text" name="qtdeParcelas" id="qtdeParcelas">
-                                <label for="qtdeParcelas">Qtde Parcelas</label>
+                            <div class="form2">
+                                <label class="user-label" for="qtdeParcelas">Qtde Parcelas</label>
+                                <input type="text" class="input" name="qtdeParcelas" id="qtdeParcelas">
                             </div>
                             <div class="form-checkbox">
                                 <div class="checkbox-wrapper-33">
@@ -199,18 +213,18 @@
                                 </div>
                             </div>
 
-                            <div class="form" id="containerTermino">
-                                <input type="date" name="dtTermino" id="dtTermino">
-                                <label for="dtTermino">Data de Término</label>
+                            <div class="form2" id="containerTermino">
+                                <label class="user-label" for="dtTermino">Data de Término</label>
+                                <input type="date" class="input" name="dtTermino" id="dtTermino">
                             </div>
                         </div>
                     </div>
                     </div>
 
                     <div class="form-1coluna">
-                        <div class="form">
-                            <input type="text" class="uppercase" name="observacao" id="observacao" required>
-                            <label for="observacao">Observações</label>
+                        <div class="form2">
+                            <label class="user-label" for="observacao">Observações</label>
+                            <textarea class="input uppercase" name="observacao" id="observacao" rows="3" required></textarea>
                         </div>
                     </div>
                     <div id="container-previa"></div>
@@ -219,53 +233,49 @@
 
         <div class="lc-view" id="lcViewPlanoContas">
             <form id="lcFormPlanoContas" autocomplete="off">
-                <fieldset>
-                    <legend>Cadastre o Plano de Contas</legend>
+                <div class="lc-secao lc-secao-simples">
+                    <h3>Cadastre o Plano de Contas</h3>
+                    <input hidden type="text" id="lcPlanoContaId" readonly>
                     <div class="form-3colunas">
-                        <div class="form">
-                            <input hidden type="text" id="lcPlanoContaId" readonly>
+                        <div class="form2">
+                            <label class="user-label" for="lcPlanoContaCodigo">Código</label>
+                            <input type="text" class="input" id="lcPlanoContaCodigo" spellcheck="false">
                         </div>
-                        <div class="form">
-                            <input type="text" id="lcPlanoContaCodigo" spellcheck="false">
-                            <label for="lcPlanoContaCodigo">Código Plano de Contas</label>
+                        <div class="form2 form2-grow">
+                            <label class="user-label" for="lcPlanoContaNome">Nome do Plano de Contas</label>
+                            <input type="text" class="input uppercase" id="lcPlanoContaNome" spellcheck="false">
                         </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" id="lcPlanoContaNome" spellcheck="false">
-                            <label for="lcPlanoContaNome">Nome do Plano de Contas</label>
-                        </div>
-                    </div>
-                    <div class="form-checkbox">
-                        <div class="checkbox-wrapper-33">
-                            <label class="checkbox">
-                                <p class="checkbox__textwrapper">Plano de Conta Ativo</p>
-                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="lcPlanoContaAtivo" checked />
-                                <span class="checkbox__symbol">
-                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                        <path d="M4 14l8 7L24 7"></path>
-                                    </svg>
-                                </span>
-                            </label>
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Plano de Conta Ativo</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="lcPlanoContaAtivo" checked />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </fieldset>
+                </div>
             </form>
         </div>
 
         <div class="lc-view" id="lcViewCentroCusto">
             <form id="lcFormCentroCusto" autocomplete="off">
-                <fieldset>
-                    <legend>Cadastre o Centro de Custo</legend>
+                <div class="lc-secao lc-secao-simples">
+                    <h3>Cadastre o Centro de Custo</h3>
+                    <input hidden type="text" id="lcCentroCustoId" readonly>
                     <div class="form-3colunas">
-                        <div class="form">
-                            <input hidden type="text" id="lcCentroCustoId" readonly>
+                        <div class="form2">
+                            <label class="user-label" for="lcCentroCustoSigla">Sigla</label>
+                            <input type="text" class="input uppercase" id="lcCentroCustoSigla" spellcheck="false">
                         </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" id="lcCentroCustoSigla" spellcheck="false">
-                            <label for="lcCentroCustoSigla">Sigla</label>
-                        </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" id="lcCentroCustoNome" spellcheck="false">
-                            <label for="lcCentroCustoNome">Nome do Centro de Custo</label>
+                        <div class="form2 form2-grow">
+                            <label class="user-label" for="lcCentroCustoNome">Nome do Centro de Custo</label>
+                            <input type="text" class="input uppercase" id="lcCentroCustoNome" spellcheck="false">
                         </div>
                     </div>
                     <div class="form-checkbox">
@@ -281,7 +291,7 @@
                             </label>
                         </div>
                     </div>
-                </fieldset>
+                </div>
             </form>
         </div>
         </div>

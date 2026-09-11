@@ -7677,31 +7677,41 @@ async function mostrarPedidosUsuario() {
 
                 const idGrupo = p.idpedido || p.idaditivoextra || Math.random();
                 const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`;
-                const chaveAgrupamento = ehItemFuncao ? (nmfuncao || funcionarioOuFuncao) : funcionarioOuFuncao;
-                const solicitanteAtual = p.nomeSolicitante || "N/D"; 
+                // Agrupa por idfuncionario (id real, vindo do backend) sempre que disponível —
+                // assim TODAS as solicitações do mesmo funcionário (diretas, aditivo, vaga
+                // excedida etc.) caem num único accordion, mesmo quando o nome/função exibido
+                // varia por categoria. Sem idfuncionario (item ligado só a uma função, sem
+                // funcionário associado), mantém o agrupamento antigo por nome/função.
+                const chaveAgrupamento = p.idfuncionario
+                    ? `funcionario-${p.idfuncionario}`
+                    : (ehItemFuncao ? (nmfuncao || funcionarioOuFuncao) : funcionarioOuFuncao);
+                const solicitanteAtual = p.nomeSolicitante || "N/D";
 
-                const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
-               
+                const idUnicoItem = p.id_log || p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random();
+
                 if (p.categoria === 'statuscacheliberado') {
                     p.categoria_item = 'statuscacheliberado';
                 }
-              
+
                 const categoria = p.categoria_item || "geral";
                 const chaveItemUnico = `${chaveAgrupamento}|${categoria}|${idUnicoItem}|${solicitanteAtual}`;
 
-                if (chavesDosItensAdicionados.has(chaveItemUnico)) return; 
+                if (chavesDosItensAdicionados.has(chaveItemUnico)) return;
                 chavesDosItensAdicionados.add(chaveItemUnico);
-                
+
                 if (!pedidosAgrupados[chaveAgrupamento]) {
                     pedidosAgrupados[chaveAgrupamento] = {
                         evento: evento,
-                        funcionario: funcionario, 
+                        funcionario: funcionario || (p.idfuncionario ? (p.nomefuncionario || null) : null),
                         nmfuncao: nmfuncao,
+                        idfuncionario: p.idfuncionario || null,
                         idpedido: p.idpedido,
-                        dtCriacao: p.dtCriacao, 
-                        todosSolicitantes: new Set(), 
-                        registrosOriginais: [] 
+                        dtCriacao: p.dtCriacao,
+                        todosSolicitantes: new Set(),
+                        registrosOriginais: []
                     };
+                } else if (!pedidosAgrupados[chaveAgrupamento].funcionario && (funcionario || p.nomefuncionario)) {
+                    pedidosAgrupados[chaveAgrupamento].funcionario = funcionario || p.nomefuncionario;
                 }
 
                 if (solicitanteAtual) {
@@ -7720,13 +7730,15 @@ async function mostrarPedidosUsuario() {
 
             // (Extra Bonificado + Diária Dobrada são mesclados no backend — sem reagrupamento manual)
 
-            pedidosFinal.sort((a, b) => {
-                const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
-                const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
-                if (nomeA < nomeB) return -1;
-                if (nomeA > nomeB) return 1;
-                return 0;
-            });
+            // Agrupado por funcionário (idusuarioalvo), ordenado da solicitação mais recente para a
+            // mais antiga — a query já traz as linhas nessa ordem, aqui só preservamos isso no
+            // reagrupamento (antes sobrescrevíamos com ordem alfabética por nome).
+            const dataMaisRecente = (grupo) => (grupo.registrosOriginais || []).reduce((max, r) => {
+                const ts = new Date(r.criado_em || r.dtCriacao || 0).getTime();
+                return ts > max ? ts : max;
+            }, 0);
+
+            pedidosFinal.sort((a, b) => dataMaisRecente(b) - dataMaisRecente(a));
             
             if (!pedidosFinal.length) { 
                 lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
@@ -7941,7 +7953,7 @@ async function mostrarPedidosUsuario() {
             const targetContainer = document.getElementById(listContainerId);
             if (targetContainer) {
                 targetContainer.classList.remove('hidden'); targetContainer.style.display = 'flex';
-                targetContainer.style.visibility = 'visible'; targetContainer.style.height = 'auto';
+                targetContainer.style.visibility = 'visible'; targetContainer.style.height = '100%';
             }
 
             const listaPedidos = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
@@ -7960,6 +7972,54 @@ async function mostrarPedidosUsuario() {
             }
             if (abasPrincipaisContainer) abasPrincipaisContainer.style.display = 'flex';
         }
+    });
+
+    // 🔎 BUSCA POR FUNCIONÁRIO E POR SOLICITANTE (filtra a lista já carregada, sem nova requisição)
+    lista.oninput = null;
+    lista.addEventListener('input', function(event) {
+        const buscaInput = event.target.closest('[data-busca]');
+        if (!buscaInput) return;
+
+        const categoria = buscaInput.getAttribute('data-categoria');
+        const subAbasContainer = lista.querySelector(`.sub-abas-pedidos[data-categoria="${categoria}"]`);
+        const subTabAtiva = subAbasContainer ? subAbasContainer.querySelector('.sub-tab-btn.ativa') : null;
+        if (!subTabAtiva) return;
+
+        const status = subTabAtiva.getAttribute('data-status');
+        const listContainerId = subTabAtiva.getAttribute('data-list-id');
+
+        // Remove acentos e caixa pra não obrigar o usuário a digitar igual ao que está no banco
+        // (ex.: "joao" acha "João", "gustavo" acha "Gustavo Lima").
+        const normalizarBusca = (texto) => (texto || '')
+            .toString()
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .toLowerCase()
+            .trim();
+
+        const termoFuncionario = normalizarBusca(lista.querySelector(`[data-busca="funcionario"][data-categoria="${categoria}"]`)?.value);
+        const termoSolicitante = normalizarBusca(lista.querySelector(`[data-busca="solicitante"][data-categoria="${categoria}"]`)?.value);
+
+        const listaPedidosBase = categoria === 'funcionario' ? window.gruposFuncionariosGlobais : window.gruposFuncoesGlobais;
+        const listaFiltrada = (listaPedidosBase || [])
+            // Busca por solicitante filtra dentro do grupo: mostra só os pedidos daquela
+            // pessoa, não o accordion inteiro (que pode ter pedidos de vários solicitantes).
+            .map(grupo => {
+                if (!termoSolicitante) return grupo;
+                const registrosFiltrados = (grupo.registrosOriginais || []).filter(r => {
+                    const nomeSol = normalizarBusca(r.nomeSolicitante || r.nomesolicitante || r.solicitante_nome);
+                    return nomeSol.includes(termoSolicitante);
+                });
+                return { ...grupo, registrosOriginais: registrosFiltrados };
+            })
+            .filter(grupo => {
+                const nomeFuncionario = normalizarBusca(grupo.funcionario || grupo.nmfuncao);
+                const passaFuncionario = !termoFuncionario || nomeFuncionario.includes(termoFuncionario);
+                const temRegistros = (grupo.registrosOriginais || []).length > 0;
+                return passaFuncionario && temRegistros;
+            });
+
+        renderizarPedidos(listaFiltrada, listContainerId, categoria, status, podeAprovar);
     });
 }
 
@@ -8002,6 +8062,10 @@ function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
                     <i class="fas fa-arrow-left"></i> Voltar
                 </button>
                 ${tabButtons}
+            </div>
+            <div class="pedidos-busca-container">
+                <input type="text" class="busca-funcionario-input" data-busca="funcionario" data-categoria="${categoria}" placeholder="Buscar por funcionário..." autocomplete="off">
+                <input type="text" class="busca-funcionario-input" data-busca="solicitante" data-categoria="${categoria}" placeholder="Buscar por solicitante..." autocomplete="off">
             </div>
             <div class="sub-tabs-content">
                 ${tabContents}
@@ -10566,6 +10630,19 @@ function cardBonificadoDiariaDobrada(pedido, statusDesejado, podeAprovar) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+    // Autorizados/Rejeitados vêm em ordem alfabética (A-Z); Pendentes mantém a ordem que
+    // já vinha (agrupado por idfuncionario, mais recente primeiro) — não mexer nessa.
+    const statusOrdenacaoLower = (statusDesejado || '').toLowerCase();
+    const STATUS_AUTORIZADO_ORDEM = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+    const STATUS_REJEITADO_ORDEM = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+    if (statusOrdenacaoLower === STATUS_AUTORIZADO_ORDEM || statusOrdenacaoLower === STATUS_REJEITADO_ORDEM) {
+        pedidosCompletos = [...pedidosCompletos].sort((a, b) => {
+            const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+            const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+            return nomeA.localeCompare(nomeB, 'pt-BR');
+        });
+    }
+
     window.pedidosCompletosGlobais = pedidosCompletos;
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -10808,7 +10885,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             : (grupo.nmfuncao || pedidosDoGrupo[0]?.descFuncao || 'SOLICITAÇÃO DE FUNÇÃO');
 
         const p = pedidosDoGrupo[0];
-        const solicitantesGrupo = p.nomesolicitante || p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+        // Sempre o solicitante da requisição mais recente do grupo (não a primeira do array) —
+        // um mesmo funcionário/idfuncionario pode acumular pedidos de solicitantes diferentes.
+        const ultimoPedidoDoGrupo = pedidosDoGrupo.reduce((maisRecente, atual) => {
+            const dataAtual = new Date(atual.dtCriacao || atual.criado_em || 0).getTime();
+            const dataMaisRecente = new Date(maisRecente.dtCriacao || maisRecente.criado_em || 0).getTime();
+            return dataAtual > dataMaisRecente ? atual : maisRecente;
+        }, p);
+        const solicitantesGrupo = ultimoPedidoDoGrupo.nomesolicitante || ultimoPedidoDoGrupo.nomeSolicitante
+            || ultimoPedidoDoGrupo.solicitante_nome || ultimoPedidoDoGrupo.funcionario || "N/D";
 
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario";
@@ -16795,6 +16880,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         }
 
         console.log("DADOS CONTAS", resContas);
+        // Só existe período (dInicioComp/dFimComp) calculado dentro do bloco de contas abaixo —
+        // por isso o FGTS estimado também precisa ser calculado lá dentro; aqui fica só a variável
+        // pronta pra usar depois em atualizarResumoGeralEstatico (fora do bloco, sem período
+        // nenhum se não houver contas).
+        let fgtsEstimado = 0;
         if (resContas.sucesso && resContas.contas) {
             // const hoje = new Date();
             // hoje.setHours(0, 0, 0, 0);
@@ -16877,10 +16967,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             statusFinal = "Pago";
                             statusFiltro = "liquidado";
                         } else {
-                            // Só aqui, se não for suspenso nem pago, olhamos a data — "Hoje" é
-                            // categoria própria (não fica escondida dentro de "a vencer"), senão
-                            // o total de A Vencer conta esse dinheiro mas ele some da aba certa.
-                            if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                            // "Hoje" continua existindo como categoria própria pro FILTRO (aba
+                            // "Hoje" e o total do resumo) — mas a coluna STATUS sempre mostra
+                            // "Pendente" enquanto não for pago, pra não confundir com um status
+                            // de fato ("Pendente"/"Pago"/"Suspenso"). O badge "HOJE" ao lado da
+                            // descrição já avisa que vence hoje.
+                            if (ehMesmoDia(dProj, hoje)) { statusFinal = "Pendente"; statusFiltro = "hoje"; }
                             else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
                             else { statusFinal = "Pendente"; statusFiltro = "a_vencer"; }
                         }
@@ -16890,8 +16982,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         valorPago = (statusFinal === "Pago") ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
 
                     } else {
-                        // Para projeções que não existem no banco, mesma regra de "Hoje" acima.
-                        if (ehMesmoDia(dProj, hoje)) { statusFinal = "Hoje"; statusFiltro = "hoje"; }
+                        // Para projeções que não existem no banco ainda: "hoje" continua valendo
+                        // pro filtro, mas a coluna STATUS mostra "Pendente" (ver comentário acima).
+                        if (ehMesmoDia(dProj, hoje)) { statusFinal = "Pendente"; statusFiltro = "hoje"; }
                         else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
                         else { statusFinal = "Projeção"; statusFiltro = "a_vencer"; }
                         // Não usa c.vlrreal aqui — é o valor REAL de outro pagamento (mês de "c"),
@@ -16930,6 +17023,22 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         valorPago: valorPago,
                         status: statusFinal,
                         statusFiltro: statusFiltro,
+                        // Sem dadoReal, o spread acima veio de `c` — que é o lançamento JUNTO
+                        // COM o pagamento mais recente já realizado (ex: setembro pago). Sem
+                        // isso, esses campos do pagamento de outro mês vazavam pra cá: a "Data
+                        // Pagamento" de outubro mostrava a data de setembro, e o idpagamento
+                        // vazado fazia o botão PAGAR de outubro atualizar o registro de
+                        // setembro em vez de criar um novo.
+                        ...(!dadoReal ? {
+                            idpagamento: null,
+                            dtpgto: null,
+                            imagemconta: null,
+                            comprovantepgto: null,
+                            observacao: null,
+                            numparcela: null,
+                            vlrpago: null,
+                            vlrreal: null,
+                        } : {}),
                         idholerite: holeriteMes ? holeriteMes.idholerite : null,
                         holerite_mes: holeriteMes ? holeriteMes.mes : (dProj.getMonth() + 1),
                         holerite_ano: holeriteMes ? holeriteMes.ano : dProj.getFullYear(),
@@ -16958,7 +17067,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const dtvctoTreze = new Date(ev.dtvcto + 'T12:00:00');
                 const foiPagoTreze = ev.status === 'Pago';
                 const ehHojeTreze = !foiPagoTreze && ehMesmoDia(dtvctoTreze, hoje);
-                const statusFinalTreze = foiPagoTreze ? 'pago' : (ehHojeTreze ? 'hoje' : 'pendente');
+                const statusFinalTreze = foiPagoTreze ? 'pago' : (ehHojeTreze ? 'pendente' : (dtvctoTreze < hoje ? 'atrasado' : 'pendente'));
                 const statusFiltroTreze = foiPagoTreze ? 'liquidado' : (ehHojeTreze ? 'hoje' : (dtvctoTreze < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `13-${ev.idfuncionario}-${ev.mes}-${ev.ano}`,
@@ -17001,7 +17110,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const statusHol = (h.status || 'Previsão');
                 const foiPagoMensal = h.origem === 'real' && String(statusHol).toLowerCase() === 'pago';
                 const ehHojeMensal = !foiPagoMensal && ehMesmoDia(dtvctoMensal, hoje);
-                const statusFinalMensal = foiPagoMensal ? 'pago' : (ehHojeMensal ? 'hoje' : (h.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFinalMensal = foiPagoMensal ? 'pago' : (ehHojeMensal ? 'pendente' : (dtvctoMensal < hoje ? 'atrasado' : (h.origem === 'real' ? 'pendente' : 'projecao')));
                 const statusFiltroMensal = foiPagoMensal ? 'liquidado' : (ehHojeMensal ? 'hoje' : (dtvctoMensal < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `salario-${h.idfuncionario}-${h.mes}-${h.ano}`,
@@ -17038,7 +17147,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const statusBenefRaw = (b.status || 'Previsão');
                 const foiPagoBenef = b.origem === 'real' && String(statusBenefRaw).toLowerCase() === 'pago';
                 const ehHojeBenef = !foiPagoBenef && ehMesmoDia(dtvctoBenef, hoje);
-                const statusFinalBenef = foiPagoBenef ? 'pago' : (ehHojeBenef ? 'hoje' : (b.origem === 'real' ? 'pendente' : 'projecao'));
+                const statusFinalBenef = foiPagoBenef ? 'pago' : (ehHojeBenef ? 'pendente' : (dtvctoBenef < hoje ? 'atrasado' : (b.origem === 'real' ? 'pendente' : 'projecao')));
                 const statusFiltroBenef = foiPagoBenef ? 'liquidado' : (ehHojeBenef ? 'hoje' : (dtvctoBenef < hoje ? 'vencidos' : 'a_vencer'));
                 contasProjetadas.push({
                     idlancamento: `beneficios-${b.idfuncionario}-${b.mes}-${b.ano}`,
@@ -17218,7 +17327,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
                 const containerFiltrosContas = document.createElement("div");
                 containerFiltrosContas.className = "filtros-rapidos-contas";
-                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
 
                 const opcoesContas = [
                     { id: 'todos', label: 'Tudo', color: '#343a40' },
@@ -17229,16 +17338,31 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     { id: 'liquidado', label: 'Pagas', color: '#28a745' }
                 ];
 
+                // Filtro de status (botões) + busca por texto (vínculo/descrição) combinados —
+                // guardamos o status ativo aqui pra busca não "esquecer" a aba selecionada.
+                let statusContasAtivo = 'todos';
+
+                const inputBuscaContas = document.createElement("input");
+                inputBuscaContas.type = "text";
+                inputBuscaContas.id = "buscaContasAPagar";
+                inputBuscaContas.placeholder = "🔎 Buscar por vínculo ou descrição...";
+                inputBuscaContas.autocomplete = "off";
+                inputBuscaContas.style = "flex: 1; min-width: 220px; padding: 6px 10px; border-radius: 15px; border: 1px solid #ccc; font-size: 12px;";
+                inputBuscaContas.addEventListener("input", () => {
+                    aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
+                });
+
                 opcoesContas.forEach(opt => {
                     const btn = document.createElement("button");
-                    btn.setAttribute("data-label-base", opt.label); 
-                    btn.setAttribute("data-filtro-id", opt.id); 
+                    btn.setAttribute("data-label-base", opt.label);
+                    btn.setAttribute("data-filtro-id", opt.id);
                     btn.innerText = opt.label;
                     btn.className = "btn-filtro-financeiro";
                     btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
-                    
+
                     btn.onclick = () => {
-                        filtrarEventosNaTela(opt.id);
+                        statusContasAtivo = opt.id;
+                        aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
                             b.style.background = "white"; b.style.color = b.style.borderColor;
                         });
@@ -17247,6 +17371,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     containerFiltrosContas.appendChild(btn);
                 });
 
+                containerFiltrosContas.appendChild(inputBuscaContas);
                 wrapperContas.appendChild(containerFiltrosContas);
                 accordionContainer.appendChild(btnMestreContas);
                 accordionContainer.appendChild(wrapperContas);
@@ -17274,6 +17399,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 setTimeout(atualizarContadoresFiltrosContas, 300);
             }
+
+            // FGTS estimado (8% sobre salário+proventos tributáveis) dos funcionários de folha no
+            // MESMO período em tela (dInicioComp/dFimComp calculados acima) — direto de
+            // resContas.holerites (uma linha por funcionário/mês, sem risco de duplicar contando
+            // por lançamento). Só informativo: vira conta de verdade quando alguém lançar a guia
+            // (GRF) manualmente em Contas, não é gerado automaticamente aqui.
+            const fgtsAliquota = Number(resContas.fgtsAliquota) || 0.08;
+            fgtsEstimado = (resContas.holerites || []).reduce((soma, h) => {
+                const dtHolerite = new Date(h.ano, h.mes - 1, 1, 12, 0, 0);
+                if (dtHolerite < dInicioComp || dtHolerite > dFimComp) return soma;
+                return soma + (Number(h.proventos) || 0) * fgtsAliquota;
+            }, 0);
        }
 
         console.log("✅ AGORA HÁ ITENS?", contasProjetadas.length);
@@ -17302,9 +17439,34 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         filtrarEventosNaTela(filtroAtivo);
 
         // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
-        atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
+        atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement, fgtsEstimado);
         // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
-        
+
+        // --- MODO FOCO: bloco escolhido nos botões de acesso rápido já abre expandido,
+        // escondendo o resumo (cards/avisos) e o outro bloco pra ocupar toda a tela.
+        const focoAtivo = window._focoVencimentoAtivo || null;
+        const wrapperEventosEl = conteudoGeral.querySelector('#container-mestre-eventos');
+        const wrapperContasEl = conteudoGeral.querySelector('#wrapper-contas');
+        const btnMestreEventosEl = wrapperEventosEl?.previousElementSibling;
+        const btnMestreContasEl = wrapperContasEl?.previousElementSibling;
+
+        if (valoresResumoElement) valoresResumoElement.style.display = focoAtivo ? 'none' : '';
+
+        // A barra do acordeão (título + totais) só aparece quando o bloco está em foco —
+        // no modo normal a navegação é 100% pelos botões de acesso rápido, então repetir
+        // a barra recolhida no meio da tela é redundante (pedido da usuária 2026-09-09).
+        if (btnMestreEventosEl && wrapperEventosEl) {
+            const abrir = focoAtivo === 'eventos';
+            btnMestreEventosEl.style.display = abrir ? '' : 'none';
+            wrapperEventosEl.style.display = abrir ? 'block' : 'none';
+            btnMestreEventosEl.classList.toggle('active', abrir);
+        }
+        if (btnMestreContasEl && wrapperContasEl) {
+            const abrir = focoAtivo === 'contas';
+            btnMestreContasEl.style.display = abrir ? '' : 'none';
+            wrapperContasEl.style.display = abrir ? 'block' : 'none';
+            btnMestreContasEl.classList.toggle('active', abrir);
+        }
 
     } catch (error) {
         console.error("Erro:", error);
@@ -17368,6 +17530,40 @@ function filtrarEventosNaTela(statusAlvo) {
                 item.style.display = "none";
             }
         }
+    });
+}
+
+// Filtro combinado (status + busca por texto) só pra seção "Contas a Pagar" — scoped ao
+// wrapperContas pra não mexer no filtro de Staff, que usa filtrarEventosNaTela globalmente.
+function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca) {
+    const termo = (termoBusca || "").trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+    wrapperContas.querySelectorAll(".accordion-item").forEach(item => {
+        let temFilhoVisivel = false;
+
+        item.querySelectorAll(".item-financeiro-linha").forEach(linha => {
+            const statusLinha = linha.getAttribute("data-status-filtro");
+            const bateStatus = (statusAlvo === 'todos' || statusLinha === statusAlvo);
+
+            const textoLinha = linha.textContent.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            const bateTexto = !termo || textoLinha.includes(termo);
+
+            const mostrar = bateStatus && bateTexto;
+            linha.style.display = mostrar ? "" : "none";
+            if (mostrar) temFilhoVisivel = true;
+        });
+
+        item.style.display = temFilhoVisivel ? "block" : "none";
+
+        // Mesmo refinamento por funcionário do filtrarEventosNaTela: só mostra o
+        // cabeçalho/total de cada pessoa se sobrou alguma categoria dela visível.
+        const chavesVisiveis = new Set();
+        item.querySelectorAll(".item-financeiro-linha[data-func-chave]").forEach(linha => {
+            if (linha.style.display !== "none") chavesVisiveis.add(linha.getAttribute("data-func-chave"));
+        });
+        item.querySelectorAll("[data-func-chave]:not(.item-financeiro-linha)").forEach(linha => {
+            linha.style.display = chavesVisiveis.has(linha.getAttribute("data-func-chave")) ? "" : "none";
+        });
     });
 }
 
@@ -18342,11 +18538,11 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 const celulaStatus = ehFuncionario
                                     ? `<td style="text-align:center;"><span class="status-pilula status-${statusHolerite}">${(c.status_holerite || 'Previsão').toUpperCase()}</span></td>`
-                                    : `<td style="text-align:center;"><span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span></td>`;
+                                    : `<td id="celula-status-${c.idlancamento}" style="text-align:center;"><span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span></td>`;
 
                                 const celulaDataPagamento = ehFuncionario
                                     ? `<td class="celula-data-pagamento" style="text-align:center;">${dtPagtoHolerite}</td>`
-                                    : `<td style="text-align:center;">${pgtoExibicao}</td>`;
+                                    : `<td id="celula-data-pgto-${c.idlancamento}" style="text-align:center;">${pgtoExibicao}</td>`;
 
                                 // Benefícios: sem upload de comprovante próprio ainda (o idholerite é o
                                 // mesmo do salário — subir um comprovante aqui misturaria com o do
@@ -18372,7 +18568,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             )
                                         }
                                     </td>` : `
-                                    <td style="text-align:center;">
+                                    <td id="celula-comprovante-${c.idlancamento}" style="text-align:center;">
                                         ${(c.comprovantepgto && c.comprovantepgto !== '---')
                                             ? `<a href="javascript:void(0)"
                                                 onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
@@ -18415,7 +18611,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
                                     const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
-                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"></td>`;
+                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+                                        </td>`;
                                     const restoCels = `
                                             <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
                                             <td style="text-align:center;">
@@ -18438,7 +18637,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 }
 
                                 return `
-                                    <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
@@ -18477,12 +18676,6 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // a antiga célula com rowspan, que o Chrome não recalculava direito
                                     // quando uma linha do meio do grupo era escondida por um filtro.
                                     const funcChaveGrupo = `${grupo[0].idfunc}-${grupo[0].mesHolerite}-${grupo[0].anoHolerite}`;
-                                    const linhaNomeHeader = `
-                                        <tr class="linha-nome-funcionario" data-func-chave="${funcChaveGrupo}">
-                                            <td colspan="${totalColunas}" style="padding:6px 10px; background:#f8f9fa; border-top:2px solid #dee2e6;">
-                                                <strong>${grupo[0].nomeVinculo}</strong>
-                                            </td>
-                                        </tr>`;
 
                                     // Sem borda entre as linhas de categoria do MESMO funcionário — quando
                                     // há total, ele fecha o grupo (border-top); sem total, a própria (única)
@@ -18505,7 +18698,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             <td style="text-align:right; padding:8px;"><strong>${formatarMoeda(totalFunc)}</strong></td>
                                         </tr>` : '';
 
-                                    return linhaNomeHeader + linhasCategorias + linhaTotal;
+                                    return linhasCategorias + linhaTotal;
                                 }).join('');
 
                                 return headerMes + linhasAgrupadas;
@@ -18793,7 +18986,10 @@ function renderBotaoPagamento(c) {
 
     const textoObs = (c.observacao || c.observacao_vencimento || "").replace(/[\n\r]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '\\"');
     const dataVcto = c.dtvcto || c.vencimento || "";
-    const valorParaPagar = c.vlrprevisto || c.valor || 0;
+    // valorTotal é o campo já corrigido (usa vlrestimado vigente quando ainda não existe
+    // pagamento pra essa parcela) — c.vlrprevisto/c.valor podem vir "contaminados" do
+    // pagamento de outro mês já realizado (ver o spread em contasProjetadas.push).
+    const valorParaPagar = c.valorTotal || c.vlrprevisto || c.valor || 0;
     const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
     const vinculo = (c.tipovinculo || "").toLowerCase();
 
@@ -18826,7 +19022,10 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
         return d;
     }
 
-    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento));
+    // "YYYY-MM-DD" puro vira UTC-meia-noite se passado direto pro Date(), o que em
+    // fusos negativos (Brasil, UTC-3) volta pro dia anterior — daí marcar como
+    // atrasado um pagamento feito no próprio dia do vencimento. Força horário local.
+    const dataVencimentoUtil = obterProximoDiaUtil(new Date(vencimento + 'T00:00:00'));
     const eAtrasado = isFuncionario ? false : (dataHojeObj > dataVencimentoUtil);
     const vencimentoFormatado = vencimento.split('-').reverse().join('/');
 
@@ -18846,7 +19045,7 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 <div class="swal-row">
                     <div class="swal-col">
                         <label>Valor Original (R$):</label>
-                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="number" value="${valorSugerido}" readonly style="background: #f8f9fa;">
+                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" readonly style="background: #f8f9fa;">
                     </div>
                     <div class="swal-col">
                         <label>Vencimento Original:</label>
@@ -18858,20 +19057,20 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                     ${eAtrasado ? `
                     <div class="swal-col">
                         <label style="color: #d9534f;">Atraso (Juros/Multa):</label>
-                        <input id="swal-vlr-atraso" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #d9534f;">
+                        <input id="swal-vlr-atraso" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ 0,00" style="border-color: #d9534f;">
                     </div>
                     ` : `<input id="swal-vlr-atraso" type="hidden" value="0">`}
-                    
+
                     <div class="swal-col">
                         <label style="color: #0275d8;">Desconto (R$):</label>
-                        <input id="swal-vlr-desconto" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="0" style="border-color: #0275d8;">
+                        <input id="swal-vlr-desconto" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ 0,00" style="border-color: #0275d8;">
                     </div>
                 </div>
 
                 <div class="swal-row">
                     <div class="swal-col">
                         <label style="color: #28a745;">Valor Total Pago (R$):</label>
-                        <input id="swal-vlrpago" class="swal2-input" oninput="formatReais(this)" type="number" step="0.01" value="${valorSugerido}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
+                        <input id="swal-vlrpago" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" style="font-weight: bold; border-color: #28a745; color: #28a745;">
                     </div>
                     <div class="swal-col">
                         <label>Data do Pagamento:</label>
@@ -18898,18 +19097,22 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
             const inputTotal = document.getElementById('swal-vlrpago');
 
             const calcularTotal = () => {
-                const total = parseFloat(inputOriginal.value || 0) + parseFloat(inputAtraso.value || 0) - parseFloat(inputDesconto.value || 0);
-                inputTotal.value = total.toFixed(2);
+                const original = parseFloat(window.desformatarReais(inputOriginal.value)) || 0;
+                const atraso = parseFloat(window.desformatarReais(inputAtraso.value)) || 0;
+                const desconto = parseFloat(window.desformatarReais(inputDesconto.value)) || 0;
+                const total = original + atraso - desconto;
+                inputTotal.value = "R$ " + total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             };
 
             if(inputAtraso) inputAtraso.addEventListener('input', calcularTotal);
             inputDesconto.addEventListener('input', calcularTotal);
         },
         preConfirm: () => {
-            const vlrTotal = document.getElementById('swal-vlrpago').value;
+            const vlrTotal = window.desformatarReais(document.getElementById('swal-vlrpago').value);
+            const vlrOriginal = window.desformatarReais(document.getElementById('swal-vlr-original').value);
             const dataPgto = document.getElementById('swal-dtpgto').value;
-            const vlrAtraso = parseFloat(document.getElementById('swal-vlr-atraso')?.value || 0);
-            const vlrDesconto = parseFloat(document.getElementById('swal-vlr-desconto').value || 0);
+            const vlrAtraso = parseFloat(window.desformatarReais(document.getElementById('swal-vlr-atraso')?.value)) || 0;
+            const vlrDesconto = parseFloat(window.desformatarReais(document.getElementById('swal-vlr-desconto').value)) || 0;
             let obsFinal = document.getElementById('swal-obs').value.trim();
 
             if (!vlrTotal || !dataPgto) return Swal.showValidationMessage('Preencha os campos obrigatórios!');
@@ -18930,12 +19133,13 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 obsFinal = obsFinal !== obsExistente.trim() ? `${obsFinal} | ${tags.trim()}` : `${obsExistente.trim()} | ${tags.trim()}`;
             }
 
-            return { 
-                vlrpago: vlrTotal, 
-                dtpagamento: dataPgto, 
+            return {
+                vlrpago: vlrTotal,
+                vlrreal: vlrOriginal,
+                dtpagamento: dataPgto,
                 observacao: obsFinal,
-                vlrAtraso: vlrAtraso, 
-                vlrDesconto: vlrDesconto 
+                vlrAtraso: vlrAtraso,
+                vlrDesconto: vlrDesconto
             };
         }
     });
@@ -18948,7 +19152,7 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
     // }
     // Se o usuário clicar em "Desistir" ou fora do modal, o código para aqui
     if (formValues) {
-        const { vlrpago, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
+        const { vlrpago, vlrreal, vlrAtraso, vlrDesconto, observacao, dtpagamento } = formValues;
         
         // Prepara o texto de resumo (Acréscimo ou Desconto)
         let resumoAjuste = "";
@@ -18980,14 +19184,15 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
         // --- 4. ENVIO FINAL: Só acontece se o "Sim" for clicado ---
         if (confirmacao.isConfirmed) {
             enviarBaixaPagamento(
-                idPagamento, 
-                idLancamento, 
-                vlrpago, 
-                dtpagamento, 
-                vencimento, 
-                observacao, 
-                vlrAtraso, 
-                vlrDesconto
+                idPagamento,
+                idLancamento,
+                vlrpago,
+                dtpagamento,
+                vencimento,
+                observacao,
+                vlrAtraso,
+                vlrDesconto,
+                vlrreal
             );
         }
     }
@@ -19057,17 +19262,19 @@ window.abrirModalPagamento = abrirModalPagamento;
 //     }
 // }
 
-async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto) {
+async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao, vlratraso, vlrdesconto, vlrreal) {
     try {
         const corpoRequisicao = {
             idpagamento: idPagamento,
             idlancamento: idLancamento,
             vlrpago: parseFloat(vlrpago),
+            vlrreal: parseFloat(vlrreal) || parseFloat(vlrpago),
             dtpagamento: dtpagamento,
             dtvcto: dtvcto,
             observacao: observacao,
             vlratraso: parseFloat(vlratraso),
-            vlrdesconto: parseFloat(vlrdesconto)
+            vlrdesconto: parseFloat(vlrdesconto),
+            status: 'pago'
         };
 
         const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
@@ -19094,11 +19301,52 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
             if (container) {
                 // Substitui os botões por um ícone de check (estilo "pago")
                 container.innerHTML = `<i class="fas fa-check-double" style="color: #2E8B57; font-size: 1.2rem;" title="Pago agora"></i>`;
-                
+
                 // Opcional: muda a cor da linha para indicar sucesso sem removê-la
                 if (linha) {
                     linha.style.backgroundColor = '#f0fff4'; // Verde bem clarinho
                     linha.style.transition = 'background-color 0.5s ease';
+                }
+            }
+
+            // Atualiza Status e Data Pagamento na hora — antes só apareciam corretos
+            // depois de recarregar a página, porque essas células não eram tocadas aqui.
+            const celulaStatus = document.getElementById(`celula-status-${idLancamento}`);
+            if (celulaStatus) {
+                celulaStatus.innerHTML = `<span class="status-pilula status-pago">PAGO</span>`;
+            }
+            const celulaDataPgto = document.getElementById(`celula-data-pgto-${idLancamento}`);
+            if (celulaDataPgto && dtpagamento) {
+                celulaDataPgto.textContent = dtpagamento.split('-').reverse().join('/');
+            }
+
+            // Antes de existir um pagamento pra essa parcela, os inputs de upload da
+            // linha (up_img_/up_comp_) nasceram com id vazio/undefined (c.idpagamento
+            // ainda não existia). Agora que o pagamento foi criado, reaponta esses
+            // inputs pro idpagamento real — senão o upload seguinte falha (400).
+            if (linha && dados.idpagamento) {
+                linha.querySelectorAll('input[type="file"][id^="up_img_"], input[type="file"][id^="up_comp_"]').forEach(inp => {
+                    const ehImagem = inp.id.startsWith('up_img_');
+                    const prefixo = ehImagem ? 'up_img_' : 'up_comp_';
+                    const tipoUpload = ehImagem ? 'imagem' : 'comprovante';
+                    const novoId = prefixo + dados.idpagamento;
+                    inp.id = novoId;
+                    inp.setAttribute('onchange', `uploadArquivoFinanceiro(this, '${dados.idpagamento}', '${tipoUpload}')`);
+                    const icone = inp.nextElementSibling;
+                    if (icone) icone.setAttribute('onclick', `document.getElementById('${novoId}').click()`);
+                });
+
+                // A célula de Comprovante só mostra o upload quando status === 'pago' —
+                // até agora ela foi renderizada como "Aguardando Pagamento" (sem input
+                // nenhum pra reapontar acima). Libera o upload aqui, na hora, sem reload.
+                const celulaComprovante = document.getElementById(`celula-comprovante-${idLancamento}`);
+                if (celulaComprovante && !celulaComprovante.querySelector('a')) {
+                    const novoIdComp = `up_comp_${dados.idpagamento}`;
+                    celulaComprovante.innerHTML = `
+                        <div>
+                            <input type="file" style="display:none" id="${novoIdComp}" onchange="uploadArquivoFinanceiro(this, '${dados.idpagamento}', 'comprovante')">
+                            <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('${novoIdComp}').click()"></i>
+                        </div>`;
                 }
             }
         } else {
@@ -19478,7 +19726,7 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     if (!arquivo) return;
 
     if (!id || id === 'undefined') {
-        alert("Erro: ID não identificado.");
+        Swal.fire('Erro', 'ID não identificado.', 'error');
         return;
     }
 
@@ -19488,7 +19736,7 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     const htmlOriginal = container.innerHTML;
 
     // Feedback de carregamento
-    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: #007bff; font-size: 18px;"></i>`;
+    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: var(--primary-color); font-size: 18px;"></i>`;
 
     const formData = new FormData();
     formData.append('idPagamento', id);
@@ -19524,11 +19772,12 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
                 setTimeout(() => linhaInteira.classList.remove('linha-flash-sucesso'), 2000);
             }
         } else {
-            alert("❌ Erro: " + (res.error || res.message));
+            Swal.fire('Erro', res.error || res.message || 'Não foi possível enviar o arquivo.', 'error');
             container.innerHTML = htmlOriginal;
         }
     } catch (err) {
         console.error("Erro:", err);
+        Swal.fire('Erro', 'Falha ao comunicar com o servidor.', 'error');
         container.innerHTML = htmlOriginal;
     }
 };
@@ -19617,7 +19866,7 @@ function expandirOcorrenciasNoAno(c, anoFiltro) {
     return ocorrencias;
 }
 
-function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element) {
+function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element, fgtsEstimado = 0) {
     if (!element) return;
 
     // 1. Pegamos as referências do filtro de tela
@@ -19783,7 +20032,7 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
 
     element.innerHTML = `
         <div class="resumo-detalhado">
-            <div style="display: grid; grid-template-columns: repeat(6, 1fr); width: 100%;gap: 8px; text-align: center;">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); width: 100%;gap: 8px; text-align: center;">
 
                 <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
                     <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>
@@ -19825,6 +20074,13 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
                     <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
                         Staff: ${formatarMoeda(sVenc+sHoje+sAVenc+sPago+sSusp+sAguardando)} | Contas: ${formatarMoeda(cVenc+cHoje+cAVenc+cPago+cSusp)}
                         ${sAguardando > 0 ? `<br><span style="color:#6c757d;" title="Evento de Staff ainda sem funcionários cadastrados">Aguardando Staff: ${formatarMoeda(sAguardando)}</span>` : ''}
+                    </div>
+                </div>
+
+                <div style="background: #f5f0ff; padding: 10px; border-radius: 8px; border: 1px solid #d6bcfa;" title="8% sobre o bruto (salário + proventos tributáveis) dos funcionários no período — não é um lançamento, é só o valor esperado pra conferir contra a guia (GRF) quando ela chegar.">
+                    <h4 style="margin:0; font-size: 16px; color: #553c9a; text-transform: uppercase;">FGTS Estimado (no período): ${formatarMoeda(fgtsEstimado)}</h4>
+                    <div style="font-size: 14px; color: #44337a; border-top: 1px solid #d6bcfa; padding-top: 4px;">
+                        Confira contra a guia (GRF) ao lançar em Contas
                     </div>
                 </div>
             </div>
@@ -20612,6 +20868,44 @@ function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
     subFiltroWrapper.className = "sub-filtro";
     filtrosContainer.appendChild(subFiltroWrapper);
 
+    // 3. Botões de Foco (acesso rápido): abrem um dos dois blocos (Staff / Contas)
+    // já expandido, escondendo o resumo e o outro bloco pra usar toda a tela.
+    const focoContainer = document.createElement("div");
+    focoContainer.className = "foco-vencimentos-container";
+    focoContainer.innerHTML = `
+        <button type="button" class="btn-foco-vencimento" data-foco="eventos">📅 Pagamentos de Staff</button>
+        <button type="button" class="btn-foco-vencimento" data-foco="contas">💸 Contas a Pagar</button>
+        <button type="button" class="btn-fechar-foco-vencimento" style="display:none;">✕ Fechar</button>
+    `;
+    filtrosContainer.appendChild(focoContainer);
+
+    const btnFocoEventos = focoContainer.querySelector('[data-foco="eventos"]');
+    const btnFocoContas = focoContainer.querySelector('[data-foco="contas"]');
+    const btnFecharFoco = focoContainer.querySelector('.btn-fechar-foco-vencimento');
+
+    function atualizarBotoesFoco() {
+        const foco = window._focoVencimentoAtivo || null;
+        btnFocoEventos.classList.toggle('active', foco === 'eventos');
+        btnFocoContas.classList.toggle('active', foco === 'contas');
+        btnFecharFoco.style.display = foco ? 'inline-flex' : 'none';
+    }
+
+    function alternarFoco(valor) {
+        window._focoVencimentoAtivo = window._focoVencimentoAtivo === valor ? null : valor;
+        atualizarBotoesFoco();
+        carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+    }
+
+    btnFocoEventos.onclick = () => alternarFoco('eventos');
+    btnFocoContas.onclick = () => alternarFoco('contas');
+    btnFecharFoco.onclick = () => {
+        window._focoVencimentoAtivo = null;
+        atualizarBotoesFoco();
+        carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+    };
+
+    atualizarBotoesFoco();
+
     function montarOpcoes(titulo, valores) {
         return `
             <label class="label-select">${titulo}</label>
@@ -20851,8 +21145,10 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     valoresResumoElement.className = "resumo-periodo-vencimentos";
     
     const conteudoGeral = document.createElement("div");
-    conteudoGeral.className = "conteudo-geral"; 
-    
+    conteudoGeral.className = "conteudo-geral";
+
+    window._focoVencimentoAtivo = null; // Sempre começa no modo normal (resumo visível)
+
     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
 
     container.appendChild(FiltrosVencimentos); 

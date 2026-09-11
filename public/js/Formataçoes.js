@@ -412,7 +412,89 @@ document.addEventListener("DOMContentLoaded", function () {
         return formatador.format(new Date(dataInput));
     }
 
-});    
+});
+
+// --------------------------------------------------- search padrao ---------------------------------------------------------
+export function criarListaSugestoes(inputAncora, listaId) {
+    const wrapper = inputAncora.parentNode;
+    wrapper.style.position = "relative";
+    let lista = document.getElementById(listaId);
+    if (!lista) {
+        lista = document.createElement("ul");
+        lista.id = listaId;
+        lista.style.cssText = "position:absolute; left:0; right:0; top:100%; z-index:60;" +
+            "background:#fff; border:1px solid #ccc; border-radius:6px; max-height:240px;" +
+            "overflow-y:auto; margin:2px 0 0; padding:4px; list-style:none;" +
+            "box-shadow:0 4px 12px rgba(0,0,0,.15); display:none;";
+        wrapper.appendChild(lista);
+    }
+    return lista;
+}
+
+/**
+ * Busca com sugestões padrão do sistema: o usuário digita em `input`, o sistema
+ * consulta `buscar(termo)` com debounce e mostra um dropdown; ao clicar numa
+ * sugestão, `aoEscolher(item)` é chamado e o dropdown fecha.
+ *
+ * `buscar` pode ser assíncrono (ex.: fetchComToken numa rota de busca, como o
+ * autocomplete de CBO) ou síncrono (ex.: filtrar uma lista já carregada em
+ * memória, como os lançamentos do módulo de Pagamentos).
+ *
+ * @param {HTMLInputElement} input campo de texto visível onde o usuário digita
+ * @param {string} listaId id único do dropdown (evita duplicar se a função for religada no mesmo modal)
+ * @param {(termo: string) => any[]|Promise<any[]>} buscar retorna os itens da sugestão
+ * @param {(item: any) => string} renderItem texto exibido em cada linha da lista
+ * @param {(item: any) => void} aoEscolher chamado ao clicar numa sugestão
+ * @param {{minChars?: number, delay?: number, mensagemVazia?: string}} [opcoes]
+ * @returns {HTMLUListElement} a lista de sugestões criada
+ */
+export function ligarBuscaComSugestoes(input, listaId, buscar, renderItem, aoEscolher, opcoes = {}) {
+    const { minChars = 2, delay = 350, mensagemVazia = "Nenhum resultado encontrado" } = opcoes;
+    const lista = criarListaSugestoes(input, listaId);
+    const fechar = () => { lista.style.display = "none"; };
+    let timer = null;
+
+    input.addEventListener("input", function () {
+        const termo = this.value.trim();
+        clearTimeout(timer);
+        if (termo.length < minChars) { fechar(); return; }
+        timer = setTimeout(async () => {
+            try {
+                const itens = await buscar(termo);
+                lista.innerHTML = "";
+                if (!Array.isArray(itens) || itens.length === 0) {
+                    lista.innerHTML = `<li style="padding:6px 10px; color:#999;">${mensagemVazia}</li>`;
+                    lista.style.display = "block";
+                    return;
+                }
+                itens.forEach((item) => {
+                    const li = document.createElement("li");
+                    li.textContent = renderItem(item);
+                    li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
+                    li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                    li.addEventListener("mouseout", () => { li.style.background = ""; });
+                    li.addEventListener("mousedown", (e) => {
+                        e.preventDefault();
+                        aoEscolher(item);
+                        fechar();
+                    });
+                    lista.appendChild(li);
+                });
+                lista.style.display = "block";
+            } catch (err) {
+                console.error("Erro ao buscar sugestões:", err);
+            }
+        }, delay);
+    });
+
+    input.addEventListener("focus", () => { if (lista.children.length) lista.style.display = "block"; });
+    document.addEventListener("mousedown", (e) => {
+        if (e.target !== input && !lista.contains(e.target)) fechar();
+    });
+
+    return lista;
+}
+
 
 
 // // --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------

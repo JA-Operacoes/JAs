@@ -1,4 +1,7 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
+
+let lancamentosCache = []; // usado pela busca com sugestões do campo Lançamento (Conta)
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -24,9 +27,14 @@ function formatarDataBR(dataStr) {
 
 function prepararNumeroParaEnvio(valor) {
     if (!valor) return 0;
-    let sValor = valor.toString();
-    if (sValor.includes('.') && sValor.includes(',')) sValor = sValor.replace(/\./g, '');
-    return parseFloat(sValor.replace(',', '.'));
+    return parseFloat(window.desformatarReais(valor)) || 0;
+}
+
+// Formata um valor numérico (vindo do banco) no mesmo padrão mascarado
+// ("R$ 1.234,56") usado pelos inputs com oninput="formatReais(this)".
+function formatarMoedaExibicao(valor) {
+    const num = parseFloat(valor) || 0;
+    return "R$ " + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // --- FUNÇÕES DE LÓGICA ---
@@ -58,10 +66,11 @@ async function carregarLancamentosParaPagto() {
 
     try {
         const lancamentos = await fetchComToken("/pagamentos/lancamentos");
-        
+        lancamentosCache = lancamentos;
+
         // Mantém a opção padrão (placeholder)
         select.innerHTML = '<option value="" disabled selected>Selecione o Lançamento...</option>';
-        
+
         lancamentos.forEach(l => {
             const opt = document.createElement("option");
             opt.value = l.idlancamento;
@@ -72,38 +81,7 @@ async function carregarLancamentosParaPagto() {
             select.appendChild(opt);
         });
 
-        // --- INICIALIZAÇÃO DA BUSCA (SELECT2) ---
-        // Destruímos qualquer instância anterior para evitar duplicidade ao recarregar
-        if ($(select).hasClass("select2-hidden-accessible")) {
-            $(select).select2('destroy');
-        }
-
-        $(select).select2({
-            placeholder: "Digite para buscar (ex: Luz, Condomínio, Salário...)",
-            allowClear: true,
-            width: '100%',
-            // Esta opção garante que ele procure tanto no ID quanto na Descrição
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                
-                // Busca ignorando maiúsculas/minúsculas
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
-            }
-        });
-
-        // Vincula o evento do Select2 ao seu onchange nativo que já está funcionando
-        $(select).on('select2:select', function (e) {
-            this.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        $(select).on('select2:unselect', function (e) {
-            this.value = "";
-            this.dispatchEvent(new Event('change', { bubbles: true }));
-        });
+        configurarBuscaLancamento();
 
         console.log("✅ Select de lançamentos populado com sucesso.");
         return true; // Indica que terminou
@@ -111,6 +89,33 @@ async function carregarLancamentosParaPagto() {
         console.error("Erro ao carregar lançamentos:", error);
         return false;
     }
+}
+
+// Busca com sugestões (padrão do sistema, ver public/js/formatacoes.js) para o campo
+// "Lançamento (Conta)": filtra em memória a lista já carregada por carregarLancamentosParaPagto
+// e, ao escolher, sincroniza o <select id="idLancamentoSelect"> (escondido) que o restante
+// do módulo usa para ler .value/.selectedOptions[0].dataset e disparar o 'change' existente.
+let buscaLancamentoLigada = false;
+function configurarBuscaLancamento() {
+    const inputBusca = document.querySelector("#descLancamento");
+    if (!inputBusca || buscaLancamentoLigada) return;
+    buscaLancamentoLigada = true;
+
+    ligarBuscaComSugestoes(
+        inputBusca,
+        "lancamento-sugestoes",
+        (termo) => lancamentosCache.filter(l =>
+            `${l.idlancamento} - ${l.descricao}`.toLowerCase().includes(termo.toLowerCase())
+        ),
+        (l) => `${l.idlancamento} - ${l.descricao}`,
+        (l) => {
+            const select = document.querySelector("#idLancamentoSelect");
+            inputBusca.value = `${l.idlancamento} - ${l.descricao}`;
+            select.value = l.idlancamento;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+        { mensagemVazia: "Nenhum lançamento encontrado" }
+    );
 }
 
 async function buscarDadosParcela(idLanc, vctoBaseOriginal) {
@@ -162,7 +167,7 @@ async function carregarHistoricoPagto(idLanc) {
 
             // O botão agora aparece para quem tem permissão de 'alterar'
             const btnEditarHTML = temAcessoAoBotaoEdicao
-                ? `<button type="button" class="btn-editar-tabela" title="${eSupremo ? 'Editar parcela completa' : 'Complementar anexos'}">✏️</button>` 
+                ? `<button type="button" class="btn-editar-tabela" title="${eSupremo ? 'Editar parcela completa' : 'Complementar anexos'}"><i class="ri-pencil-line"></i></button>` 
                 : '';
 
             tr.innerHTML = `
@@ -249,23 +254,22 @@ async function preencherParaEdicao(p) {
                 if (selectLanc) selectLanc.value = p.idlancamento;
 
                 // Preenche campos de exibição de valores estimados
-                const elDesc = document.querySelector("#descLancamento"); 
+                const elDesc = document.querySelector("#descLancamento");
                 const elVlrPrev = document.querySelector("#vlrPrevisto");
                 if (elDesc) elDesc.value = dadosLanc.descricao || "";
                 if (elVlrPrev) {
-                    elVlrPrev.value = parseFloat(dadosLanc.vlrestimado || 0)
-                        .toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    elVlrPrev.value = formatarMoedaExibicao(dadosLanc.vlrestimado);
                 }
             }
 
             // 2. Preenchimento dos campos da parcela vindo do objeto 'p'
             document.querySelector("#numParcela").value = p.numparcela;
-            document.querySelector("#vlrReal").value = parseFloat(p.vlrreal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.querySelector("#vlrPago").value = parseFloat(p.vlrpago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.querySelector("#vlrReal").value = formatarMoedaExibicao(p.vlrreal);
+            document.querySelector("#vlrPago").value = formatarMoedaExibicao(p.vlrpago);
             document.querySelector("#dtvcto").value = p.dtvcto ? p.dtvcto.split('T')[0] : "";
             document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
-            document.querySelector("#vlrDespesasAtraso").value = parseFloat(p.vlratraso || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.querySelector("#vlrDesconto").value = parseFloat(p.vlrdesconto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.querySelector("#vlrDespesasAtraso").value = formatarMoedaExibicao(p.vlratraso);
+            document.querySelector("#vlrDesconto").value = formatarMoedaExibicao(p.vlrdesconto);
             document.querySelector("#observacaoPagto").value = p.observacao || "";
             document.querySelector("#statusPagto").checked = (p.status && p.status.toLowerCase() === 'pago');
 
@@ -283,7 +287,8 @@ async function preencherParaEdicao(p) {
 
             // 4. Carrega Anexos e atualiza Botão Principal
             carregarAnexosExistentes(p);
-            
+            atualizarVisibilidadeAnexos();
+
             const btnEnviar = document.querySelector("#Enviar");
             if (btnEnviar) {
                 btnEnviar.textContent = eSupremo ? "Atualizar Parcela" : "Salvar Anexos";
@@ -357,19 +362,19 @@ async function salvarPagamento(event) {
             `;
         }
 
-        const htmlAtraso = (parseFloat(vlrAtrasoStr.replace(',', '.')) > 0) ? `<p><b>Atraso:</b> <span style="color:red">+ R$ ${vlrAtrasoStr}</span></p>` : '';
-        const htmlDesconto = (parseFloat(vlrDescontoStr.replace(',', '.')) > 0) ? `<p><b>Desconto:</b> <span style="color:blue">- R$ ${vlrDescontoStr}</span></p>` : '';
+        const htmlAtraso = (parseFloat(window.desformatarReais(vlrAtrasoStr)) > 0) ? `<p><b>Atraso:</b> <span style="color:red">+ ${vlrAtrasoStr}</span></p>` : '';
+        const htmlDesconto = (parseFloat(window.desformatarReais(vlrDescontoStr)) > 0) ? `<p><b>Desconto:</b> <span style="color:blue">- ${vlrDescontoStr}</span></p>` : '';
 
         const confirmacao = await Swal.fire({
             title: tituloSwal,
             html: `
                 <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
                     <p><b>Parcela:</b> ${numParcela}º</p>
-                    <p><b>Valor Base:</b> R$ ${vlrRealStr}</p>
+                    <p><b>Valor Base:</b> ${vlrRealStr}</p>
                     ${htmlAtraso}
                     ${htmlDesconto}
                     <hr style="margin: 8px 0;">
-                    <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>R$ ${vlrPagoStr}</b></mark></p>
+                    <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>${vlrPagoStr}</b></mark></p>
                 </div>
                 ${htmlBotoes}`,
             icon: 'question',
@@ -437,6 +442,39 @@ async function salvarPagamento(event) {
 }
 
 
+// Ícone usado no botão .btn-remover-anexo (Uiverse.io by SpatexDEV)
+const svgLixeiraAnexo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor">
+    <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64s14.3 32 32 32H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
+</svg>`;
+
+// Só master|supremo|dev enxergam a área de anexos (imagem da conta/boleto e comprovante).
+function podeVerAnexosPagamento() {
+    return typeof temPermissao === "function" ? temPermissao("Pagamentos", "supremo") : false;
+}
+
+// Mostra/esconde a área de anexos conforme:
+// - permissão (master|supremo|dev) — sem ela, fica sempre escondida;
+// - Imagem da Conta/Boleto não depende de o pagamento estar confirmado — a conta pode
+//   chegar antes de ser paga, então esse upload fica sempre disponível.
+// - só o Comprovante de Pagamento fica travado até o checkbox "Pagamento Confirmado"
+//   estar marcado (não faz sentido comprovante de algo ainda não pago).
+function atualizarVisibilidadeAnexos() {
+    const pdfContainer = document.querySelector(".pdf");
+    if (!pdfContainer) return;
+
+    const colunaComprovante = document.getElementById("colunaComprovante");
+    const confirmado = document.querySelector("#statusPagto")?.checked;
+
+    if (!podeVerAnexosPagamento()) {
+        pdfContainer.style.display = "none";
+        return;
+    }
+
+    pdfContainer.style.display = "flex";
+
+    if (colunaComprovante) colunaComprovante.style.display = confirmado ? "" : "none";
+}
+
 function carregarAnexosExistentes(p) {
     const containerComp = document.getElementById('linkContainerComprovante');
     const containerConta = document.getElementById('linkContainerConta');
@@ -453,16 +491,22 @@ function carregarAnexosExistentes(p) {
     // --- 1. Lógica para Imagem da Conta (Boleto) ---
     if (p.imagemconta) {
         document.getElementById('imagemContaDisplay').style.display = "block";
+        // Já tem arquivo: esconde a área de seleção (botão + "Nenhum arquivo selecionado"),
+        // deixa só o label e os botões Ver/Remover.
+        const containerInputConta = document.getElementById('containerInputConta');
+        if (containerInputConta) containerInputConta.style.display = "none";
         if (inputConta) inputConta.disabled = true;
+        const btnConta = document.getElementById('btnEscolherArquivoConta');
+        if (btnConta) btnConta.disabled = true;
 
-        // Liberado se 'podeApagarAnexo' for true, independente de ser Supremo
-        const btnLixeiraConta = podeApagarAnexo 
-            ? `<button type="button" onclick="marcarParaLimpar('imagemConta')" class="btn-limpar-anexo" title="Remover boleto">🗑️</button>` 
-            : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
+        // Sem permissão de apagar, nem mostra a opção — não precisa saber que existe.
+        const btnLixeiraConta = podeApagarAnexo
+            ? `<button type="button" onclick="marcarParaLimpar('imagemConta')" class="btn-remover-anexo" title="Remover boleto">${svgLixeiraAnexo}Remover</button>`
+            : '';
 
         containerConta.innerHTML = `
             <div style="display: flex; gap: 5px; align-items: center;">
-                <a href="/uploads/contas/imagemboleto/${p.imagemconta}" target="_blank" class="btn-view-file">👁️ Ver Conta</a>
+                <a href="/uploads/contas/imagemboleto/${p.imagemconta}" target="_blank" class="btn-view-file"><i class="ri-eye-line"></i>Ver Conta</a>
                 ${btnLixeiraConta}
             </div>`;
     }
@@ -470,12 +514,16 @@ function carregarAnexosExistentes(p) {
     // --- 2. Lógica para Comprovante de Pagamento ---
     if (p.comprovantepgto) {
         document.getElementById('comprovantePagtoDisplay').style.display = "block";
+        const containerInputComprovante = document.getElementById('containerInputComprovante');
+        if (containerInputComprovante) containerInputComprovante.style.display = "none";
         if (inputComp) inputComp.disabled = true;
+        const btnComp = document.getElementById('btnEscolherComprovante');
+        if (btnComp) btnComp.disabled = true;
 
-        // Liberado se 'podeApagarAnexo' for true
-        const btnLixeiraComp = podeApagarAnexo 
-            ? `<button type="button" onclick="marcarParaLimpar('comprovante')" class="btn-limpar-anexo" title="Remover comprovante">🗑️</button>` 
-            : `<span title="Sem permissão para apagar" style="opacity: 0.5; cursor: not-allowed;">🔒</span>`;
+        // Sem permissão de apagar, nem mostra a opção — não precisa saber que existe.
+        const btnLixeiraComp = podeApagarAnexo
+            ? `<button type="button" onclick="marcarParaLimpar('comprovante')" class="btn-remover-anexo" title="Remover comprovante">${svgLixeiraAnexo}Remover</button>`
+            : '';
 
         containerComp.innerHTML = `
             <div style="display: flex; gap: 5px; align-items: center;">
@@ -512,6 +560,8 @@ function configurarUploads() {
                             🔍 Pré-visualizar Selecionado
                         </a>`;
                 }
+
+                atualizarVisibilidadeAnexos();
             });
         }
     });
@@ -581,6 +631,8 @@ function limparFormularioTotalmente(limparTabela = true) {
         i.dispatchEvent(new Event('input', { bubbles: true }));
         i.dispatchEvent(new Event('change', { bubbles: true }));
     });
+
+    atualizarVisibilidadeAnexos();
 }
 
 
@@ -597,20 +649,28 @@ function marcarParaLimpar(tipo) {
             if (tipo === 'comprovante') {
                 document.getElementById('limparComprovantePagto').value = "true";
                 document.getElementById('comprovantePagtoDisplay').style.display = "none";
+                const containerInputComprovante = document.getElementById('containerInputComprovante');
+                if (containerInputComprovante) containerInputComprovante.style.display = "";
                 const input = document.getElementById('comprovantePagto');
                 input.disabled = false;
-                input.parentElement.onclick = null; // REMOVE O ALERTA
+                const btnComp = document.getElementById('btnEscolherComprovante');
+                if (btnComp) btnComp.disabled = false;
                 document.getElementById('fileNameComprovante').textContent = "Selecione novo arquivo...";
-            } 
-            
+            }
+
             if (tipo === 'imagemConta') {
                 document.getElementById('limparComprovanteImagem').value = "true";
                 document.getElementById('imagemContaDisplay').style.display = "none";
+                const containerInputConta = document.getElementById('containerInputConta');
+                if (containerInputConta) containerInputConta.style.display = "";
                 const input = document.getElementById('arquivoConta');
                 input.disabled = false;
-                input.parentElement.onclick = null; // REMOVE O ALERTA
+                const btnConta = document.getElementById('btnEscolherArquivoConta');
+                if (btnConta) btnConta.disabled = false;
                 document.getElementById('fileNameConta').textContent = "Selecione nova imagem...";
             }
+
+            atualizarVisibilidadeAnexos();
         }
     });
 }
@@ -639,9 +699,7 @@ function configurarEventosPagamentos() {
     
     const parseMoeda = (valor) => {
         if (!valor) return 0;
-        // Remove espaços, troca vírgula por ponto
-        let limpo = valor.toString().replace(/\s/g, '').replace(',', '.');
-        return parseFloat(limpo) || 0;
+        return parseFloat(window.desformatarReais(valor)) || 0;
     };
 
     const calcularTotalEfetivo = () => {
@@ -663,24 +721,17 @@ function configurarEventosPagamentos() {
 
         // Cálculo: Real + Atraso - Desconto
         const resultado = valorBase + valorAtraso - valorDesconto;
-        
-        // Formata para 2 casas decimais e volta para vírgula se quiser exibir padrão BR
-        vlrEfetivo.value = resultado.toFixed(2).replace('.', ',');
+
+        // Mesmo formato mascarado dos demais campos ("R$ 1.234,56")
+        vlrEfetivo.value = "R$ " + resultado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         // Notifica outros scripts que o valor mudou
         vlrEfetivo.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    // Aplicar a troca de vírgula por ponto no "blur" (quando sai do campo)
     [atraso, desconto, vlrReal].forEach(campo => {
         if (campo) {
-            campo.addEventListener('blur', (e) => {
-                // Troca vírgula por ponto visualmente no campo ao sair
-                e.target.value = e.target.value.replace(',', '.');
-                calcularTotalEfetivo();
-            });
-
-            // Também calcula enquanto digita (opcional, remova se preferir apenas no sair)
+            campo.addEventListener('blur', calcularTotalEfetivo);
             campo.addEventListener('input', calcularTotalEfetivo);
         }
     });
@@ -736,8 +787,13 @@ function configurarEventosPagamentos() {
                     campoDtPgto.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             }
+
+            atualizarVisibilidadeAnexos();
         });
     }
+
+    // Estado inicial (modal recém-aberto, antes de qualquer clique no checkbox)
+    atualizarVisibilidadeAnexos();
 
     if (enviarBtn) enviarBtn.onclick = (e) => salvarPagamento(e);
     if (limparBtn) limparBtn.onclick = () => {
