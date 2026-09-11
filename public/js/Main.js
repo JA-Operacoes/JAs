@@ -16987,12 +16987,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         if (ehMesmoDia(dProj, hoje)) { statusFinal = "Pendente"; statusFiltro = "hoje"; }
                         else if (dProj < hoje) { statusFinal = "Atrasado"; statusFiltro = "vencidos"; }
                         else { statusFinal = "Projeção"; statusFiltro = "a_vencer"; }
-                        // IMPORTANTE: usa só c.vlrestimado (valor vigente do lançamento), nunca
-                        // c.vlrreal/c.valor — esses dois vêm do pagamento JÁ REALIZADO que o LEFT
-                        // JOIN trouxe junto com esse lançamento (ex: setembro já pago a R$200,00) e
-                        // vazavam pra projeção de meses futuros sem pagamento gerado ainda,
-                        // ignorando uma alteração posterior do valor estimado (ex: pra R$200,90).
-                        valorTotal = parseFloat(c.vlrestimado || 0);
+                        // Não usa c.vlrreal aqui — é o valor REAL de outro pagamento (mês de "c"),
+                        // não desse mês projetado. Só o estimado do lançamento é genérico o
+                        // suficiente pra servir de fallback.
+                        valorTotal = parseFloat(c.valor || c.vlrestimado || 0);
                         valorPago = 0;
                     }
 
@@ -17002,8 +17000,23 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     const holeriteMes = chaveHolerite ? mapaHolerites.get(chaveHolerite) : null;
                     if (chaveHolerite && holeriteMes) holeritesUsados.add(chaveHolerite);
 
+                    // Campos de pagamento ("c" pode ser o registro real de OUTRO mês do mesmo
+                    // lançamento recorrente, ex.: agosto já pago) só entram quando este mês tem
+                    // seu próprio dadoReal — senão a data de pagamento, comprovante e imagem da
+                    // conta de um mês pago vazam pra um mês diferente ainda pendente/atrasado.
+                    const camposPagamentoEspecificos = dadoReal ? {} : {
+                        idpagamento: null,
+                        numparcela: null,
+                        dtpgto: null,
+                        comprovantepgto: null,
+                        imagemconta: null,
+                        vlrpago: null,
+                        vlrreal: null,
+                    };
+
                     contasProjetadas.push({
                         ...(dadoReal || c), // Prioriza os dados do registro real (ID 16, etc)
+                        ...camposPagamentoEspecificos,
                         vencimento: dProj.toLocaleDateString('pt-BR'),
                         dtvcto: dProj.toISOString().split('T')[0],
                         valorTotal: valorTotal,

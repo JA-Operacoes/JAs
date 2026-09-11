@@ -2,6 +2,10 @@ import { fetchComToken, aplicarTema } from '../utils/utils.js';
 import { configurarAbaPlanoContas } from './LancamentosPlanoContasTab.js';
 import { configurarAbaCentroCusto } from './LancamentosCentroCustoTab.js';
 import { ligarBuscaComSugestoes } from './Formataçoes.js';
+// Reaproveita a tela real de Pagamentos (Registro de Pagamentos) tal como já
+// existe — só o form é embutido aqui como aba, sem duplicar nenhuma regra de
+// negócio dele (upload, permissões, histórico). Ver plano/nota no HTML.
+import { configurarEventosPagamentos } from './Pagamentos.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -52,8 +56,16 @@ function ligarBuscaSelectOculto(idInputBusca, idSelectOculto, idListaSugestoes, 
             selectOculto.value = o.value;
             selectOculto.dispatchEvent(new Event('change', { bubbles: true }));
         },
-        { mensagemVazia: mensagemVazia || "Nenhum resultado encontrado" }
+        // minChars:0 — sem isso, clicar no campo vazio não mostra nada (só digitando 2+
+        // letras a busca dispara), parecendo que as opções "não carregaram".
+        { mensagemVazia: mensagemVazia || "Nenhum resultado encontrado", minChars: 0 }
     );
+
+    // Ao focar um campo ainda vazio, mostra a lista inteira de uma vez (dispara o mesmo
+    // "input" que a busca escuta, só que com termo vazio == sem filtro).
+    inputBusca.addEventListener("focus", () => {
+        if (!inputBusca.value.trim()) inputBusca.dispatchEvent(new Event("input"));
+    });
 }
 
 // Sincroniza o texto exibido no <input> de busca com a opção atualmente selecionada no
@@ -95,6 +107,9 @@ function aplicarBuscaIncremental(seletor, placeholder, extra) {
 
 // Mapa DESCRICAO (maiúscula) -> lançamento completo, usado pela busca de descrição
 let mapaDescricaoLancamento = {};
+// Mapa idlancamento -> lançamento completo — mesmos objetos de mapaDescricaoLancamento,
+// só que indexados por id (usado pelo duplo clique na Visão Geral, ver vgAbrirParaEdicao).
+let mapaLancamentoPorId = {};
 let buscaDescricaoLigada = false;
 
 // Campo de Descrição: busca com sugestões (padrão do sistema, ver
@@ -107,8 +122,10 @@ async function configurarComboboxDescricao() {
         if (!lista || !Array.isArray(lista)) return;
 
         mapaDescricaoLancamento = {};
+        mapaLancamentoPorId = {};
         lista.forEach(item => {
             mapaDescricaoLancamento[String(item.descricao).trim().toUpperCase()] = item;
+            mapaLancamentoPorId[item.idlancamento] = item;
         });
 
         const el = document.querySelector("#descricao");
@@ -133,8 +150,18 @@ async function configurarComboboxDescricao() {
                     renderizarPrevia();
                     validarFormulario();
                 },
-                { mensagemVazia: "Nenhum lançamento encontrado — segue como cadastro novo" }
+                // minChars:0 — sem isso, clicar no campo vazio não mostra nada (só digitando
+                // 2+ letras a busca dispara), parecendo que os lançamentos cadastrados "não
+                // carregaram". O listener de foco abaixo dispara a mesma busca com termo vazio
+                // pra já mostrar a lista inteira assim que o campo ganha foco.
+                { mensagemVazia: "Nenhum lançamento encontrado — segue como cadastro novo", minChars: 0 }
             );
+
+            // Ao focar um campo ainda vazio, mostra a lista inteira de uma vez (dispara o
+            // mesmo "input" que a busca escuta, só que com termo vazio == sem filtro).
+            el.addEventListener("focus", () => {
+                if (!el.value.trim()) el.dispatchEvent(new Event("input"));
+            });
 
             // Descrição nova digitada (sem escolher sugestão) também precisa revalidar o formulário
             el.addEventListener("input", () => validarFormulario());
@@ -175,9 +202,9 @@ if (typeof window.LancamentoOriginal === "undefined") {
 async function verificaLancamento() {
     console.log("Carregando Lançamento...");
 
-    const botaoEnviar = document.querySelector("#Enviar");
-    const botaoPesquisar = document.querySelector("#Pesquisar");
-    const botaoLimpar = document.querySelector("#Limpar");
+    const botaoEnviar = document.querySelector("#lcLancEnviar");
+    const botaoPesquisar = document.querySelector("#lcLancPesquisar");
+    const botaoLimpar = document.querySelector("#lcLancLimpar");
     
     const checkIndeterminado = document.querySelector("#indeterminado");
     const campoTermino = document.querySelector("#dtTermino");    
@@ -190,6 +217,7 @@ async function verificaLancamento() {
     carregarSelectCentroCusto();
     configurarComboboxDescricao();
     configurarEventosVinculo();
+    configurarVisaoGeralLancamentos();
 
     // --- GATILHOS AUTOMÁTICOS ---
     // Adicionamos os novos campos: #idVinculo, #empresaPagadora, #centroCusto
@@ -250,6 +278,15 @@ async function verificaLancamento() {
     // --- LOGICA DE ENVIO COM VALIDAÇÃO DE DESCRIÇÃO ---
     botaoEnviar.onclick = async (e) => {
         e.preventDefault();
+
+        const errosObrigatorios = coletarErrosLancamento();
+        if (errosObrigatorios.length) {
+            return Swal.fire({
+                icon: "warning",
+                title: "Campos obrigatórios faltando",
+                html: "Preencha antes de enviar:<br>- " + errosObrigatorios.join("<br>- "),
+            });
+        }
 
         // Captura segura de elementos
         const elIdLancamento = document.querySelector("#idLancamento");
@@ -518,35 +555,37 @@ function calcularParcelasPelaDataTermino() {
 }
 
 
-function calcularPreviaParcelas(dados) {
-    const parcelas = [];
-    if (!dados.vctobase || dados.vlrestimado <= 0) return parcelas;
+// Interpreta uma data pegando só os componentes de calendário (ano/mês/dia), nunca
+// via `new Date(string)` direto — uma string sem fuso ('YYYY-MM-DD', de <input
+// type=date>) é lida como hora local, e uma com 'Z' (vinda do backend, JSON de
+// coluna `date`) como UTC; num mesmo dia do mês isso pode virar dias diferentes
+// dependendo do fuso. Sempre ancorada ao meio-dia local (mesmo truque do
+// Main.js/expandirOcorrenciasNoAno) pra nunca cair num "23h do dia anterior" por
+// causa de horário de verão.
+function dataCalendario(valor) {
+    if (!valor) return null;
+    const [ano, mes, dia] = String(valor).slice(0, 10).split('-').map(Number);
+    if (!ano || !mes || !dia) return null;
+    return new Date(ano, mes - 1, dia, 12, 0, 0);
+}
 
-    // Ajuste para evitar problemas de fuso horário na data (ISO para Local)
-    let dataAtual = new Date(dados.vctobase + 'T00:00:00');
-    const anoSistema = 2026; 
-
-    let limite;
-    if (dados.indeterminado) {
-        // Se for fixo/indeterminado, projetamos até o final do ano atual
-        limite = new Date(anoSistema, 11, 31); 
-    } else {
-        // Se for parcelado, usamos a data de término ou 1 ano de segurança
-        limite = dados.dttermino ? new Date(dados.dttermino + 'T00:00:00') : new Date(dataAtual.getFullYear() + 1, dataAtual.getMonth(), dataAtual.getDate());
-    }
+// Gera datas sucessivas a partir de `vctoBaseValor`, avançando conforme
+// `periodicidade` — extraído de calcularPreviaParcelas pra ser reaproveitado pela
+// projeção de ocorrências da Visão Geral (ver mais abaixo). `paraCadaOcorrencia(data,
+// numero)` decide quando parar (retornar false encerra o laço) — cada chamador tem
+// seu próprio critério de limite (data-fim, qtde de parcelas, etc).
+function gerarDatasRecorrentes(vctoBaseValor, periodicidade, paraCadaOcorrencia) {
+    const datas = [];
+    let dataAtual = dataCalendario(vctoBaseValor);
+    if (!dataAtual) return datas;
 
     let contador = 1;
-    // Trava de segurança para evitar loops infinitos (máximo 10 anos ou 120 parcelas)
-    while (dataAtual <= limite && contador <= 120) {
-        parcelas.push({
-            numero: contador,
-            vencimento: dataAtual.toLocaleDateString('pt-BR'),
-            valor: dados.vlrestimado,
-            dataObjeto: new Date(dataAtual) // Útil para filtros posteriores
-        });
+    // Trava de segurança pra evitar loop infinito (~50 anos de periodicidade mensal)
+    while (contador <= 600) {
+        if (!paraCadaOcorrencia(dataAtual, contador)) break;
+        datas.push({ numero: contador, data: new Date(dataAtual) });
 
-        // Incremento conforme periodicidade
-        switch (dados.periodicidade.toUpperCase()) {
+        switch (String(periodicidade || 'MENSAL').toUpperCase()) {
             case 'SEMANAL':
                 dataAtual.setDate(dataAtual.getDate() + 7);
                 break;
@@ -562,12 +601,39 @@ function calcularPreviaParcelas(dados) {
             case 'ANUAL':
                 dataAtual.setFullYear(dataAtual.getFullYear() + 1);
                 break;
-            default: // MENSAL
+            default: // MENSAL (e BIMESTRAL, que nunca teve case próprio aqui)
                 dataAtual.setMonth(dataAtual.getMonth() + 1);
         }
         contador++;
     }
-    return parcelas;
+    return datas;
+}
+
+function calcularPreviaParcelas(dados) {
+    if (!dados.vctobase || dados.vlrestimado <= 0) return [];
+
+    const baseData = dataCalendario(dados.vctobase);
+    const anoAtual = new Date().getFullYear(); // era hard-coded (2026) — quebrava a prévia a partir de 2027
+
+    let limite;
+    if (dados.indeterminado) {
+        // Se for fixo/indeterminado, projetamos até o final do ano atual
+        limite = new Date(anoAtual, 11, 31, 12, 0, 0);
+    } else {
+        // Se for parcelado, usamos a data de término ou 1 ano de segurança
+        limite = dados.dttermino
+            ? dataCalendario(dados.dttermino)
+            : new Date(baseData.getFullYear() + 1, baseData.getMonth(), baseData.getDate(), 12, 0, 0);
+    }
+
+    // Trava de segurança pra evitar loops infinitos (máximo 120 parcelas)
+    return gerarDatasRecorrentes(dados.vctobase, dados.periodicidade, (d, n) => d <= limite && n <= 120)
+        .map(({ numero, data }) => ({
+            numero,
+            vencimento: data.toLocaleDateString('pt-BR'),
+            valor: dados.vlrestimado,
+            dataObjeto: data // Útil para filtros posteriores
+        }));
 }
 
 
@@ -1123,11 +1189,18 @@ function limparCamposLancamento() {
 }
 
 
-function validarFormulario() {
+// Lista os campos obrigatórios que ainda faltam preencher — reaproveitada tanto
+// pelo aviso visual (validarFormulario, abaixo) quanto pelo bloqueio de verdade
+// no clique de Enviar (ver botaoEnviar.onclick): o botão fica sempre clicável
+// (nunca disabled) porque um lançamento antigo pode ter vindo do banco sem
+// Centro de Custo/Empresa Pagadora/Vínculo preenchidos — desabilitar o botão
+// nesses casos travava até uma simples correção de valor, sem dar nenhuma pista
+// visível do motivo. Agora o clique sempre roda, e só bloqueia o envio (com um
+// Swal explicando o que falta) se algo realmente estiver em branco.
+function coletarErrosLancamento() {
     const valor = window.desformatarReais(document.querySelector("#vlrEstimado").value);
     const vcto = document.querySelector("#vctoBase").value;
 
-    // --- NOVOS CAMPOS FINANCEIROS ---
     const idPlanoContas = document.querySelector("#idPlanoContasSelect").value;
     const centroCusto = document.querySelector("#centroCusto").value;
     const empresaPag = document.querySelector("#empresaPagadora").value;
@@ -1136,23 +1209,19 @@ function validarFormulario() {
     const indeterminado = document.querySelector("#indeterminado")?.checked;
     const dtTermino = document.querySelector("#dtTermino")?.value;
     const qtdeParcelas = document.querySelector("#qtdeParcelas")?.value;
-    const botao = document.querySelector("#Enviar");
 
-    // Elementos de vínculo
     const checksVinculo = document.querySelectorAll('.tipo-vinculo:checked');
     const perfilSelecionado = document.querySelector(".perfil-radio:checked");
     const vinculoSelecionado = document.querySelector("#idVinculo");
 
-    let erros = [];
+    const erros = [];
 
-    // 1. Validações Básicas (Financeiro)
     if (!valor || valor <= 0) erros.push("Valor Estimado");
     if (!vcto) erros.push("Vencimento Base");
     if (!idPlanoContas) erros.push("Plano de Contas");
     if (!centroCusto) erros.push("Centro de Custo");
     if (!empresaPag) erros.push("Empresa Pagadora");
-    
-    // 2. Validação de Vínculo
+
     if (checksVinculo.length > 0) {
         const tipo = checksVinculo[0].value;
 
@@ -1165,44 +1234,622 @@ function validarFormulario() {
             erros.push(`Nome do ${labelNome}`);
         }
     } else {
-        // Se o vínculo é fixo e obrigatório, você pode exigir que ao menos um esteja marcado
         erros.push("Tipo de Vínculo (Cliente/Fornecedor/Funcionário)");
     }
 
-    // 3. Regra para Parcelados
     if (tipoRepeticao === "PARCELADO") {
         if (!indeterminado && !dtTermino && (!qtdeParcelas || qtdeParcelas <= 0)) {
             erros.push("Qtde de Parcelas ou Data de Término");
         }
     }
 
-    // 4. Atualização do Botão
-    if (botao) {
-        if (erros.length === 0) {
-            botao.disabled = false;
-            botao.style.opacity = "1";
-            botao.style.cursor = "pointer";
-            botao.title = "Tudo pronto para enviar";
-        } else {
-            botao.disabled = true;
-            botao.style.opacity = "0.5";
-            botao.style.cursor = "not-allowed";
-            botao.title = "Campos obrigatórios faltantes: \n- " + erros.join("\n- ");
-        }
+    return erros;
+}
+
+function validarFormulario() {
+    const botao = document.querySelector("#lcLancEnviar");
+    if (!botao) return;
+    const erros = coletarErrosLancamento();
+    botao.title = erros.length ? "Campos obrigatórios faltantes: \n- " + erros.join("\n- ") : "Tudo pronto para enviar";
+}
+
+// ===================== ABA "VISÃO GERAL" =====================
+// Lista os lançamentos com filtros (plano de contas, centro de custo, nome, vínculo,
+// período de vencimento/pagamento) — mesmo padrão da Visão Geral de Faturamento
+// (Faturamento.js), adaptado pra lançamentos financeiros. Diferença central:
+// lançamentos FIXO/PARCELADO recorrentes só ganham uma linha em `pagamentos` quando
+// alguém baixa aquele mês — meses futuros não têm registro físico. Por isso o período
+// de vencimento também projeta as ocorrências ainda não geradas (mesma regra de
+// Main.js/expandirOcorrenciasNoAno, reaproveitando aqui gerarDatasRecorrentes), e o
+// período de pagamento só bate em parcelas já realmente lançadas/pagas.
+
+let vgListaBruta = [];   // resposta crua do backend (1 linha por lançamento x pagamento)
+let vgLinhasAtuais = []; // ocorrências (reais+projetadas) já filtradas por período, prontas pra tabela
+let vgOrdenacao = { campo: null, direcao: 1 };
+let vgFiltrosCarregados = false;
+let vgFiltroEmpresaPagadoraPopulado = false;
+let vgEventosLigados = false;
+
+const VG_STATUS_LABEL = { pago: 'Pago', pendente: 'A vencer', atrasado: 'Atrasado', previsto: 'Previsto' };
+const VG_CAMPOS_NUMERICOS = new Set(['valor']);
+const VG_CAMPOS_DATA = new Set(['dtvcto', 'dtpgto']);
+
+function vgMoeda(n) {
+    return 'R$ ' + (typeof window.formatarReaisValor === 'function' ? window.formatarReaisValor(n || 0) : (parseFloat(n) || 0).toFixed(2));
+}
+
+function vgMascararData(input) {
+    const digitos = input.value.replace(/\D/g, '').slice(0, 8);
+    if (digitos.length > 4) input.value = `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
+    else if (digitos.length > 2) input.value = `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+    else input.value = digitos;
+}
+
+function vgDataBRParaISO(dataBR) {
+    if (!dataBR || !dataBR.includes('/')) return null;
+    const [d, m, a] = dataBR.split('/');
+    if (!d || !m || !a || a.length < 4) return null;
+    return `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function vgFormatarDataBR(valor) {
+    const d = dataCalendario(valor);
+    return d ? d.toLocaleDateString('pt-BR') : '—';
+}
+
+// Resolve um dos dois grupos de período (Vencimento/Pagamento): só usa "Ano atual"
+// quando os campos De/Até do próprio grupo estão vazios — mesma regra do Faturamento
+// (periodoAnoAtualSeVazio). Pode devolver {de:null, ate:null} (sem filtro nenhum).
+function vgPeriodo(checkboxId, deId, ateId) {
+    const marcado = document.getElementById(checkboxId).checked;
+    const de = document.getElementById(deId).value.trim();
+    const ate = document.getElementById(ateId).value.trim();
+    if (de || ate) return { de: vgDataBRParaISO(de), ate: vgDataBRParaISO(ate) };
+    if (!marcado) return { de: null, ate: null };
+    const ano = new Date().getFullYear();
+    return { de: `${ano}-01-01`, ate: `${ano}-12-31` };
+}
+
+// Vencimento é sempre resolvido a um intervalo concreto (diferente de Pagamento, que
+// pode ficar totalmente livre) — a projeção de FIXO/PARCELADO precisa de algum teto,
+// senão um lançamento antigo sem parcela recente viraria uma lista infinita de
+// "previsto" desde o início dele. Sem período informado, cai no ano corrente.
+function vgPeriodoVencimento() {
+    const resolvido = vgPeriodo('lcVgVencimentoAnoAtual', 'lcVgVencimentoDe', 'lcVgVencimentoAte');
+    if (resolvido.de && resolvido.ate) return resolvido;
+    const ano = new Date().getFullYear();
+    return { de: `${ano}-01-01`, ate: `${ano}-12-31` };
+}
+
+function vgDescricaoPeriodoImpressao(checkboxId, deId, ateId) {
+    const marcado = document.getElementById(checkboxId).checked;
+    const de = document.getElementById(deId).value.trim();
+    const ate = document.getElementById(ateId).value.trim();
+    if (marcado && !de && !ate) return `Ano atual (${new Date().getFullYear()})`;
+    if (!de && !ate) return 'Todos';
+    return `${de || '—'} a ${ate || '—'}`;
+}
+
+function vgMontarQueryFiltros() {
+    const params = new URLSearchParams();
+    const idlancamento = document.getElementById('lcVgFiltroDescricao').value;
+    const idplanocontas = document.getElementById('lcVgPlanoContasSelect').value;
+    const idcentrocusto = document.getElementById('lcVgCentroCustoSelect').value;
+    const idempresapagadora = document.getElementById('lcVgFiltroEmpresaPagadora').value;
+    const tipoVinculoCheck = document.querySelector('.tipo-vinculo-vg:checked');
+    const idvinculo = document.getElementById('lcVgFiltroVinculo').value;
+
+    if (idlancamento) params.set('idlancamento', idlancamento);
+    if (idplanocontas) params.set('idplanocontas', idplanocontas);
+    if (idcentrocusto) params.set('idcentrocusto', idcentrocusto);
+    if (idempresapagadora) params.set('idempresapagadora', idempresapagadora);
+    // Marcar só o tipo (Cliente/Fornecedor/Funcionário), sem escolher um vínculo
+    // específico ("Todos" no select), já filtra por esse tipo inteiro — antes só
+    // filtrava quando os dois vinham preenchidos, e marcar só o tipo não fazia nada.
+    if (tipoVinculoCheck) {
+        params.set('tipovinculo', tipoVinculoCheck.value);
+        if (idvinculo) params.set('idvinculo', idvinculo);
     }
+    return params.toString();
+}
+
+// Plano de Contas / Centro de Custo do filtro — selects visíveis normais (não o
+// padrão input-de-busca-com-sugestões do cadastro: aquele só mostra opções depois de
+// digitar 2+ caracteres e nada aparece só de focar o campo, o que é ótimo pra reduzir
+// uma lista longona no cadastro mas é ruim pra um filtro — aqui a pessoa quer ver tudo
+// já ao abrir o combo).
+async function vgCarregarFiltrosSelects() {
+    if (vgFiltrosCarregados) return;
+    vgFiltrosCarregados = true;
+
+    try {
+        const lancamentos = await fetchComToken('/lancamentos');
+        const select = document.getElementById('lcVgFiltroDescricao');
+        select.innerHTML = '<option value="">Todos</option>' +
+            (Array.isArray(lancamentos) ? lancamentos : [])
+                .map((l) => `<option value="${l.idlancamento}">${l.descricao}</option>`).join('');
+    } catch (error) {
+        console.error('Erro ao carregar lançamentos (Visão Geral):', error);
+    }
+
+    try {
+        const planos = await fetchComToken('/planocontas');
+        const select = document.getElementById('lcVgPlanoContasSelect');
+        select.innerHTML = '<option value="">Todos</option>' +
+            (Array.isArray(planos) ? planos : []).filter((p) => p.ativo)
+                .map((p) => `<option value="${p.idplanocontas}">${p.codigo} - ${p.nmplanocontas}</option>`).join('');
+    } catch (error) {
+        console.error('Erro ao carregar plano de contas (Visão Geral):', error);
+    }
+
+    try {
+        const centros = await fetchComToken('/lancamentos/centrocusto');
+        const select = document.getElementById('lcVgCentroCustoSelect');
+        select.innerHTML = '<option value="">Todos</option>' +
+            (Array.isArray(centros) ? centros : []).map((c) => `<option value="${c.idcentrocusto}">${c.nmcentrocusto}</option>`).join('');
+    } catch (error) {
+        console.error('Erro ao carregar centro de custo (Visão Geral):', error);
+    }
+}
+
+// Empresa Pagadora do filtro: montado a partir da 1ª carga (sem filtro nenhum) da
+// própria Visão Geral, não de uma lista separada — só interessam aqui as empresas que
+// realmente aparecem no ambiente atual (próprias + "emprestadas" do ambiente 1, ver
+// GET /lancamentos/visao-geral). Só roda uma vez: um filtro aplicado depois não pode
+// encolher as próprias opções do combo (mesma regra de popularFiltrosPendentes em
+// Faturamento.js).
+function vgPopularFiltroEmpresaPagadora(listaBruta) {
+    if (vgFiltroEmpresaPagadoraPopulado) return;
+    vgFiltroEmpresaPagadoraPopulado = true;
+
+    const mapa = new Map();
+    listaBruta.forEach((l) => {
+        if (l.idempresapagadora != null && !mapa.has(l.idempresapagadora)) {
+            mapa.set(l.idempresapagadora, l.empresapagadora_nome || `#${l.idempresapagadora}`);
+        }
+    });
+    const opcoes = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+
+    const select = document.getElementById('lcVgFiltroEmpresaPagadora');
+    select.innerHTML = '<option value="">Todas</option>' +
+        opcoes.map(([id, nome]) => `<option value="${id}">${nome}</option>`).join('');
+}
+
+// Vínculo do filtro: mesmo conceito do cadastro (checkbox tipo-rádio + select que
+// carrega ao escolher o tipo, via GET /lancamentos/vinculo/:tipo já existente), só que
+// mais simples — sem o sub-filtro de perfil (Registrado/Sem Registro), desnecessário
+// pra um filtro de pesquisa. Classe própria (.tipo-vinculo-vg) pra não cair nos
+// querySelectorAll('.tipo-vinculo') do cadastro (configurarEventosVinculo).
+function vgConfigurarFiltroVinculo() {
+    const checks = document.querySelectorAll('.tipo-vinculo-vg');
+    const select = document.getElementById('lcVgFiltroVinculo');
+    if (!select || !checks.length) return;
+
+    const rotasPlurais = { cliente: 'clientes', fornecedor: 'fornecedores', funcionario: 'funcionarios' };
+
+    checks.forEach((check) => {
+        check.addEventListener('change', async function () {
+            if (!this.checked) {
+                select.innerHTML = '<option value="">Todos</option>';
+                select.disabled = true;
+                return;
+            }
+            checks.forEach((c) => { if (c !== this) c.checked = false; });
+            select.disabled = true;
+            select.innerHTML = '<option value="">Carregando...</option>';
+            try {
+                const dados = await fetchComToken(`/lancamentos/vinculo/${rotasPlurais[this.value]}`);
+                select.innerHTML = '<option value="">Todos</option>' +
+                    (dados || []).map((item) => `<option value="${item.id}">${item.nome}</option>`).join('');
+            } catch (error) {
+                console.error('Erro ao carregar vínculo (Visão Geral):', error);
+                select.innerHTML = '<option value="">Erro ao carregar</option>';
+            } finally {
+                select.disabled = false;
+            }
+        });
+    });
+}
+
+// Chave usada pra "casar" uma ocorrência projetada com uma parcela real já gerada, pra
+// não contar a mesma competência duas vezes — mesmo critério (lançamento+ano+mês) que
+// o Main.js já usa em expandirOcorrenciasNoAno/ocupacaoMensal.
+function vgChaveCompetencia(idlancamento, data) {
+    return `${idlancamento}-${data.getFullYear()}-${data.getMonth()}`;
+}
+
+function vgCamposComuns(base) {
+    return {
+        idlancamento: base.idlancamento, descricao: base.descricao,
+        nmplanocontas: base.nmplanocontas, planocontas_codigo: base.planocontas_codigo,
+        nmcentrocusto: base.nmcentrocusto, nome_vinculo: base.nome_vinculo,
+        tipovinculo: base.tipovinculo, empresapagadora_nome: base.empresapagadora_nome,
+        // "Emprestado" do ambiente 1 (ver comentário na rota /visao-geral) — proprioambiente
+        // vem do backend já como boolean (comparação l.idempresa = $1 feita em SQL).
+        proprioambiente: base.proprioambiente !== false, ambienteorigem_nome: base.ambienteorigem_nome,
+    };
+}
+
+// Monta, por lançamento, a lista de ocorrências (reais + projetadas) dentro do
+// período de vencimento resolvido (sempre concreto — ver vgPeriodoVencimento).
+function vgExpandirOcorrencias(listaBruta, periodoVencimento) {
+    const porLancamento = new Map();
+    listaBruta.forEach((linha) => {
+        if (!porLancamento.has(linha.idlancamento)) porLancamento.set(linha.idlancamento, []);
+        porLancamento.get(linha.idlancamento).push(linha);
+    });
+
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const de = dataCalendario(periodoVencimento.de);
+    const ate = dataCalendario(periodoVencimento.ate);
+    const linhasFinais = [];
+
+    porLancamento.forEach((linhas) => {
+        const base = linhas[0]; // dados do lançamento são iguais em todas as linhas (join 1:N)
+        const chavesReais = new Set();
+
+        linhas.forEach((linha) => {
+            if (!linha.idpagamento) return; // linha "vazia" do LEFT JOIN (lançamento sem nenhuma parcela ainda)
+            const dataVcto = dataCalendario(linha.dtvcto);
+            if (dataVcto) chavesReais.add(vgChaveCompetencia(linha.idlancamento, dataVcto));
+
+            let status = 'pendente';
+            if (linha.status === 'pago') status = 'pago';
+            else if (dataVcto && dataVcto < hoje) status = 'atrasado';
+
+            linhasFinais.push({
+                ...vgCamposComuns(base),
+                dtvcto: linha.dtvcto, dtpgto: linha.dtpgto,
+                numparcela: linha.numparcela, totalparcelas: linha.totalparcelas,
+                valor: parseFloat(linha.vlrreal ?? linha.vlrprevisto ?? base.vlrestimado) || 0,
+                vlrpago: parseFloat(linha.vlrpago) || 0,
+                status, origem: 'real',
+            });
+        });
+
+        const ehFixo = base.tiporepeticao === 'FIXO' || base.indeterminado === true;
+        const ehParcelado = base.tiporepeticao === 'PARCELADO';
+        if (!ehFixo && !ehParcelado) return; // sem repetição conhecida: só a parcela real (se houver) entra
+
+        const maxN = ehFixo ? Infinity : (parseInt(base.qtdeparcelas, 10) || 1);
+        const termino = base.dttermino ? dataCalendario(base.dttermino) : null;
+
+        gerarDatasRecorrentes(base.vctobase, base.periodicidade, (d, n) => {
+            if (n > maxN) return false;
+            if (termino && d > termino) return false;
+            return d <= ate;
+        }).forEach(({ numero, data }) => {
+            if (data < de) return;
+            if (chavesReais.has(vgChaveCompetencia(base.idlancamento, data))) return; // já tem parcela real nesse mês
+            linhasFinais.push({
+                ...vgCamposComuns(base),
+                dtvcto: data.toISOString(), dtpgto: null,
+                numparcela: numero, totalparcelas: ehParcelado ? base.qtdeparcelas : null,
+                valor: parseFloat(base.vlrestimado) || 0, vlrpago: 0,
+                status: 'previsto', origem: 'projetado',
+            });
+        });
+    });
+
+    return linhasFinais;
+}
+
+function vgAplicarFiltrosPeriodo(linhas, periodoVencimento, periodoPagamento) {
+    const vDe = dataCalendario(periodoVencimento.de);
+    const vAte = dataCalendario(periodoVencimento.ate);
+    const pDe = dataCalendario(periodoPagamento.de);
+    const pAte = dataCalendario(periodoPagamento.ate);
+
+    return linhas.filter((l) => {
+        if (vDe && vAte) {
+            const d = dataCalendario(l.dtvcto);
+            if (!d || d < vDe || d > vAte) return false;
+        }
+        if (pDe && pAte) {
+            const d = dataCalendario(l.dtpgto);
+            if (!d || d < pDe || d > pAte) return false;
+        }
+        return true;
+    });
+}
+
+// "Previsto" (ocorrência projetada, ainda sem parcela real gerada) conta como
+// "Pendente" pra esse filtro — pro usuário as duas são igualmente "ainda não venceu,
+// ainda não foi paga"; a distinção real/projetado é só um detalhe técnico interno
+// (ver vgExpandirOcorrencias), não algo que faça sentido filtrar separadamente aqui.
+const VG_STATUS_PARA_FILTRO = { pago: 'pago', atrasado: 'atrasado', pendente: 'pendente', previsto: 'pendente' };
+
+function vgLerFiltroStatus() {
+    const marcados = new Set();
+    document.querySelectorAll('.lc-vg-status:checked').forEach((c) => marcados.add(c.value));
+    return marcados;
+}
+
+function vgAplicarFiltroStatus(linhas, statusMarcados) {
+    return linhas.filter((l) => statusMarcados.has(VG_STATUS_PARA_FILTRO[l.status] || l.status));
+}
+
+function vgCalcularTotais(linhas) {
+    return linhas.reduce((acc, l) => {
+        const valor = parseFloat(l.valor) || 0;
+        acc.previsto += valor;
+        if (l.status === 'pago') acc.pago += parseFloat(l.vlrpago) || valor;
+        else {
+            acc.aPagar += valor;
+            if (l.status === 'atrasado') acc.vencido += valor;
+        }
+        return acc;
+    }, { previsto: 0, pago: 0, aPagar: 0, vencido: 0 });
+}
+
+function vgAtualizarTotais(linhas) {
+    const t = vgCalcularTotais(linhas);
+    document.getElementById('lcVgTotalPrevisto').textContent = vgMoeda(t.previsto);
+    document.getElementById('lcVgTotalPago').textContent = vgMoeda(t.pago);
+    document.getElementById('lcVgTotalAPagar').textContent = vgMoeda(t.aPagar);
+    document.getElementById('lcVgTotalVencido').textContent = vgMoeda(t.vencido);
+}
+
+function vgRenderizarLinhas(linhas) {
+    const tbody = document.getElementById('lcVgTabelaBody');
+    if (!linhas.length) {
+        tbody.innerHTML = '<tr><td colspan="10">Nenhum lançamento encontrado para os filtros selecionados.</td></tr>';
+        vgAtualizarTotais([]);
+        return;
+    }
+    tbody.innerHTML = linhas.map((l) => `
+        <tr class="${l.proprioambiente ? 'lc-row-editavel' : ''}" data-idlancamento="${l.idlancamento}" data-proprioambiente="${l.proprioambiente}"
+            title="${l.proprioambiente ? 'Duplo clique para abrir esse lançamento' : 'Cadastrado em outro ambiente — só visualização por aqui'}">
+            <td>${l.descricao || '—'}</td>
+            <td>${l.nmplanocontas ? `${l.planocontas_codigo ? l.planocontas_codigo + ' - ' : ''}${l.nmplanocontas}` : '—'}</td>
+            <td>${l.nmcentrocusto || '—'}</td>
+            <td>${l.empresapagadora_nome || '—'}${l.proprioambiente ? '' : ` <span class="lc-chip emprestado" title="Cadastrado no ambiente ${l.ambienteorigem_nome || '—'}, só visualização por aqui">Ambiente ${l.ambienteorigem_nome || '—'}</span>`}</td>
+            <td>${l.nome_vinculo || '—'}</td>
+            <td>${vgFormatarDataBR(l.dtvcto)}</td>
+            <td>${l.numparcela ? `${l.numparcela}${l.totalparcelas ? '/' + l.totalparcelas : ''}` : '—'}</td>
+            <td class="lc-num">${vgMoeda(l.valor)}</td>
+            <td>${l.dtpgto ? vgFormatarDataBR(l.dtpgto) : '—'}</td>
+            <td><span class="lc-chip ${l.status}">${VG_STATUS_LABEL[l.status] || l.status}</span></td>
+        </tr>`).join('');
+    vgAtualizarTotais(linhas);
+}
+
+function vgAplicarOrdenacaoAtual(lista) {
+    if (!vgOrdenacao.campo) return lista;
+    const campo = vgOrdenacao.campo;
+    const numerico = VG_CAMPOS_NUMERICOS.has(campo);
+    const data = VG_CAMPOS_DATA.has(campo);
+
+    return [...lista].sort((a, b) => {
+        let va = a[campo]; let vb = b[campo];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (numerico) { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+        else if (data) { va = new Date(va).getTime(); vb = new Date(vb).getTime(); }
+        else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+        if (va < vb) return -1 * vgOrdenacao.direcao;
+        if (va > vb) return 1 * vgOrdenacao.direcao;
+        return 0;
+    });
+}
+
+function vgAtualizarSetasOrdenacao() {
+    document.querySelectorAll('#lcVgTabelaHead th[data-sort]').forEach((th) => {
+        const seta = th.querySelector('.lc-seta');
+        if (!seta) return;
+        seta.textContent = th.dataset.sort === vgOrdenacao.campo ? (vgOrdenacao.direcao === 1 ? '▲' : '▼') : '';
+    });
+}
+
+function vgOrdenar(campo) {
+    vgOrdenacao.direcao = (vgOrdenacao.campo === campo) ? -vgOrdenacao.direcao : 1;
+    vgOrdenacao.campo = campo;
+    vgAtualizarSetasOrdenacao();
+    vgRenderizarLinhas(vgAplicarOrdenacaoAtual(vgLinhasAtuais));
+}
+
+async function carregarVisaoGeralLancamentos() {
+    const tbody = document.getElementById('lcVgTabelaBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="10">Carregando...</td></tr>';
+
+    try {
+        const query = vgMontarQueryFiltros();
+        vgListaBruta = await fetchComToken(`/lancamentos/visao-geral${query ? '?' + query : ''}`);
+        vgPopularFiltroEmpresaPagadora(vgListaBruta || []);
+
+        const periodoVencimento = vgPeriodoVencimento();
+        const periodoPagamento = vgPeriodo('lcVgPagamentoAnoAtual', 'lcVgPagamentoDe', 'lcVgPagamentoAte');
+
+        let linhas = vgExpandirOcorrencias(vgListaBruta || [], periodoVencimento);
+        linhas = vgAplicarFiltrosPeriodo(linhas, periodoVencimento, periodoPagamento);
+        linhas = vgAplicarFiltroStatus(linhas, vgLerFiltroStatus());
+
+        vgLinhasAtuais = linhas;
+        vgOrdenacao = { campo: null, direcao: 1 };
+        vgAtualizarSetasOrdenacao();
+        vgRenderizarLinhas(linhas);
+    } catch (error) {
+        console.error('Erro ao carregar visão geral de lançamentos:', error);
+        tbody.innerHTML = '<tr><td colspan="10">Erro ao carregar lançamentos.</td></tr>';
+    }
+}
+
+function vgLimparFiltros() {
+    document.getElementById('lcVgFiltroDescricao').value = '';
+    document.getElementById('lcVgPlanoContasSelect').value = '';
+    document.getElementById('lcVgCentroCustoSelect').value = '';
+    document.getElementById('lcVgFiltroEmpresaPagadora').value = '';
+    document.querySelectorAll('.tipo-vinculo-vg').forEach((c) => { c.checked = false; });
+    const selectVinculo = document.getElementById('lcVgFiltroVinculo');
+    selectVinculo.innerHTML = '<option value="">Todos</option>';
+    selectVinculo.disabled = true;
+    ['lcVgVencimentoDe', 'lcVgVencimentoAte', 'lcVgPagamentoDe', 'lcVgPagamentoAte'].forEach((id) => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('lcVgVencimentoAnoAtual').checked = true;
+    document.getElementById('lcVgPagamentoAnoAtual').checked = false;
+    document.querySelectorAll('.lc-vg-status').forEach((c) => { c.checked = true; });
+    carregarVisaoGeralLancamentos();
+}
+
+function vgEscaparAtributo(texto) { return String(texto ?? '').replace(/"/g, '&quot;'); }
+
+function vgCabecalhoImpressao(subtitulo, filtros) {
+    return `
+        <div class="lc-print-topo">Lançamentos Financeiros</div>
+        <div class="lc-print-barra-titulo">Visão Geral — ${vgEscaparAtributo(subtitulo)}</div>
+        <div class="lc-print-filtros">${filtros.map((f) => `<span class="lc-print-badge">${vgEscaparAtributo(f)}</span>`).join('')}</div>`;
+}
+
+function vgImprimirHtmlEmIframe(conteudoHtml) {
+    const iframe = document.getElementById('lcPrintIframe');
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lançamentos — Visão Geral</title>
+        <style>
+            @page { size: A4 landscape; margin: 1cm; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+            body { font-family: Arial, sans-serif; color: #222; margin: 0; }
+            .lc-print-topo { background: #eef0f2; padding: 10px 16px; border-radius: 6px 6px 0 0; text-align: center; font-size: 24px; font-weight: bold; }
+            .lc-print-barra-titulo { background: #7e7e7e; color: #fff; font-size: 13px; font-weight: bold; padding: 6px 16px; }
+            .lc-print-filtros { margin: 8px 16px 14px; }
+            .lc-print-badge { display: inline-block; background: #eef0f2; border: 1px solid #c8ccd0; border-radius: 12px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 11px; color: #7e7e7e; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 0 0 12px; }
+            th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
+            th { background: #ddd; color: #000; font-weight: bold; }
+            tbody tr:nth-child(even) { background: #f5f6f7; }
+            td.num, th.num { text-align: right; }
+            tr.total-geral td { background: #7e7e7e; color: #fff; font-weight: bold; }
+        </style>
+    </head><body>${conteudoHtml}</body></html>`);
+    doc.close();
+    // Pequeno atraso pra garantir que o iframe renderizou antes de imprimir.
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
+}
+
+function vgTextoSelecionado(idSelect) {
+    const select = document.getElementById(idSelect);
+    return select.options[select.selectedIndex]?.textContent || 'Todos';
+}
+
+const VG_STATUS_FILTRO_LABEL = { pendente: 'Pendentes', atrasado: 'Vencidas', pago: 'Pagas' };
+
+function vgDescricaoFiltroStatus() {
+    const marcados = ['pendente', 'atrasado', 'pago'].filter((v) => document.querySelector(`.lc-vg-status[value="${v}"]`).checked);
+    if (marcados.length === 3 || marcados.length === 0) return 'Todas';
+    return marcados.map((v) => VG_STATUS_FILTRO_LABEL[v]).join(', ');
+}
+
+function vgImprimir() {
+    const linhas = vgAplicarOrdenacaoAtual(vgLinhasAtuais);
+    const totais = vgCalcularTotais(linhas);
+
+    const filtros = [
+        `Nome: ${vgTextoSelecionado('lcVgFiltroDescricao')}`,
+        `Plano de Contas: ${vgTextoSelecionado('lcVgPlanoContasSelect')}`,
+        `Centro de Custo: ${vgTextoSelecionado('lcVgCentroCustoSelect')}`,
+        `Empresa Pagadora: ${vgTextoSelecionado('lcVgFiltroEmpresaPagadora')}`,
+        `Status: ${vgDescricaoFiltroStatus()}`,
+        `Vencimento: ${vgDescricaoPeriodoImpressao('lcVgVencimentoAnoAtual', 'lcVgVencimentoDe', 'lcVgVencimentoAte')}`,
+        `Pagamento: ${vgDescricaoPeriodoImpressao('lcVgPagamentoAnoAtual', 'lcVgPagamentoDe', 'lcVgPagamentoAte')}`,
+    ];
+
+    const linhasHtml = linhas.map((l) => `
+        <tr>
+            <td>${vgEscaparAtributo(l.descricao)}</td>
+            <td>${vgEscaparAtributo(l.nmplanocontas)}</td>
+            <td>${vgEscaparAtributo(l.nmcentrocusto)}</td>
+            <td>${vgEscaparAtributo(l.empresapagadora_nome)}${l.proprioambiente ? '' : ` (ambiente ${vgEscaparAtributo(l.ambienteorigem_nome)})`}</td>
+            <td>${vgEscaparAtributo(l.nome_vinculo)}</td>
+            <td>${vgFormatarDataBR(l.dtvcto)}</td>
+            <td class="num">${vgMoeda(l.valor)}</td>
+            <td>${l.dtpgto ? vgFormatarDataBR(l.dtpgto) : '—'}</td>
+            <td>${VG_STATUS_LABEL[l.status] || l.status}</td>
+        </tr>`).join('');
+
+    const conteudo = `
+        ${vgCabecalhoImpressao('Lançamentos filtrados', filtros)}
+        <table>
+            <thead><tr><th>Descrição</th><th>Plano de Contas</th><th>Centro de Custo</th><th>Empresa Pagadora</th><th>Vínculo</th><th>Vencimento</th><th class="num">Valor</th><th>Dt Pagto</th><th>Status</th></tr></thead>
+            <tbody>${linhasHtml || '<tr><td colspan="9">Nenhum lançamento encontrado.</td></tr>'}</tbody>
+            <tfoot>
+                <tr class="total-geral">
+                    <td colspan="6">Total previsto</td>
+                    <td class="num">${vgMoeda(totais.previsto)}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>`;
+
+    vgImprimirHtmlEmIframe(conteudo);
+}
+
+// Duplo clique numa linha da Visão Geral abre aquele lançamento pra edição na aba
+// "Lançamentos" — reaproveita mapaLancamentoPorId (já carregado por
+// configurarComboboxDescricao, mesmo formato que preencherCampos espera) e a própria
+// preencherCampos, exatamente como já acontece ao escolher uma sugestão na Descrição.
+// Linhas "emprestadas" de outro ambiente (ver proprioambiente) não abrem — o cadastro
+// real continua exclusivo de quem estiver logado no ambiente dono do lançamento.
+async function vgAbrirLancamentoParaEdicao(idlancamento, proprioambiente) {
+    if (proprioambiente !== 'true') {
+        if (window.Swal) {
+            Swal.fire({ icon: 'info', title: 'Só visualização', text: 'Esse lançamento foi cadastrado em outro ambiente — abra-o de lá pra editar.' });
+        }
+        return;
+    }
+    const item = mapaLancamentoPorId[idlancamento];
+    if (!item) {
+        if (window.Swal) {
+            Swal.fire({ icon: 'warning', title: 'Ainda carregando', text: 'Aguarde a lista de lançamentos terminar de carregar e tente de novo.' });
+        }
+        return;
+    }
+    mudarAba('lista');
+    await preencherCampos(item);
+}
+
+function configurarVisaoGeralLancamentos() {
+    vgCarregarFiltrosSelects();
+    carregarVisaoGeralLancamentos();
+
+    if (vgEventosLigados) return;
+    vgEventosLigados = true;
+
+    vgConfigurarFiltroVinculo();
+    document.getElementById('lcVgBtnFiltrar')?.addEventListener('click', carregarVisaoGeralLancamentos);
+    document.getElementById('lcVgBtnLimpar')?.addEventListener('click', vgLimparFiltros);
+    document.getElementById('lcVgBtnImprimir')?.addEventListener('click', vgImprimir);
+    document.querySelectorAll('#lcVgTabelaHead th[data-sort]').forEach((th) => {
+        th.addEventListener('click', () => vgOrdenar(th.dataset.sort));
+    });
+    ['lcVgVencimentoDe', 'lcVgVencimentoAte', 'lcVgPagamentoDe', 'lcVgPagamentoAte'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', function () { vgMascararData(this); });
+    });
+    document.getElementById('lcVgTabelaBody')?.addEventListener('dblclick', (e) => {
+        const tr = e.target.closest('tr[data-idlancamento]');
+        if (tr) vgAbrirLancamentoParaEdicao(tr.dataset.idlancamento, tr.dataset.proprioambiente);
+    });
 }
 
 function mudarAba(nome) {
     document.querySelectorAll('#cadModalLancamentos .lc-tab-btn').forEach((b) =>
         b.classList.toggle('ativa', b.dataset.lcTab === nome));
 
-    const nomesView = { lista: 'lcViewLista', planocontas: 'lcViewPlanoContas', centrocusto: 'lcViewCentroCusto' };
+    const nomesView = { visaogeral: 'lcViewVisaoGeral', lista: 'lcViewLista', planocontas: 'lcViewPlanoContas', centrocusto: 'lcViewCentroCusto', pagamentos: 'lcViewPagamentos' };
     document.querySelectorAll('#cadModalLancamentos .lc-view').forEach((v) =>
         v.classList.toggle('ativa', v.id === nomesView[nome]));
 
     document.querySelectorAll('#cadModalLancamentos .lc-btns').forEach((b) =>
         b.classList.toggle('ativa', b.dataset.lcTab === nome));
+
+    // Recarrega ao entrar na Visão Geral — pode ter cadastrado/editado um lançamento
+    // na aba "Lançamentos" desde a última vez que essa lista foi buscada.
+    if (nome === 'visaogeral') carregarVisaoGeralLancamentos();
 }
+
+let pagamentosConfigurados = false;
 
 function configurarAbasLancamentos() {
     document.querySelectorAll('#cadModalLancamentos .lc-tab-btn').forEach((btn) => {
@@ -1210,6 +1857,14 @@ function configurarAbasLancamentos() {
     });
     configurarAbaPlanoContas(carregarSelectPlanoContas);
     configurarAbaCentroCusto(carregarSelectCentroCusto);
+
+    // configurarEventosPagamentos (Pagamentos.js) usa addEventListener em vários
+    // campos sem nenhuma trava própria — chamar mais de uma vez empilharia
+    // listeners duplicados a cada reabertura do modal.
+    if (!pagamentosConfigurados) {
+        pagamentosConfigurados = true;
+        configurarEventosPagamentos();
+    }
 }
 
 function configurarEventosLancamentos() {
@@ -1239,7 +1894,7 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
 
 
 function desinicializarLancamentosModal() {
-    const bnts = { Enviar: enviarButtonListener, Limpar: limparButtonListener, Pesquisar: pesquisarButtonListener };
+    const bnts = { lcLancEnviar: enviarButtonListener, lcLancLimpar: limparButtonListener, lcLancPesquisar: pesquisarButtonListener };
     for (const [id, listener] of Object.entries(bnts)) {
         const el = document.querySelector(`#${id}`);
         if (el && listener) el.removeEventListener("click", listener);
