@@ -704,9 +704,15 @@ router.post("/orcamento/consultar",
                     WHERE oi.idorcamentoitem IS NOT NULL
                 ),
                 -- 1. Contabiliza as diárias normais da função atual.
-                -- Subtrai as vagasreaproveitadas cujo setor_origem difere do setor do staff
-                -- para evitar dupla contagem quando o mesmo staff tem datas em itens de setores diferentes
-                -- (ex: Flávia setor='EXCEDIDO' com 6 datas 'EXCEDIDO ADITIVO' em vagasreaproveitadas).
+                -- Subtrai as vagasreaproveitadas cuja função/orçamento de ORIGEM (idfuncao_origem/
+                -- idorcamento_origem) é diferente desta função/orçamento — só essas de fato vieram
+                -- de outro lugar e são recreditadas separadamente por diarias_reaproveitadas_origem.
+                -- Comparar por idfuncao_origem em vez do texto livre setor_origem evita que um dia
+                -- excedente auto-referenciado (aprovado como "Funcionário Excedido" dentro da MESMA
+                -- função, onde o front-end grava setor_origem decorado como "ADITIVO"/"<setor>
+                -- ADITIVO" em vez do setor real) seja subtraído daqui e depois se perca — o join de
+                -- diarias_reaproveitadas_origem é por setor, e "ADITIVO" nunca bate com o setor real
+                -- do item orçado (ex: Flávia setor='EXCEDIDO' com 6 datas 'EXCEDIDO ADITIVO').
                 diarias_normais_funcao AS (
                     SELECT
                         se.idorcamento,
@@ -721,7 +727,8 @@ router.post("/orcamento/consultar",
                                         CASE WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array'
                                              THEN se.vagasreaproveitadas ELSE '[]'::jsonb END
                                     ) AS v
-                                    WHERE COALESCE(v->>'setor_origem', '') != COALESCE(se.setor, '')
+                                    WHERE (v->>'idfuncao_origem')::int IS DISTINCT FROM se.idfuncao
+                                       OR COALESCE((v->>'idorcamento_origem')::int, se.idorcamento) IS DISTINCT FROM se.idorcamento
                                 ), 0)
                             )
                         ELSE 0 END) AS total_normais,
@@ -732,8 +739,10 @@ router.post("/orcamento/consultar",
                     GROUP BY se.idorcamento, se.idfuncao, se.setor
                 ),
                 -- 2. Varre todos os JSONs de vagasreaproveitadas para achar diárias que vieram de outro setor/função.
-                -- Exclui entradas autorreferentes (staff já registrado no mesmo idfuncao+setor da origem)
-                -- para evitar dupla contagem com diarias_normais_funcao.
+                -- Exclui entradas autorreferentes (idfuncao_origem/idorcamento_origem apontando pra
+                -- esta mesma função/orçamento) pra evitar dupla contagem com diarias_normais_funcao
+                -- — comparar por id em vez do texto livre setor_origem, que pode vir decorado
+                -- ("ADITIVO"/"<setor> ADITIVO") mesmo quando a origem é a própria função.
                 diarias_reaproveitadas_origem AS (
                     SELECT
                         se.idorcamento,
@@ -751,7 +760,7 @@ router.post("/orcamento/consultar",
                       AND se.statusstaff NOT IN ('Inativo', 'Deletado')
                       AND NOT (
                           se.idfuncao = (vaga->>'idfuncao_origem')::int
-                          AND COALESCE(se.setor, '') = COALESCE(vaga->>'setor_origem', '')
+                          AND COALESCE((vaga->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
                       )
                     GROUP BY se.idorcamento, (vaga->>'idfuncao_origem')::int, vaga->>'setor_origem'
                 ),
@@ -1270,16 +1279,27 @@ router.post("/orcamento/vagas-disponiveis",
                     UNION ALL
 
                     -- 3. 🔥 NOVO: Diárias que foram REAPROVEITADAS/RETIRADAS desta função de origem
-                    SELECT 
+                    -- Quando idfuncao_origem/idorcamento_origem apontam pra própria linha (dia
+                    -- excedente aprovado como "Funcionário Excedido" dentro da MESMA função, não
+                    -- uma vaga de outro setor de verdade), setor_origem vem decorado do backend
+                    -- ("ADITIVO"/"<setor> ADITIVO" — ver POST /staff, bloco de tipoSolicitacaoAditivo)
+                    -- em vez do setor real. Usar esse texto quebra o casamento com a parte 4 (que
+                    -- debita pelo setor REAL), fazendo a diária sumir do total líquido da função.
+                    SELECT
                         (vr->>'idorcamento_origem')::int AS idorcamento,
                         (vr->>'idfuncao_origem')::int AS idfuncao,
-                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '') AS setor_normalizado,
+                        CASE
+                            WHEN (vr->>'idfuncao_origem')::int = se.idfuncao
+                             AND COALESCE((vr->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
+                            THEN regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
+                            ELSE regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
+                        END AS setor_normalizado,
                         COUNT(*) AS qtd_diarias
                     FROM staffeventos se,
                     jsonb_array_elements(
-                        CASE 
-                            WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' THEN se.vagasreaproveitadas 
-                            ELSE '[]'::jsonb 
+                        CASE
+                            WHEN jsonb_typeof(se.vagasreaproveitadas) = 'array' THEN se.vagasreaproveitadas
+                            ELSE '[]'::jsonb
                         END
                     ) AS vr
                     WHERE (se.ativo = true OR se.statusstaff = 'Pendente')
@@ -1292,7 +1312,12 @@ router.post("/orcamento/vagas-disponiveis",
                     GROUP BY
                         (vr->>'idorcamento_origem')::int,
                         (vr->>'idfuncao_origem')::int,
-                        regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
+                        CASE
+                            WHEN (vr->>'idfuncao_origem')::int = se.idfuncao
+                             AND COALESCE((vr->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
+                            THEN regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(se.setor)), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
+                            ELSE regexp_replace(unaccent(COALESCE(NULLIF(UPPER(TRIM(vr->>'setor_origem')), ''), '')), '^PAV(ILHAO)?\.?\s*', '')
+                        END
 
                     UNION ALL
 
