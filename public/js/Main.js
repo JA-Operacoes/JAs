@@ -18489,7 +18489,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                                 <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
                                             </a>`
                                             : `<div>
-                                                <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'imagem')">
+                                                <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento || ''}', 'imagem', '${c.idlancamento}', '${vctoISO}')">
                                                 <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
                                             </div>`
                                         }
@@ -19721,11 +19721,15 @@ async function reverterSuspensao(idLancamento, idPagamento, dataVcto, obsAtual =
 }
 window.reverterSuspensao = reverterSuspensao;
 
-window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprovante') {
+window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprovante', idlancamento = '', dtvcto = '') {
     const arquivo = input.files[0];
     if (!arquivo) return;
 
-    if (!id || id === 'undefined') {
+    // Parcela ainda não gerada (lançamento futuro/recorrente sem pagamento próprio) —
+    // sem idPagamento, precisa de idlancamento+dtvcto pro backend criar a parcela
+    // (status 'pendente') na hora e aceitar o anexo mesmo sem estar pago ainda.
+    const semIdPagamento = !id || id === 'undefined';
+    if (semIdPagamento && (!idlancamento || idlancamento === 'undefined' || !dtvcto || dtvcto === 'undefined')) {
         Swal.fire('Erro', 'ID não identificado.', 'error');
         return;
     }
@@ -19739,9 +19743,11 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
     container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: var(--primary-color); font-size: 18px;"></i>`;
 
     const formData = new FormData();
-    formData.append('idPagamento', id);
+    if (!semIdPagamento) formData.append('idPagamento', id);
+    if (idlancamento && idlancamento !== 'undefined') formData.append('idlancamento', idlancamento);
+    if (dtvcto && dtvcto !== 'undefined') formData.append('dtvcto', dtvcto);
     formData.append('tipo', tipoUpload); // Aqui enviamos 'comprovante' ou 'imagem'
-    formData.append('comprovante', arquivo); 
+    formData.append('comprovante', arquivo);
 
     const contextoNome = tipoUpload === 'imagem' ? 'imagemConta' : 'comprovantePagamento';
     formData.append('contexto', contextoNome);

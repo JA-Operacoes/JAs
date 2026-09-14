@@ -1113,10 +1113,23 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
             UNION ALL
 
             -- Subquery C: Vagas Reaproveitadas — credita no orçamento/função de origem
-            SELECT 
+            -- Quando a origem é a MESMA função/orçamento do próprio registro (dia excedente
+            -- aprovado como "Funcionário Excedido", não uma vaga de outro setor de verdade),
+            -- o front-end grava setor_origem como um texto decorado (ex.: "ADITIVO",
+            -- "PROJETOS ESPECIAIS ADITIVO") em vez do setor/pavilhão real — usar esse texto
+            -- como chave de agrupamento cria um bucket fantasma que nunca bate com o item real
+            -- do orçamento, fazendo o dia "sumir" da contagem visível (Disp aparece sobrando
+            -- indevidamente). Nesse caso self-referenciado, usa a localização REAL da própria
+            -- linha (igual às subqueries A/B) em vez de confiar no texto livre de setor_origem.
+            SELECT
                 (vr->>'idfuncao_origem')::int AS idfuncao,
                 (vr->>'idorcamento_origem')::int AS idorcamento,
-                COALESCE(NULLIF(TRIM(vr->>'setor_origem'), ''), '') AS localizacao,
+                CASE
+                    WHEN (vr->>'idfuncao_origem')::int = se.idfuncao
+                     AND COALESCE((vr->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
+                    THEN COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')
+                    ELSE COALESCE(NULLIF(TRIM(vr->>'setor_origem'), ''), '')
+                END AS localizacao,
                 se.idstaff,
                 se.statusstaff,
                 (vr->>'data')::date AS data_trabalho,
@@ -1235,10 +1248,20 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     }, {});
 
     // 5️⃣-B Vagas reaproveitadas por função de origem → função destino (com setor e orcamento)
+    // Mesmo ajuste da subquery C acima: quando idfuncao_origem/idorcamento_origem apontam pra
+    // si mesmo (dia excedente aprovado como "Funcionário Excedido", não uma vaga de outro
+    // setor), setor_origem vem como texto decorado ("ADITIVO"/"<setor> ADITIVO") em vez do
+    // setor real — usa o setor real da própria linha (= setor_destino) pra esse caso, senão o
+    // isSelf logo abaixo nunca detecta a auto-referência e o aviso "⟳" aparece indevidamente.
     const { rows: reaproveitadasRows } = await pool.query(`
         SELECT
             (vr->>'idfuncao_origem')::int                                          AS idfuncao_origem,
-            UPPER(TRIM(COALESCE(vr->>'setor_origem', '')))                         AS setor_origem,
+            CASE
+                WHEN (vr->>'idfuncao_origem')::int = se.idfuncao
+                 AND COALESCE((vr->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
+                THEN UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))
+                ELSE UPPER(TRIM(COALESCE(vr->>'setor_origem', '')))
+            END                                                                     AS setor_origem,
             COALESCE((vr->>'idorcamento_origem')::int, 0)                          AS idorcamento_origem,
             se.idfuncao                                                            AS idfuncao_destino,
             UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))           AS setor_destino,
@@ -1258,7 +1281,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
           AND COALESCE(vr->>'status', 'Pendente') <> 'Rejeitado'
         GROUP BY
             (vr->>'idfuncao_origem')::int,
-            UPPER(TRIM(COALESCE(vr->>'setor_origem', ''))),
+            CASE
+                WHEN (vr->>'idfuncao_origem')::int = se.idfuncao
+                 AND COALESCE((vr->>'idorcamento_origem')::int, se.idorcamento) = se.idorcamento
+                THEN UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, '')))
+                ELSE UPPER(TRIM(COALESCE(vr->>'setor_origem', '')))
+            END,
             COALESCE((vr->>'idorcamento_origem')::int, 0),
             se.idfuncao,
             UPPER(TRIM(COALESCE(NULLIF(se.pavilhao, ''), se.setor, ''))),
@@ -4341,7 +4369,7 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         }
     }), async (req, res) => {
     // Extraímos os dados enviados pelo frontend
-    const { idPagamento, tipo } = req.body;
+    let { idPagamento, tipo, idlancamento, dtvcto } = req.body;
     const idempresa = req.idempresa;
 
     console.log(`[UPLOAD] Iniciando processamento. Tipo: ${tipo} | ID: ${idPagamento}`);
@@ -4351,8 +4379,31 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
         return res.status(400).json({ error: "Nenhum arquivo enviado." });
     }
 
-    // 1.1 Sem idpagamento válido não há linha em `pagamentos` para gravar o anexo
-    // (acontece em lançamentos futuros/recorrentes cuja parcela ainda não foi gerada).
+    // 1.1 Sem idpagamento válido ainda não existe linha em `pagamentos` pra gravar o
+    // anexo (acontece em lançamentos futuros/recorrentes cuja parcela ainda não foi
+    // gerada) — mas o anexo (principalmente a imagem da conta/boleto) precisa poder ser
+    // enviado independente do status já estar "pago" ou não, então criamos a parcela
+    // agora (status 'pendente') em vez de bloquear o upload. Mesmo padrão de
+    // find-or-create usado em /confirmar-pagamento-conta.
+    if ((!idPagamento || isNaN(parseInt(idPagamento, 10))) && idlancamento && dtvcto) {
+        const existente = await pool.query(
+            `SELECT idpagamento FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`,
+            [idlancamento, dtvcto]
+        );
+        if (existente.rows[0]) {
+            idPagamento = existente.rows[0].idpagamento;
+        } else {
+            const criado = await pool.query(
+                `INSERT INTO pagamentos (idlancamento, idempresa, vlrprevisto, dtvcto, status, numparcela)
+                 VALUES ($1, $2, (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), $3, 'pendente',
+                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1))
+                 RETURNING idpagamento;`,
+                [idlancamento, idempresa, dtvcto]
+            );
+            idPagamento = criado.rows[0].idpagamento;
+        }
+    }
+
     if (!idPagamento || isNaN(parseInt(idPagamento, 10))) {
         return res.status(400).json({ error: "Este lançamento ainda não possui uma parcela de pagamento gerada, então não é possível anexar o arquivo ainda." });
     }
