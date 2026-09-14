@@ -237,7 +237,99 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
 });
 
 
-router.put("/:id", 
+// Visão Geral: lista os lançamentos ativos da empresa com todas as parcelas já
+// geradas em `pagamentos` (uma linha por parcela; lançamento sem nenhuma parcela
+// ainda gerada volta com uma única linha com os campos de pagamento em branco).
+// Filtro de período (vencimento/pagamento) e a projeção de ocorrências futuras de
+// lançamentos FIXO/indeterminado ficam por conta do front — é lá que já existe a
+// única implementação desse cálculo (Main.js/expandirOcorrenciasNoAno); duplicar
+// em SQL só divergiria da regra com o tempo.
+//
+// "Empréstimo" entre ambientes (mesmo padrão de routes/rotaFaturamento.js, ver
+// `proprioambiente`/`ambienteorigem_nome` lá): boa parte dos lançamentos mais antigos
+// foi cadastrada dentro do ambiente 1 (JA-OPER, o primeiro ambiente do sistema) mesmo
+// quando `idempresapagadora` é outra empresa de verdade — sem essa regra, logando na
+// empresa pagadora de verdade essas contas simplesmente não apareceriam em lugar
+// nenhum. Traz também essas linhas "presas" no ambiente 1, só visualização (marcadas
+// com proprioambiente=false) — o cadastro/edição continua exclusivo de quem estiver
+// logado no ambiente 1.
+router.get("/visao-geral", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res) => {
+    const idempresa = req.idempresa;
+    const { idlancamento, idplanocontas, idcentrocusto, tipovinculo, idvinculo, idempresapagadora, descricao } = req.query;
+
+    try {
+        let query = `
+            SELECT
+                l.idlancamento, l.descricao, l.idplanocontas, l.idcentrocusto,
+                l.idempresapagadora, l.tipovinculo, l.idvinculo,
+                CAST(l.vlrestimado AS FLOAT) AS vlrestimado,
+                l.vctobase, l.periodicidade, l.tiporepeticao, l.qtdeparcelas,
+                l.indeterminado, l.dttermino,
+                pc.nmplanocontas, pc.codigo AS planocontas_codigo,
+                cc.nmcentrocusto,
+                ep.nmfantasia AS empresapagadora_nome,
+                (l.idempresa = $1) AS proprioambiente,
+                amb.nmfantasia AS ambienteorigem_nome,
+                COALESCE(func.nome, forn.nmfantasia, cli.nmfantasia) AS nome_vinculo,
+                p.idpagamento, p.numparcela, p.totalparcelas, p.status,
+                p.dtvcto, p.dtpgto,
+                CAST(p.vlrprevisto AS FLOAT) AS vlrprevisto,
+                CAST(p.vlrreal AS FLOAT) AS vlrreal,
+                CAST(p.vlrpago AS FLOAT) AS vlrpago
+            FROM lancamentos l
+            LEFT JOIN pagamentos p ON p.idlancamento = l.idlancamento
+            LEFT JOIN planocontas pc ON pc.idplanocontas = l.idplanocontas
+            LEFT JOIN centrocusto cc ON cc.idcentrocusto = l.idcentrocusto
+            LEFT JOIN empresas ep ON ep.idempresa = l.idempresapagadora
+            LEFT JOIN empresas amb ON amb.idempresa = l.idempresa
+            LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND l.idvinculo = func.idfuncionario)
+            LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor' AND l.idvinculo = forn.idfornecedor)
+            LEFT JOIN clientes cli ON (LOWER(TRIM(l.tipovinculo)) = 'cliente' AND l.idvinculo = cli.idcliente)
+            WHERE (l.idempresa = $1 OR (l.idempresa = 1 AND l.idempresapagadora = $1)) AND l.ativo = true
+        `;
+        const params = [idempresa];
+
+        if (idlancamento) {
+            params.push(idlancamento);
+            query += ` AND l.idlancamento = $${params.length}`;
+        }
+        if (idplanocontas) {
+            params.push(idplanocontas);
+            query += ` AND l.idplanocontas = $${params.length}`;
+        }
+        if (idcentrocusto) {
+            params.push(idcentrocusto);
+            query += ` AND l.idcentrocusto = $${params.length}`;
+        }
+        if (tipovinculo) {
+            params.push(tipovinculo);
+            query += ` AND l.tipovinculo = $${params.length}`;
+        }
+        if (idvinculo) {
+            params.push(idvinculo);
+            query += ` AND l.idvinculo = $${params.length}`;
+        }
+        if (idempresapagadora) {
+            params.push(idempresapagadora);
+            query += ` AND l.idempresapagadora = $${params.length}`;
+        }
+        if (descricao) {
+            params.push(`%${descricao}%`);
+            query += ` AND l.descricao ILIKE $${params.length}`;
+        }
+
+        query += ` ORDER BY l.descricao ASC, p.dtvcto ASC NULLS FIRST`;
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Erro ao buscar visão geral de lançamentos:", error);
+        res.status(500).json({ message: "Erro ao buscar visão geral de lançamentos" });
+    }
+});
+
+
+router.put("/:id",
     verificarPermissao('Lancamentos', 'alterar'),
     logMiddleware('Lancamentos', {
         buscarDadosAnteriores: async (req) => {

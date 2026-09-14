@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-<link rel="stylesheet" href="css/Modal/CadLancamentos.css?v=17">
+<link rel="stylesheet" href="css/Modal/CadLancamentos.css?v=21">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 
 <div id="cadModalLancamentos" class="modal">
@@ -17,12 +17,148 @@
         </div>
         <br>
         <div class="lc-tabs">
-            <button type="button" class="lc-tab-btn ativa" data-lc-tab="lista"><i class="fa-solid fa-file-invoice-dollar"></i> Lançamentos</button>
+            <button type="button" class="lc-tab-btn ativa" data-lc-tab="visaogeral"><i class="fa-solid fa-table-list"></i> Visão Geral</button>
+            <button type="button" class="lc-tab-btn" data-lc-tab="lista"><i class="fa-solid fa-file-invoice-dollar"></i> Lançamentos</button>
             <button type="button" class="lc-tab-btn" data-lc-tab="planocontas"><i class="fa-solid fa-sitemap"></i> Plano de Contas</button>
             <button type="button" class="lc-tab-btn" data-lc-tab="centrocusto"><i class="fa-solid fa-building"></i> Centro de Custo</button>
+            <button type="button" class="lc-tab-btn" data-lc-tab="pagamentos"><i class="fa-solid fa-money-check-dollar"></i> Baixa de Contas</button>
         </div>
 
-        <div class="lc-view ativa" id="lcViewLista">
+        <div class="lc-view ativa" id="lcViewVisaoGeral">
+            <div class="lc-secao">
+                <h3>Filtros</h3>
+                <div class="form-3colunas">
+                    <div class="form2 form2-grow">
+                        <label class="user-label" for="lcVgFiltroDescricao">Nome do Lançamento</label>
+                        <select class="input" id="lcVgFiltroDescricao"><option value="">Todos</option></select>
+                    </div>
+                    <div class="form2">
+                        <label class="user-label" for="lcVgPlanoContasSelect">Plano de Contas</label>
+                        <select class="input" id="lcVgPlanoContasSelect"><option value="">Todos</option></select>
+                    </div>
+                    <div class="form2">
+                        <label class="user-label" for="lcVgCentroCustoSelect">Centro de Custo</label>
+                        <select class="input" id="lcVgCentroCustoSelect"><option value="">Todos</option></select>
+                    </div>
+                    <div class="form2">
+                        <label class="user-label" for="lcVgFiltroEmpresaPagadora" title="Inclui lançamentos pagos por outra empresa mas ainda presos no ambiente JA-OPER">Empresa Pagadora</label>
+                        <select class="input" id="lcVgFiltroEmpresaPagadora"><option value="">Todas</option></select>
+                    </div>
+                </div>
+
+                <div class="lc-vinculo-tipo">
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Cliente</p>
+                                <input class="checkbox__trigger visuallyhidden tipo-vinculo-vg" type="checkbox" value="cliente" />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Fornecedor</p>
+                                <input class="checkbox__trigger visuallyhidden tipo-vinculo-vg" type="checkbox" value="fornecedor" />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Funcionário</p>
+                                <input class="checkbox__trigger visuallyhidden tipo-vinculo-vg" type="checkbox" value="funcionario" />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form2 form2-grow">
+                        <label class="user-label" for="lcVgFiltroVinculo">Vínculo</label>
+                        <select id="lcVgFiltroVinculo" disabled><option value="">Todos</option></select>
+                    </div>
+                </div>
+
+                <div class="lc-periodos-linha">
+                    <fieldset class="lc-grupo-filtro">
+                        <legend>Vencimento</legend>
+                        <div class="lc-grupo-filtro-campos">
+                            <div class="form2"><label class="user-label">De</label><input type="text" class="input" id="lcVgVencimentoDe" placeholder="dd/mm/aaaa"></div>
+                            <div class="form2"><label class="user-label">Até</label><input type="text" class="input" id="lcVgVencimentoAte" placeholder="dd/mm/aaaa"></div>
+                        </div>
+                        <label class="lc-check-ano-atual" title="Sem período informado, a Visão Geral cai no ano atual (inclusive projeção de lançamentos Fixo/Parcelado ainda não gerados)">
+                            <input type="checkbox" id="lcVgVencimentoAnoAtual" checked> Ano atual
+                        </label>
+                    </fieldset>
+                    <fieldset class="lc-grupo-filtro">
+                        <legend>Pagamento</legend>
+                        <div class="lc-grupo-filtro-campos">
+                            <div class="form2"><label class="user-label">De</label><input type="text" class="input" id="lcVgPagamentoDe" placeholder="dd/mm/aaaa"></div>
+                            <div class="form2"><label class="user-label">Até</label><input type="text" class="input" id="lcVgPagamentoAte" placeholder="dd/mm/aaaa"></div>
+                        </div>
+                        <label class="lc-check-ano-atual" title="Só considera parcelas já efetivamente pagas/lançadas nesse período">
+                            <input type="checkbox" id="lcVgPagamentoAnoAtual"> Ano atual
+                        </label>
+                    </fieldset>
+                    <fieldset class="lc-grupo-filtro lc-grupo-status">
+                        <legend>Status</legend>
+                        <label class="lc-check-status"><input type="checkbox" class="lc-vg-status" value="pendente" checked> Pendentes</label>
+                        <label class="lc-check-status"><input type="checkbox" class="lc-vg-status" value="atrasado" checked> Vencidas</label>
+                        <label class="lc-check-status"><input type="checkbox" class="lc-vg-status" value="pago" checked> Pagas</label>
+                    </fieldset>
+                </div>
+
+                <div class="BTNs">
+                    <button type="button" id="lcVgBtnFiltrar"><span class="material-symbols-outlined">search</span> Filtrar</button>
+                    <button type="button" id="lcVgBtnLimpar" class="lc-btn-secundario"><span class="material-symbols-outlined">delete_sweep</span> Limpar filtros</button>
+                    <button type="button" id="lcVgBtnImprimir" class="lc-btn-imprimir"><span class="material-symbols-outlined">print</span> Imprimir</button>
+                </div>
+            </div>
+
+            <div class="lc-tabela-wrap">
+                <table class="lc-tabela">
+                    <thead>
+                        <tr id="lcVgTabelaHead">
+                            <th data-sort="descricao">Descrição<span class="lc-seta"></span></th>
+                            <th data-sort="nmplanocontas">Plano de Contas<span class="lc-seta"></span></th>
+                            <th data-sort="nmcentrocusto">Centro de Custo<span class="lc-seta"></span></th>
+                            <th data-sort="empresapagadora_nome">Empresa Pagadora<span class="lc-seta"></span></th>
+                            <th data-sort="nome_vinculo">Vínculo<span class="lc-seta"></span></th>
+                            <th data-sort="dtvcto">Vencimento<span class="lc-seta"></span></th>
+                            <th>Parcela</th>
+                            <th class="lc-num" data-sort="valor">Valor<span class="lc-seta"></span></th>
+                            <th data-sort="dtpgto">Dt Pagto<span class="lc-seta"></span></th>
+                            <th data-sort="status">Status<span class="lc-seta"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lcVgTabelaBody">
+                        <tr><td colspan="10">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="lc-rodape-totais">
+                <span>Valor Previsto: <strong id="lcVgTotalPrevisto">R$ 0,00</strong></span>
+                <span>Pago: <strong id="lcVgTotalPago">R$ 0,00</strong></span>
+                <span>A Pagar: <strong id="lcVgTotalAPagar">R$ 0,00</strong></span>
+                <span class="lc-total-vencido">Vencido: <strong id="lcVgTotalVencido">R$ 0,00</strong></span>
+            </div>
+        </div>
+
+        <div class="lc-view" id="lcViewLista">
             <form method="post" id="form-lancamentos" name="form-lancamentos" autocomplete="on">
                     <div class="lc-secao-linha">
                     <div class="lc-secao">
@@ -294,12 +430,159 @@
                 </div>
             </form>
         </div>
+
+        <div class="lc-view" id="lcViewPagamentos">
+            <form id="form" name="form">
+                <section class="pagamento-secao">
+                    <h3>Dados da Baixa / Pagamento</h3>
+
+                    <div class="pagamento-campos pagamento-campos-lanc">
+                        <div class="form2">
+                            <label class="user-label" for="idPagamento">ID Pagto</label>
+                            <input type="text" class="input" name="idPagamento" id="idPagamento" readonly>
+                        </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="descLancamento">Lançamento (Conta)</label>
+                            <input type="text" class="input uppercase" id="descLancamento" autocomplete="off" placeholder="Digite para buscar (ex: Luz, Condomínio, Salário...)">
+                            <select name="idLancamento" id="idLancamentoSelect" required style="display:none;">
+                                <option value="" disabled selected>Selecione o Lançamento (Conta)...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pagamento-campos">
+                        <div class="form2">
+                            <label class="user-label" for="dtvcto">Vencimento Original</label>
+                            <input type="date" class="input" name="dtvcto" id="dtvcto" readonly>
+                        </div>
+                        <div class="form2">
+                            <label class="user-label" for="vlrPrevisto">Valor Previsto (R$)</label>
+                            <input type="text" class="input" name="vlrPrevisto" id="vlrPrevisto" oninput="formatReais(this)" readonly>
+                        </div>
+                        <div class="form2">
+                            <label class="user-label" for="numParcela">Nº Parcela</label>
+                            <input type="number" class="input" name="numParcela" id="numParcela" readonly>
+                        </div>
+                        <div class="form2">
+                            <label class="user-label" for="vlrReal">Valor Real (R$)</label>
+                            <input type="text" class="input" name="vlrReal" id="vlrReal" oninput="formatReais(this)" required>
+                        </div>
+                    </div>
+
+                    <div class="pagamento-campos">
+                        <div class="form2">
+                            <label class="user-label" for="dtpgto">Data do Pagamento</label>
+                            <input type="date" class="input" name="dtpgto" id="dtpgto" required>
+                        </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrDespesasAtraso">Despesas Atraso (R$)</label>
+                            <input type="text" class="input" name="vlrDespesasAtraso" id="vlrDespesasAtraso" oninput="formatReais(this)" required>
+                        </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrDesconto">Desconto (R$)</label>
+                            <input type="text" class="input" name="vlrDesconto" id="vlrDesconto" oninput="formatReais(this)" required>
+                        </div>
+
+                        <div class="form2">
+                            <label class="user-label" for="vlrPago">Valor Efetivamente Pago (R$)</label>
+                            <input type="text" class="input" name="vlrPago" id="vlrPago" oninput="formatReais(this)" required>
+                        </div>
+                    </div>
+
+                    <div class="pagamento-campos pagamento-campos-1col">
+                        <div class="form2">
+                            <label class="user-label" for="observacaoPagto">Observações</label>
+                            <input type="text" class="input uppercase" name="observacao" id="observacaoPagto" required>
+                        </div>
+                    </div>
+
+                    <div class="form-checkbox" style="margin-top: 15px;">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Pagamento Confirmado</p>
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="statusPagto" name="statusPagto" checked />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="pdf" style="display: none;">
+                            <div class="collumn" id="colunaImagemConta">
+                                <h5>Imagem da Conta/Boleto</h5>
+                                <div class="containerPDF" id="containerInputConta">
+                                    <button type="button" id="btnEscolherArquivoConta" class="btn-upload-arquivo" onclick="document.getElementById('arquivoConta').click()">
+                                        <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
+                                            <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#ffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path>
+                                        </svg>
+                                        Imagem da Conta
+                                    </button>
+                                    <p id="fileNameConta" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                    <input id="arquivoConta" class="filePDFInput" type="file" name="imagemConta" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                                </div>
+                                <div id="imagemContaDisplay" style="display: none; margin-top: 10px;">
+                                    <div id="linkContainerConta"></div>
+                                </div>
+                            </div>
+
+                            <br>
+
+                            <div class="collumn" id="colunaComprovante">
+                                <h5>Comprovante de Pagamento</h5>
+                                <div class="containerPDF" id="containerInputComprovante">
+                                    <button type="button" id="btnEscolherComprovante" class="btn-upload-arquivo" onclick="document.getElementById('comprovantePagto').click()">
+                                        <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
+                                            <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#ffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path>
+                                        </svg>
+                                        Adicionar Comprovante
+                                    </button>
+                                    <p id="fileNameComprovante" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                    <input id="comprovantePagto" class="filePDFInput" type="file" name="comprovantePagamento" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                                </div>
+                                <div id="comprovantePagtoDisplay" style="display: none; margin-top: 10px;">
+                                    <div id="linkContainerComprovante"></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="limparComprovanteImagem" id="limparComprovanteImagem" value="false">
+                            <input type="hidden" name="limparComprovantePagto" id="limparComprovantePagto" value="false">
+                        </div>
+                    </div>
+
+                    <div class="previa-lancamentos">
+                        <h3>Histórico de Pagamentos deste Lançamento</h3>
+                        <div class="table-container">
+                            <table class="lc-pgto-historico">
+                                <thead>
+                                    <tr>
+                                        <th>Parc.</th>
+                                        <th>Vencimento</th>
+                                        <th>Valor Pago</th>
+                                        <th>Data Pago</th>
+                                        <th>Status</th>
+                                        <th>Observação</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corpoHistoricoPagto">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </form>
+        </div>
         </div>
 
-        <div class="BTNs lc-btns ativa" id="lcBtnsLista" data-lc-tab="lista">
-            <button class="bntPesquisar" id="Pesquisar" type="button"><span class="material-symbols-outlined">search</span> Pesquisar</button>
-            <button class="bntLimpar" id="Limpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
-            <button class="btnEnviar" id="Enviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
+        <div class="BTNs lc-btns" id="lcBtnsLista" data-lc-tab="lista">
+            <button class="bntPesquisar" id="lcLancPesquisar" type="button"><span class="material-symbols-outlined">search</span> Pesquisar</button>
+            <button class="bntLimpar" id="lcLancLimpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
+            <button class="btnEnviar" id="lcLancEnviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
         </div>
 
         <div class="BTNs lc-btns" id="lcBtnsPlanoContas" data-lc-tab="planocontas">
@@ -313,5 +596,12 @@
             <button class="bntLimpar" id="lcCentroCustoLimpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
             <button class="btnEnviar" id="lcCentroCustoEnviar" type="button"><span class="material-symbols-outlined">send</span> Enviar</button>
         </div>
+
+        <div class="BTNs lc-btns" id="lcBtnsPagamentos" data-lc-tab="pagamentos">
+            <button class="bntLimpar" id="Limpar" type="button"><span class="material-symbols-outlined">delete_sweep</span> Limpar</button>
+            <button type="button" id="Enviar"><span class="material-symbols-outlined">send</span> Enviar</button>
+        </div>
     </div>
 </div>
+
+<iframe id="lcPrintIframe" style="display:none;"></iframe>
