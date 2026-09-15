@@ -14,10 +14,13 @@ const multer = require("multer");
 
 // Junta a contagem real de unidades (equipamentounidade) nos objetos de modelos (JSONB).
 // qtdeestoque = unidades com status 'estoque'; qtdtotal = todas (qualquer status, exceto baixado).
+// qtdeestoque_ja / qtdeestoque_galpao = a mesma contagem em estoque, quebrada por local físico.
 async function anexarContagemUnidades(equipamentos, idempresa) {
   const contagemResult = await pool.query(
     `SELECT idmodelo,
             COUNT(*) FILTER (WHERE status = 'estoque') AS qtdeestoque,
+            COUNT(*) FILTER (WHERE status = 'estoque' AND local = 'JA') AS qtdeestoque_ja,
+            COUNT(*) FILTER (WHERE status = 'estoque' AND local = 'Galpao') AS qtdeestoque_galpao,
             COUNT(*) FILTER (WHERE status <> 'baixado') AS qtdtotal
        FROM equipamentounidade
        WHERE idempresa = $1
@@ -27,13 +30,20 @@ async function anexarContagemUnidades(equipamentos, idempresa) {
 
   const contagemPorModelo = {};
   contagemResult.rows.forEach((c) => {
-    contagemPorModelo[c.idmodelo] = { qtdeestoque: Number(c.qtdeestoque), qtdtotal: Number(c.qtdtotal) };
+    contagemPorModelo[c.idmodelo] = {
+      qtdeestoque: Number(c.qtdeestoque),
+      qtdeestoque_ja: Number(c.qtdeestoque_ja),
+      qtdeestoque_galpao: Number(c.qtdeestoque_galpao),
+      qtdtotal: Number(c.qtdtotal),
+    };
   });
 
   return equipamentos.map((e) => {
     const modelosComContagem = (e.modelos || []).map((m) => ({
       ...m,
       qtdeestoque: contagemPorModelo[m.id]?.qtdeestoque || 0,
+      qtdeestoque_ja: contagemPorModelo[m.id]?.qtdeestoque_ja || 0,
+      qtdeestoque_galpao: contagemPorModelo[m.id]?.qtdeestoque_galpao || 0,
       qtdtotal: contagemPorModelo[m.id]?.qtdtotal || 0,
     }));
     const qtdtotalCategoria = modelosComContagem.reduce((soma, m) => soma + m.qtdtotal, 0);
@@ -70,11 +80,13 @@ router.put("/equipamentos/:idequip/modelos/:idmodelo/estoque",
   async (req, res) => {
     const { idequip, idmodelo } = req.params;
     const idempresa = req.idempresa;
-    const idusuario = req.usuario?.idusuario;
-    const { tipo, patrimonios, idunidades, motivo } = req.body;
+    const { tipo, patrimonios, idunidades, local } = req.body;
 
     if (!['entrada', 'saida'].includes(tipo)) {
       return res.status(400).json({ message: "Tipo de movimentação inválido." });
+    }
+    if (tipo === 'entrada' && local && !['JA', 'Galpao'].includes(local)) {
+      return res.status(400).json({ message: "Local inválido." });
     }
 
     let client;
@@ -114,9 +126,9 @@ router.put("/equipamentos/:idequip/modelos/:idmodelo/estoque",
 
         for (const patrimonio of lista) {
           const insertResult = await client.query(
-            `INSERT INTO equipamentounidade (idequip, idmodelo, idempresa, patrimonio, status)
-               VALUES ($1, $2, $3, $4, 'estoque') RETURNING *`,
-            [idequip, idmodelo, idempresa, patrimonio]
+            `INSERT INTO equipamentounidade (idequip, idmodelo, idempresa, patrimonio, status, local)
+               VALUES ($1, $2, $3, $4, 'estoque', $5) RETURNING *`,
+            [idequip, idmodelo, idempresa, patrimonio, local || 'JA']
           );
           unidadesCriadas.push(insertResult.rows[0]);
         }
@@ -139,12 +151,6 @@ router.put("/equipamentos/:idequip/modelos/:idmodelo/estoque",
           return res.status(400).json({ message: "Nenhuma unidade válida em estoque encontrada para baixa." });
         }
       }
-
-      await client.query(
-        `INSERT INTO equipamentomovimentacao (idequip, idmodelo, idempresa, tipo, quantidade, motivo, idusuario)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [idequip, idmodelo, idempresa, tipo, quantidade, motivo || null, idusuario || null]
-      );
 
       await client.query('COMMIT');
 
@@ -189,22 +195,246 @@ router.get("/equipamentos/:idequip/modelos/:idmodelo/unidades", async (req, res)
   }
 });
 
-// GET histórico de movimentações de um modelo
-router.get("/equipamentos/:idequip/modelos/:idmodelo/movimentacoes", async (req, res) => {
-  const { idequip, idmodelo } = req.params;
+// PUT mover unidades entre os locais físicos de estoque (JA / Galpao)
+router.put("/equipamentos/unidades/local",
+  logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const { idunidades, local } = req.body;
+
+    if (!Array.isArray(idunidades) || !idunidades.length) {
+      return res.status(400).json({ message: "Selecione ao menos uma unidade." });
+    }
+    if (!['JA', 'Galpao'].includes(local)) {
+      return res.status(400).json({ message: "Local inválido." });
+    }
+
+    try {
+      const result = await pool.query(
+        `UPDATE equipamentounidade SET local = $1
+           WHERE idunidade = ANY($2::int[]) AND idempresa = $3 AND status = 'estoque'
+           RETURNING idunidade, patrimonio, local`,
+        [local, idunidades, idempresa]
+      );
+
+      res.locals.acao = 'moveu unidades de local';
+      res.locals.idregistroalterado = null;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = result.rows;
+
+      res.json({ message: "Local atualizado com sucesso!", unidades: result.rows });
+    } catch (error) {
+      console.error("Erro ao mover unidades de local:", error);
+      res.status(500).json({ message: "Erro ao mover unidades de local." });
+    }
+  }
+);
+
+// ===== Almoxarifado de consumíveis (ribbon, etiqueta, papel A4, tinta etc) =====
+// Diferente de equipamentounidade (unidades únicas com patrimônio), aqui é só
+// quantidade — vai sendo consumido e precisa ser reposto de tempos em tempos.
+
+// GET lista de consumíveis, com flag de quem está abaixo do mínimo
+router.get("/almoxarifado", async (req, res) => {
   const idempresa = req.idempresa;
 
   try {
     const result = await pool.query(
-      `SELECT * FROM equipamentomovimentacao
-         WHERE idequip = $1 AND idmodelo = $2 AND idempresa = $3
-         ORDER BY criado_em DESC`,
-      [idequip, idmodelo, idempresa]
+      `SELECT * FROM almoxarifadoti WHERE idempresa = $1 ORDER BY descricao ASC`,
+      [idempresa]
+    );
+    const itens = result.rows.map((item) => ({
+      ...item,
+      abaixo_minimo: item.quantidade_atual < item.estoque_minimo,
+    }));
+    res.json(itens);
+  } catch (error) {
+    console.error("Erro ao listar almoxarifado:", error);
+    res.status(500).json({ message: "Erro ao listar almoxarifado." });
+  }
+});
+
+// POST cadastrar novo item consumível
+router.post("/almoxarifado",
+  logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+    const { descricao, unidade_medida, quantidade_atual, estoque_minimo } = req.body;
+
+    if (!descricao || !descricao.trim()) {
+      return res.status(400).json({ message: "Descreva o item." });
+    }
+
+    try {
+      const result = await pool.query(
+        `INSERT INTO almoxarifadoti (idempresa, descricao, unidade_medida, quantidade_atual, estoque_minimo, idusuario)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [idempresa, descricao.trim(), unidade_medida || 'unidade', Number(quantidade_atual) || 0, Number(estoque_minimo) || 0, idusuario || null]
+      );
+
+      const novo = result.rows[0];
+      res.locals.acao = 'cadastrou item no almoxarifado';
+      res.locals.idregistroalterado = novo.idconsumivel;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = novo;
+
+      res.status(201).json({ message: "Item cadastrado com sucesso!", item: novo });
+    } catch (error) {
+      console.error("Erro ao cadastrar item do almoxarifado:", error);
+      res.status(500).json({ message: "Erro ao cadastrar item do almoxarifado." });
+    }
+  }
+);
+
+// PUT editar cadastro (descrição, unidade, mínimo) — não mexe em quantidade_atual
+router.put("/almoxarifado/:id",
+  logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const { descricao, unidade_medida, estoque_minimo } = req.body;
+
+    if (!descricao || !descricao.trim()) {
+      return res.status(400).json({ message: "Descreva o item." });
+    }
+
+    try {
+      const result = await pool.query(
+        `UPDATE almoxarifadoti
+           SET descricao = $1, unidade_medida = $2, estoque_minimo = $3
+           WHERE idconsumivel = $4 AND idempresa = $5 RETURNING *`,
+        [descricao.trim(), unidade_medida || 'unidade', Number(estoque_minimo) || 0, req.params.id, idempresa]
+      );
+
+      if (!result.rowCount) {
+        return res.status(404).json({ message: "Item não encontrado." });
+      }
+
+      res.locals.acao = 'atualizou item do almoxarifado';
+      res.locals.idregistroalterado = req.params.id;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = result.rows[0];
+
+      res.json({ message: "Item atualizado com sucesso!", item: result.rows[0] });
+    } catch (error) {
+      console.error("Erro ao atualizar item do almoxarifado:", error);
+      res.status(500).json({ message: "Erro ao atualizar item do almoxarifado." });
+    }
+  }
+);
+
+// PUT movimentar quantidade (entrada = reposição, saída = consumo)
+router.put("/almoxarifado/:id/movimentacao",
+  logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+    const { tipo, quantidade, motivo, idfuncionario_solicitante } = req.body;
+
+    if (!['entrada', 'saida'].includes(tipo)) {
+      return res.status(400).json({ message: "Tipo de movimentação inválido." });
+    }
+    if (!Number.isInteger(quantidade) || quantidade <= 0) {
+      return res.status(400).json({ message: "Quantidade inválida." });
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      const itemResult = await client.query(
+        `SELECT * FROM almoxarifadoti WHERE idconsumivel = $1 AND idempresa = $2 FOR UPDATE`,
+        [req.params.id, idempresa]
+      );
+      if (!itemResult.rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: "Item não encontrado." });
+      }
+
+      const item = itemResult.rows[0];
+      if (tipo === 'saida' && quantidade > item.quantidade_atual) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: `Quantidade maior que a disponível (${item.quantidade_atual} ${item.unidade_medida}).` });
+      }
+
+      const novaQuantidade = tipo === 'entrada' ? item.quantidade_atual + quantidade : item.quantidade_atual - quantidade;
+      const updateResult = await client.query(
+        `UPDATE almoxarifadoti SET quantidade_atual = $1 WHERE idconsumivel = $2 RETURNING *`,
+        [novaQuantidade, item.idconsumivel]
+      );
+
+      await client.query(
+        `INSERT INTO almoxarifadotihistorico (idconsumivel, tipo, quantidade, motivo, idusuario, idfuncionario_solicitante)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+        [item.idconsumivel, tipo, quantidade, motivo || null, idusuario || null, idfuncionario_solicitante || null]
+      );
+
+      await client.query('COMMIT');
+
+      res.locals.acao = tipo === 'entrada' ? 'repôs item do almoxarifado' : 'consumiu item do almoxarifado';
+      res.locals.idregistroalterado = item.idconsumivel;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = updateResult.rows[0];
+
+      res.json({ message: "Movimentação registrada com sucesso!", item: updateResult.rows[0] });
+    } catch (error) {
+      if (client) await client.query('ROLLBACK');
+      console.error("Erro ao movimentar item do almoxarifado:", error);
+      res.status(500).json({ message: "Erro ao movimentar item do almoxarifado." });
+    } finally {
+      if (client) client.release();
+    }
+  }
+);
+
+// GET histórico de movimentações de um item
+router.get("/almoxarifado/:id/movimentacoes", async (req, res) => {
+  const idempresa = req.idempresa;
+
+  try {
+    const itemResult = await pool.query(
+      `SELECT idconsumivel FROM almoxarifadoti WHERE idconsumivel = $1 AND idempresa = $2`,
+      [req.params.id, idempresa]
+    );
+    if (!itemResult.rowCount) {
+      return res.status(404).json({ message: "Item não encontrado." });
+    }
+
+    const { data_inicio, data_fim, idusuario, idfuncionario_solicitante } = req.query;
+    const condicoes = ["h.idconsumivel = $1"];
+    const valores = [req.params.id];
+
+    if (data_inicio) {
+      valores.push(data_inicio);
+      condicoes.push(`h.criado_em >= $${valores.length}`);
+    }
+    if (data_fim) {
+      valores.push(data_fim);
+      condicoes.push(`h.criado_em < ($${valores.length}::date + interval '1 day')`);
+    }
+    if (idusuario) {
+      valores.push(idusuario);
+      condicoes.push(`h.idusuario = $${valores.length}`);
+    }
+    if (idfuncionario_solicitante) {
+      valores.push(idfuncionario_solicitante);
+      condicoes.push(`h.idfuncionario_solicitante = $${valores.length}`);
+    }
+
+    const result = await pool.query(
+      `SELECT h.*, u.nome AS nome_usuario, f.nome AS nome_funcionario_solicitante
+         FROM almoxarifadotihistorico h
+         LEFT JOIN usuarios u ON u.idusuario = h.idusuario
+         LEFT JOIN funcionarios f ON f.idfuncionario = h.idfuncionario_solicitante
+        WHERE ${condicoes.join(" AND ")}
+        ORDER BY h.criado_em DESC`,
+      valores
     );
     res.json(result.rows);
   } catch (error) {
-    console.error("Erro ao buscar movimentações do modelo:", error);
-    res.status(500).json({ message: "Erro ao buscar movimentações do modelo." });
+    console.error("Erro ao buscar movimentações do item:", error);
+    res.status(500).json({ message: "Erro ao buscar movimentações do item." });
   }
 });
 
@@ -312,7 +542,9 @@ router.get("/custodia/funcionarios", async (req, res) => {
                 json_agg(
                   json_build_object(
                     'idunidade', u.idunidade, 'patrimonio', u.patrimonio,
-                    'idequip', u.idequip, 'idmodelo', u.idmodelo, 'descequip', eq.descEquip
+                    'idequip', u.idequip, 'idmodelo', u.idmodelo, 'descequip', eq.descEquip,
+                    'substituida_por_idunidade', u.substituida_por_idunidade,
+                    'substituida_por_patrimonio', usub.patrimonio
                   ) ORDER BY eq.descEquip
                 ) FILTER (WHERE u.idunidade IS NOT NULL),
                 '[]'
@@ -322,6 +554,7 @@ router.get("/custodia/funcionarios", async (req, res) => {
          LEFT JOIN equipamentounidade u ON u.idfuncionario_atual = f.idfuncionario
            AND u.idempresa = $1 AND u.status = 'com_funcionario'
          LEFT JOIN equipamentos eq ON eq.idequip = u.idequip
+         LEFT JOIN equipamentounidade usub ON usub.idunidade = u.substituida_por_idunidade
          WHERE fe.idempresa = $1 AND fe.ativo = true
            AND fe.perfil IN ('Interno', 'ExternoH', 'Externo')${filtroPerfil}
          GROUP BY f.idfuncionario, f.nome, fe.perfil
@@ -358,7 +591,7 @@ router.get("/custodia/atual", async (req, res) => {
 
 async function registrarCustodia(client, { idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, observacao, idusuario }) {
   await client.query(
-    `INSERT INTO equipamentocustodiahistorico
+    `INSERT INTO equipunidadehistorico
        (idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, observacao, idusuario)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [idunidade, tipo, idfuncionario_origem || null, idfuncionario_destino || null, idevento || null, observacao || null, idusuario || null]
@@ -421,6 +654,85 @@ router.post("/custodia/entregar",
   }
 );
 
+// POST procedimento de troca: entrega a unidade nova ao funcionário e marca a antiga
+// (que continua com ele) como "aguardando devolução, substituída por" a nova — tudo numa
+// transação só, em vez de só uma entrega solta com nota em texto livre.
+router.post("/custodia/trocar",
+  logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+    const { idunidade_antiga, idunidade_nova, idfuncionario, observacao } = req.body;
+
+    if (!idunidade_antiga || !idunidade_nova || !idfuncionario) {
+      return res.status(400).json({ message: "idunidade_antiga, idunidade_nova e idfuncionario são obrigatórios." });
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      const antigaResult = await client.query(
+        `SELECT * FROM equipamentounidade WHERE idunidade = $1 AND idempresa = $2 FOR UPDATE`,
+        [idunidade_antiga, idempresa]
+      );
+      if (!antigaResult.rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: "Equipamento antigo não encontrado." });
+      }
+      if (antigaResult.rows[0].status !== 'com_funcionario' || antigaResult.rows[0].idfuncionario_atual !== Number(idfuncionario)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: "O equipamento antigo não está com esse funcionário no momento." });
+      }
+
+      const novaResult = await client.query(
+        `SELECT * FROM equipamentounidade WHERE idunidade = $1 AND idempresa = $2 FOR UPDATE`,
+        [idunidade_nova, idempresa]
+      );
+      if (!novaResult.rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: "Novo equipamento não encontrado." });
+      }
+      if (novaResult.rows[0].status !== 'estoque') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: "Só é possível entregar um novo equipamento que está em estoque." });
+      }
+
+      const novaUpdate = await client.query(
+        `UPDATE equipamentounidade SET status = 'com_funcionario', idfuncionario_atual = $1
+           WHERE idunidade = $2 RETURNING *`,
+        [idfuncionario, idunidade_nova]
+      );
+
+      await client.query(
+        `UPDATE equipamentounidade SET substituida_por_idunidade = $1 WHERE idunidade = $2`,
+        [idunidade_nova, idunidade_antiga]
+      );
+
+      await registrarCustodia(client, {
+        idunidade: idunidade_nova, tipo: 'entrega', idfuncionario_destino: idfuncionario,
+        observacao: observacao || `Procedimento de troca — substitui unidade #${idunidade_antiga}`, idusuario,
+      });
+
+      await client.query('COMMIT');
+
+      res.locals.acao = 'trocou equipamento de funcionário';
+      res.locals.idregistroalterado = idunidade_nova;
+      res.locals.idusuarioAlvo = idfuncionario;
+      res.locals.dadosnovos = novaUpdate.rows[0];
+
+      res.json({ message: "Novo equipamento entregue! O antigo continua com o funcionário até ser devolvido.", unidade: novaUpdate.rows[0] });
+    } catch (error) {
+      if (client) await client.query('ROLLBACK');
+      console.error("Erro ao realizar troca de equipamento:", error);
+      res.status(500).json({ message: "Erro ao realizar troca de equipamento." });
+    } finally {
+      if (client) client.release();
+    }
+  }
+);
+
 // POST devolver unidade ao estoque
 router.post("/custodia/devolver",
   logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
@@ -452,7 +764,8 @@ router.post("/custodia/devolver",
       const idfuncionarioAnterior = unidadeResult.rows[0].idfuncionario_atual;
 
       const updateResult = await client.query(
-        `UPDATE equipamentounidade SET status = 'estoque', idfuncionario_atual = NULL
+        `UPDATE equipamentounidade
+           SET status = 'estoque', idfuncionario_atual = NULL, substituida_por_idunidade = NULL
            WHERE idunidade = $1 RETURNING *`,
         [idunidade]
       );
@@ -657,7 +970,7 @@ router.get("/custodia/funcionario/:idfuncionario/historico-manutencao", async (r
   try {
     const result = await pool.query(
       `SELECT h.*, eq.descEquip, u.patrimonio
-         FROM equipamentocustodiahistorico h
+         FROM equipunidadehistorico h
          INNER JOIN equipamentounidade u ON u.idunidade = h.idunidade
          INNER JOIN equipamentos eq ON eq.idequip = u.idequip
          WHERE h.idfuncionario_origem = $1 AND h.tipo = 'manutencao' AND u.idempresa = $2
@@ -678,7 +991,7 @@ router.get("/custodia/unidade/:idunidade/historico", async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT h.*, fo.nome AS nome_origem, fd.nome AS nome_destino, ev.nmevento
-         FROM equipamentocustodiahistorico h
+         FROM equipunidadehistorico h
          LEFT JOIN funcionarios fo ON fo.idfuncionario = h.idfuncionario_origem
          LEFT JOIN funcionarios fd ON fd.idfuncionario = h.idfuncionario_destino
          LEFT JOIN eventos ev ON ev.idevento = h.idevento
@@ -702,7 +1015,7 @@ router.get("/estoque/busca", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT u.idunidade, u.idequip, u.idmodelo, u.patrimonio, eq.descEquip,
+      `SELECT u.idunidade, u.idequip, u.idmodelo, u.patrimonio, u.local, eq.descEquip,
               elem->>'marca' AS marca, elem->>'modelo' AS modelo
          FROM equipamentounidade u
          INNER JOIN equipamentos eq ON eq.idequip = u.idequip
@@ -728,13 +1041,16 @@ router.post("/manutencao",
   async (req, res) => {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
-    const { idunidade, descricaoproblema, orcamento_realizado, orcamento_valor, orcamento_obs } = req.body;
+    const { idunidade, descricaoproblema, orcamento_realizado, orcamento_valor, orcamento_obs, idunidade_temporaria, tipo_manutencao } = req.body;
 
     if (!idunidade) {
       return res.status(400).json({ message: "idunidade é obrigatório." });
     }
     if (!descricaoproblema || !descricaoproblema.trim()) {
       return res.status(400).json({ message: "Descreva o problema do equipamento." });
+    }
+    if (tipo_manutencao && !['interna', 'externa'].includes(tipo_manutencao)) {
+      return res.status(400).json({ message: "Tipo de manutenção inválido." });
     }
 
     let client;
@@ -757,12 +1073,35 @@ router.post("/manutencao",
 
       const { idequip, idmodelo, idfuncionario_atual: idfuncionarioOrigem } = unidadeResult.rows[0];
 
+      // Se pediu máquina temporária, valida ANTES de tocar em qualquer coisa —
+      // assim, se a temporária não puder ser entregue, nada é gravado (nem a
+      // manutenção fica registrada sem a temporária prometida ao funcionário).
+      let temporariaResult = null;
+      if (idunidade_temporaria) {
+        if (!idfuncionarioOrigem) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: "Só é possível atribuir máquina temporária quando o equipamento com problema está com um funcionário." });
+        }
+        temporariaResult = await client.query(
+          `SELECT * FROM equipamentounidade WHERE idunidade = $1 AND idempresa = $2 FOR UPDATE`,
+          [idunidade_temporaria, idempresa]
+        );
+        if (!temporariaResult.rowCount) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ message: "Máquina temporária não encontrada." });
+        }
+        if (temporariaResult.rows[0].status !== 'estoque') {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: "A máquina temporária precisa estar em estoque." });
+        }
+      }
+
       const manutencaoResult = await client.query(
         `INSERT INTO equipamentomanutencao
-           (idequip, idmodelo, idunidade, idempresa, descricaoproblema, idusuario, orcamento_realizado, orcamento_valor, orcamento_obs)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+           (idequip, idmodelo, idunidade, idempresa, descricaoproblema, idusuario, orcamento_realizado, orcamento_valor, orcamento_obs, tipo_manutencao)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
         [idequip, idmodelo, idunidade, idempresa, descricaoproblema.trim(), idusuario || null,
-          !!orcamento_realizado, orcamento_valor || null, orcamento_obs || null]
+          !!orcamento_realizado, orcamento_valor || null, orcamento_obs || null, tipo_manutencao || 'externa']
       );
 
       await client.query(
@@ -775,6 +1114,20 @@ router.post("/manutencao",
         idfuncionario_origem: idfuncionarioOrigem, observacao: descricaoproblema.trim(), idusuario
       });
 
+      let unidadeTemporaria = null;
+      if (idunidade_temporaria) {
+        const tempUpdate = await client.query(
+          `UPDATE equipamentounidade SET status = 'com_funcionario', idfuncionario_atual = $1
+             WHERE idunidade = $2 RETURNING *`,
+          [idfuncionarioOrigem, idunidade_temporaria]
+        );
+        unidadeTemporaria = tempUpdate.rows[0];
+        await registrarCustodia(client, {
+          idunidade: idunidade_temporaria, tipo: 'entrega', idfuncionario_destino: idfuncionarioOrigem,
+          observacao: `Máquina temporária (equipamento anterior em manutenção — unidade #${idunidade})`, idusuario,
+        });
+      }
+
       await client.query('COMMIT');
 
       const novaManutencao = manutencaoResult.rows[0];
@@ -783,7 +1136,7 @@ router.post("/manutencao",
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = novaManutencao;
 
-      res.status(201).json({ message: "Equipamento enviado para manutenção.", manutencao: novaManutencao });
+      res.status(201).json({ message: "Equipamento enviado para manutenção.", manutencao: novaManutencao, unidadeTemporaria });
     } catch (error) {
       if (client) await client.query('ROLLBACK');
       console.error("Erro ao enviar equipamento para manutenção:", error);
@@ -803,7 +1156,7 @@ router.get("/manutencao", async (req, res) => {
     const params = [idempresa];
     // Uma vez que já existe orçamento anexado, o item sai da fila — a partir daí ele é
     // acompanhado só pela aba Orçamentos (comparar cotações, aprovar/recusar).
-    let where = "m.idempresa = $1 AND NOT EXISTS (SELECT 1 FROM equipamentoorcamentocompra o WHERE o.idmanutencao = m.idmanutencao)";
+    let where = "m.idempresa = $1 AND NOT EXISTS (SELECT 1 FROM almoxaticompras o WHERE o.idmanutencao = m.idmanutencao)";
     if (status) {
       params.push(status);
       where += ` AND m.status = $${params.length}`;
@@ -920,19 +1273,10 @@ router.get("/dashboard", async (req, res) => {
       [idempresa]
     );
 
-    const predestinadosResult = await pool.query(
-      `SELECT COALESCE(SUM(quantidade), 0) AS total_predestinado, COUNT(*) AS qtd_itens
-         FROM equipamentopredestinacao
-         WHERE idempresa = $1 AND status = 'pendente'`,
-      [idempresa]
-    );
-
     res.json({
       total_estoque: Number(totaisResult.rows[0].total_estoque),
       total_manutencao: Number(totaisResult.rows[0].total_manutencao),
       total_alocado: Number(alocadosResult.rows[0].total_alocado),
-      total_predestinado: Number(predestinadosResult.rows[0].total_predestinado),
-      qtd_itens_predestinados: Number(predestinadosResult.rows[0].qtd_itens),
     });
   } catch (error) {
     console.error("Erro ao montar dashboard TI:", error);
@@ -991,9 +1335,9 @@ router.get("/eventos-ativos", async (req, res) => {
          COUNT(DISTINCT oi.idequipamento) AS qtd_equipamentos_distintos,
          COALESCE(SUM(oi.qtditens), 0) AS qtd_total_alocada,
          COALESCE((
-           SELECT SUM(p.quantidade) FROM equipamentopredestinacao p
-             WHERE p.idevento_origem = ev.idevento AND p.status = 'pendente'
-         ), 0) AS qtd_predestinada,
+           SELECT COUNT(*) FROM equipamentounidade u
+             WHERE u.idevento_separacao = ev.idevento AND u.idempresa = $1
+         ), 0) AS qtd_separada,
          COALESCE(tes.status_controle, 'incerto') AS status_controle,
          COALESCE(tes.separado, false) AS separado,
          tes.separado_em,
@@ -1095,6 +1439,29 @@ router.put("/eventos/:idevento/separado",
 );
 
 // ===== Equipamentos alocados em um evento específico (já com modelos/complementos embutidos) =====
+// GET pessoas da equipe de TI escaladas pro evento, pra aparecer no calendário do TI
+// (só funções de TI — "AUXILIAR DE TI" / "TÉCNICO DE TI" — não o staff geral do evento).
+router.get("/eventos/:idevento/staff", async (req, res) => {
+  const idevento = req.params.idevento;
+
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT se.idstaffevento, se.idfuncionario, se.nmfuncionario, se.nmfuncao, se.setor
+         FROM staffeventos se
+         WHERE se.idevento = $1
+           AND (se.ativo = true OR se.statusstaff = 'Pendente')
+           AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+           AND (se.nmfuncao ILIKE '% TI' OR se.nmfuncao ILIKE 'TI %')
+         ORDER BY se.nmfuncionario ASC`,
+      [idevento]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao listar staff do evento (TI):", error);
+    res.status(500).json({ message: "Erro ao listar staff do evento." });
+  }
+});
+
 router.get("/eventos/:idevento/equipamentos", async (req, res) => {
   const idempresa = req.idempresa;
   const idevento = req.params.idevento;
@@ -1120,37 +1487,14 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
       [idevento, idempresa]
     );
 
-    const predestinacoesResult = await pool.query(
-      `SELECT p.*, evd.nmevento AS nmevento_destino
-         FROM equipamentopredestinacao p
-         LEFT JOIN eventos evd ON evd.idevento = p.idevento_destino
-         WHERE p.idevento_origem = $1 AND p.idempresa = $2 AND p.status = 'pendente'`,
-      [idevento, idempresa]
-    );
-
-    const predestinacoesPorEquip = {};
-    predestinacoesResult.rows.forEach((p) => {
-      if (!predestinacoesPorEquip[p.idequip]) predestinacoesPorEquip[p.idequip] = [];
-      predestinacoesPorEquip[p.idequip].push(p);
-    });
-
-    let equipamentos = itensResult.rows.map((item) => {
-      const predestinacoes = predestinacoesPorEquip[item.idequip] || [];
-      const qtdpredestinada = predestinacoes.reduce((soma, p) => soma + p.quantidade, 0);
-      const qtdorcada = Number(item.qtdorcada);
-
-      return {
-        idequip: item.idequip,
-        descequip: item.descequip,
-        idorcamento: item.idorcamento,
-        qtdorcada,
-        qtdpredestinada,
-        qtdlivre: qtdorcada - qtdpredestinada,
-        predestinacoes,
-        modelos: item.modelos || [],
-        complementos: item.complementos || [],
-      };
-    });
+    let equipamentos = itensResult.rows.map((item) => ({
+      idequip: item.idequip,
+      descequip: item.descequip,
+      idorcamento: item.idorcamento,
+      qtdorcada: Number(item.qtdorcada),
+      modelos: item.modelos || [],
+      complementos: item.complementos || [],
+    }));
 
     equipamentos = await anexarContagemUnidades(equipamentos, idempresa);
 
@@ -1160,6 +1504,186 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
     res.status(500).json({ message: "Erro ao listar equipamentos do evento." });
   }
 });
+
+// ===== Separação de unidades (patrimônio) para um evento =====
+// "Confirmar vínculos" já envia a unidade fisicamente para o evento (mesmo efeito de
+// /custodia/enviar-evento: status 'evento', idevento_atual, histórico de custódia) e marca
+// idevento_separacao. Remover a separação devolve a unidade ao estoque (ou para o funcionário,
+// se ela já estava emprestada) e limpa esses campos — mesmo efeito de /custodia/retornar-evento.
+router.get("/eventos/:idevento/separacao", async (req, res) => {
+  const idempresa = req.idempresa;
+  const idevento = req.params.idevento;
+
+  try {
+    const itensResult = await pool.query(
+      `SELECT eq.idequip, eq.descEquip, eq.modelos, SUM(oi.qtditens) AS qtdorcada
+         FROM orcamentoitens oi
+         INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
+         INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         INNER JOIN equipamentos eq ON eq.idequip = oi.idequipamento
+         WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
+         GROUP BY eq.idequip, eq.descEquip, eq.modelos`,
+      [idevento, idempresa]
+    );
+
+    const unidadesResult = await pool.query(
+      `SELECT idunidade, idequip, idmodelo, patrimonio, status, local, idevento_separacao
+         FROM equipamentounidade
+         WHERE idempresa = $1
+           AND (status = 'estoque' OR idevento_separacao = $2)
+           AND status <> 'baixado'`,
+      [idempresa, idevento]
+    );
+
+    const unidadesPorEquip = {};
+    unidadesResult.rows.forEach((u) => {
+      if (!unidadesPorEquip[u.idequip]) unidadesPorEquip[u.idequip] = [];
+      unidadesPorEquip[u.idequip].push(u);
+    });
+
+    const categorias = itensResult.rows.map((item) => {
+      const unidades = unidadesPorEquip[item.idequip] || [];
+      const modelosPorId = {};
+      (item.modelos || []).forEach((m) => { modelosPorId[m.id] = m; });
+
+      const unidadesPorModelo = {};
+      unidades.forEach((u) => {
+        if (!unidadesPorModelo[u.idmodelo]) unidadesPorModelo[u.idmodelo] = [];
+        unidadesPorModelo[u.idmodelo].push({
+          idunidade: u.idunidade,
+          patrimonio: u.patrimonio,
+          local: u.local,
+          separado: u.idevento_separacao === Number(idevento),
+        });
+      });
+
+      const modelos = Object.keys(modelosPorId).map((idmodelo) => ({
+        idmodelo,
+        marca: modelosPorId[idmodelo].marca,
+        modelo: modelosPorId[idmodelo].modelo,
+        unidades: unidadesPorModelo[idmodelo] || [],
+      }));
+
+      const qtdseparada = modelos.reduce(
+        (soma, m) => soma + m.unidades.filter((u) => u.separado).length, 0
+      );
+
+      return {
+        idequip: item.idequip,
+        descequip: item.descequip,
+        qtdorcada: Number(item.qtdorcada),
+        qtdseparada,
+        modelos,
+      };
+    });
+
+    res.json(categorias);
+  } catch (error) {
+    console.error("Erro ao listar separação do evento:", error);
+    res.status(500).json({ message: "Erro ao listar separação do evento." });
+  }
+});
+
+router.put("/eventos/:idevento/separacao",
+  logMiddleware('TI', {
+    buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
+  }),
+  async (req, res) => {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario;
+    const idevento = req.params.idevento;
+    const { idunidades, acao } = req.body;
+
+    if (!Array.isArray(idunidades) || !idunidades.length) {
+      return res.status(400).json({ message: "Selecione ao menos uma unidade." });
+    }
+    if (!['separar', 'remover'].includes(acao)) {
+      return res.status(400).json({ message: "Ação inválida." });
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      let linhas;
+      if (acao === 'separar') {
+        // idevento_separacao pode já estar preenchido com este mesmo evento (tentativa
+        // anterior que marcou o campo mas não chegou a mudar o status) — aceita esse caso
+        // também, senão a unidade fica "presa" sem nunca sair do estoque de fato.
+        const unidadesResult = await client.query(
+          `SELECT idunidade, patrimonio FROM equipamentounidade
+             WHERE idunidade = ANY($1::int[]) AND idempresa = $2
+               AND status = 'estoque' AND (idevento_separacao IS NULL OR idevento_separacao = $3)
+             FOR UPDATE`,
+          [idunidades, idempresa, idevento]
+        );
+        linhas = unidadesResult.rows;
+
+        if (linhas.length) {
+          await client.query(
+            `UPDATE equipamentounidade
+               SET status = 'evento', idevento_atual = $1,
+                   idevento_separacao = $1, separado_em = NOW(), separado_por = $2
+               WHERE idunidade = ANY($3::int[])`,
+            [idevento, idusuario || null, linhas.map((l) => l.idunidade)]
+          );
+          for (const linha of linhas) {
+            await registrarCustodia(client, {
+              idunidade: linha.idunidade,
+              tipo: 'envio_evento',
+              idevento,
+              observacao: 'Enviado via tela de Separação',
+              idusuario,
+            });
+          }
+        }
+      } else {
+        const unidadesResult = await client.query(
+          `SELECT idunidade, patrimonio, idfuncionario_atual FROM equipamentounidade
+             WHERE idunidade = ANY($1::int[]) AND idempresa = $2
+               AND idevento_separacao = $3 AND status = 'evento' AND idevento_atual = $3
+             FOR UPDATE`,
+          [idunidades, idempresa, idevento]
+        );
+        linhas = unidadesResult.rows;
+
+        for (const linha of linhas) {
+          const novoStatus = linha.idfuncionario_atual ? 'com_funcionario' : 'estoque';
+          await client.query(
+            `UPDATE equipamentounidade
+               SET status = $1, idevento_atual = NULL,
+                   idevento_separacao = NULL, separado_em = NULL, separado_por = NULL
+               WHERE idunidade = $2`,
+            [novoStatus, linha.idunidade]
+          );
+          await registrarCustodia(client, {
+            idunidade: linha.idunidade,
+            tipo: 'retorno_evento',
+            idevento,
+            observacao: 'Removido via tela de Separação',
+            idusuario,
+          });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.locals.acao = acao === 'separar' ? 'separou unidades para evento' : 'removeu unidades da separação';
+      res.locals.idregistroalterado = idevento;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = linhas;
+
+      res.json({ message: "Separação atualizada com sucesso!", unidades: linhas });
+    } catch (error) {
+      if (client) await client.query('ROLLBACK');
+      console.error("Erro ao atualizar separação do evento:", error);
+      res.status(500).json({ message: "Erro ao atualizar separação do evento." });
+    } finally {
+      if (client) client.release();
+    }
+  }
+);
 
 // ===== Checklist de separação (gerado em Python/python-docx, mesmo padrão de Proposta.py/Contrato.py) =====
 router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
@@ -1174,7 +1698,7 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
     const nmevento = eventoResult.rows[0].nmevento;
 
     const itensResult = await pool.query(
-      `SELECT eq.descEquip, eq.complementos, SUM(oi.qtditens) AS qtdorcada
+      `SELECT eq.idequip, eq.descEquip, eq.complementos, SUM(oi.qtditens) AS qtdorcada
          FROM orcamentoitens oi
          INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
@@ -1188,12 +1712,23 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
       return res.status(400).json({ message: "Nenhum equipamento orçado para este evento." });
     }
 
+    const separadasResult = await pool.query(
+      `SELECT idequip, patrimonio FROM equipamentounidade WHERE idempresa = $1 AND idevento_separacao = $2`,
+      [idempresa, idevento]
+    );
+    const patrimoniosPorEquip = {};
+    separadasResult.rows.forEach((u) => {
+      if (!patrimoniosPorEquip[u.idequip]) patrimoniosPorEquip[u.idequip] = [];
+      patrimoniosPorEquip[u.idequip].push(u.patrimonio);
+    });
+
     const dados = {
       nmevento,
       categorias: itensResult.rows.map((item) => ({
         descequip: item.descequip,
         qtdorcada: Number(item.qtdorcada),
         complementos: item.complementos || [],
+        patrimonios: patrimoniosPorEquip[item.idequip] || [],
       })),
     };
 
@@ -1262,192 +1797,6 @@ router.get("/download/checklist/:filename", async (req, res) => {
   });
 });
 
-// ===== Predestinação de equipamentos =====
-router.post("/predestinacao",
-  logMiddleware('TI', {
-    buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
-  }),
-  async (req, res) => {
-    const idempresa = req.idempresa;
-    const idusuario = req.usuario?.idusuario;
-    const {
-      idequip, idmodelo, idevento_origem, idorcamento_origem, quantidade,
-      tipo_destino, idevento_destino, destino_livre, observacao
-    } = req.body;
-
-    if (!idequip || !idevento_origem || !Number.isInteger(quantidade) || quantidade <= 0) {
-      return res.status(400).json({ message: "Dados obrigatórios ausentes ou inválidos." });
-    }
-    if (!['estoque', 'evento', 'livre'].includes(tipo_destino)) {
-      return res.status(400).json({ message: "Tipo de destino inválido." });
-    }
-    if (tipo_destino === 'evento' && !idevento_destino) {
-      return res.status(400).json({ message: "Selecione o evento de destino." });
-    }
-    if (tipo_destino === 'livre' && !destino_livre) {
-      return res.status(400).json({ message: "Informe o destino livre." });
-    }
-    if (tipo_destino === 'estoque' && !idmodelo) {
-      return res.status(400).json({ message: "Selecione o modelo para o qual o estoque vai voltar." });
-    }
-
-    try {
-      const orcadoResult = await pool.query(
-        `SELECT COALESCE(SUM(oi.qtditens), 0) AS qtdorcada
-           FROM orcamentoitens oi
-           INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
-           INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-           WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento = $3`,
-        [idevento_origem, idempresa, idequip]
-      );
-
-      const predestinadoResult = await pool.query(
-        `SELECT COALESCE(SUM(quantidade), 0) AS qtdpredestinada
-           FROM equipamentopredestinacao
-           WHERE idevento_origem = $1 AND idempresa = $2 AND idequip = $3 AND status = 'pendente'`,
-        [idevento_origem, idempresa, idequip]
-      );
-
-      const qtdorcada = Number(orcadoResult.rows[0].qtdorcada);
-      const qtdpredestinada = Number(predestinadoResult.rows[0].qtdpredestinada);
-      const qtdlivre = qtdorcada - qtdpredestinada;
-
-      if (quantidade > qtdlivre) {
-        return res.status(400).json({ message: `Quantidade maior que a disponível para predestinar (livre: ${qtdlivre}).` });
-      }
-
-      const insertResult = await pool.query(
-        `INSERT INTO equipamentopredestinacao
-           (idequip, idmodelo, idempresa, idevento_origem, idorcamento_origem, quantidade, tipo_destino, idevento_destino, destino_livre, observacao, idusuario)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           RETURNING *`,
-        [idequip, idmodelo || null, idempresa, idevento_origem, idorcamento_origem || null, quantidade, tipo_destino, idevento_destino || null, destino_livre || null, observacao || null, idusuario || null]
-      );
-
-      const nova = insertResult.rows[0];
-      res.locals.acao = 'predestinou equipamento';
-      res.locals.idregistroalterado = nova.idpredestinacao;
-      res.locals.idusuarioAlvo = null;
-      res.locals.dadosnovos = nova;
-
-      res.status(201).json({ message: "Destino definido com sucesso!", predestinacao: nova });
-    } catch (error) {
-      console.error("Erro ao criar predestinação:", error);
-      res.status(500).json({ message: "Erro ao criar predestinação." });
-    }
-  }
-);
-
-router.get("/predestinacao", async (req, res) => {
-  const idempresa = req.idempresa;
-  const { idevento, status } = req.query;
-
-  try {
-    const params = [idempresa];
-    let where = "p.idempresa = $1";
-    if (idevento) {
-      params.push(idevento);
-      where += ` AND p.idevento_origem = $${params.length}`;
-    }
-    if (status) {
-      params.push(status);
-      where += ` AND p.status = $${params.length}`;
-    }
-
-    const result = await pool.query(
-      `SELECT p.*, eq.descEquip, evo.nmevento AS nmevento_origem, evd.nmevento AS nmevento_destino
-         FROM equipamentopredestinacao p
-         INNER JOIN equipamentos eq ON eq.idequip = p.idequip
-         INNER JOIN eventos evo ON evo.idevento = p.idevento_origem
-         LEFT JOIN eventos evd ON evd.idevento = p.idevento_destino
-         WHERE ${where}
-         ORDER BY p.criado_em DESC`,
-      params
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Erro ao listar predestinações:", error);
-    res.status(500).json({ message: "Erro ao listar predestinações." });
-  }
-});
-
-router.put("/predestinacao/:id",
-  logMiddleware('TI', {
-    buscarDadosAnteriores: async (req) => {
-      try {
-        const result = await pool.query(
-          `SELECT * FROM equipamentopredestinacao WHERE idpredestinacao = $1 AND idempresa = $2`,
-          [req.params.id, req.idempresa]
-        );
-        const linha = result.rows[0] || null;
-        return { dadosanteriores: linha, idregistroalterado: linha?.idpredestinacao || null };
-      } catch (error) {
-        console.error("Erro ao buscar dados anteriores da predestinação:", error);
-        return { dadosanteriores: null, idregistroalterado: null };
-      }
-    }
-  }),
-  async (req, res) => {
-    const idpredestinacao = req.params.id;
-    const idempresa = req.idempresa;
-    const { status } = req.body;
-
-    if (!['executada', 'cancelada'].includes(status)) {
-      return res.status(400).json({ message: "Status inválido." });
-    }
-
-    let client;
-    try {
-      client = await pool.connect();
-      await client.query('BEGIN');
-
-      const dataExecucao = status === 'executada' ? new Date() : null;
-      const updateResult = await client.query(
-        `UPDATE equipamentopredestinacao
-           SET status = $1, executado_em = $2
-           WHERE idpredestinacao = $3 AND idempresa = $4
-           RETURNING *`,
-        [status, dataExecucao, idpredestinacao, idempresa]
-      );
-
-      if (!updateResult.rowCount) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ message: "Predestinação não encontrada." });
-      }
-
-      const predestinacao = updateResult.rows[0];
-      if (status === 'executada' && predestinacao.tipo_destino === 'estoque' && predestinacao.idmodelo) {
-        // Cria uma unidade nova por quantidade retornada (patrimônio gerado automaticamente;
-        // pode ser renomeado depois na tela de unidades).
-        for (let i = 1; i <= predestinacao.quantidade; i++) {
-          const patrimonioGerado = `RETORNO-P${predestinacao.idpredestinacao}-${i}`;
-          await client.query(
-            `INSERT INTO equipamentounidade (idequip, idmodelo, idempresa, patrimonio, status)
-               VALUES ($1, $2, $3, $4, 'estoque')
-               ON CONFLICT (idempresa, patrimonio) DO NOTHING`,
-            [predestinacao.idequip, predestinacao.idmodelo, idempresa, patrimonioGerado]
-          );
-        }
-      }
-
-      await client.query('COMMIT');
-
-      res.locals.acao = 'atualizou predestinação';
-      res.locals.idregistroalterado = predestinacao.idpredestinacao;
-      res.locals.idusuarioAlvo = null;
-      res.locals.dadosnovos = predestinacao;
-
-      res.json({ message: "Predestinação atualizada com sucesso!", predestinacao });
-    } catch (error) {
-      if (client) await client.query('ROLLBACK');
-      console.error("Erro ao atualizar predestinação:", error);
-      res.status(500).json({ message: "Erro ao atualizar predestinação." });
-    } finally {
-      if (client) client.release();
-    }
-  }
-);
-
 // ===== Orçamentos de compra de equipamento (Orçamentos / Aprovados / Reprovados) =====
 
 const dirOrcamentosEquip = path.join(__dirname, "../uploads/ti/orcamentos-equipamento");
@@ -1488,7 +1837,7 @@ router.get("/orcamentos-compra", async (req, res) => {
       `SELECT o.*, eq.descEquip, u.patrimonio, elem->>'marca' AS marca, elem->>'modelo' AS modelo,
               us.nome AS nome_solicitante,
               ud.nome AS nome_decisao
-         FROM equipamentoorcamentocompra o
+         FROM almoxaticompras o
          INNER JOIN equipamentomanutencao m ON m.idmanutencao = o.idmanutencao
          INNER JOIN equipamentos eq ON eq.idequip = m.idequip
          LEFT JOIN equipamentounidade u ON u.idunidade = m.idunidade
@@ -1539,7 +1888,7 @@ router.post("/orcamentos-compra", (req, res) => {
 
     try {
       const result = await pool.query(
-        `INSERT INTO equipamentoorcamentocompra
+        `INSERT INTO almoxaticompras
            (idmanutencao, idempresa, descricao, fornecedor, valor, arquivo, idusuario_solicitante)
            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
         [Number(idmanutencao), idempresa, descricao || null, fornecedor || null, valor || null, req.file.filename, idusuario || null]
@@ -1581,7 +1930,7 @@ router.post("/orcamentos-compra/enviar-aprovacao",
 
     try {
       const result = await pool.query(
-        `SELECT o.*, eq.descEquip, u.patrimonio FROM equipamentoorcamentocompra o
+        `SELECT o.*, eq.descEquip, u.patrimonio FROM almoxaticompras o
            INNER JOIN equipamentomanutencao m ON m.idmanutencao = o.idmanutencao
            INNER JOIN equipamentos eq ON eq.idequip = m.idequip
            LEFT JOIN equipamentounidade u ON u.idunidade = m.idunidade
@@ -1627,7 +1976,7 @@ router.post("/orcamentos-compra/enviar-aprovacao",
       for (const o of result.rows) {
         const token = crypto.randomBytes(24).toString("hex");
         await pool.query(
-          `UPDATE equipamentoorcamentocompra SET token_aprovacao = $1, enviado_email_em = NOW() WHERE idorcamento = $2`,
+          `UPDATE almoxaticompras SET token_aprovacao = $1, enviado_email_em = NOW() WHERE idorcamento = $2`,
           [token, o.idorcamento]
         );
 
@@ -1763,7 +2112,7 @@ router.put("/orcamentos-compra/:id/decisao",
     buscarDadosAnteriores: async (req) => {
       try {
         const result = await pool.query(
-          `SELECT * FROM equipamentoorcamentocompra WHERE idorcamento = $1 AND idempresa = $2`,
+          `SELECT * FROM almoxaticompras WHERE idorcamento = $1 AND idempresa = $2`,
           [req.params.id, req.idempresa]
         );
         const linha = result.rows[0] || null;
@@ -1785,7 +2134,7 @@ router.put("/orcamentos-compra/:id/decisao",
 
     try {
       const result = await pool.query(
-        `UPDATE equipamentoorcamentocompra o
+        `UPDATE almoxaticompras o
            SET status = $1, motivo_recusa = $2, idusuario_decisao = $3, data_decisao = NOW(), token_aprovacao = NULL
            FROM equipamentomanutencao m
            INNER JOIN equipamentos eq ON eq.idequip = m.idequip

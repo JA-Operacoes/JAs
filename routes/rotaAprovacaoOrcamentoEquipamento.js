@@ -50,7 +50,7 @@ async function decidir(req, res, novoStatus) {
 
   try {
     const result = await pool.query(
-      `UPDATE equipamentoorcamentocompra o
+      `UPDATE almoxaticompras o
          SET status = $1::varchar, data_decisao = NOW(), token_aprovacao = NULL,
              motivo_recusa = CASE WHEN $1::varchar = 'reprovado' THEN 'Recusado via e-mail' ELSE motivo_recusa END
          FROM equipamentomanutencao m

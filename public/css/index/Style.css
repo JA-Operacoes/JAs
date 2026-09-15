@@ -1016,16 +1016,6 @@ input#search-aside {
      card "Eventos em Aberto" (Evt-container/wrapper/option/btn/span/label-select/
      busca-evento-input/select-simples, já em Main.css) — visual idêntico sem CSS extra. */
 
-  #ti-panel .ti-chip-predestinado {
-    display: inline-block;
-    background: var(--Aproved);
-    color: var(--Aproved-color);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 12px;
-    margin: 2px 4px 2px 0;
-  }
-
   #ti-panel .ti-tabela {
     width: 100%;
     border-collapse: collapse;
@@ -1037,7 +1027,6 @@ input#search-aside {
     border-bottom: 1px solid #eee;
     font-size: 13px;
   }
-  #ti-panel .ti-predestinacoes-lista { background: #fafafa; }
   #ti-panel .ti-tabela-unidades { margin: 0; }
   #ti-panel .ti-tabela-unidades button {
     margin-right: 4px;
@@ -1121,6 +1110,15 @@ input#search-aside {
     font-size: 13px;
   }
   #ti-panel .ti-modelo-linha:first-child { border-top: none; }
+  #ti-panel .ti-badge-aguardando-troca {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #fff3cd;
+    color: #7a5b00;
+    font-size: 11px;
+  }
   #ti-panel .ti-orcamento-linha-acoes { display: flex; align-items: center; gap: 6px; }
   #ti-panel .ti-orcamento-linha-acoes button {
     border: none;
@@ -1234,6 +1232,14 @@ input#search-aside {
   }
   #ti-panel .ti-custodia-filtros button:hover { filter: brightness(1.1); }
   #ti-panel .ti-custodia-filtros button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+  #ti-panel .ti-custodia-filtros .ti-input-busca {
+    flex: 1 1 220px;
+    min-width: 180px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
 
   #ti-panel .ti-subabas {
     display: flex;
@@ -1272,6 +1278,18 @@ input#search-aside {
     font-weight: 700;
     white-space: nowrap;
   }
+  #ti-panel .ti-badge-tipo-manutencao {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-right: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #ti-panel .ti-badge-tipo-manutencao-interna { background: #e0e7ff; color: #3730a3; }
+  #ti-panel .ti-badge-tipo-manutencao-externa { background: #f0f0f0; color: #555; }
   #ti-panel .ti-badge-manutencao-aguardando { background: var(--Pending, #FFBD29); color: var(--Pending-color, #7a5200); }
   #ti-panel .ti-badge-manutencao-em_andamento { background: #cfe3ff; color: #1a4a8a; }
   #ti-panel .ti-badge-manutencao-concluida { background: var(--Aproved, #2e7d32); color: #fff; }
@@ -1279,6 +1297,17 @@ input#search-aside {
   #ti-panel .ti-card-manutencao-concluida { border-left-color: var(--Aproved, #2e7d32); opacity: .75; }
   #ti-panel .ti-orcamento-ok { color: var(--Aproved, #2e7d32); font-weight: 600; }
   #ti-panel .ti-orcamento-pendente { color: #b8860b; font-weight: 600; }
+  #ti-panel .ti-card-almoxarifado-baixo { border-left-color: #b50000; }
+  #ti-panel .ti-badge-estoque-baixo {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: #fde0e0;
+    color: #a11919;
+    font-size: 11px;
+    font-weight: 700;
+  }
   #ti-panel .busca-funcionario-input {
     border: 2px solid #ccc;
     border-radius: 20px;
@@ -1308,19 +1337,34 @@ input#search-aside {
   }
   #painelDetalhes .pedidos-busca-container .busca-funcionario-input:focus { border-color: var(--primary-color); }
 
-  #ti-panel .ti-btn-listagem-separacao {
+  #ti-panel .ti-btn-listagem-separacao,
+  #ti-panel .ti-btn-ir-separacao {
     margin-top: 8px;
+    margin-right: 8px;
     border: 1px solid var(--primary-color, #999);
-    background: #fff;
-    color: var(--primary-color, #333);
     border-radius: 6px;
     padding: 6px 12px;
     cursor: pointer;
     font-size: 13px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  #ti-panel .ti-btn-listagem-separacao {
+    background: #fff;
+    color: var(--primary-color, #333);
   }
   #ti-panel .ti-btn-listagem-separacao:hover {
     background: var(--primary-color, #333);
     color: var(--font-color, #333);
+  }
+
+  #ti-panel .ti-btn-ir-separacao {
+    background: var(--primary-color, #333);
+    color: var(--font-color, #fff);
+    font-weight: 600;
+  }
+  #ti-panel .ti-btn-ir-separacao:hover {
+    background: var(--hover-color, #333);
   }
 
   #ti-panel .ti-calendario-linha {
@@ -1344,6 +1388,9 @@ input#search-aside {
     border-radius: 10px;
     padding: 14px 16px;
     font-size: 13px;
+    max-height: calc(100vh - 260px);
+    min-height: 200px;
+    overflow-y: auto;
   }
   #ti-panel .ti-cal-lista-proximos { list-style: none; margin: 8px 0 0; padding: 0; }
   #ti-panel .ti-cal-lista-proximos li {
@@ -1359,6 +1406,8 @@ input#search-aside {
   #ti-panel .ti-cal-evento-detalhe { margin-top: 10px; }
   #ti-panel .ti-cal-evento-titulo { font-weight: 600; margin-bottom: 4px; }
   #ti-panel .ti-cal-evento-detalhe ul { margin: 0 0 8px; padding-left: 18px; }
+  #ti-panel .ti-cal-evento-staff-titulo { font-weight: 600; font-size: 13px; margin: 8px 0 4px; color: #555; }
+  #ti-panel .ti-cal-evento-staff-lista { margin: 0 0 8px; padding-left: 18px; color: #333; }
   #ti-panel .ti-calendario-header {
     display: flex;
     justify-content: space-between;
