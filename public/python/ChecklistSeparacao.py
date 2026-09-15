@@ -14,23 +14,23 @@ sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 def gerar_checklist(dados):
     nmevento = dados.get("nmevento") or "Evento"
     categorias_entrada = dados.get("categorias") or []
-    rede_entrada = dados.get("rede") or ["Switch", "Cabo de rede", "Testador de cabo de rede"]
 
     categorias = []
     for categoria in categorias_entrada:
         nome = categoria.get("descequip", "Equipamento")
         qtd = categoria.get("qtdorcada", 0)
         complementos = categoria.get("complementos") or []
+        patrimonios = categoria.get("patrimonios") or []
         itens = [{"nome": nome, "qtd": qtd}] + [{"nome": item, "qtd": ""} for item in complementos]
+        itens += [{"nome": f"Patrimônio separado: {patrimonio}", "qtd": ""} for patrimonio in patrimonios]
         categorias.append({"nome": nome, "qtd": qtd, "itens": itens})
 
-    rede = [{"nome": item, "qtd": ""} for item in rede_entrada]
 
     pasta_script = os.path.dirname(os.path.abspath(__file__))
     caminho_modelo = os.path.join(pasta_script, "..", "..", "models", "ChecklistSeparacaoEquipamentos.docx")
 
     doc = DocxTemplate(caminho_modelo)
-    doc.render({"nmevento": nmevento, "categorias": categorias, "rede": rede})
+    doc.render({"nmevento": nmevento, "categorias": categorias})
 
     pasta_saida = os.path.join(pasta_script, "..", "..", "uploads", "Checklist")
     os.makedirs(pasta_saida, exist_ok=True)

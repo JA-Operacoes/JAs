@@ -1,13 +1,22 @@
 // ===== TI Mode: gerenciamento de equipamentos, estoque e manutenção =====
 import { fetchComToken } from '/utils/utils.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 let painelMontado = false;
 let cacheEquipamentos = [];
+let cacheConsumiveis = []; // itens do almoxarifado — usado pelo Swal de detalhe (repor/consumir/editar/histórico)
+let filtroLocalEstoqueTI = "todos"; // 'todos' | 'JA' | 'Galpao' — filtro da aba Estoque
 
 async function fetchTI(caminho, opcoes = {}) {
   const resp = await fetchComToken(`/ti${caminho}`, opcoes);
   if (!resp) throw new Error("Falha na requisição ao módulo TI.");
   return resp;
+}
+
+function escaparHtml(texto) {
+  const div = document.createElement("div");
+  div.textContent = texto ?? "";
+  return div.innerHTML;
 }
 
 function tiLoading(texto = "Carregando...") {
@@ -45,6 +54,7 @@ function montarPainelTI() {
       <button type="button" class="ti-aba-btn" data-aba="estoque"><span class="material-symbols-outlined">warehouse</span>Estoque</button>
       <button type="button" class="ti-aba-btn" data-aba="custodia"><span class="material-symbols-outlined">badge</span>Alocação</button>
       <button type="button" class="ti-aba-btn" data-aba="manutencao"><span class="material-symbols-outlined">build</span>Manutenção</button>
+      <button type="button" class="ti-aba-btn" data-aba="almoxarifado"><span class="material-symbols-outlined">inventory</span>Almoxarifado</button>
       <button type="button" class="ti-aba-btn" data-aba="E-mails"><span class="material-symbols-outlined">email</span>E-mails corporativos</button>
     </div>
     <div id="ti-aba-dashboard" class="ti-aba-conteudo"></div>
@@ -53,6 +63,7 @@ function montarPainelTI() {
     <div id="ti-aba-estoque" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-custodia" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-manutencao" class="ti-aba-conteudo" style="display:none;"></div>
+    <div id="ti-aba-almoxarifado" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-E-mails" class="ti-aba-conteudo" style="display:none;"></div>
   `;
   conteudo.appendChild(panel);
@@ -65,7 +76,7 @@ function montarPainelTI() {
 }
 
 function trocarAbaTI(aba) {
-  ["dashboard", "eventos", "equipamentos", "estoque", "custodia", "manutencao", "E-mails"].forEach((nome) => {
+  ["dashboard", "eventos", "equipamentos", "estoque", "custodia", "manutencao", "almoxarifado", "E-mails"].forEach((nome) => {
     const el = document.getElementById(`ti-aba-${nome}`);
     if (el) el.style.display = nome === aba ? "block" : "none";
   });
@@ -80,6 +91,7 @@ function trocarAbaTI(aba) {
   if (aba === "estoque") renderAbaEstoque();
   if (aba === "custodia") renderAbaCustodia();
   if (aba === "manutencao") renderAbaManutencao();
+  if (aba === "almoxarifado") renderAbaAlmoxarifado();
   if (aba === "E-mails") renderAbaEmails();
 }
 
@@ -126,13 +138,8 @@ async function renderAbaDashboard() {
   try {
     const dash = await fetchTI("/dashboard");
 
-    const avisoPredestinado = dash.qtd_itens_predestinados > 0
-      ? `<div class="ti-chip-aviso">⚠ ${dash.qtd_itens_predestinados} predestinação(ões) pendente(s) — ${dash.total_predestinado} unidade(s) já direcionadas</div>`
-      : "";
-
     container.innerHTML = `
       <div class="ti-dashboard-card">
-        ${avisoPredestinado}
         <div class="ti-resumo">
           <div class="ti-resumo-card">
             <span>Em estoque</span>
@@ -145,10 +152,6 @@ async function renderAbaDashboard() {
           <div class="ti-resumo-card">
             <span>Equipamentos em eventos</span>
             <strong>${dash.total_alocado}</strong>
-          </div>
-          <div class="ti-resumo-card">
-            <span>Predestinados</span>
-            <strong class="${dash.total_predestinado > 0 ? 'pos' : ''}">${dash.total_predestinado}</strong>
           </div>
         </div>
         <div id="ti-calendario-wrapper"></div>
@@ -325,22 +328,31 @@ async function exibirDetalheDiaTI(diaKey, eventosDoDia) {
 
   const detalhes = await Promise.all(eventosDoDia.map(async (ev) => {
     try {
-      const equipamentos = await fetchTI(`/eventos/${ev.idevento}/equipamentos`);
-      return { ev, equipamentos };
+      const [equipamentos, staff] = await Promise.all([
+        fetchTI(`/eventos/${ev.idevento}/equipamentos`),
+        fetchTI(`/eventos/${ev.idevento}/staff`),
+      ]);
+      return { ev, equipamentos, staff };
     } catch {
-      return { ev, equipamentos: [] };
+      return { ev, equipamentos: [], staff: [] };
     }
   }));
 
   painel.innerHTML = `
     <strong>Eventos em ${dataFormatada}</strong>
-    ${detalhes.map(({ ev, equipamentos }) => `
+    ${detalhes.map(({ ev, equipamentos, staff }) => `
       <div class="ti-cal-evento-detalhe">
         <div class="ti-cal-evento-titulo">${ev.nmevento}</div>
         <ul>
           ${equipamentos.map((eq) => `
-            <li>${eq.descequip}: ${eq.qtdorcada} orçado(s)${eq.qtdpredestinada > 0 ? ` — ${eq.qtdpredestinada} predestinado(s)` : ""}</li>
+            <li>${eq.descequip}: ${eq.qtdorcada} orçado(s)</li>
           `).join("") || "<li>Nenhum equipamento orçado.</li>"}
+        </ul>
+        <div class="ti-cal-evento-staff-titulo">Equipe de TI escalada (${staff.length})</div>
+        <ul class="ti-cal-evento-staff-lista">
+          ${staff.map((s) => `
+            <li>${s.nmfuncionario}${s.nmfuncao ? ` — ${s.nmfuncao}` : ""}</li>
+          `).join("") || "<li>Ninguém escalado ainda.</li>"}
         </ul>
       </div>
     `).join("")}
@@ -359,6 +371,7 @@ async function exibirDetalheEventoTI(ev) {
 const STATUS_ORCAMENTO_COR = { A: "#4FC3F7", P: "#FFC107", E: "#FF8C00", F: "#16A34A", R: "#9CA3AF" };
 const STATUS_ORCAMENTO_LABEL = { A: "Aberto", P: "Proposta", E: "Em Andamento", F: "Fechado", R: "Recusado" };
 const STATUS_CONTROLE_LABEL = { confirmado: "Confirmado", incerto: "Incerto", cancelado: "Cancelado" };
+const STATUS_UNIDADE_LABEL = { estoque: "Estoque", com_funcionario: "Com funcionário", evento: "Em evento", manutencao: "Manutenção", baixado: "Baixado" };
 const STATUS_CONTROLE_COR = { confirmado: "var(--Aproved)", incerto: "var(--Pending)", cancelado: "var(--Reject)" };
 
 const COR_FINALIZADO = "#9CA3AF";
@@ -535,10 +548,10 @@ function renderListaEventosTI() {
 
   lista.innerHTML = eventos.map((ev) => {
     const totalAlocado = Number(ev.qtd_total_alocada);
-    const totalPredestinado = Number(ev.qtd_predestinada);
+    const totalSeparado = Number(ev.qtd_separada);
     let nivel = "nivel-nenhum";
-    if (totalPredestinado > 0 && totalPredestinado < totalAlocado) nivel = "nivel-parcial";
-    if (totalPredestinado > 0 && totalPredestinado >= totalAlocado) nivel = "nivel-total";
+    if (totalSeparado > 0 && totalSeparado < totalAlocado) nivel = "nivel-parcial";
+    if (totalSeparado > 0 && totalSeparado >= totalAlocado) nivel = "nivel-total";
 
     const dtfim = ev.dtfimrealizacao ? new Date(ev.dtfimrealizacao).toLocaleDateString("pt-BR") : "-";
     const dtinicio = ev.dtinirealizacao ? new Date(ev.dtinirealizacao) : null;
@@ -562,7 +575,7 @@ function renderListaEventosTI() {
         </div>
         <div class="ti-evento-resumo">
           Montagem: ${montagem} — Fim da realização: ${dtfim}<br>
-          ${ev.qtd_equipamentos_distintos} equipamento(s) / ${totalAlocado} unidade(s) — ${totalPredestinado} já predestinada(s)
+          ${ev.qtd_equipamentos_distintos} equipamento(s) / ${totalAlocado} unidade(s) — ${totalSeparado} já separada(s)
         </div>
         <div class="ti-evento-controles">
           <select class="ti-select-controle" data-idevento="${ev.idevento}" style="color:${corControle}; border-color:${corControle};">
@@ -582,6 +595,9 @@ function renderListaEventosTI() {
           </span>
         </div>
         ${aindaNaoIniciou ? `
+          <button type="button" class="ti-btn-ir-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}">
+            🎒 Ir para Separação
+          </button>
           <button type="button" class="ti-btn-listagem-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}">
             📋 Gerar listagem de separação
           </button>
@@ -601,6 +617,13 @@ function renderListaEventosTI() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       gerarListagemSeparacao(btn.dataset.idevento, btn.dataset.nmevento);
+    });
+  });
+
+  lista.querySelectorAll(".ti-btn-ir-separacao").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      abrirSeparacaoEventoTI(btn.dataset.idevento, btn.dataset.nmevento);
     });
   });
 
@@ -679,6 +702,250 @@ async function gerarListagemSeparacao(idevento, nmevento) {
   }
 }
 
+// Monta o HTML da lista de categorias/unidades da separação (reaproveitado no render inicial e nos refreshes pós-scan)
+function montarHtmlSeparacaoCategorias(categorias) {
+  return categorias.map((c) => `
+    <div class="ti-separacao-categoria" data-qtdorcada="${c.qtdorcada}">
+      <div class="ti-separacao-categoria-titulo">
+        <strong>${c.descequip}</strong>
+        <span class="ti-separacao-contador">${c.qtdseparada}/${c.qtdorcada} separado(s)</span>
+      </div>
+      ${c.modelos.map((m) => `
+        <div class="ti-separacao-modelo">
+          <em>${m.marca}${m.modelo ? ' / ' + m.modelo : ''}</em>
+          ${!m.unidades.length ? '<div class="ti-separacao-vazio">Nenhuma unidade em estoque.</div>' : m.unidades.map((u) => `
+            <label class="ti-swal-check-linha ti-separacao-linha">
+              <input type="checkbox" class="ti-check-separacao-unidade" value="${u.idunidade}" ${u.separado ? "checked" : ""}> ${u.patrimonio}
+              <span class="ti-badge-local">${u.local === 'Galpao' ? 'Galpão' : 'JA'}</span>
+            </label>
+          `).join("")}
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+}
+
+// Tela de Separação: escolher, por modelo orçado, quais unidades (patrimônio) em estoque
+// vão para este evento. Ao confirmar, a unidade é enviada de fato ao evento (status muda
+// para 'evento', sai do estoque) — mesmo efeito de /custodia/enviar-evento — e fica marcada
+// como separada; remover a separação já confirmada devolve a unidade ao estoque.
+// Tem um campo de leitura de QR code/patrimônio no topo: o leitor (código de barras/QR)
+// digita o código e dá Enter, identificando a unidade e marcando/desmarcando na hora — mas
+// nada é salvo no backend até clicar em "Confirmar vínculos", pra dar chance de conferir
+// tudo antes de gravar (e permitir cancelar sem sujar o banco a cada leitura).
+async function abrirSeparacaoEventoTI(idevento, nmevento) {
+  let categorias = [];
+  try {
+    categorias = await fetchTI(`/eventos/${idevento}/separacao`);
+  } catch (erro) {
+    console.error("Erro ao carregar separação do evento:", erro);
+    Swal.fire("Erro", "Erro ao carregar dados de separação.", "error");
+    return;
+  }
+
+  if (!categorias.length) {
+    Swal.fire("Aviso", "Nenhum equipamento orçado para este evento.", "info");
+    return;
+  }
+
+  // Estado original (vindo do backend) x pendências ainda não confirmadas.
+  const original = new Map();
+  categorias.forEach((c) => c.modelos.forEach((m) => m.unidades.forEach((u) => original.set(u.idunidade, u.separado))));
+  const pendentes = new Map(); // idunidade -> true (separar) | false (remover), só quando difere do original
+
+  const html = `
+    <div class="ti-swal-form ti-separacao-swal">
+      <label class="ti-swal-label">Ler QR code / patrimônio
+        <input type="text" id="ti-separacao-scan" class="swal2-input" placeholder="Aponte o leitor ou digite o patrimônio..." autocomplete="off" style="margin:4px 0 0;">
+      </label>
+      <div id="ti-separacao-scan-msg" class="ti-separacao-scan-msg"></div>
+      <div id="ti-separacao-lista" class="ti-swal-form-scroll ti-separacao-lista">
+        ${montarHtmlSeparacaoCategorias(categorias)}
+      </div>
+      <div id="ti-separacao-pendencias" class="ti-separacao-pendencias ti-separacao-pendencias--vazio">Nenhuma alteração pendente.</div>
+    </div>
+  `;
+
+  const atualizarContadorPendencias = () => {
+    const contador = document.getElementById("ti-separacao-pendencias");
+    if (!contador) return;
+    if (!pendentes.size) {
+      contador.textContent = "Nenhuma alteração pendente.";
+      contador.classList.add("ti-separacao-pendencias--vazio");
+      return;
+    }
+    const aSeparar = [...pendentes.values()].filter((v) => v).length;
+    const aRemover = pendentes.size - aSeparar;
+    contador.textContent = `${pendentes.size} alteração(ões) pendente(s) — ${aSeparar} para separar, ${aRemover} para remover. Clique em "Confirmar vínculos" para salvar.`;
+    contador.classList.remove("ti-separacao-pendencias--vazio");
+  };
+
+  // Recalcula o "X/Y separado(s)" da categoria em tempo real, contando os checkboxes
+  // marcados no DOM agora — não depende de recarregar nada do servidor.
+  const atualizarContadorCategoria = (checkbox) => {
+    const categoriaEl = checkbox?.closest(".ti-separacao-categoria");
+    if (!categoriaEl) return;
+    const contador = categoriaEl.querySelector(".ti-separacao-contador");
+    if (!contador) return;
+    const qtdorcada = categoriaEl.dataset.qtdorcada;
+    const qtdmarcada = categoriaEl.querySelectorAll(".ti-check-separacao-unidade:checked").length;
+    contador.textContent = `${qtdmarcada}/${qtdorcada} separado(s)`;
+  };
+
+  const marcarPendencia = (idunidade, desejado) => {
+    if (desejado === original.get(idunidade)) {
+      pendentes.delete(idunidade);
+    } else {
+      pendentes.set(idunidade, desejado);
+    }
+    atualizarContadorPendencias();
+  };
+
+  const ligarCheckboxes = (popup) => {
+    popup.querySelectorAll(".ti-check-separacao-unidade").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        marcarPendencia(Number(checkbox.value), checkbox.checked);
+        atualizarContadorCategoria(checkbox);
+      });
+    });
+  };
+
+  const resultado = await Swal.fire({
+    title: `Separação — ${nmevento}`,
+    width: 700,
+    html,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Confirmar vínculos",
+    cancelButtonText: "Cancelar",
+    didOpen: () => {
+      const popup = Swal.getPopup();
+      ligarCheckboxes(popup);
+
+      const input = document.getElementById("ti-separacao-scan");
+      const msg = document.getElementById("ti-separacao-scan-msg");
+      input?.focus();
+
+      const mostrarMsg = (texto, cor) => {
+        if (!msg) return;
+        msg.textContent = texto;
+        msg.style.color = cor;
+      };
+
+      input?.addEventListener("keydown", async (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const patrimonio = input.value.trim();
+        if (!patrimonio) return;
+        input.value = "";
+        input.disabled = true;
+        mostrarMsg("Procurando...", "#888");
+
+        try {
+          const resultados = await fetchTI(`/estoque/busca?busca=${encodeURIComponent(patrimonio)}`);
+          // Modal pode ter sido fechado (Cancelar/Esc) enquanto essa busca estava em
+          // andamento — sem isso, o código continuaria mexendo num DOM já desmontado.
+          if (!Swal.isVisible()) return;
+
+          // O QR code traz só a tag final (ex: "0001"), não o patrimônio completo
+          // (ex: "NTB-HP-PROBOOK-0001") — compara com o último trecho após o "-".
+          const tagLida = patrimonio.toLowerCase();
+          const candidatos = resultados.filter((u) => {
+            const partes = (u.patrimonio || "").split("-");
+            return partes[partes.length - 1]?.toLowerCase() === tagLida;
+          });
+
+          if (!candidatos.length) {
+            mostrarMsg(`Nenhuma unidade em estoque encontrada para a tag "${patrimonio}".`, "#b50000");
+            return;
+          }
+          if (candidatos.length > 1) {
+            mostrarMsg(`Tag "${patrimonio}" ambígua: encontrada em mais de um patrimônio (${candidatos.map((c) => c.patrimonio).join(", ")}). Digite o patrimônio completo.`, "#b50000");
+            return;
+          }
+          const exato = candidatos[0];
+
+          const checkboxExistente = popup.querySelector(`.ti-check-separacao-unidade[value="${exato.idunidade}"]`);
+          const atual = pendentes.has(exato.idunidade) ? pendentes.get(exato.idunidade) : (original.get(exato.idunidade) || false);
+          const desejado = !atual;
+
+          if (checkboxExistente) {
+            checkboxExistente.checked = desejado;
+            atualizarContadorCategoria(checkboxExistente);
+          }
+          marcarPendencia(exato.idunidade, desejado);
+
+          mostrarMsg(
+            desejado
+              ? `✔ ${exato.patrimonio} (${exato.descEquip}) marcado para separar. Confirme os vínculos para salvar.`
+              : `${exato.patrimonio} desmarcado. Confirme os vínculos para salvar.`,
+            desejado ? "#046800" : "#a53603"
+          );
+        } catch (erro) {
+          console.error("Erro ao ler patrimônio na separação:", erro);
+          mostrarMsg(erro.message || "Erro ao processar leitura.", "#b50000");
+        } finally {
+          input.disabled = false;
+          input.focus();
+        }
+      });
+    },
+    preConfirm: async () => {
+      if (!pendentes.size) return true;
+
+      const idsSeparar = [...pendentes.entries()].filter(([, v]) => v).map(([id]) => id);
+      const idsRemover = [...pendentes.entries()].filter(([, v]) => !v).map(([id]) => id);
+
+      try {
+        const naoVinculados = [];
+
+        if (idsSeparar.length) {
+          const resp = await fetchTI(`/eventos/${idevento}/separacao`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idunidades: idsSeparar, acao: "separar" }),
+          });
+          const vinculadas = new Set((resp.unidades || []).map((u) => u.idunidade));
+          idsSeparar.filter((id) => !vinculadas.has(id)).forEach((id) => naoVinculados.push(id));
+        }
+        if (idsRemover.length) {
+          const resp = await fetchTI(`/eventos/${idevento}/separacao`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idunidades: idsRemover, acao: "remover" }),
+          });
+          const removidas = new Set((resp.unidades || []).map((u) => u.idunidade));
+          idsRemover.filter((id) => !removidas.has(id)).forEach((id) => naoVinculados.push(id));
+        }
+
+        if (naoVinculados.length) {
+          Swal.showValidationMessage(
+            `${naoVinculados.length} unidade(s) não puderam ser atualizadas (podem já ter sido movidas por outra ação). Recarregue e tente novamente.`
+          );
+          return false;
+        }
+
+        return true;
+      } catch (erro) {
+        console.error("Erro ao confirmar vínculos de separação:", erro);
+        Swal.showValidationMessage(erro.message || "Erro ao confirmar vínculos.");
+        return false;
+      }
+    },
+  });
+
+  // A lista de eventos (cards com "X já separada(s)") só reflete o que estava em
+  // cacheEventosAtivos na última busca — sem isso, só atualizava ao trocar filtro/mês.
+  if (resultado.isConfirmed) {
+    try {
+      cacheEventosAtivos = await fetchTI(`/eventos-ativos?filtro=${filtroEventosTI.escopo}`);
+      renderListaEventosTI();
+    } catch (erro) {
+      console.error("Erro ao atualizar lista de eventos após separação:", erro);
+    }
+  }
+}
+
 async function toggleDetalheEvento(card) {
   const detalhe = card.querySelector(".ti-evento-detalhe");
   if (!detalhe) return;
@@ -707,182 +974,20 @@ async function carregarDetalheEvento(card) {
 
     detalhe.innerHTML = `
       <table class="ti-tabela">
-        <thead><tr><th>Equipamento</th><th>Orçado</th><th>Predestinado</th><th>Livre</th><th>Ação</th></tr></thead>
+        <thead><tr><th>Equipamento</th><th>Orçado</th></tr></thead>
         <tbody>
           ${equipamentos.map((eq) => `
             <tr>
               <td>${eq.descequip}</td>
               <td>${eq.qtdorcada}</td>
-              <td>${eq.qtdpredestinada}</td>
-              <td>${eq.qtdlivre}</td>
-              <td>
-                ${eq.qtdlivre > 0
-                  ? `<button type="button" class="ti-btn-destino" data-idequip="${eq.idequip}" data-idorcamento="${eq.idorcamento}" data-idevento="${idevento}" data-qtdlivre="${eq.qtdlivre}">Definir destino</button>`
-                  : ""}
-              </td>
             </tr>
-            ${eq.predestinacoes.length ? `
-              <tr>
-                <td colspan="5" class="ti-predestinacoes-lista">
-                  ${eq.predestinacoes.map((p) => `
-                    <span class="ti-chip-predestinado">
-                      ${p.quantidade}x → ${p.tipo_destino === 'estoque' ? 'Estoque' : (p.tipo_destino === 'evento' ? p.nmevento_destino : p.destino_livre)}
-                    </span>
-                  `).join(" ")}
-                </td>
-              </tr>
-            ` : ""}
           `).join("")}
         </tbody>
       </table>
     `;
-
-    detalhe.querySelectorAll(".ti-btn-destino").forEach((btn) => {
-      const equipamento = equipamentos.find((eq) => String(eq.idequip) === btn.dataset.idequip);
-      btn.addEventListener("click", () => abrirFormDestino(btn, card, equipamento));
-    });
   } catch (erro) {
     console.error("Erro ao carregar equipamentos do evento:", erro);
     detalhe.innerHTML = tiVazio("Erro ao carregar equipamentos do evento.", "error");
-  }
-}
-
-async function abrirFormDestino(btn, card, equipamento) {
-  const { idequip, idorcamento, idevento, qtdlivre } = btn.dataset;
-
-  let eventosAtivos = [];
-  try {
-    eventosAtivos = (await fetchTI("/eventos-ativos")).filter((ev) => String(ev.idevento) !== idevento);
-  } catch (erro) {
-    console.error("Erro ao carregar eventos ativos para destino:", erro);
-  }
-
-  const modelos = equipamento?.modelos || [];
-  const opcoesModelos = modelos.map((m) => `<option value="${m.id}">${m.marca}${m.modelo ? ' / ' + m.modelo : ''} (estoque atual: ${m.qtdeestoque})</option>`).join("");
-  const opcoesEventos = eventosAtivos.map((ev) => `<option value="${ev.idevento}">${ev.nmevento}</option>`).join("");
-
-  const { value: formValues } = await Swal.fire({
-    title: "Definir destino do equipamento",
-    html: `
-      <div class="ti-swal-form">
-        <label class="ti-swal-label">Quantidade (livre: ${qtdlivre})
-          <input type="number" id="swal-ti-quantidade" class="swal2-input" min="1" max="${qtdlivre}" value="1" style="margin:4px 0 0;">
-        </label>
-        <label class="ti-swal-label">Destino
-          <select id="swal-ti-tipo-destino" class="swal2-select" style="margin:4px 0 0; width:100%;">
-            <option value="estoque">Volta para o Estoque</option>
-            <option value="evento">Outro evento cadastrado</option>
-            <option value="livre">Outro / texto livre</option>
-          </select>
-        </label>
-        <div id="swal-ti-campo-evento" style="display:none;">
-          <label class="ti-swal-label">Evento de destino
-            <select id="swal-ti-select-evento" style="width:100%; margin-top:4px;">
-              <option value=""></option>
-              ${opcoesEventos}
-            </select>
-          </label>
-        </div>
-        <div id="swal-ti-campo-livre" style="display:none;">
-          <label class="ti-swal-label">Destino (texto livre)
-            <input type="text" id="swal-ti-destino-livre" class="swal2-input" placeholder="Ex: Sede - Almoxarifado 2" style="margin:4px 0 0;">
-          </label>
-        </div>
-        <div id="swal-ti-campo-modelo">
-          <label class="ti-swal-label">Qual modelo recebe esse estoque de volta?
-            <select id="swal-ti-select-modelo" class="swal2-select" style="margin:4px 0 0; width:100%;">
-              <option value="">Selecione...</option>
-              ${opcoesModelos}
-            </select>
-          </label>
-        </div>
-        <label class="ti-swal-label">Observação (opcional)
-          <input type="text" id="swal-ti-observacao" class="swal2-input" style="margin:4px 0 0;">
-        </label>
-      </div>
-    `,
-    focusConfirm: false,
-    showCancelButton: true,
-    confirmButtonText: "Definir destino",
-    cancelButtonText: "Cancelar",
-    reverseButtons: true,
-    didOpen: () => {
-      const selectTipo = document.getElementById("swal-ti-tipo-destino");
-      const campoEvento = document.getElementById("swal-ti-campo-evento");
-      const campoLivre = document.getElementById("swal-ti-campo-livre");
-      const campoModelo = document.getElementById("swal-ti-campo-modelo");
-
-      if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
-        jQuery("#swal-ti-select-evento").select2({
-          width: "100%",
-          placeholder: "Buscar evento...",
-          allowClear: true,
-          dropdownParent: jQuery(".swal2-popup"),
-        });
-      }
-
-      const atualizarCampos = () => {
-        const tipo = selectTipo.value;
-        campoEvento.style.display = tipo === "evento" ? "block" : "none";
-        campoLivre.style.display = tipo === "livre" ? "block" : "none";
-        campoModelo.style.display = tipo === "estoque" ? "block" : "none";
-      };
-      selectTipo.addEventListener("change", atualizarCampos);
-      atualizarCampos();
-    },
-    preConfirm: () => {
-      const quantidade = parseInt(document.getElementById("swal-ti-quantidade").value, 10);
-      const tipo_destino = document.getElementById("swal-ti-tipo-destino").value;
-      const idevento_destino = document.getElementById("swal-ti-select-evento").value || null;
-      const destino_livre = document.getElementById("swal-ti-destino-livre").value.trim() || null;
-      const idmodelo = document.getElementById("swal-ti-select-modelo").value || null;
-      const observacao = document.getElementById("swal-ti-observacao").value.trim();
-
-      if (!Number.isInteger(quantidade) || quantidade <= 0 || quantidade > Number(qtdlivre)) {
-        Swal.showValidationMessage(`Quantidade inválida (máximo livre: ${qtdlivre}).`);
-        return false;
-      }
-      if (tipo_destino === "evento" && !idevento_destino) {
-        Swal.showValidationMessage("Selecione o evento de destino.");
-        return false;
-      }
-      if (tipo_destino === "livre" && !destino_livre) {
-        Swal.showValidationMessage("Informe o destino livre.");
-        return false;
-      }
-      if (tipo_destino === "estoque" && !idmodelo) {
-        Swal.showValidationMessage("Selecione o modelo que vai receber o estoque.");
-        return false;
-      }
-
-      return { quantidade, tipo_destino, idevento_destino, destino_livre, idmodelo, observacao };
-    }
-  });
-
-  if (!formValues) return;
-
-  try {
-    const resp = await fetchTI("/predestinacao", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idequip: Number(idequip),
-        idmodelo: formValues.idmodelo || null,
-        idevento_origem: Number(idevento),
-        idorcamento_origem: Number(idorcamento),
-        quantidade: formValues.quantidade,
-        tipo_destino: formValues.tipo_destino,
-        idevento_destino: formValues.idevento_destino ? Number(formValues.idevento_destino) : null,
-        destino_livre: formValues.destino_livre,
-        observacao: formValues.observacao,
-      }),
-    });
-    await Swal.fire("Sucesso!", resp.message || "Destino definido com sucesso!", "success");
-    await carregarDetalheEvento(card);
-    renderAbaDashboard();
-  } catch (erro) {
-    console.error("Erro ao definir destino:", erro);
-    Swal.fire("Erro", erro.message || "Erro ao definir destino.", "error");
   }
 }
 
@@ -941,18 +1046,51 @@ async function renderAbaEstoque() {
       return;
     }
 
+    const qtdModeloPorLocal = (m) => {
+      if (filtroLocalEstoqueTI === "JA") return Number(m.qtdeestoque_ja) || 0;
+      if (filtroLocalEstoqueTI === "Galpao") return Number(m.qtdeestoque_galpao) || 0;
+      return Number(m.qtdeestoque) || 0;
+    };
+    const legendaLocal = filtroLocalEstoqueTI === "todos" ? "em estoque" : `em estoque — ${filtroLocalEstoqueTI === "JA" ? "JA" : "Galpão"}`;
+
+    const locais = [
+      { valor: "todos", label: "Todos" },
+      { valor: "JA", label: "JA" },
+      { valor: "Galpao", label: "Galpão" },
+    ];
+
     container.innerHTML = `
-      ${montarCampoBusca("ti-busca-estoque", "Buscar equipamento ou marca...")}
-      <div id="ti-cards-estoque" class="ti-grid-quadrado">
+      <div class="Evt-container">
+        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
+          <div class="filtro-grupo">
+            <label class="label-select">Local</label>
+            <div class="wrapper" style="width:215px;">
+              ${locais.map((op) => `
+                <div class="option" style="width:65px;">
+                  <input ${filtroLocalEstoqueTI === op.valor ? "checked" : ""} value="${op.valor}" name="ti-localEstoque" type="radio" class="input">
+                  <div class="btn"><span class="span">${op.label}</span></div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+          <div class="filtro-grupo">
+            <label class="label-select">Buscar</label>
+            <div class="wrapper select-wrapper busca-evento-wrapper" style="width:260px;">
+              <input type="text" id="ti-busca-estoque" class="busca-evento-input" placeholder="Buscar equipamento ou marca..." autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="ti-cards-estoque" class="ti-grid-quadrado" style="margin-top:20px;">
         ${equipamentos.map((e) => {
-          const totalEstoque = (e.modelos || []).reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
+          const totalEstoque = (e.modelos || []).reduce((soma, m) => soma + qtdModeloPorLocal(m), 0);
           return `
             <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
                  data-busca="${e.descequip} ${(e.modelos || []).map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
                  title="Clique para ver os modelos cadastrados">
               <span class="ti-card-quadrado-nome">${e.descequip}</span>
               <strong class="ti-card-quadrado-qtd">${totalEstoque}</strong>
-              <span class="ti-card-quadrado-legenda">em estoque</span>
+              <span class="ti-card-quadrado-legenda">${legendaLocal}</span>
             </div>
           `;
         }).join("")}
@@ -964,6 +1102,13 @@ async function renderAbaEstoque() {
     container.querySelectorAll(".ti-card-quadrado").forEach((card) =>
       card.addEventListener("click", () => abrirModelosCategoriaTI(Number(card.dataset.idequip)))
     );
+
+    container.querySelectorAll('input[name="ti-localEstoque"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        filtroLocalEstoqueTI = radio.value;
+        renderAbaEstoque();
+      });
+    });
   } catch (erro) {
     console.error("Erro ao carregar estoque (TI):", erro);
     container.innerHTML = tiVazio("Erro ao carregar estoque.", "error");
@@ -1003,8 +1148,12 @@ async function montarSwalModelosCategoria(equipamento) {
               <div><strong>${m.qtdeestoque}</strong><span>em estoque</span></div>
               <div><strong>${m.qtdtotal}</strong><span>no total</span></div>
             </div>
+            <div class="ti-swal-modelo-locais">
+              <span class="ti-badge-local">JA: ${m.qtdeestoque_ja}</span>
+              <span class="ti-badge-local">Galpão: ${m.qtdeestoque_galpao}</span>
+            </div>
             <div class="ti-swal-modelo-acoes">
-              <button type="button" class="ti-btn-entrada" data-idmodelo="${m.id}">Entrada</button>
+              <button type="button" class="ti-btn-entrada" data-idmodelo="${m.id}" data-marca="${m.marca || ''}" data-modelo="${m.modelo || ''}">Entrada</button>
               <button type="button" class="ti-btn-saida secundario" data-idmodelo="${m.id}">Baixa</button>
               <button type="button" class="ti-btn-ver-unidades secundario" data-idmodelo="${m.id}">Ver unidades</button>
             </div>
@@ -1019,7 +1168,12 @@ async function montarSwalModelosCategoria(equipamento) {
     didOpen: () => {
       const popup = Swal.getPopup();
       popup.querySelectorAll(".ti-btn-entrada").forEach((btn) =>
-        btn.addEventListener("click", () => abrirEntradaEstoqueTI(equipamento.idequip, btn.dataset.idmodelo, () => reabrirModelosCategoriaTI(equipamento.idequip)))
+        btn.addEventListener("click", () => abrirEntradaEstoqueTI(
+          equipamento.idequip,
+          btn.dataset.idmodelo,
+          () => reabrirModelosCategoriaTI(equipamento.idequip),
+          { descequip: equipamento.descequip, marca: btn.dataset.marca, modelo: btn.dataset.modelo }
+        ))
       );
       popup.querySelectorAll(".ti-btn-saida").forEach((btn) =>
         btn.addEventListener("click", () => abrirBaixaEstoqueTI(equipamento.idequip, btn.dataset.idmodelo, () => reabrirModelosCategoriaTI(equipamento.idequip)))
@@ -1049,29 +1203,51 @@ async function toggleUnidadesModelo(idequip, idmodelo) {
   celula.innerHTML = "Carregando unidades...";
 
   try {
-    const unidades = await fetchTI(`/equipamentos/${idequip}/modelos/${idmodelo}/unidades`);
+    let unidades = await fetchTI(`/equipamentos/${idequip}/modelos/${idmodelo}/unidades`);
     if (!unidades.length) {
       celula.innerHTML = "<em>Nenhuma unidade cadastrada ainda.</em>";
       return;
     }
 
+    // O filtro de local da aba Estoque só faz sentido pra quem está em estoque de
+    // fato — unidades com funcionário/evento/manutenção continuam sempre visíveis.
+    const unidadesFiltradas = filtroLocalEstoqueTI === "todos"
+      ? unidades
+      : unidades.filter((u) => u.status !== 'estoque' || u.local === filtroLocalEstoqueTI);
+
+    if (!unidadesFiltradas.length) {
+      celula.innerHTML = `<em>Nenhuma unidade em estoque no local "${filtroLocalEstoqueTI === 'JA' ? 'JA' : 'Galpão'}".</em>`;
+      return;
+    }
+    unidades = unidadesFiltradas;
+
     celula.innerHTML = `
       <table class="ti-tabela ti-tabela-unidades">
-        <thead><tr><th>Patrimônio</th><th>Status</th><th>Com quem / evento</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Patrimônio</th><th>Status</th><th>Local</th><th>Com quem / evento</th><th>Ações</th></tr></thead>
         <tbody>
           ${unidades.map((u) => `
             <tr data-idunidade="${u.idunidade}">
               <td>${u.patrimonio}</td>
-              <td>${u.status}</td>
+              <td><span class="ti-badge-status ti-badge-status-${u.status}">${STATUS_UNIDADE_LABEL[u.status] || u.status}</span></td>
+              <td>
+                ${u.status === 'estoque' ? `
+                  <select class="ti-select-local-unidade" data-idunidade="${u.idunidade}">
+                    <option value="JA" ${u.local === 'JA' ? "selected" : ""}>JA</option>
+                    <option value="Galpao" ${u.local === 'Galpao' ? "selected" : ""}>Galpão</option>
+                  </select>
+                ` : (u.local || "-")}
+              </td>
               <td>${u.nome_funcionario_atual || u.nmevento_atual || "-"}</td>
               <td>
-                ${u.status === 'estoque' ? `<button type="button" class="ti-btn-entregar" data-idunidade="${u.idunidade}">Entregar</button>` : ""}
-                ${u.status === 'com_funcionario' ? `<button type="button" class="ti-btn-devolver" data-idunidade="${u.idunidade}">Devolver</button>
-                  <button type="button" class="ti-btn-transferir" data-idunidade="${u.idunidade}">Transferir</button>` : ""}
-                ${['estoque', 'com_funcionario'].includes(u.status) ? `<button type="button" class="ti-btn-enviar-evento" data-idunidade="${u.idunidade}">Enviar a evento</button>` : ""}
-                ${u.status === 'evento' ? `<button type="button" class="ti-btn-retornar-evento" data-idunidade="${u.idunidade}">Retornar de evento</button>` : ""}
-                ${u.status === 'estoque' ? `<button type="button" class="ti-btn-manutencao secundario" data-idunidade="${u.idunidade}">Manutenção</button>` : ""}
-                <button type="button" class="ti-btn-historico-unidade secundario" data-idunidade="${u.idunidade}" data-patrimonio="${u.patrimonio}">Histórico</button>
+                <div class="ti-acoes-unidade">
+                  ${u.status === 'estoque' ? `<button type="button" class="ti-btn-entregar" data-idunidade="${u.idunidade}">Entregar</button>` : ""}
+                  ${u.status === 'com_funcionario' ? `<button type="button" class="ti-btn-devolver" data-idunidade="${u.idunidade}">Devolver</button>
+                    <button type="button" class="ti-btn-transferir" data-idunidade="${u.idunidade}">Transferir</button>` : ""}
+                  ${['estoque', 'com_funcionario'].includes(u.status) ? `<button type="button" class="ti-btn-enviar-evento" data-idunidade="${u.idunidade}">Enviar a evento</button>` : ""}
+                  ${u.status === 'evento' ? `<button type="button" class="ti-btn-retornar-evento" data-idunidade="${u.idunidade}">Retornar de evento</button>` : ""}
+                  ${u.status === 'estoque' ? `<button type="button" class="ti-btn-manutencao secundario" data-idunidade="${u.idunidade}">Manutenção</button>` : ""}
+                  <button type="button" class="ti-btn-historico-unidade secundario" data-idunidade="${u.idunidade}" data-patrimonio="${u.patrimonio}">Histórico</button>
+                </div>
               </td>
             </tr>
           `).join("")}
@@ -1086,6 +1262,24 @@ async function toggleUnidadesModelo(idequip, idmodelo) {
     celula.querySelectorAll(".ti-btn-retornar-evento").forEach((btn) => btn.addEventListener("click", () => retornarEventoTI(btn.dataset.idunidade, idequip, idmodelo)));
     celula.querySelectorAll(".ti-btn-historico-unidade").forEach((btn) => btn.addEventListener("click", () => verHistoricoUnidadeTI(btn.dataset.idunidade, btn.dataset.patrimonio)));
     celula.querySelectorAll(".ti-btn-manutencao").forEach((btn) => btn.addEventListener("click", () => enviarParaManutencaoTI(btn.dataset.idunidade)));
+    celula.querySelectorAll(".ti-select-local-unidade").forEach((select) => {
+      select.addEventListener("change", async () => {
+        select.disabled = true;
+        try {
+          await fetchTI("/equipamentos/unidades/local", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idunidades: [Number(select.dataset.idunidade)], local: select.value }),
+          });
+        } catch (erro) {
+          console.error("Erro ao mover unidade de local:", erro);
+          Swal.fire("Erro", erro.message || "Erro ao mover unidade de local.", "error");
+          await reabrirUnidadesModelo(idequip, idmodelo);
+        } finally {
+          select.disabled = false;
+        }
+      });
+    });
   } catch (erro) {
     console.error("Erro ao carregar unidades do modelo:", erro);
     celula.innerHTML = "Erro ao carregar unidades.";
@@ -1098,14 +1292,68 @@ async function reabrirUnidadesModelo(idequip, idmodelo) {
   await toggleUnidadesModelo(idequip, idmodelo);
 }
 
-// Entrada: um patrimônio por linha no textarea (uma unidade física por linha)
-async function abrirEntradaEstoqueTI(idequip, idmodelo, aoConcluir = renderAbaEstoque) {
+// Abreviações conhecidas de equipamento para deixar o patrimônio mais curto (ex: Notebook -> NTB).
+// Equipamentos fora dessa lista caem no fallback de montarPrefixoPatrimonio (iniciais das palavras).
+const ABREVIACOES_EQUIPAMENTO = {
+  "NOTEBOOK": "NTB",
+  "DESKTOP": "DSK",
+  "COMPUTADOR": "PC",
+  "MONITOR": "MNT",
+  "IMPRESSORA": "IMP",
+  "PROJETOR": "PROJ",
+  "ROTEADOR": "RTD",
+  "SWITCH": "SW",
+  "NOBREAK": "NBK",
+  "TABLET": "TAB",
+  "CELULAR": "CEL",
+  "TECLADO": "TEC",
+  "MOUSE": "MOU",
+  "CAMERA": "CAM",
+  "CÂMERA": "CAM",
+  "CABO": "CBO",
+  "CAIXA DE SOM": "CXS",
+  "MICROFONE": "MIC",
+  "HD EXTERNO": "HDE",
+  "PENDRIVE": "PEN",
+};
+
+// Abrevia o nome do equipamento: usa o mapa conhecido ou, na ausência, as iniciais de cada palavra (máx. 4 letras)
+function abreviarEquipamento(descequip) {
+  const nome = (descequip || "").trim().toUpperCase();
+  if (!nome) return "";
+  if (ABREVIACOES_EQUIPAMENTO[nome]) return ABREVIACOES_EQUIPAMENTO[nome];
+  const palavras = nome.split(/\s+/).filter(Boolean);
+  if (palavras.length === 1) return palavras[0].slice(0, 4);
+  return palavras.map((p) => p[0]).join("").slice(0, 4);
+}
+
+// Monta o prefixo padrão do patrimônio a partir do equipamento/marca/modelo, ex: NTB-HP-PROBOOK
+function montarPrefixoPatrimonio({ descequip, marca, modelo } = {}) {
+  return [abreviarEquipamento(descequip), marca, modelo]
+    .map((p) => (p || "").trim())
+    .filter(Boolean)
+    .join("-")
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
+// Entrada: uma tag por linha no textarea (uma unidade física por linha).
+// O patrimônio final é montado como ${equipamento}-${marca}-${modelo}-${tag} para facilitar buscas futuras.
+async function abrirEntradaEstoqueTI(idequip, idmodelo, aoConcluir = renderAbaEstoque, infoModelo = {}) {
+  const prefixo = montarPrefixoPatrimonio(infoModelo);
+
   const { value: formValues } = await Swal.fire({
     title: "Registrar entrada de estoque",
     html: `
       <div class="ti-swal-form">
-        <label class="ti-swal-label">Patrimônios (um por linha)
-          <textarea id="swal-ti-patrimonios" class="swal2-textarea" rows="6" placeholder="Ex:\nHP-0001\nHP-0002\nHP-0003" style="margin:4px 0 0;"></textarea>
+        <label class="ti-swal-label">Tags/códigos (um por linha)${prefixo ? ` — prefixo: <strong>${prefixo}-</strong>` : ""}
+          <textarea id="swal-ti-patrimonios" class="swal2-textarea" rows="6" placeholder="Ex:\n0001\n0002\n0003" style="margin:4px 0 0;"></textarea>
+        </label>
+        <label class="ti-swal-label">Local
+          <select id="swal-ti-local" class="swal2-select" style="margin:4px 0 0; width:100%;">
+            <option value="JA">JA (escritório)</option>
+            <option value="Galpao">Galpão</option>
+          </select>
         </label>
         <label class="ti-swal-label">Motivo (opcional)
           <input type="text" id="swal-ti-mov-motivo" class="swal2-input" style="margin:4px 0 0;">
@@ -1119,18 +1367,20 @@ async function abrirEntradaEstoqueTI(idequip, idmodelo, aoConcluir = renderAbaEs
     reverseButtons: true,
     preConfirm: () => {
       const texto = document.getElementById("swal-ti-patrimonios").value;
+      const local = document.getElementById("swal-ti-local").value;
       const motivo = document.getElementById("swal-ti-mov-motivo").value.trim();
-      const patrimonios = texto.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (!patrimonios.length) {
-        Swal.showValidationMessage("Informe ao menos um patrimônio.");
+      const tags = texto.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (!tags.length) {
+        Swal.showValidationMessage("Informe ao menos uma tag/código.");
         return false;
       }
+      const patrimonios = tags.map((tag) => (prefixo ? `${prefixo}-${tag}` : tag));
       const duplicados = patrimonios.filter((p, i) => patrimonios.indexOf(p) !== i);
       if (duplicados.length) {
         Swal.showValidationMessage(`Patrimônio repetido na lista: ${duplicados[0]}`);
         return false;
       }
-      return { patrimonios, motivo };
+      return { patrimonios, local, motivo };
     }
   });
 
@@ -1140,7 +1390,7 @@ async function abrirEntradaEstoqueTI(idequip, idmodelo, aoConcluir = renderAbaEs
     const resp = await fetchTI(`/equipamentos/${idequip}/modelos/${idmodelo}/estoque`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo: "entrada", patrimonios: formValues.patrimonios, motivo: formValues.motivo }),
+      body: JSON.stringify({ tipo: "entrada", patrimonios: formValues.patrimonios, local: formValues.local, motivo: formValues.motivo }),
     });
     await Swal.fire("Sucesso!", resp.message || "Entrada registrada.", "success");
     aoConcluir();
@@ -1528,7 +1778,10 @@ async function carregarListaAlocacao(perfil) {
             <div class="ti-card-linha-detalhe">
               ${f.equipamentos.map((eq) => `
                 <div class="ti-modelo-linha">
-                  <span>${eq.descequip} — ${eq.patrimonio}</span>
+                  <span>
+                    ${eq.descequip} — ${eq.patrimonio}
+                    ${eq.substituida_por_idunidade ? `<span class="ti-badge-aguardando-troca" title="Já foi entregue um equipamento novo; esse aqui está pendente de devolução">⏳ substituída por ${eq.substituida_por_patrimonio}</span>` : ""}
+                  </span>
                   <span class="ti-card-linha-acoes">
                     <button type="button" class="ti-btn-devolver" data-idunidade="${eq.idunidade}" data-idequip="${eq.idequip}" data-idmodelo="${eq.idmodelo}">Devolver</button>
                     <button type="button" class="ti-btn-transferir" data-idunidade="${eq.idunidade}" data-idequip="${eq.idequip}" data-idmodelo="${eq.idmodelo}">Transferir</button>
@@ -1598,6 +1851,26 @@ function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
   const lista = document.getElementById(`${idBase}-lista`);
   if (!input || !hidden || !lista) return;
 
+  const renderLista = (resultados) => {
+    lista.innerHTML = "";
+    if (!resultados.length) {
+      lista.innerHTML = "<li>Nenhum equipamento encontrado.</li>";
+    } else {
+      resultados.forEach((u) => {
+        const li = document.createElement("li");
+        li.textContent = `${u.descEquip}${u.marca ? ' — ' + u.marca : ''}${u.modelo ? '/' + u.modelo : ''} (${u.patrimonio})`;
+        li.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          input.value = li.textContent;
+          hidden.value = u.idunidade;
+          lista.style.display = "none";
+        });
+        lista.appendChild(li);
+      });
+    }
+    lista.style.display = "block";
+  };
+
   input.addEventListener("input", () => {
     hidden.value = "";
     clearTimeout(tiBuscaEquipamentoDebounce);
@@ -1609,27 +1882,54 @@ function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
     tiBuscaEquipamentoDebounce = setTimeout(async () => {
       try {
         const resultados = await fetchTI(`/estoque/busca?busca=${encodeURIComponent(termo)}`);
-        lista.innerHTML = "";
-        if (!resultados.length) {
-          lista.innerHTML = "<li>Nenhum equipamento encontrado.</li>";
-        } else {
-          resultados.forEach((u) => {
-            const li = document.createElement("li");
-            li.textContent = `${u.descEquip}${u.marca ? ' — ' + u.marca : ''}${u.modelo ? '/' + u.modelo : ''} (${u.patrimonio})`;
-            li.addEventListener("mousedown", (e) => {
-              e.preventDefault();
-              input.value = li.textContent;
-              hidden.value = u.idunidade;
-              lista.style.display = "none";
-            });
-            lista.appendChild(li);
-          });
-        }
-        lista.style.display = "block";
+        renderLista(resultados);
       } catch (erro) {
         console.error("Erro ao buscar equipamento em estoque:", erro);
       }
     }, 250);
+  });
+
+  // Leitores de código de barras/tag digitam o código e enviam Enter em seguida —
+  // sem esse tratamento o Enter só confirmaria o modal sem nada selecionado.
+  input.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    clearTimeout(tiBuscaEquipamentoDebounce);
+    const termo = input.value.trim();
+    if (!termo) return;
+
+    try {
+      const resultados = await fetchTI(`/estoque/busca?busca=${encodeURIComponent(termo)}`);
+      // O leitor de QR/código de barras só traz a tag final (ex: "0001"), não o
+      // patrimônio completo com o prefixo (ex: "NTB-HP-PROBOOK-0001") — compara
+      // com o patrimônio inteiro OU só com o trecho após o último "-".
+      const termoLower = termo.toLowerCase();
+      const candidatos = resultados.filter((u) => {
+        const patrimonio = (u.patrimonio || "").toLowerCase();
+        if (patrimonio === termoLower) return true;
+        const partes = patrimonio.split("-");
+        return partes[partes.length - 1] === termoLower;
+      });
+
+      if (candidatos.length === 1) {
+        const exato = candidatos[0];
+        input.value = `${exato.descEquip}${exato.marca ? ' — ' + exato.marca : ''}${exato.modelo ? '/' + exato.modelo : ''} (${exato.patrimonio})`;
+        hidden.value = exato.idunidade;
+        lista.style.display = "none";
+      } else if (candidatos.length > 1) {
+        Swal.showValidationMessage(`Tag "${termo}" ambígua: encontrada em mais de um patrimônio (${candidatos.map((c) => c.patrimonio).join(", ")}). Digite o patrimônio completo.`);
+        renderLista(candidatos);
+        return;
+      } else {
+        renderLista(resultados);
+        return;
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar equipamento em estoque:", erro);
+      return;
+    }
+
+    Swal.getConfirmButton()?.click();
   });
 
   input.addEventListener("blur", () => setTimeout(() => { lista.style.display = "none"; }, 150));
@@ -1638,6 +1938,22 @@ function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
 function lerEquipamentoEstoqueSwal(idBase) {
   const valor = document.getElementById(`${idBase}-id`)?.value;
   return valor ? Number(valor) : null;
+}
+
+async function avisarTagNaoCadastradaSwal(idBase) {
+  const termo = document.getElementById(`${idBase}-input`)?.value.trim();
+  const { isConfirmed } = await Swal.fire({
+    icon: "warning",
+    title: "Tag não cadastrada",
+    text: termo
+      ? `Nenhuma unidade em estoque encontrada para "${termo}".`
+      : "Nenhuma unidade em estoque encontrada para esse código.",
+    showCancelButton: true,
+    confirmButtonText: "Cadastrar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+  });
+  if (isConfirmed) trocarAbaTI("estoque");
 }
 
 // Campo de upload padronizado (botão com ícone, nas cores do Roots, no lugar do
@@ -1863,11 +2179,16 @@ async function abrirAdicionarEquipamentoFuncionarioTI(f) {
     cancelButtonText: "Cancelar",
     reverseButtons: true,
     didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-add"),
-    preConfirm: () => {
+    preConfirm: async () => {
       const idunidade = lerEquipamentoEstoqueSwal("swal-ti-equip-add");
       const observacao = document.getElementById("swal-ti-observacao").value.trim();
       if (!idunidade) {
-        Swal.showValidationMessage("Selecione um equipamento.");
+        const termo = document.getElementById("swal-ti-equip-add-input")?.value.trim();
+        if (termo) {
+          await avisarTagNaoCadastradaSwal("swal-ti-equip-add");
+        } else {
+          Swal.showValidationMessage("Selecione um equipamento.");
+        }
         return false;
       }
       return { idunidade, observacao };
@@ -1922,27 +2243,37 @@ async function abrirTrocaEquipamentoFuncionarioTI(f) {
     cancelButtonText: "Cancelar",
     reverseButtons: true,
     didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-novo"),
-    preConfirm: () => {
-      const selectSubstituido = document.getElementById("swal-ti-substituido");
-      const substituidoTexto = selectSubstituido.options[selectSubstituido.selectedIndex]?.text || "";
+    preConfirm: async () => {
+      const idunidadeAntiga = Number(document.getElementById("swal-ti-substituido").value);
       const idunidadeNovo = lerEquipamentoEstoqueSwal("swal-ti-equip-novo");
-      const observacaoDigitada = document.getElementById("swal-ti-observacao").value.trim();
+      const observacao = document.getElementById("swal-ti-observacao").value.trim();
       if (!idunidadeNovo) {
-        Swal.showValidationMessage("Selecione o novo equipamento.");
+        const termo = document.getElementById("swal-ti-equip-novo-input")?.value.trim();
+        if (termo) {
+          await avisarTagNaoCadastradaSwal("swal-ti-equip-novo");
+        } else {
+          Swal.showValidationMessage("Selecione o novo equipamento.");
+        }
         return false;
       }
-      const observacao = [`Procedimento de troca — substitui ${substituidoTexto}`, observacaoDigitada].filter(Boolean).join(" — ");
-      return { idunidadeNovo, observacao };
+      return { idunidadeAntiga, idunidadeNovo, observacao };
     }
   });
 
   if (!formValues) return;
 
   try {
-    await fetchTI("/custodia/entregar", {
+    // Numa transação só: entrega a nova unidade e marca a antiga como "aguardando
+    // devolução, substituída por" — vínculo real no banco, não só uma observação.
+    await fetchTI("/custodia/trocar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idunidade: formValues.idunidadeNovo, idfuncionario: f.idfuncionario, observacao: formValues.observacao }),
+      body: JSON.stringify({
+        idunidade_antiga: formValues.idunidadeAntiga,
+        idunidade_nova: formValues.idunidadeNovo,
+        idfuncionario: f.idfuncionario,
+        observacao: formValues.observacao,
+      }),
     });
     await Swal.fire("Sucesso!", "Novo equipamento entregue. O equipamento antigo continua com ele até ser devolvido.", "success");
     renderAbaCustodia();
@@ -1968,6 +2299,12 @@ async function abrirManutencaoComTemporariaTI(f) {
         </label>
         <label class="ti-swal-label">Justificativa / descrição do problema
           <textarea id="swal-ti-problema" class="swal2-textarea" rows="3" style="margin:4px 0 0;"></textarea>
+        </label>
+        <label class="ti-swal-label">Tipo de manutenção
+          <select id="swal-ti-tipo-manutencao" class="swal2-select" style="margin:4px 0 0; width:100%;">
+            <option value="interna">Interna (feita no escritório)</option>
+            <option value="externa">Externa (assistência técnica)</option>
+          </select>
         </label>
         ${montarCheckboxPadraoSwal("swal-ti-orcamento-feito", "Orçamento da manutenção já foi realizado")}
         <div id="swal-ti-orcamento-wrap" style="display:none; flex-direction:column; gap:14px;">
@@ -1999,9 +2336,10 @@ async function abrirManutencaoComTemporariaTI(f) {
         if (e.target.checked) ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-temp");
       });
     },
-    preConfirm: () => {
+    preConfirm: async () => {
       const idunidade = document.getElementById("swal-ti-manut-unidade").value;
       const descricaoproblema = document.getElementById("swal-ti-problema").value.trim();
+      const tipo_manutencao = document.getElementById("swal-ti-tipo-manutencao").value;
       const orcamento_realizado = document.getElementById("swal-ti-orcamento-feito").checked;
       const orcamento_valor = orcamento_realizado ? window.desformatarReais(document.getElementById("swal-ti-orcamento-valor").value) || null : null;
       const orcamento_obs = document.getElementById("swal-ti-orcamento-obs").value.trim();
@@ -2016,11 +2354,16 @@ async function abrirManutencaoComTemporariaTI(f) {
         return false;
       }
       if (temTemporaria && !idunidadeTemp) {
-        Swal.showValidationMessage("Selecione a máquina temporária ou desmarque a opção.");
+        const termo = document.getElementById("swal-ti-equip-temp-input")?.value.trim();
+        if (termo) {
+          await avisarTagNaoCadastradaSwal("swal-ti-equip-temp");
+        } else {
+          Swal.showValidationMessage("Selecione a máquina temporária ou desmarque a opção.");
+        }
         return false;
       }
       return {
-        idunidade: Number(idunidade), descricaoproblema, orcamento_realizado, orcamento_valor, orcamento_obs,
+        idunidade: Number(idunidade), descricaoproblema, tipo_manutencao, orcamento_realizado, orcamento_valor, orcamento_obs,
         idunidadeTemp,
       };
     }
@@ -2029,28 +2372,21 @@ async function abrirManutencaoComTemporariaTI(f) {
   if (!formValues) return;
 
   try {
+    // Manutenção + entrega da temporária acontecem numa transação só no backend —
+    // se a temporária não puder ser entregue, a manutenção nem chega a ser registrada.
     await fetchTI("/manutencao", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         idunidade: formValues.idunidade,
         descricaoproblema: formValues.descricaoproblema,
+        tipo_manutencao: formValues.tipo_manutencao,
         orcamento_realizado: formValues.orcamento_realizado,
         orcamento_valor: formValues.orcamento_valor,
         orcamento_obs: formValues.orcamento_obs,
+        idunidade_temporaria: formValues.idunidadeTemp,
       }),
     });
-
-    if (formValues.idunidadeTemp) {
-      await fetchTI("/custodia/entregar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idunidade: formValues.idunidadeTemp, idfuncionario: f.idfuncionario,
-          observacao: "Máquina temporária (equipamento anterior em manutenção)",
-        }),
-      });
-    }
 
     await Swal.fire("Sucesso!", "Equipamento enviado para manutenção.", "success");
     renderAbaCustodia();
@@ -2148,7 +2484,10 @@ async function renderManutencaoFila() {
           <div class="ti-card-linha ti-card-manutencao-${m.status}">
             <div class="ti-card-linha-topo">
               <span class="ti-card-linha-titulo">${m.descequip} — ${m.marca}${m.modelo ? ' / ' + m.modelo : ''}${m.patrimonio ? ' (' + m.patrimonio + ')' : ''}</span>
-              <span class="ti-badge-manutencao ti-badge-manutencao-${m.status}">${statusLabel[m.status] || m.status}</span>
+              <span>
+                <span class="ti-badge-tipo-manutencao ti-badge-tipo-manutencao-${m.tipo_manutencao}">${m.tipo_manutencao === 'interna' ? 'Interna' : 'Externa'}</span>
+                <span class="ti-badge-manutencao ti-badge-manutencao-${m.status}">${statusLabel[m.status] || m.status}</span>
+              </span>
             </div>
             ${m.descricaoproblema ? `<div class="ti-card-linha-sub">${m.descricaoproblema}</div>` : ""}
             <div class="ti-card-linha-sub ${m.orcamento_realizado ? 'ti-orcamento-ok' : 'ti-orcamento-pendente'}">${m.orcamento_realizado
@@ -2452,6 +2791,12 @@ async function abrirManutencaoManualTI() {
         <label class="ti-swal-label">Justificativa / descrição do problema
           <textarea id="swal-ti-problema" class="swal2-textarea" rows="3" style="margin:4px 0 0;"></textarea>
         </label>
+        <label class="ti-swal-label">Tipo de manutenção
+          <select id="swal-ti-tipo-manutencao" class="swal2-select" style="margin:4px 0 0; width:100%;">
+            <option value="interna">Interna (feita no escritório)</option>
+            <option value="externa">Externa (assistência técnica)</option>
+          </select>
+        </label>
         ${montarCheckboxPadraoSwal("swal-ti-orcamento-feito", "Orçamento da manutenção já foi realizado")}
         <div id="swal-ti-orcamento-wrap" style="display:none; flex-direction:column; gap:14px;">
           <label class="ti-swal-label">Valor do orçamento
@@ -2474,21 +2819,27 @@ async function abrirManutencaoManualTI() {
         document.getElementById("swal-ti-orcamento-wrap").style.display = e.target.checked ? "flex" : "none";
       });
     },
-    preConfirm: () => {
+    preConfirm: async () => {
       const idunidade = lerEquipamentoEstoqueSwal("swal-ti-equipamento");
       const descricaoproblema = document.getElementById("swal-ti-problema").value.trim();
+      const tipo_manutencao = document.getElementById("swal-ti-tipo-manutencao").value;
       const orcamento_realizado = document.getElementById("swal-ti-orcamento-feito").checked;
       const orcamento_valor = orcamento_realizado ? window.desformatarReais(document.getElementById("swal-ti-orcamento-valor").value) || null : null;
       const orcamento_obs = document.getElementById("swal-ti-orcamento-obs").value.trim();
       if (!idunidade) {
-        Swal.showValidationMessage("Selecione o equipamento.");
+        const termo = document.getElementById("swal-ti-equipamento-input")?.value.trim();
+        if (termo) {
+          await avisarTagNaoCadastradaSwal("swal-ti-equipamento");
+        } else {
+          Swal.showValidationMessage("Selecione o equipamento.");
+        }
         return false;
       }
       if (!descricaoproblema) {
         Swal.showValidationMessage("Descreva o problema do equipamento.");
         return false;
       }
-      return { idunidade, descricaoproblema, orcamento_realizado, orcamento_valor, orcamento_obs };
+      return { idunidade, descricaoproblema, tipo_manutencao, orcamento_realizado, orcamento_valor, orcamento_obs };
     }
   });
 
@@ -2531,6 +2882,424 @@ async function concluirManutencaoTI(idmanutencao) {
     console.error("Erro ao concluir manutenção:", erro);
     Swal.fire("Erro", erro.message || "Erro ao concluir manutenção.", "error");
   }
+}
+
+// ===== Almoxarifado (consumíveis de TI: ribbon, etiqueta, papel A4, tinta etc) =====
+// Diferente de Estoque (unidades únicas com patrimônio), aqui é só quantidade —
+// item vai sendo consumido aos poucos e precisa ser reposto de tempos em tempos.
+async function renderAbaAlmoxarifado() {
+  const container = document.getElementById("ti-aba-almoxarifado");
+  if (!container) return;
+  container.innerHTML = tiLoading("Carregando almoxarifado...");
+
+  try {
+    const itens = await fetchTI("/almoxarifado");
+    cacheConsumiveis = itens;
+
+    const renderGrid = (lista) => `
+      ${!lista.length ? tiVazio("Nenhum item encontrado.", "inventory") : `
+        <div id="ti-cards-almoxarifado" class="ti-grid-quadrado">
+          ${lista.map((item) => `
+            <div class="ti-card-quadrado ti-card-clicavel" data-idconsumivel="${item.idconsumivel}"
+                 data-busca="${item.descricao}" title="Clique para repor, consumir ou ver o histórico">
+              <span class="ti-card-quadrado-nome">${item.abaixo_minimo ? "⚠ " : ""}${item.descricao}</span>
+              <strong class="ti-card-quadrado-qtd">${item.quantidade_atual}</strong>
+              <span class="ti-card-quadrado-legenda">${item.unidade_medida}(s) — mín: ${item.estoque_minimo}</span>
+            </div>
+          `).join("")}
+        </div>
+      `}
+    `;
+
+    const bindCards = () => {
+      container.querySelectorAll(".ti-card-quadrado").forEach((card) =>
+        card.addEventListener("click", () => abrirDetalheConsumivelTI(Number(card.dataset.idconsumivel)))
+      );
+    };
+
+    container.innerHTML = `
+      <div class="ti-custodia-filtros">
+        <input type="text" id="ti-busca-almoxarifado" class="ti-input-busca" placeholder="Buscar item pelo nome...">
+        <button type="button" id="ti-btn-novo-consumivel">+ Cadastrar item</button>
+      </div>
+      <div id="ti-lista-almoxarifado" style="margin-top:20px;">${renderGrid(itens)}</div>
+    `;
+
+    document.getElementById("ti-btn-novo-consumivel")?.addEventListener("click", abrirCadastroConsumivelTI);
+    bindCards();
+
+    document.getElementById("ti-busca-almoxarifado")?.addEventListener("input", (e) => {
+      const termo = e.target.value.trim().toLowerCase();
+      const filtrados = itens.filter((item) => item.descricao.toLowerCase().includes(termo));
+      document.getElementById("ti-lista-almoxarifado").innerHTML = renderGrid(filtrados);
+      bindCards();
+    });
+  } catch (erro) {
+    console.error("Erro ao carregar almoxarifado:", erro);
+    container.innerHTML = tiVazio("Erro ao carregar almoxarifado.", "error");
+  }
+}
+
+async function abrirCadastroConsumivelTI() {
+  const { value: formValues } = await Swal.fire({
+    title: "Cadastrar item no almoxarifado",
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label">Descrição
+          <input type="text" id="swal-ti-consumivel-descricao" class="swal2-input" placeholder="Ex: Ribbon, Etiqueta, Papel A4..." style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Unidade de medida
+          <input type="text" id="swal-ti-consumivel-unidade" class="swal2-input" placeholder="Ex: unidade, caixa, rolo, folha..." value="unidade" style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Quantidade inicial
+          <input type="number" id="swal-ti-consumivel-qtd" class="swal2-input" min="0" value="0" style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Estoque mínimo (dispara alerta quando bater)
+          <input type="number" id="swal-ti-consumivel-minimo" class="swal2-input" min="0" value="0" style="margin:4px 0 0;">
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Cadastrar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    preConfirm: () => {
+      const descricao = document.getElementById("swal-ti-consumivel-descricao").value.trim();
+      const unidade_medida = document.getElementById("swal-ti-consumivel-unidade").value.trim() || "unidade";
+      const quantidade_atual = parseInt(document.getElementById("swal-ti-consumivel-qtd").value, 10) || 0;
+      const estoque_minimo = parseInt(document.getElementById("swal-ti-consumivel-minimo").value, 10) || 0;
+      if (!descricao) {
+        Swal.showValidationMessage("Descreva o item.");
+        return false;
+      }
+      return { descricao, unidade_medida, quantidade_atual, estoque_minimo };
+    }
+  });
+
+  if (!formValues) return;
+
+  try {
+    await fetchTI("/almoxarifado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formValues),
+    });
+    await Swal.fire("Sucesso!", "Item cadastrado no almoxarifado.", "success");
+    renderAbaAlmoxarifado();
+  } catch (erro) {
+    console.error("Erro ao cadastrar item do almoxarifado:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao cadastrar item.", "error");
+  }
+}
+
+async function abrirEditarConsumivelTI(id, descricaoAtual, unidadeAtual, minimoAtual) {
+  const { value: formValues } = await Swal.fire({
+    title: "Editar item do almoxarifado",
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label">Descrição
+          <input type="text" id="swal-ti-consumivel-descricao" class="swal2-input" value="${descricaoAtual}" style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Unidade de medida
+          <input type="text" id="swal-ti-consumivel-unidade" class="swal2-input" value="${unidadeAtual}" style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Estoque mínimo
+          <input type="number" id="swal-ti-consumivel-minimo" class="swal2-input" min="0" value="${minimoAtual}" style="margin:4px 0 0;">
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Salvar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    preConfirm: () => {
+      const descricao = document.getElementById("swal-ti-consumivel-descricao").value.trim();
+      const unidade_medida = document.getElementById("swal-ti-consumivel-unidade").value.trim() || "unidade";
+      const estoque_minimo = parseInt(document.getElementById("swal-ti-consumivel-minimo").value, 10) || 0;
+      if (!descricao) {
+        Swal.showValidationMessage("Descreva o item.");
+        return false;
+      }
+      return { descricao, unidade_medida, estoque_minimo };
+    }
+  });
+
+  if (!formValues) return;
+
+  try {
+    await fetchTI(`/almoxarifado/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formValues),
+    });
+    renderAbaAlmoxarifado();
+  } catch (erro) {
+    console.error("Erro ao editar item do almoxarifado:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao editar item.", "error");
+  }
+}
+
+// Detalhe do item de almoxarifado — igual ao clique numa categoria do Estoque
+// (montarSwalModelosCategoria), mas com as ações do consumível.
+async function abrirDetalheConsumivelTI(idconsumivel) {
+  const item = cacheConsumiveis.find((i) => i.idconsumivel === idconsumivel);
+  if (!item) return;
+
+  await Swal.fire({
+    title: item.descricao,
+    html: `
+      <div class="ti-swal-modelo-numeros">
+        <div><strong>${item.quantidade_atual}</strong><span>${item.unidade_medida}(s) em estoque</span></div>
+        <div><strong>${item.estoque_minimo}</strong><span>estoque mínimo</span></div>
+      </div>
+      ${item.abaixo_minimo ? '<p style="color:#a11919; font-weight:600; text-align:center; margin:10px 0 0;">⚠ Abaixo do estoque mínimo</p>' : ""}
+      <div class="ti-swal-modelo-acoes" style="justify-content:center; margin-top:16px;">
+        <button type="button" id="ti-detalhe-repor">Repor</button>
+        <button type="button" id="ti-detalhe-consumir" class="secundario">Consumir</button>
+        <button type="button" id="ti-detalhe-editar" class="secundario">Editar</button>
+        <button type="button" id="ti-detalhe-historico" class="secundario">Histórico</button>
+      </div>
+    `,
+    showConfirmButton: false,
+    showCloseButton: true,
+    didOpen: () => {
+      document.getElementById("ti-detalhe-repor").addEventListener("click", () => {
+        Swal.close();
+        abrirMovimentacaoConsumivelTI(item.idconsumivel, item.descricao, item.unidade_medida, "entrada");
+      });
+      document.getElementById("ti-detalhe-consumir").addEventListener("click", () => {
+        Swal.close();
+        abrirMovimentacaoConsumivelTI(item.idconsumivel, item.descricao, item.unidade_medida, "saida", item.quantidade_atual);
+      });
+      document.getElementById("ti-detalhe-editar").addEventListener("click", () => {
+        Swal.close();
+        abrirEditarConsumivelTI(item.idconsumivel, item.descricao, item.unidade_medida, item.estoque_minimo);
+      });
+      document.getElementById("ti-detalhe-historico").addEventListener("click", () => {
+        Swal.close();
+        verHistoricoConsumivelTI(item.idconsumivel, item.descricao);
+      });
+    },
+  });
+}
+
+async function abrirMovimentacaoConsumivelTI(id, descricao, unidade, tipo, quantidadeAtual) {
+  const titulo = tipo === "entrada" ? `Repor — ${descricao}` : `Consumir — ${descricao}`;
+  const { value: formValues } = await Swal.fire({
+    title: titulo,
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label">Quantidade (${unidade})${tipo === "saida" ? ` — disponível: ${quantidadeAtual}` : ""}
+          <input type="number" id="swal-ti-consumivel-mov-qtd" class="swal2-input" min="1" value="1" style="margin:4px 0 0;">
+        </label>
+        <label class="ti-swal-label">Retirando para (opcional — deixe em branco se for para uso próprio)
+          <input type="text" id="swal-ti-consumivel-mov-funcionario-busca" class="swal2-input" placeholder="Buscar funcionário por nome..." autocomplete="off" style="margin:4px 0 0;">
+          <input type="hidden" id="swal-ti-consumivel-mov-funcionario">
+        </label>
+        <label class="ti-swal-label">Motivo (opcional)
+          <input type="text" id="swal-ti-consumivel-mov-motivo" class="swal2-input" style="margin:4px 0 0;">
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: tipo === "entrada" ? "Repor" : "Consumir",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      const inputBusca = document.getElementById("swal-ti-consumivel-mov-funcionario-busca");
+      const inputOculto = document.getElementById("swal-ti-consumivel-mov-funcionario");
+      ligarBuscaComSugestoes(
+        inputBusca,
+        "swal-ti-consumivel-mov-funcionario-lista",
+        (termo) => fetchTI(`/funcionarios/busca?busca=${encodeURIComponent(termo)}`),
+        (f) => f.nome,
+        (f) => {
+          inputBusca.value = f.nome;
+          inputOculto.value = f.idfuncionario;
+        },
+        { mensagemVazia: "Nenhum funcionário encontrado" }
+      );
+      inputBusca.addEventListener("input", () => {
+        if (!inputBusca.value.trim()) inputOculto.value = "";
+      });
+    },
+    preConfirm: () => {
+      const quantidade = parseInt(document.getElementById("swal-ti-consumivel-mov-qtd").value, 10);
+      const motivo = document.getElementById("swal-ti-consumivel-mov-motivo").value.trim();
+      const idfuncionario_solicitante = document.getElementById("swal-ti-consumivel-mov-funcionario").value || null;
+      if (!Number.isInteger(quantidade) || quantidade <= 0) {
+        Swal.showValidationMessage("Informe uma quantidade válida.");
+        return false;
+      }
+      return { quantidade, motivo, idfuncionario_solicitante };
+    }
+  });
+
+  if (!formValues) return;
+
+  try {
+    await fetchTI(`/almoxarifado/${id}/movimentacao`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo,
+        quantidade: formValues.quantidade,
+        motivo: formValues.motivo,
+        idfuncionario_solicitante: formValues.idfuncionario_solicitante,
+      }),
+    });
+    renderAbaAlmoxarifado();
+  } catch (erro) {
+    console.error("Erro ao movimentar item do almoxarifado:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao registrar movimentação.", "error");
+  }
+}
+
+function montarQueryHistoricoAlmoxarifado(filtros) {
+  const params = new URLSearchParams();
+  if (filtros.data_inicio) params.set("data_inicio", filtros.data_inicio);
+  if (filtros.data_fim) params.set("data_fim", filtros.data_fim);
+  if (filtros.idusuario) params.set("idusuario", filtros.idusuario);
+  if (filtros.idfuncionario_solicitante) params.set("idfuncionario_solicitante", filtros.idfuncionario_solicitante);
+  return params.toString();
+}
+
+function renderLinhasHistoricoAlmoxarifado(historico) {
+  const tipoLabel = { entrada: "Reposição", saida: "Consumo" };
+  if (!historico.length) {
+    return `<tr><td colspan="5" style="text-align:center; color:#888;">Nenhuma movimentação encontrada.</td></tr>`;
+  }
+  return historico.map((h) => {
+    const motivoResumo = h.motivo && h.motivo.length > 30 ? `${h.motivo.slice(0, 30)}…` : h.motivo;
+    return `
+    <tr>
+      <td>${new Date(h.criado_em).toLocaleString("pt-BR")}</td>
+      <td>${tipoLabel[h.tipo] || h.tipo} de ${h.quantidade}</td>
+      <td>${escaparHtml(h.nome_usuario) || "—"}</td>
+      <td>${escaparHtml(h.nome_funcionario_solicitante) || "—"}</td>
+      <td>${h.motivo ? `<button type="button" class="ti-btn-ver-motivo secundario" data-idmovimentacao="${h.idmovimentacao}">${escaparHtml(motivoResumo)}</button>` : "—"}</td>
+    </tr>
+  `;
+  }).join("");
+}
+
+// Igual ao padrão de filtro do Estoque/Equipamentos (filtro-grupo + busca-evento-input),
+// só que inline dentro da própria aba Almoxarifado em vez de um Swal.
+async function verHistoricoConsumivelTI(id, descricao) {
+  const container = document.getElementById("ti-aba-almoxarifado");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="ti-custodia-filtros" style="margin-bottom:16px;">
+      <button type="button" id="ti-hist-voltar" class="secundario">← Voltar ao almoxarifado</button>
+    </div>
+    <div class="Evt-container">
+      <h3 style="margin:0 0 16px;">Histórico — ${descricao}</h3>
+      <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="filtro-grupo">
+          <label class="label-select">De</label>
+          <input type="date" id="ti-hist-data-inicio" class="busca-evento-input" style="width:150px;">
+        </div>
+        <div class="filtro-grupo">
+          <label class="label-select">Até</label>
+          <input type="date" id="ti-hist-data-fim" class="busca-evento-input" style="width:150px;">
+        </div>
+        <div class="filtro-grupo">
+          <label class="label-select">Usuário</label>
+          <div class="wrapper select-wrapper busca-evento-wrapper" style="width:220px;">
+            <input type="text" id="ti-hist-usuario-busca" class="busca-evento-input" placeholder="Buscar usuário..." autocomplete="off">
+            <input type="hidden" id="ti-hist-usuario">
+          </div>
+        </div>
+        <div class="filtro-grupo">
+          <label class="label-select">Funcionário</label>
+          <div class="wrapper select-wrapper busca-evento-wrapper" style="width:220px;">
+            <input type="text" id="ti-hist-funcionario-busca" class="busca-evento-input" placeholder="Buscar funcionário..." autocomplete="off">
+            <input type="hidden" id="ti-hist-funcionario">
+          </div>
+        </div>
+        <div class="ti-custodia-filtros filtro-grupo">
+          <button type="button" id="ti-hist-filtrar">Filtrar</button>
+          <button type="button" id="ti-hist-limpar" class="secundario">Limpar</button>
+        </div>
+      </div>
+    </div>
+    <table class="ti-tabela" style="margin-top:20px;">
+      <thead><tr><th>Data</th><th>Movimentação</th><th>Usuário</th><th>Funcionário</th><th>Motivo</th></tr></thead>
+      <tbody id="ti-hist-tbody"><tr><td colspan="5">Carregando...</td></tr></tbody>
+    </table>
+  `;
+
+  document.getElementById("ti-hist-voltar").addEventListener("click", renderAbaAlmoxarifado);
+
+  let historicoAtual = [];
+  document.getElementById("ti-hist-tbody").addEventListener("click", (e) => {
+    const btn = e.target.closest(".ti-btn-ver-motivo");
+    if (!btn) return;
+    const item = historicoAtual.find((h) => String(h.idmovimentacao) === btn.dataset.idmovimentacao);
+    if (!item) return;
+    Swal.fire({ title: "Motivo", html: `<p style="text-align:left; white-space:pre-wrap;">${escaparHtml(item.motivo)}</p>` });
+  });
+
+  const tbody = document.getElementById("ti-hist-tbody");
+  const inputUsuarioBusca = document.getElementById("ti-hist-usuario-busca");
+  const inputUsuarioOculto = document.getElementById("ti-hist-usuario");
+  const inputFuncionarioBusca = document.getElementById("ti-hist-funcionario-busca");
+  const inputFuncionarioOculto = document.getElementById("ti-hist-funcionario");
+
+  ligarBuscaComSugestoes(
+    inputUsuarioBusca,
+    "ti-hist-usuario-lista",
+    (termo) => fetchTI(`/usuarios/busca?busca=${encodeURIComponent(termo)}`),
+    (u) => u.nome,
+    (u) => { inputUsuarioBusca.value = u.nome; inputUsuarioOculto.value = u.idusuario; },
+    { mensagemVazia: "Nenhum usuário encontrado" }
+  );
+  inputUsuarioBusca.addEventListener("input", () => { if (!inputUsuarioBusca.value.trim()) inputUsuarioOculto.value = ""; });
+
+  ligarBuscaComSugestoes(
+    inputFuncionarioBusca,
+    "ti-hist-funcionario-lista",
+    (termo) => fetchTI(`/funcionarios/busca?busca=${encodeURIComponent(termo)}`),
+    (f) => f.nome,
+    (f) => { inputFuncionarioBusca.value = f.nome; inputFuncionarioOculto.value = f.idfuncionario; },
+    { mensagemVazia: "Nenhum funcionário encontrado" }
+  );
+  inputFuncionarioBusca.addEventListener("input", () => { if (!inputFuncionarioBusca.value.trim()) inputFuncionarioOculto.value = ""; });
+
+  const carregar = async () => {
+    tbody.innerHTML = `<tr><td colspan="5">Carregando...</td></tr>`;
+    try {
+      const query = montarQueryHistoricoAlmoxarifado({
+        data_inicio: document.getElementById("ti-hist-data-inicio").value,
+        data_fim: document.getElementById("ti-hist-data-fim").value,
+        idusuario: inputUsuarioOculto.value,
+        idfuncionario_solicitante: inputFuncionarioOculto.value,
+      });
+      const historico = await fetchTI(`/almoxarifado/${id}/movimentacoes${query ? `?${query}` : ""}`);
+      historicoAtual = historico;
+      tbody.innerHTML = renderLinhasHistoricoAlmoxarifado(historico);
+    } catch (erro) {
+      console.error("Erro ao carregar histórico do consumível:", erro);
+      tbody.innerHTML = `<tr><td colspan="5" style="color:#a11919;">Erro ao carregar histórico.</td></tr>`;
+    }
+  };
+
+  document.getElementById("ti-hist-filtrar").addEventListener("click", carregar);
+  document.getElementById("ti-hist-limpar").addEventListener("click", () => {
+    document.getElementById("ti-hist-data-inicio").value = "";
+    document.getElementById("ti-hist-data-fim").value = "";
+    inputUsuarioBusca.value = "";
+    inputUsuarioOculto.value = "";
+    inputFuncionarioBusca.value = "";
+    inputFuncionarioOculto.value = "";
+    carregar();
+  });
+
+  carregar();
 }
 
 // ===== E-mails corporativos (dashboard por área + cadastro/troca de senha e funcionário) =====

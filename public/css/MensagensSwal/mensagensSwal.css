@@ -210,6 +210,21 @@
 .ti-swal-modelo-numeros div { display: flex; flex-direction: column; }
 .ti-swal-modelo-numeros strong { font-size: 20px; color: #222; line-height: 1.1; }
 .ti-swal-modelo-numeros span { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .3px; }
+.ti-swal-modelo-locais { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Os modais do Swal2 são anexados ao <body>, fora do #ti-panel — por isso esse
+   badge (usado tanto aqui quanto na tela de Separação) precisa existir sem
+   escopo, sem depender do CSS scoped de dentro do painel do TI. */
+.ti-badge-local {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #eee;
+  color: #555;
+  font-size: 11px;
+  font-weight: 600;
+}
 .ti-swal-modelo-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
 .ti-swal-modelo-acoes button {
   border: none;
@@ -303,24 +318,72 @@
 }
 .ti-tabela th, .ti-tabela td {
   text-align: left;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid #eee;
   font-size: 13px;
   color: #333;
+  vertical-align: middle;
+}
+.ti-tabela th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: #888;
+  font-weight: 700;
+  border-bottom: 2px solid #eee;
 }
 .ti-tabela-unidades { margin: 0; }
-.ti-tabela-unidades button {
-  margin-right: 4px;
-  margin-bottom: 2px;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
-  background: #942123;
-  color: #fff;
-  cursor: pointer;
-  font-size: 13px;
+.ti-tabela-unidades tbody tr:hover { background: #fafafa; }
+.ti-tabela-unidades td:nth-child(2) { white-space: nowrap; }
+
+/* Status como badge discreta em vez de texto cru minúsculo */
+.ti-tabela-unidades .ti-badge-status {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  background: #eee;
+  color: #555;
 }
-.ti-tabela-unidades button.secundario { background: #888; }
+.ti-tabela-unidades .ti-badge-status-estoque { background: #e3f4e1; color: #1f6d1a; }
+.ti-tabela-unidades .ti-badge-status-com_funcionario { background: #e0e7ff; color: #3730a3; }
+.ti-tabela-unidades .ti-badge-status-evento { background: #fde6c8; color: #8a5300; }
+.ti-tabela-unidades .ti-badge-status-manutencao { background: #fde0e0; color: #a11919; }
+.ti-tabela-unidades .ti-badge-status-baixado { background: #eee; color: #888; }
+
+/* Ações da tabela: pills discretas (outline), não competem visualmente com o
+   botão "Entrada" (CTA principal, preenchido) acima da tabela. */
+.ti-tabela-unidades .ti-acoes-unidade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ti-tabela-unidades button {
+  border: 1px solid var(--primary-color, #942123);
+  border-radius: 20px;
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--primary-color, #942123);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+.ti-tabela-unidades button:hover { background: var(--primary-color, #942123); color: #fff; }
+.ti-tabela-unidades button.secundario { border-color: #ccc; color: #666; }
+.ti-tabela-unidades button.secundario:hover { background: #666; border-color: #666; color: #fff; }
+
+.ti-select-local-unidade {
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+}
 
 /* Busca padrão (mesmo modelo do #rh-busca-func): input + lista suspensa filtrada */
 .ti-swal-busca { position: relative; }
@@ -434,3 +497,58 @@
   font-weight: normal;
   padding: 4px 0;
 }
+
+/* ===== Tela de Separação (evento → unidades/patrimônio) ===== */
+.ti-separacao-swal { text-align: left; }
+.ti-separacao-scan-msg { min-height: 20px; font-size: 0.9em; }
+
+.ti-separacao-lista {
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.ti-separacao-categoria { margin-bottom: 14px; }
+.ti-separacao-categoria:last-child { margin-bottom: 0; }
+
+.ti-separacao-categoria-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ti-separacao-contador { color: #888; font-size: 0.85em; }
+
+.ti-separacao-modelo { margin: 6px 0 0 8px; }
+.ti-separacao-modelo em { color: #555; font-size: 0.9em; }
+.ti-separacao-vazio { color: #888; font-size: 0.9em; padding: 4px 0; }
+
+/* Checkbox desmarcado por padrão — a marcação é sempre uma escolha explícita
+   (leitura de QR ou clique), nunca um estado pré-selecionado. */
+.ti-separacao-linha {
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 0;
+  transition: background 0.12s ease;
+}
+.ti-separacao-linha:hover { background: #f0f0f0; }
+.ti-separacao-linha input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary-color, #942123);
+  cursor: pointer;
+}
+.ti-separacao-linha:has(input:checked) {
+  background: color-mix(in srgb, var(--primary-color, #942123) 12%, transparent);
+  font-weight: 600;
+}
+
+.ti-separacao-pendencias {
+  margin-top: 10px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #a53603;
+}
+.ti-separacao-pendencias--vazio { color: #888; font-weight: normal; }
