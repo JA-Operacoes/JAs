@@ -748,9 +748,15 @@ function criarSelectFornecedores(fornecedors) {
 }
 
 function adicionarEventoBlurFornecedor() {
-    
+
     // Event: Preencher campos ao sair do campo Nome Fantasia
     let ultimoClique = null;
+
+    // Nome (em maiúsculas) já confirmado pelo usuário como "sim, cadastrar novo" — evita
+    // reabrir a mesma pergunta (e apagar o que já foi digitado nos outros campos) toda vez
+    // que o campo Nome Fantasia perde o foco de novo (ex.: usuário clica em CNPJ, Razão
+    // Social etc.) enquanto o fornecedor novo ainda não foi salvo no banco.
+    let nomeNovoJaConfirmado = null;
 
     // Captura o último elemento clicado no documento
     document.addEventListener("mousedown", (e) => {
@@ -774,12 +780,13 @@ function adicionarEventoBlurFornecedor() {
 
         try {
             const fornecedor = await fetchComToken(`/fornecedores?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            
+
             console.log("Fornecedor encontrado:", fornecedor);
 
             if (!fornecedor || Object.keys(fornecedor).length === 0)
                 throw new Error("Dados de fornecedor vazios");
 
+            nomeNovoJaConfirmado = null;
             preencherFormulario(fornecedor);
             console.log("Fornecedor carregado:", fornecedor);
 
@@ -788,6 +795,12 @@ function adicionarEventoBlurFornecedor() {
 
             //  Se fornecedor não existe e ainda não tem ID preenchido
             if (!idFornecedor.value) {
+                // Já perguntamos e o usuário já confirmou "sim, cadastrar" para esse mesmo
+                // nome — não pergunta de novo nem mexe no formulário (é isso que causava o
+                // loop apagando CNPJ/outros campos toda vez que o foco saía e voltava pro
+                // Nome Fantasia sem o fornecedor ainda estar salvo no banco).
+                if (nomeNovoJaConfirmado && nomeNovoJaConfirmado === nmFantasia.toUpperCase()) return;
+
                 const podeCadastrar = temPermissao("Fornecedores", "cadastrar");
                 console.log("PODE CADASTRAR ", podeCadastrar);
                 // Só pergunta se deseja cadastrar se tiver permissão
@@ -803,8 +816,11 @@ function adicionarEventoBlurFornecedor() {
 
                     if (!isConfirmed) return;
 
-                    // Se confirmado, pode continuar com o formulário em branco
-                    limparFormulario(); // opcional
+                    // Confirmado: NÃO limpa o formulário — não há fornecedor nenhum carregado
+                    // aqui (idFornecedor está vazio), então não existe dado antigo pra limpar;
+                    // limpar aqui só apagava CNPJ/Razão Social/etc. que o usuário já tinha
+                    // digitado antes de sair do campo Nome Fantasia.
+                    nomeNovoJaConfirmado = nmFantasia.toUpperCase();
                     getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
                 } else {
                     //  Sem permissão: apenas alerta

@@ -6458,6 +6458,13 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     const vlrBaseItem  = vlrDiaria;
     const nomeProduto  = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
 
+    // A célula de venda tem que já nascer líquida (base - desconto + acréscimo), igual
+    // ao que recalcularLinha() calcula depois de qualquer edição — senão ela fica exibindo
+    // o valor bruto até o usuário mexer manualmente no desconto/acréscimo DESSE item, e
+    // qualquer ação que dispare um recálculo geral nesse meio tempo (ex.: editar outro
+    // item) usa esse valor bruto errado como se fosse o líquido.
+    const vlrVendaLiquido = isBonificado ? 0 : (vlrDiaria - descontoItem + acrescimoItem);
+
 
 
     const newRow = tabelaBody.insertRow();
@@ -6570,7 +6577,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
           <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%" ${isBonificado ? 'readonly' : ''}>
         </div>
       </td>
-      <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
+      <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrVendaLiquido)}</td>
       <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
       <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
       <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
