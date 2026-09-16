@@ -31,43 +31,76 @@ body{
 
 .Empresas{
   display: flex;
+  flex-shrink: 0;
   justify-content: center;
   align-items:center ;
   padding: 0 20px;
   gap: 20px;
 }
 
-.logotipo{
+/* Grade de ícones uniformes (empresa padrão) — antes era 1 logo grande "em destaque" + o resto
+   minúsculo do lado (.minilogos), esquema que não escala: com 10 empresas cadastradas, ou tudo
+   fica minúsculo, ou não cabe. Agora todo ícone tem o mesmo tamanho, quebra linha sozinho, e a
+   selecionada é marcada por anel + ✓ em vez de tamanho — mesmo padrão já usado nos chips de
+   empresa do CEO Mode (Visão Geral). Seletor por ID, não por classe ".logotipo" — essa classe já
+   existe em Style.css (logo grande do cabeçalho principal) e essa tela abre como modal dentro das
+   páginas que carregam esse CSS, então uma classe genérica colide e uma das duas regras vence por
+   ordem de cascata (foi o que causava os círculos minúsculos sem imagem). */
+#logotipoEmpresas{
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 20px;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 560px;
 }
 
-.logotipo img{
-  max-width: 100px;
-  height: auto;
-  display: flex;
-  justify-content: center;
-  object-fit: contain;
-}
-
-.minilogos{
+/* Tamanho travado em px (não % nem aspect-ratio) — nada de cálculo automático que dependa do
+   navegador resolver grid fr / aspect-ratio junto com flex, que foi o que estava colapsando o
+   chip pra um tamanho minúsculo mesmo com as imagens carregando certinho (confirmado via
+   Network: todas 200 OK). Menor que a primeira versão pra caber as 10 empresas numa linha só. */
+.logo-chip{
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 8px;
+  background: #f2efe8;
+  border: 1px solid rgba(0,0,0,.1);
   display: flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: transform .12s ease;
+}
+.logo-chip:hover{ transform: translateY(-2px); }
+
+.logo-chip img{
+  max-width: 32px;
+  max-height: 32px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 
-.minilogos img{
-  max-width: 25px;
-  gap: 20px;
-  height: auto;
+.logo-chip.selecionado{
+  background: #fbf6ea;
+  box-shadow: 0 0 0 2px var(--primary-color, #c8102e);
+}
+.logo-chip.selecionado::after{
+  content: "✓";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--primary-color, #c8102e);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
   display: flex;
-  justify-content: flex-start;
-  object-fit: contain;
   align-items: center;
-  transition: max-width 0.2s ease;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
 }
 
 #logotipoEmpresas > div{
@@ -348,6 +381,7 @@ color: #fff;
 /* Nome e Sobrenome lado a lado */
 .user-box.dupla {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 20px;
 }

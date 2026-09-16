@@ -131,6 +131,7 @@ app.use("/ajustefinanceiro", autenticarToken(), contextoEmpresa, require("./rout
 app.use("/planosaude", autenticarToken(), contextoEmpresa, require("./routes/rotaPlanoSaude"));
 app.use("/servicos", autenticarToken(), contextoEmpresa, require("./routes/rotaServicos"));
 app.use("/faturamento", autenticarToken(), contextoEmpresa, require("./routes/rotaFaturamento"));
+app.use("/almoxarifado", autenticarToken(), contextoEmpresa, require("./routes/rotaAlmoxarifado"));
 
 app.use("/Contrato", autenticarToken(), contextoEmpresa, require("./routes/rotaContrato"));
 

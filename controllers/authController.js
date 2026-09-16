@@ -57,10 +57,16 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       const usuario = rows[0];    
 
       const empresasDoUsuario = await getEmpresasDoUsuario(usuario.idusuario);
-    //  const empresasIguais = arraysIguais(empresas, empresasDoUsuario);
-      console.log("Empresas do usuário:", empresasDoUsuario);
-      //console.log("Empresas enviadas:", empresas);
-     // console.log("Nome:", nome, "Sobrenome:", sobrenome, "Email:", email, "Ativo:", req.body.ativo, "IdEmpresaDefault:", idempresadefault, "Empresas:", empresas, "Empresas do Usuario:", empresasDoUsuario, "Empresas Iguais:", empresasIguais);
+      // Compara por conjunto (idempresa + ativo), ignorando a ordem — arraysIguais (acima)
+      // só serve pra array de números, não pro formato {idempresa, ativo} que usamos aqui.
+      const normalizarEmpresas = (lista) =>
+        JSON.stringify(
+          [...(Array.isArray(lista) ? lista : [])]
+            .map((e) => ({ idempresa: Number(e.idempresa), ativo: Boolean(e.ativo) }))
+            .sort((a, b) => a.idempresa - b.idempresa)
+        );
+      const empresasIguais = !Array.isArray(empresas) || normalizarEmpresas(empresas) === normalizarEmpresas(empresasDoUsuario);
+      console.log("Empresas do usuário:", empresasDoUsuario, "Empresas enviadas:", empresas, "Empresas iguais:", empresasIguais);
 
       const camposIguais =
         nome === usuario.nome &&
@@ -68,8 +74,8 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         email === usuario.email &&
         Boolean(usuario.ativo) === Boolean(req.body.ativo) &&
         String(usuario.idempresadefault) === String(idempresadefault) &&
-        !senha;
-        //empresasIguais; // senha vazia significa que não foi alterada
+        !senha && // senha vazia significa que não foi alterada
+        empresasIguais;
 
       if (camposIguais) {
         return res.status(200).json({ mensagem: 'Nenhuma alteração detectada no Usuário.' });

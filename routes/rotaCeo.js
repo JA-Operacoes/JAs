@@ -55,6 +55,23 @@ function queryAnalise(filtro, ordem) {
       JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
       WHERE af.status = 'Pago'
       GROUP BY se.idorcamento
+    ),
+    notas_real AS (
+      -- Valor realmente faturado, líquido dos tributos retidos na fonte (mesma conta já usada em
+      -- /geral/receber e no "Total Líquido" ao vivo de Faturamento.js) — só nota Emitida conta;
+      -- Cancelada não é dívida nem receita. Por idorcamento, igual staff_real, pelo mesmo motivo
+      -- (evento recorrente não pode vazar nota de outro ano/orçamento). faturamento_completo
+      -- distingue "já sei o lucro real" de "só a 1ª parcela foi faturada" — faturamento parcelado
+      -- é a regra aqui (conferido: hoje só 1 de 10 orçamentos com nota está com 100% faturado,
+      -- o resto entre 11% e 50%); comparar receita PARCIAL com custo de staff JÁ INTEIRO faria o
+      -- evento parecer prejuízo por faltar faturar, não por ter dado errado de verdade.
+      SELECT nf.idorcamento,
+             SUM(nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0)) AS valor_liquido_nf,
+             COUNT(nf.idnotafiscal) AS qtd_notas_emitidas,
+             SUM(nf.valorservico) AS total_faturado_bruto
+      FROM notasfiscais nf
+      WHERE nf.status = 'Emitida'
+      GROUP BY nf.idorcamento
     )
     SELECT
       o.idevento,
@@ -72,13 +89,17 @@ function queryAnalise(filtro, ordem) {
       MAX(o.dtfimrealizacao) AS dtfimrealizacao,
       SUM(COALESCE(so.custo_staff_orcado, 0)) AS custo_staff_orcado,
       SUM(COALESCE(sr.custo_staff_real, 0)) + SUM(COALESCE(aj.saldo_ajustefinanceiro, 0)) AS custo_staff_real,
-      SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real
+      SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real,
+      SUM(COALESCE(nr.valor_liquido_nf, 0))   AS valor_liquido_nf,
+      SUM(COALESCE(nr.qtd_notas_emitidas, 0)) AS qtd_notas_emitidas,
+      SUM(COALESCE(nr.total_faturado_bruto, 0)) AS total_faturado_bruto
     FROM orcs o
     JOIN eventos e   ON e.idevento  = o.idevento
     LEFT JOIN clientes c ON c.idcliente = o.idcliente
     LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
     LEFT JOIN staff_real  sr ON sr.idorcamento  = o.idorcamento
     LEFT JOIN ajustes_pagos aj ON aj.idorcamento = o.idorcamento
+    LEFT JOIN notas_real  nr ON nr.idorcamento  = o.idorcamento
     GROUP BY o.idevento, e.nmevento, c.nmfantasia
     ${ordem};
   `;
@@ -825,6 +846,115 @@ router.get("/geral/receber", async (req, res) => {
   }
 });
 
+// GET /ceo/geral/receber-detalhe?idempresa=X&ano=YYYY&mes=Z — itemizado de UMA empresa pro botão
+// "Detalhar" da Lista de Contas a Receber (mesmas regras/categorias de /geral/receber acima, linha
+// a linha). As 5 categorias já são mutuamente exclusivas por construção (cada nota fiscal ou
+// orçamento cai em exatamente uma) — viram as 5 abas fixas, sem precisar de um "Status" por linha
+// como em Contas a Pagar. Recebido/A Receber/Atrasado vêm de notasfiscais (1 linha por nota); A
+// Faturar/Em Negociação vêm de orcamentos (1 linha por evento, não tem nota emitida ainda).
+router.get("/geral/receber-detalhe", async (req, res) => {
+  try {
+    const idempresa = parseInt(req.query.idempresa, 10);
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+    const filtroMes = temMesFiltro ? "AND EXTRACT(MONTH FROM o.dtinirealizacao) = $4" : "";
+    const paramsBase = temMesFiltro ? [idempresa, ano, "Emitida", mesFiltro] : [idempresa, ano, "Emitida"];
+
+    const isoData = (d) => (d instanceof Date && !isNaN(d.getTime())) ? d.toISOString().slice(0, 10) : null;
+    const recebido = [], a_receber = [], recebimento_atrasado = [], a_faturar = [], em_negociacao = [];
+
+    // ===== Recebido / A Receber / Recebimento Atrasado — 1 linha por nota fiscal Emitida =====
+    const notas = (await pool.query(
+      `WITH empresa_efetiva AS (
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       )
+       SELECT nf.recebido,
+              nf.valorservico - COALESCE(nf.valoriss,0) - COALESCE(nf.valorirrf,0) - COALESCE(nf.valorpiscofinscsll,0) AS liquido,
+              op.dtvencimento, e.nmevento, c.nmfantasia AS nomecliente
+         FROM notasfiscais nf
+         JOIN orcamentos o ON o.idorcamento = nf.idorcamento
+         JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+         JOIN eventos e ON e.idevento = o.idevento
+         LEFT JOIN clientes c ON c.idcliente = o.idcliente
+         LEFT JOIN orcamentoparcelas op ON op.idparcela = nf.idparcela
+        WHERE o.status <> 'R' AND o.idevento IS NOT NULL AND o.dtinirealizacao IS NOT NULL
+          AND ee.idempresa = $1 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2 AND nf.status = $3
+          ${filtroMes}`,
+      paramsBase
+    )).rows;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    notas.forEach((n) => {
+      const item = {
+        nome: n.nomecliente || "—",
+        descricao: n.nmevento || "",
+        vencimento: isoData(n.dtvencimento ? new Date(n.dtvencimento) : null),
+        valor: Number(n.liquido) || 0,
+      };
+      if (n.recebido) recebido.push(item);
+      else if (!n.dtvencimento || new Date(n.dtvencimento) >= hoje) a_receber.push(item);
+      else recebimento_atrasado.push(item);
+    });
+
+    // ===== A Faturar / Em Negociação — 1 linha por orçamento (evento) =====
+    const orcs = (await pool.query(
+      `WITH empresa_efetiva AS (
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       ),
+       faturado AS (
+         SELECT idorcamento, SUM(valorservico) AS total_faturado
+         FROM notasfiscais WHERE status = $3 GROUP BY idorcamento
+       )
+       SELECT o.status, COALESCE(o.vlrcliente, 0) AS vlrcliente, o.dtinirealizacao, o.dtfimrealizacao,
+              e.nmevento, c.nmfantasia AS nomecliente, COALESCE(f.total_faturado, 0) AS total_faturado
+         FROM orcamentos o
+         JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+         JOIN eventos e ON e.idevento = o.idevento
+         LEFT JOIN clientes c ON c.idcliente = o.idcliente
+         LEFT JOIN faturado f ON f.idorcamento = o.idorcamento
+        WHERE o.status IN ('F','A','P','E') AND o.idevento IS NOT NULL AND o.dtinirealizacao IS NOT NULL
+          AND ee.idempresa = $1 AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
+          ${filtroMes}`,
+      paramsBase
+    )).rows;
+    orcs.forEach((o) => {
+      if (o.status === "F") {
+        const valor = Math.max((Number(o.vlrcliente) || 0) - (Number(o.total_faturado) || 0), 0);
+        if (valor > 0) {
+          a_faturar.push({
+            nome: o.nomecliente || "—",
+            descricao: o.nmevento || "",
+            vencimento: isoData(o.dtfimrealizacao ? new Date(o.dtfimrealizacao) : null),
+            valor,
+          });
+        }
+      } else {
+        const valor = Number(o.vlrcliente) || 0;
+        if (valor > 0) {
+          em_negociacao.push({
+            nome: o.nomecliente || "—",
+            descricao: o.nmevento || "",
+            vencimento: isoData(o.dtinirealizacao ? new Date(o.dtinirealizacao) : null),
+            valor,
+          });
+        }
+      }
+    });
+
+    res.json({ idempresa, ano, recebido, a_receber, recebimento_atrasado, a_faturar, em_negociacao });
+  } catch (error) {
+    console.error("ERRO CEO /geral/receber-detalhe:", error);
+    res.status(500).json({ error: "Erro ao carregar o detalhe de contas a receber." });
+  }
+});
+
 // Expande as ocorrências de UM lançamento (FIXO/PARCELADO/único) dentro de um ano — mesma lógica
 // de expandirOcorrenciasNoAno (public/js/Main.js), portada pro servidor porque aqui precisamos
 // agregar em massa (todas as empresas do grupo de uma vez), não uma tela por vez. Necessário
@@ -1083,6 +1213,226 @@ router.get("/geral/pagar", async (req, res) => {
   } catch (error) {
     console.error("ERRO CEO /geral/pagar:", error);
     res.status(500).json({ error: "Erro ao carregar contas a pagar." });
+  }
+});
+
+// GET /ceo/geral/pagar-detalhe?idempresa=X&ano=YYYY&mes=Z — itemizado de UMA empresa pro botão
+// "Detalhar" da Lista (mesmos filtros/regras de /geral/pagar acima, só que linha a linha em vez
+// de somado). 4 abas fixas por vínculo real de lancamentos.tipovinculo — 'fornecedor', 'cliente',
+// sem vínculo (52 lançamentos hoje, cadastrados como "Lançamento Geral" — bucket "outros") — mais
+// "funcionarios", que aqui junta DUAS origens bem diferentes: lançamento tipovinculo='funcionario'
+// sem holerite (freelancer — hoje inativos, ver migration 20260903_173629, mas o CHECK ainda
+// permite recriar) e a folha/staff/ajustes real (mesma fonte do bucket 2 de /geral/pagar) — do
+// ponto de vista do CEO é tudo "gasto com pessoal", independente de como foi pago.
+router.get("/geral/pagar-detalhe", async (req, res) => {
+  try {
+    const idempresa = parseInt(req.query.idempresa, 10);
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const mesFiltro = parseInt(req.query.mes, 10);
+    const temMesFiltro = Number.isInteger(mesFiltro) && mesFiltro >= 1 && mesFiltro <= 12;
+
+    const { PERFIS_FOLHA } = require("./rotaRH").helpersFolha;
+
+    const fornecedores = [], clientes = [], funcionarios = [], outros = [];
+    const isoData = (d) => (d instanceof Date && !isNaN(d.getTime())) ? d.toISOString().slice(0, 10) : null;
+
+    // ===== Fornecedores / Clientes / Outros (sem vínculo) / Funcionário-freelancer sem holerite =====
+    const lancs = (await pool.query(
+      `SELECT l.idlancamento, l.descricao, l.tiporepeticao, l.qtdeparcelas, l.indeterminado,
+              l.dttermino, l.vctobase, l.vlrestimado, l.tipovinculo,
+              fe.perfil,
+              COALESCE(func.nome, forn.nmfantasia, cli.nmfantasia) AS nome_vinculo
+         FROM lancamentos l
+         LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND l.idvinculo = func.idfuncionario)
+         LEFT JOIN funcionarioempresas fe ON fe.idfuncionario = func.idfuncionario AND fe.idempresa = l.idempresa
+         LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor' AND l.idvinculo = forn.idfornecedor)
+         LEFT JOIN clientes cli ON (LOWER(TRIM(l.tipovinculo)) = 'cliente' AND l.idvinculo = cli.idcliente)
+        WHERE l.ativo = true AND l.idempresa = $1
+          AND NOT (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') = ANY($2))`,
+      [idempresa, PERFIS_FOLHA]
+    )).rows;
+
+    const idsLancs = lancs.map((l) => l.idlancamento);
+    const pagamentosPorLanc = new Map();
+    if (idsLancs.length) {
+      const pags = (await pool.query(
+        `SELECT idlancamento, dtvcto, status, vlrreal, vlrprevisto
+           FROM pagamentos
+          WHERE idlancamento = ANY($1::int[]) AND EXTRACT(YEAR FROM dtvcto) = $2`,
+        [idsLancs, ano]
+      )).rows;
+      pags.forEach((p) => {
+        const d = new Date(p.dtvcto);
+        pagamentosPorLanc.set(`${p.idlancamento}-${d.getMonth() + 1}`, p);
+      });
+    }
+
+    lancs.forEach((l) => {
+      expandirOcorrenciasLancamentoAno(l, ano).forEach((dProj) => {
+        const mes = dProj.getMonth() + 1;
+        if (temMesFiltro && mes !== mesFiltro) return;
+        const real = pagamentosPorLanc.get(`${l.idlancamento}-${mes}`);
+        const status = (real?.status || "").toLowerCase();
+        if (status === "suspenso") return;
+        const valor = real
+          ? (Number(real.vlrreal) || Number(real.vlrprevisto) || Number(l.vlrestimado) || 0)
+          : (Number(l.vlrestimado) || 0);
+        const item = {
+          nome: l.nome_vinculo || "—",
+          descricao: l.descricao || "",
+          vencimento: isoData(real ? new Date(real.dtvcto) : dProj),
+          status: status === "pago" ? "Pago" : "Pendente",
+          valor,
+        };
+        const tipo = String(l.tipovinculo || "").toLowerCase().trim();
+        if (tipo === "cliente") clientes.push(item);
+        else if (tipo === "funcionario") funcionarios.push(item);
+        else if (tipo === "fornecedor") fornecedores.push(item);
+        else outros.push(item);
+      });
+    });
+
+    // ===== Funcionários: folha (holerite) =====
+    const filtroMesHolerite = temMesFiltro ? `AND h.mes = ${mesFiltro}` : "";
+    const holeriteRows = (await pool.query(
+      `SELECT f.nome, h.mes, h.ano, h.status, h.dtpagamento, h.conferido,
+              h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios,
+              COALESCE(SUM(CASE WHEN i.tipo = 'P' THEN i.valor ELSE 0 END), 0) AS proventos,
+              COALESCE(SUM(CASE WHEN i.tipo = 'B' THEN i.valor ELSE 0 END), 0) AS beneficios,
+              COALESCE(SUM(CASE WHEN i.tipo = 'D' THEN i.valor ELSE 0 END), 0) AS descontos
+         FROM folhaholerite h
+         JOIN funcionarios f ON f.idfuncionario = h.idfuncionario
+         LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
+        WHERE h.idempresa = $1 AND h.ano = $2 ${filtroMesHolerite}
+        GROUP BY f.nome, h.idholerite, h.mes, h.ano, h.status, h.dtpagamento, h.conferido,
+                 h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios`,
+      [idempresa, ano]
+    )).rows;
+    holeriteRows.forEach((h) => {
+      const competencia = `${String(h.mes).padStart(2, "0")}/${h.ano}`;
+      const ultimoDiaMes = new Date(h.ano, h.mes, 0); // fallback quando ainda não tem dtpagamento
+      const valorSalario = (Number(h.proventos) || 0) - (Number(h.descontos) || 0);
+      funcionarios.push({
+        nome: h.nome,
+        descricao: `Holerite ${competencia}`,
+        vencimento: isoData(h.dtpagamento ? new Date(h.dtpagamento) : ultimoDiaMes),
+        status: (h.conferido && h.status === "Pago") ? "Pago" : "Pendente",
+        valor: valorSalario,
+      });
+      const valorBeneficios = Number(h.beneficios) || 0;
+      if (valorBeneficios) {
+        funcionarios.push({
+          nome: h.nome,
+          descricao: `Holerite ${competencia} (Benefícios)`,
+          vencimento: isoData(h.dtpagamento_beneficios ? new Date(h.dtpagamento_beneficios) : ultimoDiaMes),
+          status: (h.conferido_beneficios && h.status_beneficios === "Pago") ? "Pago" : "Pendente",
+          valor: valorBeneficios,
+        });
+      }
+    });
+
+    // ===== Funcionários: staff em eventos =====
+    const filtroMesStaff = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const staffRows = (await pool.query(
+      `SELECT f.nome, se.nmevento, se.nmcliente, o.dtinirealizacao, o.dtfimrealizacao,
+              COALESCE(se.vlrtotcache, 0) AS vlrcache, COALESCE(se.vlrtotajdcusto, 0) AS vlrajdcusto,
+              COALESCE(se.vlrcaixinha, 0) AS vlrcaixinha,
+              se.statuspgto, se.statuspgtoajdcto, se.statuspgtocaixinha
+         FROM staffeventos se
+         JOIN orcamentos o ON o.idorcamento = se.idorcamento
+         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+        WHERE oe.idempresa = $1
+          AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
+          AND se.statusstaff <> 'Deletado' AND o.dtinirealizacao IS NOT NULL
+          ${filtroMesStaff}`,
+      [idempresa, ano]
+    )).rows;
+    staffRows.forEach((s) => {
+      const valor = (Number(s.vlrcache) || 0) + (Number(s.vlrajdcusto) || 0) + (Number(s.vlrcaixinha) || 0);
+      const pago = (s.statuspgto === "Pago" ? Number(s.vlrcache) || 0 : 0)
+        + (s.statuspgtoajdcto === "Pago" ? Number(s.vlrajdcusto) || 0 : 0)
+        + (s.statuspgtocaixinha === "Pago" ? Number(s.vlrcaixinha) || 0 : 0);
+      funcionarios.push({
+        nome: s.nome,
+        descricao: `${s.nmcliente ? s.nmcliente + " — " : ""}${s.nmevento || "Evento"}`,
+        vencimento: isoData(s.dtfimrealizacao ? new Date(s.dtfimrealizacao) : new Date(s.dtinirealizacao)),
+        status: (pago >= valor && valor > 0) ? "Pago" : "Pendente",
+        valor,
+      });
+    });
+
+    // ===== Funcionários: ajustes financeiros (só "Pago" tem contrapartida definitiva) =====
+    const filtroMesAjuste = temMesFiltro ? `AND EXTRACT(MONTH FROM af.dtlancamento) = ${mesFiltro}` : "";
+    const ajusteRows = (await pool.query(
+      `SELECT f.nome, af.tipo, af.valor, af.dtlancamento, se.nmevento
+         FROM staffajustefinanceiro af
+         JOIN funcionarios f ON f.idfuncionario = af.idfuncionario
+         LEFT JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
+        WHERE af.idempresa = $1 AND EXTRACT(YEAR FROM af.dtlancamento) = $2 AND af.status = 'Pago'
+          ${filtroMesAjuste}`,
+      [idempresa, ano]
+    )).rows;
+    ajusteRows.forEach((a) => {
+      funcionarios.push({
+        nome: a.nome,
+        descricao: `${a.nmevento ? a.nmevento + " — " : ""}Ajuste (${a.tipo})`,
+        vencimento: isoData(new Date(a.dtlancamento)),
+        status: "Pago",
+        valor: a.tipo === "Credito" ? Number(a.valor) || 0 : -(Number(a.valor) || 0),
+      });
+    });
+
+    // ===== Funcionários: staff de evento recém-concluído, ainda sem cadastro completo (provisão
+    // pelo orçado) — mesma regra/janela de /geral/pagar, só que aqui é 1 linha sintética por
+    // empresa em vez de por funcionário (não existe staffeventos pra detalhar linha a linha). =====
+    const filtroMesProvisao = temMesFiltro ? `AND EXTRACT(MONTH FROM o.dtinirealizacao) = ${mesFiltro}` : "";
+    const provisao = (await pool.query(
+      `WITH empresa_efetiva AS (
+         SELECT o.idorcamento, COALESCE(o.idempresaemissora, MIN(oe.idempresa)) AS idempresa
+         FROM orcamentos o
+         LEFT JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         GROUP BY o.idorcamento, o.idempresaemissora
+       ),
+       staff_orcado AS (
+         SELECT idorcamento, SUM(COALESCE(totgeralitem, 0)) AS orcado
+         FROM orcamentoitens WHERE idfuncao IS NOT NULL GROUP BY idorcamento
+       ),
+       staff_cadastrado AS (
+         SELECT idorcamento, SUM(COALESCE(vlrtotcache, 0) + COALESCE(vlrtotajdcusto, 0)) AS cadastrado
+         FROM staffeventos WHERE statusstaff <> 'Deletado' GROUP BY idorcamento
+       )
+       SELECT e.nmevento, o.dtfimrealizacao,
+              GREATEST(COALESCE(so.orcado, 0) - COALESCE(sc.cadastrado, 0), 0) AS faltante
+       FROM orcamentos o
+       JOIN empresa_efetiva ee ON ee.idorcamento = o.idorcamento
+       JOIN eventos e ON e.idevento = o.idevento
+       LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
+       LEFT JOIN staff_cadastrado sc ON sc.idorcamento = o.idorcamento
+       WHERE o.status <> 'R' AND ee.idempresa = $1
+         AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
+         AND GREATEST(COALESCE(o.dtfimdesmontagem, '1900-01-01'), COALESCE(o.dtfiminfradesmontagem, '1900-01-01'))
+             BETWEEN CURRENT_DATE - INTERVAL '2 days' AND CURRENT_DATE
+         ${filtroMesProvisao}`,
+      [idempresa, ano]
+    )).rows;
+    provisao.forEach((p) => {
+      const faltante = Number(p.faltante) || 0;
+      if (faltante <= 0) return;
+      funcionarios.push({
+        nome: "—",
+        descricao: `${p.nmevento || "Evento"} — staff ainda não cadastrado (previsão pelo orçado)`,
+        vencimento: isoData(p.dtfimrealizacao ? new Date(p.dtfimrealizacao) : null),
+        status: "Pendente",
+        valor: faltante,
+      });
+    });
+
+    res.json({ idempresa, ano, fornecedores, clientes, funcionarios, outros });
+  } catch (error) {
+    console.error("ERRO CEO /geral/pagar-detalhe:", error);
+    res.status(500).json({ error: "Erro ao carregar o detalhe de contas a pagar." });
   }
 });
 

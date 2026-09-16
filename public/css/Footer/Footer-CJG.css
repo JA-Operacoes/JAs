@@ -1,0 +1,109 @@
+
+
+footer {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  background-color: rgb(92, 92, 92);
+  box-sizing: border-box;
+  position: fixed;
+  bottom: 0;
+  margin: 0;
+  padding: 5px 10px;
+}
+
+#grid{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 3, 1fr, fazer a alteração posteriormente,  atualmente so para reprensatividade*/
+  margin: 10px  50px;
+  padding: 10px 10px;
+}
+
+#footer-content{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-logo{
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+}
+
+.footer-logo p{
+  display: flex;
+  justify-content: center;
+  font-family: "Abel", sans-serif ;
+  font-size: 20px;
+  color:white;
+  margin-left: 10px; 
+}
+
+.footer-logo img{
+  width: 150px ;
+  height: auto ;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  object-fit: contain;
+}
+
+#Social-Icons{
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 10px;
+}
+
+#Social-Icons p{
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.footer-links{
+  text-decoration: none;
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  color: white;
+  border-radius: 50%;
+  transition: all 0.4s;
+  text-decoration: none;
+  gap: 25px;
+}
+.footer-links i{
+  font-size: 2.5rem;
+}
+
+#Instagram {
+  background: linear-gradient(#7f37c9, #ff2992, #ff9807);
+}
+
+#Facebook {
+  background-color: #4267b3;
+}
+
+#Whatsapp {
+  background-color: #25d366;
+}
+
+
+.copyRigths{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  color: white;
+  background-color: black;
+  margin-top: -10px;
+  padding: 0 100px;
+  grid-template-columns: none;
+}

@@ -9,16 +9,88 @@
     width: 100%;
   }
   
+  /* Barra utilitária "trocar de empresa" — linha fina acima do menu principal, pra caber
+     todas as empresas + todos os módulos sem apertar quando o usuário tem acesso a tudo (ver
+     comentário em header abaixo pro ajuste de altura combinada das duas linhas fixas). */
+  .barra-empresas{
+    width: 100%;
+    height: 38px;
+    /* Mesmo gradiente do header (var(--header-color), definida por empresa em Roots.css) —
+       a barra vira uma extensão da cor da empresa ativa em vez de uma tarja cinza neutra;
+       como o header já convive bem com logo escura em cima dessa cor, a barra também convive. */
+    background: var(--header-color);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1001;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .barra-empresas .rotulo{
+    color: rgba(255,255,255,0.75);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    flex: none;
+  }
+  .barra-empresas .minilogos-topo{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .barra-empresas .minilogos-topo a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    transition: transform .15s;
+  }
+  .barra-empresas .minilogos-topo a:hover{ transform: scale(1.35); filter: drop-shadow(0 0 4px rgba(255,255,255,0.55)); }
+  .barra-empresas .minilogos-topo img{
+    /* altura fixa, largura livre — logos "quadrados" (JA, EA, ES...) e logos em
+       formato de lockup horizontal (ex.: SN Foods, com slogan embaixo do nome)
+       ficam com o mesmo peso visual; limitando por max-width, o lockup largo
+       encolhia até virar um traço ilegível */
+    max-height: 22px;
+    max-width: 60px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Usuário só tem acesso a 1 empresa (a própria) — Index.js marca "sem-troca-empresa" no body
+     e a barra some; aqui desfaz os +38px que ela abre em todo mundo que depende da altura do
+     cabeçalho fixo, voltando aos valores de antes dela existir. */
+  body.sem-troca-empresa .barra-empresas{ display: none; }
+  body.sem-troca-empresa header{ top: 0; }
+  body.sem-troca-empresa #sidebar{ margin-top: 90px; height: calc(100vh - 200px); }
+  body.sem-troca-empresa.ceo-mode #conteudo,
+  body.sem-troca-empresa.ti-mode #conteudo,
+  body.sem-troca-empresa.rh-mode #conteudo{ min-height: calc(100vh - 90px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel-wrapper{ margin-top: 100px; }
+  body.sem-troca-empresa.ti-mode #ti-panel{ margin-top: 100px; }
+  body.sem-troca-empresa.rh-mode #rh-panel{ margin-top: 100px; max-height: calc(100vh - 120px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel,
+  body.sem-troca-empresa.ceo-mode #ceo-panel-geral{ max-height: calc(100vh - 120px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel-geral .ceo-geral-split-wrap > .ceo-geral-secao{ max-height: calc(100vh - 320px); }
+
   header{
     width: 100%;
     /* background-color:  rgb(70, 67, 67); */
-    background: var(--header-color);  
-    position: fixed; /* Mantém o header fixo no topo */
-      top: 0;
+    background: var(--header-color);
+    position: fixed; /* Mantém o header fixo no topo, agora abaixo da barra-empresas (38px) —
+                         ver os "128px" (38 + 90 do próprio header) usados como offset do
+                         conteúdo/sidebar mais abaixo neste arquivo. */
+      top: 38px;
       left: 0;
       z-index: 1000;
   }
-  
+
   .interface{
     max-width: 2560px;
     max-height: 90px;
@@ -42,6 +114,37 @@
     display: flex;
     justify-content: flex-start;
     object-fit: contain;
+  }
+  /* SN Foods é uma marca larga (nome + slogan embaixo, ~2:1) — limitando por max-width igual
+     aos logos quadrados, ela achatava pra uma tira fina. Mesmo ajuste já feito no mini-logo da
+     barra "Trocar empresa": limita por altura, largura livre. */
+  .logo-snfoods img{
+    max-width: 170px;
+    max-height: 74px;
+    width: auto;
+    height: auto;
+  }
+
+  /* Escudo da EventDrive é quase quadrado (diferente da maioria dos logos, mais largos que
+     altos) — em max-width:90px ele chega a ~86px de altura, e somado ao padding vertical do
+     .logotipo (10px + 10px = 20px) estoura os 90px do .interface, vazando por baixo do header.
+     Limita por altura já descontando esse padding. */
+  /* Escopado a .logotipo — sem isso, a mesma classe usada no mini-logo da barra "Trocar
+     empresa" (outras 9 páginas) também herdava esse !important e ficava gigante lá. */
+  .logotipo .logo-eventdrivemobilityveiculoseletricos img{
+    max-width: 100px !important;
+    max-height: 66px !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* A logo da JA-OPER traz "OPERAÇÕES & EVENTOS" desenhado dentro da própria imagem — no
+     tamanho do cabeçalho (90px) o traço fino do "&" fica ilegível. Corta só essa legenda via
+     object-fit (mantém a marca "JA", que é o que precisa ser reconhecível nesse tamanho). */
+  .logo-ja-oper a:not(.minilogos) img{
+    height: 74px;
+    object-fit: cover;
+    object-position: top;
   }
   
   .minilogos{
@@ -97,10 +200,10 @@
   /* /borda muda de cor ao passar mouse/ */
   
   nav ul li a:hover{
-    background-color: #ff0000;
+    background-color: color-mix(in srgb, var(--primary-color, #ff0000) 100%, white 45%);
     color: #ffffff;
     box-shadow: inset 0 0 8px #0000008a;
-  
+
   }
   
   #container {
@@ -292,15 +395,15 @@ input#search-aside {
   /* Sidebar (menu lateral) */
   #sidebar {
     width: 210px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 238px);
     background: gray;
     position: fixed;
     left: 0;
     transition: transform 0.3s ease;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
     z-index: 10;
-    margin-top: 90px;
-   
+    margin-top: 128px;
+
   }
   
   /* Botão em forma de seta para abrir/fechar */
@@ -678,7 +781,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px); /* desconta a altura do header fixo */
+    min-height: calc(100vh - 128px); /* desconta a altura das 2 linhas fixas (barra-empresas + header) */
   }
 
   /* estado visual do ícone quando o modo está ativo */
@@ -692,7 +795,7 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
-    margin: 100px auto 40px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     font-family: var(--Font-primary);
@@ -748,7 +851,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px);
+    min-height: calc(100vh - 128px);
   }
 
   body.ti-mode #menu-horizontal li.TI a {
@@ -761,11 +864,378 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
+    padding: 0 24px 40px;
+    box-sizing: border-box;
+    font-family: var(--Font-primary);
+  }
+
+  /* ===== Almoxarifado Mode: mesmo padrão do TI Mode (tela limpa, só o header) ===== */
+  body.almox-mode #sidebar,
+  body.almox-mode .cards,
+  body.almox-mode .dashboard-container {
+    display: none !important;
+  }
+
+  body.almox-mode #conteudo {
+    flex: 1;
+    margin: 0;
+    background-color: #ffffff;
+    min-height: calc(100vh - 90px);
+  }
+
+  body.almox-mode #menu-horizontal li.Almoxarifado a {
+    color: #dc2e2e;
+  }
+
+  #almox-panel { display: none; }
+
+  body.almox-mode #almox-panel {
+    display: block;
+    width: 100%;
+    max-width: 20000px;
     margin: 100px auto 40px;
     padding: 0 24px 40px;
     box-sizing: border-box;
     font-family: var(--Font-primary);
   }
+
+  /* ===== Painel Almoxarifado (mesmo visual do almoxarifado de TI, ver #ti-panel acima) ===== */
+  #almox-panel .ti-abas {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  #almox-panel .ti-aba-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 2px solid var(--primary-color, #942123);
+    background: #fff;
+    color: var(--primary-color, #942123);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    opacity: .85;
+  }
+  #almox-panel .ti-aba-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  #almox-panel .ti-aba-btn.ativo {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--font-color);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  #almox-panel .ti-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #555;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 24px 4px;
+  }
+  #almox-panel .ti-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid #e0e0e0;
+    border-top-color: var(--primary-color, #942123);
+    border-radius: 50%;
+    display: inline-block;
+    animation: ti-spin .7s linear infinite;
+  }
+
+  #almox-panel .ti-card-vazio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 36px 20px;
+    text-align: center;
+    border: 1px dashed #ccc;
+    border-radius: 10px;
+  }
+  #almox-panel .ti-card-vazio .material-symbols-outlined { font-size: 32px; color: var(--primary-color, #942123); opacity: .7; }
+
+  #almox-panel .ti-tabela {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+  }
+  #almox-panel .ti-tabela th, #almox-panel .ti-tabela td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+  }
+
+  #almox-panel .ti-card-clicavel { cursor: pointer; }
+
+  #almox-panel .ti-grid-quadrado {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  #almox-panel .ti-card-quadrado {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-top: 4px solid var(--primary-color, #942123);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 12px;
+    transition: box-shadow .2s ease, transform .2s ease, background-color .2s ease, color .2s ease;
+  }
+  #almox-panel .ti-card-quadrado:hover {
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+  #almox-panel .ti-card-quadrado-nome { font-weight: 600; font-size: 13px; line-height: 1.3; }
+  #almox-panel .ti-card-quadrado-qtd { font-size: 26px; color: var(--primary-color, #942123); }
+  #almox-panel .ti-card-quadrado:hover .ti-card-quadrado-qtd { color: var(--font-color, #fff); }
+  #almox-panel .ti-card-quadrado-legenda { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .3px; }
+  #almox-panel .ti-card-quadrado:hover .ti-card-quadrado-legenda { color: var(--font-color, #fff); opacity: .85; }
+
+  #almox-panel .ti-custodia-filtros {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  #almox-panel .ti-custodia-filtros button {
+    border: none;
+    border-radius: 20px;
+    padding: 8px 18px;
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  #almox-panel .ti-custodia-filtros button:hover { filter: brightness(1.1); }
+  #almox-panel .ti-custodia-filtros button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+  #almox-panel .ti-custodia-filtros .ti-input-busca {
+    flex: 1 1 220px;
+    min-width: 180px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  /* ===== Smart Cards do Almoxarifado ===== */
+  #almox-panel .almox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 16px;
+  }
+
+  #almox-panel .almox-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 14px;
+    padding: 16px 16px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 6px 16px -10px rgba(0,0,0,0.2);
+    transition: box-shadow .2s ease, transform .2s ease;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+  }
+  #almox-panel .almox-card:hover,
+  #almox-panel .almox-card:focus-visible {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08), 0 16px 32px -14px rgba(0,0,0,0.3);
+    transform: translateY(-2px);
+  }
+  #almox-panel .almox-card:focus-visible { outline: 2px solid var(--primary-color, #942123); outline-offset: 2px; }
+
+  #almox-panel .almox-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  #almox-panel .almox-card-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #almox-panel .almox-thumb {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    background: #f7f2ee;
+    border: 1px solid #eee;
+    overflow: hidden;
+  }
+  #almox-panel .almox-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #almox-panel .almox-card-nome { font-weight: 700; font-size: 13.5px; line-height: 1.25; }
+
+  #almox-panel .almox-tag {
+    flex: none;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  #almox-panel .almox-tag.escritorio { color: #942123; background: #f7e3e3; }
+  #almox-panel .almox-tag.pavilhao   { color: #7a5a1f; background: #f3ead2; }
+  #almox-panel .almox-tag.camisetas  { color: #2b5f8a; background: #e2eef7; }
+
+  #almox-panel .almox-stock { margin-top: 16px; }
+  #almox-panel .almox-stock-num {
+    font-variant-numeric: tabular-nums;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  #almox-panel .almox-stock-num.healthy { color: #222; }
+  #almox-panel .almox-stock-num.critical { color: #b3261e; }
+  #almox-panel .almox-stock-unidade {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #888;
+    margin-left: 5px;
+  }
+
+  #almox-panel .almox-progress-track {
+    margin-top: 10px;
+    height: 6px;
+    border-radius: 999px;
+    background: #f0ece8;
+    overflow: hidden;
+    border: 1px solid #eee;
+  }
+  #almox-panel .almox-progress-fill { height: 100%; border-radius: inherit; }
+  #almox-panel .almox-progress-fill.healthy { background: linear-gradient(90deg, #2f7d4f, #7fd4a4); }
+  #almox-panel .almox-progress-fill.critical { background: linear-gradient(90deg, #b3261e, #ff8a83); }
+
+  #almox-panel .almox-footer {
+    margin-top: 12px;
+    padding: 10px 0 12px;
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 42px;
+  }
+  #almox-panel .almox-footer-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  #almox-panel .almox-footer-min { font-size: 11px; color: #888; font-variant-numeric: tabular-nums; }
+  #almox-panel .almox-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+  #almox-panel .almox-status-pill.critical { color: #b3261e; }
+  #almox-panel .almox-status-pill.healthy { color: #2f7d4f; }
+  #almox-panel .almox-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  #almox-panel .almox-quick-actions {
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  #almox-panel .almox-card:hover .almox-quick-actions,
+  #almox-panel .almox-card:focus-within .almox-quick-actions {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  #almox-panel .almox-qa-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #f7f2ee;
+    color: #333;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  #almox-panel .almox-qa-btn.plus:hover { background: #2f7d4f; border-color: #2f7d4f; color: #fff; }
+  #almox-panel .almox-qa-btn.minus:hover { background: #b3261e; border-color: #b3261e; color: #fff; }
+
+  #almox-panel .almox-summary {
+    margin-top: 22px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 6px 16px -10px rgba(0,0,0,0.2);
+  }
+  #almox-panel .almox-summary-titulo {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #almox-panel .almox-summary-titulo::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--primary-color, #942123);
+    display: inline-block;
+  }
+  #almox-panel .almox-summary-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  #almox-panel .almox-stat { display: flex; flex-direction: column; gap: 2px; }
+  #almox-panel .almox-stat-valor { font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 700; color: #222; }
+  #almox-panel .almox-stat-valor.critical { color: #b3261e; }
+  #almox-panel .almox-stat-label { font-size: 10.5px; color: #888; text-transform: uppercase; letter-spacing: .03em; }
 
   /* ===== Painel TI (conteúdo da tela limpa) ===== */
   #ti-panel .ti-abas {
@@ -1016,16 +1486,6 @@ input#search-aside {
      card "Eventos em Aberto" (Evt-container/wrapper/option/btn/span/label-select/
      busca-evento-input/select-simples, já em Main.css) — visual idêntico sem CSS extra. */
 
-  #ti-panel .ti-chip-predestinado {
-    display: inline-block;
-    background: var(--Aproved);
-    color: var(--Aproved-color);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 12px;
-    margin: 2px 4px 2px 0;
-  }
-
   #ti-panel .ti-tabela {
     width: 100%;
     border-collapse: collapse;
@@ -1037,7 +1497,6 @@ input#search-aside {
     border-bottom: 1px solid #eee;
     font-size: 13px;
   }
-  #ti-panel .ti-predestinacoes-lista { background: #fafafa; }
   #ti-panel .ti-tabela-unidades { margin: 0; }
   #ti-panel .ti-tabela-unidades button {
     margin-right: 4px;
@@ -1121,6 +1580,15 @@ input#search-aside {
     font-size: 13px;
   }
   #ti-panel .ti-modelo-linha:first-child { border-top: none; }
+  #ti-panel .ti-badge-aguardando-troca {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #fff3cd;
+    color: #7a5b00;
+    font-size: 11px;
+  }
   #ti-panel .ti-orcamento-linha-acoes { display: flex; align-items: center; gap: 6px; }
   #ti-panel .ti-orcamento-linha-acoes button {
     border: none;
@@ -1234,6 +1702,14 @@ input#search-aside {
   }
   #ti-panel .ti-custodia-filtros button:hover { filter: brightness(1.1); }
   #ti-panel .ti-custodia-filtros button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+  #ti-panel .ti-custodia-filtros .ti-input-busca {
+    flex: 1 1 220px;
+    min-width: 180px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
 
   #ti-panel .ti-subabas {
     display: flex;
@@ -1272,6 +1748,18 @@ input#search-aside {
     font-weight: 700;
     white-space: nowrap;
   }
+  #ti-panel .ti-badge-tipo-manutencao {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-right: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #ti-panel .ti-badge-tipo-manutencao-interna { background: #e0e7ff; color: #3730a3; }
+  #ti-panel .ti-badge-tipo-manutencao-externa { background: #f0f0f0; color: #555; }
   #ti-panel .ti-badge-manutencao-aguardando { background: var(--Pending, #FFBD29); color: var(--Pending-color, #7a5200); }
   #ti-panel .ti-badge-manutencao-em_andamento { background: #cfe3ff; color: #1a4a8a; }
   #ti-panel .ti-badge-manutencao-concluida { background: var(--Aproved, #2e7d32); color: #fff; }
@@ -1279,6 +1767,17 @@ input#search-aside {
   #ti-panel .ti-card-manutencao-concluida { border-left-color: var(--Aproved, #2e7d32); opacity: .75; }
   #ti-panel .ti-orcamento-ok { color: var(--Aproved, #2e7d32); font-weight: 600; }
   #ti-panel .ti-orcamento-pendente { color: #b8860b; font-weight: 600; }
+  #ti-panel .ti-card-almoxarifado-baixo { border-left-color: #b50000; }
+  #ti-panel .ti-badge-estoque-baixo {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: #fde0e0;
+    color: #a11919;
+    font-size: 11px;
+    font-weight: 700;
+  }
   #ti-panel .busca-funcionario-input {
     border: 2px solid #ccc;
     border-radius: 20px;
@@ -1308,19 +1807,34 @@ input#search-aside {
   }
   #painelDetalhes .pedidos-busca-container .busca-funcionario-input:focus { border-color: var(--primary-color); }
 
-  #ti-panel .ti-btn-listagem-separacao {
+  #ti-panel .ti-btn-listagem-separacao,
+  #ti-panel .ti-btn-ir-separacao {
     margin-top: 8px;
+    margin-right: 8px;
     border: 1px solid var(--primary-color, #999);
-    background: #fff;
-    color: var(--primary-color, #333);
     border-radius: 6px;
     padding: 6px 12px;
     cursor: pointer;
     font-size: 13px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  #ti-panel .ti-btn-listagem-separacao {
+    background: #fff;
+    color: var(--primary-color, #333);
   }
   #ti-panel .ti-btn-listagem-separacao:hover {
     background: var(--primary-color, #333);
     color: var(--font-color, #333);
+  }
+
+  #ti-panel .ti-btn-ir-separacao {
+    background: var(--primary-color, #333);
+    color: var(--font-color, #fff);
+    font-weight: 600;
+  }
+  #ti-panel .ti-btn-ir-separacao:hover {
+    background: var(--hover-color, #333);
   }
 
   #ti-panel .ti-calendario-linha {
@@ -1344,6 +1858,9 @@ input#search-aside {
     border-radius: 10px;
     padding: 14px 16px;
     font-size: 13px;
+    max-height: calc(100vh - 260px);
+    min-height: 200px;
+    overflow-y: auto;
   }
   #ti-panel .ti-cal-lista-proximos { list-style: none; margin: 8px 0 0; padding: 0; }
   #ti-panel .ti-cal-lista-proximos li {
@@ -1359,6 +1876,8 @@ input#search-aside {
   #ti-panel .ti-cal-evento-detalhe { margin-top: 10px; }
   #ti-panel .ti-cal-evento-titulo { font-weight: 600; margin-bottom: 4px; }
   #ti-panel .ti-cal-evento-detalhe ul { margin: 0 0 8px; padding-left: 18px; }
+  #ti-panel .ti-cal-evento-staff-titulo { font-weight: 600; font-size: 13px; margin: 8px 0 4px; color: #555; }
+  #ti-panel .ti-cal-evento-staff-lista { margin: 0 0 8px; padding-left: 18px; color: #333; }
   #ti-panel .ti-calendario-header {
     display: flex;
     justify-content: space-between;
@@ -1458,7 +1977,7 @@ input#search-aside {
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
@@ -1822,12 +2341,12 @@ input#search-aside {
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
   }
-  #ceo-panel-geral .ceo-header {
+#ceo-panel-geral .ceo-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1996,14 +2515,27 @@ input#search-aside {
     border-color: var(--primary-color, #2e2e2e);
     color: var(--font-color, #fff);
   }
-  #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; }
-  /* "Todas" usa o azul já estabelecido no dashboard pra "neutro/agregado" (mesmo tom de "Lucro
-     esperado"/"Em andamento") — nunca deve se confundir com a cor real de uma empresa (Roots.css,
-     ex.: EP também é preto) nem com o amarelo de "sem tema cadastrado" (.ceo-sem-marca). */
-  #ceo-panel-geral .ceo-status-chip-todos.ativo {
-    background: #1f6fc4; border-color: #1f6fc4; color: #fff; opacity: 1;
-    box-shadow: 0 2px 6px rgba(31,111,196,0.45);
+  #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55); }
+  /* Indicador de seleção independente de cor — sem isso, uma empresa clara (ex.: JA-EXPO laranja
+     claro) ativa e outra escura (ex.: EP preto) inativa-com-borda-colorida podem parecer parecidas
+     demais de relance; o "✓" deixa óbvio em qualquer combinação de cor. */
+  #ceo-panel-geral .ceo-status-chip.ativo::before { content: "✓ "; }
+  /* "Todas" virou checkbox (não é uma empresa, é um atalho de seleção — misturado como pill
+     ficava parecendo mais uma marca na fileira). Fica antes dos chips, com um separador fino. */
+  #ceo-panel-geral .ceo-todas-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 12px;
+    margin-right: 4px;
+    border-right: 1px solid #ddd;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
   }
+  #ceo-panel-geral .ceo-todas-toggle input { width: 15px; height: 15px; cursor: pointer; accent-color: #1f6fc4; }
   /* Resultado da busca de funcionário na visualização Lista: total geral + tabela horizontal
      (uma linha por empresa) — mais fácil de comparar de uma vez do que cards verticais lado a
      lado. Clicar na linha expande o detalhe (holerite/staff/ajustes) daquela empresa. */
@@ -2036,7 +2568,7 @@ input#search-aside {
     /* Cada lado rola por conta própria — a página em si não tem scroll (#conteudo é
        position:fixed), então sem isso o conteúdo mais alto (normalmente o de Gráficos) ficava
        preso atrás do limite do painel, sem jeito de rolar até o fim. */
-    max-height: calc(100vh - 320px);
+    max-height: calc(100vh - 358px); /* 320 + 38 da barra-empresas */
     overflow-y: auto;
     padding-right: 4px;
   }
@@ -2156,6 +2688,19 @@ input#search-aside {
   #ceo-panel-geral .ceo-geral-tabela td.neg { color: #dc2e2e; font-weight: 600; }
   #ceo-panel-geral .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
 
+  /* Detalhar (Lista > clicar na empresa, Contas a Pagar E Contas a Receber): badges de status e
+     cabeçalho ordenável da tabela itemizada — mesmas cores de badge já usadas no Holerite Virtual
+     (rh-badge). ceo-badge-* só é usado em Contas a Pagar (Receber não tem coluna de Status). */
+  #ceo-panel-geral .ceo-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  #ceo-panel-geral .ceo-badge-pago { background: #e3f5ea; color: #1e9e54; }
+  #ceo-panel-geral .ceo-badge-pendente { background: #fdf3e0; color: #c98a06; }
+  #ceo-panel-geral .ceo-venc-vencido { color: #dc2e2e; font-weight: 700; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel { cursor: pointer; user-select: none; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel:hover { color: #333; }
+  #ceo-panel-geral .ceo-geral-seta-ordem { margin-left: 3px; }
+  #ceo-panel-geral .ceo-geral-seta-ordem-inativa { color: #bbb; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel:hover .ceo-geral-seta-ordem-inativa { color: #888; }
+
   /* ===== RH (Holerite Virtual): tela limpa, mesmo padrão do CeoMode ===== */
   body.rh-mode #sidebar,
   body.rh-mode .cards,
@@ -2166,7 +2711,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px);
+    min-height: calc(100vh - 128px);
   }
   body.rh-mode #menu-horizontal li.RH a { color: #dc2e2e; }
 
@@ -2175,11 +2720,11 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 10000px;
-    margin: 100px auto 40px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
