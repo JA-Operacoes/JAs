@@ -6,7 +6,7 @@ const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
 const logMiddleware = require('../middlewares/logMiddleware');
 
-// Trava de força bruta: 10 tentativas de login por IP a cada 15 minutos.
+// Trava de força bruta: 5 tentativas de login por IP a cada 15 minutos.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,

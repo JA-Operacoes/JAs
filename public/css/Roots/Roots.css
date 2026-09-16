@@ -8,14 +8,14 @@
     --background-base-color: #cacaca;
     --light-base-color: white;
 
-    --JA-Oper-color:#942123;
-    --JA-dark:#641516;
+    --JA-Oper-color:#c8102e;
+    --JA-dark:#6b0d1f;
 
     --ES-color:#80cd3b;
     --ES-dark:#326902;
 
-    --EA-color:#554aa8;
-    --EA-dark:#302961;
+    --EA-color:#5b4fc4;
+    --EA-dark:#453a95;
 
     --EP-color: #808080;
     --EP-dark: #4e4e4e;
@@ -26,6 +26,15 @@
 
     --TSD-color:#303030;
     --TSD-dark:#000000;
+
+    --JA-Expo-color:#f7941d;
+    --JA-Expo-dark:#c96f0a;
+
+    --ED-color:#2f9ed6;
+    --ED-dark:#1f7aab;
+
+    --CJG-color:#0e93a8;
+    --CJG-dark:#0b7186;
 
  /* ─────────────────────────────────────────────
             COLORACÃO DE STATUS
@@ -43,14 +52,14 @@
 
 
 .tema-JA-OPER{
-    --header-color: linear-gradient(to right, #942123, rgb(43, 42, 42)  );
+    --header-color: linear-gradient(to right, #8a0c22, rgb(43, 42, 42)  );
 
-    --primary-color: #942123;
-    --primary-color20: #9421237c;
-    --primary-color10: #9421235d;
-    --border-color:#ce0303;
-    --hover-color: #75191a;
-    --background-color: #942123;
+    --primary-color: #c8102e;
+    --primary-color20: #c8102e7c;
+    --primary-color10: #c8102e4f;
+    --border-color:#6b0d1f;
+    --hover-color: #8a0c22;
+    --background-color: #c8102e;
     --font-color: #ffffff;
     --black-color: black;
     --grey-color: #7e7e7e;
@@ -71,27 +80,27 @@
     --border-color:#4ece03;
 }
 .tema-EA{
-    --header-color: linear-gradient(to right, #302961, rgb(43, 42, 42)  );
+    --header-color: linear-gradient(to right, #453a95, rgb(43, 42, 42)  );
 
-    --primary-color: #554aa8;
-    --primary-color20: #554aa87c;
-    --primary-color10: #554aa859;
-    --hover-color: #302961;
-    --background-color: #554aa8;
+    --primary-color: #5b4fc4;
+    --primary-color20: #5b4fc47c;
+    --primary-color10: #5b4fc44f;
+    --hover-color: #453a95;
+    --background-color: #5b4fc4;
     --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
     --grey-color: #7e7e7e;
-    --border-color:#2e3192;
+    --border-color:#3d2f8f;
 }
 .tema-EP{
-    --header-color: linear-gradient(to right, #4e4e4e, rgb(43, 42, 42)  );
+    --header-color: linear-gradient(to right, #3d3d3d, rgb(43, 42, 42)  );
 
     --primary-color: #000000;
-    --primary-color20: #6e6f6c7c;
-    --primary-color10: #6e6f6c5b;
-    --hover-color: #45463f;
-    --background-color: #6e6f6c;
+    --primary-color20: #5c5d5a7c;
+    --primary-color10: #5c5d5a5b;
+    --hover-color: #333333;
+    --background-color: #5c5d5a;
     --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
@@ -101,12 +110,12 @@
 .tema-SN-FOODS{
     --header-color: linear-gradient(to right, #a53603, rgb(43, 42, 42)  );
 
-    --primary-color: #ea5b19;
+    --primary-color: #a53603;
     --primary-color20: #ea5b197c;
     --primary-color10: #ea5b194f;
-    --hover-color: #a53603;
+    --hover-color: #ea5b19;
     --background-color: #ea5b1;
-    --font-color: #000000;
+    --font-color: #ffffff;
     --font-weight: none;
     --black-color: black;
     --grey-color: #7e7e7e;
@@ -114,7 +123,7 @@
 }
 .tema-TSD{
     --header-color: linear-gradient(to right, #000000, rgb(43, 42, 42)  );
-    
+
     --primary-color: #303030;
     --primary-color20: #3030307c;
     --primary-color10: #30303044;
@@ -125,6 +134,86 @@
     --black-color: black;
     --grey-color: #7e7e7e;
     --border-color:#2c2a2a;
+}
+.tema-JA-EXPO{
+    --header-color: linear-gradient(to right, #c96f0a, rgb(43, 42, 42)  );
+
+    --primary-color: #f7941d;
+    --primary-color20: #f7941d7c;
+    --primary-color10: #f7941d4f;
+    --border-color:#e07b12;
+    --hover-color: #c96f0a;
+    --background-color: #f7941d;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
+.tema-CJG{
+    --header-color: linear-gradient(to right, #0b7186, rgb(43, 42, 42)  );
+
+    --primary-color: #0e93a8;
+    --primary-color20: #0e93a87c;
+    --primary-color10: #0e93a84f;
+    --border-color:#0d2b52;
+    --hover-color: #0b7186;
+    --background-color: #0e93a8;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
+.tema-ED{
+    --header-color: linear-gradient(to right, #1f7aab, rgb(43, 42, 42)  );
+
+    --primary-color: #2f9ed6;
+    --primary-color20: #2f9ed67c;
+    --primary-color10: #2f9ed64f;
+    --border-color:#155a80;
+    --hover-color: #1f7aab;
+    --background-color: #2f9ed6;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
+/* JOÃO não tem página/logo próprios (contas pessoais, lançadas dentro do ambiente JA-Oper) —
+   esse tema só existe pra dar uma cor de marca fixa e deliberada no chip de "Empresas" do CEO
+   Mode (Visão Geral); sem isso ele herdava a cor da empresa logada (bug corrigido em CeoMode.js,
+   corPrimariaEmpresa). Ameixa/vinho: dourado foi descartado por colidir com o logo real da
+   EventDrive (.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS, abaixo); resto do vermelho/laranja
+   já é JA-OPER/JA-EXPO/SN-FOODS. */
+.tema-JOÃO{
+    --header-color: linear-gradient(to right, #5c1a40, rgb(43, 42, 42)  );
+
+    --primary-color: #7a2456;
+    --primary-color20: #7a24567c;
+    --primary-color10: #7a24564f;
+    --border-color:#4a1533;
+    --hover-color: #5c1a40;
+    --background-color: #7a2456;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
+/* EventDrive já tem logo real cadastrado (uploads/logos_empresas/logo_3.png — escudo com folhas
+   num dourado-bronze, #ceb174 dominante); escurecido um pouco pro header/hover terem contraste
+   decente com texto branco, mas mantendo o mesmo tom do logo. Ainda sem página própria
+   (urlindex null), então isso hoje só aparece no chip de "Empresas" do CEO Mode. */
+.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS{
+    --header-color: linear-gradient(to right, #8a713f, rgb(43, 42, 42)  );
+
+    --primary-color: #ceb174;
+    --primary-color20: #ceb1747c;
+    --primary-color10: #ceb1744f;
+    --border-color:#7a6337;
+    --hover-color: #8a713f;
+    --background-color: #ceb174;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
 }
 
 

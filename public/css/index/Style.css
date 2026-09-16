@@ -9,16 +9,88 @@
     width: 100%;
   }
   
+  /* Barra utilitária "trocar de empresa" — linha fina acima do menu principal, pra caber
+     todas as empresas + todos os módulos sem apertar quando o usuário tem acesso a tudo (ver
+     comentário em header abaixo pro ajuste de altura combinada das duas linhas fixas). */
+  .barra-empresas{
+    width: 100%;
+    height: 38px;
+    /* Mesmo gradiente do header (var(--header-color), definida por empresa em Roots.css) —
+       a barra vira uma extensão da cor da empresa ativa em vez de uma tarja cinza neutra;
+       como o header já convive bem com logo escura em cima dessa cor, a barra também convive. */
+    background: var(--header-color);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1001;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .barra-empresas .rotulo{
+    color: rgba(255,255,255,0.75);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    flex: none;
+  }
+  .barra-empresas .minilogos-topo{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .barra-empresas .minilogos-topo a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    transition: transform .15s;
+  }
+  .barra-empresas .minilogos-topo a:hover{ transform: scale(1.35); filter: drop-shadow(0 0 4px rgba(255,255,255,0.55)); }
+  .barra-empresas .minilogos-topo img{
+    /* altura fixa, largura livre — logos "quadrados" (JA, EA, ES...) e logos em
+       formato de lockup horizontal (ex.: SN Foods, com slogan embaixo do nome)
+       ficam com o mesmo peso visual; limitando por max-width, o lockup largo
+       encolhia até virar um traço ilegível */
+    max-height: 22px;
+    max-width: 60px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Usuário só tem acesso a 1 empresa (a própria) — Index.js marca "sem-troca-empresa" no body
+     e a barra some; aqui desfaz os +38px que ela abre em todo mundo que depende da altura do
+     cabeçalho fixo, voltando aos valores de antes dela existir. */
+  body.sem-troca-empresa .barra-empresas{ display: none; }
+  body.sem-troca-empresa header{ top: 0; }
+  body.sem-troca-empresa #sidebar{ margin-top: 90px; height: calc(100vh - 200px); }
+  body.sem-troca-empresa.ceo-mode #conteudo,
+  body.sem-troca-empresa.ti-mode #conteudo,
+  body.sem-troca-empresa.rh-mode #conteudo{ min-height: calc(100vh - 90px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel-wrapper{ margin-top: 100px; }
+  body.sem-troca-empresa.ti-mode #ti-panel{ margin-top: 100px; }
+  body.sem-troca-empresa.rh-mode #rh-panel{ margin-top: 100px; max-height: calc(100vh - 120px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel,
+  body.sem-troca-empresa.ceo-mode #ceo-panel-geral{ max-height: calc(100vh - 120px); }
+  body.sem-troca-empresa.ceo-mode #ceo-panel-geral .ceo-geral-split-wrap > .ceo-geral-secao{ max-height: calc(100vh - 320px); }
+
   header{
     width: 100%;
     /* background-color:  rgb(70, 67, 67); */
-    background: var(--header-color);  
-    position: fixed; /* Mantém o header fixo no topo */
-      top: 0;
+    background: var(--header-color);
+    position: fixed; /* Mantém o header fixo no topo, agora abaixo da barra-empresas (38px) —
+                         ver os "128px" (38 + 90 do próprio header) usados como offset do
+                         conteúdo/sidebar mais abaixo neste arquivo. */
+      top: 38px;
       left: 0;
       z-index: 1000;
   }
-  
+
   .interface{
     max-width: 2560px;
     max-height: 90px;
@@ -42,6 +114,37 @@
     display: flex;
     justify-content: flex-start;
     object-fit: contain;
+  }
+  /* SN Foods é uma marca larga (nome + slogan embaixo, ~2:1) — limitando por max-width igual
+     aos logos quadrados, ela achatava pra uma tira fina. Mesmo ajuste já feito no mini-logo da
+     barra "Trocar empresa": limita por altura, largura livre. */
+  .logo-snfoods img{
+    max-width: 170px;
+    max-height: 74px;
+    width: auto;
+    height: auto;
+  }
+
+  /* Escudo da EventDrive é quase quadrado (diferente da maioria dos logos, mais largos que
+     altos) — em max-width:90px ele chega a ~86px de altura, e somado ao padding vertical do
+     .logotipo (10px + 10px = 20px) estoura os 90px do .interface, vazando por baixo do header.
+     Limita por altura já descontando esse padding. */
+  /* Escopado a .logotipo — sem isso, a mesma classe usada no mini-logo da barra "Trocar
+     empresa" (outras 9 páginas) também herdava esse !important e ficava gigante lá. */
+  .logotipo .logo-eventdrivemobilityveiculoseletricos img{
+    max-width: 100px !important;
+    max-height: 66px !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* A logo da JA-OPER traz "OPERAÇÕES & EVENTOS" desenhado dentro da própria imagem — no
+     tamanho do cabeçalho (90px) o traço fino do "&" fica ilegível. Corta só essa legenda via
+     object-fit (mantém a marca "JA", que é o que precisa ser reconhecível nesse tamanho). */
+  .logo-ja-oper a:not(.minilogos) img{
+    height: 74px;
+    object-fit: cover;
+    object-position: top;
   }
   
   .minilogos{
@@ -97,10 +200,10 @@
   /* /borda muda de cor ao passar mouse/ */
   
   nav ul li a:hover{
-    background-color: #ff0000;
+    background-color: color-mix(in srgb, var(--primary-color, #ff0000) 100%, white 45%);
     color: #ffffff;
     box-shadow: inset 0 0 8px #0000008a;
-  
+
   }
   
   #container {
@@ -292,15 +395,15 @@ input#search-aside {
   /* Sidebar (menu lateral) */
   #sidebar {
     width: 210px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 238px);
     background: gray;
     position: fixed;
     left: 0;
     transition: transform 0.3s ease;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
     z-index: 10;
-    margin-top: 90px;
-   
+    margin-top: 128px;
+
   }
   
   /* Botão em forma de seta para abrir/fechar */
@@ -678,7 +781,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px); /* desconta a altura do header fixo */
+    min-height: calc(100vh - 128px); /* desconta a altura das 2 linhas fixas (barra-empresas + header) */
   }
 
   /* estado visual do ícone quando o modo está ativo */
@@ -692,7 +795,7 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
-    margin: 100px auto 40px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     font-family: var(--Font-primary);
@@ -748,7 +851,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px);
+    min-height: calc(100vh - 128px);
   }
 
   body.ti-mode #menu-horizontal li.TI a {
@@ -761,7 +864,7 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 20000px;
-    margin: 100px auto 40px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     font-family: var(--Font-primary);
@@ -1458,7 +1561,7 @@ input#search-aside {
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
@@ -1822,12 +1925,12 @@ input#search-aside {
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
   }
-  #ceo-panel-geral .ceo-header {
+#ceo-panel-geral .ceo-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1996,14 +2099,27 @@ input#search-aside {
     border-color: var(--primary-color, #2e2e2e);
     color: var(--font-color, #fff);
   }
-  #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; }
-  /* "Todas" usa o azul já estabelecido no dashboard pra "neutro/agregado" (mesmo tom de "Lucro
-     esperado"/"Em andamento") — nunca deve se confundir com a cor real de uma empresa (Roots.css,
-     ex.: EP também é preto) nem com o amarelo de "sem tema cadastrado" (.ceo-sem-marca). */
-  #ceo-panel-geral .ceo-status-chip-todos.ativo {
-    background: #1f6fc4; border-color: #1f6fc4; color: #fff; opacity: 1;
-    box-shadow: 0 2px 6px rgba(31,111,196,0.45);
+  #ceo-panel-geral .ceo-status-chip.ativo { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55); }
+  /* Indicador de seleção independente de cor — sem isso, uma empresa clara (ex.: JA-EXPO laranja
+     claro) ativa e outra escura (ex.: EP preto) inativa-com-borda-colorida podem parecer parecidas
+     demais de relance; o "✓" deixa óbvio em qualquer combinação de cor. */
+  #ceo-panel-geral .ceo-status-chip.ativo::before { content: "✓ "; }
+  /* "Todas" virou checkbox (não é uma empresa, é um atalho de seleção — misturado como pill
+     ficava parecendo mais uma marca na fileira). Fica antes dos chips, com um separador fino. */
+  #ceo-panel-geral .ceo-todas-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 12px;
+    margin-right: 4px;
+    border-right: 1px solid #ddd;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
   }
+  #ceo-panel-geral .ceo-todas-toggle input { width: 15px; height: 15px; cursor: pointer; accent-color: #1f6fc4; }
   /* Resultado da busca de funcionário na visualização Lista: total geral + tabela horizontal
      (uma linha por empresa) — mais fácil de comparar de uma vez do que cards verticais lado a
      lado. Clicar na linha expande o detalhe (holerite/staff/ajustes) daquela empresa. */
@@ -2036,7 +2152,7 @@ input#search-aside {
     /* Cada lado rola por conta própria — a página em si não tem scroll (#conteudo é
        position:fixed), então sem isso o conteúdo mais alto (normalmente o de Gráficos) ficava
        preso atrás do limite do painel, sem jeito de rolar até o fim. */
-    max-height: calc(100vh - 320px);
+    max-height: calc(100vh - 358px); /* 320 + 38 da barra-empresas */
     overflow-y: auto;
     padding-right: 4px;
   }
@@ -2156,6 +2272,19 @@ input#search-aside {
   #ceo-panel-geral .ceo-geral-tabela td.neg { color: #dc2e2e; font-weight: 600; }
   #ceo-panel-geral .ceo-nota { margin-top: 24px; font-size: 12px; color: #999; font-style: italic; }
 
+  /* Detalhar (Lista > clicar na empresa, Contas a Pagar E Contas a Receber): badges de status e
+     cabeçalho ordenável da tabela itemizada — mesmas cores de badge já usadas no Holerite Virtual
+     (rh-badge). ceo-badge-* só é usado em Contas a Pagar (Receber não tem coluna de Status). */
+  #ceo-panel-geral .ceo-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  #ceo-panel-geral .ceo-badge-pago { background: #e3f5ea; color: #1e9e54; }
+  #ceo-panel-geral .ceo-badge-pendente { background: #fdf3e0; color: #c98a06; }
+  #ceo-panel-geral .ceo-venc-vencido { color: #dc2e2e; font-weight: 700; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel { cursor: pointer; user-select: none; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel:hover { color: #333; }
+  #ceo-panel-geral .ceo-geral-seta-ordem { margin-left: 3px; }
+  #ceo-panel-geral .ceo-geral-seta-ordem-inativa { color: #bbb; }
+  #ceo-panel-geral .ceo-geral-th-ordenavel:hover .ceo-geral-seta-ordem-inativa { color: #888; }
+
   /* ===== RH (Holerite Virtual): tela limpa, mesmo padrão do CeoMode ===== */
   body.rh-mode #sidebar,
   body.rh-mode .cards,
@@ -2166,7 +2295,7 @@ input#search-aside {
     flex: 1;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 90px);
+    min-height: calc(100vh - 128px);
   }
   body.rh-mode #menu-horizontal li.RH a { color: #dc2e2e; }
 
@@ -2175,11 +2304,11 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 10000px;
-    margin: 100px auto 40px;
+    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 158px); /* 120 + 38 da barra-empresas */
     font-family: var(--Font-primary);
     color: #2e2e2e;
     text-align: left;
