@@ -3155,7 +3155,7 @@ function initCeoMode() {
         const ativo = document.body.classList.toggle("ceo-mode");
         if (ativo) {
             // Só um "modo de tela cheia" por vez — mesma regra espelhada em RH.js/TIMode.js.
-            document.body.classList.remove("rh-mode", "ti-mode");
+            document.body.classList.remove("rh-mode", "ti-mode", "almox-mode");
             const iconeRH = document.querySelector("li.RH .material-symbols-outlined");
             if (iconeRH) iconeRH.textContent = "";
         }
