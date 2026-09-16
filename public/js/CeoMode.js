@@ -18,8 +18,8 @@ const EXPLICACOES = {
     gastoPrevisto: "Custo total orçado do orçamento: staff + equipamento + suprimento.",
     valorFechado: "Valor Total do Cliente, já líquido de desconto/acréscimo (ou o total de venda, se não houver valor fechado registrado).",
     lucroEsperado: "Lucro calculado no próprio orçamento: venda menos custo, ajuda de custo, imposto e custo fixo.",
-    lucroRealizado: "Lucro esperado ajustado pela diferença entre staff orçado e staff cadastrado (só depois que o evento termina de verdade).",
-    margem: "Lucro realizado dividido pelo Valor fechado.",
+    lucroRealizado: "Com nota fiscal emitida: valor líquido faturado (já sem ISS/IRRF/PIS-COFINS-CSLL) menos o custo real de staff — dado 100% real. Sem nota ainda: lucro esperado ajustado só pela diferença entre staff orçado e staff cadastrado — estimativa provisória, ainda carrega o imposto/custo fixo orçado (não realizado).",
+    margem: "Lucro realizado dividido pela mesma base usada nele: valor líquido da NF quando ela existe, senão o Valor fechado.",
     staffOrcado: "Custo orçado (cachê + ajuda de custo) só dos itens de função do orçamento — não inclui equipamento/suprimento.",
     staffReal: "O que já foi de fato cadastrado em Staff (cachê + ajuda de custo, já com ajuste de custo/caixinha quando autorizados), mais ajustes financeiros (crédito/débito) já pagos.",
     saldoStaff: "Staff orçado menos Staff cadastrado (real). Positivo = sobrou orçamento; negativo = estourou.",
@@ -158,9 +158,26 @@ function analisarEvento(ev) {
     // Saldo de Staff (orçado - real). Positivo = sobrou orçamento (economia); negativo = estourou.
     // Sem staff realizado ainda (ou evento não concluído), não há o que comparar — saldo fica 0.
     const saldoStaff = staffJaRealizado ? (staffOrcado - staffReal) : 0;
-    // Lucro realizado: lucro esperado ajustado pelo saldo de staff (economia soma, estouro reduz).
-    const lucroRealizado = lucroEsperado + saldoStaff;
-    const margemRealizada = fechado > 0 ? (lucroRealizado / fechado) * 100 : 0;
+
+    // Lucro realizado: quando já existe nota fiscal Emitida, usa dado 100% real (valor líquido
+    // efetivamente faturado, já descontado ISS/IRRF/PIS-COFINS-CSLL — mesma conta de
+    // /geral/receber) menos o custo real de staff. Sem NF ainda (hoje a maioria — emissão de
+    // NFS-e é recente no sistema, a maior parte do histórico nunca vai ganhar nota retroativa),
+    // cai pro cálculo antigo (lucro esperado ajustado só pelo saldo de staff) como provisório —
+    // ele ainda carrega a estimativa de imposto/custo fixo do orçamento, não é dado real.
+    const valorLiquidoNf = Number(ev.valor_liquido_nf) || 0;
+    const totalFaturadoBruto = Number(ev.total_faturado_bruto) || 0;
+    // Faturamento parcelado é a regra, não exceção — "tem nota emitida" não quer dizer "sei o
+    // lucro real", só que a 1ª parcela foi cobrada. Exige ~faturamento completo (98%+ do Valor
+    // Fechado) antes de confiar no valor líquido da NF; senão receita parcial vs. custo de staff
+    // já inteiro faria o evento parecer prejuízo só por faltar faturar o resto.
+    const faturamentoCompleto = fechado > 0 && totalFaturadoBruto >= fechado * 0.98;
+    const lucroRealComNf = staffJaRealizado && faturamentoCompleto;
+    const lucroRealizado = lucroRealComNf ? (valorLiquidoNf - staffReal) : (lucroEsperado + saldoStaff);
+    // Margem acompanha a mesma base do lucro realizado — dividir um lucro já "real" (líquido de
+    // NF) pelo Valor Fechado orçado misturaria base real com base orçada na mesma conta.
+    const baseMargem = lucroRealComNf ? valorLiquidoNf : fechado;
+    const margemRealizada = baseMargem > 0 ? (lucroRealizado / baseMargem) * 100 : 0;
 
     let nivel, label;
     if (!staffCadastrado) { nivel = "pendente"; label = "⏳ Ainda não realizado"; }
@@ -169,7 +186,7 @@ function analisarEvento(ev) {
     else if (margemRealizada >= FAIXAS.ok) { nivel = "ok"; label = "⚠️ Aceitável"; }
     else { nivel = "ruim"; label = "❌ Não valeu"; }
 
-    return { venda, fechado, lucroEsperado, staffOrcado, staffReal, custoPrevisto, staffJaRealizado, saldoStaff, lucroRealizado, margemRealizada, nivel, label };
+    return { venda, fechado, lucroEsperado, staffOrcado, staffReal, custoPrevisto, staffJaRealizado, saldoStaff, lucroRealizado, lucroRealComNf, margemRealizada, nivel, label };
 }
 
 // ===== Montagem do painel (lazy, só na primeira ativação) =====
@@ -736,7 +753,10 @@ function obterChart(id) {
     if (!el || typeof echarts === "undefined") return null;
     let inst = echarts.getInstanceByDom(el);
     if (!inst) {
-        inst = echarts.init(el);
+        // renderer "svg" em vez do canvas padrão: texto vetorial, não borra em fonte pequena —
+        // canvas rasteriza no tamanho medido na hora e não reacompanha zoom do navegador nem
+        // escala de tela do Windows (era exatamente o "aumentei a tela e ficou desfocado").
+        inst = echarts.init(el, null, { renderer: "svg" });
         // O ECharts só re-mede o container sozinho no evento de resize da JANELA — trocar de
         // modo/Exibição, ligar "Dividir tela" etc. muda a largura via CSS (grid/flex) sem disparar
         // esse evento, então o gráfico ficava preso no tamanho medido na primeira renderização
@@ -822,8 +842,20 @@ function renderGraficos(analises) {
     const gridSemLegenda = { left: 70, right: 40, top: 40, bottom: 66 };
     // Rotacionado na grade compacta (nome curto, 1 linha); reto na expandida (nome + período,
     // 2 linhas — rotacionar um bloco de 2 linhas fica ilegível, sobrepondo texto).
-    const xAxis = { type: "category", data: nomes, axisLabel: { rotate: expandido ? 0 : 30, interval: 0, fontSize: expandido ? 9 : 10 } };
+    const xAxis = { type: "category", data: nomes, axisLabel: { rotate: expandido ? 0 : 30, interval: 0, fontSize: expandido ? 9 : 7 } };
     const yMoeda = { type: "value", axisLabel: { formatter: fmtMoedaCurta } };
+
+    // Esconde os nomes do eixo quando o usuário solta o zoom além da janela padrão — com
+    // muitos eventos juntos o nome fica ilegível de qualquer jeito (uma faixa de texto
+    // embolada); em vez disso some o rótulo fixo e deixa só o hover (tooltip) mostrar o nome.
+    function atualizarRotulosEixo(chart) {
+        const dz = chart.getOption()?.dataZoom?.[0];
+        if (!dz) return;
+        const visivel = Math.round(((dz.end - dz.start) / 100) * analises.length);
+        const mostrar = visivel <= QTD_VISIVEL_PADRAO;
+        if (chart.getOption()?.xAxis?.[0]?.axisLabel?.show === mostrar) return; // evita setOption a cada pixel de arraste
+        chart.setOption({ xAxis: { axisLabel: { show: mostrar } } });
+    }
 
     // 1) Rentabilidade: fechado x lucro esperado x lucro realizado
     const cRent = obterChart("chart-rentabilidade");
@@ -868,6 +900,18 @@ function renderGraficos(analises) {
             },
         }],
     }, true);
+
+    // Reaplica a visibilidade dos rótulos toda vez que o usuário mexe no zoom de qualquer um
+    // dos 3 gráficos de barra (cada um tem o próprio slider, independente dos outros) — e uma
+    // vez agora pra já nascer no estado certo. .off() primeiro porque renderGraficos roda de
+    // novo a cada filtro/expandir, e obterChart() reaproveita a MESMA instância (senão os
+    // listeners se acumulavam a cada render).
+    [cRent, cStaff, cMargem].forEach((chart) => {
+        if (!chart) return;
+        chart.off("dataZoom");
+        chart.on("dataZoom", () => atualizarRotulosEixo(chart));
+        atualizarRotulosEixo(chart);
+    });
 
     // 4) Composição do total do cliente (rosca)
     const totFechado = analises.reduce((s, x) => s + x.a.fechado, 0);
@@ -997,7 +1041,7 @@ function renderEventos(cont, analises, modo) {
                 <div>${explicarValor("Gasto previsto", "gastoPrevisto")}<strong>${moeda(a.custoPrevisto)}</strong></div>
                 <div>${explicarValor("Valor fechado", "valorFechado")}<strong>${moeda(a.fechado)}</strong></div>
                 <div>${explicarValor("Lucro esperado", "lucroEsperado")}<strong>${moeda(a.lucroEsperado)}</strong></div>
-                <div>${explicarValor("Lucro realizado", "lucroRealizado")}<strong>${moeda(a.lucroRealizado)}</strong></div>
+                <div>${explicarValor(`Lucro realizado ${a.lucroRealComNf ? "(NF)" : "(estimado)"}`, "lucroRealizado")}<strong>${moeda(a.lucroRealizado)}</strong></div>
                 <div>${explicarValor("Margem realizada", "margem")}<strong>${pct(a.margemRealizada)}</strong></div>
                 <div>${explicarValor("Staff orçado", "staffOrcado")}<strong>${moeda(a.staffOrcado)}</strong></div>
                 <div>${explicarValor("Staff real", "staffReal")}<strong>${moeda(a.staffReal)}</strong></div>
@@ -1127,7 +1171,10 @@ function montarPainelGeral() {
             <div class="filtro-grupo filtro-grupo-empresas">
                 <label class="label-select">Empresas</label>
                 <div class="wrapper ceo-geral-empresas-filtro" id="ceo-geral-empresas-filtro">
-                    <button type="button" class="ceo-status-chip ceo-status-chip-todos ativo" data-id="todos">Todas</button>
+                    <label class="ceo-todas-toggle">
+                        <input type="checkbox" id="ceo-geral-empresas-todas" checked>
+                        <span>Todas</span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -1605,25 +1652,33 @@ function renderFiltroEmpresasGeral() {
     if (!box) return;
     const chipsEmpresa = empresasGeral.map((e) => {
         const ativo = empresasSelecionadasGeral.has(e.idempresa) ? "ativo" : "";
-        return `<button type="button" class="ceo-status-chip ${classeTemaEmpresa(e.nmfantasia)} ${ativo}" data-id="${e.idempresa}">${e.nmfantasia}</button>`;
+        // --primary-color é herdável — sem fixar aqui direto no elemento, uma empresa sem tema
+        // no Roots.css simplesmente herdava a cor da empresa logada (parecia que ela "roubou" a
+        // marca de quem estava logado). Fixando com corPrimariaEmpresa (mesma função usada nos
+        // gráficos), quem tem tema usa a cor real e quem não tem cai no fallback por hash.
+        const cor = corPrimariaEmpresa(e.nmfantasia);
+        return `<button type="button" class="ceo-status-chip ${classeTemaEmpresa(e.nmfantasia)} ${ativo}" data-id="${e.idempresa}" style="--primary-color:${cor}; --font-color:#fff;">${e.nmfantasia}</button>`;
     }).join("");
-    box.innerHTML = `<button type="button" class="ceo-status-chip ceo-status-chip-todos ativo" data-id="todos">Todas</button>${chipsEmpresa}`;
+    box.innerHTML = `
+        <label class="ceo-todas-toggle">
+            <input type="checkbox" id="ceo-geral-empresas-todas" checked>
+            <span>Todas</span>
+        </label>
+        ${chipsEmpresa}`;
 
-    const chipTodos = box.querySelector(".ceo-status-chip-todos");
-    const chipsIndividuais = Array.from(box.querySelectorAll(".ceo-status-chip:not(.ceo-status-chip-todos)"));
+    const checkTodas = box.querySelector("#ceo-geral-empresas-todas");
+    const chipsIndividuais = Array.from(box.querySelectorAll(".ceo-status-chip"));
 
-    // "Todas" agora é on/off de verdade: se já estão todas selecionadas, o clique desmarca tudo
-    // (mostra o estado vazio); senão, marca todas — mesmo gesto de clique dos chips individuais.
-    chipTodos.addEventListener("click", () => {
-        const todasSelecionadas = empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
-        if (todasSelecionadas) {
-            empresasSelecionadasGeral.clear();
-            chipsIndividuais.forEach((chip) => chip.classList.remove("ativo"));
-            chipTodos.classList.remove("ativo");
-        } else {
+    // "Todas" agora é on/off de verdade: se já estão todas selecionadas, desmarcar limpa tudo
+    // (mostra o estado vazio); senão, marca todas — mesmo gesto de antes, só que num checkbox
+    // em vez de um pill igual às empresas (não é uma "empresa", é um atalho de seleção).
+    checkTodas.addEventListener("change", () => {
+        if (checkTodas.checked) {
             empresasGeral.forEach((e) => empresasSelecionadasGeral.add(e.idempresa));
             chipsIndividuais.forEach((chip) => chip.classList.add("ativo"));
-            chipTodos.classList.add("ativo");
+        } else {
+            empresasSelecionadasGeral.clear();
+            chipsIndividuais.forEach((chip) => chip.classList.remove("ativo"));
         }
         atualizarConteudoAtivoGeral();
     });
@@ -1636,7 +1691,7 @@ function renderFiltroEmpresasGeral() {
                 empresasSelecionadasGeral.add(id);
             }
             chip.classList.toggle("ativo", empresasSelecionadasGeral.has(id));
-            chipTodos.classList.toggle("ativo", empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa)));
+            checkTodas.checked = empresasGeral.every((e) => empresasSelecionadasGeral.has(e.idempresa));
             atualizarConteudoAtivoGeral();
         });
     });
@@ -2392,6 +2447,222 @@ function renderGraficosComparativoGeral(entradaCerta, saidaCerta, entradaPrevisa
 let agrupamentoPagarGeral = "mensal"; // "mensal" | "anual"
 let mesPagarGeral = "";               // "" (todos) | "1".."12"
 
+// ===== Detalhar por empresa (botão "▼" na linha) — itemiza a despesa de UMA empresa em 4 abas
+// fixas por vínculo real de lancamentos.tipovinculo: Fornecedores, Clientes, Funcionários (aqui
+// também entra folha/staff/ajustes — pro CEO é tudo "gasto com pessoal") e Outros (lançamento sem
+// vínculo — hoje é a maior fatia, 52 dos 68 lançamentos ativos da JA-OPER, cadastrados como
+// "Lançamento Geral"; ver /ceo/geral/pagar-detalhe). =====
+const empresasExpandidasPagarGeral = new Set();
+const abaAtivaPagarGeral = new Map(); // idempresa -> "fornecedores"|"clientes"|"funcionarios"|"outros"
+const ABAS_PAGAR_GERAL = [
+    { chave: "fornecedores", label: "Fornecedores" },
+    { chave: "clientes", label: "Clientes" },
+    { chave: "funcionarios", label: "Funcionários" },
+    { chave: "outros", label: "Outros" },
+];
+// Ordenação da tabela itemizada — uma preferência só, compartilhada entre empresas/abas (igual o
+// usuário deixou da última vez que clicou num cabeçalho).
+let ordenacaoPagarDetalheGeral = { campo: "valor", direcao: "desc" };
+// "idempresa-ano-mes" -> { fornecedores, clientes, funcionarios, outros } | null (erro) — undefined = ainda não buscado.
+const detalhePagarCache = new Map();
+// Última resposta de /ceo/geral/pagar (empresasVisiveis + porEmpresa), pra re-renderizar a tabela
+// (expandir linha, trocar sub-aba, reordenar) sem refazer essa requisição a cada clique.
+let ultimoPagarGeral = null;
+
+function chaveDetalhePagarGeral(idempresa) {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    return `${idempresa}-${ano}-${mesPagarGeral || ""}`;
+}
+
+async function buscarDetalhePagarGeral(idempresa) {
+    const chave = chaveDetalhePagarGeral(idempresa);
+    if (detalhePagarCache.has(chave)) return detalhePagarCache.get(chave);
+    try {
+        const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+        const params = new URLSearchParams({ idempresa, ano });
+        if (mesPagarGeral) params.set("mes", mesPagarGeral);
+        const data = await fetchComToken(`/ceo/geral/pagar-detalhe?${params.toString()}`);
+        detalhePagarCache.set(chave, data);
+        return data;
+    } catch (err) {
+        console.error("Erro ao carregar detalhe de contas a pagar (CEO Geral):", err);
+        detalhePagarCache.set(chave, null);
+        return null;
+    }
+}
+
+// Ordenação da tabela itemizada de "Detalhar" — compartilhada entre Contas a Pagar e Contas a
+// Receber (mesmo formato de item: nome/descricao/vencimento/valor), cada uma com seu próprio
+// estado (ordenacaoPagarDetalheGeral / ordenacaoReceberDetalheGeral) passado por parâmetro.
+// Direção inicial ao trocar de coluna: texto começa A→Z (mais intuitivo pra nome/descrição),
+// número/data começa do maior/mais recente primeiro.
+const CAMPOS_TEXTO_DETALHE_GERAL = new Set(["nome", "descricao"]);
+function direcaoPadraoDetalheGeral(campo) {
+    return CAMPOS_TEXTO_DETALHE_GERAL.has(campo) ? "asc" : "desc";
+}
+
+function ordenarItensDetalheGeral(itens, ordenacao) {
+    const { campo, direcao } = ordenacao;
+    const sinal = direcao === "asc" ? 1 : -1;
+    return [...itens].sort((a, b) => {
+        if (campo === "vencimento") {
+            const da = a.vencimento ? new Date(a.vencimento).getTime() : 0;
+            const db = b.vencimento ? new Date(b.vencimento).getTime() : 0;
+            return (da - db) * sinal;
+        }
+        if (CAMPOS_TEXTO_DETALHE_GERAL.has(campo)) {
+            return (a[campo] || "").localeCompare(b[campo] || "", "pt-BR", { sensitivity: "base" }) * sinal;
+        }
+        return ((a.valor || 0) - (b.valor || 0)) * sinal;
+    });
+}
+
+// Linha de detalhe (sub-abas + tabela itemizada) de UMA empresa expandida — "undefined" no cache
+// (ainda buscando) e "null" (erro) viram estado próprio, não é só "sem lançamento".
+function montarDetalhePagarGeral(idempresa) {
+    const chave = chaveDetalhePagarGeral(idempresa);
+    const dados = detalhePagarCache.get(chave);
+    if (dados === undefined) {
+        return `<tr class="ceo-geral-linha-detalhe"><td colspan="5"><p class="ceo-vazio-sutil">Carregando detalhe...</p></td></tr>`;
+    }
+    if (dados === null) {
+        return `<tr class="ceo-geral-linha-detalhe"><td colspan="5"><p class="ceo-vazio">Erro ao carregar o detalhe. Tente expandir a linha de novo.</p></td></tr>`;
+    }
+
+    const abaAtiva = abaAtivaPagarGeral.get(idempresa) || "fornecedores";
+    const abasHtml = ABAS_PAGAR_GERAL.map(({ chave: c, label }) => {
+        const total = (dados[c] || []).reduce((s, it) => s + (Number(it.valor) || 0), 0);
+        return `<button type="button" class="ceo-geral-subaba ${c === abaAtiva ? "ativo" : ""}" data-idempresa="${idempresa}" data-aba="${c}">
+            <span>${label}</span><strong>${moedaGeral(total)}</strong>
+        </button>`;
+    }).join("");
+
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const itens = ordenarItensDetalheGeral(dados[abaAtiva] || [], ordenacaoPagarDetalheGeral);
+    const linhasHtml = itens.length
+        ? itens.map((it) => {
+            const venc = it.vencimento ? new Date(`${it.vencimento}T00:00:00`) : null;
+            const vencido = venc && it.status === "Pendente" && venc < hoje;
+            return `<tr>
+                <td>${it.nome || "—"}</td>
+                <td>${it.descricao || ""}</td>
+                <td class="${vencido ? "ceo-venc-vencido" : ""}">${venc ? venc.toLocaleDateString("pt-BR") : "—"}</td>
+                <td><span class="ceo-badge ${it.status === "Pago" ? "ceo-badge-pago" : "ceo-badge-pendente"}">${it.status}</span></td>
+                <td>${moedaGeral(it.valor)}</td>
+            </tr>`;
+        }).join("")
+        : `<tr><td colspan="5" class="ceo-vazio">Nenhum lançamento nessa categoria.</td></tr>`;
+
+    // Coluna ativa mostra a direção atual (▼/▲); as outras sortáveis ganham um "⇅" apagado só
+    // pra sinalizar que também dá pra clicar (sem isso só "Valor" parecia clicável, por já vir
+    // ordenado por padrão).
+    const setaOrdem = (campo) => ordenacaoPagarDetalheGeral.campo === campo
+        ? `<span class="ceo-geral-seta-ordem">${ordenacaoPagarDetalheGeral.direcao === "desc" ? "▼" : "▲"}</span>`
+        : `<span class="ceo-geral-seta-ordem ceo-geral-seta-ordem-inativa">⇅</span>`;
+
+    return `
+        <tr class="ceo-geral-linha-detalhe">
+            <td colspan="5">
+                <div class="ceo-geral-subabas">${abasHtml}</div>
+                <table class="ceo-geral-tabela">
+                    <thead>
+                        <tr>
+                            <th class="ceo-geral-th-ordenavel" data-campo="nome">Fornecedor/Cliente/Funcionário ${setaOrdem("nome")}</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="descricao">Descrição ${setaOrdem("descricao")}</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="vencimento">Vencimento ${setaOrdem("vencimento")}</th>
+                            <th>Status</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="valor">Valor ${setaOrdem("valor")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${linhasHtml}</tbody>
+                </table>
+            </td>
+        </tr>`;
+}
+
+// Monta a linha (+ linha de detalhe expansível) de UMA empresa na tabela de Contas a Pagar —
+// mesmo padrão de montarLinhaEmpresaGeral (aba Funcionários), agora com o detalhe vindo de
+// /ceo/geral/pagar-detalhe em vez do /ceo/geral/funcionario.
+function montarLinhaEmpresaPagarGeral(empresa, r) {
+    const paga = Number(r.despesapaga) || 0, pendente = Number(r.despesapendente) || 0;
+    const expandido = empresasExpandidasPagarGeral.has(empresa.idempresa);
+    const linhaPrincipal = `
+        <tr class="ceo-geral-linha-empresa ${expandido ? "expandida" : ""}" data-idempresa="${empresa.idempresa}">
+            <td><span class="ceo-geral-empresa-tag ${classeTemaEmpresa(empresa.nmfantasia)}">${empresa.nmfantasia}</span></td>
+            <td class="neg">${moedaGeral(paga)}</td>
+            <td>${moedaGeral(pendente)}</td>
+            <td>${moedaGeral(paga + pendente)}</td>
+            <td class="ceo-geral-expandir">${expandido ? "▲" : "▼"}</td>
+        </tr>`;
+    return expandido ? linhaPrincipal + montarDetalhePagarGeral(empresa.idempresa) : linhaPrincipal;
+}
+
+// Redesenha só a tabela (expandir/colapsar linha, trocar sub-aba, reordenar) a partir do que já
+// foi buscado em renderColunasContasGeral — sem refazer o fetch de /ceo/geral/pagar a cada clique.
+function renderizarTabelaPagarGeral(cont) {
+    if (!ultimoPagarGeral) return;
+    const { empresasVisiveis, porEmpresa } = ultimoPagarGeral;
+
+    if (empresasVisiveis.length === 0) {
+        cont.innerHTML = '<p class="ceo-vazio">Nenhuma despesa (fornecedores/outros ou folha) nas empresas selecionadas.</p>';
+        return;
+    }
+
+    let totPaga = 0, totPendente = 0;
+    const linhasHtml = empresasVisiveis.map((e) => {
+        const r = porEmpresa.get(e.idempresa);
+        totPaga += Number(r.despesapaga) || 0;
+        totPendente += Number(r.despesapendente) || 0;
+        return montarLinhaEmpresaPagarGeral(e, r);
+    }).join("");
+
+    cont.innerHTML = `
+        <div class="ceo-resumo ceo-geral-total-geral">
+            <div class="ceo-resumo-card"><span>Paga (todas as empresas)</span><strong class="neg">${moedaGeral(totPaga)}</strong></div>
+            <div class="ceo-resumo-card"><span>Pendente (todas as empresas)</span><strong>${moedaGeral(totPendente)}</strong></div>
+            <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totPaga + totPendente)}</strong></div>
+        </div>
+        <p class="ceo-vazio-sutil">Clique numa empresa pra detalhar por Fornecedores, Clientes, Funcionários e Outros.</p>
+        <div class="ceo-geral-tabela-wrap">
+            <table class="ceo-geral-tabela-empresas">
+                <thead><tr><th>Empresa</th><th>Paga</th><th>Pendente</th><th>Total</th><th></th></tr></thead>
+                <tbody>${linhasHtml}</tbody>
+            </table>
+        </div>`;
+
+    cont.querySelectorAll(".ceo-geral-linha-empresa").forEach((tr) => {
+        tr.addEventListener("click", async () => {
+            const id = parseInt(tr.dataset.idempresa, 10);
+            if (empresasExpandidasPagarGeral.has(id)) {
+                empresasExpandidasPagarGeral.delete(id);
+                renderizarTabelaPagarGeral(cont);
+                return;
+            }
+            empresasExpandidasPagarGeral.add(id);
+            renderizarTabelaPagarGeral(cont); // já expande mostrando "Carregando..."
+            await buscarDetalhePagarGeral(id);
+            renderizarTabelaPagarGeral(cont);
+        });
+    });
+    cont.querySelectorAll(".ceo-geral-subaba").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation(); // não deixa "vazar" pro clique da linha (que colapsaria de novo)
+            abaAtivaPagarGeral.set(parseInt(btn.dataset.idempresa, 10), btn.dataset.aba);
+            renderizarTabelaPagarGeral(cont);
+        });
+    });
+    cont.querySelectorAll(".ceo-geral-th-ordenavel").forEach((th) => {
+        th.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const campo = th.dataset.campo;
+            ordenacaoPagarDetalheGeral = campo === ordenacaoPagarDetalheGeral.campo
+                ? { campo, direcao: ordenacaoPagarDetalheGeral.direcao === "desc" ? "asc" : "desc" }
+                : { campo, direcao: direcaoPadraoDetalheGeral(campo) };
+            renderizarTabelaPagarGeral(cont);
+        });
+    });
+}
+
 // Monta os parâmetros comuns (ano/idempresas/mês) pro endpoint /ceo/geral/pagar, respeitando os
 // chips de empresa ativos e o Mês PRÓPRIO de Contas a Pagar (mesFuncionariosGeral/mesReceberGeral
 // são de outras abas — usar o errado aqui já causou o gráfico filtrar e a lista não, ou vice-versa).
@@ -2436,7 +2707,8 @@ async function carregarGraficosContasGeral() {
 }
 
 // Lista / Contas a pagar: mesma tabela horizontal usada em Funcionários/Contas a receber, agora
-// com dado real (despesa do evento) agrupada por empresa, sem coluna de lucro/saldo.
+// com dado real (despesa do evento) agrupada por empresa, sem coluna de lucro/saldo. Clicar numa
+// empresa expande o detalhe itemizado (ver renderizarTabelaPagarGeral acima).
 async function renderColunasContasGeral() {
     const cont = document.getElementById("ceo-geral-colunas-contas");
     if (!cont || !empresasSelecionadasGeral) return;
@@ -2445,37 +2717,8 @@ async function renderColunasContasGeral() {
         const data = await fetchComToken(`/ceo/geral/pagar?${paramsPagarGeral("empresa").toString()}`);
         const porEmpresa = new Map((data?.linhas || []).map((r) => [r.chave, r]));
         const empresasVisiveis = empresasGeral.filter((e) => empresasSelecionadasGeral.has(e.idempresa) && porEmpresa.has(e.idempresa));
-
-        if (empresasVisiveis.length === 0) {
-            cont.innerHTML = '<p class="ceo-vazio">Nenhuma despesa (fornecedores/outros ou folha) nas empresas selecionadas.</p>';
-            return;
-        }
-
-        let totPaga = 0, totPendente = 0;
-        const linhasHtml = empresasVisiveis.map((e) => {
-            const r = porEmpresa.get(e.idempresa);
-            const paga = Number(r.despesapaga) || 0, pendente = Number(r.despesapendente) || 0;
-            totPaga += paga; totPendente += pendente;
-            return `<tr>
-                <td><span class="ceo-geral-empresa-tag ${classeTemaEmpresa(e.nmfantasia)}">${e.nmfantasia}</span></td>
-                <td class="neg">${moedaGeral(paga)}</td>
-                <td>${moedaGeral(pendente)}</td>
-                <td>${moedaGeral(paga + pendente)}</td>
-            </tr>`;
-        }).join("");
-
-        cont.innerHTML = `
-            <div class="ceo-resumo ceo-geral-total-geral">
-                <div class="ceo-resumo-card"><span>Paga (todas as empresas)</span><strong class="neg">${moedaGeral(totPaga)}</strong></div>
-                <div class="ceo-resumo-card"><span>Pendente (todas as empresas)</span><strong>${moedaGeral(totPendente)}</strong></div>
-                <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totPaga + totPendente)}</strong></div>
-            </div>
-            <div class="ceo-geral-tabela-wrap">
-                <table class="ceo-geral-tabela-empresas">
-                    <thead><tr><th>Empresa</th><th>Paga</th><th>Pendente</th><th>Total</th></tr></thead>
-                    <tbody>${linhasHtml}</tbody>
-                </table>
-            </div>`;
+        ultimoPagarGeral = { empresasVisiveis, porEmpresa };
+        renderizarTabelaPagarGeral(cont);
     } catch (err) {
         console.error("Erro ao carregar contas a pagar - lista (CEO Geral):", err);
     }
@@ -2694,8 +2937,183 @@ function renderDetalheEmpresaEventoGeral(linhas) {
     }, true);
 }
 
+// ===== Detalhar por empresa (Lista de Contas a Receber) — mesmo botão "▼"/mesmo padrão de
+// Contas a Pagar (empresasExpandidasPagarGeral etc.), agora com as 5 categorias de
+// CATEGORIAS_RECEBER_GERAL como abas fixas: já são mutuamente exclusivas por construção (cada
+// nota fiscal/orçamento cai em exatamente uma), então a tabela itemizada não precisa de coluna de
+// Status — a aba ativa já É o status. =====
+const empresasExpandidasReceberGeral = new Set();
+const abaAtivaReceberDetalheGeral = new Map(); // idempresa -> chave de CATEGORIAS_RECEBER_GERAL
+let ordenacaoReceberDetalheGeral = { campo: "valor", direcao: "desc" };
+const detalheReceberCache = new Map(); // "idempresa-ano-mes" -> { recebido, a_receber, ... } | null (erro)
+let ultimoReceberGeral = null;
+
+function chaveDetalheReceberGeral(idempresa) {
+    const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+    return `${idempresa}-${ano}-${mesReceberGeral || ""}`;
+}
+
+async function buscarDetalheReceberGeral(idempresa) {
+    const chave = chaveDetalheReceberGeral(idempresa);
+    if (detalheReceberCache.has(chave)) return detalheReceberCache.get(chave);
+    try {
+        const ano = document.getElementById("ceo-geral-select-ano")?.value || new Date().getFullYear();
+        const params = new URLSearchParams({ idempresa, ano });
+        if (mesReceberGeral) params.set("mes", mesReceberGeral);
+        const data = await fetchComToken(`/ceo/geral/receber-detalhe?${params.toString()}`);
+        detalheReceberCache.set(chave, data);
+        return data;
+    } catch (err) {
+        console.error("Erro ao carregar detalhe de contas a receber (CEO Geral):", err);
+        detalheReceberCache.set(chave, null);
+        return null;
+    }
+}
+
+function montarDetalheReceberGeral(idempresa) {
+    const colspan = CATEGORIAS_RECEBER_GERAL.length + 2; // Empresa + N categorias + Total + expandir
+    const chave = chaveDetalheReceberGeral(idempresa);
+    const dados = detalheReceberCache.get(chave);
+    if (dados === undefined) {
+        return `<tr class="ceo-geral-linha-detalhe"><td colspan="${colspan}"><p class="ceo-vazio-sutil">Carregando detalhe...</p></td></tr>`;
+    }
+    if (dados === null) {
+        return `<tr class="ceo-geral-linha-detalhe"><td colspan="${colspan}"><p class="ceo-vazio">Erro ao carregar o detalhe. Tente expandir a linha de novo.</p></td></tr>`;
+    }
+
+    const abaAtiva = abaAtivaReceberDetalheGeral.get(idempresa) || CATEGORIAS_RECEBER_GERAL[0].chave;
+    const abasHtml = CATEGORIAS_RECEBER_GERAL.map(({ chave: c, label }) => {
+        const total = (dados[c] || []).reduce((s, it) => s + (Number(it.valor) || 0), 0);
+        return `<button type="button" class="ceo-geral-subaba ${c === abaAtiva ? "ativo" : ""}" data-idempresa="${idempresa}" data-aba="${c}">
+            <span>${label}</span><strong>${moedaGeral(total)}</strong>
+        </button>`;
+    }).join("");
+
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const itens = ordenarItensDetalheGeral(dados[abaAtiva] || [], ordenacaoReceberDetalheGeral);
+    const linhasHtml = itens.length
+        ? itens.map((it) => {
+            const venc = it.vencimento ? new Date(`${it.vencimento}T00:00:00`) : null;
+            const vencido = venc && venc < hoje && (abaAtiva === "recebimento_atrasado" || abaAtiva === "a_receber");
+            return `<tr>
+                <td>${it.nome || "—"}</td>
+                <td>${it.descricao || ""}</td>
+                <td class="${vencido ? "ceo-venc-vencido" : ""}">${venc ? venc.toLocaleDateString("pt-BR") : "—"}</td>
+                <td>${moedaGeral(it.valor)}</td>
+            </tr>`;
+        }).join("")
+        : `<tr><td colspan="4" class="ceo-vazio">Nenhum item nessa categoria.</td></tr>`;
+
+    const setaOrdem = (campo) => ordenacaoReceberDetalheGeral.campo === campo
+        ? `<span class="ceo-geral-seta-ordem">${ordenacaoReceberDetalheGeral.direcao === "desc" ? "▼" : "▲"}</span>`
+        : `<span class="ceo-geral-seta-ordem ceo-geral-seta-ordem-inativa">⇅</span>`;
+
+    return `
+        <tr class="ceo-geral-linha-detalhe">
+            <td colspan="${colspan}">
+                <div class="ceo-geral-subabas">${abasHtml}</div>
+                <table class="ceo-geral-tabela">
+                    <thead>
+                        <tr>
+                            <th class="ceo-geral-th-ordenavel" data-campo="nome">Cliente ${setaOrdem("nome")}</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="descricao">Evento ${setaOrdem("descricao")}</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="vencimento">Vencimento ${setaOrdem("vencimento")}</th>
+                            <th class="ceo-geral-th-ordenavel" data-campo="valor">Valor ${setaOrdem("valor")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${linhasHtml}</tbody>
+                </table>
+            </td>
+        </tr>`;
+}
+
+function montarLinhaEmpresaReceberGeral(empresa, r) {
+    const valores = CATEGORIAS_RECEBER_GERAL.map((c) => Number(r[c.chave]) || 0);
+    const total = valores.reduce((s, v) => s + v, 0);
+    const expandido = empresasExpandidasReceberGeral.has(empresa.idempresa);
+    const linhaPrincipal = `
+        <tr class="ceo-geral-linha-empresa ${expandido ? "expandida" : ""}" data-idempresa="${empresa.idempresa}">
+            <td><span class="ceo-geral-empresa-tag ${classeTemaEmpresa(empresa.nmfantasia)}">${empresa.nmfantasia}</span></td>
+            ${valores.map((v) => `<td>${moedaGeral(v)}</td>`).join("")}
+            <td>${moedaGeral(total)}</td>
+            <td class="ceo-geral-expandir">${expandido ? "▲" : "▼"}</td>
+        </tr>`;
+    return expandido ? linhaPrincipal + montarDetalheReceberGeral(empresa.idempresa) : linhaPrincipal;
+}
+
+// Redesenha só a tabela (expandir/colapsar, trocar sub-aba, reordenar) a partir do que já foi
+// buscado em renderColunasContasReceberGeral — sem refazer o fetch de /ceo/geral/receber.
+function renderizarTabelaReceberGeral(cont) {
+    if (!ultimoReceberGeral) return;
+    const { empresasVisiveis, porEmpresa } = ultimoReceberGeral;
+
+    if (empresasVisiveis.length === 0) {
+        cont.innerHTML = '<p class="ceo-vazio">Nenhum orçamento com evento/data de realização para este ano nas empresas selecionadas.</p>';
+        return;
+    }
+
+    const totais = Object.fromEntries(CATEGORIAS_RECEBER_GERAL.map((c) => [c.chave, 0]));
+    const linhasHtml = empresasVisiveis.map((e) => {
+        const r = porEmpresa.get(e.idempresa);
+        CATEGORIAS_RECEBER_GERAL.forEach((c) => { totais[c.chave] += Number(r[c.chave]) || 0; });
+        return montarLinhaEmpresaReceberGeral(e, r);
+    }).join("");
+
+    const totalGeral = CATEGORIAS_RECEBER_GERAL.reduce((s, c) => s + totais[c.chave], 0);
+    const cardsResumo = CATEGORIAS_RECEBER_GERAL.map((c) =>
+        `<div class="ceo-resumo-card"><span>${c.label}</span><strong style="color:${c.cor}">${moedaGeral(totais[c.chave])}</strong></div>`
+    ).join("");
+
+    cont.innerHTML = `
+        <div class="ceo-resumo ceo-geral-total-geral">
+            ${cardsResumo}
+            <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totalGeral)}</strong></div>
+        </div>
+        <p class="ceo-vazio-sutil">Clique numa empresa pra detalhar por ${CATEGORIAS_RECEBER_GERAL.map((c) => c.label).join(", ")}.</p>
+        <div class="ceo-geral-tabela-wrap">
+            <table class="ceo-geral-tabela-empresas">
+                <thead><tr><th>Empresa</th>${CATEGORIAS_RECEBER_GERAL.map((c) => `<th>${c.label}</th>`).join("")}<th>Total</th><th></th></tr></thead>
+                <tbody>${linhasHtml}</tbody>
+            </table>
+        </div>
+        <p class="ceo-vazio-sutil" style="margin-top:12px;">Valor total do cliente (vlrcliente) por orçamento, partido pelo status real de faturamento/recebimento (routes/rotaCeo.js explica cada categoria).</p>`;
+
+    cont.querySelectorAll(".ceo-geral-linha-empresa").forEach((tr) => {
+        tr.addEventListener("click", async () => {
+            const id = parseInt(tr.dataset.idempresa, 10);
+            if (empresasExpandidasReceberGeral.has(id)) {
+                empresasExpandidasReceberGeral.delete(id);
+                renderizarTabelaReceberGeral(cont);
+                return;
+            }
+            empresasExpandidasReceberGeral.add(id);
+            renderizarTabelaReceberGeral(cont); // já expande mostrando "Carregando..."
+            await buscarDetalheReceberGeral(id);
+            renderizarTabelaReceberGeral(cont);
+        });
+    });
+    cont.querySelectorAll(".ceo-geral-subaba").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            abaAtivaReceberDetalheGeral.set(parseInt(btn.dataset.idempresa, 10), btn.dataset.aba);
+            renderizarTabelaReceberGeral(cont);
+        });
+    });
+    cont.querySelectorAll(".ceo-geral-th-ordenavel").forEach((th) => {
+        th.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const campo = th.dataset.campo;
+            ordenacaoReceberDetalheGeral = campo === ordenacaoReceberDetalheGeral.campo
+                ? { campo, direcao: ordenacaoReceberDetalheGeral.direcao === "desc" ? "asc" : "desc" }
+                : { campo, direcao: direcaoPadraoDetalheGeral(campo) };
+            renderizarTabelaReceberGeral(cont);
+        });
+    });
+}
+
 // Lista / Contas a receber: mesma tabela horizontal usada em Funcionários, agora com dado REAL
-// (agrupado por empresa, no ano selecionado no filtro global).
+// (agrupado por empresa, no ano selecionado no filtro global). Clicar numa empresa expande o
+// detalhe itemizado (ver renderizarTabelaReceberGeral acima).
 async function renderColunasContasReceberGeral() {
     const cont = document.getElementById("ceo-geral-colunas-contas-receber");
     if (!cont || !empresasSelecionadasGeral) return;
@@ -2704,42 +3122,8 @@ async function renderColunasContasReceberGeral() {
         const data = await fetchComToken(`/ceo/geral/receber?${paramsReceberGeral("empresa").toString()}`);
         const porEmpresa = new Map((data?.linhas || []).map((r) => [r.chave, r]));
         const empresasVisiveis = empresasGeral.filter((e) => empresasSelecionadasGeral.has(e.idempresa) && porEmpresa.has(e.idempresa));
-
-        if (empresasVisiveis.length === 0) {
-            cont.innerHTML = '<p class="ceo-vazio">Nenhum orçamento com evento/data de realização para este ano nas empresas selecionadas.</p>';
-            return;
-        }
-
-        const totais = Object.fromEntries(CATEGORIAS_RECEBER_GERAL.map((c) => [c.chave, 0]));
-        const linhasHtml = empresasVisiveis.map((e) => {
-            const r = porEmpresa.get(e.idempresa);
-            const valores = CATEGORIAS_RECEBER_GERAL.map((c) => Number(r[c.chave]) || 0);
-            valores.forEach((v, i) => { totais[CATEGORIAS_RECEBER_GERAL[i].chave] += v; });
-            const total = valores.reduce((s, v) => s + v, 0);
-            return `<tr>
-                <td><span class="ceo-geral-empresa-tag ${classeTemaEmpresa(e.nmfantasia)}">${e.nmfantasia}</span></td>
-                ${valores.map((v) => `<td>${moedaGeral(v)}</td>`).join("")}
-                <td>${moedaGeral(total)}</td>
-            </tr>`;
-        }).join("");
-
-        const totalGeral = CATEGORIAS_RECEBER_GERAL.reduce((s, c) => s + totais[c.chave], 0);
-        const cardsResumo = CATEGORIAS_RECEBER_GERAL.map((c) =>
-            `<div class="ceo-resumo-card"><span>${c.label}</span><strong style="color:${c.cor}">${moedaGeral(totais[c.chave])}</strong></div>`
-        ).join("");
-
-        cont.innerHTML = `
-            <div class="ceo-resumo ceo-geral-total-geral">
-                ${cardsResumo}
-                <div class="ceo-resumo-card"><span>Total</span><strong>${moedaGeral(totalGeral)}</strong></div>
-            </div>
-            <div class="ceo-geral-tabela-wrap">
-                <table class="ceo-geral-tabela-empresas">
-                    <thead><tr><th>Empresa</th>${CATEGORIAS_RECEBER_GERAL.map((c) => `<th>${c.label}</th>`).join("")}<th>Total</th></tr></thead>
-                    <tbody>${linhasHtml}</tbody>
-                </table>
-            </div>
-            <p class="ceo-vazio-sutil" style="margin-top:12px;">Valor total do cliente (vlrcliente) por orçamento, partido pelo status real de faturamento/recebimento (routes/rotaCeo.js explica cada categoria).</p>`;
+        ultimoReceberGeral = { empresasVisiveis, porEmpresa };
+        renderizarTabelaReceberGeral(cont);
     } catch (err) {
         console.error("Erro ao carregar contas a receber - lista (CEO Geral):", err);
     }
