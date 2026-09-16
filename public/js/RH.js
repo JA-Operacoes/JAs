@@ -1878,7 +1878,7 @@ function initRH() {
     if (ativo) {
       // Só um "modo de tela cheia" por vez — sem isso, ligar RH com o CEO Mode (ou T.I) já
       // ativo dividia a tela entre os dois painéis (mesma regra espelhada em CeoMode.js/TIMode.js).
-      document.body.classList.remove("ceo-mode", "ti-mode");
+      document.body.classList.remove("ceo-mode", "ti-mode", "almox-mode");
       const iconeCeo = document.querySelector("li.Ceo .material-symbols-outlined");
       if (iconeCeo) iconeCeo.textContent = "finance";
     }

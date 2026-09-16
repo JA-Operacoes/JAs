@@ -183,6 +183,120 @@
 .ti-swal-form button.secundario { background: #888; }
 .ti-swal-form button:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ===== Botão de upload de arquivo (uiverse.io/SpatexDEV/blue-eagle-63) =====
+   O <input type="file"> real fica escondido (.almox-file-input); este botão
+   é um <label for="..."> estilizado que aciona o seletor de arquivo do SO. */
+.almox-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.almox-file-btn {
+  border: none;
+  display: flex;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #ffffff);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  text-transform: uppercase;
+  vertical-align: middle;
+  align-items: center;
+  border-radius: 0.5rem;
+  user-select: none;
+  gap: 0.75rem;
+  box-shadow:
+    0 4px 6px -1px rgba(148, 33, 35, 0.19),
+    0 2px 4px -1px rgba(148, 33, 35, 0.09);
+  transition: all 0.6s ease;
+}
+.almox-file-btn:hover {
+  filter: brightness(1.1);
+  box-shadow:
+    0 10px 15px -3px rgba(148, 33, 35, 0.31),
+    0 4px 6px -2px rgba(148, 33, 35, 0.09);
+}
+.almox-file-btn:focus,
+.almox-file-btn:active {
+  opacity: 0.85;
+  box-shadow: none;
+}
+.almox-file-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+.almox-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.almox-file-nome {
+  font-size: 12.5px;
+  color: #666;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Campo "outlined" (label sobre a borda) — mesma linguagem visual do
+   .form2 usado no cadastro de Funcionários (CadFuncionarios.css). Padrão pra
+   deixar os formulários dentro de Swal com a mesma cara em qualquer módulo:
+   basta trocar .ti-swal-label por .ti-swal-label-outlined e envolver o texto
+   do label num <span> (o input/select/textarea vem ANTES do span no HTML). */
+.ti-swal-label-outlined {
+  position: relative;
+  display: block;
+  margin-top: 8px;
+}
+.ti-swal-label-outlined .swal2-input,
+.ti-swal-label-outlined .swal2-select,
+.ti-swal-label-outlined .swal2-textarea,
+.ti-swal-label-outlined select {
+  width: 100% !important;
+  margin: 0 !important;
+  height: 42px;
+  box-sizing: border-box;
+  border: 1.5px solid #942123 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #222;
+  font-size: 14px;
+  padding: 0 14px;
+  outline: none;
+  box-shadow: none !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ti-swal-label-outlined .swal2-textarea { height: auto; padding: 10px 14px; }
+.ti-swal-label-outlined span {
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  background: #fff;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #942123;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  pointer-events: none;
+}
+.ti-swal-label-outlined .swal2-input:focus,
+.ti-swal-label-outlined .swal2-select:focus,
+.ti-swal-label-outlined .swal2-textarea:focus,
+.ti-swal-label-outlined select:focus {
+  border-color: #6b171a !important;
+  box-shadow: 0 0 0 3px rgba(148,33,35,0.14) !important;
+}
+.ti-swal-label-outlined small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* ===== Grid de cards de modelos de uma categoria (Estoque) ===== */
 .ti-swal-modelos-grid {
   display: grid;
@@ -225,18 +339,34 @@
   font-size: 11px;
   font-weight: 600;
 }
-.ti-swal-modelo-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.ti-swal-modelo-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
 .ti-swal-modelo-acoes button {
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: #942123;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--primary-color, #942123);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(148, 33, 35, 0.25);
+  transition: filter .15s ease, transform .15s ease, background-color .15s ease, color .15s ease;
 }
-.ti-swal-modelo-acoes button.secundario { background: #888; }
-.ti-swal-modelo-acoes button:disabled { opacity: .5; cursor: not-allowed; }
+.ti-swal-modelo-acoes button .material-symbols-outlined { font-size: 16px; }
+.ti-swal-modelo-acoes button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.ti-swal-modelo-acoes button.secundario {
+  background: transparent;
+  color: var(--primary-color, #942123);
+  box-shadow: none;
+}
+.ti-swal-modelo-acoes button.secundario:hover {
+  background: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+}
+.ti-swal-modelo-acoes button:disabled { opacity: .5; cursor: not-allowed; transform: none; filter: none; }
 .ti-swal-modelo-detalhe { margin-top: 4px; }
 
 /* Lista de e-mails de uma área: cards em coluna única, largura 100%, com scroll
