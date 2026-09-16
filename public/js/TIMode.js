@@ -3733,7 +3733,7 @@ function initTIMode() {
     const ativo = document.body.classList.toggle("ti-mode");
     if (ativo) {
       // Só um "modo de tela cheia" por vez — mesma regra espelhada em CeoMode.js/RH.js.
-      document.body.classList.remove("ceo-mode", "rh-mode");
+      document.body.classList.remove("ceo-mode", "rh-mode", "almox-mode");
       const iconeCeo = document.querySelector("li.Ceo .material-symbols-outlined");
       if (iconeCeo) iconeCeo.textContent = "finance";
       const iconeRH = document.querySelector("li.RH .material-symbols-outlined");
