@@ -213,13 +213,19 @@ async function fetchHtmlComToken(url, options = {}) {
 // }
 
 export function aplicarTema(empresa) {
-    // Remove qualquer classe que comece com "tema-"
-    document.body.classList.forEach(cls => {
-        if (cls.startsWith("tema-")) {
-            document.body.classList.remove(cls);
-        }
-    });
-    document.body.classList.add("tema-" + empresa);
+    // classList.add() rejeita token com espaço (lança excecao) - nmfantasia como "SN FOODS" ou
+    // "EVENTDRIVE MOBILITY VEICULOS ELETRICOS" quebrava aqui DEPOIS de ja ter removido a classe
+    // antiga, deixando o body sem nenhum tema. Mesma normalizacao usada em Roots.css/CeoMode.js
+    // (classeTemaEmpresa): espaco vira hifen.
+    const temaClasse = "tema-" + String(empresa).trim().replace(/\s+/g, "-");
+
+    // Remove qualquer classe que comece com "tema-"
+    document.body.classList.forEach(cls => {
+        if (cls.startsWith("tema-")) {
+            document.body.classList.remove(cls);
+        }
+    });
+    document.body.classList.add(temaClasse);
 }
 
 

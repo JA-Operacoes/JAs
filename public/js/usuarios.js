@@ -1881,13 +1881,13 @@ function getIdEmpresaPorAlt(alt) {
     return empresa ? String(empresa.idempresa) : null;
 }
 
-// Tira a classe "minilogos" da empresa padrão (fica em destaque, maior) e devolve às demais
+// Marca o chip da empresa padrão com anel + ✓ (classe "selecionado"); os demais ficam neutros.
 function atualizarLogoEmpresaDefault(idempresa) {
     const logos = document.querySelectorAll('#logotipoEmpresas > div');
     logos.forEach(div => {
         const img = div.querySelector('img');
         const idLogo = img ? getIdEmpresaPorAlt(img.alt) : null;
-        div.classList.toggle('minilogos', !(idempresa && idLogo === String(idempresa)));
+        div.classList.toggle('selecionado', Boolean(idempresa) && idLogo === String(idempresa));
     });
 }
 

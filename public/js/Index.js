@@ -79,6 +79,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         .filter(empresa => empresa.ativo === true)
         .map(empresa => empresa.id);
 
+        // Só 1 empresa (a própria) = nada pra "trocar" — some com a barra em vez de deixá-la
+        // vazia (só o rótulo "Trocar empresa" sem nenhum ícone do lado).
+        if (empresasAtivas.length <= 1) {
+          document.body.classList.add("sem-troca-empresa");
+        }
+
         // 2. Busca a lista de todas as empresas do backend (usando a nova rota /empresas).
         const empresasDoBackend = await fetchComToken("/index/empresas"); 
 
