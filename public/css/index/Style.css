@@ -1344,11 +1344,9 @@ input#search-aside {
   }
 
   #ti-panel #ti-lista-eventos,
-  #ti-panel #ti-cards-equipamentos,
   #ti-panel #ti-cards-estoque,
   #ti-panel #ti-lista-custodia,
   #ti-panel #ti-lista-manutencao {
-      height: 65vh;
       overflow-y: auto;
       padding-right: 6px;
       box-sizing: border-box;
@@ -1638,6 +1636,33 @@ input#search-aside {
   #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-qtd { color: var(--font-color, #fff); }
   #ti-panel .ti-card-quadrado-legenda { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: .3px; }
   #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-legenda { color: var(--font-color, #fff); opacity: .85; }
+  /* O card é quadrado (aspect-ratio 1/1, mínimo de 150px na grade): com a linha
+     do rodapé a mais, o conteúdo padrão não caberia — daí o gap e o número
+     menores só nos cards do estoque. */
+  #ti-panel #ti-cards-estoque .ti-card-quadrado { gap: 4px; }
+  #ti-panel #ti-cards-estoque .ti-card-quadrado-qtd { font-size: 22px; line-height: 1.1; }
+
+  /* Rodapé do card de estoque: total da categoria e quantas unidades estão fora
+     (alocadas/evento/manutenção). Números que não mudam com o filtro de local —
+     antes viviam na aba Equipamentos, removida por ser a mesma tela. */
+  #ti-panel .ti-card-quadrado-rodape {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-1);
+    width: 100%;
+    font-size: 10.5px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  #ti-panel .ti-card-quadrado-rodape strong { font-size: 12px; color: var(--text-1); }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-rodape,
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-rodape strong { color: var(--font-color, #fff); }
+  #ti-panel .ti-card-quadrado:hover .ti-card-quadrado-rodape { border-top-color: rgba(255, 255, 255, .35); opacity: .9; }
   #ti-panel .ti-func-nome .ti-card-linha-titulo {
     display: inline-flex;
     align-items: center;

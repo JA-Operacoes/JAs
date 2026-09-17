@@ -4,6 +4,7 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
+const { salvarFotoModeloEquipamento } = require('../utils/fotoModeloEquipamento');
 
 // Aplica autenticação em todas as rotas
 router.use(autenticarToken());
@@ -163,5 +164,12 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
   }
 
 });
+
+// POST enviar/trocar a foto de um modelo (objeto dentro do JSONB `modelos`).
+// Handler compartilhado com o TI Mode — ver utils/fotoModeloEquipamento.js.
+router.post("/:idequip/modelos/:idmodelo/foto",
+  verificarPermissao('Equipamentos', 'alterar'),
+  salvarFotoModeloEquipamento
+);
 
 module.exports = router;

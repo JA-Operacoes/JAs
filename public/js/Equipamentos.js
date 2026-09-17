@@ -104,7 +104,8 @@ function verificaEquipamento() {
             Number(custo).toFixed(2) === Number(window.EquipamentoOriginal?.vlrCusto).toFixed(2) &&
             Number(venda).toFixed(2) === Number(window.EquipamentoOriginal?.vlrVenda).toFixed(2)&&
             JSON.stringify(dados.modelos) === JSON.stringify(window.EquipamentoOriginal?.modelos) &&
-            JSON.stringify(dados.complementos) === JSON.stringify(window.EquipamentoOriginal?.complementos)
+            JSON.stringify(dados.complementos) === JSON.stringify(window.EquipamentoOriginal?.complementos) &&
+            !existeFotoModeloPendente()
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -135,7 +136,10 @@ function verificaEquipamento() {
                 body: JSON.stringify(dados)
             });
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Equipamento salvo com sucesso.", "success");
+            const idEquipSalvo = idEquip || respostaApi?.equipamentos?.idequip;
+            await enviarFotosModelosPendentes(idEquipSalvo);
+
+            await Swal.fire("Sucesso!", respostaApi.message || respostaApi.mensagem || "Equipamento salvo com sucesso.", "success");
             limparCamposEquipamento();
 
         } catch (error) {
@@ -581,7 +585,22 @@ function criarLinhaModeloEquipamento(modelo = null) {
     const tr = document.createElement("tr");
     tr.dataset.idmodelo = modelo?.id ?? gerarIdLocal();
 
+    // Foto do modelo: o caminho salvo fica no dataset (vai de volta no JSONB em
+    // coletarModelosEquipamento) e o arquivo escolhido fica em tr._fotoPendente,
+    // enviado só DEPOIS de salvar o equipamento — o upload precisa do idequip
+    // e do modelo já gravado no JSONB (ver enviarFotosModelosPendentes).
+    tr.dataset.foto = modelo?.foto ?? "";
+    tr._fotoPendente = null;
+
     tr.innerHTML = `
+        <td class="equip-modelo-foto-celula">
+            <label class="equip-modelo-foto" title="Clique para escolher a foto deste modelo">
+                ${modelo?.foto
+                    ? `<img src="/${modelo.foto}" alt="">`
+                    : `<span class="material-symbols-outlined">add_a_photo</span>`}
+                <input type="file" accept="image/*" class="input-modelo-foto">
+            </label>
+        </td>
         <td><input type="text" class="input-modelo-marca uppercase" value="${modelo?.marca ?? ""}" placeholder="Ex: HP"></td>
         <td><input type="text" class="input-modelo-modelo uppercase" value="${modelo?.modelo ?? ""}" placeholder="Ex: EliteBook"></td>
         <td><input type="number" class="input-modelo-qtdeminima" min="0" value="${modelo?.qtdeminima ?? 0}"></td>
@@ -592,6 +611,22 @@ function criarLinhaModeloEquipamento(modelo = null) {
 
     tr.querySelectorAll(".uppercase").forEach((input) => {
         input.addEventListener("input", function () { this.value = this.value.toUpperCase(); });
+    });
+
+    // Pré-visualiza na hora (sem subir nada ainda) e guarda o arquivo na linha.
+    tr.querySelector(".input-modelo-foto").addEventListener("change", function () {
+        const arquivo = this.files[0];
+        if (!arquivo) return;
+        tr._fotoPendente = arquivo;
+        const label = this.closest(".equip-modelo-foto");
+        const urlPreview = URL.createObjectURL(arquivo);
+        label.querySelector("img")?.remove();
+        label.querySelector(".material-symbols-outlined")?.remove();
+        const img = document.createElement("img");
+        img.src = urlPreview;
+        img.alt = "";
+        img.addEventListener("load", () => URL.revokeObjectURL(urlPreview));
+        label.prepend(img);
     });
 
     tr.querySelector(".btnRemoverModelo").addEventListener("click", async () => {
@@ -613,6 +648,42 @@ function criarLinhaModeloEquipamento(modelo = null) {
     return tr;
 }
 
+// Trocar só a foto também é alteração — sem isso o salvar cai no
+// "Nenhuma alteração foi detectada" e a foto nunca sobe.
+function existeFotoModeloPendente() {
+    const corpo = document.getElementById("corpo-modelos-equipamento");
+    if (!corpo) return false;
+    return Array.from(corpo.querySelectorAll("tr")).some((linha) => linha._fotoPendente);
+}
+
+// Sobe as fotos escolhidas nas linhas de modelo. Roda depois do POST/PUT do
+// equipamento porque a rota grava o caminho dentro do objeto do modelo no JSONB
+// — o modelo já precisa existir lá. Mesma ideia do almoxarifado, que cria o item
+// e só então envia a foto (public/js/AlmoxarifadoMode.js).
+async function enviarFotosModelosPendentes(idequip) {
+    const corpo = document.getElementById("corpo-modelos-equipamento");
+    if (!corpo || !idequip) return;
+
+    const pendentes = Array.from(corpo.querySelectorAll("tr"))
+        .filter((linha) => linha._fotoPendente);
+
+    for (const linha of pendentes) {
+        const formData = new FormData();
+        formData.append("foto", linha._fotoPendente);
+        try {
+            const resp = await fetchComToken(`/equipamentos/${idequip}/modelos/${linha.dataset.idmodelo}/foto`, {
+                method: "POST",
+                body: formData,
+            });
+            linha.dataset.foto = resp?.foto || linha.dataset.foto;
+            linha._fotoPendente = null;
+        } catch (erro) {
+            console.error("Erro ao enviar a foto do modelo:", erro);
+            throw new Error("Equipamento salvo, mas houve erro ao enviar a foto de um dos modelos.");
+        }
+    }
+}
+
 function renderModelosEquipamento(modelos) {
     limparModelosEquipamento();
     const corpo = document.getElementById("corpo-modelos-equipamento");
@@ -631,12 +702,16 @@ function coletarModelosEquipamento() {
             const qtdeminima = parseInt(linha.querySelector(".input-modelo-qtdeminima")?.value || "0", 10);
             if (!marca) return null;
 
-            return {
+            // `foto` precisa voltar no array: o PUT /equipamentos sobrescreve o
+            // JSONB inteiro, então o que não for reenviado aqui é perdido.
+            const item = {
                 id: linha.dataset.idmodelo,
                 marca,
                 modelo,
                 qtdeminima,
             };
+            if (linha.dataset.foto) item.foto = linha.dataset.foto;
+            return item;
         })
         .filter(Boolean);
 }
