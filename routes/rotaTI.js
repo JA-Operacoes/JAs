@@ -11,6 +11,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const multer = require("multer");
+const { salvarFotoModeloEquipamento } = require("../utils/fotoModeloEquipamento");
 
 // Junta a contagem real de unidades (equipamentounidade) nos objetos de modelos (JSONB).
 // qtdeestoque = unidades com status 'estoque'; qtdtotal = todas (qualquer status, exceto baixado).
@@ -194,6 +195,11 @@ router.get("/equipamentos/:idequip/modelos/:idmodelo/unidades", async (req, res)
     res.status(500).json({ message: "Erro ao listar unidades do modelo." });
   }
 });
+
+// POST enviar/trocar a foto do modelo direto do TI Mode (mesmo handler usado no
+// cadastro de equipamentos — ver utils/fotoModeloEquipamento.js). Aqui a proteção
+// já vem da flag ti/supremo aplicada em /ti no server.js.
+router.post("/equipamentos/:idequip/modelos/:idmodelo/foto", salvarFotoModeloEquipamento);
 
 // PUT mover unidades entre os locais físicos de estoque (JA / Galpao)
 router.put("/equipamentos/unidades/local",

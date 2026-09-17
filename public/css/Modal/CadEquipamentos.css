@@ -224,6 +224,35 @@ input[readonly] ~ .user-label {
   outline: none;
   box-sizing: border-box;
 }
+/* Foto do modelo: miniatura clicavel na primeira coluna da tabela de modelos.
+   O <input type="file"> real fica escondido dentro do <label>, entao clicar na
+   propria miniatura ja abre o seletor de arquivo. */
+#cadModalEquipamentos .equip-tabela td.equip-modelo-foto-celula,
+#cadModalEquipamentos .equip-tabela th:first-child { width: 48px; text-align: center; }
+#cadModalEquipamentos .equip-modelo-foto {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-2);
+  background: var(--surface-vidro-medio);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--text-2);
+}
+#cadModalEquipamentos .equip-modelo-foto:hover { border-style: solid; filter: brightness(1.08); }
+#cadModalEquipamentos .equip-modelo-foto img { width: 100%; height: 100%; object-fit: cover; }
+#cadModalEquipamentos .equip-modelo-foto .material-symbols-outlined { font-size: 20px; }
+#cadModalEquipamentos .equip-modelo-foto input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
 #cadModalEquipamentos .equip-rm {
   border: none;
   background: transparent;

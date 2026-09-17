@@ -50,7 +50,6 @@ function montarPainelTI() {
     <div class="ti-abas">
       <button type="button" class="ti-aba-btn" data-aba="dashboard"><span class="material-symbols-outlined">dashboard</span>Dashboard</button>
       <button type="button" class="ti-aba-btn" data-aba="eventos"><span class="material-symbols-outlined">event</span>Eventos</button>
-      <button type="button" class="ti-aba-btn" data-aba="equipamentos"><span class="material-symbols-outlined">inventory_2</span>Equipamentos</button>
       <button type="button" class="ti-aba-btn" data-aba="estoque"><span class="material-symbols-outlined">warehouse</span>Estoque</button>
       <button type="button" class="ti-aba-btn" data-aba="custodia"><span class="material-symbols-outlined">badge</span>Alocação</button>
       <button type="button" class="ti-aba-btn" data-aba="manutencao"><span class="material-symbols-outlined">build</span>Manutenção</button>
@@ -59,7 +58,6 @@ function montarPainelTI() {
     </div>
     <div id="ti-aba-dashboard" class="ti-aba-conteudo"></div>
     <div id="ti-aba-eventos" class="ti-aba-conteudo" style="display:none;"></div>
-    <div id="ti-aba-equipamentos" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-estoque" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-custodia" class="ti-aba-conteudo" style="display:none;"></div>
     <div id="ti-aba-manutencao" class="ti-aba-conteudo" style="display:none;"></div>
@@ -76,7 +74,7 @@ function montarPainelTI() {
 }
 
 function trocarAbaTI(aba) {
-  ["dashboard", "eventos", "equipamentos", "estoque", "custodia", "manutencao", "almoxarifado", "E-mails"].forEach((nome) => {
+  ["dashboard", "eventos", "estoque", "custodia", "manutencao", "almoxarifado", "E-mails"].forEach((nome) => {
     const el = document.getElementById(`ti-aba-${nome}`);
     if (el) el.style.display = nome === aba ? "block" : "none";
   });
@@ -87,7 +85,6 @@ function trocarAbaTI(aba) {
 
   if (aba === "dashboard") renderAbaDashboard();
   if (aba === "eventos") renderAbaEventos();
-  if (aba === "equipamentos") renderAbaEquipamentos();
   if (aba === "estoque") renderAbaEstoque();
   if (aba === "custodia") renderAbaCustodia();
   if (aba === "manutencao") renderAbaManutencao();
@@ -991,47 +988,11 @@ async function carregarDetalheEvento(card) {
   }
 }
 
-// ===== Equipamentos (categorias + modelos) =====
-async function renderAbaEquipamentos() {
-  const container = document.getElementById("ti-aba-equipamentos");
-  if (!container) return;
-  container.innerHTML = tiLoading("Carregando equipamentos...");
-
-  try {
-    const equipamentos = await fetchTI("/equipamentos");
-    cacheEquipamentos = equipamentos;
-
-    if (!equipamentos.length) {
-      container.innerHTML = tiVazio("Nenhum equipamento cadastrado.", "inventory_2");
-      return;
-    }
-
-    container.innerHTML = `
-      ${montarCampoBusca("ti-busca-equipamentos", "Buscar equipamento ou marca...")}
-      <div id="ti-cards-equipamentos" class="ti-grid-quadrado">
-        ${equipamentos.map((e) => `
-          <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
-               data-busca="${e.descequip} ${(e.modelos || []).map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
-               title="Clique para ver os modelos cadastrados">
-            <span class="ti-card-quadrado-nome">${e.descequip}</span>
-            <strong class="ti-card-quadrado-qtd">${e.qtdtotalCategoria}</strong>
-          </div>
-        `).join("")}
-      </div>
-    `;
-
-    ativarBuscaClientSide("ti-busca-equipamentos", "#ti-cards-equipamentos .ti-card-quadrado", (card) => card.dataset.busca || "");
-
-    container.querySelectorAll(".ti-card-quadrado").forEach((card) =>
-      card.addEventListener("click", () => abrirModelosCategoriaTI(Number(card.dataset.idequip)))
-    );
-  } catch (erro) {
-    console.error("Erro ao carregar equipamentos (TI):", erro);
-    container.innerHTML = tiVazio("Erro ao carregar equipamentos.", "error");
-  }
-}
-
 // ===== Estoque (cards por categoria — clicar mostra todos os modelos) =====
+// Esta aba é a visão única dos equipamentos: existia uma aba "Equipamentos"
+// separada que usava o mesmo endpoint, o mesmo card e abria o mesmo modal, só
+// mudando o número exibido (total de unidades em vez do disponível). Foi
+// removida e o total passou a aparecer aqui mesmo, no rodapé do card.
 async function renderAbaEstoque() {
   const container = document.getElementById("ti-aba-estoque");
   if (!container) return;
@@ -1083,14 +1044,25 @@ async function renderAbaEstoque() {
       </div>
       <div id="ti-cards-estoque" class="ti-grid-quadrado" style="margin-top:20px;">
         ${equipamentos.map((e) => {
-          const totalEstoque = (e.modelos || []).reduce((soma, m) => soma + qtdModeloPorLocal(m), 0);
+          const modelos = e.modelos || [];
+          const totalEstoque = modelos.reduce((soma, m) => soma + qtdModeloPorLocal(m), 0);
+          // Números da categoria inteira (não mudam com o filtro de local): total
+          // de unidades vivas e quantas não estão paradas no estoque — alocadas
+          // com funcionário, em evento ou em manutenção.
+          const totalCategoria = modelos.reduce((soma, m) => soma + (Number(m.qtdtotal) || 0), 0);
+          const emEstoqueGeral = modelos.reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
+          const emUso = totalCategoria - emEstoqueGeral;
           return `
             <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
-                 data-busca="${e.descequip} ${(e.modelos || []).map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
+                 data-busca="${e.descequip} ${modelos.map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
                  title="Clique para ver os modelos cadastrados">
               <span class="ti-card-quadrado-nome">${e.descequip}</span>
               <strong class="ti-card-quadrado-qtd">${totalEstoque}</strong>
               <span class="ti-card-quadrado-legenda">${legendaLocal}</span>
+              <span class="ti-card-quadrado-rodape">
+                <span title="Total de unidades da categoria"><strong>${totalCategoria}</strong> no total</span>
+                <span title="Unidades alocadas, em evento ou em manutenção"><strong>${emUso}</strong> em uso</span>
+              </span>
             </div>
           `;
         }).join("")}
@@ -1138,19 +1110,38 @@ async function montarSwalModelosCategoria(equipamento) {
 
   await Swal.fire({
     title: equipamento.descequip,
-    width: 800,
+    width: 1000,
     html: `
       <div class="ti-swal-modelos-grid">
-        ${!modelos.length ? "<p>Nenhum modelo cadastrado para esta categoria.</p>" : modelos.map((m) => `
+        ${!modelos.length ? "<p>Nenhum modelo cadastrado para esta categoria.</p>" : modelos.map((m) => {
+          // "em uso" = tudo que não está parado no estoque (alocado com
+          // funcionário, em evento ou em manutenção). qtdeminima vem do cadastro
+          // do equipamento e serve de alerta de reposição.
+          const emUso = (Number(m.qtdtotal) || 0) - (Number(m.qtdeestoque) || 0);
+          const minimo = Number(m.qtdeminima) || 0;
+          const abaixoDoMinimo = minimo > 0 && (Number(m.qtdeestoque) || 0) < minimo;
+          return `
           <div class="ti-swal-modelo-card" data-idmodelo="${m.id}">
-            <span class="ti-swal-modelo-titulo">${m.marca}${m.modelo ? ' / ' + m.modelo : ''}</span>
+            <div class="ti-swal-modelo-header">
+              <label class="ti-swal-modelo-foto" title="Clique para enviar/trocar a foto deste modelo">
+                ${m.foto
+                  ? `<img src="/${m.foto}" alt="">`
+                  : `<span class="material-symbols-outlined">add_a_photo</span>`}
+                <input type="file" accept="image/*" class="ti-input-foto-modelo" data-idmodelo="${m.id}">
+              </label>
+              <span class="ti-swal-modelo-titulo">${m.marca}${m.modelo ? ' / ' + m.modelo : ''}</span>
+            </div>
             <div class="ti-swal-modelo-numeros">
               <div><strong>${m.qtdeestoque}</strong><span>em estoque</span></div>
+              <div><strong>${emUso}</strong><span>em uso</span></div>
               <div><strong>${m.qtdtotal}</strong><span>no total</span></div>
             </div>
             <div class="ti-swal-modelo-locais">
               <span class="ti-badge-local">JA: ${m.qtdeestoque_ja}</span>
               <span class="ti-badge-local">Galpão: ${m.qtdeestoque_galpao}</span>
+              ${minimo > 0
+                ? `<span class="ti-badge-local ${abaixoDoMinimo ? "ti-badge-alerta" : ""}" title="Quantidade mínima definida no cadastro do equipamento">Mín: ${minimo}</span>`
+                : ""}
             </div>
             <div class="ti-swal-modelo-acoes">
               <button type="button" class="ti-btn-entrada" data-idmodelo="${m.id}" data-marca="${m.marca || ''}" data-modelo="${m.modelo || ''}">Entrada</button>
@@ -1159,7 +1150,8 @@ async function montarSwalModelosCategoria(equipamento) {
             </div>
             <div class="ti-swal-modelo-detalhe ti-linha-unidades" data-idmodelo-unidades="${m.id}" style="display:none;"></div>
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     `,
     showConfirmButton: false,
@@ -1181,8 +1173,29 @@ async function montarSwalModelosCategoria(equipamento) {
       popup.querySelectorAll(".ti-btn-ver-unidades").forEach((btn) =>
         btn.addEventListener("click", () => toggleUnidadesModelo(equipamento.idequip, btn.dataset.idmodelo))
       );
+      popup.querySelectorAll(".ti-input-foto-modelo").forEach((input) =>
+        input.addEventListener("change", () => enviarFotoModeloTI(equipamento.idequip, input.dataset.idmodelo, input.files[0]))
+      );
     },
   });
+}
+
+// Foto do modelo — mesma rota usada no cadastro de equipamentos
+// (utils/fotoModeloEquipamento.js); o caminho fica dentro do objeto do modelo no
+// JSONB `equipamentos.modelos`. Depois do upload, reabre o modal pra mostrar a
+// imagem nova ja vinda do servidor.
+async function enviarFotoModeloTI(idequip, idmodelo, arquivo) {
+  if (!arquivo) return;
+
+  try {
+    const formData = new FormData();
+    formData.append("foto", arquivo);
+    await fetchTI(`/equipamentos/${idequip}/modelos/${idmodelo}/foto`, { method: "POST", body: formData });
+    await reabrirModelosCategoriaTI(idequip);
+  } catch (erro) {
+    console.error("Erro ao enviar a foto do modelo:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao enviar a foto do modelo.", "error");
+  }
 }
 
 async function toggleUnidadesModelo(idequip, idmodelo) {
