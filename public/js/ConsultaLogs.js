@@ -43,7 +43,7 @@ function configurarAutocomplete(inputBusca, inputOculto, itens, montarItem) {
 
     lista.innerHTML = '';
     if (!filtrados.length) {
-      lista.innerHTML = '<li style="padding:6px 10px; color:#999;">Nenhum resultado encontrado</li>';
+      lista.innerHTML = '<li style="padding:6px 10px; color:var(--text-3);">Nenhum resultado encontrado</li>';
       lista.style.display = 'block';
       return;
     }
@@ -53,7 +53,7 @@ function configurarAutocomplete(inputBusca, inputOculto, itens, montarItem) {
       const li = document.createElement('li');
       li.textContent = texto;
       li.style.cssText = 'padding:6px 10px; cursor:pointer; border-radius:4px;';
-      li.addEventListener('mouseover', () => { li.style.background = '#f0f2f5'; });
+      li.addEventListener('mouseover', () => { li.style.background = 'var(--surface-3)'; });
       li.addEventListener('mouseout', () => { li.style.background = ''; });
       li.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -115,7 +115,7 @@ function configurarAutocompleteRemoto(inputBusca, inputOculto, urlBase, montarIt
         const sugestoes = await fetchComToken(`${urlBase}?q=${encodeURIComponent(termo)}`);
         lista.innerHTML = '';
         if (!Array.isArray(sugestoes) || !sugestoes.length) {
-          lista.innerHTML = '<li style="padding:6px 10px; color:#999;">Nenhum resultado encontrado</li>';
+          lista.innerHTML = '<li style="padding:6px 10px; color:var(--text-3);">Nenhum resultado encontrado</li>';
           lista.style.display = 'block';
           return;
         }
@@ -124,7 +124,7 @@ function configurarAutocompleteRemoto(inputBusca, inputOculto, urlBase, montarIt
           const li = document.createElement('li');
           li.textContent = texto;
           li.style.cssText = 'padding:6px 10px; cursor:pointer; border-radius:4px;';
-          li.addEventListener('mouseover', () => { li.style.background = '#f0f2f5'; });
+          li.addEventListener('mouseover', () => { li.style.background = 'var(--surface-3)'; });
           li.addEventListener('mouseout', () => { li.style.background = ''; });
           li.addEventListener('mousedown', (e) => {
             e.preventDefault();

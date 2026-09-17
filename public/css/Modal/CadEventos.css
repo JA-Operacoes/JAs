@@ -13,7 +13,7 @@
   left: 0;
   width: 100%;
   height: auto;
-  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  background-color: var(--shadow-1); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
   z-index: 999; /* Fica acima de outros elementos */
 }
@@ -24,10 +24,10 @@
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-  background-color: rgba(255, 255, 255, 0.356);
+  background-color: var(--surface-vidro);
   padding: 5px;
   border-radius: 8px;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 15px var(--shadow-1);
   width: 80%;/* Ajuste o tamanho conforme necessário */
   max-width: 700px;/* Largura máxima do modal */
   display: none; /* Inicialmente invisível */
@@ -103,11 +103,11 @@ body {
   height: 400px; /* Largura do formulário */
   margin: 0% auto;  /* Centraliza o formulário na tela */
   padding: 10px;  /* Espaçamento interno */
-  background-color: #cacaca;
+  background-color: var(--surface-4);
   border: #ce0303; /* Fundo branco */
   border-bottom-right-radius: 8px; /* Bordas arredondadas */
   border-bottom-left-radius: 8px; /* Bordas arredondadas */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   
 }
 
@@ -152,9 +152,9 @@ legend {
   border-radius: 6px;
   font-size: 12px;
   padding: 0 15px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -166,9 +166,9 @@ legend {
   border-radius: 6px;
   font-size: 15px;
   padding: 0 20px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 } 
 
@@ -191,9 +191,9 @@ select{
     border-radius: 6px;
     font-size: 15px;
     padding: 0 15px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     background: transparent;
-    color: #000000;
+    color: var(--text-1);
     outline: none;
   }
 
@@ -210,9 +210,9 @@ select{
   border-radius: 6px;
   font-size: 15px;
   padding: 0 15px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -231,7 +231,7 @@ select{
     /*margin-top: 10px; /* Adiciona um espaço acima do container para separá-lo do select */
     padding: 8px;
     margin-top: 5px;
-    border: 1px solid #ccc; /* Bordas visíveis, como na imagem */
+    border: 1px solid var(--border-1); /* Bordas visíveis, como na imagem */
     border-radius: 4px;
     min-height: 40px; /* Garante uma altura mínima, mesmo sem tags */
     max-height: 100px;
@@ -242,7 +242,7 @@ select{
     padding: 1px 8px;
     font-size: 15px;
     line-height: 1.2;
-    color: #333;
+    color: var(--text-1);
     display: flex;
     align-items: center;
     border: 1px solid var(--primary-color);
@@ -259,11 +259,11 @@ select{
     cursor: pointer;
     margin-left: 8px; /* Espaço entre o nome do cliente e o 'x' */
     font-weight: bold;
-    color: #777;
+    color: var(--text-2);
 }
 
 .remover-cliente:hover {
-    /* color: #000; */
+    /* color: var(--text-1); */
     color: #dc3545;
 }
 
@@ -286,9 +286,9 @@ select{
   font-size: 15px;
   padding: 0 8px;
   margin-top: -1px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -297,7 +297,7 @@ select{
 .form2 label {
   position: absolute;
   transform: translateY(-70%);
-  color: #000000;
+  color: var(--text-1);
   font-size: 12px;
   pointer-events: none;
   transition: 0.3s;
@@ -320,7 +320,7 @@ input:not([value=""]) ~ label{
   left: 25%;
   font-size: 12px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 input:not([value=""]) ~ label {
@@ -328,14 +328,14 @@ input:not([value=""]) ~ label {
   left: 25%;
   font-size: 15px;
   padding: 0 2px;
-  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+  background: var(--surface-4); /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
 
 select#nmEvento:not([value=""]) ~ label {
     top: 0;
     left: 25px;
     font-size: 12px;
-    background: #cacaca;
+    background: var(--surface-4);
   }
 
 

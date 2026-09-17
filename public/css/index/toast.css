@@ -19,7 +19,7 @@
   top: 30px;
   right: 1px;
   background: #e53e3e;
-  color: #fff;
+  color: var(--on-brand);
   font-size: 11px;
   font-weight: 600;
   min-width: 20px;
@@ -37,7 +37,7 @@
   left: 0;
   right: 0;
   background: var(--cor-fundo-card, #fff);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--shadow-1);
   border-radius: 10px;
   padding: 12px 14px;
   margin: 10px;
@@ -52,7 +52,7 @@
   cursor: default;
   user-select: none;
   box-sizing: border-box;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--shadow-1);
 }
 
 /* Dark theme */
@@ -60,15 +60,15 @@ body.dark-theme .toast-item {
   background: #2d2d2d;
   border-color: rgba(255, 255, 255, 0.1);
   color: #f0f0f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px var(--shadow-1);
 }
 
 #toast-stack-container.toast-hovered .toast-item {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 20px var(--shadow-1);
 }
 
 body.dark-theme #toast-stack-container.toast-hovered .toast-item {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 20px var(--shadow-1);
 }
 
 /* Ícone */
@@ -103,21 +103,21 @@ body.dark-theme #toast-stack-container.toast-hovered .toast-item {
 
 .toast-sub {
   font-size: 11px;
-  color: #999;
+  color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 body.dark-theme .toast-sub {
-  color: #aaa;
+  color: var(--text-3);
 }
 
 /* Botão fechar */
 .toast-close {
   font-size: 18px;
   line-height: 1;
-  color: #bbb;
+  color: var(--text-3);
   background: none;
   border: none;
   cursor: pointer;

@@ -6,7 +6,7 @@
   left: 0;
   width: 100%;
   height: auto;
-  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  background-color: var(--shadow-1); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
   z-index: 999; /* Fica acima de outros elementos */
 }
@@ -17,10 +17,10 @@
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-  background-color: rgba(255, 255, 255, 0.356);
+  background-color: var(--surface-vidro);
   padding: 5px;
   border-radius: 8px;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 15px var(--shadow-1);
   width: 80%;/* Ajuste o tamanho conforme necessário */
   max-width: 700px;/* Largura máxima do modal */
   display: none; /* Inicialmente invisível */
@@ -92,11 +92,11 @@ body{
   height: 900px;          /* Largura do formulário */
   margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
-  background-color: #cacaca; 
+  background-color: var(--surface-4); 
   border: #ce0303;     /* Fundo branco */
   border-bottom-right-radius: 8px;          /* Bordas arredondadas */
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   overflow-y: auto;
   overflow-x: none;  
   max-width: unset; /* Permite que ele use toda a largura disponível */
@@ -138,7 +138,7 @@ justify-content: center;
 .table-container {
     max-height: 300px;
     overflow-y: auto;
-    border: 1px solid #ccc; /* Borda simples para o contêiner */
+    border: 1px solid var(--border-1); /* Borda simples para o contêiner */
     border-radius: 5px;
     margin-top: 20px; /* Adicionado para espaçamento se não estiver lá */
 }
@@ -152,7 +152,7 @@ justify-content: center;
 /* Estilo para o cabeçalho e as células de dados */
 #eventsDataTable th,
 #eventsDataTable td {
-    border: 1px solid #ddd; /* Borda leve para todas as células */
+    border: 1px solid var(--border-1); /* Borda leve para todas as células */
     padding: 8px; /* Espaçamento interno dentro das células */
     text-align: left; /* Alinha o texto à esquerda (pode ajustar para center se preferir) */
     font-size: 14px;
@@ -161,7 +161,7 @@ justify-content: center;
 /* Opcional: Estilo para o cabeçalho para destacá-lo */
 #eventsDataTable th {
     font-size: 16px;
-    background-color: #f2f2f2; /* Cor de fundo para o cabeçalho */
+    background-color: var(--surface-3); /* Cor de fundo para o cabeçalho */
     font-weight: bold; /* Deixa o texto do cabeçalho em negrito */
     position: sticky; /* Fixa o cabeçalho ao rolar */
     top: 0; /* Fixa no topo do contêiner de rolagem */
@@ -170,12 +170,12 @@ justify-content: center;
 
 /* Opcional: Estilo para linhas alternadas para melhorar a legibilidade (zebra stripes) */
 #eventsDataTable tbody tr:nth-child(even) {
-    background-color: #f9f9f9; /* Cor mais clara para linhas pares */
+    background-color: var(--surface-3); /* Cor mais clara para linhas pares */
 }
 
 /* Opcional: Estilo ao passar o mouse sobre as linhas */
 #eventsDataTable tbody tr:hover {
-    background-color: #e0e0e0; /* Cor de fundo ao passar o mouse */
+    background-color: var(--surface-4); /* Cor de fundo ao passar o mouse */
 }
 
 #eventsDataTable tbody tr.selected-row {
@@ -186,14 +186,14 @@ justify-content: center;
 
 /* Opcional: Efeito hover para as linhas da tabela */
 .events-table-body tr:hover {
-    background-color: #f0f0f0; /* Cor de fundo no hover */
+    background-color: var(--surface-3); /* Cor de fundo no hover */
 }
 
 .container {
   height: auto;                  /* Remova altura fixa */
   width: 220px;
   border-radius: 10px;
-  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  box-shadow: 4px 4px 30px var(--shadow-1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -221,7 +221,7 @@ justify-content: center;
 
 .header p {
   text-align: center;
-  color: black;
+  color: var(--text-1);
 }
 
 .footer {
@@ -233,7 +233,7 @@ justify-content: center;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  color: black;
+  color: var(--text-1);
   border: none;
   box-sizing: border-box;
 }
@@ -273,7 +273,7 @@ display: none;
   height: auto;                  /* Remova altura fixa */
   width: 250px;
   border-radius: 10px;
-  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  box-shadow: 4px 4px 30px var(--shadow-1);
   display: flex;
   align-items: center;
   justify-content: center;  /* Mantém conteúdo no topo */
@@ -299,7 +299,7 @@ display: none;
 
 .headerPDF p {
   text-align: center;
-  color: black;
+  color: var(--text-1);
 }
 
 .footerPDF {
@@ -311,7 +311,7 @@ display: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  color: black;
+  color: var(--text-1);
   border: none;
   box-sizing: border-box;
 }
@@ -378,25 +378,25 @@ display: inline-block; /* Para ocupar apenas a largura do conteúdo */
 padding: 5px 8px;
 border-radius: 5px;
 text-decoration: none;
-color: #007bff; /* Cor azul padrão de link */
+color: var(--status-info-fg); /* Cor azul padrão de link */
 font-size: 14px;
 font-weight: normal; /* Remove o negrito */
 white-space: nowrap;
 overflow: hidden;
 text-overflow: ellipsis;
-background-color: #e9ecef; /* Um fundo cinza claro */
-border: 1px solid #ced4da; /* Borda sutil */
+background-color: var(--surface-3); /* Um fundo cinza claro */
+border: 1px solid var(--border-1); /* Borda sutil */
 }
 
 .comprovante-salvo-link.btn-success {
 color: green;
-background-color: #d1e7dd;
+background-color: var(--status-ok-bg);
 border-color: #c3e6cb;
 }
 
 .comprovante-salvo-link.btn-info {
-color: #0c5460;
-background-color: #d1ecf1;
+color: var(--status-info-fg);
+background-color: var(--status-info-bg);
 border-color: #bee5eb;
 }
 
@@ -409,7 +409,7 @@ line-height: 1.5;
 border-radius: 0.2rem;
 flex-shrink: 0;
 background-color: #dc3545;
-color: white;
+color: var(--on-brand);
 border: 1px solid #dc3545;
 }
 
@@ -515,7 +515,7 @@ border: 1px solid #dc3545;
 /* O seletor > .Vertical garante que apenas os elementos filhos diretos da div.checkbox sejam afetados, */
 /* mas o seletor mais simples do "sibling" + label é suficiente e mais direto. */
 .checkbox input[type="checkbox"]:disabled + label {
-    color: #969292; /* Cor cinza claro para o texto */
+    color: var(--text-2); /* Cor cinza claro para o texto */
     cursor: not-allowed;
     /* opcional: pode adicionar um efeito tracejado sutil se quiser */
     text-decoration: none;
@@ -546,7 +546,7 @@ input[type="file"]{
 
   .satisfatorio {
     background-color: #ffc107; /* Amarelo */
-    color: black;
+    color: var(--on-brand-escuro);
   }
 
   .regular {
@@ -558,7 +558,7 @@ input[type="file"]{
 #selectStatusAjusteCusto, #selectStatusCaixinha, #selectStatusDiariaDobrada, #selectStatusMeiaDiaria, #selectStatusCustoFechado {
     /* Garante que o fundo e a cor do texto do select sejam definidos */
     background-color: transparent;
-    color: #000000;
+    color: var(--text-1);
 }
 
 /* Badge de status por item de Caixinha — <select> pra Master/Supremo, <span> somente
@@ -569,7 +569,7 @@ input[type="file"]{
     border-radius: 4px;
     padding: 3px 8px;
     font-weight: bold;
-    border: 1px solid #999;
+    border: 1px solid var(--border-2);
     flex: 0 0 auto;
 }
 
@@ -593,7 +593,7 @@ select.caixinha-pgto-badge {
 .caixinha-status-badge.status-Pendente,
 .caixinha-status-badge option.status-Pendente {
     background-color: #FFC107; /* Amarelo */
-    color: #000000; /* Preto */
+    color: var(--on-brand-escuro); /* Preto */
 }
 
 /* 2. Estilos para o status "Autorizado" (Fundo Verde, Fonte Branca) */
@@ -617,7 +617,7 @@ select.caixinha-pgto-badge {
 .caixinha-status-badge.status-Rejeitado,
 .caixinha-status-badge option.status-Rejeitado {
     background-color: #DC3545; /* Vermelho */
-    color: #FFFFFF; /* Branco */
+    color: var(--on-brand); /* Branco */
 }
 
 /* Badge de status de PAGAMENTO por item de Caixinha (Pendente/Pago/Suspenso) — separado
@@ -629,14 +629,14 @@ select.caixinha-pgto-badge {
     border-radius: 4px;
     padding: 3px 8px;
     font-weight: bold;
-    border: 1px solid #999;
+    border: 1px solid var(--border-2);
     flex: 0 0 auto;
 }
 
 .caixinha-pgto-badge.status-Pendente,
 .caixinha-pgto-badge option.status-Pendente {
     background-color: #FFC107;
-    color: #000000;
+    color: var(--on-brand-escuro);
 }
 
 .caixinha-pgto-badge.status-Pago,
@@ -654,7 +654,7 @@ select.caixinha-pgto-badge {
 .caixinha-pgto-badge.status-Rejeitado,
 .caixinha-pgto-badge option.status-Rejeitado {
     background-color: #DC3545;
-    color: #FFFFFF;
+    color: var(--on-brand);
 }
 
 /* Linha de item de Caixinha (renderCaixinhaItems, um <div> por solicitação). */
@@ -663,7 +663,7 @@ select.caixinha-pgto-badge {
     align-items: center;
     gap: 8px;
     padding: 6px 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-1);
     font-size: 12px;
     flex-wrap: wrap;
 }
@@ -677,7 +677,7 @@ select.caixinha-pgto-badge {
 /* Label curta "Auth"/"Pgto" antes de cada select/badge de status do item. */
 .caixinha-mini-label {
     font-size: 10px;
-    color: #666;
+    color: var(--text-2);
     font-weight: 600;
     flex: 0 0 auto;
 }
@@ -710,7 +710,7 @@ select.caixinha-pgto-badge {
     text-overflow: ellipsis;
     white-space: nowrap;
     padding: 2px 6px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     border-radius: 3px;
     background: #888;
     cursor: pointer;
@@ -733,7 +733,7 @@ input#statusDiariaDobrada.status-Pendente,
 input#statusMeiaDiaria.status-Pendente,
 input#statusCustoFechado.status-Pendente {
     background: #FFC107;
-    color: #000000;
+    color: var(--on-brand-escuro);
 }
 
 input#statusAjusteCusto.status-Autorizado,
@@ -751,7 +751,7 @@ input#statusDiariaDobrada.status-Rejeitado,
 input#statusMeiaDiaria.status-Rejeitado,
 input#statusCustoFechado.status-Rejeitado {
     background: #DC3545;
-    color: #FFFFFF;
+    color: var(--on-brand);
 }
 
 .status-custom {
@@ -765,7 +765,7 @@ input#statusCustoFechado.status-Rejeitado {
 /* Cor da Fonte para "Pendente" (Amarelo/Laranja) */
 .status-custom.statusStaff-Pendente, .status-custom.statusStaff-pendente {
     background-color: #FFC107; /* Cor do seu CSS de fundo Pendente */
-    color:white;
+    color: var(--on-brand-escuro);
     font-weight: normal; /* Geralmente Pendente é menos destacado */
 }
 
@@ -779,7 +779,7 @@ input#statusCustoFechado.status-Rejeitado {
 /* Cor da Fonte para "Rejeitado" (Vermelho) */
 .status-custom.statusStaff-Rejeitado, .status-custom.statusStaff-rejeitado {
     background-color: #DC3545;
-    color: white; /* Cor do seu CSS de fundo Rejeitado */
+    color: var(--on-brand); /* Cor do seu CSS de fundo Rejeitado */
     font-weight: normal;
 }
 
@@ -819,7 +819,7 @@ input#statusCustoFechado.status-Rejeitado {
     font-family: inherit;
     font-size: 14px;
     line-height: 1.5;
-    background-color: #ffffff;
+    background-color: var(--surface-1);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -835,7 +835,7 @@ input#statusCustoFechado.status-Rejeitado {
     width: 100%;
     height: 30px;
     padding: 0 12px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     border-radius: 8px;
     background-color: transparent;
     font-size: 14px;
@@ -866,8 +866,8 @@ input#statusCustoFechado.status-Rejeitado {
 /* Assegura que datas selecionadas SEM status tenham uma cor neutra, por exemplo, azul padrão do flatpickr ou preto */
 .flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado) {
     background-color: #000000 !important; /* Preto para datas novas selecionadas */
-    color: #ffffff !important;
-    border-color: #000000 !important;
+    color: var(--on-brand) !important;
+    border-color: var(--border-2) !important;
 }
 
 .flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado):hover,
@@ -889,7 +889,7 @@ input#statusCustoFechado.status-Rejeitado {
 .flatpickr-day.status-pendente,
 .flatpickr-day.status-pendente.selected { /* Adicionado .selected aqui */
     background-color: #FFC107 !important; /* Amarelo */
-    color: #000000 !important;
+    color: var(--on-brand-escuro) !important;
     border-color: #FFC107 !important;
 }
 
@@ -897,7 +897,7 @@ input#statusCustoFechado.status-Rejeitado {
 .flatpickr-day.status-rejeitado,
 .flatpickr-day.status-rejeitado.selected { /* Adicionado .selected aqui */
     background-color: #F44336 !important; /* Vermelho */
-    color: #ffffff !important;
+    color: var(--on-brand) !important;
     border-color: #F44336 !important;
 }
 
@@ -914,8 +914,8 @@ input#statusCustoFechado.status-Rejeitado {
 }
 
 #statusPgto.pago50, #statusPgtoAjudaCusto.pago50 {
-    color: #9f6a00;
-    /* background-color: white; */
+    color: var(--status-alerta-fg);
+    /* background-color: var(--surface-1); */
 }
 
 #statusPgto.pendente, #statusPgtoAjudaCusto.pendente {
@@ -955,7 +955,7 @@ input#statusCustoFechado.status-Rejeitado {
     color: var(--font-color);
     
     /* Sugestão 2: Mudar a cor de fundo (pode anular a cor padrão de seleção do SO) */
-    /* background-color: #e0f0ff; */ 
+    /* background-color: var(--status-info-bg); */ 
     
     /* Sugestão 3: Tornar o texto em negrito */
     font-weight: bold;
@@ -969,11 +969,11 @@ input#statusCustoFechado.status-Rejeitado {
 /* Estilo quando o botão está desabilitado */
 .btnEnviar:disabled {
     /* Altera a cor para cinza para indicar que está inativo */
-    background-color: #ccc; 
+    background-color: var(--surface-4); 
     /* Garante que o cursor mude */
     cursor: not-allowed; 
     /* Escurece o texto para contraste */
-    color: #666; 
+    color: var(--text-2); 
 }
 
 .form-2colunas {
@@ -1014,9 +1014,9 @@ input#statusCustoFechado.status-Rejeitado {
   border-radius: 6px;
   font-size: 12px;
   padding: 0 15px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 
   width: 100%; /* Para garantir que ocupem o espaço disponível */
@@ -1033,9 +1033,9 @@ input#statusCustoFechado.status-Rejeitado {
   border-radius: 6px;
   font-size: 15px;
   padding: 0 20px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 } 
 
@@ -1106,9 +1106,9 @@ select, input[type="text"] {
   padding: 0 10px;
   font-size: 15px;
   border-radius: 6px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 
 }
@@ -1125,10 +1125,10 @@ select, input[type="text"] {
   width: 190px;
   font-size: 15px;
   padding: 0 10px;
-  border: 1px solid #000;
+  border: 1px solid var(--border-2);
   border-radius: 6px;
   background: transparent;
-  color: #000;
+  color: var(--text-1);
 }
 
 input.nmFuncionario-busca-input{
@@ -1136,10 +1136,10 @@ input.nmFuncionario-busca-input{
   width: 250px;
   font-size: 15px;
   padding: 0 10px;
-  border: 1px solid #000;
+  border: 1px solid var(--border-2);
   border-radius: 6px;
   background: transparent;
-  color: #000;
+  color: var(--text-1);
 }
 
 
@@ -1162,9 +1162,9 @@ input.nmFuncionario-busca-input{
   font-size: 13px;
   padding: 0 8px;
   margin-top: -1px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -1175,7 +1175,7 @@ input.nmFuncionario-busca-input{
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  color: #000000;
+  color: var(--text-1);
   font-size: 19px;
   pointer-events: none;
   transition: 0.3s;
@@ -1198,7 +1198,7 @@ input.nmFuncionario-busca-input{
     width: 80px; /* Ajuste a largura para alinhar com os outros elementos */
     text-align: right; /* Alinha o texto para a direita */
     font-weight: bold; /* Deixa o texto em negrito */
-    color: #000000; /* Defina a cor do texto para combinar */
+    color: var(--text-1); /* Defina a cor do texto para combinar */
 }
 
  #campoStatusCaixinha label{
@@ -1219,7 +1219,7 @@ input:valid~label {
   left: 25px;
   font-size: 12px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 input#vlrTotal:not([value=""]) ~ label{
@@ -1227,7 +1227,7 @@ input#vlrTotal:not([value=""]) ~ label{
   left: 25px;
   font-size: 14px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 input#ajusteCusto:not([value=""]) ~ label{
@@ -1235,7 +1235,7 @@ input#ajusteCusto:not([value=""]) ~ label{
   left: 25px;
   font-size: 14px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 input#caixinha:not([value=""]) ~ label{
@@ -1243,15 +1243,15 @@ input#caixinha:not([value=""]) ~ label{
   left: 25px;
   font-size: 14px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 /* Container único agrupando tudo que é da Caixinha (lista de pedidos + botão) */
 .caixinha-container {
   width: 100%;
-  border: 1px solid #999;
+  border: 1px solid var(--border-2);
   border-radius: 10px;
-  box-shadow: 4px 4px 20px rgba(0, 0, 0, .12);
+  box-shadow: 4px 4px 20px var(--shadow-1);
   background-color: rgba(139, 0, 0, 0.03);
   padding: 10px 14px;
   margin-top: 6px;
@@ -1297,7 +1297,7 @@ textarea ~ label {
     left: 25px;
     font-size: 12px;
     padding: 0 2px;
-    background: #cacaca;
+    background: var(--surface-4);
 }
 
 input#idStaff{
@@ -1341,7 +1341,7 @@ body.modal-open .flatpickr-calendar {
 fieldset{
   width: 100%;
   border-radius: 10px;
-  border-color: #000000;
+  border-color: var(--border-2);
   margin: 0 auto;
   padding: 15px; /* Adicione padding interno para que o conteúdo não cole nas bordas */
   box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura */
@@ -1361,7 +1361,7 @@ textarea#descAjusteCusto, #descDiariaDobrada, #descMeiaDiaria, #descCaixinha {
   padding: 5px 50px; 
   margin: 5px 10px;
   font-size: 17px;               /* Espaçamento interno nos campos */
-  border: 1px solid #000000;      /* Cor de borda */
+  border: 1px solid var(--border-2);      /* Cor de borda */
   border-radius: 8px;  
   max-width: 100%;     /* Bordas arredondadas */
 }
@@ -1374,7 +1374,7 @@ textarea#descBeneficio{
   padding: 5px 50px; 
   margin: 5px 10px;
   font-size: 17px;               /* Espaçamento interno nos campos */
-  border: 1px solid #000000;      /* Cor de borda */
+  border: 1px solid var(--border-2);      /* Cor de borda */
   border-radius: 8px;  
   max-width: 100%;     /* Bordas arredondadas */
 }
@@ -1444,7 +1444,7 @@ button {
   height: 200px;
   width: 300px;
   border-radius: 10px;
-  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  box-shadow: 4px 4px 30px var(--shadow-1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1472,7 +1472,7 @@ button {
 
 .Corpo p {
   text-align: center;
-  color: black;
+  color: var(--text-1);
 }
 
 .arquivo {
@@ -1485,7 +1485,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: black;
+  color: var(--text-1);
   border: none;
 }
 
@@ -1496,7 +1496,7 @@ button {
   border-radius: 50%;
   padding: 2px;
   cursor: pointer;
-  box-shadow: 0 2px 30px rgba(0, 0, 0, 0.205);
+  box-shadow: 0 2px 30px var(--shadow-1);
 }
 
 .arquivo p {
@@ -1560,15 +1560,15 @@ input.diariaDobrada.form-control.input, .meiaDiaria.form-control.input {
 
     /* REMOVIDO: Borda, fundo, espaçamento interno e raio */
     /* padding: 5px; */
-    /* border: 1px solid #ddd; */
+    /* border: 1px solid var(--border-1); */
     /* border-radius: 5px; */
-    /* background-color: #f9f9f9; */
+    /* background-color: var(--surface-3); */
 }
 
 /* O restante do código pode ficar como está, pois ele se refere aos elementos internos. */
 .date-status-item label {
     font-weight: bold;
-    color: #333;
+    color: var(--text-1);
     white-space: nowrap;
 }
 
@@ -1591,22 +1591,22 @@ input.diariaDobrada.form-control.input, .meiaDiaria.form-control.input {
 
 .date-status-item .status-select.status-pendente {
     background-color: #ffc107 !important;
-    color: #000 !important;
+    color: var(--on-brand-escuro) !important;
 }
 
 .date-status-item .status-select.status-autorizado {
     background-color: #28a745 !important;
-    color: #fff !important;
+    color: var(--on-brand) !important;
 }
 
 .date-status-item .status-select.status-rejeitado {
     background-color: #dc3545 !important;
-    color: #fff !important;
+    color: var(--on-brand) !important;
 }
 
 .date-status-item .date-status-valores {
     font-size: 12px;
-    color: #555;
+    color: var(--text-1);
     white-space: nowrap;
 }
 
@@ -1614,7 +1614,7 @@ input.preenchido ~ label {
     top: 0;
     left: 5%;
     font-size: 12px;
-    background: #cacaca;
+    background: var(--surface-4);
     margin-left: 10px;
   }
 
@@ -1657,7 +1657,7 @@ input.preenchido ~ label {
 /* Estilo da aba ativa (Com a cor principal do seu tema, que parece ser um bordô/vermelho escuro) */
 .aba.ativa {
     background-color: var(--cor-primaria-clara, #a02020); /* Exemplo de cor de destaque */
-    color: white;
+    color: var(--on-brand);
     /* Remove a borda inferior para simular o "encaixe" */
     border-bottom: 2px solid var(--cor-primaria-clara, #a02020); 
 }
@@ -1695,7 +1695,7 @@ input.preenchido ~ label {
 
 .sub-abas-pedidos .aba.ativa {
     background-color: var(--cor-secundaria, #555); /* Um cinza mais escuro */
-    color: white;
+    color: var(--on-brand);
     border-bottom: 2px solid var(--cor-secundaria, #555);
 }
 
@@ -1720,14 +1720,14 @@ input.preenchido ~ label {
 
 /* Estilo para os grupos de funcionários/funções */
 .funcionario {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-1);
     margin-bottom: 10px;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .funcionario-header {
-    background-color: #f9f9f9;
+    background-color: var(--surface-3);
     padding: 10px;
     cursor: pointer;
     display: flex;
@@ -1737,7 +1737,7 @@ input.preenchido ~ label {
 
 .funcionario-body {
     padding: 10px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-1);
 }
 
 /* Estilo para os cards individuais */
@@ -1746,8 +1746,8 @@ input.preenchido ~ label {
     justify-content: space-between;
     padding: 10px;
     margin-bottom: 8px;
-    background-color: white;
-    border: 1px solid #ccc;
+    background-color: var(--surface-1);
+    border: 1px solid var(--border-1);
     border-left: 5px solid var(--cor-primaria-clara, #a02020);
     border-radius: 4px;
 }
@@ -1798,11 +1798,11 @@ input.preenchido ~ label {
     height: 625px;          /* Largura do formulário */
     margin: 0% auto;            /* Centraliza o formulário na tela */
     padding: 10px;                /* Espaçamento interno */
-    background-color: #cacaca; 
+    background-color: var(--surface-4); 
     border: #ce0303;     /* Fundo branco */
     border-bottom-right-radius: 8px;          /* Bordas arredondadas */
     border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
     overflow-y: auto;
     overflow-x: none;
     max-width: unset; /* Permite que ele use toda a largura disponível */
@@ -1970,11 +1970,11 @@ width: 820px;
   height: 550px;          /* Largura do formulário */
   margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
-  background-color: #cacaca; 
+  background-color: var(--surface-4); 
   border: #ce0303;     /* Fundo branco */
   border-bottom-right-radius: 8px;          /* Bordas arredondadas */
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   overflow-y: auto;
   overflow-x: none;
   max-width: unset; /* Permite que ele use toda a largura disponível */
@@ -2051,14 +2051,14 @@ width: 820px;
 } 
 #eventsDataTable th {
     font-size: 13px; 
-    background-color: #f2f2f2;
+    background-color: var(--surface-3);
     font-weight: bold;
     position: sticky;
     top: 0;
     z-index: 1;
 }
 #eventsDataTable td {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-1);
     padding: 8px;
     text-align: left;
     font-size: 10px;
@@ -2175,11 +2175,11 @@ width: 820px;
   height: 550px;          /* Largura do formulário */
   margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
-  background-color: #cacaca; 
+  background-color: var(--surface-4); 
   border: #ce0303;     /* Fundo branco */
   border-bottom-right-radius: 8px;          /* Bordas arredondadas */
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   overflow-y: auto;
   overflow-x: none;
   max-width: unset; /* Permite que ele use toda a largura disponível */
@@ -2256,14 +2256,14 @@ width: 820px;
 } 
 #eventsDataTable th {
     font-size: 10px; 
-    background-color: #f2f2f2;
+    background-color: var(--surface-3);
     font-weight: bold;
     position: sticky;
     top: 0;
     z-index: 1;
 }
 #eventsDataTable td {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-1);
     padding: 8px;
     text-align: left;
     font-size: 10px;
@@ -2283,9 +2283,9 @@ select[data-bloqueado="true"] {
     cursor: not-allowed !important;
     pointer-events: none !important;
     opacity: 0.6 !important;
-    background-color: #f0f0f0 !important;
-    border: 2px solid #ccc !important;
-    color: #999 !important;
+    background-color: var(--surface-3) !important;
+    border: 2px solid var(--border-1) !important;
+    color: var(--text-3) !important;
 }
 
 input[data-bloqueado="true"]:hover,
@@ -2297,7 +2297,7 @@ input:disabled,
 select:disabled {
     cursor: not-allowed !important;
     opacity: 0.6;
-    background-color: #f0f0f0;
+    background-color: var(--surface-3);
 }
 
 /* Estilo do Container de Observação */
@@ -2311,13 +2311,13 @@ select:disabled {
 .obs-textarea-auto {
     width: 100%;
     border-radius: 8px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-1);
     padding: 10px;
     font-family: inherit;
     resize: vertical;
     border-left: 5px solid #ffc107;
-    background-color: #f8f9fa;
-    color: #555;
+    background-color: var(--surface-3);
+    color: var(--text-1);
     font-size: 0.9em;
     outline: none;
 }
@@ -2329,7 +2329,7 @@ select:disabled {
 
 /* 1. Ajuste do Container Principal (O "corpo" do campo) */
 .select2-container--default .select2-selection--single {
-    border: 1px solid #000000 !important;
+    border: 1px solid var(--border-2) !important;
     border-radius: 6px !important;
     height: 30px !important; 
     background: transparent !important;
@@ -2344,7 +2344,7 @@ select:disabled {
 .select2-container--default .select2-selection--single .select2-selection__rendered {
     font-family: var(--Font-primary) !important;
     font-size: 13px !important;
-    color: #000000 !important;
+    color: var(--text-1) !important;
     
     /* 1. Remove os paddings automáticos malucos do plugin */
     padding-left: 8px !important; 
@@ -2367,7 +2367,7 @@ select:disabled {
     top: 50% !important;
     transform: translateY(-50%) !important;
     font-size: 14px !important;
-    color: #999 !important;
+    color: var(--text-3) !important;
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
@@ -2391,7 +2391,7 @@ select:disabled {
 /* 5. Ajuste do Placeholder */
 .select2-container--default .select2-selection--single .select2-selection__placeholder {
     font-size: 12px !important;
-    color: #999 !important;
+    color: var(--text-3) !important;
 }
 
 /* 6. Ajuste da Setinha Lateral (MUDANÇA AQUI 🚨) */
@@ -2405,7 +2405,7 @@ select:disabled {
 
 /* 7. Remove a borda azul de foco padrão do Select2 */
 .select2-container--default.select2-container--focus .select2-selection--single {
-    border: 1px solid #000000 !important;
+    border: 1px solid var(--border-2) !important;
     outline: none !important;
 }
 
@@ -2420,8 +2420,8 @@ select:disabled {
 tr.row-deletado td {
     text-decoration: line-through;
     opacity: 0.5;
-    color: #888 !important;
-    background-color: #fdecea !important;
+    color: var(--text-2) !important;
+    background-color: var(--status-erro-bg) !important;
 }
 tr.row-deletado:hover td {
     opacity: 0.65;
@@ -2429,17 +2429,17 @@ tr.row-deletado:hover td {
 
 /* ── LINHA PENDENTE ── */
 tr.row-pendente td {
-    background-color: #fff8e1 !important;
+    background-color: var(--status-alerta-bg) !important;
     font-style: italic;
 }
 tr.row-pendente:hover td {
-    background-color: #fff3cd !important;
+    background-color: var(--status-alerta-bg) !important;
 }
 
 /* ── LINHA INATIVA ── */
 tr.row-inativo td {
-    background-color: #f0f0f0 !important;
-    color: #999 !important;
+    background-color: var(--surface-3) !important;
+    color: var(--text-3) !important;
 }
 
 /* ── BADGES ── */
@@ -2455,14 +2455,14 @@ tr.row-inativo td {
 }
 .badge-statusstaff--deletado {
     background-color: #cc0000;
-    color: #fff;
+    color: var(--on-brand);
 }
 .badge-statusstaff--pendente {
     background-color: #e67e22;
-    color: #fff;
+    color: var(--on-brand-escuro);
 }
 .badge-statusstaff--inativo {
-    background-color: #aaa;
+    background-color: var(--surface-inativo);
     color: #fff;
 }
 
@@ -2484,11 +2484,11 @@ table.mostrar-inativos tr.row-inativo { display: table-row; }
     align-items: center;
     margin-bottom: 8px;
     padding: 6px 10px;
-    background: #fff3cd;
+    background: var(--status-alerta-bg);
     border: 1px solid #ffc107;
     border-radius: 6px;
     font-size: 0.85rem;
-    color: #856404;
+    color: var(--status-alerta-fg);
 }
 .label-toggle-deletados {
     display: flex;
@@ -2514,5 +2514,5 @@ table.mostrar-inativos tr.row-inativo { display: table-row; }
 
 .badge-statusstaff--orcamento {
     background-color: #1a6fc4;
-    color: #fff;
+    color: var(--on-brand);
 }

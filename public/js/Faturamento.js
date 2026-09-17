@@ -930,7 +930,7 @@ async function mostrarPreviaNota(idnotafiscal) {
     return aviso('error', 'Erro', 'Não foi possível carregar a prévia desta nota.');
   }
 
-  const linha = (label, valor) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:3px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#666;">${escaparTextoPrevia(label)}</span><span style="font-weight:600;text-align:right;">${valor != null && valor !== '' ? escaparTextoPrevia(valor) : '—'}</span></div>`;
+  const linha = (label, valor) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:3px 0;border-bottom:1px solid #f0f0f0;"><span style="color:var(--text-2);">${escaparTextoPrevia(label)}</span><span style="font-weight:600;text-align:right;">${valor != null && valor !== '' ? escaparTextoPrevia(valor) : '—'}</span></div>`;
   const secao = (titulo, conteudo) => `
     <div style="margin-bottom:14px;">
       <div style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#942123;margin-bottom:2px;">${escaparTextoPrevia(titulo)}</div>

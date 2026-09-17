@@ -50,6 +50,157 @@
     --Pending-color: #000000;
 }
 
+/* ─────────────────────────────────────────────
+        TEMA CLARO / ESCURO (data-theme)
+ ─────────────────────────────────────────────
+
+ Duas dimensões independentes, de propósito:
+
+   <html data-theme="dark">  ← luminosidade (claro/escuro)
+   <body class="tema-JA-OPER"> ← cor da marca da empresa
+
+ As cores de marca acima NÃO mudam com o tema — vermelho JA é vermelho JA nos dois
+ modos. O que inverte são as superfícies, textos, bordas e sombras abaixo. Sem essa
+ separação seriam 11 empresas × 2 modos = 22 blocos de CSS pra manter.
+
+ Regra pra usar: escolha o token pela FUNÇÃO, nunca pela cor.
+   fundo de página ......... var(--surface-2)
+   card/modal/input ........ var(--surface-1)
+   cabeçalho de tabela,
+   hover, faixa zebrada .... var(--surface-3)
+   texto principal ......... var(--text-1)
+   texto secundário
+   placeholder, legenda .... var(--text-2)
+   borda/divisória ......... var(--border-1)
+   sombra .................. var(--shadow-1)
+
+ ATENÇÃO ao texto sobre cor de marca (branco em cima do botão vermelho, do header,
+ de chips coloridos): esse NÃO pode virar --text-1, senão vira texto escuro sobre
+ fundo vermelho no modo dark. Use var(--on-brand), que é branco nos dois modos. */
+
+:root {
+    color-scheme: light;
+
+    --surface-1: #ffffff;   /* cards, modais, inputs, linhas de tabela */
+    /* Fundo da página. #d1d1d1 não é um cinza escolhido agora: é exatamente o que
+       o main#conteudo já usava, mantido pra que ligar o tema claro não mude nada
+       de lugar visualmente. Por ser mais escuro que --surface-3, a hierarquia
+       "página mais escura que os apoios dentro do card" se inverte no claro —
+       tudo bem, --surface-3 só aparece dentro dos cards brancos. */
+    --surface-2: #d1d1d1;
+    --surface-3: #e6e6e6;   /* cabeçalho de tabela, hover, zebra */
+    --surface-4: #d8d8d8;   /* rebaixos, campos desabilitados */
+    /* Cinza médio de "inativo/indisponível" — o fundo de item desabilitado, aba
+       apagada, dia não trabalhado. Estava espalhado em cinco tons quase iguais
+       (#a7a6a6, #a8a8a8, #9ca3af, #b9b9b9, #999), todos mantidos fixos: no tema
+       escuro viravam manchas cinza-claras. Aqui vira um só, que escurece junto. */
+    --surface-inativo: #a7a6a6;
+
+    --text-1: #1a1a1a;      /* texto principal */
+    --text-2: #5c5c5c;      /* secundário, placeholder, legenda */
+    --text-3: #8a8a8a;      /* desabilitado, texto de apoio */
+
+    --border-1: #d4d4d4;    /* divisórias e bordas de input */
+    --border-2: #b8b8b8;    /* borda em foco/destaque */
+
+    --shadow-1: rgba(0, 0, 0, .12);
+    --shadow-2: rgba(0, 0, 0, .22);
+
+    --overlay: rgba(0, 0, 0, .45);  /* fundo atrás dos modais */
+
+    /* Fixos nos dois temas: texto/ícone em cima de uma cor que NÃO muda com o
+       tema (marca, status, badge). Como o fundo é o mesmo no claro e no escuro,
+       o texto por cima também precisa ser — usar --text-1 aqui deixa o texto
+       claro no tema escuro e some em cima de um amarelo, por exemplo.
+         --on-brand         → para fundos escuros/saturados (vermelho JA, azul)
+         --on-brand-escuro  → para fundos claros (amarelo #ffcc00, pastéis) */
+    --on-brand: #ffffff;
+    --on-brand-escuro: #1a1a1a;
+
+    /* A cor da marca quando ela é TEXTO (link, botão contornado, título de aba)
+       em vez de fundo. No claro é a própria cor da empresa, sem diferença. No
+       escuro ela precisa clarear: o vermelho #c8102e sobre #1e1e1e dá 2.8:1, no
+       limite do ilegível. Ver o override em html[data-theme="dark"] abaixo. */
+    --primary-texto: var(--primary-color);
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Cinza escuro em vez de preto puro: reduz o "brilho" do texto claro sobre
+       fundo preto (halation) e deixa as sombras voltarem a ter efeito — sombra
+       preta sobre fundo preto não existe. */
+    --surface-1: #1e1e1e;
+    --surface-2: #141414;
+    --surface-3: #2a2a2a;
+    --surface-4: #363636;
+    --surface-inativo: #4a4a4a;
+
+    /* Branco puro cansa a vista no escuro; #e8e8e8 mantém contraste AA sobre #1e1e1e. */
+    --text-1: #e8e8e8;
+    --text-2: #a0a0a0;
+    --text-3: #757575;
+
+    --border-1: #3a3a3a;
+    --border-2: #4f4f4f;
+
+    --shadow-1: rgba(0, 0, 0, .5);
+    --shadow-2: rgba(0, 0, 0, .7);
+
+    --overlay: rgba(0, 0, 0, .65);
+}
+
+/* ─────────────────────────────────────────────
+        FUNDOS PASTEL DE STATUS
+ ─────────────────────────────────────────────
+
+ Cartões e faixas que comunicam situação pela cor: verde = pago/ok, vermelho =
+ vencido, amarelo = pendente, azul = a vencer, roxo = informativo.
+
+ Precisam de par próprio porque NÃO são superfície nem cor de marca. Deixá-los
+ fixos faz cada um virar uma ilha clara no meio da tela escura (e o texto escuro
+ por cima some quando só o texto é convertido). Fundo e texto invertem JUNTOS: no
+ claro é pastel claro + texto escuro, no escuro é fundo escuro dessaturado +
+ texto claro. A cor (o verde continuar verde) é a informação, e ela se mantém.
+
+ Os tons pastel do tema claro estavam espalhados em 33 variações quase iguais
+ (#e3f5ea, #ecfdf5, #e3f6ec...) vindas de épocas diferentes do código. Aqui elas
+ viram uma por família — é uma uniformização deliberada, visualmente imperceptível
+ no claro e que evita manter 33 pares de tokens. */
+:root {
+    --status-ok-bg:      #e3f5ea;
+    --status-ok-fg:      #15803d;
+    --status-erro-bg:    #fdeceb;
+    --status-erro-fg:    #b91c1c;
+    --status-alerta-bg:  #fff3cd;
+    --status-alerta-fg:  #92610a;
+    --status-info-bg:    #e3f2fd;
+    --status-info-fg:    #1d4ed8;
+    --status-roxo-bg:    #ede9fe;
+    --status-roxo-fg:    #6d28d9;
+    --status-neutro-bg:  #eef0f2;
+    --status-neutro-fg:  #4b5563;
+}
+
+html[data-theme="dark"] {
+    /* Fundos bem escuros com um resto de matiz: claros demais viram manchas
+       berrantes numa tela escura (era esse o efeito de deixar o pastel original).
+       O texto usa o tom claro da mesma família pra continuar legível e ainda
+       dizer "verde". */
+    --status-ok-bg:      #16301f;
+    --status-ok-fg:      #6ee7a0;
+    --status-erro-bg:    #3a1a1a;
+    --status-erro-fg:    #fca5a5;
+    --status-alerta-bg:  #372a12;
+    --status-alerta-fg:  #fcd34d;
+    --status-info-bg:    #16293f;
+    --status-info-fg:    #93c5fd;
+    --status-roxo-bg:    #2a2140;
+    --status-roxo-fg:    #c4b5fd;
+    --status-neutro-bg:  #2a2a2a;
+    --status-neutro-fg:  #c4c4c4;
+}
+
 
 .tema-JA-OPER{
     --header-color: linear-gradient(to right, #8a0c22, rgb(43, 42, 42)  );
@@ -216,5 +367,235 @@
     --font-weight: none;
 }
 
+/* ─────────────────────────────────────────────
+        PONTE PARA AS VARIÁVEIS ANTIGAS
+ ─────────────────────────────────────────────
+
+ Cada bloco .tema-* acima repete `--black-color: black` e `--grey-color: #7e7e7e`
+ — literais, que no escuro viram texto preto sobre fundo escuro. Em vez de editar
+ os 11 blocos (e todo CSS que já usa essas variáveis), o tema escuro reaponta as
+ duas para os tokens semânticos. Assim o CSS existente escurece sozinho e a
+ migração arquivo a arquivo pode ser feita sem pressa.
+
+ O seletor precisa da especificidade de [class*="tema-"] pra vencer o `.tema-X`
+ que define as literais — `html[data-theme]` sozinho perderia.
+
+ --font-color NÃO entra aqui de propósito: ele é a cor do texto SOBRE a cor da
+ marca (branco no vermelho JA, preto no verde ES). Inverter ele quebraria todos
+ os botões e cabeçalhos coloridos. */
+html[data-theme="dark"] body[class*="tema-"] {
+    --black-color: var(--text-1);
+    --grey-color: var(--text-2);
+
+    /* Clareia a cor da empresa só para uso como texto. color-mix evita ter que
+       cadastrar à mão uma variante clara para cada uma das onze marcas: a conta
+       sai da própria --primary-color, seja ela qual for.
+
+       Se o navegador não suportar color-mix, a declaração inteira é descartada e
+       --primary-texto continua valendo o que vale no :root — a cor da marca pura,
+       que é o comportamento de hoje. Degrada sem quebrar. */
+    --primary-texto: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
+}
+
+html[data-theme="dark"] {
+    --dark-base-color: var(--text-1);
+    --light-base-color: var(--surface-1);
+    --background-base-color: var(--surface-2);
+}
+
+/* ─────────────────────────────────────────────
+        BOTÃO DE TEMA (sol / lua)
+ ─────────────────────────────────────────────
+
+ Mora aqui (e não no Style.css do OPER) porque cada empresa tem seu próprio
+ Style-*.css e o botão é o mesmo nas dez páginas de index. É criado por JS em
+ js/tema.js, dentro do #menu-horizontal, logo antes do sino de notificações.
+
+ Um ícone só, que mostra para onde o clique leva: lua no tema claro, sol no
+ escuro. Segue a mesma linguagem do sino ao lado — sem moldura, sem fundo.
+
+ As cores são fixas em branco, não tokens: o header é gradiente escuro da marca
+ nos DOIS temas, então o ícone precisa continuar claro independente do modo. */
+.tema-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.btn-tema {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    color: #fff;
+    opacity: .85;
+    transition: opacity .15s ease, transform .15s ease;
+}
+
+.btn-tema:hover {
+    opacity: 1;
+    transform: scale(1.12);
+}
+
+.btn-tema:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.btn-tema .material-symbols-outlined {
+    font-size: 22px;
+    line-height: 1;
+}
+
+/* Respeita quem desativou animações no sistema operacional. */
+@media (prefers-reduced-motion: reduce) {
+    .btn-tema {
+        transition: none;
+    }
+    .btn-tema:hover {
+        transform: none;
+    }
+}
 
 
+/* ─────────────────────────────────────────────
+        SUPERFÍCIES TRANSLÚCIDAS ("vidro")
+ ─────────────────────────────────────────────
+
+ O #modal-container e as seções internas dos formulários de cadastro usam branco
+ semitransparente pra deixar o fundo aparecer por baixo — é o visual de "vidro"
+ dos modais de Equipamentos, Almoxarifado, Alíquotas e companhia.
+
+ Ficaram de fora das migrações automáticas porque nenhum script trata rgba com
+ transparência: o migrador só reconhece cor sólida, e o auditor ignora alfa baixo
+ justamente por não saber o que há atrás. O resultado era o formulário inteiro
+ continuar claro no tema escuro, mesmo com todo o resto já convertido.
+
+ Três níveis, que é o que o projeto usa (0.356, 0.45 e 0.7 de opacidade). */
+:root {
+    --surface-vidro:       rgba(255, 255, 255, .356);
+    --surface-vidro-medio: rgba(255, 255, 255, .45);
+    --surface-vidro-forte: rgba(255, 255, 255, .7);
+}
+
+html[data-theme="dark"] {
+    /* Mais opacos que os equivalentes claros de propósito: no escuro, um véu
+       muito transparente deixa o texto do formulário competir com o que passa
+       por trás e a leitura fica cansativa. */
+    --surface-vidro:       rgba(20, 20, 20, .5);
+    --surface-vidro-medio: rgba(26, 26, 26, .62);
+    --surface-vidro-forte: rgba(30, 30, 30, .82);
+}
+
+/* ─────────────────────────────────────────────
+        FORMULÁRIOS NO TEMA ESCURO
+ ─────────────────────────────────────────────
+
+ Estas regras moram no Roots.css, e não no Style.css do index, por um motivo
+ prático: os modais de cadastro (CadEquipamentos, CadSuprimentos, Almoxarifado…)
+ carregam só Roots.css + o CSS próprio deles. Enquanto abertos dentro do index o
+ Style.css até alcança, mas qualquer tela aberta direto ficava com formulário
+ branco no tema escuro. Aqui a cobertura é de todas.
+
+ A lista de tipos é explícita de propósito — `input` puro aqui foi um erro caro:
+ os filtros de período ("Diário", "Semanal") são <input type="radio"> com
+ appearance:none esticados por cima do botão visível, invisíveis só porque não
+ têm fundo. Pintar TODO input transformou cada um num retângulo escuro opaco
+ cobrindo o texto. Radio, checkbox, range, color, file e botões ficam de fora. */
+html[data-theme="dark"] input:not([type]),
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
+html[data-theme="dark"] input[type="email"],
+html[data-theme="dark"] input[type="password"],
+html[data-theme="dark"] input[type="search"],
+html[data-theme="dark"] input[type="tel"],
+html[data-theme="dark"] input[type="url"],
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="month"],
+html[data-theme="dark"] input[type="time"],
+html[data-theme="dark"] input[type="week"],
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+    /* Sem isso os campos ficam brancos: o navegador aplica o estilo nativo
+       quando o CSS não define nada, e boa parte dos campos do sistema não define. */
+    background-color: var(--surface-1);
+    color: var(--text-1);
+    border-color: var(--border-1);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: var(--text-3);
+}
+
+/* Campo desabilitado/somente leitura: precisa continuar parecendo desabilitado
+   no escuro, senão fica idêntico a um campo editável. */
+html[data-theme="dark"] input:disabled,
+html[data-theme="dark"] select:disabled,
+html[data-theme="dark"] textarea:disabled,
+html[data-theme="dark"] input[readonly],
+html[data-theme="dark"] textarea[readonly] {
+    background-color: var(--surface-4);
+    color: var(--text-3);
+}
+
+/* As opções do <select> aberto são pintadas pelo sistema operacional e não
+   herdam o fundo do select. */
+html[data-theme="dark"] select option,
+html[data-theme="dark"] select optgroup {
+    background-color: var(--surface-1);
+    color: var(--text-1);
+}
+
+/* O ícone nativo de calendário/relógio é desenhado pelo navegador em preto e
+   some no fundo escuro. */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="week"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+/* Botão de upload (o "Escolher arquivo" dentro do input file) — usado nas fotos
+   de equipamento e nos anexos do almoxarifado. */
+html[data-theme="dark"] input[type="file"] {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] input[type="file"]::file-selector-button {
+    background-color: var(--surface-3);
+    color: var(--text-1);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+/* Checkbox e radio NATIVOS (os que não têm appearance:none) são desenhados pelo
+   sistema. accent-color é o jeito de pintá-los sem quebrar os customizados. */
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] input[type="radio"] {
+    accent-color: var(--primary-color, #c8102e);
+}
+
+/* Tabelas dentro dos modais de cadastro: sem isso a listagem fica branca. */
+html[data-theme="dark"] table {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] fieldset {
+    border-color: var(--border-1);
+}
+
+html[data-theme="dark"] legend,
+html[data-theme="dark"] label {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] hr {
+    border-color: var(--border-1);
+}

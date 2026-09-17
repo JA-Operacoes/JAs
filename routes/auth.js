@@ -40,4 +40,8 @@ router.get('/permissoes', autenticarToken({ verificarEmpresa: false }), authCont
 
 router.get('/empresas', autenticarToken({ verificarEmpresa: false }), carregarTodasEmpresas);
 
+// Preferência de tema (claro/escuro) do usuário logado — vale em qualquer máquina.
+router.get('/tema', autenticarToken({ verificarEmpresa: false }), authController.buscarTema);
+router.put('/tema', autenticarToken({ verificarEmpresa: false }), authController.salvarTema);
+
 module.exports = router;

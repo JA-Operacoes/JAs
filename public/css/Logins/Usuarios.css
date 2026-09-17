@@ -63,8 +63,8 @@ body{
   height: 44px;
   flex: none;
   border-radius: 8px;
-  background: #f2efe8;
-  border: 1px solid rgba(0,0,0,.1);
+  background: var(--surface-3);
+  border: 1px solid var(--shadow-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,7 +82,7 @@ body{
 }
 
 .logo-chip.selecionado{
-  background: #fbf6ea;
+  background: var(--status-alerta-bg);
   box-shadow: 0 0 0 2px var(--primary-color, #c8102e);
 }
 .logo-chip.selecionado::after{
@@ -94,13 +94,13 @@ body{
   height: 13px;
   border-radius: 50%;
   background: var(--primary-color, #c8102e);
-  color: #fff;
+  color: var(--on-brand);
   font-size: 8px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  box-shadow: 0 1px 3px var(--shadow-1);
 }
 
 #logotipoEmpresas > div{
@@ -223,7 +223,7 @@ color: #fff;
   position: absolute;
   right: 10px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-2);
 }
 
 /* pesquisa de usuario */
@@ -241,7 +241,7 @@ color: #fff;
   top: 50%;
   left: 10px;
   transform: translateY(-50%);
-  color: #aaa;
+  color: var(--text-3);
   pointer-events: none;
   transition: 0.2s ease;
 }
@@ -250,7 +250,7 @@ color: #fff;
 .input-wrapper input:not(:placeholder-shown) + label {
   top: -10px;
   font-size: 0.8em;
-  color: #333;
+  color: var(--text-1);
 }
 
 .input-wrapper i {
@@ -268,7 +268,7 @@ color: #fff;
   left: 0;
   width: 100%;
   max-height: 150px;
-  background: white;
+  background: var(--surface-1);
   border: 1px solid #fb1313;
   border-top: none;
   list-style: none;
@@ -304,7 +304,7 @@ color: #fff;
 .login-box .user-box input:valid ~ label {
   top: -20px;
   left: 0;
-  color: #bdb8b8;
+  color: var(--text-3);
   font-size: 12px;
 }
 
@@ -316,7 +316,7 @@ color: #fff;
 .login-box .user-box.camposenha input[type="password"]:not(:placeholder-shown) ~ label {
   top: -20px;
   left: 0;
-  color: #bdb8b8;
+  color: var(--text-3);
   font-size: 12px;
 }
 
@@ -343,7 +343,7 @@ color: #fff;
 
 .login-box a:not(:has(img)):hover {
   background: #f40303;
-  color: #fff;
+  color: var(--on-brand);
   border-radius: 5px;
   box-shadow: 0 0 5px #f40303,
               0 0 25px #f40303,
@@ -423,7 +423,7 @@ color: #fff;
 .user-box.dupla .user-box2 input:valid ~ label {
   top: -20px;
   left: 0;
-  color: #bdb8b8;
+  color: var(--text-3);
   font-size: 12px;
 }
 
@@ -442,13 +442,13 @@ color: #fff;
   border-radius: 10px;
   margin: 0 auto;
   background-color: transparent;
-  border-color: #bdb8b8;
-  color: #bdb8b8;
+  border-color: var(--border-2);
+  color: var(--text-3);
   cursor: pointer;
 }
 
 .user-boxSelect option{
-  color: black;
+  color: var(--text-1);
   border-radius: 10px;
 }
 
@@ -629,7 +629,7 @@ color: #fff;
   position: relative;
   width: 25px;
   height: 25px;
-  background: #e0e0e0;
+  background: var(--surface-4);
   border-radius: 8px;
   display: flex;
   justify-content: center;
@@ -646,7 +646,7 @@ color: #fff;
   position: absolute;
   width: 15px;
   height: 4px;
-  background: #a0a0a0; /* Disabled color */
+  background: var(--surface-inativo); /* Disabled color */
   border-radius: 2px;
   transition: all 0.3s ease-in-out;
 }
@@ -663,7 +663,7 @@ color: #fff;
 
 /* Checked State */
 .checkbox-input:checked + .checkbox-permission {
-  background: #d4e9d4; /* Light green background */
+  background: var(--status-ok-bg); /* Light green background */
 }
 
 .checkbox-input:checked + .checkbox-permission .line1 {
@@ -908,7 +908,7 @@ input:-webkit-autofill {
   border: none;
   border-radius: 0.25em;
   background: #d63030;
-  color: #fff;
+  color: var(--on-brand);
   cursor: pointer;
   margin: 0 0.25em;
 }
@@ -923,14 +923,14 @@ input:-webkit-autofill {
   border: none;
   cursor: pointer;
   transition: all 0.25s ease-in-out;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 6px var(--shadow-1);
 }
 
 .swal2-confirm {
   /* background-color: #28a745 !important;  Verde para confirmar */
   background-color: #ce0303 !important;
   /* Vermelho para confirmar */
-  color: #ffffff !important;
+  color: var(--on-brand) !important;
 }
 
 .swal2-confirm:hover {
@@ -942,7 +942,7 @@ input:-webkit-autofill {
 .swal2-cancel {
   background-color: #6c757d !important;
   /* Cinza para cancelar */
-  color: #ffffff !important;
+  color: var(--on-brand) !important;
 }
 
 .swal2-cancel:hover {
@@ -976,7 +976,7 @@ input:-webkit-autofill {
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.3s;
-  color: white;
+  color: var(--on-brand);
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -1020,7 +1020,7 @@ input:-webkit-autofill {
    quando o campo tem valor (.login-box .user-box input:valid ~ label). */
 .linha-usuario-empresa .user-box-select label {
   font-size: 12px;
-  color: #bdb8b8;
+  color: var(--text-3);
 }
 
 .linha-usuario-empresa > .checkbox-wrapper-33 {
@@ -1098,7 +1098,7 @@ input:-webkit-autofill {
   position: sticky;
   z-index: 2;
   background: #551212;
-  color: #fff;
+  color: var(--on-brand);
   padding: 6px 4px;
   height: 21px;
   text-align: center;
