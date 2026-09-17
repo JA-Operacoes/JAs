@@ -527,7 +527,7 @@ function montarQueryHistoricoAlmoxarifado(filtros) {
 function renderLinhasHistoricoAlmoxarifado(historico) {
   const tipoLabel = { entrada: "Reposição", saida: "Consumo" };
   if (!historico.length) {
-    return `<tr><td colspan="5" style="text-align:center; color:#888;">Nenhuma movimentação encontrada.</td></tr>`;
+    return `<tr><td colspan="5" style="text-align:center; color:var(--text-2);">Nenhuma movimentação encontrada.</td></tr>`;
   }
   return historico.map((h) => {
     const motivoResumo = h.motivo && h.motivo.length > 30 ? `${h.motivo.slice(0, 30)}…` : h.motivo;

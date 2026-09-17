@@ -276,7 +276,7 @@ function ativarModoBusca(planos) {
     li.dataset.nome = p.nome || "";
     li.textContent = `${p.nome} (${p.qtdtipos} tipo${p.qtdtipos == 1 ? "" : "s"})`;
     li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px; color:#000;";
-    li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+    li.addEventListener("mouseover", () => { li.style.background = "var(--surface-3)"; });
     li.addEventListener("mouseout", () => { li.style.background = ""; });
     // mousedown dispara antes do blur do campo, evitando que a lista suma antes do clique.
     li.addEventListener("mousedown", async (e) => {

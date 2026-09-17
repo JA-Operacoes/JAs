@@ -2114,7 +2114,7 @@ async function sincronizarUsuarioPorEmailTI() {
 
   const email = input.value.trim();
   hidden.value = "";
-  status.style.color = "#777";
+  status.style.color = "var(--text-2)";
   if (!email) {
     status.textContent = "Se esse e-mail já for o login de algum usuário do sistema, ele é vinculado automaticamente (dá pra ajustar depois).";
     return;
@@ -2134,7 +2134,7 @@ async function sincronizarUsuarioPorEmailTI() {
       status.style.color = "#2e7d32";
     } else {
       status.textContent = "⚠ Usuário não identificado — cadastro seguirá sem vínculo (dá pra ajustar depois).";
-      status.style.color = "#777";
+      status.style.color = "var(--text-2)";
     }
   } catch (erro) {
     console.error("Erro ao sincronizar usuário pelo e-mail:", erro);
@@ -2219,7 +2219,7 @@ async function abrirTrocaEquipamentoFuncionarioTI(f) {
     title: `Procedimento de troca — ${f.nome}`,
     html: `
       <div class="ti-swal-form">
-        <p style="margin:0; font-size:13px; color:#666;">
+        <p style="margin:0; font-size:13px; color:var(--text-2);">
           O funcionário vai ficar com o equipamento atual e o novo ao mesmo tempo, até migrar
           tudo e devolver o antigo (sem prazo fixo). Depois, devolva o equipamento antigo
           normalmente pela lista de equipamentos dele.
@@ -2745,7 +2745,7 @@ async function abrirEnviarAprovacaoTI(idorcamentos) {
         <label class="ti-swal-label">E-mails dos aprovadores (separados por vírgula)
           <textarea id="swal-ti-emails-aprovacao" class="swal2-textarea" rows="3" style="margin:4px 0 0;">${sugeridos.map((s) => s.email).join(", ")}</textarea>
         </label>
-        <p style="font-size:12px; color:#777; margin:0;">Cada aprovador recebe um link para aprovar ou recusar cada orçamento direto do e-mail, sem precisar logar no sistema.</p>
+        <p style="font-size:12px; color:var(--text-2); margin:0;">Cada aprovador recebe um link para aprovar ou recusar cada orçamento direto do e-mail, sem precisar logar no sistema.</p>
       </div>
     `,
     focusConfirm: false,
@@ -3170,7 +3170,7 @@ function montarQueryHistoricoAlmoxarifado(filtros) {
 function renderLinhasHistoricoAlmoxarifado(historico) {
   const tipoLabel = { entrada: "Reposição", saida: "Consumo" };
   if (!historico.length) {
-    return `<tr><td colspan="5" style="text-align:center; color:#888;">Nenhuma movimentação encontrada.</td></tr>`;
+    return `<tr><td colspan="5" style="text-align:center; color:var(--text-2);">Nenhuma movimentação encontrada.</td></tr>`;
   }
   return historico.map((h) => {
     const motivoResumo = h.motivo && h.motivo.length > 30 ? `${h.motivo.slice(0, 30)}…` : h.motivo;
@@ -3443,7 +3443,7 @@ async function abrirCadastrarEmailTI(idareaPreSelecionada) {
           <input type="text" id="swal-ti-email-senha" class="swal2-input" style="margin:4px 0 0;">
         </label>
         <input type="hidden" id="swal-ti-email-idusuario-auto" value="">
-        <p id="swal-ti-email-status-usuario" style="font-size:12px; color:#777; margin:0;">
+        <p id="swal-ti-email-status-usuario" style="font-size:12px; color:var(--text-2); margin:0;">
           Se esse e-mail já for o login de algum usuário do sistema, ele é vinculado automaticamente (dá pra ajustar depois).
         </p>
       </div>
@@ -3622,7 +3622,7 @@ async function abrirTrocarFuncionarioEmailTI(idemail, email, idarea) {
         <label class="ti-swal-label">Novo funcionário
           ${montarCampoFuncionarioBuscaSwal("swal-ti-email-novo-func")}
         </label>
-        <p style="font-size:12px; color:#777; margin:0;">Deixe em branco pra remover o funcionário responsável por esse e-mail.</p>
+        <p style="font-size:12px; color:var(--text-2); margin:0;">Deixe em branco pra remover o funcionário responsável por esse e-mail.</p>
       </div>
     `,
     focusConfirm: false,
@@ -3661,7 +3661,7 @@ async function abrirVincularUsuarioEmailTI(idemail, email, idarea) {
         <label class="ti-swal-label">Usuário do sistema
           ${montarCampoUsuarioBuscaSwal("swal-ti-email-novo-usuario")}
         </label>
-        <p style="font-size:12px; color:#777; margin:0;">Deixe em branco pra desvincular o usuário desse e-mail.</p>
+        <p style="font-size:12px; color:var(--text-2); margin:0;">Deixe em branco pra desvincular o usuário desse e-mail.</p>
       </div>
     `,
     focusConfirm: false,

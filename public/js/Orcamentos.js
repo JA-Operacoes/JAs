@@ -2558,7 +2558,7 @@ async function escolherSolicitacao(solicitacoes, linha) {
     const { value: indice, isConfirmed } = await Swal.fire({
         title: `${solicitacoes.length} Solicitações Encontradas`,
         html: `
-            <p style="margin-bottom:12px; color:#555;">Selecione qual deseja vincular ao item:</p>
+            <p style="margin-bottom:12px; color:var(--text-1);">Selecione qual deseja vincular ao item:</p>
             <div>${opcoes}</div>
         `,
         confirmButtonText: 'Vincular Selecionada',
@@ -2698,7 +2698,7 @@ function carregarSolicitacao(sol, linha) {
 
         // Bloqueia edição do setor após preenchimento pela solicitação
         inputSetor.readOnly = true;
-        inputSetor.style.background  = '#f0f0f0';
+        inputSetor.style.background  = 'var(--surface-3)';
         inputSetor.style.cursor      = 'not-allowed';
         inputSetor.title             = 'Setor definido pela solicitação — não editável';
         linha.dataset.setorBloqueado = 'true';

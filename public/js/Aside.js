@@ -277,7 +277,7 @@ async function carregarOrcamentos(clienteId, eventoId) {
             liPasta.innerHTML = `<strong>📁${edicao}</strong>`;
             liPasta.style.cursor = 'pointer';
             liPasta.style.padding = '5px';
-            liPasta.style.backgroundColor = '#ececec';
+            liPasta.style.backgroundColor = 'var(--surface-3)';
             liPasta.style.marginBottom = '2px';
 
             const ulSublista = document.createElement('ul');

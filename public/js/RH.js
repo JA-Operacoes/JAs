@@ -1494,7 +1494,7 @@ function montarPaginaComprovante(url) {
   const abs = url.startsWith("http") ? url : `${window.location.origin}${url}`;
   const ehPdf = /\.pdf(\?|$)/i.test(abs);
   return ehPdf
-    ? `<div class="pdf-render-container" data-pdf-url="${abs}"><small style="color:#999;">Carregando comprovante...</small></div>`
+    ? `<div class="pdf-render-container" data-pdf-url="${abs}"><small style="color:var(--text-3);">Carregando comprovante...</small></div>`
     : `<img src="${abs}" style="display:block; margin:0 auto;">`;
 }
 

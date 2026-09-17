@@ -13,7 +13,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--shadow-1);
   display: none;
   z-index: 999;
 }
@@ -73,13 +73,13 @@ body.modal-open {
   margin: 0;
   padding: 10px 0;
   border-radius: 10px;
-  color: #000000;
+  color: var(--text-1);
 }
 
 #cadModalNotaFiscal .subtitulo {
   text-align: center;
   font-size: 15px;
-  color: #000000;
+  color: var(--text-1);
   margin: 0 0 30px;
 }
 
@@ -95,13 +95,13 @@ body.modal-open {
   font-size: 17px;
   background: none;
   border: none;
-  color: #4b4b4b;
+  color: var(--text-1);
   padding: 9px 16px 11px;
   cursor: pointer;
   border-bottom: 3px solid transparent;
 }
 #cadModalNotaFiscal .nf-tab-btn.ativa {
-  color: #fff;
+  color: var(--on-brand);
   background: var(--primary-color, #942123);
   border-bottom-color: var(--border-color, #ce0303);
 }
@@ -111,7 +111,7 @@ body.modal-open {
   font-family: "Abel", sans-serif;
   display: flex;
   flex-direction: column;
-  background-color: #cacaca;
+  background-color: var(--surface-4);
   max-width: 100%;
   width: 100%;  
   height: 675px;
@@ -128,21 +128,21 @@ body.modal-open {
 
 /* ===== Seções ===== */
 #cadModalNotaFiscal .nf-secao {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--surface-vidro-medio);
   border-radius: 10px;
   padding: 16px 20px;
 }
 #cadModalNotaFiscal .nf-secao h3 {
   font-size: 18px;
-  color: #2b2a2a;
+  color: var(--text-1);
   margin: 0 0 12px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
   padding-bottom: 6px;
   font-weight: normal;
 }
 #cadModalNotaFiscal .nf-aviso {
   font-size: 14.5px;
-  color: #444;
+  color: var(--text-1);
   line-height: 1.4;
 }
 
@@ -156,7 +156,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-hint {
   display: block;
   font-size: 13px;
-  color: #555;
+  color: var(--text-1);
   margin-top: 5px;
 }
 #cadModalNotaFiscal .nf-hint.warn { color: #b50000; }
@@ -180,21 +180,21 @@ p.nf-subtitulo {
    outros campos preenchidos automaticamente (ex.: Razão social do tomador). */
 #cadModalNotaFiscal .nf-dados-bancarios {
   border: 1.5px solid #9fb6c9;
-  background: #e4ecf3;
+  background: var(--status-info-bg);
   border-radius: 10px;
   padding: 12px 16px;
-  color: #33424c;
+  color: var(--text-1);
   font-size: 15.5px;
   line-height: 1.7;
 }
 #cadModalNotaFiscal .nf-row-btn:disabled {
-  background: #aaa;
+  background: var(--surface-inativo);
   cursor: not-allowed;
 }
 #cadModalNotaFiscal .nf-tag-interno {
   font-size: 11px;
   text-transform: none;
-  color: #555;
+  color: var(--text-1);
 }
 #cadModalNotaFiscal .nf-campo.nf-fim {
   justify-content: flex-end;
@@ -216,7 +216,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-grupo-filtro {
   min-width: 0;
   margin: 0;
-  border: 1.5px solid #c9c9c9;
+  border: 1.5px solid var(--border-1);
   border-radius: 10px;
   padding: 6px 16px 16px;
 }
@@ -226,7 +226,7 @@ p.nf-subtitulo {
   text-transform: uppercase;
   letter-spacing: .4px;
   font-weight: 800;
-  color: var(--primary-color, #942123);
+  color: var(--primary-texto, #942123);
 }
 
 /* Combobox "digitar pra buscar" (mesmo padrão do RH — busca de funcionário):
@@ -238,36 +238,36 @@ p.nf-subtitulo {
   position: absolute;
   left: 0; right: 0; top: 100%;
   z-index: 50;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   border-radius: 6px;
   max-height: 220px;
   overflow-y: auto;
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  box-shadow: 0 4px 12px var(--shadow-1);
 }
 #cadModalNotaFiscal .nf-combo-lista.aberta { display: block; }
 #cadModalNotaFiscal .nf-combo-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 16px; }
-#cadModalNotaFiscal .nf-combo-lista li:hover { background: #f0f2f5; }
-#cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio { color: #999; cursor: default; }
+#cadModalNotaFiscal .nf-combo-lista li:hover { background: var(--surface-3); }
+#cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio { color: var(--text-3); cursor: default; }
 #cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio:hover { background: none; }
 
 #cadModalNotaFiscal .nf-campo { display: flex; flex-direction: column; gap: 5px; }
 #cadModalNotaFiscal .nf-campo label {
-  font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px; color: #000000; font-weight: 800;
+  font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-1); font-weight: 800;
 }
 #cadModalNotaFiscal .nf-campo input,
 #cadModalNotaFiscal .nf-campo select,
 #cadModalNotaFiscal .nf-campo textarea {
   font-family: "Abel", sans-serif;
   font-size: 17px;
-  border: 1.5px solid #9e9e9e;
+  border: 1.5px solid var(--border-2);
   border-radius: 8px;
   padding: 9px 12px;
-  background: #fff;
-  color: #171616;
+  background: var(--surface-1);
+  color: var(--text-1);
 }
 #cadModalNotaFiscal .nf-campo textarea { min-height: 64px; resize: vertical; }
 
@@ -284,12 +284,12 @@ p.nf-subtitulo {
 }
 #cadModalNotaFiscal .nf-campo.auto input,
 #cadModalNotaFiscal .nf-campo.auto select {
-  background: #e4ecf3;
+  background: var(--status-info-bg);
   border-color: #9fb6c9;
-  color: #33424c;
+  color: var(--text-1);
 }
 #cadModalNotaFiscal .nf-check {
-  display: flex; align-items: center; gap: 9px; font-size: 16px; color: #171616;
+  display: flex; align-items: center; gap: 9px; font-size: 16px; color: var(--text-1);
 }
 /* Precisa de mais especificidade que ".nf-campo label" (que põe uppercase/
    letter-spacing em todo label dentro de .nf-campo) pra sobrescrever certo. */
@@ -304,7 +304,7 @@ p.nf-subtitulo {
   align-items: center;
   justify-content: space-between;
   font-size: 15.5px;
-  color: #333;
+  color: var(--text-1);
 }
 #cadModalNotaFiscal .nf-envio-rodape button { flex: none; padding: 10px 22px; }
 #cadModalNotaFiscal table.nf-tabela input[type="checkbox"] { width: 16px; height: 16px; }
@@ -312,18 +312,18 @@ p.nf-subtitulo {
 /* ===== Tabelas (lista e histórico) ===== */
 #cadModalNotaFiscal .nf-tabela-wrap { overflow-x: auto; border-radius: 8px; }
 #cadModalNotaFiscal table.nf-tabela {
-  width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.85);
+  width: 100%; border-collapse: collapse; background: var(--surface-1);
   border-radius: 8px; overflow: hidden; font-size: 14px; min-width: 640px;
 }
 #cadModalNotaFiscal table.nf-tabela th {
   text-align: left; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px;
-  color: #444; padding: 11px 14px; border-bottom: 1px solid #b9b9b9;
+  color: var(--text-1); padding: 11px 14px; border-bottom: 1px solid var(--border-2);
 }
 /* .nf-num sozinho perde pra regra acima (mesma especificidade + ordem) —
    precisa repetir o seletor completo do th pra vencer. Sem isso o título
    da coluna fica à esquerda enquanto os valores embaixo ficam à direita. */
 #cadModalNotaFiscal table.nf-tabela th.nf-num { text-align: right; }
-#cadModalNotaFiscal table.nf-tabela td { padding: 11px 14px; border-bottom: 1px solid #d8d8d8; }
+#cadModalNotaFiscal table.nf-tabela td { padding: 11px 14px; border-bottom: 1px solid var(--border-1); }
 #cadModalNotaFiscal table.nf-tabela tr:last-child td { border-bottom: none; }
 #cadModalNotaFiscal .nf-num { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -370,31 +370,31 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-row-btn {
   font-family: "Abel", sans-serif;
   background: var(--primary-color, #942123);
-  color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
+  color: var(--on-brand); border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
 }
 #cadModalNotaFiscal .nf-row-btn:hover { background: var(--hover-color, #75191a); }
 
 /* ===== Bloco Reforma Tributária ===== */
 #cadModalNotaFiscal .nf-reforma {
   border: 1.5px dashed var(--Pending, #FFBD29);
-  background: #fff8e8;
+  background: var(--status-alerta-bg);
   border-radius: 10px;
   padding: 14px 18px;
   margin-top: 12px;
   font-size: 15.5px;
-  color: #5a4200;
+  color: var(--status-alerta-fg);
 }
 #cadModalNotaFiscal .nf-reforma .linha { display: flex; justify-content: space-between; padding: 3px 0; }
 
 /* ===== Totais ===== */
 #cadModalNotaFiscal .nf-totais {
-  background: rgba(255,255,255,0.85); border-radius: 8px; padding: 14px 18px;
+  background: var(--surface-1); border-radius: 8px; padding: 14px 18px;
 }
 #cadModalNotaFiscal .nf-totais .linha {
-  display: flex; justify-content: space-between; font-size: 16px; color: #3a3a3a; padding: 3px 0;
+  display: flex; justify-content: space-between; font-size: 16px; color: var(--text-1); padding: 3px 0;
 }
 #cadModalNotaFiscal .nf-totais .linha.final {
-  font-size: 20px; color: #171616; border-top: 1px solid #c9c9c9; margin-top: 6px; padding-top: 8px;
+  font-size: 20px; color: var(--text-1); border-top: 1px solid var(--border-1); margin-top: 6px; padding-top: 8px;
 }
 
 /* ===== Botões ===== */
@@ -436,7 +436,7 @@ p.nf-subtitulo {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--shadow-1);
   display: none;
   z-index: 999;
 }
@@ -535,14 +535,14 @@ body.modal-open {
   align-items: center;
   margin: 0;
   padding: 4px 0;
-  color: #000000;
+  color: var(--text-1);
   flex-shrink: 0;
 }
 
 #cadModalNotaFiscal .subtitulo {
   text-align: center;
   font-size: 15px;
-  color: #000000;
+  color: var(--text-1);
   margin: 0 0 12px;
   flex-shrink: 0;
 }
@@ -560,14 +560,14 @@ body.modal-open {
   font-size: 17px;
   background: none;
   border: none;
-  color: #4b4b4b;
+  color: var(--text-1);
   padding: 8px 16px 10px;
   cursor: pointer;
   border-bottom: 3px solid transparent;
 }
 
 #cadModalNotaFiscal .nf-tab-btn.ativa {
-  color: #fff;
+  color: var(--on-brand);
   background: var(--primary-color, #942123);
   border-bottom-color: var(--border-color, #ce0303);
 }
@@ -579,7 +579,7 @@ body.modal-open {
   font-family: "Abel", sans-serif;
   display: flex;
   flex-direction: column;
-  background-color: #cacaca;
+  background-color: var(--surface-4);
   flex: 1; /* Ocupa exatamente a sobra vertical disponível */
   padding: 12px;
   border-radius: 10px;
@@ -603,23 +603,23 @@ body.modal-open {
    5. SEÇÕES E COMPONENTES INTERNOS
    ========================================================================== */
 #cadModalNotaFiscal .nf-secao {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--surface-vidro-medio);
   border-radius: 10px;
   padding: 16px 20px;
 }
 
 #cadModalNotaFiscal .nf-secao h3 {
   font-size: 18px;
-  color: #2b2a2a;
+  color: var(--text-1);
   margin: 0 0 12px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
   padding-bottom: 6px;
   font-weight: normal;
 }
 
 #cadModalNotaFiscal .nf-aviso {
   font-size: 14.5px;
-  color: #444;
+  color: var(--text-1);
   line-height: 1.4;
 }
 
@@ -633,7 +633,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-hint {
   display: block;
   font-size: 13px;
-  color: #555;
+  color: var(--text-1);
   margin-top: 5px;
 }
 
@@ -656,23 +656,23 @@ p.nf-subtitulo {
 
 #cadModalNotaFiscal .nf-dados-bancarios {
   border: 1.5px solid #9fb6c9;
-  background: #e4ecf3;
+  background: var(--status-info-bg);
   border-radius: 10px;
   padding: 12px 16px;
-  color: #33424c;
+  color: var(--text-1);
   font-size: 15.5px;
   line-height: 1.7;
 }
 
 #cadModalNotaFiscal .nf-row-btn:disabled {
-  background: #aaa;
+  background: var(--surface-inativo);
   cursor: not-allowed;
 }
 
 #cadModalNotaFiscal .nf-tag-interno {
   font-size: 11px;
   text-transform: none;
-  color: #555;
+  color: var(--text-1);
 }
 
 #cadModalNotaFiscal .nf-campo.nf-fim {
@@ -694,7 +694,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-grupo-filtro {
   min-width: 0;
   margin: 0;
-  border: 1.5px solid #c9c9c9;
+  border: 1.5px solid var(--border-1);
   border-radius: 10px;
   padding: 6px 14px 14px;
 }
@@ -705,7 +705,7 @@ p.nf-subtitulo {
   text-transform: uppercase;
   letter-spacing: .4px;
   font-weight: 800;
-  color: var(--primary-color, #942123);
+  color: var(--primary-texto, #942123);
 }
 
 #cadModalNotaFiscal .nf-combo {
@@ -718,28 +718,28 @@ p.nf-subtitulo {
   position: absolute;
   left: 0; right: 0; top: 100%;
   z-index: 50;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   border-radius: 6px;
   max-height: 220px;
   overflow-y: auto;
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  box-shadow: 0 4px 12px var(--shadow-1);
 }
 
 #cadModalNotaFiscal .nf-combo-lista.aberta { display: block; }
 #cadModalNotaFiscal .nf-combo-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 16px; }
-#cadModalNotaFiscal .nf-combo-lista li:hover { background: #f0f2f5; }
-#cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio { color: #999; cursor: default; }
+#cadModalNotaFiscal .nf-combo-lista li:hover { background: var(--surface-3); }
+#cadModalNotaFiscal .nf-combo-lista li.nf-combo-vazio { color: var(--text-3); cursor: default; }
 
 #cadModalNotaFiscal .nf-campo { display: flex; flex-direction: column; gap: 5px; width: 100%; }
 #cadModalNotaFiscal .nf-campo label {
   font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: .4px;
-  color: #000000;
+  color: var(--text-1);
   font-weight: 800;
 }
 
@@ -748,11 +748,11 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-campo textarea {
   font-family: "Abel", sans-serif;
   font-size: 16px;
-  border: 1.5px solid #9e9e9e;
+  border: 1.5px solid var(--border-2);
   border-radius: 8px;
   padding: 8px 12px;
-  background: #fff;
-  color: #171616;
+  background: var(--surface-1);
+  color: var(--text-1);
   width: 100%;
   box-sizing: border-box;
 }
@@ -768,9 +768,9 @@ p.nf-subtitulo {
 
 #cadModalNotaFiscal .nf-campo.auto input,
 #cadModalNotaFiscal .nf-campo.auto select {
-  background: #e4ecf3;
+  background: var(--status-info-bg);
   border-color: #9fb6c9;
-  color: #33424c;
+  color: var(--text-1);
 }
 
 #cadModalNotaFiscal .nf-check {
@@ -778,7 +778,7 @@ p.nf-subtitulo {
   align-items: center;
   gap: 9px;
   font-size: 16px;
-  color: #171616;
+  color: var(--text-1);
 }
 
 #cadModalNotaFiscal .nf-campo .nf-check {
@@ -793,7 +793,7 @@ p.nf-subtitulo {
   align-items: center;
   justify-content: space-between;
   font-size: 15.5px;
-  color: #333;
+  color: var(--text-1);
 }
 
 #cadModalNotaFiscal .nf-envio-rodape button { flex: none; padding: 10px 22px; }
@@ -807,7 +807,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal table.nf-tabela {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(255,255,255,0.85);
+  background: var(--surface-1);
   border-radius: 8px;
   overflow: hidden;
   font-size: 14px;
@@ -819,13 +819,13 @@ p.nf-subtitulo {
   font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: .5px;
-  color: #444;
+  color: var(--text-1);
   padding: 10px 12px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
 }
 
 #cadModalNotaFiscal table.nf-tabela th.nf-num { text-align: right; }
-#cadModalNotaFiscal table.nf-tabela td { padding: 10px 12px; border-bottom: 1px solid #d8d8d8; }
+#cadModalNotaFiscal table.nf-tabela td { padding: 10px 12px; border-bottom: 1px solid var(--border-1); }
 #cadModalNotaFiscal table.nf-tabela tr:last-child td { border-bottom: none; }
 #cadModalNotaFiscal .nf-num { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -867,29 +867,29 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-row-btn {
   font-family: "Abel", sans-serif;
   background: var(--primary-color, #942123);
-  color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
+  color: var(--on-brand); border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
 }
 #cadModalNotaFiscal .nf-row-btn:hover { background: var(--hover-color, #75191a); }
 
 #cadModalNotaFiscal .nf-reforma {
   border: 1.5px dashed var(--Pending, #FFBD29);
-  background: #fff8e8;
+  background: var(--status-alerta-bg);
   border-radius: 10px;
   padding: 14px 18px;
   margin-top: 12px;
   font-size: 15.5px;
-  color: #5a4200;
+  color: var(--status-alerta-fg);
 }
 #cadModalNotaFiscal .nf-reforma .linha { display: flex; justify-content: space-between; padding: 3px 0; }
 
 #cadModalNotaFiscal .nf-totais {
-  background: rgba(255,255,255,0.85); border-radius: 8px; padding: 14px 18px;
+  background: var(--surface-1); border-radius: 8px; padding: 14px 18px;
 }
 #cadModalNotaFiscal .nf-totais .linha {
-  display: flex; justify-content: space-between; font-size: 16px; color: #3a3a3a; padding: 3px 0;
+  display: flex; justify-content: space-between; font-size: 16px; color: var(--text-1); padding: 3px 0;
 }
 #cadModalNotaFiscal .nf-totais .linha.final {
-  font-size: 20px; color: #171616; border-top: 1px solid #c9c9c9; margin-top: 6px; padding-top: 8px;
+  font-size: 20px; color: var(--text-1); border-top: 1px solid var(--border-1); margin-top: 6px; padding-top: 8px;
 }
 
 #cadModalNotaFiscal button {
@@ -995,7 +995,7 @@ p.nf-subtitulo {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px 28px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-vidro-medio);
   border-radius: 10px;
   padding: 10px 20px;
   font-size: 15px;
@@ -1009,7 +1009,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-total-escopo-ano {
   font-weight: 700;
   font-size: 12.5px;
-  color: #999;
+  color: var(--text-3);
   margin-right: auto;
   align-self: center;
 }
@@ -1023,7 +1023,7 @@ p.nf-subtitulo {
   white-space: nowrap;
 }
 #cadModalNotaFiscal table.nf-tabela th[data-sort]:hover {
-  color: var(--primary-color, #942123);
+  color: var(--primary-texto, #942123);
 }
 #cadModalNotaFiscal .nf-seta {
   display: inline-block;
@@ -1075,7 +1075,7 @@ p.nf-subtitulo {
 #cadModalNotaFiscal .nf-btn-acao.anexar { color: #8a6110; }
 /* Preto de propósito: mais grave que ".cancelar" (só local) — esse avisa a
    prefeitura de verdade e não tem como desfazer. */
-#cadModalNotaFiscal .nf-btn-acao.cancelar-webservice { color: #1a1a1a; }
+#cadModalNotaFiscal .nf-btn-acao.cancelar-webservice { color: var(--text-1); }
 #cadModalNotaFiscal .nf-btn-acao.previa { color: #127a76; }
 /* Tiffany escurecido no primeiro envio (o tom puro #0ABAB5 perde contraste
    como texto em fundo claro); cinza médio quando já foi enviado antes —
@@ -1083,8 +1083,8 @@ p.nf-subtitulo {
    cinza é mais escuro/legível que o `.email:disabled` logo abaixo, de
    propósito, pra não confundir os dois). */
 #cadModalNotaFiscal .nf-btn-acao.email { color: #0a8f8a; }
-#cadModalNotaFiscal .nf-btn-acao.email.ja-enviado { color: #6b6b6b; }
-#cadModalNotaFiscal .nf-btn-acao.email:disabled { color: #b7b7b7; border-color: #b7b7b7; cursor: not-allowed; }
+#cadModalNotaFiscal .nf-btn-acao.email.ja-enviado { color: var(--text-2); }
+#cadModalNotaFiscal .nf-btn-acao.email:disabled { color: var(--text-3); border-color: var(--border-2); cursor: not-allowed; }
 #cadModalNotaFiscal .nf-btn-acao.email:disabled:hover { background: transparent; }
 
 /* "Limpar filtros" em cinza (mesmo tom de fundo do próprio modal) pra não
@@ -1092,26 +1092,26 @@ p.nf-subtitulo {
    cor forte do sistema. */
 #cadModalNotaFiscal button.nf-btn-secundario {
   background-color: #4d4d4d;
-  color: #fff;
+  color: var(--on-brand);
   border: none;
 }
 #cadModalNotaFiscal button.nf-btn-secundario:hover {
   background-color: #3a3a3a;
-  color: #fff;
+  color: var(--on-brand);
 }
 #cadModalNotaFiscal button.nf-btn-secundario:disabled {
-  background-color: #b7b7b7;
+  background-color: var(--surface-inativo);
   color: #f0f0f0;
   cursor: not-allowed;
 }
 #cadModalNotaFiscal button.nf-btn-secundario:disabled:hover {
-  background-color: #b7b7b7;
+  background-color: var(--surface-inativo);
 }
 /* Preto — pedido explícito, distinto do cinza (Limpar filtros) e do azul do
    "Ver XML" (#1f6fa8) e do teal da "Prévia" (#127a76). */
 #cadModalNotaFiscal button.nf-btn-imprimir {
   background-color: #000;
-  color: #fff;
+  color: var(--on-brand);
   border: none;
 }
 #cadModalNotaFiscal button.nf-btn-imprimir:hover {
@@ -1131,7 +1131,7 @@ p.nf-subtitulo {
   border: none;
   border-radius: 50%;
   background: var(--Reject, #B50000);
-  color: #fff;
+  color: var(--on-brand);
   cursor: pointer;
   font-size: 13px;
   vertical-align: middle;
@@ -1184,7 +1184,7 @@ p.nf-subtitulo {
   margin-top: 6px;
   font-size: 12px;
   font-weight: normal;
-  color: #555;
+  color: var(--text-1);
   cursor: pointer;
   user-select: none;
 }
