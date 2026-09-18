@@ -636,9 +636,7 @@ color: #fff;
   align-items: center;
   cursor: pointer;
   transition: background-color 0.3s ease-in-out;
-  box-shadow:
-    inset -4px -4px 8px #ffffff,
-    inset 4px 4px 8px #b0b0b0;
+  box-shadow: inset -4px -4px 8px #00000000, inset 4px 4px 8px #767676b3;
 }
 
 /* X Mark Lines */

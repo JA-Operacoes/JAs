@@ -875,15 +875,33 @@ input#search-aside {
 
   #almox-panel { display: none; }
 
+  /* O painel ocupa a altura útil da tela e o scroll acontece DENTRO dele (mesma
+     ideia do #rh-panel): assim as pílulas de local ficam fixas no topo e só a
+     área de conteúdo rola — a página em si não cresce. */
   body.almox-mode #almox-panel {
-    display: block;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 20000px;
     margin: 100px auto 40px;
-    padding: 0 24px 40px;
+    padding: 0 24px 20px;
     box-sizing: border-box;
+    max-height: calc(100vh - 120px);
+    overflow: hidden;
     font-family: var(--Font-primary);
   }
+  #almox-panel .ti-abas { flex: 0 0 auto; }
+  /* min-height:0 é o que permite o filho de um flex encolher e virar scroll. */
+  #almox-panel #almox-aba-conteudo {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 20px;
+  }
+  /* A área de compras herda o scroll do pai (sem barra dupla) e só estica. */
+  #almox-panel #almox-compras-conteudo { flex: 1 1 auto; min-height: 0; }
 
   /* ===== Painel Almoxarifado (mesmo visual do almoxarifado de TI, ver #ti-panel acima) ===== */
   #almox-panel .ti-abas {
@@ -921,6 +939,8 @@ input#search-aside {
     opacity: 1;
     box-shadow: 0 2px 8px var(--shadow-1);
   }
+  /* Ícones Remix (remixicon.css já vem no OPER-index.html) nos chips de local/Compras. */
+  #almox-panel .ti-aba-btn i { font-size: 16px; line-height: 1; }
 
   #almox-panel .ti-loading {
     display: flex;
@@ -1221,6 +1241,343 @@ input#search-aside {
   #almox-panel .almox-stat-valor { font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 700; color: var(--text-1); }
   #almox-panel .almox-stat-valor.critical { color: #b3261e; }
   #almox-panel .almox-stat-label { font-size: 10.5px; color: var(--text-2); text-transform: uppercase; letter-spacing: .03em; }
+
+  /* ===== Compras do almoxarifado (aba 🛒 Compras) =====
+     Sub-abas mais discretas que as pílulas dos locais, pra ficar claro que são
+     um nível abaixo na hierarquia da tela. */
+  #almox-panel .almox-compras-subabas {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 8px;
+  }
+  #almox-panel .almox-subaba {
+    border: none;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  #almox-panel .almox-subaba:hover { background: var(--surface-3); color: var(--text-1); }
+  #almox-panel .almox-subaba.ativo { background: var(--primary-color, #942123); color: var(--font-color, #fff); }
+  #almox-panel .almox-subaba { display: inline-flex; align-items: center; gap: 6px; }
+  #almox-panel .almox-subaba i { font-size: 15px; line-height: 1; }
+
+  /* ===== Blocos da tela de nova lista =====
+     As classes .filtro-grupo/.label-select/.busca-evento-input usadas por outros
+     painéis só existem escopadas a eles, então o almoxarifado tem as próprias. */
+  #almox-panel .almox-bloco {
+    background: var(--surface-1);
+    border: 1px solid var(--border-1);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px var(--shadow-1), 0 6px 16px -12px var(--shadow-1);
+  }
+  #almox-panel .almox-bloco-titulo {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  #almox-panel .almox-bloco-titulo h4 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #almox-panel .almox-bloco-ajuda { margin: 4px 0 0; font-size: 12.5px; color: var(--text-2); }
+  #almox-panel .almox-texto-critico { color: var(--status-erro-fg); }
+  #almox-panel .almox-bloco-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  #almox-panel .almox-contador {
+    background: var(--surface-3);
+    color: var(--text-2);
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Formulário do cabeçalho da lista: rótulo em cima, campo embaixo, em grid
+     que quebra sozinho em telas estreitas. */
+  #almox-panel .almox-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px 18px;
+  }
+  #almox-panel .almox-campo { display: flex; flex-direction: column; gap: 5px; }
+  #almox-panel .almox-campo-larga { grid-column: span 2; min-width: 220px; }
+  #almox-panel .almox-campo > span {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-2);
+  }
+  /* :not(radio/checkbox) é essencial: o radio das pílulas de filtro fica
+     absoluto cobrindo a pílula — com fundo e borda ele tapava o texto. */
+  #almox-panel .almox-campo input:not([type="radio"]):not([type="checkbox"]),
+  #almox-panel .almox-campo select {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface-2, var(--surface-1));
+    color: var(--text-1);
+    border: 1px solid var(--border-1);
+    border-radius: 10px;
+    padding: 9px 11px;
+    font-size: 13.5px;
+    font-family: inherit;
+  }
+  #almox-panel .almox-campo input:not([type="radio"]):not([type="checkbox"]):focus,
+  #almox-panel .almox-campo select:focus {
+    outline: none;
+    border-color: var(--primary-color, #942123);
+  }
+
+  /* ===== Pílulas de filtro (mesmo componente de "Eventos em Aberto") =====
+     O original (Main.css) é escopado em .Evt-container/.venc-container, então
+     aqui ele é reproduzido para #almox-panel — mesma estrutura de markup
+     (.option > .input + .btn > .span), com as cores vindo do tema. */
+  #almox-panel .almox-pills {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 3px;
+    width: fit-content;
+    max-width: 100%;
+    background-color: transparent;
+    border: 2px solid var(--primary-color);
+    border-radius: 34px;
+    box-shadow: 3px 3px var(--primary-color);
+  }
+  #almox-panel .almox-pills .option {
+    position: relative;
+    height: 28px;
+    border-radius: 34px;
+    transition: .25s cubic-bezier(0, 0, 0, 1);
+  }
+  #almox-panel .almox-pills .option:hover { background-color: var(--surface-3); }
+  #almox-panel .almox-pills .input {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  #almox-panel .almox-pills .btn {
+    height: 100%;
+    padding: 0 14px;
+    border-radius: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+  #almox-panel .almox-pills .span {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text-1);
+  }
+  #almox-panel .almox-pills .input:checked + .btn {
+    background-color: var(--primary-color, #942123);
+    transition: .2s cubic-bezier(0, 0, 0, 1);
+  }
+  #almox-panel .almox-pills .input:checked + .btn .span {
+    color: var(--font-color, #fff);
+    transition: .25s cubic-bezier(0, 0, 0, 1);
+  }
+
+  #almox-panel .almox-btn-principal,
+  #almox-panel .almox-btn-secundario,
+  #almox-panel .almox-btn-ok,
+  #almox-panel .almox-btn-erro {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter .15s ease, background .15s ease;
+  }
+  #almox-panel .almox-btn-principal {
+    border: 1px solid var(--primary-color, #942123);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+  }
+  #almox-panel .almox-btn-principal:hover { filter: brightness(1.1); }
+  #almox-panel .almox-btn-secundario {
+    border: 1px solid var(--border-1);
+    background: var(--surface-3);
+    color: var(--text-1);
+  }
+  #almox-panel .almox-btn-secundario:hover { border-color: var(--primary-color, #942123); }
+  /* Ações do topo da lista seguem as mesmas cores de status das ações por item. */
+  #almox-panel .almox-btn-ok {
+    border: 1px solid var(--status-ok-fg);
+    background: var(--status-ok-bg);
+    color: var(--status-ok-fg);
+  }
+  #almox-panel .almox-btn-erro {
+    border: 1px solid var(--status-erro-fg);
+    background: var(--status-erro-bg);
+    color: var(--status-erro-fg);
+  }
+  #almox-panel .almox-btn-ok:hover,
+  #almox-panel .almox-btn-erro:hover { filter: brightness(1.06); }
+  #almox-panel .almox-btn-principal i,
+  #almox-panel .almox-btn-secundario i,
+  #almox-panel .almox-btn-ok i,
+  #almox-panel .almox-btn-erro i { font-size: 15px; line-height: 1; }
+
+  #almox-panel .almox-td-vazio { text-align: center; color: var(--text-2); padding: 18px 10px; }
+  #almox-panel .almox-td-nota { display: block; color: var(--text-2); font-size: 11.5px; }
+  #almox-panel .almox-rascunho-qtd { width: 90px; }
+  /* Ícone do local no card quando o item não tem foto. */
+  #almox-panel .almox-thumb i { font-size: 20px; color: var(--primary-texto, #942123); }
+
+  /* Pílula de situação — serve pro pedido e pro item dentro do pedido. */
+  #almox-panel .almox-pedido-status {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  /* Cores de status vêm do tema (Roots.css) — elas já trocam no dark mode. */
+  #almox-panel .almox-pedido-status.pendente  { color: var(--status-alerta-fg); background: var(--status-alerta-bg); }
+  #almox-panel .almox-pedido-status.aprovado  { color: var(--status-ok-fg); background: var(--status-ok-bg); }
+  #almox-panel .almox-pedido-status.comprado  { color: var(--status-info-fg); background: var(--status-info-bg); }
+  #almox-panel .almox-pedido-status.parcial   { color: var(--status-roxo-fg); background: var(--status-roxo-bg); }
+  #almox-panel .almox-pedido-status.recebido  { color: var(--status-ok-fg); background: var(--status-ok-bg); }
+  #almox-panel .almox-pedido-status.recusado  { color: var(--status-erro-fg); background: var(--status-erro-bg); }
+  #almox-panel .almox-pedido-status.cancelado { color: var(--status-neutro-fg); background: var(--status-neutro-bg); }
+
+  /* Item abaixo do mínimo na lista de sugestão. */
+  #almox-panel .almox-linha-critica td:first-child,
+  #almox-panel .almox-linha-critica td:nth-child(2) { border-left: 3px solid var(--status-erro-fg); }
+
+  #almox-panel .almox-pedido-linha:hover td { background: var(--surface-3); }
+
+  /* Cabeçalho do pedido: rótulo em cima, valor embaixo. */
+  #almox-panel .almox-pedido-info {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  #almox-panel .almox-pedido-info > div { display: flex; flex-direction: column; gap: 2px; }
+  #almox-panel .almox-pedido-info span {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--text-2);
+  }
+  #almox-panel .almox-pedido-info strong { font-size: 13.5px; color: var(--text-1); }
+
+  /* Botões de ação dentro das tabelas (aprovar/recusar/cotações). */
+  #almox-panel .almox-btn-mini,
+  .swal2-container .almox-btn-mini {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--primary-color, #942123);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s ease;
+  }
+  #almox-panel .almox-btn-mini:hover,
+  .swal2-container .almox-btn-mini:hover { filter: brightness(1.1); }
+  #almox-panel .almox-btn-mini i,
+  .swal2-container .almox-btn-mini i { font-size: 14px; line-height: 1; }
+  /* Ações dentro da lista: a cor do botão é a cor do status que ele produz
+     (Roots.css), senão "Aprovar" sai vermelho de marca e lê como perigo. */
+  #almox-panel .almox-btn-mini.aprovar,
+  .swal2-container .almox-btn-mini.aprovar {
+    background: var(--status-ok-bg);
+    border-color: var(--status-ok-fg);
+    color: var(--status-ok-fg);
+  }
+  #almox-panel .almox-btn-mini.recusar,
+  .swal2-container .almox-btn-mini.recusar {
+    background: var(--status-erro-bg);
+    border-color: var(--status-erro-fg);
+    color: var(--status-erro-fg);
+  }
+  #almox-panel .almox-btn-mini.secundario,
+  .swal2-container .almox-btn-mini.secundario {
+    background: var(--status-neutro-bg);
+    border-color: var(--status-neutro-fg);
+    color: var(--status-neutro-fg);
+  }
+  #almox-panel .almox-btn-mini.info,
+  .swal2-container .almox-btn-mini.info {
+    background: var(--status-info-bg);
+    border-color: var(--status-info-fg);
+    color: var(--status-info-fg);
+  }
+
+  /* Campos editáveis dentro das tabelas (quantidade a comprar, recebimento). */
+  #almox-panel .ti-tabela input[type="number"],
+  #almox-panel .ti-tabela input[type="text"],
+  .swal2-container .almox-tabela-swal input {
+    background: var(--surface-1);
+    color: var(--text-1);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  /* Tabela dentro do modal (cotações e confirmação de recebimento). */
+  .swal2-container .almox-tabela-swal {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .swal2-container .almox-tabela-swal th,
+  .swal2-container .almox-tabela-swal td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-1);
+    color: var(--text-1);
+  }
+  .swal2-container .almox-tabela-swal th {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--text-2);
+  }
+  .swal2-container .almox-cotacao-escolhida td { background: var(--status-ok-bg); color: var(--status-ok-fg); }
 
   /* ===== Painel TI (conteúdo da tela limpa) ===== */
   #ti-panel .ti-abas {
