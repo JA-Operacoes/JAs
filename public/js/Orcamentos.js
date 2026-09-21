@@ -2558,7 +2558,7 @@ async function escolherSolicitacao(solicitacoes, linha) {
     const { value: indice, isConfirmed } = await Swal.fire({
         title: `${solicitacoes.length} Solicitações Encontradas`,
         html: `
-            <p style="margin-bottom:12px; color:#555;">Selecione qual deseja vincular ao item:</p>
+            <p style="margin-bottom:12px; color:var(--text-1);">Selecione qual deseja vincular ao item:</p>
             <div>${opcoes}</div>
         `,
         confirmButtonText: 'Vincular Selecionada',
@@ -2698,7 +2698,7 @@ function carregarSolicitacao(sol, linha) {
 
         // Bloqueia edição do setor após preenchimento pela solicitação
         inputSetor.readOnly = true;
-        inputSetor.style.background  = '#f0f0f0';
+        inputSetor.style.background  = 'var(--surface-3)';
         inputSetor.style.cursor      = 'not-allowed';
         inputSetor.title             = 'Setor definido pela solicitação — não editável';
         linha.dataset.setorBloqueado = 'true';
@@ -4789,6 +4789,22 @@ async function verificaOrcamento() {
         btnEnviar.disabled = false;
         btnEnviar.textContent = "Salvar Orçamento";
         return;
+      }
+
+      // Endereço do Local de Montagem incompleto não pode travar o "Salvar
+      // Orçamento" (perderia o que já foi digitado) — só avisa aqui. O
+      // fechamento do orçamento (fecharOrcamento) é quem bloqueia de fato.
+      const camposEnderecoLocalFaltando = camposEnderecoFaltandoLocalMontagem();
+      if (camposEnderecoLocalFaltando.length) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Endereço do Local de Montagem incompleto",
+          html:
+            "O orçamento será salvo, mas complete o endereço do Local de Montagem " +
+            "(necessário para emissão da Nota Fiscal):<br><br>" +
+            `<b>${camposEnderecoLocalFaltando.join("</b><br><b>")}</b>`,
+          confirmButtonText: "Entendido",
+        });
       }
 
       // Bloqueia save se marcou "Pagamento parcelado?" e a soma das parcelas
@@ -8404,6 +8420,34 @@ function gerarTextoFormaPagamento() {
   });
 }
 
+// Endereço completo (CEP, rua, número, bairro, cidade, UF) do Local de
+// Montagem selecionado no orçamento — exigido pela prefeitura no XML da
+// NFS-e (ver migração adiciona_endereco_em_localmontagem). Retorna os
+// rótulos dos campos que estão faltando, ou [] se está tudo preenchido
+// (ou nenhum Local de Montagem foi selecionado ainda).
+function camposEnderecoFaltandoLocalMontagem() {
+  const idMontagemAtual = document.getElementById("idMontagem")?.value;
+  if (!idMontagemAtual) return [];
+
+  const local = locaisDeMontagem.find(
+    (l) => String(l.idmontagem) === String(idMontagemAtual)
+  );
+  if (!local) return [];
+
+  const camposEndereco = [
+    ["cep", "CEP"],
+    ["rua", "Rua"],
+    ["numero", "Número"],
+    ["bairro", "Bairro"],
+    ["cidademontagem", "Cidade"],
+    ["ufmontagem", "UF"],
+  ];
+
+  return camposEndereco
+    .filter(([campo]) => !String(local[campo] ?? "").trim())
+    .map(([, rotulo]) => rotulo);
+}
+
 document
   .getElementById("fecharOrc")
   .addEventListener("click", function (event) {
@@ -8420,6 +8464,21 @@ function fecharOrcamento() {
       "Este orçamento está fechado e não pode ser alterado.",
       "warning"
     );
+    return;
+  }
+
+  // Fechar bloqueia a edição — sem o endereço completo aqui, a Nota Fiscal
+  // não poderá ser emitida depois (prefeitura rejeita o XML sem endereço).
+  const camposEnderecoFaltando = camposEnderecoFaltandoLocalMontagem();
+  if (camposEnderecoFaltando.length) {
+    Swal.fire({
+      icon: "warning",
+      title: "Endereço do Local de Montagem incompleto",
+      html:
+        "É necessário completar o endereço do Local de Montagem antes de fechar o orçamento:<br><br>" +
+        `<b>${camposEnderecoFaltando.join("</b><br><b>")}</b>`,
+      confirmButtonText: "Entendido",
+    });
     return;
   }
 

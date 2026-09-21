@@ -50,6 +50,157 @@
     --Pending-color: #000000;
 }
 
+/* ─────────────────────────────────────────────
+        TEMA CLARO / ESCURO (data-theme)
+ ─────────────────────────────────────────────
+
+ Duas dimensões independentes, de propósito:
+
+   <html data-theme="dark">  ← luminosidade (claro/escuro)
+   <body class="tema-JA-OPER"> ← cor da marca da empresa
+
+ As cores de marca acima NÃO mudam com o tema — vermelho JA é vermelho JA nos dois
+ modos. O que inverte são as superfícies, textos, bordas e sombras abaixo. Sem essa
+ separação seriam 11 empresas × 2 modos = 22 blocos de CSS pra manter.
+
+ Regra pra usar: escolha o token pela FUNÇÃO, nunca pela cor.
+   fundo de página ......... var(--surface-2)
+   card/modal/input ........ var(--surface-1)
+   cabeçalho de tabela,
+   hover, faixa zebrada .... var(--surface-3)
+   texto principal ......... var(--text-1)
+   texto secundário
+   placeholder, legenda .... var(--text-2)
+   borda/divisória ......... var(--border-1)
+   sombra .................. var(--shadow-1)
+
+ ATENÇÃO ao texto sobre cor de marca (branco em cima do botão vermelho, do header,
+ de chips coloridos): esse NÃO pode virar --text-1, senão vira texto escuro sobre
+ fundo vermelho no modo dark. Use var(--on-brand), que é branco nos dois modos. */
+
+:root {
+    color-scheme: light;
+
+    --surface-1: #ffffff;   /* cards, modais, inputs, linhas de tabela */
+    /* Fundo da página. #d1d1d1 não é um cinza escolhido agora: é exatamente o que
+       o main#conteudo já usava, mantido pra que ligar o tema claro não mude nada
+       de lugar visualmente. Por ser mais escuro que --surface-3, a hierarquia
+       "página mais escura que os apoios dentro do card" se inverte no claro —
+       tudo bem, --surface-3 só aparece dentro dos cards brancos. */
+    --surface-2: #d1d1d1;
+    --surface-3: #e6e6e6;   /* cabeçalho de tabela, hover, zebra */
+    --surface-4: #d8d8d8;   /* rebaixos, campos desabilitados */
+    /* Cinza médio de "inativo/indisponível" — o fundo de item desabilitado, aba
+       apagada, dia não trabalhado. Estava espalhado em cinco tons quase iguais
+       (#a7a6a6, #a8a8a8, #9ca3af, #b9b9b9, #999), todos mantidos fixos: no tema
+       escuro viravam manchas cinza-claras. Aqui vira um só, que escurece junto. */
+    --surface-inativo: #a7a6a6;
+
+    --text-1: #1a1a1a;      /* texto principal */
+    --text-2: #5c5c5c;      /* secundário, placeholder, legenda */
+    --text-3: #8a8a8a;      /* desabilitado, texto de apoio */
+
+    --border-1: #d4d4d4;    /* divisórias e bordas de input */
+    --border-2: #b8b8b8;    /* borda em foco/destaque */
+
+    --shadow-1: rgba(0, 0, 0, .12);
+    --shadow-2: rgba(0, 0, 0, .22);
+
+    --overlay: rgba(0, 0, 0, .45);  /* fundo atrás dos modais */
+
+    /* Fixos nos dois temas: texto/ícone em cima de uma cor que NÃO muda com o
+       tema (marca, status, badge). Como o fundo é o mesmo no claro e no escuro,
+       o texto por cima também precisa ser — usar --text-1 aqui deixa o texto
+       claro no tema escuro e some em cima de um amarelo, por exemplo.
+         --on-brand         → para fundos escuros/saturados (vermelho JA, azul)
+         --on-brand-escuro  → para fundos claros (amarelo #ffcc00, pastéis) */
+    --on-brand: #ffffff;
+    --on-brand-escuro: #1a1a1a;
+
+    /* A cor da marca quando ela é TEXTO (link, botão contornado, título de aba)
+       em vez de fundo. No claro é a própria cor da empresa, sem diferença. No
+       escuro ela precisa clarear: o vermelho #c8102e sobre #1e1e1e dá 2.8:1, no
+       limite do ilegível. Ver o override em html[data-theme="dark"] abaixo. */
+    --primary-texto: var(--primary-color);
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Cinza escuro em vez de preto puro: reduz o "brilho" do texto claro sobre
+       fundo preto (halation) e deixa as sombras voltarem a ter efeito — sombra
+       preta sobre fundo preto não existe. */
+    --surface-1: #1e1e1e;
+    --surface-2: #141414;
+    --surface-3: #2a2a2a;
+    --surface-4: #363636;
+    --surface-inativo: #4a4a4a;
+
+    /* Branco puro cansa a vista no escuro; #e8e8e8 mantém contraste AA sobre #1e1e1e. */
+    --text-1: #e8e8e8;
+    --text-2: #a0a0a0;
+    --text-3: #757575;
+
+    --border-1: #3a3a3a;
+    --border-2: #4f4f4f;
+
+    --shadow-1: rgba(0, 0, 0, .5);
+    --shadow-2: rgba(0, 0, 0, .7);
+
+    --overlay: rgba(0, 0, 0, .65);
+}
+
+/* ─────────────────────────────────────────────
+        FUNDOS PASTEL DE STATUS
+ ─────────────────────────────────────────────
+
+ Cartões e faixas que comunicam situação pela cor: verde = pago/ok, vermelho =
+ vencido, amarelo = pendente, azul = a vencer, roxo = informativo.
+
+ Precisam de par próprio porque NÃO são superfície nem cor de marca. Deixá-los
+ fixos faz cada um virar uma ilha clara no meio da tela escura (e o texto escuro
+ por cima some quando só o texto é convertido). Fundo e texto invertem JUNTOS: no
+ claro é pastel claro + texto escuro, no escuro é fundo escuro dessaturado +
+ texto claro. A cor (o verde continuar verde) é a informação, e ela se mantém.
+
+ Os tons pastel do tema claro estavam espalhados em 33 variações quase iguais
+ (#e3f5ea, #ecfdf5, #e3f6ec...) vindas de épocas diferentes do código. Aqui elas
+ viram uma por família — é uma uniformização deliberada, visualmente imperceptível
+ no claro e que evita manter 33 pares de tokens. */
+:root {
+    --status-ok-bg:      #e3f5ea;
+    --status-ok-fg:      #15803d;
+    --status-erro-bg:    #fdeceb;
+    --status-erro-fg:    #b91c1c;
+    --status-alerta-bg:  #fff3cd;
+    --status-alerta-fg:  #92610a;
+    --status-info-bg:    #e3f2fd;
+    --status-info-fg:    #1d4ed8;
+    --status-roxo-bg:    #ede9fe;
+    --status-roxo-fg:    #6d28d9;
+    --status-neutro-bg:  #eef0f2;
+    --status-neutro-fg:  #4b5563;
+}
+
+html[data-theme="dark"] {
+    /* Fundos bem escuros com um resto de matiz: claros demais viram manchas
+       berrantes numa tela escura (era esse o efeito de deixar o pastel original).
+       O texto usa o tom claro da mesma família pra continuar legível e ainda
+       dizer "verde". */
+    --status-ok-bg:      #16301f;
+    --status-ok-fg:      #6ee7a0;
+    --status-erro-bg:    #3a1a1a;
+    --status-erro-fg:    #fca5a5;
+    --status-alerta-bg:  #372a12;
+    --status-alerta-fg:  #fcd34d;
+    --status-info-bg:    #16293f;
+    --status-info-fg:    #93c5fd;
+    --status-roxo-bg:    #2a2140;
+    --status-roxo-fg:    #c4b5fd;
+    --status-neutro-bg:  #2a2a2a;
+    --status-neutro-fg:  #c4c4c4;
+}
+
 
 .tema-JA-OPER{
     --header-color: linear-gradient(to right, #8a0c22, rgb(43, 42, 42)  );
@@ -95,6 +246,27 @@
 }
 .tema-EP{
     --header-color: linear-gradient(to right, #3d3d3d, rgb(43, 42, 42)  );
+
+    --primary-color: #000000;
+    --primary-color20: #5c5d5a7c;
+    --primary-color10: #5c5d5a5b;
+    --hover-color: #333333;
+    --background-color: #5c5d5a;
+    --font-color: #ffffff;
+    --font-weight: none;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --border-color:#2e2f2c;
+}
+/* aplicarTema() (utils.js, roda em toda página via Aside.js) gera a classe a partir do
+   nmfantasia puro do banco ("EP-RH"), nunca do que está escrito no <body> do HTML — sem
+   essa classe aqui, EPRH-index.html sempre caía no cinza padrão (mesmo bug já visto com
+   .tema-EVENTDRIVE). Header claro (#f7f7f7) de propósito: é a cor exata do fundo do logo
+   da RH (uploads/logos_empresas/logo_2.jpeg, amostrado via pixel — R247 G247 B247), pra
+   não sobrar um "quadrado" visível atrás do logo (JPEG não tem transparência). O menu à
+   direita continua legível porque o degradê termina no mesmo cinza escuro fixo de sempre. */
+.tema-EP-RH{
+    --header-color: linear-gradient(to right, rgb(43, 42, 42), #9c9a9a  );
 
     --primary-color: #000000;
     --primary-color20: #5c5d5a7c;
@@ -181,7 +353,7 @@
    esse tema só existe pra dar uma cor de marca fixa e deliberada no chip de "Empresas" do CEO
    Mode (Visão Geral); sem isso ele herdava a cor da empresa logada (bug corrigido em CeoMode.js,
    corPrimariaEmpresa). Ameixa/vinho: dourado foi descartado por colidir com o logo real da
-   EventDrive (.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS, abaixo); resto do vermelho/laranja
+   EventDrive (.tema-EVENTDRIVE, abaixo); resto do vermelho/laranja
    já é JA-OPER/JA-EXPO/SN-FOODS. */
 .tema-JOÃO{
     --header-color: linear-gradient(to right, #5c1a40, rgb(43, 42, 42)  );
@@ -199,9 +371,12 @@
 }
 /* EventDrive já tem logo real cadastrado (uploads/logos_empresas/logo_3.png — escudo com folhas
    num dourado-bronze, #ceb174 dominante); escurecido um pouco pro header/hover terem contraste
-   decente com texto branco, mas mantendo o mesmo tom do logo. Ainda sem página própria
-   (urlindex null), então isso hoje só aparece no chip de "Empresas" do CEO Mode. */
-.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS{
+   decente com texto branco, mas mantendo o mesmo tom do logo.
+   Classe é "tema-EVENTDRIVE" (nome curto) — igual toda outra empresa, porque aplicarTema()
+   (Aside.js, roda em toda página) gera a classe a partir do nmfantasia puro do banco
+   ("EVENTDRIVE"), nunca do nome comprido do CNPJ/razão social. Um nome de classe comprido
+   aqui nunca bate com isso — a página sempre caía no cinza padrão até essa correção. */
+.tema-EVENTDRIVE{
     --header-color: linear-gradient(to right, #8a713f, rgb(43, 42, 42)  );
 
     --primary-color: #ceb174;
@@ -216,5 +391,80 @@
     --font-weight: none;
 }
 
+/* Logo real cadastrado (uploads/logos_empresas/logo_10.png): "JD" em azul-marinho com o
+   telhado em vermelho vivo, sobre fundo branco. Vermelho como primary/accent (mesmo papel
+   que tem em JA-OPER) e o azul-marinho do texto como tom escuro pro header/hover/borda.
+   Header num azul mais claro (não o mesmo tom do texto do logo) — com o mesmo azul-marinho
+   escuro nos dois, o logo quase sumia por falta de contraste (pedido da usuária). */
+.tema-JD{
+    --header-color: linear-gradient(to right, #1b4b91, rgb(43, 42, 42)  );
 
+    --primary-color: #e2231a;
+    --primary-color20: #e2231a7c;
+    --primary-color10: #e2231a4f;
+    --border-color:#0a1f44;
+    --hover-color: #0a1f44;
+    --background-color: #e2231a;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
 
+/* As opções do <select> aberto são pintadas pelo sistema operacional e não
+   herdam o fundo do select. */
+html[data-theme="dark"] select option,
+html[data-theme="dark"] select optgroup {
+    background-color: var(--surface-1);
+    color: var(--text-1);
+}
+
+/* O ícone nativo de calendário/relógio é desenhado pelo navegador em preto e
+   some no fundo escuro. */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="week"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+/* Botão de upload (o "Escolher arquivo" dentro do input file) — usado nas fotos
+   de equipamento e nos anexos do almoxarifado. */
+html[data-theme="dark"] input[type="file"] {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] input[type="file"]::file-selector-button {
+    background-color: var(--surface-3);
+    color: var(--text-1);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+/* Checkbox e radio NATIVOS (os que não têm appearance:none) são desenhados pelo
+   sistema. accent-color é o jeito de pintá-los sem quebrar os customizados. */
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] input[type="radio"] {
+    accent-color: var(--primary-color, #c8102e);
+}
+
+/* Tabelas dentro dos modais de cadastro: sem isso a listagem fica branca. */
+html[data-theme="dark"] table {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] fieldset {
+    border-color: var(--border-1);
+}
+
+html[data-theme="dark"] legend,
+html[data-theme="dark"] label {
+    color: var(--text-1);
+}
+
+html[data-theme="dark"] hr {
+    border-color: var(--border-1);
+}

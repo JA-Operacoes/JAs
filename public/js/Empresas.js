@@ -28,6 +28,7 @@ let nmFantasiaSelectChangeListener = null;
 
 if (typeof window.empresaOriginal === "undefined") {
     window.empresaOriginal = {
+        ordem: "",
         idEmpresa: "",
         nmFantasia: "",
         razaoSocial: "",
@@ -129,7 +130,8 @@ const campos = {
         numeroConta: "#numeroConta",
         digitoConta: "#digitoConta",
         tipoConta: "#tipoConta",
-        pix: "#pix"
+        pix: "#pix",
+        ordem: "#ordem"
 };
 
 const getCampo = (key) => document.querySelector(campos[key]);
@@ -213,7 +215,8 @@ const preencherFormulario = (empresa) => {
         numeroConta: empresa.numeroconta || "",
         digitoConta: empresa.digitoconta || "",
         tipoConta: empresa.tipoconta || "",
-        pix: empresa.pix || ""
+        pix: empresa.pix || "",
+        ordem: empresa.ordem ?? ""
     };
 
     // 2. Itera sobre os dados mapeados para preencher o formulário
@@ -239,6 +242,15 @@ const preencherFormulario = (empresa) => {
         campoCodigo.classList.add("has-value");
     }
     campoCodigo.readOnly = true;
+
+    // Esse caminho de edição (busca pelo campo Nome Fantasia + blur) nunca chamava isso —
+    // só o caminho pelo botão "Pesquisar" atualizava o botão de logo. Resultado: abrindo
+    // uma empresa por aqui, "Trocar logo"/"Inserir logo" ficava escondido mesmo com o
+    // formulário certo na tela.
+    atualizarPreviewLogoNaTela(empresa.logo, empresa.idempresa);
+    atualizarPreviewImagemEmpresa("logoclaro", empresa.logoclaro, empresa.idempresa);
+    atualizarPreviewImagemEmpresa("iconeescuro", empresa.iconeescuro, empresa.idempresa);
+    atualizarPreviewImagemEmpresa("iconeclaro", empresa.iconeclaro, empresa.idempresa);
 };
 
 const limparFormulario = () => {
@@ -254,16 +266,12 @@ const limparFormulario = () => {
         btnInserir.style.display = "none";
         btnInserir.onclick = null;
     }
-    const previewLogo = document.querySelector("#previewLogo");
-    const btnInserirLogo = document.querySelector("#btnInserirLogo");
-    if (previewLogo) {
-        previewLogo.src = "#";
-        previewLogo.style.display = "none";
-    }
-    if (btnInserirLogo) {
-        btnInserirLogo.style.display = "none";
-        btnInserirLogo.onclick = null;
-    }
+    // null, null = estado de "empresa nova ainda não salva" — mesma função usada ao
+    // carregar uma empresa existente, só que sem logo e sem id (ver atualizarPreviewLogoNaTela).
+    atualizarPreviewLogoNaTela(null, null);
+    atualizarPreviewImagemEmpresa("logoclaro", null, null);
+    atualizarPreviewImagemEmpresa("iconeescuro", null, null);
+    atualizarPreviewImagemEmpresa("iconeclaro", null, null);
 };
 
 const obterDadosFormulario = () => {
@@ -271,6 +279,10 @@ const obterDadosFormulario = () => {
     
     const rawIE = valor("inscEstadual");
     const inscEstadual = rawIE.toUpperCase() === "ISENTO" ? "ISENTO" : rawIE.replace(/\D/g, '');  // só números
+    // Campo só existe/aparece no DOM pra quem tem a flag Devs (ver atualizarVisibilidadeCampoOrdem) —
+    // pra quem não tem, getCampo retorna null e isso vira null, então o backend não mexe no valor
+    // já salvo (UPDATE usa COALESCE — ver rotaEmpresa.js).
+    const ordemRaw = valor("ordem");
     const dados = {
         nmFantasia: valor("nmFantasia").toUpperCase(),
         razaoSocial: valor("razaoSocial").toUpperCase(),
@@ -298,6 +310,7 @@ const obterDadosFormulario = () => {
         digitoConta: valor("digitoConta"),
         tipoConta: valor("tipoConta"),
         pix: valor("pix"),
+        ordem: ordemRaw ? parseInt(ordemRaw, 10) : null,
     };
     console.log("Dados do formulário prontos para envio:", dados);
     return dados;
@@ -328,6 +341,15 @@ function carregarEmpresas() {
 
     aplicarMascaras();
     carregarBancosSelect();
+    atualizarVisibilidadeCampoOrdem();
+
+    // Estado inicial (modal recém-aberto, formulário em branco) — sem isso o botão de
+    // logo só aparecia depois de Pesquisar/Limpar/Salvar, nunca já de cara num
+    // cadastro novo.
+    atualizarPreviewLogoNaTela(null, null);
+    atualizarPreviewImagemEmpresa("logoclaro", null, null);
+    atualizarPreviewImagemEmpresa("iconeescuro", null, null);
+    atualizarPreviewImagemEmpresa("iconeclaro", null, null);
 
     const tpEmpresaInput = document.getElementById('tpempresa');
     if(tpEmpresaInput){
@@ -433,14 +455,35 @@ function carregarEmpresas() {
             const respostaApi = await salvarEmpresaComResolucaoDeSigla(url, metodo, dados);
             if (!respostaApi) return; // usuário cancelou a resolução do conflito de sigla
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Empresa salvo com sucesso.", "success");
+            await Swal.fire("Sucesso!", "Empresa salva com sucesso.", "success");
             const idempresaSalva = respostaApi.idempresa || valorIdEmpresa;
             limparFormulario();
-            await verificarCertificadoEmpresa(idempresaSalva);
+
+            // Sem popup automático de certificado aqui — antes interrompia TODA alteração
+            // salva (mesmo trocar só o telefone) com um Swal de "Cadastrar Certificado".
+            // Só atualiza o botão de logo na tela ("Trocar logo"/"Inserir logo") pra já
+            // ficar pronto de usar — sem popup, sem exigir reabrir a empresa de novo. A
+            // sigla/status do certificado ficam em branco igual o resto do formulário
+            // (limparFormulario já limpa os dois) — repovoar só esses dois campos depois
+            // de tudo já ter sido limpo ficava inconsistente com o resto do form. O aviso
+            // proativo de certificado pendente continua acontecendo normalmente quando
+            // alguém ABRE uma empresa pra editar (verificarCertificadoEmpresa, chamada de
+            // carregarEmpresasNmFantasia).
+            atualizarPreviewLogoNaTela(respostaApi.logo || null, idempresaSalva);
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar empresa.", "error");
+            await Swal.fire("Erro", error.message || "Erro ao salvar empresa.", "error");
+
+            // Conflito de "ordem" (backend manda proximaOrdemDisponivel só nesse caso —
+            // ver rotaEmpresa.js) numa ALTERAÇÃO: ao fechar o alerta, volta o campo pro
+            // valor que a empresa já tinha antes de digitar o número em conflito, em vez
+            // de deixar o valor inválido parado na tela. Não se aplica a cadastro novo
+            // (não existe "valor original" pra voltar).
+            if (metodo === "PUT" && error.corpo?.proximaOrdemDisponivel !== undefined) {
+                const campoOrdem = document.querySelector("#ordem");
+                if (campoOrdem) campoOrdem.value = window.empresaOriginal?.ordem ?? "";
+            }
         }
     });
 
@@ -637,7 +680,7 @@ function adicionarEventoBlurEmpresa() {
     
     getCampo("nmFantasia").addEventListener("blur", async function () {
        
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Close", "Enviar"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
             ultimoClique?.classList.contains("close");
@@ -663,10 +706,11 @@ function adicionarEventoBlurEmpresa() {
             console.log("Empresa carregado:", empresa);
 
         } catch (error) {
-            console.log("Erro ao buscar empresa:", nmFantasia, idEmpresa.value, error);
+            const idEmpresaAtual = getCampo("idEmpresa")?.value || "";
+            console.log("Erro ao buscar empresa:", nmFantasia, idEmpresaAtual, error);
 
             //  Se empresa não existe e ainda não tem ID preenchido
-            if (!idEmpresa.value) {
+            if (!idEmpresaAtual) {
                 const podeCadastrar = temPermissao("Empresas", "cadastrar");
                 console.log("PODE CADASTRAR ", podeCadastrar);
                 // Só pergunta se deseja cadastrar se tiver permissão
@@ -685,6 +729,11 @@ function adicionarEventoBlurEmpresa() {
                     // Se confirmado, pode continuar com o formulário em branco
                     limparFormulario(); // opcional
                     getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
+                    // Só sugere a próxima posição livre AGORA — depois que a usuária
+                    // confirmou que quer mesmo cadastrar uma empresa nova (pedido
+                    // explícito: não pode aparecer sozinho ao só abrir o formulário
+                    // em branco ou ao pesquisar).
+                    preencherProximaOrdemDisponivel();
                 } else {
                     //  Sem permissão: apenas alerta
                     await Swal.fire({
@@ -713,6 +762,7 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
 
         // Preencher os campos...
         document.querySelector("#idEmpresa").value = empresa.idempresa || "";
+        document.querySelector("#ordem").value = empresa.ordem ?? "";
         document.querySelector("#nmFantasia").value = empresa.nmfantasia || "";
         document.querySelector("#razaoSocial").value = empresa.razaosocial || "";
         maskCNPJ.value = empresa.cnpj || '';
@@ -745,6 +795,9 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         empresaOriginal = { ...empresa };
         verificarCertificadoEmpresa(empresa.idempresa, true);
         atualizarPreviewLogoNaTela(empresa.logo, empresa.idempresa);
+        atualizarPreviewImagemEmpresa("logoclaro", empresa.logoclaro, empresa.idempresa);
+        atualizarPreviewImagemEmpresa("iconeescuro", empresa.iconeescuro, empresa.idempresa);
+        atualizarPreviewImagemEmpresa("iconeclaro", empresa.iconeclaro, empresa.idempresa);
 
         const novoInput = document.createElement("input");
         novoInput.type = "text";
@@ -757,6 +810,13 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
 
 
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+        // adicionarEventoBlurEmpresa() já liga o blur "certo" nesse novoInput (o mesmo
+        // que ignora clique em Enviar/Limpar/Pesquisar/Close). Um segundo listener de
+        // blur direto aqui, sem essa checagem, disparava a cada Enviar (mesmo sem sair
+        // do campo de propósito) e buscava de novo o nome recém-digitado — que durante
+        // uma renomeação ainda não existe, retorna [] e limpa o formulário inteiro,
+        // inclusive setando nmFantasia como a string literal "undefined" (a única linha
+        // deste arquivo sem fallback ` || ""`).
         adicionarEventoBlurEmpresa();
 
         const label = document.querySelector('label[for="nmFantasia"]');
@@ -764,11 +824,6 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
             label.style.display = "block";
             label.textContent = "Nome Fantasia";
         }
-
-        novoInput.addEventListener("blur", async function () {
-            if (!this.value.trim()) return;
-            await carregarEmpresasNmFantasia(this.value, this);
-        });
 
     } catch (erro) {
         console.error("Erro ao carregar empresa:", erro);
@@ -833,6 +888,41 @@ function usuarioTemFlagMaster() {
     // objeto que chega no front. Checa em QUALQUER linha (não só o módulo
     // "Empresas"), igual o exigirFlag('master') faz no backend.
     return Array.isArray(window.permissoes) && window.permissoes.some((p) => p.pode_master === true);
+}
+
+// Mesmo critério já usado em Index.js pra liberar "Consulta de Logs"/"Contas"/"Tipo de
+// Conta" — só Devs (pedido explícito da usuária: nem Supremo enxerga isso). O botão de
+// logo é só front (não upload direto do usuário comum), mas trocar o logo oficial de uma
+// empresa não é decisão de quem só cadastra dados.
+function usuarioTemFlagDevs() {
+    return Boolean(window.temPermissao?.("Staff", "devs"));
+}
+
+// Posição na barra "Trocar empresa" (coluna ordem, ver migration adiciona_ordem_fixa_nas_empresas)
+// não é preenchida automaticamente — é decisão manual de negócio, então só Devs enxergam/editam.
+function atualizarVisibilidadeCampoOrdem() {
+    const linha = document.querySelector("#linhaOrdemEmpresa");
+    if (linha) linha.style.display = usuarioTemFlagDevs() ? "flex" : "none";
+}
+
+// Sugere de cara a próxima posição livre quando o formulário está em estado de
+// "empresa nova" (ver chamadas em carregarEmpresas/limparFormulario) — sem isso, Devs
+// tinham que adivinhar/consultar as outras empresas pra saber qual número ainda não
+// tinha sido usado. Só busca pra quem tem a flag (rota também é restrita a Devs).
+async function preencherProximaOrdemDisponivel() {
+    if (!usuarioTemFlagDevs()) return;
+    const campo = document.querySelector("#ordem");
+    if (!campo) return;
+    try {
+        const { proximaOrdem } = await fetchComToken("/empresas/utilitarios/proxima-ordem");
+        // Só aplica se o formulário continuar em estado de "empresa nova" (Código
+        // vazio) — evita sobrescrever o valor real de uma empresa que tenha sido
+        // carregada (Pesquisar) enquanto essa busca ainda estava em andamento.
+        if (document.querySelector("#idEmpresa")?.value?.trim()) return;
+        campo.value = proximaOrdem ?? "";
+    } catch (erro) {
+        console.error("Erro ao buscar próxima posição disponível:", erro);
+    }
 }
 
 // Preenche os campos só-leitura na tela — chamado só quando o formulário
@@ -901,8 +991,8 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
                     <button type="button" id="swalCertBtnAnexar" style="
                         width:100%; box-sizing:border-box; margin:0; padding:14px;
                         display:flex; align-items:center; justify-content:center; gap:8px;
-                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
-                        font-size:15px; cursor:pointer; color:#333;">
+                        border:2px dashed #999; border-radius:8px; background:var(--surface-3);
+                        font-size:15px; cursor:pointer; color:var(--text-1);">
                         <span id="swalCertNomeArquivo">📎 Clique pra anexar o certificado</span>
                     </button>
                 </div>
@@ -927,12 +1017,12 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
                     nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
                     btnAnexar.style.borderStyle = "solid";
                     btnAnexar.style.borderColor = "#28a745";
-                    btnAnexar.style.background = "#eaf7ee";
+                    btnAnexar.style.background = "var(--surface-3)";
                 } else {
                     nomeArquivo.textContent = "📎 Clique pra anexar o certificado";
                     btnAnexar.style.borderStyle = "dashed";
-                    btnAnexar.style.borderColor = "#999";
-                    btnAnexar.style.background = "#f7f7f7";
+                    btnAnexar.style.borderColor = "var(--border-2)";
+                    btnAnexar.style.background = "var(--surface-3)";
                 }
             });
         },
@@ -970,6 +1060,7 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
 // pra evitar erro de digitação (escolher visualmente sempre pega o certo).
 function atualizarPreviewLogoNaTela(logo, idempresa) {
     const preview = document.querySelector("#previewLogo");
+    const marcaDagua = document.querySelector("#logoMarcaDagua");
     const btnInserir = document.querySelector("#btnInserirLogo");
     if (preview) {
         if (logo) {
@@ -980,13 +1071,42 @@ function atualizarPreviewLogoNaTela(logo, idempresa) {
             preview.style.display = "none";
         }
     }
+    // Marca d'água do logo escuro no meio do formulário (pedido da usuária) — mesma
+    // fonte do preview acima, só que exibida via CSS como watermark (ver CadEmpresas.css).
+    if (marcaDagua) {
+        if (logo) {
+            marcaDagua.src = `/${logo}`;
+            marcaDagua.style.display = "block";
+        } else {
+            marcaDagua.src = "#";
+            marcaDagua.style.display = "none";
+        }
+    }
     if (btnInserir) {
-        btnInserir.style.display = "flex";
+        // Preview do logo é visível pra quem estiver editando a empresa (pedido explícito
+        // da usuária: só logoclaro/iconeescuro/iconeclaro ficam restritos a Devs, o "logo"
+        // escuro original não); o botão de trocar/inserir (upload de verdade) continua só
+        // pra Devs — trocar o logo oficial não é decisão de quem só cadastra dados.
+        // Aparece já no cadastro de uma empresa nova (idempresa ainda null) pra Devs
+        // verem que a opção existe — só que o upload em si exige a empresa já salva
+        // (a rota é /empresas/:id/logo), então sem ID o clique só avisa pra salvar
+        // primeiro em vez de abrir um upload que não teria como funcionar.
+        const podeTrocarLogo = usuarioTemFlagDevs();
+        btnInserir.style.display = podeTrocarLogo ? "flex" : "none";
         btnInserir.textContent = logo ? "Trocar logo" : "Inserir logo";
-        btnInserir.onclick = async () => {
-            const novoLogo = await abrirSwalUploadLogo(idempresa);
-            if (novoLogo) atualizarPreviewLogoNaTela(novoLogo, idempresa);
-        };
+        btnInserir.onclick = !podeTrocarLogo
+            ? null
+            : !idempresa
+            ? () => Swal.fire({
+                  icon: "info",
+                  title: "Salve a empresa primeiro",
+                  text: "Cadastre a empresa (botão Enviar) antes de anexar o logo.",
+                  confirmButtonText: "Ok",
+              })
+            : async () => {
+                  const novoLogo = await abrirSwalUploadLogo(idempresa);
+                  if (novoLogo) atualizarPreviewLogoNaTela(novoLogo, idempresa);
+              };
     }
 }
 
@@ -1001,8 +1121,8 @@ async function abrirSwalUploadLogo(idempresa) {
                     <button type="button" id="swalLogoBtnAnexar" style="
                         width:100%; box-sizing:border-box; margin:0; padding:14px;
                         display:flex; align-items:center; justify-content:center; gap:8px;
-                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
-                        font-size:15px; cursor:pointer; color:#333;">
+                        border:2px dashed #999; border-radius:8px; background:var(--surface-3);
+                        font-size:15px; cursor:pointer; color:var(--text-1);">
                         <span id="swalLogoNomeArquivo">📎 Clique pra anexar o logo</span>
                     </button>
                 </div>
@@ -1023,12 +1143,12 @@ async function abrirSwalUploadLogo(idempresa) {
                     nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
                     btnAnexar.style.borderStyle = "solid";
                     btnAnexar.style.borderColor = "#28a745";
-                    btnAnexar.style.background = "#eaf7ee";
+                    btnAnexar.style.background = "var(--surface-3)";
                 } else {
                     nomeArquivo.textContent = "📎 Clique pra anexar o logo";
                     btnAnexar.style.borderStyle = "dashed";
-                    btnAnexar.style.borderColor = "#999";
-                    btnAnexar.style.background = "#f7f7f7";
+                    btnAnexar.style.borderColor = "var(--border-2)";
+                    btnAnexar.style.background = "var(--surface-3)";
                 }
             });
         },
@@ -1056,9 +1176,122 @@ async function abrirSwalUploadLogo(idempresa) {
     }
 }
 
+// Config dos 3 campos novos (logoclaro/iconeescuro/iconeclaro) — mesmo padrão do
+// logo acima (preview + botão Trocar/Inserir + upload via Swal), só que numa função
+// genérica em vez de triplicar tudo. "logo" continua com sua própria função porque
+// já existia antes e está em uso — sem motivo pra migrar o que já funciona.
+const CAMPOS_IMAGEM_EMPRESA_UI = {
+    logoclaro:   { previewId: "previewLogoClaro",   btnId: "btnInserirLogoClaro",   rotulo: "logo claro" },
+    iconeescuro: { previewId: "previewIconeEscuro", btnId: "btnInserirIconeEscuro", rotulo: "ícone escuro" },
+    iconeclaro:  { previewId: "previewIconeClaro",  btnId: "btnInserirIconeClaro",  rotulo: "ícone claro" },
+};
 
-function limparEmpresaOriginal() {  
+function atualizarPreviewImagemEmpresa(campo, valor, idempresa) {
+    const config = CAMPOS_IMAGEM_EMPRESA_UI[campo];
+    if (!config) return;
+    const preview = document.querySelector(`#${config.previewId}`);
+    const btnInserir = document.querySelector(`#${config.btnId}`);
+    // Preview e botão restritos a Devs (pedido explícito da usuária) — quem não tem a
+    // flag não vê nem o ícone/logo já cadastrado, nem a opção de trocar.
+    const podeTrocar = usuarioTemFlagDevs();
+    if (preview) {
+        if (valor && podeTrocar) {
+            preview.src = `/${valor}`;
+            preview.style.display = "block";
+        } else {
+            preview.src = "#";
+            preview.style.display = "none";
+        }
+    }
+    if (btnInserir) {
+        btnInserir.style.display = podeTrocar ? "flex" : "none";
+        btnInserir.textContent = valor ? `Trocar ${config.rotulo}` : `Inserir ${config.rotulo}`;
+        btnInserir.onclick = !podeTrocar
+            ? null
+            : !idempresa
+            ? () => Swal.fire({
+                  icon: "info",
+                  title: "Salve a empresa primeiro",
+                  text: `Cadastre a empresa (botão Enviar) antes de anexar o ${config.rotulo}.`,
+                  confirmButtonText: "Ok",
+              })
+            : async () => {
+                  const novoValor = await abrirSwalUploadImagemEmpresa(idempresa, campo, config.rotulo);
+                  if (novoValor) atualizarPreviewImagemEmpresa(campo, novoValor, idempresa);
+              };
+    }
+}
+
+async function abrirSwalUploadImagemEmpresa(idempresa, campo, rotulo) {
+    const { value: arquivo } = await Swal.fire({
+        title: `${rotulo.charAt(0).toUpperCase()}${rotulo.slice(1)} da empresa`,
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <label style="display:block; margin-bottom:6px;">Arquivo de imagem (PNG, JPG...)</label>
+                    <input type="file" id="swalImagemArquivo" accept="image/*" style="display:none;">
+                    <button type="button" id="swalImagemBtnAnexar" style="
+                        width:100%; box-sizing:border-box; margin:0; padding:14px;
+                        display:flex; align-items:center; justify-content:center; gap:8px;
+                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
+                        font-size:15px; cursor:pointer; color:#333;">
+                        <span id="swalImagemNomeArquivo">📎 Clique pra anexar</span>
+                    </button>
+                </div>
+            </div>
+        `,
+        confirmButtonText: "Salvar",
+        showCancelButton: true,
+        cancelButtonText: "Cancelar",
+        focusConfirm: false,
+        didOpen: () => {
+            const inputArquivo = document.getElementById("swalImagemArquivo");
+            const btnAnexar = document.getElementById("swalImagemBtnAnexar");
+            const nomeArquivo = document.getElementById("swalImagemNomeArquivo");
+            btnAnexar.addEventListener("click", () => inputArquivo.click());
+            inputArquivo.addEventListener("change", () => {
+                const arquivo = inputArquivo.files[0];
+                if (arquivo) {
+                    nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
+                    btnAnexar.style.borderStyle = "solid";
+                    btnAnexar.style.borderColor = "#28a745";
+                    btnAnexar.style.background = "#eaf7ee";
+                } else {
+                    nomeArquivo.textContent = "📎 Clique pra anexar";
+                    btnAnexar.style.borderStyle = "dashed";
+                    btnAnexar.style.borderColor = "#999";
+                    btnAnexar.style.background = "#f7f7f7";
+                }
+            });
+        },
+        preConfirm: () => {
+            const arquivo = document.getElementById("swalImagemArquivo").files[0];
+            if (!arquivo) {
+                Swal.showValidationMessage("Selecione o arquivo.");
+                return false;
+            }
+            return arquivo;
+        },
+    });
+
+    if (!arquivo) return null;
+
+    try {
+        const formData = new FormData();
+        formData.append("imagem", arquivo);
+        const resultado = await fetchComToken(`/empresas/${idempresa}/imagem/${campo}`, { method: "POST", body: formData });
+        await Swal.fire(`${rotulo.charAt(0).toUpperCase()}${rotulo.slice(1)} salvo!`, `O ${rotulo} dessa empresa foi atualizado.`, "success");
+        return resultado[campo];
+    } catch (erro) {
+        Swal.fire("Erro", erro.message || `Erro ao salvar o ${rotulo}.`, "error");
+        return null;
+    }
+}
+
+
+function limparEmpresaOriginal() {
     empresaOriginal = {
+        ordem: "",
         idEmpresa: "",
         nmFantasia: "",
         razaoSocial: "",

@@ -100,7 +100,7 @@
 }
 
 .dayContainer{
-  background: white !important;
+  background: var(--surface-1) !important;
 }
 
 .flatpickr-monthDropdown-months select.flatpickr-monthDropdown-month {

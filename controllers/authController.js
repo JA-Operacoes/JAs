@@ -355,7 +355,7 @@ async function login(req, res) {
     }
 
     // Buscar usuário pelo email
-    const queryUsuario = "SELECT idusuario, nome, email, senha_hash, sobrenome, idempresadefault FROM usuarios WHERE email = $1";
+    const queryUsuario = "SELECT idusuario, nome, email, senha_hash, sobrenome, idempresadefault, tema FROM usuarios WHERE email = $1";
     const resultUsuario = await db.query(queryUsuario, [email]);
 
     if (resultUsuario.rows.length === 0) {
@@ -456,7 +456,10 @@ async function login(req, res) {
         idusuario: usuario.idusuario,
         nome: `${usuario.nome} ${usuario.sobrenome || ''}`.trim(),
         empresas: empresasParaToken, // Todas as empresas que ele pode acessar
-        idempresaDefault: usuarioIdEmpresaDefault // A empresa padrão configurada para o usuário
+        idempresaDefault: usuarioIdEmpresaDefault, // A empresa padrão configurada para o usuário
+        // Vai junto no login pra que a primeira tela já entre no tema certo, sem o
+        // index ter que fazer um GET /auth/tema e piscar claro antes de escurecer.
+        tema: usuario.tema || 'light'
     });
 
   } catch (error) {
@@ -604,6 +607,45 @@ async function carregarTodasEmpresas(req, res) {
   }
 };
 
+// Tema (claro/escuro) do usuário logado. Preferência pessoal, não tem nada a ver
+// com empresa — por isso as duas rotas rodam com verificarEmpresa: false e tiram o
+// idusuario do token, nunca do body (senão um usuário trocaria o tema de outro).
+async function buscarTema(req, res) {
+  const { idusuario } = req.usuario;
+  try {
+    const { rows } = await db.query(
+      `SELECT tema FROM usuarios WHERE idusuario = $1`,
+      [idusuario]
+    );
+    if (!rows.length) return res.status(404).json({ message: "Usuário não encontrado" });
+    return res.json({ tema: rows[0].tema });
+  } catch (error) {
+    console.error("❌ Erro ao buscar tema do usuário:", error);
+    res.status(500).json({ message: "Erro ao buscar tema do usuário" });
+  }
+}
+
+async function salvarTema(req, res) {
+  const { idusuario } = req.usuario;
+  const { tema } = req.body;
+
+  if (tema !== 'light' && tema !== 'dark') {
+    return res.status(400).json({ message: "Tema inválido. Use 'light' ou 'dark'." });
+  }
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE usuarios SET tema = $1 WHERE idusuario = $2 RETURNING tema`,
+      [tema, idusuario]
+    );
+    if (!rows.length) return res.status(404).json({ message: "Usuário não encontrado" });
+    return res.json({ tema: rows[0].tema });
+  } catch (error) {
+    console.error("❌ Erro ao salvar tema do usuário:", error);
+    res.status(500).json({ message: "Erro ao salvar tema do usuário" });
+  }
+}
+
 module.exports = {
   listarEmpresasDoUsuario,
   getEmpresasDoUsuario,
@@ -617,6 +659,8 @@ module.exports = {
   listarPermissoes,
   buscarUsuarioPorEmail,
   buscarModulos,
-  carregarTodasEmpresas
- 
+  carregarTodasEmpresas,
+  buscarTema,
+  salvarTema
+
 };

@@ -1,9 +1,10 @@
-  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css?v=5">
+  <link rel="stylesheet" href="Css/Modal/CadEmpresas.css?v=8">
     <div id="cadModalEmpresas" class="modal">
       <div class="modal-content">
           
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
         <div id ="form-content">
+          <img id="logoMarcaDagua" src="#" alt="" aria-hidden="true" style="display:none;">
           <form id="form">
 
             <div class = "title">
@@ -81,7 +82,35 @@
                   <label for="idEmpresa">Código</label>
                 </div>
 
+                <!-- Posição fixa na barra "Trocar empresa" (ver migration adiciona_ordem_fixa_nas_empresas).
+                     Só Devs decidem isso — não é automático, então só Devs enxergam/editam. Label curto
+                     (mesmo padrão de "Código" ao lado) pra não quebrar linha num campo estreito; a
+                     explicação completa fica só no title (tooltip). -->
+                <div class="form2" id="linhaOrdemEmpresa" style="display:none;">
+                  <input type="number" min="1" step="1" name="ordem" id="ordem" placeholder=" "
+                    title="Posição fixa na barra 'Trocar empresa'">
+                  <label for="ordem">Ordem</label>
+                </div>
+
                 <button type="button" id="btnInserirLogo" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo</button>
+              </div>
+
+              <!-- Variantes claro/escuro (barra "Trocar empresa" e seletor de "Empresa
+                   Padrão" do Usuários — ver migration adiciona_icone_em_empresas). O
+                   "logo" acima já é a versão escura; aqui só falta a clara + os 2 ícones. -->
+              <div class="form-3colunas">
+                <div class="form2">
+                  <img id="previewLogoClaro" src="#" alt="Logo claro da empresa" style="display:none; max-width:100px; max-height:50px; border-radius:6px; object-fit:contain;">
+                  <button type="button" id="btnInserirLogoClaro" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo claro</button>
+                </div>
+                <div class="form2">
+                  <img id="previewIconeEscuro" src="#" alt="Ícone escuro da empresa" style="display:none; max-width:60px; max-height:60px; border-radius:6px; object-fit:contain;">
+                  <button type="button" id="btnInserirIconeEscuro" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir ícone escuro</button>
+                </div>
+                <div class="form2">
+                  <img id="previewIconeClaro" src="#" alt="Ícone claro da empresa" style="display:none; max-width:60px; max-height:60px; border-radius:6px; object-fit:contain;">
+                  <button type="button" id="btnInserirIconeClaro" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir ícone claro</button>
+                </div>
               </div>
             </fieldset><br>
 

@@ -1,6 +1,13 @@
 import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
 
-document.addEventListener("DOMContentLoaded", async function () {    
+// Cada módulo que precisa de desinicialização própria registra a si mesmo aqui
+// (ex.: Empresas.js faz window.moduloHandlers['Empresas'] = {...}). Sem essa
+// inicialização aqui, fecharModal() quebra com "Cannot read properties of
+// undefined" pra qualquer módulo que seja o PRIMEIRO a ser aberto/fechado na
+// sessão sem nunca ter definido moduloHandlers ele mesmo (ex.: Usuarios).
+window.moduloHandlers = window.moduloHandlers || {};
+
+document.addEventListener("DOMContentLoaded", async function () {
 
     // --- INÍCIO: Controle de empresas permitidas ---
   function getEmpresasDoUsuario() {
@@ -86,57 +93,73 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         // 2. Busca a lista de todas as empresas do backend (usando a nova rota /empresas).
-        const empresasDoBackend = await fetchComToken("/index/empresas"); 
+        const empresasDoBackend = await fetchComToken("/index/empresas");
 
-        console.log("Empresas do backend e empresas permitidas:", empresasDoBackend, empresasPermitidas, empresasAtivas);     
-        
+        console.log("Empresas do backend e empresas permitidas:", empresasDoBackend, empresasPermitidas, empresasAtivas);
 
-       // console.log("Usuário tem permissão de acesso a algum módulo? ", temQualquerAcesso);
-        // 3. Mapeia as empresas para uma lista de logos com os IDs e seletores corretos.
-        //    O nome fantasia deve ser limpo para corresponder ao seletor CSS.
-        const logos = empresasDoBackend.map(empresa => {
-            const nmfantasiaLower = empresa.nmfantasia.toLowerCase().replace(/ /g, '');
-            return {
-                selector: `.logo-${nmfantasiaLower}`,
-                id: empresa.idempresa
-            };
-        });
+        // 3. Monta a barra "Trocar empresa" (topo) dinamicamente — antes era um
+        // <a><img></a> fixo por empresa em cada *-index.html (precisava editar HTML
+        // toda vez que cadastrava uma empresa nova), e o show/hide por permissão
+        // dependia de bater o nmfantasia normalizado com uma classe CSS ".logo-<nome>"
+        // escrita a mao -- ja estava quebrado pra EventDrive (a classe real no HTML e
+        // ".logo-eventdrivemobilityveiculoseletricos", nunca bateu com ".logo-eventdrive").
+        // Agora gera direto a partir dos dados: so empresa ativa E que o usuario tem
+        // permissao (empresasAtivas, do token) E com pagina propria (urlindex) -- nunca
+        // a empresa atual (sem sentido "trocar" pra ela mesma).
+        const containerBarra = document.querySelector(".barra-empresas .minilogos-topo");
+        if (containerBarra) {
+            const idempresaAtual = localStorage.getItem("idempresa");
 
-        console.log("Lista dinâmica de logos mapeada e Empresas Ativas:", logos, empresasAtivas);
+            // Contraste do icone (branco ou colorido) conforme o fundo desta propria
+            // barra -- cada tema de empresa (Roots.css) define sua propria cor de
+            // header, entao isso nao pode ser fixo por empresa exibida, so pela tela
+            // em que estamos agora (ex.: so a TSD tem fundo escuro o suficiente pra
+            // precisar do icone branco nas outras).
+            const corFundo = getComputedStyle(document.querySelector(".barra-empresas")).backgroundColor;
+            const [rC, gC, bC] = (corFundo.match(/[0-9]+/g) || []).map(Number);
+            const fundoClaro = ((0.299 * (rC || 0) + 0.587 * (gC || 0) + 0.114 * (bC || 0)) / 255) > 0.6;
 
+            containerBarra.innerHTML = empresasDoBackend
+                .filter(empresa =>
+                    // Só a permissão do usuário (empresasAtivas, do token) decide quem
+                    // aparece pra trocar — "empresas.ativo" é outro controle (não é
+                    // "tem página própria"/"pode ser acessada"); o código antigo nunca
+                    // usava esse campo aqui, e adicioná-lo escondeu CJG/ED/TSD/ES da
+                    // barra mesmo com permissão total.
+                    empresasAtivas.includes(empresa.idempresa) &&
+                    empresa.urlindex &&
+                    String(empresa.idempresa) !== String(idempresaAtual)
+                )
+                .map(empresa => {
+                    const icone = fundoClaro
+                        ? (empresa.iconeescuro || empresa.iconeclaro)
+                        : (empresa.iconeclaro || empresa.iconeescuro);
+                    if (!icone) return "";
+                    return `<a href="${empresa.urlindex}" data-idempresa="${empresa.idempresa}"><img src="/${icone}" alt="${empresa.nmfantasia || ''}"></a>`;
+                })
+                .join("");
 
-        // 4. Itera sobre a nova lista de logos dinâmica para mostrar/esconder.
-        logos.forEach(logo => {
+            containerBarra.querySelectorAll("a[data-idempresa]").forEach(a => {
+                a.addEventListener("click", () => {
+                    localStorage.setItem("idempresa", a.dataset.idempresa);
+                    // O redirecionamento ja acontece pelo href do <a>
+                });
+            });
+        }
 
-          console.log("Processando logo:", logo);
-            const el = document.querySelector(logo.selector);
-            console.log(`el: ${el} para seletor ${logo.selector}`);
-            if (el) {              
-                // Se o ID da empresa do backend não estiver na lista do token, esconde o logo.
-                if (!empresasAtivas.includes(logo.id)) { 
-                  console.log(`Escondendo logo para empresa ID: ${logo.id}`);                
-                    el.style.display = 'none';
-                } else {
-                    // Se o usuário tem permissão, mostra o logo e configura o evento de clique.
-                    //el.style.display = 'block'; 
-                    //el.style.display = 'inline-block'; 
-                    console.log(`Mostrando logo para empresa ID: ${logo.id}`);
-                    el.style.setProperty('display', 'block', 'important'); 
-                    
-                    el.setAttribute('data-idempresa', logo.id);
-                    
-                    el.addEventListener('click', function() {
-                      console.log(`Empresa selecionada: ${logo.id}`);
-                        localStorage.setItem('idempresa', logo.id);
-                        // O redirecionamento já acontece pelo href do <a>
-                        window.location.reload(); // Recarrega a página para aplicar o tema
-                        
-                    });
-                }
-                console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
+        // Marca d'água do logo escuro da EMPRESA ATUAL (não das outras, como na barra
+        // acima) no painel de Detalhes do dashboard — pedido da usuária. Setada via CSS
+        // var porque o painel é compartilhado por todas as *-index.html e cada empresa
+        // tem seu próprio arquivo de logo (ver .detalhes-panel::before em Main.css).
+        const painelDetalhes = document.getElementById("painelDetalhes");
+        if (painelDetalhes) {
+            const idempresaAtual = localStorage.getItem("idempresa");
+            const empresaAtual = empresasDoBackend.find(empresa => String(empresa.idempresa) === String(idempresaAtual));
+            if (empresaAtual?.logo) {
+                painelDetalhes.style.setProperty("--logo-marca-dagua", `url(/${empresaAtual.logo})`);
             }
-        });
- 
+        }
+
     } catch (error) {
         console.error("Falha ao carregar a lista de empresas do backend:", error);
         // Exibe um SweetAlert de erro ou lide com a situação

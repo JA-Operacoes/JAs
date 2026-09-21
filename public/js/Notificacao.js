@@ -1,6 +1,6 @@
 // public/js/Notificacoes.js
 export { buscarNotificacoes };
-import { exibirToastGeral } from './Toast.js';
+import { exibirToastGeral, exibirToast } from './Toast.js?v=3';
 
 const TOKEN = localStorage.getItem('token');
 
@@ -81,6 +81,11 @@ function normalizarStatus(notif, fonte) {
   } else if (fonte === 'pag') {
     // Backend manda 'Vencidos' ou 'Pendente'
     status = notif.status || 'Pendente';
+
+  } else if (fonte === 'empresaSemLogo') {
+    // Fica em "Pendente" até alguém subir o que falta (logo/ícone) — não some
+    // sozinho por tempo/leitura, só quando a empresa realmente ficar completa.
+    status = 'Pendente';
   }
 
   // Para 'pag', o backend já calcula classeStatus (notif-vencidos, notif-hoje etc.) — preservar
@@ -117,26 +122,46 @@ function montarAbas() {
   return abas;
 }
 
+// Chamado ao clicar no toast-resumo de contas vencidas (ver listaPag.forEach
+// em buscarNotificacoes) — abre o dropdown do sino já na aba "Vencidos".
+function abrirNotificacoesVencidos() {
+  abaAtiva = 'Vencidos';
+  document.getElementById('notif-dropdown')?.classList.add('aberto');
+  renderizarAbas(listaCompletaGlobal);
+  renderizarLista(listaCompletaGlobal.filter(n => n.status === 'Vencidos'));
+}
+
 // ─────────────────────────────────────────────
 // BUSCAR NOTIFICAÇÕES
 // ─────────────────────────────────────────────
 async function buscarNotificacoes() {
   try {
-    const [resNotif, resAgenda, resSol, resPag, resInclusao, resRetornoInclusao] = await Promise.all([
+    // A ordem dos nomes aqui precisa bater exatamente com a ordem das chamadas
+    // abaixo — bug antigo (anterior a essa sessão): a partir da 4ª posição os
+    // nomes estavam desalinhados (ex.: "resPag" recebia na real a resposta de
+    // inclusão de orçamentos, e "resRetornoInclusao" recebia a de pagamentos-
+    // contas). Resultado: o toast de "Conta Vencida" disparava um por conta
+    // (via o bloco de retornoInclusao, nunca tocado) mesmo depois de resumir
+    // o bloco — porque o resumo tinha sido aplicado na variável errada.
+    const [resNotif, resAgenda, resSol, resInclusao, resRetornoInclusao, resPag, resEmpresasSemLogo] = await Promise.all([
       apiFetch(`/notificacoes?status=${abaAtiva === 'Todas' ? '' : abaAtiva}`),
       apiFetch('/notificacoes/agenda-notificacao'),
       apiFetch('/notificacoes/solicitacoes-notificacao'),
       apiFetch('/notificacoes/inclusao-orcamentos-notificacao'),
       apiFetch('/notificacoes/retorno-Inclusao'),
       apiFetch('/notificacoes/pagamentos-contas'),
+      apiFetch('/notificacoes/empresas-sem-logo'),
     ]);
 
     const data                = await resNotif.json();
     const agendaData          = await resAgenda.json();
     const solData             = await resSol.json();
-    const pagData             = await resPag.json();
     const inclusaoData        = await resInclusao.json();
     const retornoInclusaoData = await resRetornoInclusao.json();
+    const pagData             = await resPag.json();
+    // 403 pra quem não é Devs (rota gated por exigirFlag('devs')) cai aqui mesmo,
+    // vira "não é array" e some — sem checagem de permissão duplicada no front.
+    const empresasSemLogoData = await resEmpresasSemLogo.json();
 
     const notificacoesBanco    = data.notificacoes || [];
     const listaAgenda          = Array.isArray(agendaData)          ? agendaData          : [];
@@ -144,6 +169,7 @@ async function buscarNotificacoes() {
     const listaPag             = Array.isArray(pagData)             ? pagData             : [];
     const listaInclusao        = Array.isArray(inclusaoData)        ? inclusaoData        : [];
     const listaRetornoInclusao = Array.isArray(retornoInclusaoData) ? retornoInclusaoData : [];
+    const listaEmpresasSemLogo = Array.isArray(empresasSemLogoData) ? empresasSemLogoData : [];
 
     // --- TOASTS ---
     listaAgenda.forEach(notif => {
@@ -174,12 +200,46 @@ async function buscarNotificacoes() {
         salvarToastsExibidos();
       }
     });
-    listaPag.forEach(notif => {
-      if (!toastsExibidos.has(notif.id)) {
-        toastsExibidos.add(notif.id);
-        salvarToastsExibidos();
+    // Contas vencidas: um toast por conta tomava a tela inteira quando havia
+    // muitas de uma vez (o hover pra "desempilhar" cobria até o menu
+    // principal). Um único toast-resumo, clicável, abre a lista completa
+    // (aba "Vencidos" do sino) em vez de inundar a tela.
+    const pagNovas = listaPag.filter(notif => !toastsExibidos.has(notif.id));
+    if (pagNovas.length > 0) {
+      const vencidasNovas = pagNovas.filter(n => n.status === 'Vencidos');
+      if (vencidasNovas.length > 0) {
+        exibirToast(
+          'danger',
+          vencidasNovas.length === 1 ? '1 conta vencida' : `${vencidasNovas.length} contas vencidas`,
+          'Clique para ver todas',
+          abrirNotificacoesVencidos
+        );
       }
-    });
+      pagNovas.forEach(notif => toastsExibidos.add(notif.id));
+      salvarToastsExibidos();
+    }
+
+    // Empresas com logo/ícone incompleto (logo, logoclaro, iconeescuro ou
+    // iconeclaro) — só quem tem a flag Devs recebe essa lista (rota já filtra no
+    // backend, exigirFlag('devs') — não Supremo, só Devs cadastra logo/ícone).
+    // O toast é só o "acabou de aparecer" (reaparece todo dia, mesma janela de
+    // toastsExibidos dos outros); a lista persistente fica na aba "Pendentes"
+    // do sino (ver normalizarStatus/listaCompletaGlobal mais abaixo) enquanto
+    // a empresa continuar incompleta — não precisa gravar notificacao pra
+    // isso, mesmo esquema computado na hora que já é usado em "pag"/Vencidos.
+    const empresasSemLogoNovas = listaEmpresasSemLogo.filter(notif => !toastsExibidos.has(notif.id));
+    if (empresasSemLogoNovas.length > 0) {
+      const nomes = empresasSemLogoNovas.map(n => n.nmfantasia).join(', ');
+      exibirToast(
+        'warning',
+        empresasSemLogoNovas.length === 1
+          ? '1 empresa sem logo/ícone completo'
+          : `${empresasSemLogoNovas.length} empresas sem logo/ícone completo`,
+        nomes
+      );
+      empresasSemLogoNovas.forEach(notif => toastsExibidos.add(notif.id));
+      salvarToastsExibidos();
+    }
 
     // --- NORMALIZAÇÃO E MONTAGEM DA LISTA ---
     const listaAgendaNorm     = listaAgenda.map(n          => normalizarStatus(n, 'agenda'));
@@ -188,12 +248,14 @@ async function buscarNotificacoes() {
     const listaPagNorm        = listaPag.map(n             => normalizarStatus(n, 'pag'));
     const listaInclusaoNorm   = listaInclusao.map(n        => normalizarStatus(n, 'inclusao'));
     const listaRetornoNorm    = listaRetornoInclusao.map(n => normalizarStatus(n, 'retornoInclusao'));
+    const listaEmpresasSemLogoNorm = listaEmpresasSemLogo.map(n => normalizarStatus(n, 'empresaSemLogo'));
 
     listaCompletaGlobal = [
       ...listaAgendaNorm,
       ...listaNotifBancoNorm,
       ...listaSolNorm,
       ...listaPagNorm,
+      ...listaEmpresasSemLogoNorm,
       ...listaInclusaoNorm,
       ...listaRetornoNorm,
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -203,7 +265,8 @@ async function buscarNotificacoes() {
     const pagNaoLidas             = listaPag.filter(p => !p.read).length;
     const inclusaoNaoLidas        = listaInclusao.filter(i => !i.read).length;
     const retornoInclusaoNaoLidas = listaRetornoInclusao.filter(r => !r.read).length;
-    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length + solNaoLidas + pagNaoLidas + inclusaoNaoLidas + retornoInclusaoNaoLidas;
+    const empresasSemLogoNaoLidas = listaEmpresasSemLogo.filter(e => !e.read).length;
+    const totalNaoLidas = (data.naoLidas || 0) + listaAgenda.length + solNaoLidas + pagNaoLidas + inclusaoNaoLidas + retornoInclusaoNaoLidas + empresasSemLogoNaoLidas;
 
     atualizarBadge(totalNaoLidas);
     renderizarAbas(listaCompletaGlobal);

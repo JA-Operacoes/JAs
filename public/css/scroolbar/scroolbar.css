@@ -20,7 +20,7 @@
   
   /* Adiciona um efeito de hover para o thumb */
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #ffffff;
+    background-color: var(--surface-1);
   }
 
 

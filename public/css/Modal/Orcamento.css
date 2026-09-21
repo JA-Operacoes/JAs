@@ -7,7 +7,7 @@
     width: 100%;
     height: auto;
    
-    background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+    background-color: var(--shadow-1); /* Cor preta com transparência */
     display: none; /* Inicialmente invisível */
     z-index: 1040; /* Fica acima de outros elementos */
   }
@@ -18,10 +18,10 @@
     top: 50%; /* Alinha verticalmente ao centro */
     left: 50%; /* Alinha horizontalmente ao centro */
     transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-    background-color: rgba(255, 255, 255, 0.356);
+    background-color: var(--surface-vidro);
     padding: 5px;
     border-radius: 8px;
-    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0px 0px 15px var(--shadow-1);
     width: 80%; /* Ajuste o tamanho conforme necessário */
     max-width: 700px;
     height: 500px; /* Largura máxima do modal */
@@ -126,7 +126,7 @@ body.modal-open .notif-conteudo {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.151);
+  box-shadow: 0px 10px 10px var(--shadow-1);
   position: relative;
 }
 .faq-button svg {
@@ -205,7 +205,7 @@ body.modal-open .notif-conteudo {
     justify-content: center;
     align-self: center;
     font-size: 17px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     border-radius: 8px;
     background-color: transparent;
   }
@@ -237,9 +237,9 @@ body.modal-open .notif-conteudo {
     width: 100%;
     height: 760px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
     overflow-y: auto;
     /* position: relative;  */
   }
@@ -253,9 +253,9 @@ body.modal-open .notif-conteudo {
     width: 100%;
     height: 1060px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
     overflow-y: auto;
     /* position: relative;  */
   }
@@ -380,9 +380,9 @@ body.modal-open .notif-conteudo {
     border-radius: 6px;
     font-size: 15px;
     padding: 0 15px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     background: transparent;
-    color: #000000;
+    color: var(--text-1);
     outline: none;
   }
 
@@ -434,7 +434,7 @@ body.modal-open .notif-conteudo {
   }
 
   option{
-    color: #ffffff;
+    color: var(--on-brand);
     background-color: #555;
   }
 .totais-grid {
@@ -543,9 +543,9 @@ body.modal-open .notif-conteudo {
     border-radius: 6px;
     font-size: 13px;
     padding: 0 15px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     background: transparent;
-    color: #000000;
+    color: var(--text-1);
     outline: none;
   }
 
@@ -556,9 +556,9 @@ body.modal-open .notif-conteudo {
     border-radius: 6px;
     font-size: 12px;
     padding: 0 20px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     background: transparent;
-    color: #000000;
+    color: var(--text-1);
     outline: none;
   }
 
@@ -569,9 +569,9 @@ body.modal-open .notif-conteudo {
     border-radius: 6px;
     font-size: 19px;
     padding: 0 15px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     background: transparent;
-    color: #000000;
+    color: var(--text-1);
     outline: none;
   }
 
@@ -583,7 +583,7 @@ body.modal-open .notif-conteudo {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    color: #000000;
+    color: var(--text-1);
     font-size: 15px;
     pointer-events: none;
     transition: 0.3s;
@@ -610,7 +610,7 @@ body.modal-open .notif-conteudo {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    color: #000000;
+    color: var(--text-1);
     font-size: 15px;
     pointer-events: none;
     transition: 0.3s;
@@ -628,7 +628,7 @@ body.modal-open .notif-conteudo {
     top: 0;
     left: 5%;
     font-size: 12px;
-    background: #cacaca;
+    background: var(--surface-4);
     margin-left: 5px;
   }
 
@@ -636,7 +636,7 @@ body.modal-open .notif-conteudo {
     top: 0px;
     left: 5%;
     font-size: 11px;
-    background: #cacaca;
+    background: var(--surface-4);
     margin-left: 10px;
   }
 
@@ -649,7 +649,7 @@ body.modal-open .notif-conteudo {
     justify-content: center;
     align-self: center;
     font-size: 20px;
-    border: 1px solid #000000;
+    border: 1px solid var(--border-2);
     border-radius: 8px;
     flex: 1;
   }
@@ -683,7 +683,7 @@ body.modal-open .notif-conteudo {
   }
 
   #avisoReajusteMensagem{
-    color: var(--primary-color);
+    color: var(--primary-texto);
     font-weight: bold;
     font-size: 15px;
     padding: 0px 10px;
@@ -717,7 +717,7 @@ select #idCliente, #idEvento{
 
 /* Estilo de cada tag */
 .pavilhao-tag {
-    background-color: #e9ecef;
+    background-color: var(--surface-3);
     border: 1px solid #3f3f3f;
     border-radius: 20px;
     padding: 4px 10px;
@@ -738,7 +738,7 @@ span.pavilhao-tag {
     /* font-size: 16px; */
     padding: 0;
     font-weight: bold;
-    color: #888;
+    color: var(--text-2);
 }
 
 .remover-pavilhao-btn:hover {
@@ -761,7 +761,7 @@ span.pavilhao-tag {
     top: 0;
     left: 25px;
     font-size: 12px;
-    background: #cacaca;
+    background: var(--surface-4);
   
   }
 
@@ -786,9 +786,9 @@ span.pavilhao-tag {
     height: 100px;
     border-radius: 6px;
     font-size: 15px;
-    border: 1px solid #000000;
-    background: white;
-    color: #000000;
+    border: 1px solid var(--border-2);
+    background: var(--surface-1);
+    color: var(--text-1);
     overflow-y: auto;
     scrollbar-width: thin;
     margin-left: 15px;
@@ -869,7 +869,7 @@ span.pavilhao-tag {
 .checkbox-wrapper-33 .checkbox__symbol {
   display: inline-block;
   display: flex;
-  border: var(--border-width) solid black;
+  border: var(--border-width) solid var(--border-2);
   position: relative;
   border-radius: 5px;
   width: 2em;
@@ -1007,10 +1007,10 @@ span.pavilhao-tag {
     height: 32px;
     padding: 0 12px;
     border-radius: 6px;
-    border: 1px solid #000;
+    border: 1px solid var(--border-2);
     font-family: "Abel", sans-serif;
     font-size: 14px;
-    background: #fff;
+    background: var(--surface-1);
     box-sizing: border-box;
   }
   .itens-filtro-lista {
@@ -1018,21 +1018,21 @@ span.pavilhao-tag {
     position: absolute;
     left: 0; right: 0; top: 100%;
     z-index: 50;
-    background: #fff;
-    border: 1px solid #ccc;
+    background: var(--surface-1);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     max-height: 220px;
     overflow-y: auto;
     margin: 4px 0 0;
     padding: 4px;
     list-style: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    box-shadow: 0 4px 12px var(--shadow-1);
   }
   .itens-filtro-lista.aberta { display: block; }
   .itens-filtro-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
-  .itens-filtro-lista li:hover { background: #f0f2f5; }
-  .itens-filtro-lista li.itens-filtro-todos { font-weight: bold; border-bottom: 1px solid #eee; margin-bottom: 4px; border-radius: 4px 4px 0 0; }
-  .itens-filtro-lista li.itens-filtro-vazio { color: #999; cursor: default; }
+  .itens-filtro-lista li:hover { background: var(--surface-3); }
+  .itens-filtro-lista li.itens-filtro-todos { font-weight: bold; border-bottom: 1px solid var(--border-1); margin-bottom: 4px; border-radius: 4px 4px 0 0; }
+  .itens-filtro-lista li.itens-filtro-vazio { color: var(--text-3); cursor: default; }
   .itens-filtro-lista li.itens-filtro-vazio:hover { background: none; }
   #btnTelaCheiaItens {
     width: auto;
@@ -1050,7 +1050,7 @@ span.pavilhao-tag {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     z-index: 99999;
-    background: #cacaca;
+    background: var(--surface-4);
     padding: 20px;
     overflow-y: hidden;
     border-radius: 0;
@@ -1095,7 +1095,7 @@ span.pavilhao-tag {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    background-color: white;
+    background-color: var(--surface-1);
     overflow-x: auto;
   }
 
@@ -1109,7 +1109,7 @@ span.pavilhao-tag {
  
 
   table, th, td {
-      border: 1px solid black;
+      border: 1px solid var(--border-2);
       text-align: center;
       white-space: nowrap;
 
@@ -1129,11 +1129,11 @@ span.pavilhao-tag {
     top: 0; /* Fixa no topo do contêiner de scroll */
                                /* Se não tiver, o conteúdo da tabela vai aparecer por trás ao rolar */
     z-index: 10; /* Garante que o cabeçalho fique acima do conteúdo que rola */
-    border-bottom: 1px solid black; /* Mantém a borda inferior */
+    border-bottom: 1px solid var(--border-2); /* Mantém a borda inferior */
     text-align: center;
     padding: 8px;
     white-space: nowrap; /* Impede que o texto do cabeçalho quebre linha, forçando o scroll horizontal se necessário */
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
 }
 
   /* incluido teste */
@@ -1166,7 +1166,7 @@ span.pavilhao-tag {
 
 /* 2. Estilo para o "fundo" da barra de rolagem (a trilha) */
 .table::-webkit-scrollbar-track {
-    background: #f1f1f1; /* Cor de fundo da trilha */
+    background: var(--surface-3); /* Cor de fundo da trilha */
     border-radius: 5px; /* Bordas arredondadas para a trilha */
 }
 
@@ -1182,7 +1182,7 @@ span.pavilhao-tag {
 }
 
 .table::-webkit-scrollbar-corner {
-    background: #cccccc; /* Cor do canto */
+    background: var(--surface-4); /* Cor do canto */
 }
 
   input.qtdDias:focus,input.qtdProduto:focus {
@@ -1198,7 +1198,7 @@ span.pavilhao-tag {
     width: 100px;
     height: 25px;
     margin: 5px auto;
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
     font-size: 13px;
     text-transform: uppercase;
   }
@@ -1209,7 +1209,7 @@ span.pavilhao-tag {
     width: 150px;
     height: 20px;
     margin: 5px auto;
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
     font-size: 13px;
   }
 
@@ -1254,7 +1254,7 @@ span.pavilhao-tag {
     width: 100px;
     height: 30px;
     margin: 5px auto;
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
     font-size: 13px;
   } */
 
@@ -1271,7 +1271,7 @@ span.pavilhao-tag {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.164);
+    box-shadow: 0px 0px 20px var(--shadow-1);
     cursor: pointer;
     transition-duration: 0.3s;
     overflow: hidden;
@@ -1346,7 +1346,7 @@ span.pavilhao-tag {
   height: auto;                  /* Remova altura fixa */
   width: 450px;
   border-radius: 10px;
-  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  box-shadow: 4px 4px 30px var(--shadow-1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1378,7 +1378,7 @@ span.pavilhao-tag {
 
 .header p {
   text-align: center;
-  color: black;
+  color: var(--text-1);
 }
 
 .footer {
@@ -1390,7 +1390,7 @@ span.pavilhao-tag {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  color: black;
+  color: var(--text-1);
   border: none;
   box-sizing: border-box;
   cursor: pointer;
@@ -1420,26 +1420,26 @@ display: none;
 
 .botao-pdf {
     background-color: #c62828 !important;  /* vermelho forte */
-    color: white !important;
+    color: var(--on-brand) !important;
     border: none !important;
     font-weight: bold;
 }
 
 .botao-word {
     background-color: #105DA1 !important;  /* azul word */
-    color: white !important;
+    color: var(--on-brand) !important;
     border: none !important;
     font-weight: bold;
 }
 
 .botao-word:hover{
-  background-color: white !important;
-  color: #105DA1 !important;
+  background-color: var(--surface-1) !important;
+  color: var(--status-info-fg) !important;
 }
 
 .botao-pdf:hover{
-  background-color: white !important;
-  color: #c62828 !important;
+  background-color: var(--surface-1) !important;
+  color: var(--status-erro-fg) !important;
 }
 
 /* Container geral do conteúdo dentro do Swal */
@@ -1458,7 +1458,7 @@ display: none;
   min-width: 260px; /* controla o tamanho visual dos labels */
   font-weight: 600;
   font-size: 0.95rem;
-  color: #000000;
+  color: var(--text-1);
   margin-top: 8px;
   letter-spacing: 0.3px;
 }
@@ -1468,7 +1468,7 @@ display: none;
   border-radius: 8px;
   border: 1px solid #555;
   background-color: transparent;
-  color: #000000;
+  color: var(--text-1);
   font-size: 0.95rem;
   padding: 10px;
   width: 100px;
@@ -1485,13 +1485,13 @@ display: none;
 
 /* Placeholders */
 .swal-container input::placeholder {
-  color: #999;
+  color: var(--text-3);
   font-style: italic;
 }
 
 /* Textos explicativos */
 .swal-container small {
-  color: #000000;
+  color: var(--text-1);
   font-size: 0.8rem;
   font-weight: 400;
   margin-top: -6px;
@@ -1550,7 +1550,7 @@ display: none;
 /* --------------------------------- Campos bloqueados ------------------------------------ */
 .bloqueado {
     background-color: #6b6b6b !important; /* cinza claro */
-    color: #ffffff !important;
+    color: var(--on-brand) !important;
     cursor: not-allowed !important;
 }
 
@@ -1559,7 +1559,7 @@ display: none;
 }
 
 .liberada{
-  background-color:#ffffff;
+  background-color: var(--surface-1);
 }
 
 .linha-vermelha {
@@ -1635,9 +1635,9 @@ display: none;
 .restrito-visualizacao th {
     position: sticky;
     top: 0; /* Fixa no topo do container */
-    background-color: #ffffff; /* Cor de fundo para o cabeçalho não ficar transparente ao rolar */
+    background-color: var(--surface-1); /* Cor de fundo para o cabeçalho não ficar transparente ao rolar */
     z-index: 10; /* Garante que fique acima dos TDs */
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
     text-align: center;
     white-space: nowrap;
     vertical-align: middle;
@@ -1645,7 +1645,7 @@ display: none;
 }
 
 .restrito-visualizacao td {
-    border: 1px solid black;
+    border: 1px solid var(--border-2);
     text-align: center;
     white-space: nowrap;
     vertical-align: middle;
@@ -1709,9 +1709,9 @@ display: none;
     width: 100%;
     height: 650px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   }
 }
 
@@ -1754,9 +1754,9 @@ display: none;
     width: 100%;
     height: 650px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   }
 }
 
@@ -1799,9 +1799,9 @@ display: none;
     width: 100%;
     height: 630px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   }
 
   #form{
@@ -1813,9 +1813,9 @@ display: none;
     width: 100%;
     height: 1060px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
     overflow-y: auto;
     /* position: relative;  */
   }
@@ -1965,9 +1965,9 @@ display: none;
     width: 100%;
     height: 550px;          /* Largura do formulário */
     margin: 0% auto;
-    background-color: #cacaca;
+    background-color: var(--surface-4);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    box-shadow: 0 0 10px var(--shadow-1); /* Sombra suave */
   }
 }
 
@@ -1976,7 +1976,7 @@ display: none;
   font-family: "Abel", sans-serif;
   margin-top: 14px;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--surface-vidro-medio);
   border-radius: 10px;
 }
 .parcelas-check {
@@ -1991,7 +1991,7 @@ display: none;
   width: auto;
   gap: 8px;
   font-size: 16px;
-  color: #171616;
+  color: var(--text-1);
   cursor: pointer;
 }
 .parcelas-check input[type="checkbox"] { width: 18px; height: 18px; }
@@ -2028,13 +2028,13 @@ display: none;
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
 }
 .parcelas-dividir input[type="number"] {
   width: 55px;
   font-family: "Abel", sans-serif;
   font-size: 15px;
-  border: 1.5px solid #9e9e9e;
+  border: 1.5px solid var(--border-2);
   border-radius: 6px;
   padding: 5px 8px;
   text-align: center;
@@ -2044,7 +2044,7 @@ display: none;
   font-family: "Abel", sans-serif;
   font-size: 14.5px;
   background-color: var(--primary-color, #942123);
-  color: #fff;
+  color: var(--on-brand);
   border: none;
   border-radius: 8px;
   padding: 6px 14px;
@@ -2064,12 +2064,12 @@ display: none;
 .parcelas-add { margin: 0; }
 .parcelas-add.parcelas-secundario {
   background-color: transparent;
-  color: var(--primary-color, #942123);
+  color: var(--primary-texto, #942123);
   border: 1.5px solid var(--primary-color, #942123);
 }
 .parcelas-add.parcelas-secundario:hover {
   background-color: var(--primary-color, #942123);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .parcelas-soma {
@@ -2083,7 +2083,7 @@ display: none;
 table.parcelas-tabela {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--surface-vidro-forte);
   border-radius: 8px;
   overflow: hidden;
   font-size: 15px;
@@ -2094,21 +2094,21 @@ table.parcelas-tabela th {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: #444;
+  color: var(--text-1);
   padding: 8px 10px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
 }
-table.parcelas-tabela td { padding: 6px 8px; border-bottom: 1px solid #d8d8d8; }
+table.parcelas-tabela td { padding: 6px 8px; border-bottom: 1px solid var(--border-1); }
 table.parcelas-tabela tr:last-child td { border-bottom: none; }
 
 table.parcelas-tabela input {
   font-family: "Abel", sans-serif;
   font-size: 15px;
-  border: 1.5px solid #9e9e9e;
+  border: 1.5px solid var(--border-2);
   border-radius: 6px;
   padding: 6px 8px;
-  background: #fff;
-  color: #171616;
+  background: var(--surface-1);
+  color: var(--text-1);
   width: 100%;
   box-sizing: border-box;
 }
@@ -2117,16 +2117,16 @@ table.parcelas-tabela input.parc-vencimento { min-width: 90px; }
 table.parcelas-tabela input.parc-valor { min-width: 110px; }
 table.parcelas-tabela input.parc-descricao { min-width: 120px; }
 table.parcelas-tabela input[readonly] {
-  background: #e9e9e9;
-  color: #555;
-  border-color: #c7c7c7;
+  background: var(--surface-3);
+  color: var(--text-1);
+  border-color: var(--border-1);
 }
 
 .parc-remover {
   font-family: "Abel", sans-serif;
   font-size: 16px;
   background: var(--Reject, #B50000);
-  color: #fff;
+  color: var(--on-brand);
   border: none;
   border-radius: 6px;
   width: 28px;
@@ -2134,7 +2134,7 @@ table.parcelas-tabela input[readonly] {
   cursor: pointer;
   line-height: 1;
 }
-.parc-remover:disabled { background: #aaa; cursor: not-allowed; }
+.parc-remover:disabled { background: var(--surface-inativo); cursor: not-allowed; }
 
 .parc-status-chip {
   display: inline-block;

@@ -376,7 +376,7 @@ async function salvarPagamento(event) {
         const confirmacao = await Swal.fire({
             title: tituloSwal,
             html: `
-                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
+                <div style="text-align: left; background: var(--surface-3); padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
                     <p><b>Parcela:</b> ${numParcela}º</p>
                     <p><b>Valor Base:</b> ${vlrRealStr}</p>
                     ${htmlAtraso}

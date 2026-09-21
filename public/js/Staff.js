@@ -1404,7 +1404,7 @@ function atualizarLayout() {
 //         if (instancia._input) instancia._input.disabled = true;
 //         instancia.close();
 //         instancia.input.style.pointerEvents = 'none';
-//         instancia.input.style.backgroundColor = '#f2f2f2'; // Estética de bloqueado
+//         instancia.input.style.backgroundColor = 'var(--surface-3)'; // Estética de bloqueado
 //     } else {
 //         if (instancia.input) instancia.input.readOnly = false;
 //         if (instancia._input) instancia._input.disabled = false;
@@ -1460,7 +1460,7 @@ const alternarBloqueioFlatpickr = (instancia, bloquear) => {
         if (instancia._input) instancia._input.disabled = true;
         instancia.close();
         instancia.input.style.pointerEvents = 'none';
-        instancia.input.style.backgroundColor = '#f2f2f2';
+        instancia.input.style.backgroundColor = 'var(--surface-3)';
     } else {
         // Só desbloqueia se NÃO for um campo marcado como permanentemente bloqueado
         instancia.input.readOnly = false;
@@ -1636,7 +1636,7 @@ function atualizarAjustesFinanceirosStaff(eventData) {
 
         const origemDiferente = a.idstaffeventoorigem && String(a.idstaffeventoorigem) !== String(idEventoAtual);
         const origemHtml = origemDiferente
-            ? `<div style="font-size:0.76em; color:#888; margin-top:2px;">Gerado no evento: ${a.nmevento_origem || '—'}</div>`
+            ? `<div style="font-size:0.76em; color:var(--text-2); margin-top:2px;">Gerado no evento: ${a.nmevento_origem || '—'}</div>`
             : '';
 
         const comprovanteHtml = a.comprovante
@@ -1648,7 +1648,7 @@ function atualizarAjustesFinanceirosStaff(eventData) {
                 <div>
                     <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${cor};">${label}</span>
                     <span style="font-weight:600; margin-left:8px;">${valorFmt}</span>
-                    <span style="margin-left:8px; font-size:0.85em; color:#555;">${(a.justificativa || '').replace(/</g, '&lt;')}</span>
+                    <span style="margin-left:8px; font-size:0.85em; color:var(--text-1);">${(a.justificativa || '').replace(/</g, '&lt;')}</span>
                     ${origemHtml}
                 </div>
                 <div style="text-align:right; white-space:nowrap;">
@@ -5401,7 +5401,7 @@ async function verificaStaff() {
                                                         <li>O limite financeiro da equipe está ultrapassado</li>
                                                     </ul>
                                                 </div>
-                                                <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left;">
+                                                <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left;">
                                                     Ao solicitar um <b>Aditivo</b>, serão criadas duas solicitações de aprovação — uma para a vaga no orçamento e outra para autorizar o funcionário. Ou cancele e corrija antes de prosseguir.
                                                 </p>
                                                 <button id="btn-fineq-aditivo-fe"
@@ -5409,7 +5409,7 @@ async function verificaStaff() {
                                                     <i class="fa fa-plus"></i> Solicitar Aditivo
                                                 </button>
                                                 <button id="btn-fineq-cancelar-fe"
-                                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                                     <i class="fa fa-times"></i> Cancelar
                                                 </button>
                                             </div>
@@ -5521,9 +5521,9 @@ async function verificaStaff() {
                                                 </div>
                                             </div>
                                             <div style="padding:16px 24px 20px;">
-                                                <p style="font-size:12px; color:#555; margin:0 0 12px; text-align:left; font-weight:600;">Situação de cada data:</p>
+                                                <p style="font-size:12px; color:var(--text-1); margin:0 0 12px; text-align:left; font-weight:600;">Situação de cada data:</p>
                                                 ${_dNormais.length ? `
-                                                <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#1b5e20;">
+                                                <div style="background:var(--surface-3); border:1px solid #a5d6a7; border-radius:5px; padding:8px 12px; margin-bottom:8px; text-align:left; font-size:12px; color:#1b5e20;">
                                                     <b>✅ Será alocada normalmente:</b> ${_fmtD(_dNormais)}<br>
                                                     <span style="font-size:11px; opacity:0.8;">Dentro do período orçado e funcionário disponível.</span>
                                                 </div>` : ''}
@@ -5542,7 +5542,7 @@ async function verificaStaff() {
                                                     <b>🚫 Fora do período orçado (vaga excedida):</b> ${_fmtD(_dForaOnly)}<br>
                                                     <span style="font-size:11px; opacity:0.8;">Data não planejada no orçamento. Exige solicitação de vaga extra.</span>
                                                 </div>` : ''}
-                                                <p style="font-size:12px; color:#555; margin:12px 0 14px; text-align:left;">
+                                                <p style="font-size:12px; color:var(--text-1); margin:12px 0 14px; text-align:left;">
                                                     Para as datas com restrição serão criadas as solicitações de aprovação necessárias. Escolha o tipo de vaga extra:
                                                 </p>
                                                 <div style="display:flex; gap:10px; margin-bottom:12px;">
@@ -5556,7 +5556,7 @@ async function verificaStaff() {
                                                     </button>
                                                 </div>
                                                 <button id="btn-fev-cancelar"
-                                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                                     <i class="fa fa-times"></i> Cancelar
                                                 </button>
                                             </div>
@@ -5582,7 +5582,7 @@ async function verificaStaff() {
                                         null,
                                         `<div style="border-radius:6px;overflow:hidden;margin-bottom:12px;font-size:12px;text-align:left;">
                                             ${_dNormais.length ? `
-                                            <div style="background:#e8f5e9;border:1px solid #a5d6a7;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#1b5e20;">
+                                            <div style="background:var(--surface-3);border:1px solid #a5d6a7;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#1b5e20;">
                                                 <b>✅ ${_fmtD(_dNormais)}</b> — será alocada normalmente (sem solicitação)
                                             </div>` : ''}
                                             ${_dFuncExc.length ? `
@@ -5597,7 +5597,7 @@ async function verificaStaff() {
                                             <div style="background:#fce4ec;border:1px solid #ef9a9a;padding:7px 12px;margin-bottom:4px;border-radius:5px;color:#880e4f;">
                                                 <b>🚫 ${_fmtD(_dForaOnly)}</b> — fora do período orçado → solicitação de ${_labelVaga}
                                             </div>` : ''}
-                                            <div style="padding:6px 0 0;color:#555;font-size:11px;">
+                                            <div style="padding:6px 0 0;color:var(--text-1);font-size:11px;">
                                                 A justificativa abaixo será aplicada a todas as solicitações criadas.
                                             </div>
                                         </div>`
@@ -7100,7 +7100,7 @@ async function verificaStaff() {
                                    Imagem da solicitação (print do WhatsApp etc., opcional):
                                </label>
                                <input type="file" id="swal-comprovante-cascata" accept="image/*,application/pdf" style="width:100%; font-size:0.85em;">
-                               <div id="swal-comprovante-nome-arquivo" style="margin-top:6px; font-size:0.82em; color:#888;">Nenhum arquivo selecionado</div>
+                               <div id="swal-comprovante-nome-arquivo" style="margin-top:6px; font-size:0.82em; color:var(--text-2);">Nenhum arquivo selecionado</div>
                            </div>`,
                     showCancelButton: true,
                     confirmButtonText: `Confirmar ${tipoAcao}`,
@@ -7118,7 +7118,7 @@ async function verificaStaff() {
                                 nomeArquivoCascataEl.style.color = '#198754';
                             } else {
                                 nomeArquivoCascataEl.textContent = 'Nenhum arquivo selecionado';
-                                nomeArquivoCascataEl.style.color = '#888';
+                                nomeArquivoCascataEl.style.color = 'var(--text-2)';
                             }
                         });
                     },
@@ -7550,11 +7550,11 @@ async function verificaStaff() {
                                     title: 'Limite financeiro da equipe',
                                     html: `
                                         <p>Este ajuste de <strong>${fmtBRL(vlrAjusteEnvio)}</strong> ultrapassa o saldo disponível da equipe.</p>
-                                        <p style="margin:8px 0;font-size:13px;color:#555;">
+                                        <p style="margin:8px 0;font-size:13px;color:var(--text-1);">
                                             Saldo disponível: <strong>${fmtBRL(Math.max(0, _saldoDisp))}</strong><br>
                                             Após o ajuste: <strong style="color:#dc2626;">${_saldoApos < 0 ? '-' : ''}${fmtBRL(_saldoApos)} ⚠️</strong>
                                         </p>
-                                        <p style="font-size:12px;color:#888;">A solicitação será enviada para aprovação.<br>O aprovador poderá autorizar ou rejeitar.</p>
+                                        <p style="font-size:12px;color:var(--text-2);">A solicitação será enviada para aprovação.<br>O aprovador poderá autorizar ou rejeitar.</p>
                                     `,
                                     showCancelButton: true,
                                     confirmButtonText: 'Enviar assim mesmo',
@@ -8196,7 +8196,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 
 //         // --- 5. DASHBOARD E MODAL (CORRIGIDO) ---
 //         // const htmlDashboard = `
-//         //     <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+//         //     <div style="text-align: left; font-size: 0.9rem; background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
 //         //         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
 //         //             <span>Vagas (Pessoas):</span>
 //         //             <span style="font-weight:bold;">${q_escalada} / ${q_orcada}</span>
@@ -8217,7 +8217,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //         const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
 
 //         const htmlDashboard = `
-//             <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+//             <div style="text-align: left; font-size: 0.9rem; background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
 //                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
 //                     <span>Diárias já utilizadas:</span>
 //                     <span style="font-weight:bold;">${d_utilizadas_exibir}</span>
@@ -8276,7 +8276,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //                 </div>
 //                 <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
 //             `;
-//             swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+//             swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: var(--on-brand); padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
 //         } else {
 //             // Define a mensagem de erro específica para o bloqueio
 //             let msgErro = "";
@@ -8728,7 +8728,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //         const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
 
 //         const htmlDashboard = `
-//             <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+//             <div style="text-align: left; font-size: 0.9rem; background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
 //                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
 //                     <span>Diárias já utilizadas:</span>
 //                     <span style="font-weight:bold;">${d_utilizadas_exibir}</span>
@@ -8785,7 +8785,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //                 </div>
 //                 <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
 //             `;
-//             swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+//             swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: var(--on-brand); padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
 //         } else {
 //             let msgErro = "";
 //             if (ultrapassouDiarias) msgErro = `Limite de Diárias excedido (${q_orcada} orçadas).`;
@@ -8836,7 +8836,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //                     </div>
 //                     <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
 //                 `;
-//                 swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+//                 swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: var(--on-brand); padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
 //             } else {
 //                 let msgErro = "";
 //                 if (ultrapassouDiarias) msgErro = `Limite de Diárias excedido (${q_orcada} orçadas).`;
@@ -9194,7 +9194,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //         const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
 
 //         const htmlDashboard = `
-//             <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+//             <div style="text-align: left; font-size: 0.9rem; background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
 //                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
 //                     <span>Diárias já utilizadas:</span>
 //                     <span style="font-weight:bold;">${d_utilizadas_exibir}</span>
@@ -9260,7 +9260,7 @@ const debouncedOnCriteriosChanged = debounce((acao = null) => {
 //                     </div>
 //                     <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
 //                 `;
-//                 swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+//                 swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: var(--on-brand); padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
 //             } else {
 //                 let msgErro = "";
 //                 if (ultrapassouDiarias) msgErro = `Limite de Diárias excedido (${q_orcada} orçadas).`;
@@ -9686,7 +9686,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         const datasFormatadasBR = datasForaDoPlanejado.map(d => d.split('-').reverse().join('/')).join(', ');
 
         const htmlDashboard = `
-            <div style="text-align: left; font-size: 0.9rem; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+            <div style="text-align: left; font-size: 0.9rem; background: var(--surface-3); padding: 12px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                     <span>Diárias já utilizadas:</span>
                     <span style="font-weight:bold;">${d_utilizadas_exibir}</span>
@@ -9758,7 +9758,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
                     </div>
                     <p style="margin-top:15px;">Deseja registrar como exceção ou apenas prosseguir?</p>
                 `;
-                swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: white; padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
+                swalOptions.footer = '<button id="btnProsseguirSem" class="swal2-confirm swal2-styled" style="background-color: #6e7881; border:none; border-radius: 5px; color: var(--on-brand); padding: 10px 15px; cursor: pointer; width: 400px; text-align:center;">Prosseguir Sem Solicitação</button>';
             } else {
                 let msgErro = "";
                 if (ultrapassouDiarias) msgErro = `Limite de Diárias excedido (${q_orcada} orçadas).`;
@@ -11341,7 +11341,7 @@ function configurarBuscaTextoFuncionarioStaff(select, funcionarios) {
                 const li = document.createElement("li");
                 li.textContent = f.apelido ? `${f.nome} — ${f.apelido}` : (f.nome || "");
                 li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
-                li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                li.addEventListener("mouseover", () => { li.style.background = "var(--surface-3)"; });
                 li.addEventListener("mouseout", () => { li.style.background = ""; });
                 // mousedown dispara antes do blur do input, evitando que a lista suma antes do clique.
                 li.addEventListener("mousedown", (e) => {
@@ -15758,8 +15758,8 @@ document.addEventListener('click', function(e) {
 //             //     let htmlDobrada = `O setor <b>"${setorAtual}"</b> não possui saldo de vagas para esta <b>Diária Dobrada (Virada de Turno)</b> no dia <b>${dataSolicitadaBR}</b>.<br><br>`;
                 
 //             //     if (opcoesVagasValidas.length > 0) {
-//             //         htmlDobrada += `<p style="font-size: 13px; color: #444; margin-bottom: 8px; font-weight: 500;">Selecione qual vaga disponível do orçamento deseja reaproveitar para cobrir esta virada:</p>`;
-//             //         htmlDobrada += `<select id="selectVagaDobra" style="width: 100%; height: 42px; border-radius: 4px; border: 1px solid #ccc; padding: 5px 10px; font-size: 14px; background-color: #fff; font-weight: bold; color: #333;">`;
+//             //         htmlDobrada += `<p style="font-size: 13px; color: var(--text-1); margin-bottom: 8px; font-weight: 500;">Selecione qual vaga disponível do orçamento deseja reaproveitar para cobrir esta virada:</p>`;
+//             //         htmlDobrada += `<select id="selectVagaDobra" style="width: 100%; height: 42px; border-radius: 4px; border: 1px solid #ccc; padding: 5px 10px; font-size: 14px; background-color: var(--surface-1); font-weight: bold; color: var(--text-1);">`;
 //             //         opcoesVagasValidas.forEach((vaga, idx) => {
 //             //             htmlDobrada += `<option value="${idx}">[${vaga.funcao}] - ${vaga.setor} (Saldo: ${vaga.saldo})</option>`;
 //             //         });
@@ -15782,7 +15782,7 @@ document.addEventListener('click', function(e) {
 //             //         cancelButtonText: 'Cancelar',
 //             //         cancelButtonColor: '#6c757d',
 //             //         footer: opcoesVagasValidas.length > 0 ? `
-//             //             <button id="btnProsseguirVagaDobra" style="display:inline-flex; background-color: #28a745 !important; color: #ffffff !important; border: 0; box-shadow: none; margin: 8px 0 0 0; padding: 12px 24px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; height: 46px; width: 100%; align-items: center; justify-content: center;">
+//             //             <button id="btnProsseguirVagaDobra" style="display:inline-flex; background-color: #28a745 !important; color: var(--on-brand) !important; border: 0; box-shadow: none; margin: 8px 0 0 0; padding: 12px 24px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; height: 46px; width: 100%; align-items: center; justify-content: center;">
 //             //                 Prosseguir reaproveitando vaga selecionada
 //             //             </button>
 //             //         ` : '',
@@ -15856,8 +15856,8 @@ document.addEventListener('click', function(e) {
 //                 let msg = `Não há vaga disponível no dia <b>${dataSolicitadaBR}</b> para o setor <b>"${setorAtual}"</b> na função <b>[${nmFuncao}]</b>.<br><br>`;
                 
 //                 if (opcoesVagasValidas.length > 0) {
-//                     msg += `<p style="font-size: 13px; color: #444; margin-bottom: 8px; font-weight: 500;"><b>Vagas com saldo encontradas no orçamento:</b></p>`;
-//                     msg += `<select id="selectVagaComum" style="width: 100%; height: 42px; border-radius: 4px; border: 1px solid #ccc; padding: 5px 10px; font-size: 14px; background-color: #fff; font-weight: bold; color: #333;">`;
+//                     msg += `<p style="font-size: 13px; color: var(--text-1); margin-bottom: 8px; font-weight: 500;"><b>Vagas com saldo encontradas no orçamento:</b></p>`;
+//                     msg += `<select id="selectVagaComum" style="width: 100%; height: 42px; border-radius: 4px; border: 1px solid #ccc; padding: 5px 10px; font-size: 14px; background-color: var(--surface-1); font-weight: bold; color: var(--text-1);">`;
 //                     opcoesVagasValidas.forEach((vaga, idx) => {
 //                         msg += `<option value="${idx}">[${vaga.funcao}] - ${vaga.setor} (Saldo: ${vaga.saldo})</option>`;
 //                     });
@@ -15880,7 +15880,7 @@ document.addEventListener('click', function(e) {
 //                     cancelButtonText: 'Cancelar',
 //                     cancelButtonColor: '#6c757d',
 //                     footer: opcoesVagasValidas.length > 0 ? `
-//                         <button id="btnCustomProsseguirVerde" style="display:inline-flex; background-color: #28a745 !important; color: #ffffff !important; border: 0; box-shadow: none; margin: 8px 0 0 0; padding: 12px 24px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; height: 46px; width: 100%; align-items: center; justify-content: center;">
+//                         <button id="btnCustomProsseguirVerde" style="display:inline-flex; background-color: #28a745 !important; color: var(--on-brand) !important; border: 0; box-shadow: none; margin: 8px 0 0 0; padding: 12px 24px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; height: 46px; width: 100%; align-items: center; justify-content: center;">
 //                             Prosseguir usando vaga selecionada
 //                         </button>
 //                     ` : '',
@@ -16840,7 +16840,7 @@ document.addEventListener('click', function(e) {
 //     //                 icon: 'warning',
 //     //                 title: 'Sem Vagas — Período fora do Planejado',
 //     //                 html: `
-//     //                     <p style="font-size:14px; color:#666; margin-bottom:12px;">
+//     //                     <p style="font-size:14px; color:var(--text-2); margin-bottom:12px;">
 //     //                         A data <b>${datasForaDoPeriodoBR}</b> está fora do orçamento e <b>não há saldo disponível</b> para a função <b>${nmFuncao}</b>.<br><br>
 //     //                         Selecione uma vaga disponível de outra função ou solicite uma exceção:
 //     //                     </p>
@@ -16854,13 +16854,13 @@ document.addEventListener('click', function(e) {
 //     //                 width: '520px',
 //     //                 footer: `
 //     //                     <div style="display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap;">
-//     //                         <button id="btn-excecao-aditivo" class="btn" style="padding:8px 16px; background:#8B0000; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                         <button id="btn-excecao-aditivo" class="btn" style="padding:8px 16px; background:#8B0000; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
 //     //                             <i class="fa fa-plus"></i> Solicitar Aditivo
 //     //                         </button>
-//     //                         <button id="btn-excecao-extra" class="btn" style="padding:8px 16px; background:#DC3545; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                         <button id="btn-excecao-extra" class="btn" style="padding:8px 16px; background:#DC3545; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
 //     //                             <i class="fa fa-star"></i> Extra Bonificado
 //     //                         </button>
-//     //                         <button id="btn-excecao-corrigir" class="btn" style="padding:8px 16px; background:#6C757D; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+//     //                         <button id="btn-excecao-corrigir" class="btn" style="padding:8px 16px; background:#6C757D; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
 //     //                             Corrigir Datas
 //     //                         </button>
 //     //                     </div>
@@ -17273,11 +17273,11 @@ document.addEventListener('click', function(e) {
 //                     icon: 'warning',
 //                     title: 'Data fora do Orçamento — Sem Saldo',
 //                     html: `
-//                         <p style="font-size:14px; color:#555; margin-bottom:12px; text-align:left;">
+//                         <p style="font-size:14px; color:var(--text-1); margin-bottom:12px; text-align:left;">
 //                             A(s) data(s) <b>${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado
 //                             e <b>não há saldo disponível</b> para a função <b>${nmFuncao}</b>.
 //                         </p>
-//                         <p style="font-size:13px; color:#777; margin-bottom:8px; text-align:left;">
+//                         <p style="font-size:13px; color:var(--text-2); margin-bottom:8px; text-align:left;">
 //                             Selecione uma vaga disponível de outra função para reaproveitar ou solicite uma exceção:
 //                         </p>
 //                         <select id="swal-select-vaga-semdado" class="form-control"
@@ -17292,15 +17292,15 @@ document.addEventListener('click', function(e) {
 //                     footer: `
 //                         <div style="display:flex; gap:10px; width:100%; justify-content:center; flex-wrap:wrap; padding-bottom:4px;">
 //                             <button id="btn-semsaldo-aditivo" class="btn"
-//                                 style="padding:9px 18px; background:#8B0000; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 style="padding:9px 18px; background:#8B0000; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
 //                                 <i class="fa fa-plus"></i> Solicitar Aditivo
 //                             </button>
 //                             <button id="btn-semsaldo-extra" class="btn"
-//                                 style="padding:9px 18px; background:#DC3545; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 style="padding:9px 18px; background:#DC3545; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
 //                                 <i class="fa fa-star"></i> Extra Bonificado
 //                             </button>
 //                             <button id="btn-semsaldo-corrigir" class="btn"
-//                                 style="padding:9px 18px; background:#6C757D; color:white; border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
+//                                 style="padding:9px 18px; background:#6C757D; color:var(--on-brand); border:none; border-radius:4px; font-weight:bold; font-size:13px; cursor:pointer;">
 //                                 Corrigir Datas
 //                             </button>
 //                         </div>
@@ -17411,7 +17411,7 @@ document.addEventListener('click', function(e) {
 //                 cancelButtonText: 'Cancelar',
 //                 footer: dentroDaMargem ? `
 //                     <button id="btnProsseguirSem"
-//                         style="width:100%; padding:12px; background-color:#7a1e27; color:white; border:none;
+//                         style="width:100%; padding:12px; background-color:#7a1e27; color:var(--on-brand); border:none;
 //                             border-radius:.25em; font-size:1rem; font-weight:500; cursor:pointer;">
 //                         Prosseguir sem solicitação
 //                     </button>` : '',
@@ -17763,17 +17763,17 @@ document.addEventListener('click', function(e) {
 //                                     <i class="fa fa-exclamation-triangle" style="color:#7a5c00; font-size:17px;"></i>
 //                                 </div>
 //                                 <div style="text-align:left;">
-//                                     <p style="font-size:15px; font-weight:600; color:#333; margin:0 0 4px;">
+//                                     <p style="font-size:15px; font-weight:600; color:var(--text-1); margin:0 0 4px;">
 //                                         Data fora do orçamento — sem saldo
 //                                     </p>
-//                                     <p style="font-size:13px; color:#666; margin:0; line-height:1.5;">
-//                                         As datas <b style="color:#333;">${datasForaDoPeriodoBR}</b> não constam no orçamento 
-//                                         aprovado e não há saldo disponível para a função <b style="color:#333;">${nmFuncao}</b>.
+//                                     <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
+//                                         As datas <b style="color:var(--text-1);">${datasForaDoPeriodoBR}</b> não constam no orçamento 
+//                                         aprovado e não há saldo disponível para a função <b style="color:var(--text-1);">${nmFuncao}</b>.
 //                                     </p>
 //                                 </div>
 //                             </div>
 
-//                             <p style="font-size:13px; color:#777; margin:0 0 10px; text-align:left;">
+//                             <p style="font-size:13px; color:var(--text-2); margin:0 0 10px; text-align:left;">
 //                                 Selecione uma vaga disponível de outra função para reaproveitar, ou escolha uma ação:
 //                             </p>
 
@@ -17785,7 +17785,7 @@ document.addEventListener('click', function(e) {
 
 //                             <button id="btn-semsaldo-vaga"
 //                                 style="width:100%; display:flex; align-items:center; justify-content:center;
-//                                     gap:8px; padding:10px; background:#198754; color:white; border:none;
+//                                     gap:8px; padding:10px; background:#198754; color:var(--on-brand); border:none;
 //                                     border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-bottom:10px;">
 //                                 <i class="fa fa-check"></i> Usar vaga selecionada
 //                             </button>
@@ -17793,13 +17793,13 @@ document.addEventListener('click', function(e) {
 //                             <div style="display:flex; gap:10px; margin-bottom:10px;">
 //                                 <button id="btn-semsaldo-aditivo"
 //                                     style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-//                                         gap:8px; padding:10px 8px; background:#6e1a1a; color:white; border:none;
+//                                         gap:8px; padding:10px 8px; background:#6e1a1a; color:var(--on-brand); border:none;
 //                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
 //                                     <i class="fa fa-plus"></i> Solicitar aditivo
 //                                 </button>
 //                                 <button id="btn-semsaldo-extra"
 //                                     style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-//                                         gap:8px; padding:10px 8px; background:#c0392b; color:white; border:none;
+//                                         gap:8px; padding:10px 8px; background:#c0392b; color:var(--on-brand); border:none;
 //                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
 //                                     <i class="fa fa-star"></i> Extra bonificado
 //                                 </button>
@@ -17807,7 +17807,7 @@ document.addEventListener('click', function(e) {
 
 //                             <button id="btn-semsaldo-corrigir"
 //                                 style="width:100%; display:flex; align-items:center; justify-content:center;
-//                                     gap:8px; padding:10px; background:#f0f0f0; color:#555; border:none;
+//                                     gap:8px; padding:10px; background:var(--surface-3); color:var(--text-1); border:none;
 //                                     border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
 //                                 <i class="fa fa-pencil"></i> Corrigir datas
 //                             </button>
@@ -17931,25 +17931,25 @@ document.addEventListener('click', function(e) {
 //                                         <i class="fa fa-calendar-times-o" style="color:#7a5c00; font-size:17px;"></i>
 //                                     </div>
 //                                     <div style="text-align:left;">
-//                                         <p style="font-size:15px; font-weight:600; color:#333; margin:0 0 4px;">
+//                                         <p style="font-size:15px; font-weight:600; color:var(--text-1); margin:0 0 4px;">
 //                                             Data fora do orçamento — com saldo disponível
 //                                         </p>
-//                                         <p style="font-size:13px; color:#666; margin:0; line-height:1.5;">
-//                                             As datas <b style="color:#333;">${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado,
-//                                             mas há <b style="color:#333;">${saldoAtual} vaga(s)</b> disponível para <b style="color:#333;">${nmFuncao}</b>.
+//                                         <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
+//                                             As datas <b style="color:var(--text-1);">${datasForaDoPeriodoBR}</b> não constam no orçamento aprovado,
+//                                             mas há <b style="color:var(--text-1);">${saldoAtual} vaga(s)</b> disponível para <b style="color:var(--text-1);">${nmFuncao}</b>.
 //                                         </p>
 //                                     </div>
 //                                 </div>
 
 //                                 ${infoMargem}
 
-//                                 <p style="font-size:13px; color:#777; margin:0 0 16px; text-align:left;">
+//                                 <p style="font-size:13px; color:var(--text-2); margin:0 0 16px; text-align:left;">
 //                                     Como deseja prosseguir?
 //                                 </p>
 
 //                                 <button id="btn-comsaldo-aditivo"
 //                                     style="width:100%; display:flex; align-items:center; justify-content:center;
-//                                         gap:8px; padding:10px; background:#6e1a1a; color:white; border:none;
+//                                         gap:8px; padding:10px; background:#6e1a1a; color:var(--on-brand); border:none;
 //                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-bottom:10px;">
 //                                     <i class="fa fa-plus"></i> Solicitar Aditivo
 //                                 </button>
@@ -17957,14 +17957,14 @@ document.addEventListener('click', function(e) {
 //                                 <div style="display:flex; gap:10px; margin-bottom:10px;">
 //                                     <button id="btn-comsaldo-extra"
 //                                         style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-//                                             gap:8px; padding:10px 8px; background:#c0392b; color:white; border:none;
+//                                             gap:8px; padding:10px 8px; background:#c0392b; color:var(--on-brand); border:none;
 //                                             border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
 //                                         <i class="fa fa-star"></i> Extra bonificado
 //                                     </button>
 //                                     ${dentroDaMargem ? `
 //                                     <button id="btn-comsaldo-prosseguir"
 //                                         style="flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-//                                             gap:8px; padding:10px 8px; background:#198754; color:white; border:none;
+//                                             gap:8px; padding:10px 8px; background:#198754; color:var(--on-brand); border:none;
 //                                             border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">
 //                                         <i class="fa fa-check"></i> Prosseguir assim
 //                                     </button>` : ''}
@@ -17972,7 +17972,7 @@ document.addEventListener('click', function(e) {
 
 //                                 <button id="btn-comsaldo-corrigir"
 //                                     style="width:100%; display:flex; align-items:center; justify-content:center;
-//                                         gap:8px; padding:10px; background:#f0f0f0; color:#555; border:none;
+//                                         gap:8px; padding:10px; background:var(--surface-3); color:var(--text-1); border:none;
 //                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
 //                                     <i class="fa fa-pencil"></i> Corrigir datas
 //                                 </button>
@@ -18207,7 +18207,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                         </div>
                     </div>
                     <div style="padding:20px 24px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left;">
+                        <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left;">
                             O limite financeiro da equipe foi ultrapassado. Solicite um <b>Aditivo</b> para incluir esta diária dobrada, ou corrija as datas.
                         </p>
                         <button id="btn-dobra-aditivo"
@@ -18215,7 +18215,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                             <i class="fa fa-plus"></i> Solicitar Aditivo
                         </button>
                         <button id="btn-dobra-corrigir"
-                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                             <i class="fa fa-pencil"></i> Corrigir datas
                         </button>
                     </div>
@@ -18447,7 +18447,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                                 icon: 'warning',
                                 title: 'Limite financeiro da equipe atingido',
                                 html: `
-                                    <div style="text-align:left; font-size:13px; color:#555;">
+                                    <div style="text-align:left; font-size:13px; color:var(--text-1);">
                                         <p style="margin:0 0 10px;">Custo proposto: <b>R$ ${custoPropostoChk.toFixed(2)}</b> | Saldo da equipe: <b style="color:#c0392b;">R$ ${saldoEqChk.toFixed(2)}</b></p>
                                         <p style="margin:0;">Isso ultrapassa o saldo atual da equipe. A solicitação será registrada como Pendente — quem decide se autoriza mesmo assim é o aprovador.</p>
                                     </div>
@@ -18518,7 +18518,7 @@ async function verificarLimiteDeFuncao(criterios, dadosErroBackend = null) {
                             icon: 'error',
                             title: 'Limite financeiro da equipe atingido',
                             html: `
-                                <div style="text-align:left; font-size:13px; color:#555;">
+                                <div style="text-align:left; font-size:13px; color:var(--text-1);">
                                     <p style="margin:0 0 10px;">Custo proposto: <b>R$ ${custoPropostoChk.toFixed(2)}</b> | Saldo da equipe: <b style="color:#c0392b;">R$ ${saldoEqChk.toFixed(2)}</b></p>
                                     <p style="margin:0;">Para incluir estas diárias é necessário solicitar um <b>Aditivo</b> ou corrigir as datas.</p>
                                 </div>
@@ -18900,11 +18900,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 <i class="fa fa-exclamation-triangle" style="color:#856404; font-size:17px;"></i>
                             </div>
                             <div style="text-align:left;">
-                                <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
+                                <p style="font-size:14px; font-weight:700; color:var(--text-1); margin:0 0 6px; line-height:1.4;">
                                     Datas fora do orçamento
                                 </p>
-                                <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
-                                    As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento, mas <strong style="color:${corVagasDisponiveis};">${textoVagasDisponiveis}</strong> para a função de <strong style="color:#222222;">"${nmFuncao}"</strong> em outro setor, outro orçamento ou outro período, mas <strong style="color:#c0392b;">${textoFaltantes}</strong>.
+                                <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
+                                    As datas <strong style="color:var(--text-1);">${datasForaDoPeriodoBR}</strong> não constam no orçamento, mas <strong style="color:${corVagasDisponiveis};">${textoVagasDisponiveis}</strong> para a função de <strong style="color:var(--text-1);">"${nmFuncao}"</strong> em outro setor, outro orçamento ou outro período, mas <strong style="color:#c0392b;">${textoFaltantes}</strong>.
                                 </p>
                             </div>
                         </div>
@@ -18914,10 +18914,10 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     if (vagasDisponiveisExibir > 0 && temCapacidadeFinanceiraParaReaproveitar) {
                         botaoMesmaFuncaoHtml = `
                             <button id="btn-remanejar-mesma-funcao"
-                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
                                 <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${vagasDisponiveisExibir} diárias)
                             </button>
-                            <div style="text-align: center; margin: 10px 0; font-size: 11px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
+                            <div style="text-align: center; margin: 10px 0; font-size: 11px; color: var(--text-2); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>
                         `;
                     } else if (vagasDisponiveisExibir > 0 && !temCapacidadeFinanceiraParaReaproveitar) {
                         botaoMesmaFuncaoHtml = `
@@ -18930,16 +18930,16 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     var vagaMesmaFuncaoOutroPeriodo = vagasMesmaFuncao[0];
                 } else {
                     templateHeaderHtml = `
-                        <div style="display:flex; align-items:flex-start; gap:14px; background:#f8f9fa; border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                        <div style="display:flex; align-items:flex-start; gap:14px; background:var(--surface-3); border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
                             <div style="width:38px; height:38px; border-radius:50%; background:#fff3cd; border:1px solid #f6d87f; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                                 <i class="fa fa-exclamation-triangle" style="color:#856404; font-size:17px;"></i>
                             </div>
                             <div style="text-align:left;">
-                                <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
+                                <p style="font-size:14px; font-weight:700; color:var(--text-1); margin:0 0 6px; line-height:1.4;">
                                     Datas fora do orçamento
                                 </p>
-                                <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
-                                    As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento e <strong style="color:#c0392b;">NÃO HÁ SALDO DISPONÍVEL</strong> para a função de <strong style="color:#222222;">"${nmFuncao}"</strong> para alocar <strong>${datasForaDoPeriodo.length} diárias</strong>.
+                                <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
+                                    As datas <strong style="color:var(--text-1);">${datasForaDoPeriodoBR}</strong> não constam no orçamento e <strong style="color:#c0392b;">NÃO HÁ SALDO DISPONÍVEL</strong> para a função de <strong style="color:var(--text-1);">"${nmFuncao}"</strong> para alocar <strong>${datasForaDoPeriodo.length} diárias</strong>.
                                 </p>
                             </div>
                         </div>
@@ -18991,11 +18991,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         if (vagasOutrasFuncoes.length === 0) {
                             optionsHtml = '<option value="">Selecione uma vaga disponível...</option>';
                         }
-                        optionsHtml += `<option disabled style="color:#bbb;">── Orçamento não liberado ──</option>`;
+                        optionsHtml += `<option disabled style="color:var(--text-3);">── Orçamento não liberado ──</option>`;
                         bloqueadasOutrasFuncoes.forEach(v => {
                             const labelSetor = (v.setor && v.setor.trim() !== '') ? ` | Setor: ${v.setor}` : ' | Sem Setor';
                             const labelPeriodo = v.periodo ? ` | Período: ${v.periodo}` : '';
-                            optionsHtml += `<option disabled style="color:#999;">🚫 ${v.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${v.idorcamento}) — Orçamento não liberado</option>`;
+                            optionsHtml += `<option disabled style="color:var(--text-3);">🚫 ${v.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${v.idorcamento}) — Orçamento não liberado</option>`;
                         });
                     }
                 } catch (e) {
@@ -19023,7 +19023,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             ${botaoMesmaFuncaoHtml}
 
                             ${estourouOrcamentoEquipe ? `
-                            <p style="font-size:13px; color:#555; margin:0 0 12px; text-align:left; font-weight:500;">
+                            <p style="font-size:13px; color:var(--text-1); margin:0 0 12px; text-align:left; font-weight:500;">
                                 O limite financeiro da equipe foi atingido. Solicite um <b>Aditivo</b> para incluir estas diárias, ou corrija as datas para se encaixar no orçamento atual.
                             </p>
                             <div style="background:#f8d7da;color:#721c24;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px;text-align:left;border:1px solid #f5c6cb;">
@@ -19034,7 +19034,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 <i class="fa fa-plus"></i> Solicitar Aditivo
                             </button>
                             ` : `
-                            <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+                            <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left; font-weight:500;">
                                 Selecione uma vaga disponível de outra função para reaproveitar, ou solicite um aditivo ou extra bonificado para cobrir as diárias faltantes. Se preferir, corrija as datas para se encaixar no orçamento atual.
                             </p>
 
@@ -19044,7 +19044,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             </select>
 
                             <button id="btn-semsaldo-vaga"
-                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
                                 <i class="fa fa-check"></i> Usar vaga selecionada
                             </button>
 
@@ -19061,7 +19061,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             `}
 
                             <button id="btn-semsaldo-corrigir"
-                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                 <i class="fa fa-pencil"></i> Corrigir datas
                             </button>
                         </div>
@@ -19266,12 +19266,12 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                                         <span style="color:#c92432; font-weight:bold; display: block; margin-top: 5px;">${datasSobraBR}</span>
                                                     </div>
                                                     <div class="card-reaproveitar-sobra">
-                                                        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 13.5px;">Reaproveitar Saldo de Outra Função:</label>
+                                                        <label style="font-weight: bold; color: var(--text-1); display: block; margin-bottom: 8px; font-size: 13.5px;">Reaproveitar Saldo de Outra Função:</label>
                                                         <select id="swal-select-vaga-sobra" class="swal2-select" style="display: block; width: 100%; margin: 0 0 12px 0; font-size: 13px; height: 38px; box-sizing: border-box;">
                                                             ${optionsSobraHtml}
                                                         </select>
                                                         <div id="feedback-cache" class="feedback-cache-sobra"></div>
-                                                        <button id="btn-sobra-alocar-outra" class="btn-sobra-full" style="background-color:#198754; color:white; margin:12px 0 0 0 !important;">
+                                                        <button id="btn-sobra-alocar-outra" class="btn-sobra-full" style="background-color:#198754; color:var(--on-brand); margin:12px 0 0 0 !important;">
                                                             Alocar na vaga selecionada
                                                         </button>
                                                     </div>
@@ -19282,7 +19282,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                                     <button id="btn-sobra-extra" class="btn-sobra-full" style="background-color:var(--hover-color); color:white;">
                                                         Solicitar Extra Bonificado - Datas fora do Orçamento
                                                     </button>
-                                                    <button id="btn-sobra-cancelar" class="btn-sobra-full" style="background-color:#6c757d; color:white;">
+                                                    <button id="btn-sobra-cancelar" class="btn-sobra-full" style="background-color:#6c757d; color:var(--on-brand);">
                                                         Cancelar e Voltar
                                                     </button>
                                                 </div>
@@ -19725,11 +19725,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                         As seguintes <b>${datasSobraVaga.length} datas</b> ainda precisam de destino:<br>
                                         <span style="color:#c92432; font-weight:bold; display:block; margin-top:5px;">${datasSobraBR}</span>
                                     </div>
-                                    <p style="font-size:13px; color:#555; margin:0 0 12px; text-align:left; font-weight:500;">Selecione uma vaga para as datas restantes:</p>
+                                    <p style="font-size:13px; color:var(--text-1); margin:0 0 12px; text-align:left; font-weight:500;">Selecione uma vaga para as datas restantes:</p>
                                     <select id="swal-select-sobra-parcial" class="form-control" style="width:100%; height:40px; font-size:13px; border-radius:6px; padding:6px 12px; margin-bottom:16px;">
                                         ${optionsSobraHtml}
                                     </select>
-                                    <button id="btn-sobra-parcial-usar" style="width:100%; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:10px;">
+                                    <button id="btn-sobra-parcial-usar" style="width:100%; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:10px;">
                                         <i class="fa fa-check"></i> Usar vaga para as datas restantes
                                     </button>
                                     <div style="display:flex; gap:10px;">
@@ -19873,17 +19873,17 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         padding: '0',
                         html: `
                             <!-- Banner de Alerta Superior (Cinza Claro Otimizado) -->
-                            <div style="display:flex; align-items:flex-start; gap:14px; background:#f8f9fa; border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
+                            <div style="display:flex; align-items:flex-start; gap:14px; background:var(--surface-3); border-bottom:1px solid #e9ecef; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px;">
                                 <!-- Círculo do Alerta com alto contraste agora -->
                                 <div style="width:38px; height:38px; border-radius:50%; background:#fff3cd; border:1px solid #f6d87f; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                                     <i class="fa fa-calendar-times-o" style="color:#856404; font-size:17px;"></i>
                                 </div>
                                 <div style="text-align:left;">
-                                    <p style="font-size:14px; font-weight:700; color:#333333; margin:0 0 6px; line-height:1.4;">
-                                        Data Fora Do Período Orçado, mas há <span style="color:#000; font-weight:800; font-size:15px; border-radius:4px; ">${saldoAtual}</span> diárias disponíveis para ${nmFuncao} neste mesmo orçamento e setor, em outro período
+                                    <p style="font-size:14px; font-weight:700; color:var(--text-1); margin:0 0 6px; line-height:1.4;">
+                                        Data Fora Do Período Orçado, mas há <span style="color:var(--text-1); font-weight:800; font-size:15px; border-radius:4px; ">${saldoAtual}</span> diárias disponíveis para ${nmFuncao} neste mesmo orçamento e setor, em outro período
                                     </p>
-                                    <p style="font-size:13px; color:#666666; margin:0; line-height:1.5;">
-                                        As datas <strong style="color:#222222;">${datasForaDoPeriodoBR}</strong> não constam no orçamento.
+                                    <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
+                                        As datas <strong style="color:var(--text-1);">${datasForaDoPeriodoBR}</strong> não constam no orçamento.
                                     </p>
                                 </div>
                             </div>
@@ -19893,14 +19893,14 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 
                                 ${infoMargem}
 
-                                <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+                                <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left; font-weight:500;">
                                     Como deseja prosseguir?
                                 </p>
 
                                 <!-- 1º: Prosseguir assim (Destaque Principal se estiver dentro da margem) -->
                                 ${dentroDaMargem ? `
                                 <button id="btn-comsaldo-prosseguir"
-                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
                                     <i class="fa fa-check"></i> Prosseguir usando vagas disponíveis
                                 </button>` : ''}
 
@@ -19925,7 +19925,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
 
                                 <!-- 3º: Botão Corrigir (Fundo neutro) -->
                                 <button id="btn-comsaldo-corrigir"
-                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                    style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                     <i class="fa fa-pencil"></i> Corrigir datas
                                 </button>
                             </div>
@@ -20097,11 +20097,11 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             });
                             const bloqueadasMesmaFuncao = (vagasBloqueadas || []).filter(v => String(v.idfuncao) === String(idFuncaoAtual));
                             if (bloqueadasMesmaFuncao.length > 0) {
-                                optionsHtml += `<option disabled style="color:#bbb;">── Orçamento não liberado ──</option>`;
+                                optionsHtml += `<option disabled style="color:var(--text-3);">── Orçamento não liberado ──</option>`;
                                 bloqueadasMesmaFuncao.forEach(v => {
                                     const labelSetor = (v.setor && v.setor.trim() !== '') ? ` | Setor: ${v.setor}` : ' | Sem Setor';
                                     const labelPeriodo = v.periodo ? ` | Período: ${v.periodo}` : '';
-                                    optionsHtml += `<option disabled style="color:#999;">🚫 ${v.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${v.idorcamento}) — Orçamento não liberado</option>`;
+                                    optionsHtml += `<option disabled style="color:var(--text-3);">🚫 ${v.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${v.idorcamento}) — Orçamento não liberado</option>`;
                                 });
                             }
                         } catch (e) {
@@ -20120,16 +20120,16 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                         <i class="fa fa-random" style="color:white; font-size:17px;"></i>
                                     </div>
                                     <div style="text-align:left;">
-                                        <p style="font-size:15px; font-weight:600; color:#333; margin:0 0 4px;">
+                                        <p style="font-size:15px; font-weight:600; color:var(--text-1); margin:0 0 4px;">
                                             Selecione a origem da vaga
                                         </p>
-                                        <p style="font-size:13px; color:#666; margin:0; line-height:1.5;">
+                                        <p style="font-size:13px; color:var(--text-2); margin:0; line-height:1.5;">
                                             Há múltiplos setores/orçamentos com saldo para <b>${nmFuncao}</b>.
                                             Selecione de qual será reaproveitada para as datas <b>${datasForaDoPeriodoBR}</b>.
                                         </p>
                                     </div>
                                 </div>
-                                <p style="font-size:13px; color:#777; margin:0 0 10px; text-align:left;">
+                                <p style="font-size:13px; color:var(--text-2); margin:0 0 10px; text-align:left;">
                                     Qual origem deseja usar?
                                 </p>
                                 <select id="swal-select-realocacao" class="form-control"
@@ -20139,7 +20139,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                                 </select>
                                 <button id="btn-realocacao-confirmar"
                                     style="width:100%; display:flex; align-items:center; justify-content:center;
-                                        gap:8px; padding:10px; background:#198754; color:white; border:none;
+                                        gap:8px; padding:10px; background:#198754; color:var(--on-brand); border:none;
                                         border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                     <i class="fa fa-check"></i> Confirmar
                                 </button>
@@ -20331,7 +20331,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                     icon: 'warning',
                     title: 'Limite financeiro da equipe atingido',
                     html: `
-                        <div style="text-align:left; font-size:13px; color:#555;">
+                        <div style="text-align:left; font-size:13px; color:var(--text-1);">
                             <p style="margin:0 0 10px;">Orçado: <b>R$ ${orcadoEqPer.toFixed(2)}</b> | Gasto: <b>R$ ${gastoEqPer.toFixed(2)}</b> | Saldo: <b>R$ ${saldoEqPer.toFixed(2)}</b></p>
                             <p style="margin:0;">Isso ultrapassa o saldo atual da equipe. A solicitação será registrada como Pendente — quem decide se autoriza mesmo assim é o aprovador.</p>
                         </div>
@@ -20368,7 +20368,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                         </div>
                     </div>
                     <div style="padding:20px 24px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left;">
+                        <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left;">
                             O limite financeiro da equipe foi ultrapassado. Solicite um <b>Aditivo</b> para incluir este staff, ou corrija as datas.
                         </p>
                         <button id="btn-fineq-aditivo"
@@ -20376,7 +20376,7 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
                             <i class="fa fa-plus"></i> Solicitar Aditivo
                         </button>
                         <button id="btn-fineq-corrigir"
-                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                            style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                             <i class="fa fa-pencil"></i> Corrigir datas
                         </button>
                     </div>
@@ -20583,32 +20583,32 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
 //         width: '520px',
 //         padding: '0',
 //         html: `
-//             <div style="display:flex; align-items:flex-start; gap:14px; background:#fff5f5; border-bottom:1px solid #ffe3e3; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px; text-align:left;">
+//             <div style="display:flex; align-items:flex-start; gap:14px; background:var(--surface-3); border-bottom:1px solid #ffe3e3; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px; text-align:left;">
 //                 <div style="width:38px; height:38px; border-radius:50%; background:#ffe3e3; border:1px solid #ffa8a8; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
 //                     <i class="fa fa-users" style="color:#e03131; font-size:17px;"></i>
 //                 </div>
 //                 <div style="text-align:left;">
 //                     <p style="font-size:14px; font-weight:700; color:#c92a2a; margin:0 0 6px; line-height:1.4;">Estouro de Orçamento Detectado</p>
-//                     <p style="font-size:13px; color:#495057; margin:0; line-height:1.5;">
-//                         A função <strong style="color:#212529;">"${nmFuncao}"</strong> possui limite de <strong>${limiteTotal}</strong> diárias (Já utilizadas: <strong>${totalJaEscalado}</strong>).<br>
+//                     <p style="font-size:13px; color:var(--text-1); margin:0; line-height:1.5;">
+//                         A função <strong style="color:var(--text-1);">"${nmFuncao}"</strong> possui limite de <strong>${limiteTotal}</strong> diárias (Já utilizadas: <strong>${totalJaEscalado}</strong>).<br>
 //                         As últimas <strong style="color:#e03131;">${qtdExcedida} diárias</strong> (<span style="color:#c92432; font-weight:bold;">${datasExcedidasBR}</span>) excedem o teto planejado.
 //                     </p>
 //                 </div>
 //             </div>
 
 //             <div style="padding:20px 24px;">
-//                 <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+//                 <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left; font-weight:500;">
 //                     Selecione uma vaga disponível de outra função para reaproveitar, ou escolha uma ação de exceção:
 //                 </p>
                 
-//                 <div style="background:#fafafa; border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:20px; text-align:left; box-sizing:border-box; width:100%;">
-//                     <label style="font-weight:bold; color:#333; display:block; margin-bottom:8px; font-size:13px;">
+//                 <div style="background:var(--surface-1); border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:20px; text-align:left; box-sizing:border-box; width:100%;">
+//                     <label style="font-weight:bold; color:var(--text-1); display:block; margin-bottom:8px; font-size:13px;">
 //                         <i class="fa fa-exchange"></i> Reaproveitar Saldo de Outra Função:
 //                     </label>
 //                     <select id="swal-select-vaga-alternativa" class="form-control" style="display:block; width:100%; margin:0 0 12px 0; font-size:13px; height:40px; border-radius:6px; padding:6px 12px; box-sizing:border-box;">
 //                         ${optionsHtml}
 //                     </select>
-//                     <button id="btn-confirmar-reaproveitamento" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(25, 135, 84, 0.2); box-sizing:border-box;">
+//                     <button id="btn-confirmar-reaproveitamento" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(25, 135, 84, 0.2); box-sizing:border-box;">
 //                         <i class="fa fa-check"></i> Usar vaga selecionada
 //                     </button>
 //                 </div>
@@ -20628,12 +20628,12 @@ const faltantes = totalDatasClicadas > vagasDisponiveisExibir ? (totalDatasClica
 //                 <div id="wrapper-justificativa-vagas" style="display:none; text-align:left; background:#fff9db; border:1px solid #ffe066; border-radius:6px; padding:15px; margin-bottom:12px; box-sizing:border-box; width:100%;">
 //                     <label style="font-size:12px; font-weight:700; color:#856404; display:block; margin-bottom:6px;">JUSTIFICATIVA DA EXCEÇÃO (OBRIGATÓRIA):</label>
 //                     <textarea id="swal-txt-justificativa-vagas" placeholder="Digite o motivo detalhado do estouro das vagas..." style="width:100%; height:65px; font-size:13px; padding:8px; border:1px solid #ced4da; border-radius:4px; resize:none; box-sizing:border-box; margin-bottom:8px;"></textarea>
-//                     <button id="btn-enviar-excecao-vagas" style="width:100%; padding:10px; background:#228be6; color:white; border:none; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; box-sizing:border-box;">
+//                     <button id="btn-enviar-excecao-vagas" style="width:100%; padding:10px; background:#228be6; color:var(--on-brand); border:none; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; box-sizing:border-box;">
 //                         Confirmar e Salvar Solicitacão
 //                     </button>
 //                 </div>
 
-//                 <button id="btn-cancelar-operacao" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #999; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-top:8px;">
+//                 <button id="btn-cancelar-operacao" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #999; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-top:8px;">
 //                     <i class="fa fa-times"></i> Cancelar Operação
 //                 </button>
 //             </div>
@@ -20720,10 +20720,10 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
         : 0;
     const botaoMesmaFuncaoExcecao2Html = (vagaMesmaFuncaoExcecao2 && saldoMesmaFuncaoExcecao2 > 0)
         ? `<button id="btn-alocar-mesma-funcao-excecao2"
-                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
+                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:12px; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.2);">
                 <i class="fa fa-exchange"></i> Alocar função com as vagas disponíveis (${saldoMesmaFuncaoExcecao2} diárias)
             </button>
-            <div style="text-align:center; margin:8px 0 14px; font-size:11px; color:#888; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>`
+            <div style="text-align:center; margin:8px 0 14px; font-size:11px; color:var(--text-2); font-weight:bold; text-transform:uppercase; letter-spacing:1px;">OU SE PREFERIR OUTRA OPÇÃO:</div>`
         : '';
 
     // Verifica saldo financeiro da equipe para exibir/ocultar o botão Extra Bonificado
@@ -20785,14 +20785,14 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
         width: '520px',
         padding: '0',
         html: `
-            <div style="display:flex; align-items:flex-start; gap:14px; background:#fff5f5; border-bottom:1px solid #ffe3e3; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px; text-align:left;">
+            <div style="display:flex; align-items:flex-start; gap:14px; background:var(--surface-3); border-bottom:1px solid #ffe3e3; padding:20px 24px; border-top-left-radius:5px; border-top-right-radius:5px; text-align:left;">
                 <div style="width:38px; height:38px; border-radius:50%; background:#ffe3e3; border:1px solid #ffa8a8; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     <i class="fa fa-users" style="color:#e03131; font-size:17px;"></i>
                 </div>
                 <div style="text-align:left;">
                     <p style="font-size:14px; font-weight:700; color:#c92a2a; margin:0 0 6px; line-height:1.4;">Vagas Excedidas Detectadas</p>
-                    <p style="font-size:13px; color:#495057; margin:0; line-height:1.5;">
-                        A função <strong style="color:#212529;">"${nmFuncao}"</strong> possui limite de <strong>${limiteTotal}</strong> diárias (Já utilizadas: <strong>${totalJaEscalado}</strong>).<br>
+                    <p style="font-size:13px; color:var(--text-1); margin:0; line-height:1.5;">
+                        A função <strong style="color:var(--text-1);">"${nmFuncao}"</strong> possui limite de <strong>${limiteTotal}</strong> diárias (Já utilizadas: <strong>${totalJaEscalado}</strong>).<br>
                         As últimas <strong style="color:#e03131;">${qtdExcedida} diárias</strong> (<span style="color:#c92432; font-weight:bold;">${datasExcedidasBR}</span>) excedem o orçamento.
                     </p>
                 </div>
@@ -20800,15 +20800,15 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
 
             <div style="padding:20px 24px;">
                 ${botaoMesmaFuncaoExcecao2Html}
-                <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left; font-weight:500;">
+                <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left; font-weight:500;">
                     ${outrasVagasFiltradas.length > 0
                         ? 'Selecione uma vaga disponível de outra função para reaproveitar, ou escolha uma ação de exceção:'
                         : 'Escolha uma ação de exceção para prosseguir:'}
                 </p>
 
                 ${outrasVagasFiltradas.length > 0 ? `
-                <div style="background:#fafafa; border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:20px; text-align:left; box-sizing:border-box; width:100%;">
-                    <label style="font-weight:bold; color:#333; display:block; margin-bottom:8px; font-size:13px;">
+                <div style="background:var(--surface-1); border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:20px; text-align:left; box-sizing:border-box; width:100%;">
+                    <label style="font-weight:bold; color:var(--text-1); display:block; margin-bottom:8px; font-size:13px;">
                         <i class="fa fa-exchange"></i> Reaproveitar Saldo de Outra Função:
                     </label>
                     <select id="swal-select-vaga-alternativa" class="form-control" style="display:block; width:100%; margin:0 0 12px 0; font-size:13px; height:40px; border-radius:6px; padding:6px 12px; box-sizing:border-box;">
@@ -20817,7 +20817,7 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
 
                     <div id="feedback-cache" style="display: none; padding: 10px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; line-height: 1.4; width: 100%; box-sizing: border-box;"></div>
 
-                    <button id="btn-confirmar-reaproveitamento" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:white; border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(25, 135, 84, 0.2); box-sizing:border-box;">
+                    <button id="btn-confirmar-reaproveitamento" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#198754; color:var(--on-brand); border:none; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(25, 135, 84, 0.2); box-sizing:border-box;">
                         <i class="fa fa-check"></i> Usar vaga selecionada
                     </button>
                 </div>
@@ -20845,12 +20845,12 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
                 <div id="wrapper-justificativa-vagas" style="display:none; text-align:left; background:#fff9db; border:1px solid #ffe066; border-radius:6px; padding:15px; margin-bottom:12px; box-sizing:border-box; width:100%;">
                     <label style="font-size:12px; font-weight:700; color:#856404; display:block; margin-bottom:6px;">JUSTIFICATIVA DA EXCEÇÃO (OBRIGATÓRIA):</label>
                     <textarea id="swal-txt-justificativa-vagas" placeholder="Digite o motivo detalhado do estouro das vagas..." style="width:100%; height:65px; font-size:13px; padding:8px; border:1px solid #ced4da; border-radius:4px; resize:none; box-sizing:border-box; margin-bottom:8px;"></textarea>
-                    <button id="btn-enviar-excecao-vagas" style="width:100%; padding:10px; background:#228be6; color:white; border:none; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; box-sizing:border-box;">
+                    <button id="btn-enviar-excecao-vagas" style="width:100%; padding:10px; background:#228be6; color:var(--on-brand); border:none; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; box-sizing:border-box;">
                         Confirmar e Salvar Solicitacão
                     </button>
                 </div>
 
-                <button id="btn-cancelar-operacao" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #999; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-top:8px;">
+                <button id="btn-cancelar-operacao" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #999; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; margin-top:8px;">
                     <i class="fa fa-calendar-times-o"></i> Corrigir Datas
                 </button>
             </div>
@@ -21088,11 +21088,11 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
 
 //         // 🌟 Injeta a data formatada no Título e no subtítulo do Swal
 //         await Swal.fire({
-//             title: `<span style="font-size: 20px; font-weight: bold; color: #333;">Diária Dobrada Detectada - ${dataFormatadaBR}</span>`,
+//             title: `<span style="font-size: 20px; font-weight: bold; color: var(--text-1);">Diária Dobrada Detectada - ${dataFormatadaBR}</span>`,
 //             html: `
 //                 <div style="text-align: left; padding: 0 5px;">
-//                     <p style="font-size: 14px; color: #666; margin-bottom: 12px;">
-//                         Por favor, selecione qual a função que deseja associar para a diária dobrada do dia <b style="color: #000;">${dataFormatadaBR}</b>:
+//                     <p style="font-size: 14px; color: var(--text-2); margin-bottom: 12px;">
+//                         Por favor, selecione qual a função que deseja associar para a diária dobrada do dia <b style="color: var(--text-1);">${dataFormatadaBR}</b>:
 //                     </p>
                     
 //                     <select id="swal-select-funcao" class="form-control" style="width: 100%; height: 40px; font-size: 14px; margin-bottom: 20px; border-radius: 6px; padding: 6px 12px;">
@@ -21100,27 +21100,27 @@ async function solicitarDecisaoExcessoDeVagas({ nmFuncao, limiteTotal, totalJaEs
 //                     </select>
                     
 //                     <div style="border-top: 1px solid #e9ecef; margin: 15px 0; padding-top: 15px; text-align: center;">
-//                         <p style="font-size: 13px; font-weight: 500; color: #777; margin-bottom: 12px;">
+//                         <p style="font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 12px;">
 //                             Não encontrou a vaga ou saldo necessário para sua equipe no dia ${dataFormatadaBR}?
 //                         </p>
                         
 //                         <div style="display: flex; gap: 12px; justify-content: center; width: 100%; margin-bottom: 25px;">
 //                             <button type="button" id="btn-solicitar-aditivo" class="btn" 
-//                                     style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #8B0000; color: white; border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
+//                                     style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #8B0000; color: var(--on-brand); border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
 //                                 <i class="fa fa-plus"></i> Solicitar Aditivo
 //                             </button>
 //                             <button type="button" id="btn-solicitar-extra" class="btn" 
-//                                     style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #DC3545; color: white; border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
+//                                     style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #DC3545; color: var(--on-brand); border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
 //                                 <i class="fa fa-star"></i> Extra Bonificado
 //                             </button>
 //                         </div>
 //                     </div>
 
 //                     <div style="border-top: 1px solid #e9ecef; padding-top: 15px; display: flex; justify-content: center; gap: 15px; width: 100%;">
-//                         <button type="button" id="btn-confirmar-alocacao" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #28A745; color: white; border: none; border-radius: 6px;">
+//                         <button type="button" id="btn-confirmar-alocacao" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #28A745; color: var(--on-brand); border: none; border-radius: 6px;">
 //                             Confirmar Alocação
 //                         </button>
-//                         <button type="button" id="btn-cancelar-modal" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #6C757D; color: white; border: none; border-radius: 6px;">
+//                         <button type="button" id="btn-cancelar-modal" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #6C757D; color: var(--on-brand); border: none; border-radius: 6px;">
 //                             Cancelar
 //                         </button>
 //                     </div>
@@ -21436,7 +21436,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                 await Swal.fire({
                     title: `<span style="font-size:18px;font-weight:bold;">Diária Dobrada — ${dataFormatadaBR}</span><br><span style="font-size:13px;font-weight:600;color:#8B0000;letter-spacing:0.5px;">NÃO HÁ VAGAS DISPONÍVEIS</span>`,
                     html: `
-                        <p style="font-size:14px;color:#555;margin-bottom:12px;">
+                        <p style="font-size:14px;color:var(--text-1);margin-bottom:12px;">
                             Selecione a função desejada para verificação da solicitação de inclusão no orçamento
                             (<b>Aditivo</b> ou <b>Extra Bonificado</b>) para liberação da diária dobrada de <b>${dataFormatadaBR}</b>:
                         </p>
@@ -21499,7 +21499,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                         const resultNivel = await Swal.fire({
                             title: '<span style="font-size:18px;font-weight:bold;">Nível de Experiência</span>',
                             html: `
-                                <p style="font-size:14px;color:#555;margin-bottom:10px;">Selecione o nível para <b>${funcaoSelecionada.descfuncao}</b>:</p>
+                                <p style="font-size:14px;color:var(--text-1);margin-bottom:10px;">Selecione o nível para <b>${funcaoSelecionada.descfuncao}</b>:</p>
                                 <select id="swal-nivel-sv" class="form-control"
                                         style="width:100%;height:42px;font-size:14px;border-radius:6px;padding:6px 12px;">
                                     <option value="">Selecione o nível...</option>
@@ -21561,28 +21561,28 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
             let msgPrincipal = '';
             if (podeBonificado && saldoFin > 0) {
                 msgPrincipal = `
-                    <p style="margin-bottom:8px;color:#333;font-size:13px;">
+                    <p style="margin-bottom:8px;color:var(--text-1);font-size:13px;">
                         Não há vagas disponíveis para <b>${nomeFuncaoExib}${nivelExib}</b> em <b>${dataFormatadaBR}</b>,
                         porém há <b style="color:#198754">saldo financeiro de ${fmt(saldoFin)}</b> disponível na equipe.
                     </p>
-                    <p style="margin-bottom:12px;color:#555;font-size:13px;">
+                    <p style="margin-bottom:12px;color:var(--text-1);font-size:13px;">
                         Solicite a vaga de <b>${nomeFuncaoExib}</b> como <b>Aditivo</b> (fica pendente de aprovação e inclusão no orçamento com aumento de custo para o cliente)
                         ou como <b>Extra Bonificado</b> (sem custo para o cliente, custo da empresa).
                     </p>`;
             } else if (podeBonificado && orcadoFin === 0) {
                 msgPrincipal = `
-                    <p style="margin-bottom:8px;color:#333;font-size:13px;">
+                    <p style="margin-bottom:8px;color:var(--text-1);font-size:13px;">
                         Não há vagas disponíveis para <b>${nomeFuncaoExib}${nivelExib}</b> em <b>${dataFormatadaBR}</b>.
                     </p>
-                    <p style="margin-bottom:12px;color:#555;font-size:13px;">
+                    <p style="margin-bottom:12px;color:var(--text-1);font-size:13px;">
                         Solicite a vaga como <b>Aditivo</b> ou como <b>Extra Bonificado</b>.
                     </p>`;
             } else {
                 msgPrincipal = `
-                    <p style="margin-bottom:8px;color:#333;font-size:13px;">
+                    <p style="margin-bottom:8px;color:var(--text-1);font-size:13px;">
                         Não há vagas disponíveis para <b>${nomeFuncaoExib}${nivelExib}</b> em <b>${dataFormatadaBR}</b>.
                     </p>
-                    <p style="margin-bottom:12px;color:#555;font-size:13px;">
+                    <p style="margin-bottom:12px;color:var(--text-1);font-size:13px;">
                         Solicite a vaga como <b>Aditivo</b> para inclusão no orçamento.
                     </p>`;
             }
@@ -21595,17 +21595,17 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                     ${avisoSaldo}
                     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
                         <button type="button" id="btn-sem-vaga-aditivo"
-                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#8B0000;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#8B0000;color:var(--on-brand);border:none;border-radius:4px;cursor:pointer;">
                             ➕ Solicitar Aditivo
                         </button>
                         ${podeBonificado ? `
                         <button type="button" id="btn-sem-vaga-bonificado"
-                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#DC3545;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#DC3545;color:var(--on-brand);border:none;border-radius:4px;cursor:pointer;">
                             ⭐ Extra Bonificado
                         </button>
                         ` : ''}
                         <button type="button" id="btn-sem-vaga-entendido"
-                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#6C757D;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                style="padding:8px 16px;font-weight:bold;font-size:13px;background:#6C757D;color:var(--on-brand);border:none;border-radius:4px;cursor:pointer;">
                             Entendido
                         </button>
                     </div>
@@ -21742,11 +21742,11 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                 })
             });
             if (Array.isArray(vagasBloqueadas) && vagasBloqueadas.length > 0) {
-                optionsHtml += `<option disabled style="color:#bbb;">── Orçamento não liberado ──</option>`;
+                optionsHtml += `<option disabled style="color:var(--text-3);">── Orçamento não liberado ──</option>`;
                 vagasBloqueadas.forEach(vaga => {
                     const labelSetor   = (vaga.setor && vaga.setor.trim() !== '') ? ` | Setor: ${vaga.setor}` : ' | Sem Setor';
                     const labelPeriodo = vaga.periodo ? ` | Período: ${vaga.periodo}` : '';
-                    optionsHtml += `<option disabled style="color:#999;">🚫 ${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${vaga.idorcamento}) — Orçamento não liberado</option>`;
+                    optionsHtml += `<option disabled style="color:var(--text-3);">🚫 ${vaga.nmfuncao}${labelSetor}${labelPeriodo} (Orç: ${vaga.idorcamento}) — Orçamento não liberado</option>`;
                 });
             }
         } catch (e) {
@@ -21759,13 +21759,13 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
         let nmFuncaoSelecionadaNoClique    = null;
 
         await Swal.fire({
-            title: `<span style="font-size: 20px; font-weight: bold; color: #333;">Diária Dobrada Detectada - ${dataFormatadaBR}</span>`,
+            title: `<span style="font-size: 20px; font-weight: bold; color: var(--text-1);">Diária Dobrada Detectada - ${dataFormatadaBR}</span>`,
             html: `
                 <div style="text-align: left; padding: 0 5px;">
-                    <p style="font-size: 14px; color: #666; margin-bottom: 12px;">
+                    <p style="font-size: 14px; color: var(--text-2); margin-bottom: 12px;">
                         ${!temSaldoFinanceiroDobra
-                            ? `Orçamento da equipe sem saldo financeiro. Selecione a função para <b>Solicitar Aditivo</b> da diária dobrada de <b style="color:#000;">${dataFormatadaBR}</b>:`
-                            : `Selecione qual função associar à diária dobrada de <b style="color: #000;">${dataFormatadaBR}</b>:`
+                            ? `Orçamento da equipe sem saldo financeiro. Selecione a função para <b>Solicitar Aditivo</b> da diária dobrada de <b style="color:var(--text-1);">${dataFormatadaBR}</b>:`
+                            : `Selecione qual função associar à diária dobrada de <b style="color: var(--text-1);">${dataFormatadaBR}</b>:`
                         }
                     </p>
 
@@ -21774,7 +21774,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                     </select>
 
                     <div style="border-top: 1px solid #e9ecef; margin: 15px 0; padding-top: 15px; text-align: center;">
-                        <p style="font-size: 13px; font-weight: 500; color: #777; margin-bottom: 12px;">
+                        <p style="font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 12px;">
                             ${!temSaldoFinanceiroDobra
                                 ? `Sem saldo financeiro disponível na equipe:`
                                 : `Não encontrou a vaga ou saldo necessário para sua equipe no dia ${dataFormatadaBR}?`
@@ -21783,12 +21783,12 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
 
                         <div style="display: flex; gap: 12px; justify-content: center; width: 100%; margin-bottom: 8px;">
                             <button type="button" id="btn-solicitar-aditivo" class="btn"
-                                    style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #8B0000; color: white; border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
+                                    style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #8B0000; color: var(--on-brand); border: none; display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 4px;">
                                 <i class="fa fa-plus"></i> Solicitar Aditivo
                             </button>
                             ${temSaldoFinanceiroDobra ? `
                             <button type="button" id="btn-solicitar-extra" class="btn"
-                                    style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #DC3545; color: white; border: none; align-items: center; justify-content: center; gap: 5px; border-radius: 4px; display: none;">
+                                    style="flex: 1; max-width: 180px; padding: 8px; font-weight: bold; font-size: 13px; background-color: #DC3545; color: var(--on-brand); border: none; align-items: center; justify-content: center; gap: 5px; border-radius: 4px; display: none;">
                                 <i class="fa fa-star"></i> Extra Bonificado
                             </button>
                             ` : ''}
@@ -21802,11 +21802,11 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
 
                     <div style="border-top: 1px solid #e9ecef; padding-top: 15px; display: flex; justify-content: center; gap: 15px; width: 100%;">
                         ${temSaldoFinanceiroDobra ? `
-                        <button type="button" id="btn-confirmar-alocacao" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #28A745; color: white; border: none; border-radius: 6px;">
+                        <button type="button" id="btn-confirmar-alocacao" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #28A745; color: var(--on-brand); border: none; border-radius: 6px;">
                             Confirmar Alocação
                         </button>
                         ` : ''}
-                        <button type="button" id="btn-cancelar-modal" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #6C757D; color: white; border: none; border-radius: 6px;">
+                        <button type="button" id="btn-cancelar-modal" class="btn" style="padding: 10px 24px; font-weight: bold; font-size: 14px; background-color: #6C757D; color: var(--on-brand); border: none; border-radius: 6px;">
                             ${!temSaldoFinanceiroDobra ? 'Corrigir datas' : 'Cancelar'}
                         </button>
                     </div>
@@ -22031,7 +22031,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
 
             //     const { value: textoJustificativa } = await Swal.fire({
             //         title: 'Justificativa Obrigatória',
-            //         html: `Informe o motivo da Diária Dobrada para o dia <b>${dataFormatadaBR}</b>:<br><small style="color:#777;">(Função: ${nomeVaga} | Orçamento: ${idOrcamentoFinal})</small>`,
+            //         html: `Informe o motivo da Diária Dobrada para o dia <b>${dataFormatadaBR}</b>:<br><small style="color:var(--text-2);">(Função: ${nomeVaga} | Orçamento: ${idOrcamentoFinal})</small>`,
             //         input: 'textarea',
             //         inputPlaceholder: 'Digite o motivo da virada ou cobertura de escala...',
             //         allowOutsideClick: false,
@@ -22083,10 +22083,10 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                         // Possui níveis (Ex: Fiscal de Marcação), pede para selecionar mostrando Cachê + Alimentação
                         // Possui níveis (Ex: Fiscal de Marcação), pede para selecionar mostrando Cachê + Alimentação
                         const { value: nivelEscolhido } = await Swal.fire({
-                            title: '<span style="font-size: 22px; font-weight: bold; color: #333;">Nível de Experiência</span>',
+                            title: '<span style="font-size: 22px; font-weight: bold; color: var(--text-1);">Nível de Experiência</span>',
                             html: `
-                                <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-                                    Selecione o nível para a dobra em: <b style="color: #000;">${nomeVaga}</b>
+                                <p style="font-size: 14px; color: var(--text-2); margin-bottom: 15px;">
+                                    Selecione o nível para a dobra em: <b style="color: var(--text-1);">${nomeVaga}</b>
                                 </p>
                             `,
                             input: 'select',
@@ -22203,7 +22203,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                                     </div>
                                 </div>
                                 <div style="padding:20px 24px;">
-                                    <p style="font-size:13px; color:#555; margin:0 0 16px; text-align:left;">
+                                    <p style="font-size:13px; color:var(--text-1); margin:0 0 16px; text-align:left;">
                                         O limite financeiro da equipe foi ultrapassado. Solicite um <b>Aditivo</b> para incluir esta diária dobrada, ou corrija as datas.
                                     </p>
                                     <button id="btn-dobraFin-aditivo"
@@ -22211,7 +22211,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                                         <i class="fa fa-plus"></i> Solicitar Aditivo
                                     </button>
                                     <button id="btn-dobraFin-corrigir"
-                                        style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#cdced0; color:#292c2f; border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+                                        style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:var(--surface-4); color:var(--text-1); border:1px solid #000000; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
                                         <i class="fa fa-pencil"></i> Corrigir datas
                                     </button>
                                 </div>
@@ -22263,7 +22263,7 @@ async function perguntarFuncaoDiariaDobrada(vagasDisponiveis, dadosOrcamento, cr
                     title: 'Justificativa Obrigatória',
                     html: `
                         Informe o motivo da Diária Dobrada para o dia <b>${dataFormatadaBR}</b>:<br>
-                        <small style="color:#555; display:block; margin-top:5px; background:#f8f9fa; padding:6px; border-radius:4px; border:1px solid #e9ecef;">
+                        <small style="color:var(--text-1); display:block; margin-top:5px; background:var(--surface-3); padding:6px; border-radius:4px; border:1px solid #e9ecef;">
                             <b>Função:</b> ${nomeVaga} (${nivelSelecionadoTexto})<br>
                             <b>Cachê:</b> R$ ${valorCacheDobraFinal.toFixed(2)} | <b>Alimentação:</b> R$ ${window.vlrAlimentacaoDobraSelecionado.toFixed(2)}
                         </small>
@@ -22459,7 +22459,7 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncao, idFuncao,
             <div style="margin-bottom: 10px;"><b>Data:</b> ${datasFormatadasExibicao}</div>
             <div style="margin-bottom: 10px;"><b>Função:</b> ${nmFuncao}</div>
             ${nmFuncaoReaproveitada ? `
-            <div style="margin-bottom: 10px; padding: 8px 12px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:6px; font-size:13px;">
+            <div style="margin-bottom: 10px; padding: 8px 12px; background:var(--surface-3); border:1px solid #a5d6a7; border-radius:6px; font-size:13px;">
                 <i class="fa fa-exchange" style="color:#2e7d32;"></i>
                 <b style="color:#2e7d32;"> Função Reaproveitada:</b> ${nmFuncaoReaproveitada}
             </div>` : ''}

@@ -141,7 +141,7 @@ function atualizarWidgetComprovanteAjuste(comprovanteSalvo) {
 async function carregarHistoricoAjustes(idFuncionario) {
     const tbody = document.getElementById('corpoHistoricoAjustes');
     if (!idFuncionario) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">Selecione um funcionário</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-3);">Selecione um funcionário</td></tr>';
         return;
     }
 
@@ -149,7 +149,7 @@ async function carregarHistoricoAjustes(idFuncionario) {
         const ajustes = await fetchComToken(`/ajustefinanceiro/${idFuncionario}`);
         ajustesCache = ajustes || [];
         if (!ajustes || ajustes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">Nenhum lançamento ainda</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-3);">Nenhum lançamento ainda</td></tr>';
             return;
         }
 
@@ -165,7 +165,7 @@ async function carregarHistoricoAjustes(idFuncionario) {
                 : '';
             const comprovanteCel = a.comprovante
                 ? `<a href="${a.comprovante}" target="_blank" class="comprovante-salvo-link btn-success" style="font-size:0.8em;">📎 Ver</a>`
-                : '<span style="font-size:9px; color:#bbb;">—</span>';
+                : '<span style="font-size:9px; color:var(--text-3);">—</span>';
             return `<tr>
                 <td>${formatarTipoBadge(a.tipo)}</td>
                 <td>${formatarMoedaAjuste(a.valor)}</td>

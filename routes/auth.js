@@ -6,12 +6,17 @@ const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
 const logMiddleware = require('../middlewares/logMiddleware');
 
-// Trava de força bruta: 5 tentativas de login por IP a cada 15 minutos.
+// Trava de força bruta: 5 tentativas SEM SUCESSO de login por IP a cada 15 minutos.
+// skipSuccessfulRequests: sem isso, o express-rate-limit conta TODA requisição
+// pro /login (inclusive as que deram certo) — um usuário que loga normalmente
+// várias vezes em 15 minutos (ex.: token expirou, trocou de aba) acabava sendo
+// bloqueado mesmo digitando a senha certa toda vez.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { erro: 'Muitas tentativas de login. Tente novamente em alguns minutos.' },
 });
 
@@ -39,5 +44,9 @@ router.get('/email/:email', autenticarToken({ verificarEmpresa: false }), buscar
 router.get('/permissoes', autenticarToken({ verificarEmpresa: false }), authController.listarPermissoes);
 
 router.get('/empresas', autenticarToken({ verificarEmpresa: false }), carregarTodasEmpresas);
+
+// Preferência de tema (claro/escuro) do usuário logado — vale em qualquer máquina.
+router.get('/tema', autenticarToken({ verificarEmpresa: false }), authController.buscarTema);
+router.put('/tema', autenticarToken({ verificarEmpresa: false }), authController.salvarTema);
 
 module.exports = router;

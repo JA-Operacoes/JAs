@@ -92,7 +92,8 @@ function resetarAcessosEspeciaisGlobal() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', configurarAcessosEspeciaisGlobal);
+// Chamado por configurarEventosEspecificos() abaixo — não por DOMContentLoaded, que já
+// disparou pra página principal antes desse script ser carregado dinamicamente pelo modal.
 
 
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
@@ -858,12 +859,9 @@ document.getElementById("btnCancelar").addEventListener("click", async function 
   }
 });
 
-document.getElementById("btnFechar").addEventListener("click", async function (e) {
-  e.preventDefault(); 
-
-  //window.close(); 
-   document.querySelector(".login-box").style.display = "none";
-});
+// Fechar agora é tratado pelo fecharModal() genérico do Index.js (o botão tem
+// class="close" no CadUsuarios.html) — ele já limpa o modal, o overlay e recarrega
+// a página. Um listener próprio aqui só duplicava/competia com esse fechamento.
 
 document.querySelectorAll(".toggle-senha").forEach((el) => {
   el.addEventListener("click", function () {
@@ -1863,31 +1861,35 @@ function preencherEmpresaDefault(idEmpresaDefault) {
 
 let empresasCarregadas = [];
 
-// Remove acentos/espaços/prefixo "JA" para comparar o alt da logo com o nmfantasia do banco
-function normalizarNomeEmpresa(texto) {
-    return String(texto || '')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .toUpperCase()
-        .replace(/^JA[_\-\s]*/, '')
-        .replace(/[^A-Z0-9]/g, '');
-}
+// Monta a fileira de ícones a partir da mesma lista usada nos selects (window.<empresas>
+// de /auth/empresas, que já traz iconeescuro/iconeclaro cadastrados em Empresas.js) —
+// cadastrar uma empresa nova (com ícone) já basta pra ela aparecer aqui, sem editar
+// HTML. O fundo desta tela é escuro, por isso prefere "iconeclaro" (versão branca);
+// cai pro "iconeescuro" se não tiver claro cadastrado (ex.: EventDrive, sem versão
+// branca por decisão). Empresa sem ícone nenhum ainda cadastrado mostra as duas
+// primeiras letras do nome como placeholder, pra continuar clicável.
+function renderizarLogotipoEmpresas(empresas) {
+    const container = document.getElementById('logotipoEmpresas');
+    if (!container) return;
 
-function getIdEmpresaPorAlt(alt) {
-    const codigo = normalizarNomeEmpresa(alt);
-    const empresa = empresasCarregadas.find(emp => {
-        const nome = normalizarNomeEmpresa(emp.nmfantasia);
-        return nome === codigo || nome.includes(codigo) || codigo.includes(nome);
+    container.innerHTML = empresas.map(emp => {
+        const nome = emp.nmfantasia || '';
+        const icone = emp.iconeclaro || emp.iconeescuro;
+        const conteudo = icone
+            ? `<img src="/${icone}" alt="${nome}">`
+            : `<span class="logo-chip-placeholder">${nome.slice(0, 2).toUpperCase()}</span>`;
+        return `<div class="logo-chip" data-idempresa="${emp.idempresa}" title="${nome}">${conteudo}</div>`;
+    }).join('');
+
+    container.querySelectorAll('.logo-chip').forEach(div => {
+        div.addEventListener('click', () => selecionarEmpresaDefaultPorId(div.dataset.idempresa));
     });
-    return empresa ? String(empresa.idempresa) : null;
 }
 
 // Marca o chip da empresa padrão com anel + ✓ (classe "selecionado"); os demais ficam neutros.
 function atualizarLogoEmpresaDefault(idempresa) {
-    const logos = document.querySelectorAll('#logotipoEmpresas > div');
-    logos.forEach(div => {
-        const img = div.querySelector('img');
-        const idLogo = img ? getIdEmpresaPorAlt(img.alt) : null;
-        div.classList.toggle('selecionado', Boolean(idempresa) && idLogo === String(idempresa));
+    document.querySelectorAll('#logotipoEmpresas > .logo-chip').forEach(div => {
+        div.classList.toggle('selecionado', Boolean(idempresa) && div.dataset.idempresa === String(idempresa));
     });
 }
 
@@ -1910,24 +1912,13 @@ function selecionarEmpresaDefaultPorId(idempresa) {
     atualizarLogoEmpresaDefault(idempresa);
 }
 
-document.querySelectorAll('#logotipoEmpresas > div').forEach(div => {
-    div.addEventListener('click', function () {
-        const img = this.querySelector('img');
-        const idempresa = img ? getIdEmpresaPorAlt(img.alt) : null;
-        if (!idempresa) {
-            console.warn('Não foi possível identificar a empresa pela logo clicada:', img?.alt);
-            return;
-        }
-        selecionarEmpresaDefaultPorId(idempresa);
-    });
-});
-
 async function carregarEmpresas(selectIds = ['empresaDefaultSelect', 'listaEmpresas']) {
     try {
         const empresas = await fetchComToken('auth/empresas');
         if (!empresas) return;
 
         empresasCarregadas = empresas;
+        renderizarLogotipoEmpresas(empresas);
 
         selectIds.forEach(id => {
             const selectElement = document.getElementById(id);
@@ -1982,17 +1973,15 @@ document.getElementById('listaEmpresas').addEventListener('change', function () 
   }
 });
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log("DOMContentLoaded disparado. Iniciando carregamento de dados...");
+// Hook chamado pelo Index.js (aplicarConfiguracoes) assim que o script do módulo termina
+// de carregar dentro do modal — substitui os antigos listeners de DOMContentLoaded, que
+// nunca disparavam nesse fluxo (o DOMContentLoaded da página principal já ocorreu bem antes
+// desse script ser injetado). Sem isso, o formulário abria com os selects de empresa vazios
+// e a grade de permissões nunca carregava.
+async function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos (Usuarios) recebeu:", modulo);
+  configurarAcessosEspeciaisGlobal();
   await carregarEmpresas(['empresaDefaultSelect', 'listaEmpresas']);
   console.log("--> carregarEmpresas() concluído.");
-
-
-  const btnFechar = document.getElementById('btnFechar');
-  if (btnFechar) {
-    btnFechar.addEventListener('click', () => {
-      window.location.href = 'login.html'; // Substitua pelo caminho correto se estiver em outra pasta
-    });
-  }
-
-});
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

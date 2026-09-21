@@ -925,7 +925,7 @@ function renderGraficos(analises) {
             formatter: (params) => {
                 let texto = `${params.marker} ${params.name}: <strong>${moeda(params.value)}</strong> (${params.percent}%)`;
                 const explicacao = params.name === "Demais custos" ? EXPLICACOES.demaisCustos : null;
-                if (explicacao) texto += `<br/><span style="font-size:11px;color:#888;max-width:220px;display:inline-block;white-space:normal;">${explicacao}</span>`;
+                if (explicacao) texto += `<br/><span style="font-size:11px;color:var(--text-2);max-width:220px;display:inline-block;white-space:normal;">${explicacao}</span>`;
                 return texto;
             },
         },
