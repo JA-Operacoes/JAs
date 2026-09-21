@@ -3554,3 +3554,36 @@ html[data-theme="dark"] #sidebar {
    checkbox) foram para o Roots.css: os modais de cadastro não carregam este
    arquivo, e lá elas alcançam todas as telas. */
 
+/* ─────────────────────────────────────────────
+        BOTÃO DE TROCA DE TEMA (header)
+ ─────────────────────────────────────────────
+
+ Espelha o .notif-sino, que é o vizinho dele no #menu-horizontal. Sem isto o
+ botão fica com o fundo padrão do navegador; e, depois de abrir qualquer modal
+ de cadastro, herda o `button { background-color: var(--primary-color);
+ width: 25% }` sem escopo desses CSS. O seletor usa a tag junto da classe pra
+ vencer esse `button {}` solto na especificidade. */
+
+.tema-wrapper { position: relative; display: flex; align-items: center; }
+
+button.btn-tema {
+    background: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    cursor: pointer;
+    width: auto;
+    margin: 0;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-texto, #fff);
+    font-size: 18px;
+    line-height: 1;
+}
+
+button.btn-tema .material-symbols-outlined { font-size: 22px; }
+
+button.btn-tema:hover { filter: brightness(1.2); }
+
