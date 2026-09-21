@@ -105,9 +105,11 @@ function montarBotao() {
             <span class="material-symbols-outlined">${escuro ? "light_mode" : "dark_mode"}</span>
         </button>`;
 
-    // Antes do sino, pra não empurrar o dropdown de notificações pra fora da tela.
+    // Depois do sino. O dropdown de notificações é `position: absolute; right: 0`
+    // relativo ao próprio .notif-wrapper, então empurrar o sino pra esquerda joga
+    // o dropdown mais pra dentro da tela, não pra fora.
     const sino = menu.querySelector(".notif-wrapper");
-    if (sino) menu.insertBefore(wrapper, sino);
+    if (sino) sino.after(wrapper);
     else menu.appendChild(wrapper);
 
     wrapper.querySelector("#btn-tema").addEventListener("click", alternarTema);
