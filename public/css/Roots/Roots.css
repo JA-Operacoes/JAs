@@ -107,6 +107,27 @@
     --grey-color: #7e7e7e;
     --border-color:#2e2f2c;
 }
+/* aplicarTema() (utils.js, roda em toda página via Aside.js) gera a classe a partir do
+   nmfantasia puro do banco ("EP-RH"), nunca do que está escrito no <body> do HTML — sem
+   essa classe aqui, EPRH-index.html sempre caía no cinza padrão (mesmo bug já visto com
+   .tema-EVENTDRIVE). Header claro (#f7f7f7) de propósito: é a cor exata do fundo do logo
+   da RH (uploads/logos_empresas/logo_2.jpeg, amostrado via pixel — R247 G247 B247), pra
+   não sobrar um "quadrado" visível atrás do logo (JPEG não tem transparência). O menu à
+   direita continua legível porque o degradê termina no mesmo cinza escuro fixo de sempre. */
+.tema-EP-RH{
+    --header-color: linear-gradient(to right, rgb(43, 42, 42), #9c9a9a  );
+
+    --primary-color: #000000;
+    --primary-color20: #5c5d5a7c;
+    --primary-color10: #5c5d5a5b;
+    --hover-color: #333333;
+    --background-color: #5c5d5a;
+    --font-color: #ffffff;
+    --font-weight: none;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --border-color:#2e2f2c;
+}
 .tema-SN-FOODS{
     --header-color: linear-gradient(to right, #a53603, rgb(43, 42, 42)  );
 
@@ -181,7 +202,7 @@
    esse tema só existe pra dar uma cor de marca fixa e deliberada no chip de "Empresas" do CEO
    Mode (Visão Geral); sem isso ele herdava a cor da empresa logada (bug corrigido em CeoMode.js,
    corPrimariaEmpresa). Ameixa/vinho: dourado foi descartado por colidir com o logo real da
-   EventDrive (.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS, abaixo); resto do vermelho/laranja
+   EventDrive (.tema-EVENTDRIVE, abaixo); resto do vermelho/laranja
    já é JA-OPER/JA-EXPO/SN-FOODS. */
 .tema-JOÃO{
     --header-color: linear-gradient(to right, #5c1a40, rgb(43, 42, 42)  );
@@ -199,9 +220,12 @@
 }
 /* EventDrive já tem logo real cadastrado (uploads/logos_empresas/logo_3.png — escudo com folhas
    num dourado-bronze, #ceb174 dominante); escurecido um pouco pro header/hover terem contraste
-   decente com texto branco, mas mantendo o mesmo tom do logo. Ainda sem página própria
-   (urlindex null), então isso hoje só aparece no chip de "Empresas" do CEO Mode. */
-.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS{
+   decente com texto branco, mas mantendo o mesmo tom do logo.
+   Classe é "tema-EVENTDRIVE" (nome curto) — igual toda outra empresa, porque aplicarTema()
+   (Aside.js, roda em toda página) gera a classe a partir do nmfantasia puro do banco
+   ("EVENTDRIVE"), nunca do nome comprido do CNPJ/razão social. Um nome de classe comprido
+   aqui nunca bate com isso — a página sempre caía no cinza padrão até essa correção. */
+.tema-EVENTDRIVE{
     --header-color: linear-gradient(to right, #8a713f, rgb(43, 42, 42)  );
 
     --primary-color: #ceb174;
@@ -216,5 +240,24 @@
     --font-weight: none;
 }
 
+/* Logo real cadastrado (uploads/logos_empresas/logo_10.png): "JD" em azul-marinho com o
+   telhado em vermelho vivo, sobre fundo branco. Vermelho como primary/accent (mesmo papel
+   que tem em JA-OPER) e o azul-marinho do texto como tom escuro pro header/hover/borda.
+   Header num azul mais claro (não o mesmo tom do texto do logo) — com o mesmo azul-marinho
+   escuro nos dois, o logo quase sumia por falta de contraste (pedido da usuária). */
+.tema-JD{
+    --header-color: linear-gradient(to right, #1b4b91, rgb(43, 42, 42)  );
+
+    --primary-color: #e2231a;
+    --primary-color20: #e2231a7c;
+    --primary-color10: #e2231a4f;
+    --border-color:#0a1f44;
+    --hover-color: #0a1f44;
+    --background-color: #e2231a;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
+}
 
 

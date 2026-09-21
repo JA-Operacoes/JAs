@@ -44,6 +44,32 @@ main#conteudo {
   max-height: calc(100vh - 140px);
   overflow: hidden;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  /* position:relative + z-index:0 (em vez de auto) cria um contexto de empilhamento
+     PRÓPRIO pro painel — sem isso, o z-index:-1 do ::before abaixo "escapava" pra
+     trás do <main id="conteudo"> (que é position:fixed, e por isso sempre cria seu
+     próprio contexto), ficando atrás do fundo branco opaco dele em vez de só atrás
+     do cinza deste painel. Foi por isso que a marca d'água não aparecia. */
+  position: relative;
+  z-index: 0;
+}
+
+/* Marca d'água do logo escuro da empresa atual, ao fundo do painel de Detalhes
+   (pedido da usuária). --logo-marca-dagua é setada via JS (Index.js, a partir de
+   /index/empresas) porque esse painel é o mesmo em toda *-index.html — cada
+   empresa tem seu próprio arquivo de logo, não dá pra fixar um url() aqui.
+   z-index -1 garante que fica atrás de #conteudoDetalhes/.Versao-sistema, que
+   não têm position própria (pintados depois de descendentes com z-index negativo). */
+.detalhes-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--logo-marca-dagua, none);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 380px;
+  opacity: 0.07;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .detalhes-panel p, .detalhes-panel h3 {

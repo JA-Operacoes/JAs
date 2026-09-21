@@ -42,6 +42,14 @@
     gap: 16px;
     flex-wrap: wrap;
   }
+  /* [class^="logo-"] mais abaixo esconde TUDO que começa com "logo-" por padrão
+     (inclusive o logo grande do cabeçalho, .logotipo .logo-xxx) — antes só ficava
+     visível de novo porque o Index.js revelava via JS (display:block !important)
+     a classe da empresa da página atual. Escopado a .logotipo (não precisa de JS
+     nem de saber qual empresa é a atual — é sempre a mesma, é a própria página). */
+  .logotipo [class^="logo-"]{
+    display: block !important;
+  }
   .barra-empresas .minilogos-topo a{
     display: flex;
     align-items: center;
@@ -115,6 +123,15 @@
     justify-content: flex-start;
     object-fit: contain;
   }
+  /* JOÃO não tem logo cadastrado ainda (ver JOAO-index.html) — texto no lugar da <img>
+     de praxe, com o mesmo estilo de marca do tema (--primary-color já vem do .tema-JOÃO). */
+  .logo-joao-texto{
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
   /* SN Foods é uma marca larga (nome + slogan embaixo, ~2:1) — limitando por max-width igual
      aos logos quadrados, ela achatava pra uma tira fina. Mesmo ajuste já feito no mini-logo da
      barra "Trocar empresa": limita por altura, largura livre. */

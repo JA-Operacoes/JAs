@@ -1,20 +1,7 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cadastro de Usuários</title>
+<link rel="stylesheet" href="css/Logins/Usuarios.css?v=11">
 
-  <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/Logins/Usuarios.css">
-  <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" /> -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
-</head>
-  <body data-modulo = "Usuarios">
-
-  <div class="login-box">
+<div id="cadModalUsuarios" class="login-box modal">
+  <div class="modal-content">
   <div class="flip-container" id="flip-container">
   <div class="flipper">
     <!-- Frente: formulário de cadastro -->
@@ -90,23 +77,15 @@
 
         </div>
 
-        <div class="user-box dupla select">
+        <div class="user-box dupla select" id="linhaEmpresaPadrao">
           <div class="user-box">
             <p>Empresa Padrão:</p>
           </div>
           <div class="Empresas">
-              <div id="logotipoEmpresas">
-                <div class="logo-chip"><img src="img/JA_Oper.png" alt="JA_Oper"></div>
-                <div class="logo-chip"><img src="img/JA_EA.png" alt="JA_EA"></div>
-                <div class="logo-chip"><img src="img/JA_ED.png" alt="JA_ED"></div>
-                <div class="logo-chip"><img src="img/JA_ES.png" alt="JA_ES"></div>
-                <div class="logo-chip"><img src="img/JA_EP.png" alt="JA_EP"></div>
-                <div class="logo-chip"><img src="img/JA_Expo.png" alt="JA_EXPO"></div>
-                <div class="logo-chip"><img src="img/SN_Foods.png" alt="SN_Foods"></div>
-                <div class="logo-chip"><img src="img/logo-tsd.png" alt="TSD"></div>
-                <div class="logo-chip"><img src="img/CJG.png" alt="CJG"></div>
-                <div class="logo-chip"><img src="img/EventDrive.png" alt="EventDrive"></div>
-              </div>
+              <!-- Preenchido via JS (renderizarLogotipoEmpresas, em usuarios.js) a partir da
+                   mesma lista de /auth/empresas usada nos selects — sem isso, cadastrar uma
+                   empresa nova exigia sempre voltar aqui e acrescentar um <div> à mão. -->
+              <div id="logotipoEmpresas"></div>
             </div>
 
             <div class="user-box">
@@ -125,9 +104,9 @@
           <button type="submit" id="btnCadastrarReal" style="display: none;"></button>
           <a type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></a>
           <a type="button" id="btnCancelar">CANCELAR<span></span></a>
-          <a type="button" id="btnFechar">FECHAR<span></span></a>
+          <a type="button" id="btnFechar" class="close">FECHAR<span></span></a>
         </div>
-      </form>     
+      </form>
   </div>
 
     <!-- Verso: outro formulário ou mensagem -->
@@ -271,10 +250,5 @@
     </div>
   </div>
 </div>
-
-  <script src="js/Usuarios.js" type="module"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script> -->
-  
-</body>
-</html>
+  </div>
+</div>

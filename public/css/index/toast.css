@@ -2,10 +2,17 @@
 
 #toast-stack-container, #toast-stack-container.toast-hovered {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  /* Mesma altura do header (não empurra pra baixo do menu, que ficou
+     "flutuando" estranho sobre o conteúdo) — só empurrado bem pra direita,
+     pro canto onde só fica o sino de notificação, sem texto de menu embaixo. */
+  top: 0px;
+  right: 70px;
   width: 340px;
-  max-height: 95vh;
+  /* 95vh deixava a pilha expandida (hover) praticamente do tamanho da tela
+     inteira — com muitas contas vencidas de uma vez, isso cobria o menu
+     principal e prendia o mouse "dentro" da lista até o fim da rolagem.
+     420px ~ uns 5 cartões visíveis; o resto rola dentro da própria caixa. */
+  max-height: 420px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -16,8 +23,8 @@
 .toast-count-badge {
   display: none;
   position: fixed;
-  top: 30px;
-  right: 1px;
+  top: 10px;
+  right: 51px;
   background: #e53e3e;
   color: #fff;
   font-size: 11px;
@@ -39,11 +46,15 @@
   background: var(--cor-fundo-card, #fff);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  padding: 12px 14px;
-  margin: 10px;
+  /* Compacto de propósito — o container fica em top:0 (canto mais alto
+     possível, pra não tampar o menu) e o cartão precisa caber inteiro
+     dentro da faixa da barra "Trocar empresa" + topo do header, sem a
+     barra de progresso encostar no texto do menu logo abaixo. */
+  padding: 6px 10px;
+  margin: 4px 6px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
   color: var(--cor-texto, #1a1a1a);
   transition: transform 0.3s cubic-bezier(.4,0,.2,1),
@@ -54,6 +65,10 @@
   box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+
+/* Toast-resumo (ex.: "N contas vencidas") — clicável, abre a lista completa */
+.toast-clicavel { cursor: pointer; }
+.toast-clicavel:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16); }
 
 /* Dark theme */
 body.dark-theme .toast-item {
