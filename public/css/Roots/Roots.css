@@ -258,6 +258,27 @@ html[data-theme="dark"] {
     --grey-color: #7e7e7e;
     --border-color:#2e2f2c;
 }
+/* aplicarTema() (utils.js, roda em toda página via Aside.js) gera a classe a partir do
+   nmfantasia puro do banco ("EP-RH"), nunca do que está escrito no <body> do HTML — sem
+   essa classe aqui, EPRH-index.html sempre caía no cinza padrão (mesmo bug já visto com
+   .tema-EVENTDRIVE). Header claro (#f7f7f7) de propósito: é a cor exata do fundo do logo
+   da RH (uploads/logos_empresas/logo_2.jpeg, amostrado via pixel — R247 G247 B247), pra
+   não sobrar um "quadrado" visível atrás do logo (JPEG não tem transparência). O menu à
+   direita continua legível porque o degradê termina no mesmo cinza escuro fixo de sempre. */
+.tema-EP-RH{
+    --header-color: linear-gradient(to right, rgb(43, 42, 42), #9c9a9a  );
+
+    --primary-color: #000000;
+    --primary-color20: #5c5d5a7c;
+    --primary-color10: #5c5d5a5b;
+    --hover-color: #333333;
+    --background-color: #5c5d5a;
+    --font-color: #ffffff;
+    --font-weight: none;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --border-color:#2e2f2c;
+}
 .tema-SN-FOODS{
     --header-color: linear-gradient(to right, #a53603, rgb(43, 42, 42)  );
 
@@ -332,7 +353,7 @@ html[data-theme="dark"] {
    esse tema só existe pra dar uma cor de marca fixa e deliberada no chip de "Empresas" do CEO
    Mode (Visão Geral); sem isso ele herdava a cor da empresa logada (bug corrigido em CeoMode.js,
    corPrimariaEmpresa). Ameixa/vinho: dourado foi descartado por colidir com o logo real da
-   EventDrive (.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS, abaixo); resto do vermelho/laranja
+   EventDrive (.tema-EVENTDRIVE, abaixo); resto do vermelho/laranja
    já é JA-OPER/JA-EXPO/SN-FOODS. */
 .tema-JOÃO{
     --header-color: linear-gradient(to right, #5c1a40, rgb(43, 42, 42)  );
@@ -350,9 +371,12 @@ html[data-theme="dark"] {
 }
 /* EventDrive já tem logo real cadastrado (uploads/logos_empresas/logo_3.png — escudo com folhas
    num dourado-bronze, #ceb174 dominante); escurecido um pouco pro header/hover terem contraste
-   decente com texto branco, mas mantendo o mesmo tom do logo. Ainda sem página própria
-   (urlindex null), então isso hoje só aparece no chip de "Empresas" do CEO Mode. */
-.tema-EVENTDRIVE-MOBILITY-VEICULOS-ELETRICOS{
+   decente com texto branco, mas mantendo o mesmo tom do logo.
+   Classe é "tema-EVENTDRIVE" (nome curto) — igual toda outra empresa, porque aplicarTema()
+   (Aside.js, roda em toda página) gera a classe a partir do nmfantasia puro do banco
+   ("EVENTDRIVE"), nunca do nome comprido do CNPJ/razão social. Um nome de classe comprido
+   aqui nunca bate com isso — a página sempre caía no cinza padrão até essa correção. */
+.tema-EVENTDRIVE{
     --header-color: linear-gradient(to right, #8a713f, rgb(43, 42, 42)  );
 
     --primary-color: #ceb174;
@@ -367,179 +391,24 @@ html[data-theme="dark"] {
     --font-weight: none;
 }
 
-/* ─────────────────────────────────────────────
-        PONTE PARA AS VARIÁVEIS ANTIGAS
- ─────────────────────────────────────────────
+/* Logo real cadastrado (uploads/logos_empresas/logo_10.png): "JD" em azul-marinho com o
+   telhado em vermelho vivo, sobre fundo branco. Vermelho como primary/accent (mesmo papel
+   que tem em JA-OPER) e o azul-marinho do texto como tom escuro pro header/hover/borda.
+   Header num azul mais claro (não o mesmo tom do texto do logo) — com o mesmo azul-marinho
+   escuro nos dois, o logo quase sumia por falta de contraste (pedido da usuária). */
+.tema-JD{
+    --header-color: linear-gradient(to right, #1b4b91, rgb(43, 42, 42)  );
 
- Cada bloco .tema-* acima repete `--black-color: black` e `--grey-color: #7e7e7e`
- — literais, que no escuro viram texto preto sobre fundo escuro. Em vez de editar
- os 11 blocos (e todo CSS que já usa essas variáveis), o tema escuro reaponta as
- duas para os tokens semânticos. Assim o CSS existente escurece sozinho e a
- migração arquivo a arquivo pode ser feita sem pressa.
-
- O seletor precisa da especificidade de [class*="tema-"] pra vencer o `.tema-X`
- que define as literais — `html[data-theme]` sozinho perderia.
-
- --font-color NÃO entra aqui de propósito: ele é a cor do texto SOBRE a cor da
- marca (branco no vermelho JA, preto no verde ES). Inverter ele quebraria todos
- os botões e cabeçalhos coloridos. */
-html[data-theme="dark"] body[class*="tema-"] {
-    --black-color: var(--text-1);
-    --grey-color: var(--text-2);
-
-    /* Clareia a cor da empresa só para uso como texto. color-mix evita ter que
-       cadastrar à mão uma variante clara para cada uma das onze marcas: a conta
-       sai da própria --primary-color, seja ela qual for.
-
-       Se o navegador não suportar color-mix, a declaração inteira é descartada e
-       --primary-texto continua valendo o que vale no :root — a cor da marca pura,
-       que é o comportamento de hoje. Degrada sem quebrar. */
-    --primary-texto: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
-}
-
-html[data-theme="dark"] {
-    --dark-base-color: var(--text-1);
-    --light-base-color: var(--surface-1);
-    --background-base-color: var(--surface-2);
-}
-
-/* ─────────────────────────────────────────────
-        BOTÃO DE TEMA (sol / lua)
- ─────────────────────────────────────────────
-
- Mora aqui (e não no Style.css do OPER) porque cada empresa tem seu próprio
- Style-*.css e o botão é o mesmo nas dez páginas de index. É criado por JS em
- js/tema.js, dentro do #menu-horizontal, logo antes do sino de notificações.
-
- Um ícone só, que mostra para onde o clique leva: lua no tema claro, sol no
- escuro. Segue a mesma linguagem do sino ao lado — sem moldura, sem fundo.
-
- As cores são fixas em branco, não tokens: o header é gradiente escuro da marca
- nos DOIS temas, então o ícone precisa continuar claro independente do modo. */
-.tema-wrapper {
-    display: flex;
-    align-items: center;
-}
-
-.btn-tema {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 8px;
-    display: flex;
-    align-items: center;
-    color: #fff;
-    opacity: .85;
-    transition: opacity .15s ease, transform .15s ease;
-}
-
-.btn-tema:hover {
-    opacity: 1;
-    transform: scale(1.12);
-}
-
-.btn-tema:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-.btn-tema .material-symbols-outlined {
-    font-size: 22px;
-    line-height: 1;
-}
-
-/* Respeita quem desativou animações no sistema operacional. */
-@media (prefers-reduced-motion: reduce) {
-    .btn-tema {
-        transition: none;
-    }
-    .btn-tema:hover {
-        transform: none;
-    }
-}
-
-
-/* ─────────────────────────────────────────────
-        SUPERFÍCIES TRANSLÚCIDAS ("vidro")
- ─────────────────────────────────────────────
-
- O #modal-container e as seções internas dos formulários de cadastro usam branco
- semitransparente pra deixar o fundo aparecer por baixo — é o visual de "vidro"
- dos modais de Equipamentos, Almoxarifado, Alíquotas e companhia.
-
- Ficaram de fora das migrações automáticas porque nenhum script trata rgba com
- transparência: o migrador só reconhece cor sólida, e o auditor ignora alfa baixo
- justamente por não saber o que há atrás. O resultado era o formulário inteiro
- continuar claro no tema escuro, mesmo com todo o resto já convertido.
-
- Três níveis, que é o que o projeto usa (0.356, 0.45 e 0.7 de opacidade). */
-:root {
-    --surface-vidro:       rgba(255, 255, 255, .356);
-    --surface-vidro-medio: rgba(255, 255, 255, .45);
-    --surface-vidro-forte: rgba(255, 255, 255, .7);
-}
-
-html[data-theme="dark"] {
-    /* Mais opacos que os equivalentes claros de propósito: no escuro, um véu
-       muito transparente deixa o texto do formulário competir com o que passa
-       por trás e a leitura fica cansativa. */
-    --surface-vidro:       rgba(20, 20, 20, .5);
-    --surface-vidro-medio: rgba(26, 26, 26, .62);
-    --surface-vidro-forte: rgba(30, 30, 30, .82);
-}
-
-/* ─────────────────────────────────────────────
-        FORMULÁRIOS NO TEMA ESCURO
- ─────────────────────────────────────────────
-
- Estas regras moram no Roots.css, e não no Style.css do index, por um motivo
- prático: os modais de cadastro (CadEquipamentos, CadSuprimentos, Almoxarifado…)
- carregam só Roots.css + o CSS próprio deles. Enquanto abertos dentro do index o
- Style.css até alcança, mas qualquer tela aberta direto ficava com formulário
- branco no tema escuro. Aqui a cobertura é de todas.
-
- A lista de tipos é explícita de propósito — `input` puro aqui foi um erro caro:
- os filtros de período ("Diário", "Semanal") são <input type="radio"> com
- appearance:none esticados por cima do botão visível, invisíveis só porque não
- têm fundo. Pintar TODO input transformou cada um num retângulo escuro opaco
- cobrindo o texto. Radio, checkbox, range, color, file e botões ficam de fora. */
-html[data-theme="dark"] input:not([type]),
-html[data-theme="dark"] input[type="text"],
-html[data-theme="dark"] input[type="number"],
-html[data-theme="dark"] input[type="email"],
-html[data-theme="dark"] input[type="password"],
-html[data-theme="dark"] input[type="search"],
-html[data-theme="dark"] input[type="tel"],
-html[data-theme="dark"] input[type="url"],
-html[data-theme="dark"] input[type="date"],
-html[data-theme="dark"] input[type="datetime-local"],
-html[data-theme="dark"] input[type="month"],
-html[data-theme="dark"] input[type="time"],
-html[data-theme="dark"] input[type="week"],
-html[data-theme="dark"] select,
-html[data-theme="dark"] textarea {
-    /* Sem isso os campos ficam brancos: o navegador aplica o estilo nativo
-       quando o CSS não define nada, e boa parte dos campos do sistema não define. */
-    background-color: var(--surface-1);
-    color: var(--text-1);
-    border-color: var(--border-1);
-}
-
-html[data-theme="dark"] input::placeholder,
-html[data-theme="dark"] textarea::placeholder {
-    color: var(--text-3);
-}
-
-/* Campo desabilitado/somente leitura: precisa continuar parecendo desabilitado
-   no escuro, senão fica idêntico a um campo editável. */
-html[data-theme="dark"] input:disabled,
-html[data-theme="dark"] select:disabled,
-html[data-theme="dark"] textarea:disabled,
-html[data-theme="dark"] input[readonly],
-html[data-theme="dark"] textarea[readonly] {
-    background-color: var(--surface-4);
-    color: var(--text-3);
+    --primary-color: #e2231a;
+    --primary-color20: #e2231a7c;
+    --primary-color10: #e2231a4f;
+    --border-color:#0a1f44;
+    --hover-color: #0a1f44;
+    --background-color: #e2231a;
+    --font-color: #ffffff;
+    --black-color: black;
+    --grey-color: #7e7e7e;
+    --font-weight: none;
 }
 
 /* As opções do <select> aberto são pintadas pelo sistema operacional e não

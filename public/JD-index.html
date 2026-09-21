@@ -1,31 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <!-- Tema claro/escuro: aplicado ANTES de qualquer CSS carregar. Precisa ser
-         inline e síncrono — um script externo (mesmo no head) já deixaria o
-         navegador pintar a tela branca antes de escurecer. Lê só o cache do
-         localStorage; js/tema.js confirma depois com o banco. -->
-    <script>
-        (function () {
-            try {
-                var t = localStorage.getItem('tema');
-                document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
-            } catch (e) {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-        })();
-    </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.9.0/fonts/remixicon.css" rel="stylesheet"/>
+    
     <link rel="stylesheet" href="css/index/Main.css?v=20260918b">
     <link rel="stylesheet" href="css/index/Notificacoes.css">
     <link rel="stylesheet" href="/css/index/toast.css">
     <link rel="stylesheet" href="css/index/Style.css">
-    <link rel="stylesheet" href="css/Footer/Footer-ES.css">
+    <link rel="stylesheet" href="css/Footer/Footer-OPER.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">   
     <link rel="stylesheet" href="css/scroolbar/scroolbar.css">
@@ -36,7 +23,7 @@
     <!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
     <link rel="stylesheet" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">
     
-    <link rel="shortcut icon" href="img/icons/ESfavicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="img/icons/favicon.ico" type="image/x-icon">
 
     
        
@@ -51,7 +38,7 @@
     
 </head>
 
-<body class="tema-ES">
+<body class="tema-JD">
 
     
 <div class="barra-empresas">
@@ -61,7 +48,7 @@
 <header>
     <div class="interface">
         <div class="logotipo">
-            <div class="logo-es"><a  href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+            <div class="logo-jd"><a href="JD-index.html"><img src="/uploads/logos_empresas/logo_10.png" alt="JD"></a></div>
         </div>
 
         <div class="interface">
@@ -81,8 +68,13 @@
                             </div>
                         </div>
                     </li>
-
-                    <li class="Cadastro">
+                    <li class="TI">
+                        <a href="#">T.I</a>
+                    </li>
+                    <li class="Almoxarifado">
+                        <a href="#">Almoxarifado</a>
+                    </li>
+                    <li class="Cadastro"> 
                         <a href="#">Cadastros</a>
                         <div class ="drop">
                             <div class ="drop-content">
@@ -155,6 +147,7 @@
                                         <a href="#" class="abrir-modal" data-modulo="Pagamentos" data-url="CadPagamentos.html">Pagamentos de Contas</a>
                                     </div>
                                 </div>
+                                <a href="#" class="abrir-modal" data-modulo="PlanoSaude" data-url="CadPlanoSaude.html">Plano de Saúde</a>
 
                                 <div class="sub-drop">
                                     <a href="#" class="sub-title">Contas a Receber<span style="float:left; margin-right: 5px;">&laquo;</span></a>
@@ -403,7 +396,9 @@
     <script src="js/tema.js" type="module" defer></script> 
     <script src="js/Notificacao.js?v=6" type="module" defer></script>
     <script src="js/CeoMode.js" type="module" defer></script>
+    <script src="js/TIMode.js" type="module" defer></script>
     <script src="js/RH.js" type="module" defer></script>
+    <script src="js/AlmoxarifadoMode.js" type="module" defer></script>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 

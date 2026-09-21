@@ -36,6 +36,27 @@ async function buscarConflitoDeSigla(nmFantasia, siglaCertificadoOverride, idemp
   return conflito ? { sigla: siglaNova, conflito } : null;
 }
 
+// "ordem" (posição fixa na barra "Trocar empresa", ver migration
+// adiciona_ordem_fixa_nas_empresas) não pode se repetir — duas empresas com o mesmo
+// número embaralhariam a posição exibida. Não tem UNIQUE na coluna (já nasceu com
+// várias linhas em NULL, pras empresas sem posição definida ainda), então valida aqui.
+async function buscarConflitoDeOrdem(ordem, idempresaAtual) {
+  if (!ordem) return null;
+  const { rows } = await pool.query(
+    'SELECT idempresa, nmfantasia FROM empresas WHERE ordem = $1 AND idempresa IS DISTINCT FROM $2',
+    [ordem, idempresaAtual || null]
+  );
+  return rows[0] || null;
+}
+
+// Próximo número livre no fim da sequência (não preenche buracos no meio de
+// propósito — a ordem sempre cresceu 1,2,3... até agora, e um buraco só existiria
+// se alguém apagasse uma empresa do meio, caso raro que pode ser resolvido manualmente).
+async function proximaOrdemDisponivel() {
+  const { rows } = await pool.query('SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima FROM empresas');
+  return rows[0].proxima;
+}
+
 // --- Upload do certificado A1 da empresa (só quem tem a flag "master") ----
 const dirCertificados = path.join(__dirname, '..', 'certs');
 if (!fs.existsSync(dirCertificados)) fs.mkdirSync(dirCertificados, { recursive: true });
@@ -145,7 +166,7 @@ const uploadLogo = multer({
   },
 });
 
-router.post('/:id/logo', verificarPermissao('Empresas', 'alterar'), (req, res) => {
+router.post('/:id/logo', exigirFlag('devs', 'supremo'), (req, res) => {
   uploadLogo.single('logo')(req, res, async (err) => {
     if (err) {
       console.error('Erro no upload do logo:', err);
@@ -170,6 +191,87 @@ router.post('/:id/logo', verificarPermissao('Empresas', 'alterar'), (req, res) =
   });
 });
 
+// --- Upload de logoclaro/iconeescuro/iconeclaro (variantes usadas na barra
+// "Trocar empresa" e no seletor de "Empresa Padrão" do Usuários — ver
+// migration adiciona_icone_em_empresas) --------------------------------
+// Uma rota genérica em vez de triplicar a de /logo acima: o nome da coluna
+// (":campo") só pode ser um dos 3 abaixo — nunca é interpolado na query sem
+// passar por essa whitelist antes (mesmo padrão do FLAGS_ESPECIAIS em
+// permissaoMiddleware.js).
+const CAMPOS_IMAGEM_EMPRESA = {
+  logoclaro:   { dir: 'logos_empresas',  prefixo: 'logoclaro' },
+  iconeescuro: { dir: 'icones_empresas', prefixo: 'iconeescuro' },
+  iconeclaro:  { dir: 'icones_empresas', prefixo: 'iconeclaro' },
+};
+
+const dirIconesEmpresas = path.join(__dirname, '..', 'uploads', 'icones_empresas');
+if (!fs.existsSync(dirIconesEmpresas)) fs.mkdirSync(dirIconesEmpresas, { recursive: true });
+
+const storageImagemEmpresa = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const config = CAMPOS_IMAGEM_EMPRESA[req.params.campo];
+    cb(null, path.join(__dirname, '..', 'uploads', config.dir));
+  },
+  filename: (req, file, cb) => {
+    const config = CAMPOS_IMAGEM_EMPRESA[req.params.campo];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${config.prefixo}_${req.params.id}${ext}`);
+  },
+});
+
+const uploadImagemEmpresa = multer({
+  storage: storageImagemEmpresa,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) return cb(null, true);
+    cb(new Error('Envie um arquivo de imagem (PNG, JPG, etc.).'));
+  },
+});
+
+router.post('/:id/imagem/:campo', exigirFlag('devs', 'supremo'), (req, res, next) => {
+  if (!CAMPOS_IMAGEM_EMPRESA[req.params.campo]) {
+    return res.status(400).json({ message: 'Campo de imagem inválido.' });
+  }
+  next();
+}, (req, res) => {
+  uploadImagemEmpresa.single('imagem')(req, res, async (err) => {
+    if (err) {
+      console.error('Erro no upload de imagem da empresa:', err);
+      return res.status(400).json({ message: err.message || 'Erro ao enviar a imagem.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'Envie um arquivo de imagem.' });
+    }
+
+    const config = CAMPOS_IMAGEM_EMPRESA[req.params.campo];
+    const caminhoRelativo = `uploads/${config.dir}/${req.file.filename}`;
+    try {
+      const { rows } = await pool.query(
+        `UPDATE empresas SET ${req.params.campo} = $1 WHERE idempresa = $2 RETURNING idempresa, ${req.params.campo}`,
+        [caminhoRelativo, req.params.id]
+      );
+      if (!rows.length) return res.status(404).json({ message: 'Empresa não encontrada.' });
+      res.json({ message: 'Imagem salva com sucesso.', [req.params.campo]: caminhoRelativo });
+    } catch (err2) {
+      console.error('Erro ao salvar imagem da empresa:', err2.message);
+      res.status(500).json({ message: 'Erro ao salvar a imagem.' });
+    }
+  });
+});
+
+// Próxima posição livre na barra "Trocar empresa" — usado pra já sugerir/pré-preencher
+// o campo "Ordem" ao abrir o formulário em branco (cadastro de empresa nova). Mesma
+// visibilidade do campo em si: só Devs (ver atualizarVisibilidadeCampoOrdem no front).
+router.get('/utilitarios/proxima-ordem', exigirFlag('devs'), async (req, res) => {
+  try {
+    const proximaOrdem = await proximaOrdemDisponivel();
+    res.json({ proximaOrdem });
+  } catch (err) {
+    console.error('Erro ao calcular próxima posição disponível:', err);
+    res.status(500).json({ message: 'Erro ao calcular próxima posição disponível.' });
+  }
+});
+
 // Listar todas as empresas
 router.get('/',  verificarPermissao('Empresas', 'pesquisar'), async (req, res) => {
   console.log('✅ [GET /empresas] Rota acessada com sucesso');
@@ -178,12 +280,15 @@ router.get('/',  verificarPermissao('Empresas', 'pesquisar'), async (req, res) =
   try {
     if (nmFantasia) {
       console.log("🔍 Buscando empresa por nmFantasia:", nmFantasia);
+      // Igualdade exata (só sem diferenciar maiúsculas/minúsculas) — com '%...%' aqui,
+      // digitar "EP" batia em "EP-RH" (contém o texto) e carregava a empresa errada,
+      // impedindo cadastrar uma "EP" nova depois de renomear a antiga.
       const result = await pool.query(
-        `SELECT * 
-        FROM empresas        
+        `SELECT *
+        FROM empresas
         WHERE nmfantasia ILIKE $1
         ORDER BY nmfantasia ASC LIMIT 1`,
-        [`%${nmFantasia}%`]
+        [nmFantasia]
       );
       console.log("✅ Consulta por nmFantasia retornou:", result.rows.length, "linhas.");
       return result.rows.length
@@ -243,7 +348,7 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
     nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
     regimeTributario, inscricaoMunicipal,
     idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix,
-    siglaCertificado
+    siglaCertificado, ordem
   } = req.body;
   const idempresaDoUsuarioLogado = req.idempresa;
   try {
@@ -259,19 +364,28 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
       });
     }
 
+    const conflitoOrdem = await buscarConflitoDeOrdem(ordem || null, null);
+    if (conflitoOrdem) {
+      const proxima = await proximaOrdemDisponivel();
+      return res.status(409).json({
+        message: `A posição ${ordem} na barra "Trocar empresa" já está sendo usada pela empresa "${conflitoOrdem.nmfantasia}". Escolha a próxima posição disponível (${proxima}) ou deixe o campo em branco.`,
+        proximaOrdemDisponivel: proxima,
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO empresas (
          nmfantasia, razaosocial, cnpj, inscricaoestadual, emailemp, emailnf, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
          regimetributario, inscricaomunicipal,
          idbanco, agencia, digitoagencia, numeroconta, digitoconta, tipoconta, pix,
-         siglacertificado
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+         siglacertificado, ordem
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
        RETURNING *`,
       [
         nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
         regimeTributario || null, inscricaoMunicipal || null,
         idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null,
-        siglaManual
+        siglaManual, ordem || null
       ]
     );
     const novaEmpresa = result.rows[0];
@@ -328,7 +442,7 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
     nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
     regimeTributario, inscricaoMunicipal,
     idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix,
-    siglaCertificado
+    siglaCertificado, ordem
   } = req.body;
   try {
     const siglaManual = normalizarSigla(siglaCertificado) || null;
@@ -343,6 +457,20 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
       });
     }
 
+    const conflitoOrdem = await buscarConflitoDeOrdem(ordem || null, id);
+    if (conflitoOrdem) {
+      const [proxima, { rows: linhaAtual }] = await Promise.all([
+        proximaOrdemDisponivel(),
+        pool.query('SELECT ordem FROM empresas WHERE idempresa = $1', [id]),
+      ]);
+      const ordemAtual = linhaAtual[0]?.ordem;
+      const sugestaoManterAtual = ordemAtual ? ` ou mantenha a atual (${ordemAtual})` : '';
+      return res.status(409).json({
+        message: `A posição ${ordem} na barra "Trocar empresa" já está sendo usada pela empresa "${conflitoOrdem.nmfantasia}". Escolha a próxima posição disponível (${proxima})${sugestaoManterAtual}.`,
+        proximaOrdemDisponivel: proxima,
+      });
+    }
+
     const result = await pool.query(
       `UPDATE empresas
        SET nmfantasia = $1, razaosocial = $2, cnpj = $3, inscricaoestadual = $4,
@@ -350,14 +478,15 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
         numero = $11, complemento = $12, bairro = $13, cidade= $14, estado = $15, pais = $16, ativo = $17,
         regimetributario = $18, inscricaomunicipal = $19,
         idbanco = $20, agencia = $21, digitoagencia = $22, numeroconta = $23, digitoconta = $24, tipoconta = $25, pix = $26,
-        siglacertificado = COALESCE($28, siglacertificado)
-      WHERE idempresa = $27 RETURNING idempresa`,
+        siglacertificado = COALESCE($28, siglacertificado),
+        ordem = COALESCE($29, ordem)
+      WHERE idempresa = $27 RETURNING idempresa, logo`,
       [
         nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
         regimeTributario || null, inscricaoMunicipal || null,
         idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null,
         id,
-        siglaManual
+        siglaManual, ordem || null
       ]
     );
     if (result.rowCount) {

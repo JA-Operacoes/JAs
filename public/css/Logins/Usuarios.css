@@ -2,8 +2,50 @@
   font-family: "Abel", sans-serif;
 }
 
-body{
+/* Essa tela abre como modal dentro das páginas que carregam esse CSS (ver
+   #cadModalUsuarios.modal abaixo) — um `body{...}` aqui pintaria a página de
+   fundo inteira, não só a caixinha do usuário. O gradiente vermelho que antes
+   ficava no body virou o próprio fundo do .login-box (mesmo efeito visual,
+   sem vazar pro resto da página). */
+#cadModalUsuarios.login-box{
   background: radial-gradient(circle, rgba(64,64,64,1) 42%, rgb(145, 14, 14) 100%);
+}
+
+/* Boilerplate padrão de modal (mesmo usado em CadEmpresas.css/CadStaff.css/etc.) —
+   cada módulo redefine isso na própria folha de estilo porque só é carregado
+   quando o respectivo modal é aberto pela primeira vez na sessão. */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  z-index: 1000;
+}
+
+.modal-open #modal-overlay,
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto;
+}
+
+.modal-open main,
+.modal-open header,
+.modal-open #content,
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
 }
 
 #login{
@@ -26,16 +68,28 @@ body{
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  height: 650px;
+  height: 750px;
 }
 
+/* width:100% explícito — sem isso, o flex-basis:auto (baseado em conteúdo)
+   estava resolvendo pra 0 nesse contexto aninhado dentro do modal (confirmado
+   via DevTools: content box 40x0, só o padding sobrando), sumindo com a
+   fileira de logos mesmo os .logo-chip individualmente tendo tamanho normal. */
 .Empresas{
   display: flex;
   flex-shrink: 0;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
   justify-content: center;
   align-items:center ;
   padding: 0 20px;
   gap: 20px;
+  /* Tentativa: força uma camada de composição própria, separada do contexto 3D
+     do .flipper (transform-style:preserve-3d) que envolve tudo isso — conteúdo
+     aninhado fundo dentro de um preserve-3d às vezes simplesmente não pinta,
+     mesmo com box model correto (o que já confirmamos via DevTools antes). */
+  transform: translateZ(0);
 }
 
 /* Grade de ícones uniformes (empresa padrão) — antes era 1 logo grande "em destaque" + o resto
@@ -46,11 +100,30 @@ body{
    existe em Style.css (logo grande do cabeçalho principal) e essa tela abre como modal dentro das
    páginas que carregam esse CSS, então uma classe genérica colide e uma das duas regras vence por
    ordem de cascata (foi o que causava os círculos minúsculos sem imagem). */
+/* #linhaEmpresaPadrao: essa linha específica ("Empresa Padrão:" + ícones + select)
+   precisa de mais espaço que o teto genérico de 700px (.user-box{max-width:700px})
+   — 14 empresas de 44px + 8px de gap somam ~720px só pros ícones. flex-wrap:wrap
+   no #logotipoEmpresas garante que, se um dia não couber mais tudo numa linha só
+   (mais empresas cadastradas), ele volta a quebrar em outra linha sozinho. */
+#linhaEmpresaPadrao{
+  max-width: 900px;
+}
 #logotipoEmpresas{
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: 560px;
+  width: 100%;
+  min-height: 44px;
+  max-width: 850px;
+}
+/* [class^="logo-"] em Style.css esconde tudo que começa com "logo-" por padrão —
+   pensado pra barra "Trocar empresa" (.logotipo), mas ".logo-chip" também cai
+   nessa rede por coincidência de nome, sem nenhuma relação com aquilo. Era essa
+   regra escondendo os ícones o tempo todo — o tamanho reportado no DevTools
+   sempre "batia" porque display:none não muda o que width/height calculam, só
+   nunca desenha nada. */
+#logotipoEmpresas [class^="logo-"]{
+  display: flex !important;
 }
 
 /* Tamanho travado em px (não % nem aspect-ratio) — nada de cálculo automático que dependa do
@@ -63,26 +136,37 @@ body{
   height: 44px;
   flex: none;
   border-radius: 8px;
-  background: var(--surface-3);
-  border: 1px solid var(--shadow-1);
+  /* Preto translúcido — escurece o card por baixo, dando uma caixinha uniforme
+     pra cada ícone (bom contraste pros brancos/"claro", e também serve de
+     moldura consistente pros logos com nome escrito junto, ex.: SN Foods/TSD/
+     JA-Expo, que sem essa caixa pareciam "pesar" mais que os monogramas). */
+  background: rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform .12s ease;
+  transition: transform .12s ease, background .12s ease;
 }
-.logo-chip:hover{ transform: translateY(-2px); }
+.logo-chip:hover{ transform: translateY(-2px); background: rgba(0, 0, 0, 0.35); }
 
 .logo-chip img{
-  max-width: 32px;
-  max-height: 32px;
-  width: auto;
-  height: auto;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
+/* Cor clara — o fundo do chip é escuro (rgba(0,0,0,.25)), texto escuro (#333,
+   pensado pra quando tinha uma caixinha clara) ficaria ilegível aqui. */
+.logo-chip-placeholder{
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
 .logo-chip.selecionado{
-  background: var(--status-alerta-bg);
+  /* Mais escuro que o padrão (não a cor clara de antes — sumiria com os
+     ícones brancos), pra reforçar a seleção além do anel/✓. */
+  background: rgba(0, 0, 0, 0.4);
   box-shadow: 0 0 0 2px var(--primary-color, #c8102e);
 }
 .logo-chip.selecionado::after{
@@ -111,17 +195,26 @@ body{
   cursor: pointer;
 }
 
-/* Container principal */
+/* Container principal — position:fixed (era absolute) pra centralizar em
+   relação à viewport de verdade, já que agora vive dentro do #modal-container
+   (ver boilerplate de modal no topo deste arquivo), não mais como página
+   isolada. */
 .login-box {
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   width: 960px;
-  height: 700px;
+  /* 700px → 800px: a fileira de logos (antes escondida, display:none) agora
+     ocupa espaço de verdade — com #Registrar centralizado (justify-content:
+     center), conteúdo mais alto que a caixa "vaza" simetricamente pra fora
+     dela nas duas pontas (título colado no menu em cima, botões cortados
+     embaixo). Aumentando os dois (login-box e #Registrar) junto resolve. */
+  height: 800px;
   transform: translate(-50%, -50%);
   background: rgba(58, 51, 51, 0.987);
   box-sizing: border-box;
-  
+  z-index: 9999;
+
   border-radius: 10px;
   box-shadow: 0 0 60px rgb(255, 0, 0);
 }

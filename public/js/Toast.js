@@ -94,13 +94,15 @@ function removeToast(obj) {
  * @param {string} type   - 'success' | 'warning' | 'danger' | 'info'
  * @param {string} msg    - Mensagem principal
  * @param {string} [sub]  - Subtítulo opcional
+ * @param {Function} [onClick] - Se informado, o toast vira clicável (ex.: abrir a lista completa)
  */
-export function exibirToast(type, msg, sub = '') {
+export function exibirToast(type, msg, sub = '', onClick = null) {
   const c = getContainer();
   const isDark = document.body.classList.contains('dark-theme');
 
   const el = document.createElement('div');
   el.className = `toast-item toast-${type}`;
+  if (onClick) el.classList.add('toast-clicavel');
 
   const icons = {
     success: 'check_circle',
@@ -156,6 +158,17 @@ export function exibirToast(type, msg, sub = '') {
     e.stopPropagation();
     removeToast(obj);
   });
+
+  if (onClick) {
+    el.addEventListener('click', e => {
+      // Sem isso, o clique borbulha até o listener global de "fechar
+      // dropdown se clicar fora" (iniciarSino, em Notificacao.js) — como o
+      // toast não é filho do dropdown, ele reabre e fecha na mesma hora.
+      e.stopPropagation();
+      onClick();
+      removeToast(obj);
+    });
+  }
 
   toasts.push(obj);
   startTick();

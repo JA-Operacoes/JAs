@@ -1,21 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <!-- Tema claro/escuro: aplicado ANTES de qualquer CSS carregar. Precisa ser
-         inline e síncrono — um script externo (mesmo no head) já deixaria o
-         navegador pintar a tela branca antes de escurecer. Lê só o cache do
-         localStorage; js/tema.js confirma depois com o banco. -->
-    <script>
-        (function () {
-            try {
-                var t = localStorage.getItem('tema');
-                document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
-            } catch (e) {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-        })();
-    </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    
@@ -25,7 +10,7 @@
     <link rel="stylesheet" href="css/index/Notificacoes.css">
     <link rel="stylesheet" href="/css/index/toast.css">
     <link rel="stylesheet" href="css/index/Style.css">
-    <link rel="stylesheet" href="css/Footer/Footer-ES.css">
+    <link rel="stylesheet" href="css/Footer/Footer-EP.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">   
     <link rel="stylesheet" href="css/scroolbar/scroolbar.css">
@@ -36,7 +21,7 @@
     <!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
     <link rel="stylesheet" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">
     
-    <link rel="shortcut icon" href="img/icons/ESfavicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="img/icons/RHfaviconBranco.ico" type="image/x-icon">
 
     
        
@@ -51,7 +36,7 @@
     
 </head>
 
-<body class="tema-ES">
+<body class="tema-EP-RH">
 
     
 <div class="barra-empresas">
@@ -61,7 +46,7 @@
 <header>
     <div class="interface">
         <div class="logotipo">
-            <div class="logo-es"><a  href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+            <div class="logo-eprh"><a  href="EPRH-index.html"><img src="/uploads/logos_empresas/logo_2.png" alt="JA RH"></a></div>
         </div>
 
         <div class="interface">
