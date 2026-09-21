@@ -12,7 +12,7 @@
   left: 0;
   width: 100%;
   height: auto;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--shadow-1);
   display: none;
   z-index: 999;
 }
@@ -22,10 +22,10 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(255, 255, 255, 0.356);
+  background-color: var(--surface-vidro);
   padding: 5px;
   border-radius: 8px;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 15px var(--shadow-1);
   width: 80%;
   max-width: 700px;
   display: none;
@@ -83,7 +83,7 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 10px;
-  background-color: #cacaca;
+  background-color: var(--surface-4);
   border-radius: 10px;
   position: relative;
   overflow-y: auto;
@@ -131,9 +131,9 @@ legend {
   border-radius: 6px;
   font-size: 15px;
   padding: 0 12px;
-  border: 1px solid #000000;
-  background: #fff;
-  color: #000000;
+  border: 1px solid var(--border-2);
+  background: var(--surface-1);
+  color: var(--text-1);
   outline: none;
   box-sizing: border-box;
 }
@@ -146,7 +146,7 @@ legend {
 
 .form label {
   font-size: 13px;
-  color: #333;
+  color: var(--text-1);
 }
 
 /* Label flutuante: some enquanto o campo está vazio (o placeholder já indica o que é),
@@ -160,11 +160,11 @@ legend {
   position: absolute;
   top: -8px;
   left: 14px;
-  background: #cacaca;
+  background: var(--surface-4);
   padding: 0 6px;
   font-size: 12px !important;
   font-weight: 600;
-  color: #333;
+  color: var(--text-1);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -212,31 +212,31 @@ legend {
 .previa-lancamentos {
   margin-top: 15px;
   padding: 10px;
-  background-color: #f9f9f9;
+  background-color: var(--surface-3);
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-1);
   width: 100%;
 }
 
 .previa-lancamentos h3 {
   font-size: 16px;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text-1);
   text-align: center;
 }
 
 .table-container {
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #eee;
-  background: white;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
 }
 
 .table-container::-webkit-scrollbar {
   width: 6px;
 }
 .table-container::-webkit-scrollbar-thumb {
-  background: #bbb;
+  background: var(--surface-inativo);
   border-radius: 10px;
 }
 
@@ -249,8 +249,8 @@ legend {
 .table-previa thead th {
   position: sticky;
   top: 0;
-  background-color: #e9e9e9;
-  color: #555;
+  background-color: var(--surface-3);
+  color: var(--text-1);
   font-size: 12px;
   z-index: 2;
   padding: 8px 4px;
@@ -261,11 +261,11 @@ legend {
 .table-previa td {
   text-align: center;
   padding: 8px 4px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-1);
 }
 
 .table-previa tr:hover {
-  background-color: #f1f1f1;
+  background-color: var(--surface-3);
 }
 
 .status-badge {
@@ -278,7 +278,7 @@ legend {
   color: #fff;
 }
 
-.status-badge.pendente { background-color: #ffc107; color: #212529; }
+.status-badge.pendente { background-color: #ffc107; color: var(--on-brand-escuro); }
 .status-badge.pago { background-color: #28a745; }
 .status-badge.suspenso { background-color: #6c757d; }
 .status-badge.rejeitado { background-color: #dc3545; }

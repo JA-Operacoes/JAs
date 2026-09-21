@@ -7,7 +7,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); 
+    background-color: var(--shadow-1); 
     display: none; 
     z-index: 1000;
 }
@@ -17,10 +17,10 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: #ffffff; 
+    background-color: var(--surface-1); 
     padding: 30px;
     border-radius: 10px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 5px 20px var(--shadow-1);
     width: 95%; 
     max-width: 1400px;
     height: auto; /* NOVO: A altura se adapta ao conteúdo */
@@ -101,8 +101,8 @@ h2 {
     font-size: 16px;
     margin-top: 0px;
     text-align: left;
-    color: #333;
-    border-bottom: 2px solid #ddd;
+    color: var(--text-1);
+    border-bottom: 2px solid var(--border-1);
     padding-bottom: 10px;
     margin-bottom: 15px;
     page-break-before: auto;
@@ -122,8 +122,8 @@ p {
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background-color: #f0f0f0; /* Cinza claro */
-    border-bottom: 1px solid #ccc;
+    background-color: var(--surface-3); /* Cinza claro */
+    border-bottom: 1px solid var(--border-1);
     margin-bottom: 20px;
    
     margin-top: 0 !important;
@@ -153,7 +153,7 @@ p {
 
 .header-title {
     font-size: 24px;
-    color: #333;
+    color: var(--text-1);
     font-weight: bold;
 }
 
@@ -170,7 +170,7 @@ p {
     padding: 2px 5px;
     border-radius: 3px;
     display: inline-block;
-    color: #333;
+    color: var(--text-1);
 }
 
 @media print {
@@ -240,7 +240,7 @@ p {
         display: table-header-group !important; 
         page-break-inside: avoid !important;
         page-break-after: avoid !important; 
-        background-color: white !important; /* Fundo branco para a repetição */
+        background-color: var(--surface-1) !important; /* Fundo branco para a repetição */
         page-break-before: avoid !important; 
     }
 
@@ -249,7 +249,7 @@ p {
     .report-table thead th {
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important;
-        color: black !important;
+        color: var(--text-1) !important;
     }
     
     /* CRÍTICO: Garante que as linhas de cabeçalho se comportem como cabeçalho */
@@ -267,19 +267,19 @@ p {
     /* REFORÇA AS CORES: Mantenha as regras de cor explícitas aqui ou mova para fora do @media print, usando !important */
 
     .report-table thead .table-section-title-header {
-        background-color: #d0d0d0 !important; 
+        background-color: var(--surface-4) !important; 
     }
 
     /* Altera a regra para a linha de grupos (2ª linha) para garantir que seja CINZA */
     .header-group-row th {
         background-color: #a8a8a8ff !important;
-        color: black !important;
+        color: var(--text-1) !important;
     }
 
     /* A 3ª linha (títulos das colunas) deve continuar laranja */
     .report-table thead tr:not(.header-section-title-row):not(.header-group-row) th {
         background-color: orange !important;
-        color: black !important;
+        color: var(--text-1) !important;
     }
 }
 /* ============================================== */
@@ -294,7 +294,7 @@ p {
 }
 
 .report-table th, .report-table td {
-    border: 1px solid #000;
+    border: 1px solid var(--border-2);
     padding: 4px 6px;
     /* Propriedades cruciais para quebra de texto: */
     white-space: normal; 
@@ -311,7 +311,7 @@ p {
 
 /* Garante que o texto em todas as células do cabeçalho seja preto, a não ser que seja laranja */
 .report-table thead tr th {
-    color: black;
+    color: var(--text-1);
     font-weight: bold;
     text-align: center;
 }
@@ -320,7 +320,7 @@ p {
 /* Se sua tabela tem um título cinza e uma segunda linha de títulos laranja, use esta regra */
 .report-table thead tr:not(:first-child) th {
     background-color: orange;
-    color: black; 
+    color: var(--text-1); 
 }
 
 
@@ -331,7 +331,7 @@ p {
     text-transform: uppercase;
     height: auto;
     background-color: #a8a8a8ff; 
-    color: black; 
+    color: var(--text-1); 
     text-align: center;
     border-bottom: 2px solid #777;
     padding: 8px 12px;
@@ -346,11 +346,11 @@ p {
 /* Título de seção dentro da tabela (ex: diárias, contingência) */
 .table-title-header {
     background-color: #a8a8a8ff; 
-    color: black;
+    color: var(--text-1);
     padding: 8px 12px;
     font-size: 14px;
     text-align: center;
-    border-bottom: 2px solid #999; 
+    border-bottom: 2px solid var(--border-2); 
     page-break-inside: avoid; 
 }
 
@@ -406,14 +406,14 @@ p {
     width: 50%; /* Cada tabela resumo ocupa metade da largura */
     border: 1px solid #777;
     border-radius: 5px;
-    background-color: white; 
+    background-color: var(--surface-1); 
     padding: 0;
 }
 
 /* Estilo para o H2 dentro dos contêineres de resumo */
 .tabela-resumo h2 {
     background-color: #a8a8a8ff; 
-    color: black;
+    color: var(--text-1);
     padding: 8px 12px;
     margin: 0; 
     font-size: 16px;
@@ -466,9 +466,9 @@ button {
 
 button:disabled, button[disabled] {
     /* Mudar a cor de fundo para cinza claro */
-    background-color: #cccccc !important; 
+    background-color: var(--surface-4) !important; 
     /* Mudar a cor do texto para cinza escuro */
-    color: #666666 !important; 
+    color: var(--text-2) !important; 
     /* Mudar o cursor para indicar que não é clicável */
     cursor: not-allowed !important; 
     /* Adicionar um sombreamento suave para dar profundidade (opcional) */
@@ -499,20 +499,20 @@ button:disabled, button[disabled] {
     max-height: 60vh; /* Define a altura máxima para o contêiner. Ajuste o 60vh conforme sua tela */
     overflow-y: auto;  /* Adiciona a barra de rolagem vertical apenas se o conteúdo exceder a altura máxima */
     padding: 10px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-1);
     margin-top: 15px;
 }
 
 table.relatorio-solido {
     width: 100%;
     border-collapse: collapse; /* Essencial para que as bordas se unam perfeitamente */
-    border: 1px solid #999; /* Borda externa da tabela */
+    border: 1px solid var(--border-2); /* Borda externa da tabela */
 }
 
 /* 2. BORDAS SÓLIDAS EM TODAS AS CÉLULAS (Linhas e Colunas Contínuas) */
 table.relatorio-solido th, 
 table.relatorio-solido td {
-    border: 1px solid #ddd; /* Borda SÓLIDA de 1px entre todas as células */
+    border: 1px solid var(--border-1); /* Borda SÓLIDA de 1px entre todas as células */
     padding: 8px;
     text-align: left;
 }
@@ -520,22 +520,22 @@ table.relatorio-solido td {
 /* 3. LINHAS ZEBRADAS (Alternando cores no corpo da tabela) */
 /* Aplica um fundo cinza muito claro para todas as linhas ímpares do corpo */
 table.relatorio-solido tbody tr:nth-child(odd) {
-    background-color: #f9f9f9; 
+    background-color: var(--surface-3); 
 }
 
 /* 4. CABEÇALHO (Opcional: Destaca a linha de título) */
 table.relatorio-solido thead th {
-    background-color: #e0e0e0; /* Fundo mais escuro para o cabeçalho */
-    color: #333;
-    border-bottom: 2px solid #ddd;
+    background-color: var(--surface-4); /* Fundo mais escuro para o cabeçalho */
+    color: var(--text-1);
+    border-bottom: 2px solid var(--border-1);
 }
 
 .report-table thead .table-section-title-header {
-    background-color: #d0d0d0 !important; 
+    background-color: var(--surface-4) !important; 
     font-size: 16px !important;
     text-align: center !important;
     padding: 10px 0 !important;
-    color: black !important;
+    color: var(--text-1) !important;
     font-weight: bold;
     display: table-cell !important; /* CRÍTICO: Garante que o TH se exiba */
     border-bottom: 2px solid #777 !important;
@@ -547,12 +547,12 @@ table.relatorio-solido thead th {
 /* Altera a regra para a linha de grupos (2ª linha) para garantir que seja CINZA */
 .header-group-row th {
     background-color: #a8a8a8ff !important;
-    color: black !important;
+    color: var(--text-1) !important;
 }
 
 /* A 3ª linha (títulos das colunas) deve continuar laranja, conforme sua regra original: */
 .report-table thead tr:not(:first-child) th:not(.table-title-header) {
     /* Esta regra original provavelmente deixava a 3ª linha laranja */
     background-color: orange;
-    color: black;
+    color: var(--text-1);
 }

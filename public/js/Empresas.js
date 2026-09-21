@@ -991,8 +991,8 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
                     <button type="button" id="swalCertBtnAnexar" style="
                         width:100%; box-sizing:border-box; margin:0; padding:14px;
                         display:flex; align-items:center; justify-content:center; gap:8px;
-                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
-                        font-size:15px; cursor:pointer; color:#333;">
+                        border:2px dashed #999; border-radius:8px; background:var(--surface-3);
+                        font-size:15px; cursor:pointer; color:var(--text-1);">
                         <span id="swalCertNomeArquivo">📎 Clique pra anexar o certificado</span>
                     </button>
                 </div>
@@ -1017,12 +1017,12 @@ async function abrirSwalUploadCertificado(idempresa, sigla) {
                     nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
                     btnAnexar.style.borderStyle = "solid";
                     btnAnexar.style.borderColor = "#28a745";
-                    btnAnexar.style.background = "#eaf7ee";
+                    btnAnexar.style.background = "var(--surface-3)";
                 } else {
                     nomeArquivo.textContent = "📎 Clique pra anexar o certificado";
                     btnAnexar.style.borderStyle = "dashed";
-                    btnAnexar.style.borderColor = "#999";
-                    btnAnexar.style.background = "#f7f7f7";
+                    btnAnexar.style.borderColor = "var(--border-2)";
+                    btnAnexar.style.background = "var(--surface-3)";
                 }
             });
         },
@@ -1121,8 +1121,8 @@ async function abrirSwalUploadLogo(idempresa) {
                     <button type="button" id="swalLogoBtnAnexar" style="
                         width:100%; box-sizing:border-box; margin:0; padding:14px;
                         display:flex; align-items:center; justify-content:center; gap:8px;
-                        border:2px dashed #999; border-radius:8px; background:#f7f7f7;
-                        font-size:15px; cursor:pointer; color:#333;">
+                        border:2px dashed #999; border-radius:8px; background:var(--surface-3);
+                        font-size:15px; cursor:pointer; color:var(--text-1);">
                         <span id="swalLogoNomeArquivo">📎 Clique pra anexar o logo</span>
                     </button>
                 </div>
@@ -1143,12 +1143,12 @@ async function abrirSwalUploadLogo(idempresa) {
                     nomeArquivo.textContent = `✅ Arquivo anexado: ${arquivo.name}`;
                     btnAnexar.style.borderStyle = "solid";
                     btnAnexar.style.borderColor = "#28a745";
-                    btnAnexar.style.background = "#eaf7ee";
+                    btnAnexar.style.background = "var(--surface-3)";
                 } else {
                     nomeArquivo.textContent = "📎 Clique pra anexar o logo";
                     btnAnexar.style.borderStyle = "dashed";
-                    btnAnexar.style.borderColor = "#999";
-                    btnAnexar.style.background = "#f7f7f7";
+                    btnAnexar.style.borderColor = "var(--border-2)";
+                    btnAnexar.style.background = "var(--surface-3)";
                 }
             });
         },

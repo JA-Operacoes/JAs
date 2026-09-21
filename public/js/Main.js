@@ -578,7 +578,7 @@ async function carregarSaldosInativacaoPendentes() {
                         </div><br>
                         <span class="text-xs text-gray-600" style="display:block;margin:2px 0 6px;line-height:1.5;"><strong>Detalhes:</strong> ${justificativaEscapada}</span>
                         <div><strong>Todos os dias já vêm marcados como trabalhados — clique para desmarcar os que o funcionário NÃO trabalhou:</strong></div>
-                        <div class="dias-lista-toggle">${botoesDias || '<span style="color:#999;">Sem datas registradas neste evento.</span>'}</div>
+                        <div class="dias-lista-toggle">${botoesDias || '<span style="color:var(--text-3);">Sem datas registradas neste evento.</span>'}</div>
                         <div class="resumo-saldo-inativacao" id="resumo-saldo-${item.idsolicitacao}"></div>
                         <div class="AcoesPedido" data-id="${item.idsolicitacao}">
                             <button class="aprovar-saldo-inativacao aprovar">Autorizar</button>
@@ -1270,7 +1270,7 @@ function abrirFiltroSwal(eventos) {
   Swal.fire({
     title: "Filtrar Eventos",
     html: `
-      <div style="text-align:center; margin-bottom:8px; font-size:15px; color:black;">
+      <div style="text-align:center; margin-bottom:8px; font-size:15px; color:var(--text-1);">
         Clique nos eventos para filtrar. Múltipla seleção permitida.
       </div>
       <div class="swal-chips-grid" id="swalChipsGrid">
@@ -1466,7 +1466,7 @@ function abrirFiltroSwal(eventos) {
     });
 
     // 2. Criar o Cabeçalho com os Dias (Coluna 1, 2, 3... até 31)
-    let cabecalhoDias = `<th style="background:#8B0000;color:#fff;padding:6px;border:1px solid #aaa;min-width:180px;">Evento / Dia</th>`;
+    let cabecalhoDias = `<th style="background:#8B0000;color:var(--on-brand);padding:6px;border:1px solid #aaa;min-width:180px;">Evento / Dia</th>`;
     
     for (let dia = 1; dia <= ultimoDia; dia++) {
         const dataObj = new Date(anoAtual, mesAtualIdx - 1, dia);
@@ -1488,7 +1488,7 @@ function abrirFiltroSwal(eventos) {
         htmlLinhas += `<tr>`;
         // Primeira coluna fixa: Nome do Evento
         htmlLinhas += `
-            <td style="background:#f9f9f9; font-weight:bold; padding:6px; border:1px solid #ddd; font-size:11px; white-space: nowrap;">
+            <td style="background:var(--surface-3); font-weight:bold; padding:6px; border:1px solid #ddd; font-size:11px; white-space: nowrap;">
                 ${eventoPrincipal.nome}
             </td>`;
 
@@ -1556,22 +1556,22 @@ function abrirFiltroSwal(eventos) {
         <table>
           <thead>
             <tr>
-              <th colspan="${ultimoDia + 1}" style="background:#8B0000; color:#fff; font-size:16px; padding:10px; text-align:center;">
+              <th colspan="${ultimoDia + 1}" style="background:#8B0000; color:var(--on-brand); font-size:16px; padding:10px; text-align:center;">
                 ${mesAtual.toUpperCase()} ${anoAtual}
               </th>
             </tr>
             <tr>
-              <td colspan="${ultimoDia + 1}" style="background:#fefefe; padding:5px; border:1px solid #aaa;">
+              <td colspan="${ultimoDia + 1}" style="background:var(--surface-1); padding:5px; border:1px solid #aaa;">
                 <table style="border-collapse: collapse;">
                   <tr>
-                    <td style="font-size:11px; background:#8B0000; color:#fff; font-weight:bold; padding-right:10px; border:none;">LEGENDA:</td>
-                    <td class="td-legenda" style="background:#f8a500; color:#000;">(M I) Montagem Infra</td>
-                    <td class="td-legenda" style="background:#F5E801; color:#000;">(M) Montagem</td>
-                    <td class="td-legenda" style="background:#F46251; color:#000;">(R) Realização</td>
-                    <td class="td-legenda" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
-                    <td class="td-legenda" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
-                    <td class="td-legenda" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
-                    <td class="td-legenda" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                    <td style="font-size:11px; background:#8B0000; color:var(--on-brand); font-weight:bold; padding-right:10px; border:none;">LEGENDA:</td>
+                    <td class="td-legenda" style="background:#f8a500; color:var(--on-brand-escuro);">(M I) Montagem Infra</td>
+                    <td class="td-legenda" style="background:#F5E801; color:var(--on-brand-escuro);">(M) Montagem</td>
+                    <td class="td-legenda" style="background:#F46251; color:var(--on-brand-escuro);">(R) Realização</td>
+                    <td class="td-legenda" style="background:#23821F; color:var(--on-brand);">(D) Desmontagem</td>
+                    <td class="td-legenda" style="background:#704300; color:var(--on-brand);">(D I) Desmontagem Infra</td>
+                    <td class="td-legenda" style="background:#73757A; color:var(--on-brand);">(MAR) Marcação</td>
+                    <td class="td-legenda" style="background:#5B0F85; color:var(--on-brand);">(F) Feriado</td>
                   </tr>
                 </table>
               </td>
@@ -1713,16 +1713,16 @@ async function exportarCalendarioMultimes(anoBase, mesInicio, totalMeses, tipoNo
                   <td class="td-legenda-item" style="background:#f8a500;">(M I) Montagem Infra</td>
                   <td class="td-legenda-item" style="background:#F5E801;">(M) Montagem</td>
                   <td class="td-legenda-item" style="background:#F46251;">(R) Realização</td>
-                  <td class="td-legenda-item" style="background:#23821F; color:#fff;">(D) Desmontagem</td>
-                  <td class="td-legenda-item" style="background:#704300; color:#fff;">(D I) Desmontagem Infra</td>
-                  <td class="td-legenda-item" style="background:#73757A; color:#fff;">(MAR) Marcação</td>
-                  <td class="td-legenda-item" style="background:#5B0F85; color:#fff;">(F) Feriado</td>
+                  <td class="td-legenda-item" style="background:#23821F; color:var(--on-brand);">(D) Desmontagem</td>
+                  <td class="td-legenda-item" style="background:#704300; color:var(--on-brand);">(D I) Desmontagem Infra</td>
+                  <td class="td-legenda-item" style="background:#73757A; color:var(--on-brand);">(MAR) Marcação</td>
+                  <td class="td-legenda-item" style="background:#5B0F85; color:var(--on-brand);">(F) Feriado</td>
                 </tr></table>
               </td>
             </tr>
             <tr>
               <td class="header-mes-label">MÊS</td>
-              ${blocoMeses.map(m => `<td colspan="${m.dias}" class="header-mes-nome" style="background: #8B0000; color: #fff; border-right: 2px solid #000;">${m.nome}</td>`).join("")}
+              ${blocoMeses.map(m => `<td colspan="${m.dias}" class="header-mes-nome" style="background: #8B0000; color: var(--on-brand); border-right: 2px solid #000;">${m.nome}</td>`).join("")}
             </tr>
             <tr class="header-dias">
               <td style="border-right: 2px solid #000;">EVENTO / DIA</td>
@@ -1899,7 +1899,7 @@ async function renderPopupPeriodico(ano, mes, tipoView) {
   const panel = document.createElement("div");
   panel.style.width = "95%";
   panel.style.height = "92%";
-  panel.style.background = "#fff";
+  panel.style.background = "var(--surface-1)";
   panel.style.borderRadius = "8px";
   panel.style.boxShadow = "0 8px 40px rgba(0,0,0,0.5)";
   panel.style.display = "flex";
@@ -2013,7 +2013,7 @@ const leftss = document.createElement("div");
   mini.style.border = "1px solid #eee";
   mini.style.borderRadius = "6px";
   mini.style.padding = "8px";
-  mini.style.background = "#fafafa";
+  mini.style.background = "var(--surface-1)";
   mini.style.minWidth = "220px";
   body.appendChild(mini);
   await renderMiniCalendario(mini, ano, m);
@@ -3271,12 +3271,12 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
 //             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
 //                 <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
 //                 <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-//                 <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+//                 <span style="color:var(--text-3); font-size:0.9em;">${periodoVaga}</span>
 //                 <span style="color:#fff; font-weight:bold; min-width:60px; text-align:right;">
 //                     ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas} 
 //                 </span>
 //                 <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-//                     Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+//                     Disp: ${disponiveis} <small style="color:var(--text-2); font-weight:normal;">${sufixo}</small>
 //                 </span>
                 
 //             </div>`;
@@ -3292,7 +3292,7 @@ if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
 //             <div class="progresso" style="width:${perc}%;"></div>
 //         </div>
 //         <div class="equipe-resumo" style="padding:4px 0;">
-//             ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+//             ${resumoItens || "<div style='padding:6px;color:var(--text-3);'>Nenhuma função cadastrada</div>"}
 //         </div>
 //         <div class="equipe-actions">
 //             <button type="button" class="ver-funcionarios-btn">
@@ -3702,12 +3702,12 @@ async function abrirTelaEquipesEvento(evento) {
         //     <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.82em;">
         //         <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
         //         <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-        //         <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+        //         <span style="color:var(--text-3); font-size:0.9em;">${periodoVaga}</span>
         //         <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
         //             ${diariasConsumidas}${textoPendentes} / ${vagasOrcadas}
         //         </span>
         //         <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-        //             Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+        //             Disp: ${disponiveis} <small style="color:var(--text-2); font-weight:normal;">${sufixo}</small>
         //         </span>
 
         //     </div>`;
@@ -3718,12 +3718,12 @@ async function abrirTelaEquipesEvento(evento) {
             ? 'vaga/limite excedido'
             : 'vaga excedida';
         const linhaLimiteFinanceiro = limiteFinExcedido && disponiveis > 0
-            ? `<div style="padding:1px 6px 4px 24px; font-size:0.78em; color:#fff; font-weight:600; background:rgba(192,57,43,0.4); border-left:3px solid #c0392b; margin:0 4px;">
+            ? `<div style="padding:1px 6px 4px 24px; font-size:0.78em; color:var(--on-brand); font-weight:600; background:rgba(192,57,43,0.4); border-left:3px solid #c0392b; margin:0 4px;">
                    🚫 Limite financeiro da equipe excedido
                </div>`
             : '';
         const linhaLimiteSaldoInferior = limiteSaldoInferior && disponiveis > 0
-            ? `<div style="padding:1px 6px 4px 24px; font-size:0.78em; color:#fff; font-weight:600; background:rgba(230,126,34,0.35); border-left:3px solid #e67e22; margin:0 4px;">
+            ? `<div style="padding:1px 6px 4px 24px; font-size:0.78em; color:var(--on-brand); font-weight:600; background:rgba(230,126,34,0.35); border-left:3px solid #e67e22; margin:0 4px;">
                    ⚠️ Limite financeiro inferior ao custo desta função
                </div>`
             : '';
@@ -3750,12 +3750,12 @@ async function abrirTelaEquipesEvento(evento) {
             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; font-size:0.82em; ${!aditivosPendentes && !pendentes && !textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''}">
                 <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
                 <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-                <span style="color:#aaa; font-size:0.9em;">${periodoVaga}</span>
+                <span style="color:var(--text-3); font-size:0.9em;">${periodoVaga}</span>
                 <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
                     ${exibicaoDiariasVisuais} / ${vagasOrcadas}
                 </span>
                 <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-                    Disp: ${disponiveis} <small style="color:#888; font-weight:normal;">${sufixo}</small>
+                    Disp: ${disponiveis} <small style="color:var(--text-2); font-weight:normal;">${sufixo}</small>
                 </span>
             </div>
             ${linhaLimiteFinanceiro}
@@ -3774,12 +3774,12 @@ async function abrirTelaEquipesEvento(evento) {
         <div class="barra-progresso">
             <div class="progresso" style="width:${perc}%;"></div>
         </div>
-        <div class="equipe-totais-resumo" style="display:flex; gap:16px; padding:4px 10px; font-size:0.8em; color:#eee; background:rgba(255,255,255,0.08); border-radius:4px; margin:4px 0;">
+        <div class="equipe-totais-resumo" style="display:flex; gap:16px; padding:4px 10px; font-size:0.8em; color:#eee; background:var(--surface-1); border-radius:4px; margin:4px 0;">
             <span><strong>Total Orçado:</strong> ${totalDiariasOrcadas} diárias</span>
             <span><strong>Total Cadastrado:</strong> ${totalDiariasCadastradas} diárias</span>
         </div>
         <div class="equipe-resumo" style="padding:4px 0;">
-            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
+            ${resumoItens || "<div style='padding:6px;color:var(--text-3);'>Nenhuma função cadastrada</div>"}
         </div>
         <div class="equipe-actions">
             <button type="button" class="ver-funcionarios-btn">
@@ -4036,7 +4036,7 @@ async function abrirTelaEquipesEvento(evento) {
 //     //         <li class="funcionario-item" style="${estiloItem}">
 //     //             <div class="funcionario-info-principal" style="margin: 0 0 10px 0;">
 //     //                 <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
-//     //                 <div style="font-size: 0.8rem; color: #666;">
+//     //                 <div style="font-size: 0.8rem; color: var(--text-2);">
 //     //                     📅 ${escapeHtml(exibicaoDatas)}
 //     //                 </div>                        
 //     //                 ${badgeAutorizacao}
@@ -4140,7 +4140,7 @@ async function abrirTelaEquipesEvento(evento) {
 //         <li class="funcionario-item" style="${estiloItem}">
 //             <div class="funcionario-info-principal" style="margin: 0 0 10px 0; display: flex; flex-direction: column; align-items: flex-start;">
 //                 <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
-//                 <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">
+//                 <div style="font-size: 0.8rem; color: var(--text-2); margin-top: 2px;">
 //                     📅 ${escapeHtml(exibicaoDatas)}
 //                 </div>                        
 //                 <div class="badges-wrapper" style="display: flex; flex-wrap: wrap; gap: 2px;">
@@ -4515,7 +4515,7 @@ async function abrirListaFuncionarios(equipe, evento) {
             <li class="funcionario-item" style="${estiloItem}">
                 <div class="funcionario-info-principal" style="margin: 0 0 10px 0; display: flex; flex-direction: column; align-items: flex-start;">
                     <span class="funcionario-nome" style="${estiloTexto}">${escapeHtml(nomeComSetor)}</span>                        
-                    <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">
+                    <div style="font-size: 0.8rem; color: var(--text-2); margin-top: 2px;">
                         📅 ${escapeHtml(exibicaoDatas)}
                     </div>                        
                     <div class="badges-wrapper" style="display: flex; flex-wrap: wrap; gap: 2px;">
@@ -4903,15 +4903,15 @@ function formatarPeriodo(inicio, fim) {
 //     const setor = (func.setor_orcamento || func.localizacao || "").trim();
 //     let labelLocal = "";
 //     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
-//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//         labelLocal = ` <span style="font-size:0.8em; background:var(--surface-3); padding:2px 6px; border-radius:4px; color:var(--text-1); font-weight:normal;">${escapeHtml(setor)}</span>`;
 //     }
 
 //     const textoUnidade =  "diárias";
 
 //     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
-//     htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
-//     htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diariasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
-//     htmlEstado += `  <div style="min-width: 65px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+//     htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></div>`;
+//     htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diariasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: var(--text-2);">${textoUnidade}</small></div>`;
+//     htmlEstado += `  <div style="min-width: 65px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: var(--text-2);">diárias</small></div>`;
 //     if (pendentes > 0) {
 //         htmlEstado += ` <span class="badge-pendentes-alerta" style="font-size: 0.8em; color: #e67e22;" title="Aguardando Autorização">(+${pendentes} ⏳)</span>`;
 //     }
@@ -4929,8 +4929,8 @@ function formatarPeriodo(inicio, fim) {
 //     li.innerHTML = `
 //         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
 //             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
-//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
-//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//                 <strong style="font-size: 1.05em; color: var(--text-1);">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: var(--text-2); margin-top: 2px;">(${periodoVaga})</span>
 //             </div>
 //             ${htmlEstado}
 //             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
@@ -5141,31 +5141,31 @@ function formatarPeriodo(inicio, fim) {
 //     const setor = (func.setor_orcamento || func.localizacao || "").trim();
 //     let labelLocal = "";
 //     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
-//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//         labelLocal = ` <span style="font-size:0.8em; background:var(--surface-3); padding:2px 6px; border-radius:4px; color:var(--text-1); font-weight:normal;">${escapeHtml(setor)}</span>`;
 //     }
 
 //     const textoUnidade =  "diárias";
 
 //     //let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
-//     // htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
-//     // htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
+//     // htmlEstado += `  <div style="min-width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></div>`;
+//     // htmlEstado += `  <div style="min-width: 105px; text-align: left;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: var(--text-2);">${textoUnidade}</small></div>`;
    
 //     // // 🚀 O texto agora nasce na linha de baixo de forma natural e sem quebrar o layout
 //     // if (typeof func !== 'undefined' && func.diarias_dobradas > 0) {
-//     //     htmlEstado += `     <span style="font-size: 10px; color: #888; font-weight: normal; font-style: italic; margin-left: 20px; white-space: nowrap;">(${func.diarias_dobradas} em diária dobrada)</span>`;
+//     //     htmlEstado += `     <span style="font-size: 10px; color: var(--text-2); font-weight: normal; font-style: italic; margin-left: 20px; white-space: nowrap;">(${func.diarias_dobradas} em diária dobrada)</span>`;
 //     // }
 //     // htmlEstado += `  </div>`; // Fechamento correto da caixinha vertical
 
 //     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
     
 //     // 1️⃣ Bloco de Itens (👥) - Mantido fixo em 95px
-//     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+//     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></div>`;
     
 //     // 2️⃣ Bloco de Diárias (📅) - Travando o container em 120px e permitindo o texto transbordar visualmente sem empurrar os vizinhos
 //     htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; position: relative;">`;
 //     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
 //     htmlEstado += `        <tr>`;
-//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></td>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${diáriasConsumidas}/${vagasOrcadas} <small style="font-weight: normal; color: var(--text-2);">${textoUnidade}</small></td>`;
 //     htmlEstado += `        </tr>`;
     
 //     // LÓGICA CONDICIONAL DOS STATUS DAS DOBRAS (TUDO NA MESMA LINHA)
@@ -5193,7 +5193,7 @@ function formatarPeriodo(inicio, fim) {
 //     htmlEstado += `  </div>`;
    
 //     // 3️⃣ Bloco de Disponíveis (Disp:) - Travado com min-width e width idênticos para não dançar na tela
-//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: var(--text-2);">diárias</small></div>`;
     
 //     // 4️⃣ Bloco de Pendentes (⏳)
 //     if (pendentes > 0) {
@@ -5215,8 +5215,8 @@ function formatarPeriodo(inicio, fim) {
 //     li.innerHTML = `
 //         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
 //             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
-//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
-//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//                 <strong style="font-size: 1.05em; color: var(--text-1);">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: var(--text-2); margin-top: 2px;">(${periodoVaga})</span>
 //             </div>
 //             ${htmlEstado}
 //             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
@@ -5428,7 +5428,7 @@ function formatarPeriodo(inicio, fim) {
 //     const setor = (func.setor_orcamento || func.localizacao || "").trim();
 //     let labelLocal = "";
 //     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
-//         labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+//         labelLocal = ` <span style="font-size:0.8em; background:var(--surface-3); padding:2px 6px; border-radius:4px; color:var(--text-1); font-weight:normal;">${escapeHtml(setor)}</span>`;
 //     }
 
 //     const textoUnidade = "diárias";
@@ -5439,11 +5439,11 @@ function formatarPeriodo(inicio, fim) {
 //     let htmlEstado = `<div class="func-estado" style="font-weight: bold; flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: center; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">`;
     
 //     // 1️⃣ Bloco de Itens (👥)
-//    // htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+//    // htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></div>`;
 //     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left; position: relative;">`;
 //     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
 //     htmlEstado += `        <tr>`;
-//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></td>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></td>`;
 //     htmlEstado += `        </tr>`;
     
 //     // Se houver vagas pendentes na função, o alerta nasce aqui embaixo sem empurrar ninguém
@@ -5462,7 +5462,7 @@ function formatarPeriodo(inicio, fim) {
 //     htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; position: relative;">`;
 //     htmlEstado += `     <table style="table-layout: fixed; border-collapse: collapse; border: none; padding: 0; margin: 0; width: 100%; text-align: left; line-height: 1.1;">`;
 //     htmlEstado += `        <tr>`;
-//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></td>`;
+//     htmlEstado += `           <td style="padding: 0; margin: 0; font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: var(--text-2);">${textoUnidade}</small></td>`;
 //     htmlEstado += `        </tr>`;
     
 //     // 🚀 LÓGICA CONDICIONAL DOS STATUS DAS DOBRAS (TEXTO ATUALIZADO COM ÍCONES)
@@ -5490,7 +5490,7 @@ function formatarPeriodo(inicio, fim) {
 //     htmlEstado += `  </div>`;
    
 //     // 3️⃣ Bloco de Disponíveis (Disp:)
-//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+//     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right; color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'};">Disp: ${disponiveis} <small style="font-weight: normal; color: var(--text-2);">diárias</small></div>`;
          
 //     htmlEstado += `</div>`;
    
@@ -5507,8 +5507,8 @@ function formatarPeriodo(inicio, fim) {
 //     li.innerHTML = `
 //         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
 //             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
-//                 <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
-//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+//                 <strong style="font-size: 1.05em; color: var(--text-1);">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+//                 <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: var(--text-2); margin-top: 2px;">(${periodoVaga})</span>
 //             </div>
 //             ${htmlEstado}
 //             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
@@ -5674,8 +5674,8 @@ function abrirDetalhesEquipe(equipe, evento) {
   headerColunas.innerHTML = `
     <div style="flex:1; padding-right:15px; min-width:200px;"></div>
     <div style="flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: flex-start; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">
-        <div style="min-width: 95px; width: 95px; text-align: left; font-size: 15px; color: #999;">cad/orc</div>
-        <div style="min-width: 100px; width: 100px; text-align: left; font-size: 15px; color: #999;">cad/orc</div>
+        <div style="min-width: 95px; width: 95px; text-align: left; font-size: 15px; color: var(--text-3);">cad/orc</div>
+        <div style="min-width: 100px; width: 100px; text-align: left; font-size: 15px; color: var(--text-3);">cad/orc</div>
         <div style="min-width: 110px; width: 110px;"></div>
     </div>
     <div style="flex: 0 0 120px;"></div>
@@ -5771,7 +5771,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     const setor = (func.setor_orcamento || func.localizacao || "").trim();
     let labelLocal = "";
     if (setor && !nomeFuncao.toUpperCase().includes(setor.toUpperCase())) {
-        labelLocal = ` <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px; color:#555; font-weight:normal;">${escapeHtml(setor)}</span>`;
+        labelLocal = ` <span style="font-size:0.8em; background:var(--surface-3); padding:2px 6px; border-radius:4px; color:var(--text-1); font-weight:normal;">${escapeHtml(setor)}</span>`;
     }
 
     const textoUnidade = "diárias";
@@ -5783,7 +5783,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     
     // 1️⃣ Bloco de Itens (👥)
     htmlEstado += `  <div style="min-width: 95px; width: 95px; text-align: left; line-height: 1.3;">`;
-    htmlEstado += `    <div style="font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: #666;">itens</small></div>`;
+    htmlEstado += `    <div style="font-weight: bold; color: inherit; white-space: nowrap;">👥 ${pessoasCadastradas}/${itensOrcados} <small style="font-weight: normal; color: var(--text-2);">itens</small></div>`;
     if (aditivosPendentes > 0) {
         const labelTipoAditivo = limitePendentes > 0 && limitePendentes === aditivosPendentes
             ? 'limite excedido'
@@ -5813,7 +5813,7 @@ function abrirDetalhesEquipe(equipe, evento) {
     const vagasUsadasEmDet = Array.isArray(func.vagas_usadas_em) ? func.vagas_usadas_em : [];
 
     htmlEstado += `  <div style="min-width: 120px; width: 120px; text-align: left; line-height: 1.3;">`;
-    htmlEstado += `    <div style="font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: #666;">${textoUnidade}</small></div>`;
+    htmlEstado += `    <div style="font-weight: bold; color: inherit; white-space: nowrap;">📅 ${exibicaoDiariasVisuais}/${vagasOrcadas} <small style="font-weight: normal; color: var(--text-2);">${textoUnidade}</small></div>`;
     if (textosDobra.length > 0) {
         htmlEstado += `    <div style="font-size: 10px; color: #e67e22; font-weight: normal; font-style: italic; white-space: nowrap; margin-top: 2px;">(${textosDobra.join(' e ')})</div>`;
     }
@@ -5824,7 +5824,7 @@ function abrirDetalhesEquipe(equipe, evento) {
 
     // 3️⃣ Bloco de Disponíveis (Disp:)
     htmlEstado += `  <div style="min-width: 110px; width: 110px; text-align: right;">`;
-    htmlEstado += `    <div style="color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'}; font-weight: bold;">Disp: ${disponiveis} <small style="font-weight: normal; color: #666;">diárias</small></div>`;
+    htmlEstado += `    <div style="color: ${disponiveis > 0 ? '#ff9800' : '#4caf50'}; font-weight: bold;">Disp: ${disponiveis} <small style="font-weight: normal; color: var(--text-2);">diárias</small></div>`;
     if (limiteFinExcedido && disponiveis > 0) {
         htmlEstado += `    <div style="font-size: 9px; color: #c0392b; font-weight: bold; white-space: nowrap; margin-top: 2px;">🚫 Limite fin. excedido</div>`;
     } else if (limiteSaldoInferior && disponiveis > 0) {
@@ -5841,9 +5841,9 @@ function abrirDetalhesEquipe(equipe, evento) {
     } else if (bloqueadoPorPendente) {
         htmlBotao = '<span style="color: #e67e22; font-weight: bold;" title="Vagas aguardando liberação">🔒 Reservado</span>';
     } else if (func.contratarstaff === false) {
-        htmlBotao = '<span style="color: #999; font-weight: bold;" title="Orçamento não habilitado para contratação de staff">🚫 Não disponível para Cadastro</span>';
+        htmlBotao = '<span style="color: var(--text-3); font-weight: bold;" title="Orçamento não habilitado para contratação de staff">🚫 Não disponível para Cadastro</span>';
     } else if (func.liberarcontratacao === false) {
-        htmlBotao = '<span style="color: #999; font-weight: bold;" title="Contratação desabilitada para este item específico (ex.: aditivo/bonificado ainda não autorizado)">🚫 Item não liberado para Cadastro</span>';
+        htmlBotao = '<span style="color: var(--text-3); font-weight: bold;" title="Contratação desabilitada para este item específico (ex.: aditivo/bonificado ainda não autorizado)">🚫 Item não liberado para Cadastro</span>';
     } else {
         htmlBotao = `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`;
     }
@@ -5851,8 +5851,8 @@ function abrirDetalhesEquipe(equipe, evento) {
     li.innerHTML = `
         <div class="func-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 0;">
             <div class="func-nome" style="flex: 1; padding-right: 15px; min-width: 200px;">
-                <strong style="font-size: 1.05em; color: #333;">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
-                <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: #666; margin-top: 2px;">(${periodoVaga})</span>
+                <strong style="font-size: 1.05em; color: var(--text-1);">${escapeHtml(nomeFuncao)}</strong>${labelLocal}
+                <span class="func-data-vaga" style="display: block; font-size: 0.85em; color: var(--text-2); margin-top: 2px;">(${periodoVaga})</span>
             </div>
             ${htmlEstado}
             <div class="func-detalhes" style="flex: 0 0 120px; text-align: right;">
@@ -5976,8 +5976,8 @@ function abrirDetalhesEquipe(equipe, evento) {
   totaisEquipe.innerHTML = `
     <div style="flex:1; padding-right:15px; min-width:200px;"></div>
     <div style="flex: 0 0 auto; text-align: right; display: flex; flex-direction: row; align-items: flex-start; font-size: 0.9em; gap: 20px; margin-left: auto; margin-right: 20px;">
-        <div style="min-width: 95px; width: 95px; text-align: left; color: #999; font-size: 11px; font-weight: normal;">TOTAL: ${totalItensCadastrados}/${totalItensOrcados} itens</div>
-        <div style="min-width: 120px; width: 120px; text-align: left; color: #999; font-size: 11px; font-weight: normal;">TOTAL: ${totalDiariasCadastradas}/${totalDiariasOrcadas} diárias</div>
+        <div style="min-width: 95px; width: 95px; text-align: left; color: var(--text-3); font-size: 11px; font-weight: normal;">TOTAL: ${totalItensCadastrados}/${totalItensOrcados} itens</div>
+        <div style="min-width: 120px; width: 120px; text-align: left; color: var(--text-3); font-size: 11px; font-weight: normal;">TOTAL: ${totalDiariasCadastradas}/${totalDiariasOrcadas} diárias</div>
         <div style="min-width: 110px; width: 110px;"></div>
     </div>
     <div style="flex: 0 0 120px;"></div>
@@ -8465,19 +8465,19 @@ function safeParse(input) {
 //                             //             <div style="display:flex;gap:8px;margin-bottom:8px;">
 //                             //                 <button class="aprovar-lote-aditivo"
 //                             //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Autorizado', this, '${pedido.id_log}')"
-//                             //                     style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                             //                     style="background:#16a34a;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                             //                     ✅ Autorizar Todas (${totalDatas})
 //                             //                 </button>
 //                             //                 <button class="rejeitar-lote-aditivo"
 //                             //                     onclick="atualizarStatusAditivoExtra('${pedido.idpedido}', 'Rejeitado', this, '${pedido.id_log}')"
-//                             //                     style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                             //                     style="background:#dc2626;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                             //                     ❌ Rejeitar Todas (${totalDatas})
 //                             //                 </button>
 //                             //             </div>
 //                             //             <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
-//                             //                 <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                             //                 <div style="background:var(--surface-3);padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
 //                             //                     <strong>DETALHAMENTO POR DATA</strong>
-//                             //                     <span style="color:#666;">${totalDatas} data(s)</span>
+//                             //                     <span style="color:var(--text-2);">${totalDatas} data(s)</span>
 //                             //                 </div>
 //                             //         `;
 
@@ -8540,20 +8540,20 @@ function safeParse(input) {
 //                                             <button class="aprovar-lote-aditivo"
 //                                                 data-ids="${idsLote}"
 //                                                 data-logid="${pedido.id_log}"
-//                                                 style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                                 style="background:#16a34a;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                                                 ✅ Autorizar Todas (${totalDatas})
 //                                             </button>
 //                                             <button class="rejeitar-lote-aditivo"
 //                                                 data-ids="${idsLote}"
 //                                                 data-logid="${pedido.id_log}"
-//                                                 style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                                 style="background:#dc2626;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                                                 ❌ Rejeitar Todas (${totalDatas})
 //                                             </button>
 //                                         </div>
 //                                         <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
-//                                             <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                                             <div style="background:var(--surface-3);padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
 //                                                 <strong>DETALHAMENTO POR DATA</strong>
-//                                                 <span style="color:#666;">${totalDatas} data(s)</span>
+//                                                 <span style="color:var(--text-2);">${totalDatas} data(s)</span>
 //                                             </div>
 //                                     `;
 
@@ -9641,20 +9641,20 @@ function safeParse(input) {
 //                                         <button class="aprovar-lote-aditivo"
 //                                             data-ids="${idsLote}"
 //                                             data-logid="${pedido.id_log}"
-//                                             style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                             style="background:#16a34a;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                                             ✅ Autorizar Todas (${totalDatas})
 //                                         </button>
 //                                         <button class="rejeitar-lote-aditivo"
 //                                             data-ids="${idsLote}"
 //                                             data-logid="${pedido.id_log}"
-//                                             style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+//                                             style="background:#dc2626;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
 //                                             ❌ Rejeitar Todas (${totalDatas})
 //                                         </button>
 //                                     </div>
 //                                     <div class="lista-datas-aditivo" style="border:1px solid #eee;border-radius:4px;overflow:hidden;">
-//                                         <div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+//                                         <div style="background:var(--surface-3);padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
 //                                             <strong>DETALHAMENTO POR DATA</strong>
-//                                             <span style="color:#666;">${totalDatas} data(s)</span>
+//                                             <span style="color:var(--text-2);">${totalDatas} data(s)</span>
 //                                         </div>
 //                             `;
 
@@ -10191,7 +10191,7 @@ function desbloquearFuncaoExcedidaAutorizada(secao2El, dataAlvo) {
     const aindaBloqueadas = secao2El.querySelectorAll('.aprovar-fe-func-ind:disabled').length > 0;
     if (!aindaBloqueadas) {
         secao2El.style.borderLeftColor = '#16a34a';
-        secao2El.style.background = '#f0fdf4';
+        secao2El.style.background = 'var(--surface-3)';
         const titulo = secao2El.querySelector('.combo-fe-titulo-sec2');
         if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Funcionário Excedido'; titulo.style.color = '#166534'; }
         const aviso = secao2El.querySelector('.combo-fe-aviso-lock');
@@ -10290,8 +10290,8 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
              data-ids-funcexc="${idsFexStr}"
              data-idlog-funcexc="${idLogFex}"
              data-idstaffevento="${idStaffEvento}"
-             style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
-            <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">
+             style="background:var(--surface-1);border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;">
                 <strong>Funcionário:</strong> ${nmFunc} &nbsp;|&nbsp; <strong>Função:</strong> ${descFunc}
                 ${dtCriacao ? `&nbsp;|&nbsp; <strong>Solicitado em:</strong> ${dtCriacao}${solicitante ? ` &nbsp; <strong>por:</strong> ${solicitante}` : ''}` : ''}
                 ${justificativa ? `<br><span style="margin-top:4px;display:block;"><strong>Justificativa:</strong> ${justificativa}</span>` : ''}
@@ -10309,8 +10309,8 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
                 </div>
                 ${justificativa ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativa}</div>` : ''}
                 <div style="border:1px solid #fca5a5;border-radius:4px;overflow:hidden;font-size:12px;">
-                    <div style="background:#fef2f2;padding:4px 10px;border-bottom:1px solid #fca5a5;font-size:11px;"><strong>DATAS EXCEDIDAS</strong></div>
-                    ${htmlSols1 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    <div style="background:var(--surface-3);padding:4px 10px;border-bottom:1px solid #fca5a5;font-size:11px;"><strong>DATAS EXCEDIDAS</strong></div>
+                    ${htmlSols1 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>
             </div>
             <div class="combo-fe-secao-func" data-idlog="${idLogFex}"
@@ -10318,12 +10318,12 @@ function cardFuncaoExcedidaAditivo(pedido, statusDesejado, podeAprovar) {
                 <div class="combo-fe-titulo-sec2" style="font-weight:700;color:${corSec2Titulo};margin-bottom:4px;">
                     ${iconeSec2} ${tituloSec2}
                 </div>
-                ${aditivoPendente ? `<div class="combo-fe-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Cada data libera assim que a mesma data do Aditivo acima for autorizada.</div>` : ''}
+                ${aditivoPendente ? `<div class="combo-fe-aviso-lock" style="font-size:11px;color:var(--text-2);margin-bottom:8px;">Cada data libera assim que a mesma data do Aditivo acima for autorizada.</div>` : ''}
                 ${aditivoTodoRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">Aditivo rejeitado em todas as datas — autorização do funcionário cancelada nessas datas.</div>` : ''}
                 ${aditivoParcialRejeitado ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;">Parte das datas do Aditivo foi rejeitada — só as datas correspondentes do funcionário foram canceladas.</div>` : ''}
                 <div style="border:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};border-radius:4px;overflow:hidden;font-size:12px;">
                     <div style="background:${aditivoPendente ? '#f3f4f6' : '#dcfce7'};padding:4px 10px;border-bottom:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};font-size:11px;"><strong>DATAS DO FUNCIONÁRIO</strong></div>
-                    ${htmlSols2 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    ${htmlSols2 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>
             </div>
         </div>`;
@@ -10351,7 +10351,7 @@ function desbloquearFuncaoExcedidaVagaAutorizada(secao2El, dataAlvo) {
     const aindaBloqueadas = secao2El.querySelectorAll('.aprovar-fev-func-ind:disabled').length > 0;
     if (!aindaBloqueadas) {
         secao2El.style.borderLeftColor = '#16a34a';
-        secao2El.style.background = '#f0fdf4';
+        secao2El.style.background = 'var(--surface-3)';
         const titulo = secao2El.querySelector('.combo-fev-titulo-sec2');
         if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Funcionário Excedido'; titulo.style.color = '#166534'; }
         const aviso = secao2El.querySelector('.combo-fev-aviso-lock');
@@ -10451,8 +10451,8 @@ function cardFuncaoExcedidaVagaExcedida(pedido, statusDesejado, podeAprovar) {
              data-idlog-funcexc="${idLogFex}"
              data-idstaffevento="${idStaffEvento}"
              data-natureza="${isAditivo ? 'aditivo' : 'extra'}"
-             style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
-            <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">
+             style="background:var(--surface-1);border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;">
                 <strong>Funcionário:</strong> ${nmFunc} &nbsp;|&nbsp; <strong>Função:</strong> ${descFunc}
                 ${dtCriacao ? `&nbsp;|&nbsp; <strong>Solicitado em:</strong> ${dtCriacao}${solicitante ? ` &nbsp; <strong>por:</strong> ${solicitante}` : ''}` : ''}
                 ${justificativa ? `<br><span style="margin-top:4px;display:block;"><strong>Justificativa:</strong> ${justificativa}</span>` : ''}
@@ -10471,8 +10471,8 @@ function cardFuncaoExcedidaVagaExcedida(pedido, statusDesejado, podeAprovar) {
                 </div>
                 ${justificativa ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativa}</div>` : ''}
                 <div style="border:1px solid #fca5a5;border-radius:4px;overflow:hidden;font-size:12px;">
-                    <div style="background:#fef2f2;padding:4px 10px;border-bottom:1px solid #fca5a5;font-size:11px;"><strong>DATAS EXCEDIDAS</strong></div>
-                    ${htmlSols1 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    <div style="background:var(--surface-3);padding:4px 10px;border-bottom:1px solid #fca5a5;font-size:11px;"><strong>DATAS EXCEDIDAS</strong></div>
+                    ${htmlSols1 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>
             </div>
             <div class="combo-fev-secao-func" data-idlog="${idLogFex}"
@@ -10480,12 +10480,12 @@ function cardFuncaoExcedidaVagaExcedida(pedido, statusDesejado, podeAprovar) {
                 <div class="combo-fev-titulo-sec2" style="font-weight:700;color:${corSec2Titulo};margin-bottom:4px;">
                     ${iconeSec2} ${tituloSec2}
                 </div>
-                ${aditivoPendente ? `<div class="combo-fev-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Cada data libera assim que a mesma data do ${labelTipo1} acima for autorizada.</div>` : ''}
+                ${aditivoPendente ? `<div class="combo-fev-aviso-lock" style="font-size:11px;color:var(--text-2);margin-bottom:8px;">Cada data libera assim que a mesma data do ${labelTipo1} acima for autorizada.</div>` : ''}
                 ${aditivoTodoRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">${labelTipo1} rejeitado em todas as datas — autorização do funcionário cancelada nessas datas.</div>` : ''}
                 ${aditivoParcialRejeitado ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;">Parte das datas do ${labelTipo1} foi rejeitada — só as datas correspondentes do funcionário foram canceladas.</div>` : ''}
                 <div style="border:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};border-radius:4px;overflow:hidden;font-size:12px;">
                     <div style="background:${aditivoPendente ? '#f3f4f6' : '#dcfce7'};padding:4px 10px;border-bottom:1px solid ${aditivoPendente ? '#e5e7eb' : '#86efac'};font-size:11px;"><strong>DATAS DO FUNCIONÁRIO</strong></div>
-                    ${htmlSols2 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    ${htmlSols2 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>
             </div>
         </div>`;
@@ -10502,7 +10502,7 @@ function desbloquearBonificadoAutorizado(secao2El) {
         if (btnR) { btnR.disabled = false; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer'; }
     });
     secao2El.style.borderLeftColor = '#16a34a';
-    secao2El.style.background = '#f0fdf4';
+    secao2El.style.background = 'var(--surface-3)';
     const titulo = secao2El.querySelector('.combo-edb-titulo-sec2');
     if (titulo) { titulo.innerHTML = '✅ Solicitação 2 — Autorizar Diária Dobrada'; titulo.style.color = '#166534'; }
     const aviso = secao2El.querySelector('.combo-edb-aviso-lock');
@@ -10585,8 +10585,8 @@ function cardBonificadoDiariaDobrada(pedido, statusDesejado, podeAprovar) {
              data-ids-dobrada="${idsDobrStr}"
              data-idlog-dobrada="${idLogDobr}"
              data-idstaffevento="${idStaffEvento}"
-             style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
-            <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">
+             style="background:var(--surface-1);border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;">
                 <strong>Funcionário:</strong> ${nmFunc} &nbsp;|&nbsp; <strong>Função:</strong> ${descFuncPrincipal}
                 ${dtCriacao ? `&nbsp;|&nbsp; <strong>Solicitado em:</strong> ${dtCriacao}${solicitante ? ` &nbsp; <strong>por:</strong> ${solicitante}` : ''}` : ''}
             </div>
@@ -10607,7 +10607,7 @@ function cardBonificadoDiariaDobrada(pedido, statusDesejado, podeAprovar) {
                 ${justificativa ? `<div style="font-size:11px;color:#92400e;margin-bottom:8px;"><strong>Obs:</strong> ${justificativa}</div>` : ''}
                 <div style="border:1px solid #fcd34d;border-radius:4px;overflow:hidden;font-size:12px;">
                     <div style="background:#fffbeb;padding:4px 10px;border-bottom:1px solid #fcd34d;font-size:11px;"><strong>DATAS SOLICITADAS</strong></div>
-                    ${htmlSols1 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    ${htmlSols1 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>
             </div>
             <div class="combo-edb-secao-dobrada" data-idlog="${idLogDobr}"
@@ -10615,13 +10615,13 @@ function cardBonificadoDiariaDobrada(pedido, statusDesejado, podeAprovar) {
                 <div class="combo-edb-titulo-sec2" style="font-weight:700;color:${corSec2Titulo};margin-bottom:4px;">
                     ${iconeSec2} ${tituloSec2}
                 </div>
-                ${justificativaDobr ? `<div style="font-size:11px;color:#374151;margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativaDobr}</div>` : ''}
-                ${bonifPendente  ? `<div class="combo-edb-aviso-lock" style="font-size:11px;color:#6b7280;margin-bottom:8px;">Aguardando resolução do ${isAditivo ? 'Aditivo' : 'Extra Bonificado'} acima antes de autorizar a Diária Dobrada.</div>` : ''}
+                ${justificativaDobr ? `<div style="font-size:11px;color:var(--text-1);margin-bottom:8px;"><strong>Justificativa:</strong> ${justificativaDobr}</div>` : ''}
+                ${bonifPendente  ? `<div class="combo-edb-aviso-lock" style="font-size:11px;color:var(--text-2);margin-bottom:8px;">Aguardando resolução do ${isAditivo ? 'Aditivo' : 'Extra Bonificado'} acima antes de autorizar a Diária Dobrada.</div>` : ''}
                 ${bonifRejeitado ? `<div style="font-size:11px;color:#991b1b;margin-bottom:8px;">${isAditivo ? 'Aditivo' : 'Extra Bonificado'} rejeitado — Diária Dobrada cancelada automaticamente.</div>` : ''}
                 ${!bonifRejeitado ? `
                 <div style="border:1px solid ${bonifPendente ? '#e5e7eb' : '#86efac'};border-radius:4px;overflow:hidden;font-size:12px;">
                     <div style="background:${bonifPendente ? '#f3f4f6' : '#dcfce7'};padding:4px 10px;border-bottom:1px solid ${bonifPendente ? '#e5e7eb' : '#86efac'};font-size:11px;"><strong>DATAS DA DIÁRIA DOBRADA</strong></div>
-                    ${htmlSols2 || '<div style="padding:8px 10px;color:#9ca3af;">—</div>'}
+                    ${htmlSols2 || '<div style="padding:8px 10px;color:var(--text-3);">—</div>'}
                 </div>` : ''}
             </div>
         </div>`;
@@ -10997,15 +10997,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                             // Colunas alinhadas: data(105px) | função(flex:1) | cachê executado(110px) | botões(80px)
                             const headerHtml = temDetalhesReap
-                                ? `<div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;align-items:center;">
+                                ? `<div style="background:var(--surface-3);padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;align-items:center;">
                                        <strong style="flex:0 0 105px;">DETALHAMENTO</strong>
-                                       <span style="flex:1;font-size:10px;color:#6b7280;font-weight:600;">FUNÇÃO / CACHÊ REAPROVEITADO</span>
-                                       <span style="flex:0 0 110px;font-size:10px;color:#6b7280;font-weight:600;text-align:right;">CACHÊ EXECUTADO</span>
-                                       <span style="flex:0 0 80px;font-size:10px;color:#666;text-align:right;">${totalDatas} data(s)</span>
+                                       <span style="flex:1;font-size:10px;color:var(--text-2);font-weight:600;">FUNÇÃO / CACHÊ REAPROVEITADO</span>
+                                       <span style="flex:0 0 110px;font-size:10px;color:var(--text-2);font-weight:600;text-align:right;">CACHÊ EXECUTADO</span>
+                                       <span style="flex:0 0 80px;font-size:10px;color:var(--text-2);text-align:right;">${totalDatas} data(s)</span>
                                    </div>`
-                                : `<div style="background:#f9f9f9;padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                                : `<div style="background:var(--surface-3);padding:5px 10px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
                                        <strong>DETALHAMENTO POR DATA</strong>
-                                       <span style="color:#666;">${totalDatas} data(s)</span>
+                                       <span style="color:var(--text-2);">${totalDatas} data(s)</span>
                                    </div>`;
                             const rowFlexStyle  = temDetalhesReap ? 'display:flex;align-items:center;' : 'display:flex;justify-content:space-between;align-items:center;';
                             const dateSpanStyle = temDetalhesReap ? 'flex:0 0 105px;font-size:13px;' : 'font-size:13px;';
@@ -11014,10 +11014,10 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             htmlBodyAditivoAgrupado = `
                                 <div style="margin:8px 0;">
                                     <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                        <button class="aprovar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#16a34a;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                        <button class="aprovar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#16a34a;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
                                             ✅ Autorizar Todas (${totalDatas})
                                         </button>
-                                        <button class="rejeitar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#dc2626;color:#fff;border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
+                                        <button class="rejeitar-lote-aditivo" data-ids="${idsLote}" data-logid="${pedido.id_log}" style="background:#dc2626;color:var(--on-brand);border:none;border-radius:4px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">
                                             ❌ Rejeitar Todas (${totalDatas})
                                         </button>
                                     </div>
@@ -11070,19 +11070,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                                             const vlrAlim  = dv.vlralimentacao !== null ? (dv.vlralimentacao || 0) : (pedido.vlrAlimSol || 0);
                                             const ehDobrada = (dv.setor_origem || '').toUpperCase().includes('DOBRADA');
                                             const vlrTransp = ehDobrada ? 0 : (dv.vlrtransporte !== null ? (dv.vlrtransporte || 0) : (pedido.vlrTranspSol || 0));
-                                            const origemTxt = vlrOrigem > 0 ? ` <span style="color:#6b7280;font-size:11px;">(R$ ${fmt2(vlrOrigem)})</span>` : '';
+                                            const origemTxt = vlrOrigem > 0 ? ` <span style="color:var(--text-2);font-size:11px;">(R$ ${fmt2(vlrOrigem)})</span>` : '';
                                             const adicParts = [];
                                             if (vlrAlim  > 0) adicParts.push(`Alim: R$${fmt2(vlrAlim)}`);
                                             if (vlrTransp > 0) adicParts.push(`Transp: R$${fmt2(vlrTransp)}`);
                                             const adicHtml = adicParts.length > 0
-                                                ? `<div style="font-size:10px;color:#6b7280;margin-top:1px;">${adicParts.join(' · ')}</div>`
+                                                ? `<div style="font-size:10px;color:var(--text-2);margin-top:1px;">${adicParts.join(' · ')}</div>`
                                                 : '';
                                             detalheColHtml = `
-                                                <span style="flex:1;font-size:12px;color:#374151;overflow:hidden;min-width:0;">
+                                                <span style="flex:1;font-size:12px;color:var(--text-1);overflow:hidden;min-width:0;">
                                                     <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${dv.nmfuncao_origem}${origemTxt}</div>
                                                     ${adicHtml}
                                                 </span>
-                                                <span style="flex:0 0 110px;font-size:12px;color:#374151;text-align:right;white-space:nowrap;">R$ ${fmt2(vlrCache)}</span>
+                                                <span style="flex:0 0 110px;font-size:12px;color:var(--text-1);text-align:right;white-space:nowrap;">R$ ${fmt2(vlrCache)}</span>
                                             `;
                                         } else {
                                             detalheColHtml = `<span style="flex:1;"></span><span style="flex:0 0 110px;"></span>`;
@@ -11370,7 +11370,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const rejeitadasIni = solicitacoesIndividuais.filter(s => (s.status || '').toLowerCase() === 'rejeitado').length;
                             const previsionadoIni = saldoAtual - vlrDia * (datasAll - rejeitadasIni);
                             const corPrev = previsionadoIni < 0 ? '#dc2626' : '#16a34a';
-                            htmlBody += `<div class="badge-financeiro-aditivo" data-saldo-atual="${saldoAtual}" data-vlr-dia="${vlrDia}" data-datas-all="${datasAll}" style="margin:4px 0 6px;padding:5px 10px;background:#f8fafc;border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:#374151;">💰 <strong>Custo Orçado:</strong> ${fmt(orcado)} &nbsp;|&nbsp;<strong>Saldo atual:</strong> ${saldoAtualFmt} &nbsp;|&nbsp;<strong>Saldo Após autorizar todos e incluir no orçamento:</strong> <span style="color:${corSaldo};font-weight:bold;">${saldoApos < 0 ? '-' : ''}${fmt(saldoApos)}${aviso}</span> &nbsp;|&nbsp;<strong>Saldo previsionado conforme decisão:</strong> <span class="saldo-previsionado-value" style="color:${corPrev};font-weight:bold;">${previsionadoIni < 0 ? '-' : ''}${fmt(previsionadoIni)}</span></div>`;
+                            htmlBody += `<div class="badge-financeiro-aditivo" data-saldo-atual="${saldoAtual}" data-vlr-dia="${vlrDia}" data-datas-all="${datasAll}" style="margin:4px 0 6px;padding:5px 10px;background:var(--surface-3);border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:var(--text-1);">💰 <strong>Custo Orçado:</strong> ${fmt(orcado)} &nbsp;|&nbsp;<strong>Saldo atual:</strong> ${saldoAtualFmt} &nbsp;|&nbsp;<strong>Saldo Após autorizar todos e incluir no orçamento:</strong> <span style="color:${corSaldo};font-weight:bold;">${saldoApos < 0 ? '-' : ''}${fmt(saldoApos)}${aviso}</span> &nbsp;|&nbsp;<strong>Saldo previsionado conforme decisão:</strong> <span class="saldo-previsionado-value" style="color:${corPrev};font-weight:bold;">${previsionadoIni < 0 ? '-' : ''}${fmt(previsionadoIni)}</span></div>`;
                             if (outrasPendentes > 0) {
                                 const saldoEfetivo = saldoApos - outrasPendentes, corEfetivo = saldoEfetivo < 0 ? '#dc2626' : '#92400e';
                                 htmlBody += `<div style="margin:0 0 6px;padding:3px 10px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:3px;font-size:11.5px;color:#78350f;">📋 Há outras ${fmt(outrasPendentes)} em sol. pendentes — saldo efetivo: <span style="color:${corEfetivo};font-weight:bold;">${saldoEfetivo < 0 ? '-' : ''}${fmt(saldoEfetivo)}</span>${saldoEfetivo < 0 ? ' — aguardar aprovações ou solicitar Aditivo' : ''}</div>`;
@@ -11470,7 +11470,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             ? `&nbsp;|&nbsp;<strong>Saldo Após autorizar:</strong> <span style="color:${corSaldo};font-weight:bold;">${saldoApos < 0 ? '-' : ''}${fmt(saldoApos)}${aviso}</span>`
                             : '';
                         htmlBody += `
-                            <div style="margin:4px 0 2px;padding:5px 10px;background:#f8fafc;border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:#374151;">
+                            <div style="margin:4px 0 2px;padding:5px 10px;background:var(--surface-3);border-left:3px solid #6366f1;border-radius:3px;font-size:12.5px;color:var(--text-1);">
                                 💰 <strong>Custo Orçado:</strong> ${fmt(orcado)} &nbsp;|&nbsp;
                                 <strong>Saldo atual:</strong> ${saldoAtualFmt2}${aposHtml}
                             </div>
@@ -11806,7 +11806,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     }
                 }
                 const secao2 = cardCombo?.querySelector('.combo-edb-secao-dobrada');
-                if (secao2) secao2.innerHTML = `<div style="color:#6b7280;font-size:12px;padding:8px;">❌ Extra Bonificado Rejeitado — Diária Dobrada cancelada automaticamente.</div>`;
+                if (secao2) secao2.innerHTML = `<div style="color:var(--text-2);font-size:12px;padding:8px;">❌ Extra Bonificado Rejeitado — Diária Dobrada cancelada automaticamente.</div>`;
             }
 
             Swal.fire({ icon: 'success', title: isAprovar ? 'Extra Bonificado Autorizado!' : 'Extra Bonificado Rejeitado!', timer: 800, showConfirmButton: false });
@@ -12265,7 +12265,7 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 
 //             if (containerBotoes) {
 //                 containerBotoes.innerHTML = `
-//                     <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+//                     <div style="padding:5px; background: var(--surface-3); border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
 //                         ${statusFormatado} pelo sistema
 //                     </div>
 //                 `;
@@ -12413,7 +12413,7 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 
 //             if (containerBotoes) {
 //                 containerBotoes.innerHTML = `
-//                     <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+//                     <div style="padding:5px; background: var(--surface-3); border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
 //                         ${statusFormatado} pelo sistema
 //                     </div>
 //                 `;
@@ -12496,7 +12496,7 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspec
             // Para batch: substitui os botões pelo status. Individual: o handler in-place cuida disso.
             if (!ehAtualizacaoIndividual && containerBotoes) {
                 containerBotoes.innerHTML = `
-                    <div style="padding:5px; background: #f0fdf4; border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                    <div style="padding:5px; background: var(--surface-3); border: 1px solid #16a34a; color: #16a34a; border-radius: 4px; font-size: 12px; font-weight: bold;">
                         ${statusFormatado} pelo sistema
                     </div>
                 `;
@@ -12930,7 +12930,7 @@ function formatarStatusFront(status) {
 //                     </div>
 //                     <div style="display:flex; align-items:center; gap:8px;">
 //                         <span style="font-size: 10px; font-weight: bold; min-width: 40px;">2ª Parc:</span>
-//                         ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
+//                         ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:var(--text-3);">Aguardando...</span>')}
 //                     </div>
 //                 </div>`;
 //         }
@@ -12942,10 +12942,10 @@ function formatarStatusFront(status) {
 //                     ${btn100 || renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
 //                 </div>`;
 //         }
-//         return '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+//         return '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 //     }
 
-//     return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+//     return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>');
 // }
 
 function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = "") {
@@ -12994,7 +12994,7 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size: 10px; font-weight: bold; min-width: 40px;">2ª Parc:</span>
-                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, `${prefixo}_100`) : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
+                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, `${prefixo}_100`) : '<span style="font-size:9px; color:var(--text-3);">Aguardando...</span>')}
                     </div>
                 </div>`;
         }
@@ -13006,10 +13006,10 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
                     ${btn100 || renderBotaoUploadUiverse(idStaff, `${prefixo}_100`)}
                 </div>`;
         }
-        return '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+        return '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
     }
 
-    return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+    return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>');
 }
 
 window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null, iditem = null) {
@@ -13201,7 +13201,7 @@ function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null, iditem = 
                    onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncAttr}, ${idItemAttr})">
             <button class="btn-uiverse-comprovante"
                     onclick="document.getElementById('${idInput}').click()"
-                    style="display: flex; align-items: center; background: #212121; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold;">
+                    style="display: flex; align-items: center; background: #212121; color: var(--on-brand); border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold;">
                 <i class="fas fa-upload" style="margin-right:5px;"></i> COMPROVANTE
             </button>
         </div>
@@ -13504,7 +13504,7 @@ function obterIntervaloDatasFiltro() {
 //         //                 <td class="comprovantes-cell">
 //         //                     ${estaPago 
 //         //                         ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-//         //                         : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+//         //                         : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>'
 //         //                     }
 //         //                 </td>
 
@@ -13527,8 +13527,8 @@ function obterIntervaloDatasFiltro() {
 
 //         //             if (temMaisDeUmaLinha) {
 //         //                 linhasHtml += `
-//         //                 <tr class="row-total" style="background-color: #f4f4f4; border-bottom: 2px dashed #888888 !important;">
-//         //                     <td style="text-align: right; font-weight: bold; color: #333;">
+//         //                 <tr class="row-total" style="background-color: var(--surface-3); border-bottom: 2px dashed #888888 !important;">
+//         //                     <td style="text-align: right; font-weight: bold; color: var(--text-1);">
 //         //                         SUBTOTAL ${nomeAtual}:
 //         //                     </td>
 //         //                     <td style="text-align: center; font-weight: bold;">
@@ -13538,7 +13538,7 @@ function obterIntervaloDatasFiltro() {
 //         //                     ${podeVerAcoes ? `<td></td>` : ''}
 //         //                     <td></td>
 //         //                     <td></td>
-//         //                     <td style="font-weight: bold; color: #111;">
+//         //                     <td style="font-weight: bold; color: var(--text-1);">
 //         //                         ${formatarMoeda(acumuladorValorFinanceiro)}
 //         //                     </td>
 //         //                 </tr>`;
@@ -13665,7 +13665,7 @@ function obterIntervaloDatasFiltro() {
 //                 //                 style="vertical-align:middle; border-right:1px solid #e0e0e0;
 //                 //                         border-bottom:2px dashed #bbbbbb;">
 //                 //                 <strong>${f.nome}</strong><br>
-//                 //                 <small style="color:#666;">${f.funcao}</small>
+//                 //                 <small style="color:var(--text-2);">${f.funcao}</small>
 //                 //             </td>`
 //                 //             : '';
 
@@ -13680,7 +13680,7 @@ function obterIntervaloDatasFiltro() {
 //                 //                 </td>
 
 //                 //                 <td style="text-align:center">
-//                 //                     ${semCaixinha ? '<span style="color:#bbb;">—</span>' : diarias}
+//                 //                     ${semCaixinha ? '<span style="color:var(--text-3);">—</span>' : diarias}
 //                 //                 </td>
 
 //                 //                 <td style="text-align:center">
@@ -13690,7 +13690,7 @@ function obterIntervaloDatasFiltro() {
 //                 //                 ${podeVerAcoes ? `
 //                 //                     <td style="text-align:center">
 //                 //                         ${semCaixinha
-//                 //                             ? '<span style="color:#bbb; font-size:11px;">—</span>'
+//                 //                             ? '<span style="color:var(--text-3); font-size:11px;">—</span>'
 //                 //                             : renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
 //                 //                         }
 //                 //                     </td>
@@ -13698,10 +13698,10 @@ function obterIntervaloDatasFiltro() {
 
 //                 //                 <td class="comprovantes-cell">
 //                 //                     ${semCaixinha
-//                 //                         ? '<span style="font-size:9px; color:#bbb;">—</span>'
+//                 //                         ? '<span style="font-size:9px; color:var(--text-3);">—</span>'
 //                 //                         : estaPago
 //                 //                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-//                 //                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+//                 //                             : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>'
 //                 //                     }
 //                 //                 </td>
 
@@ -13711,7 +13711,7 @@ function obterIntervaloDatasFiltro() {
 
 //                 //                 <td style="text-align:right">
 //                 //                     ${semCaixinha
-//                 //                         ? '<span style="color:#bbb;">R$ 0,00</span>'
+//                 //                         ? '<span style="color:var(--text-3);">R$ 0,00</span>'
 //                 //                         : formatarMoeda(valor)
 //                 //                     }
 //                 //                 </td>
@@ -13761,7 +13761,7 @@ function obterIntervaloDatasFiltro() {
 //                 //             ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
 //                 //                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
 //                 //                 + '<strong>' + f.nome + '</strong><br>'
-//                 //                 + '<small style="color:#666;">' + f.funcao + '</small>'
+//                 //                 + '<small style="color:var(--text-2);">' + f.funcao + '</small>'
 //                 //                 + '</td>'
 //                 //             : '';
 
@@ -13774,7 +13774,7 @@ function obterIntervaloDatasFiltro() {
 
 //                 //         const conteudoComprovante = estaPago
 //                 //             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-//                 //             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+//                 //             : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 
 //                 //         linhasCats += '<tr>'
 //                 //             + celulaNome
@@ -13819,7 +13819,7 @@ function obterIntervaloDatasFiltro() {
 //                         //     ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
 //                         //         + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
 //                         //         + '<strong>' + f.nome + '</strong><br>'
-//                         //         + '<small style="color:#666;">' + f.funcao + '</small>'
+//                         //         + '<small style="color:var(--text-2);">' + f.funcao + '</small>'
 //                         //         + '</td>'
 //                         //     : '';
 //                         let celulaNome = '';
@@ -13849,7 +13849,7 @@ function obterIntervaloDatasFiltro() {
 
 //                         const conteudoComprovante = estaPago
 //                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-//                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+//                             : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 
 //                         // linhasCats += '<tr>'
 //                         //     + celulaNome
@@ -13902,8 +13902,8 @@ function obterIntervaloDatasFiltro() {
 //                 //     }, 0);
 
 //                 //     linhasHtml += `
-//                 //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
-//                 //             <td colspan="2" style="text-align:right; font-weight:bold; color:#333;">
+//                 //         <tr class="row-total" style="background:var(--surface-3); border-bottom:2px dashed #888 !important;">
+//                 //             <td colspan="2" style="text-align:right; font-weight:bold; color:var(--text-1);">
 //                 //                 SUBTOTAL ${nome}:
 //                 //             </td>
 //                 //             <td style="text-align:center; font-weight:bold;">${totalDiarias}</td>
@@ -13925,9 +13925,9 @@ function obterIntervaloDatasFiltro() {
 //                 //     const totalGeral   = totalAjuda + totalCache + totalCaixinha;
 
 //                 //     linhasHtml += `
-//                 //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
-//                 //             <td style="text-align:right; font-weight:bold; color:#333; font-size:12px;">
-//                 //                 SUBTOTAL<br><small style="color:#888; font-weight:400;">${nome}</small>
+//                 //         <tr class="row-total" style="background:var(--surface-3); border-bottom:2px dashed #888 !important;">
+//                 //             <td style="text-align:right; font-weight:bold; color:var(--text-1); font-size:12px;">
+//                 //                 SUBTOTAL<br><small style="color:var(--text-2); font-weight:400;">${nome}</small>
 //                 //             </td>
 //                 //             <td colspan="${podeVerAcoes ? 5 : 4}" style="padding: 6px 10px;">
 //                 //                 <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:12px;">
@@ -13973,7 +13973,7 @@ function obterIntervaloDatasFiltro() {
 
 //                 //                 </div>
 //                 //             </td>
-//                 //             <td style="text-align:center; font-weight:bold; color:#555; font-size:12px;">
+//                 //             <td style="text-align:center; font-weight:bold; color:var(--text-1); font-size:12px;">
 //                 //                 ${totalDiarias} diárias
 //                 //             </td>
 //                 //         </tr>`;
@@ -13988,14 +13988,14 @@ function obterIntervaloDatasFiltro() {
 //                 //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
 
 //                 //     linhasHtml += `
-//                 //         <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+//                 //         <tr class="row-total" style="background:var(--surface-3); border-bottom:3px solid #666 !important;">
 //                 //             <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
 //                 //                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
                                     
 //                 //                     <span>
-//                 //                         <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
-//                 //                         <span style="color:#555; font-weight: 500;">${nome}</span>
-//                 //                         <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+//                 //                         <strong style="color:var(--text-1);">TOTAL DO FUNCIONÁRIO:</strong> 
+//                 //                         <span style="color:var(--text-1); font-weight: 500;">${nome}</span>
+//                 //                         <span style="margin-left: 15px; background: var(--surface-4); padding: 2px 8px; border-radius: 4px; font-weight: bold;">
 //                 //                             ${totalDiarias} diárias
 //                 //                         </span>
 //                 //                     </span>
@@ -14003,18 +14003,18 @@ function obterIntervaloDatasFiltro() {
 //                 //                     <div style="display: flex; gap: 20px; font-weight: bold;">
                                         
 //                 //                         <span style="color: #1a56db;">
-//                 //                             <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+//                 //                             <small style="font-weight: normal; color: var(--text-2);">Ajuda de Custo: </small>
 //                 //                             ${formatarMoeda(totalAjuda)}
 //                 //                         </span>
 
 //                 //                         <span style="color: #b45309;">
-//                 //                             <small style="font-weight: normal; color: #666;">Cachê: </small>
+//                 //                             <small style="font-weight: normal; color: var(--text-2);">Cachê: </small>
 //                 //                             ${formatarMoeda(totalCache)}
 //                 //                         </span>
 
 //                 //                         ${totalCaixinha > 0 ? `
 //                 //                             <span style="color: #065f46;">
-//                 //                                 <small style="font-weight: normal; color: #666;">Caixinha: </small>
+//                 //                                 <small style="font-weight: normal; color: var(--text-2);">Caixinha: </small>
 //                 //                                 ${formatarMoeda(totalCaixinha)}
 //                 //                             </span>
 //                 //                         ` : ''}
@@ -14040,14 +14040,14 @@ function obterIntervaloDatasFiltro() {
 
 //                 // Monta a linha de total (Agora sem a trava de registros.length > 1)
 //                 linhasHtml += `
-//                     <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+//                     <tr class="row-total" style="background:var(--surface-3); border-bottom:3px solid #666 !important;">
 //                         <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
 //                             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
                                 
 //                                 <span>
-//                                     <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
-//                                     <span style="color:#555; font-weight: 500;">${nome}</span>
-//                                     <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+//                                     <strong style="color:var(--text-1);">TOTAL DO FUNCIONÁRIO:</strong> 
+//                                     <span style="color:var(--text-1); font-weight: 500;">${nome}</span>
+//                                     <span style="margin-left: 15px; background: var(--surface-4); padding: 2px 8px; border-radius: 4px; font-weight: bold;">
 //                                         ${totalDiarias} diárias
 //                                     </span>
 //                                 </span>
@@ -14055,24 +14055,24 @@ function obterIntervaloDatasFiltro() {
 //                                 <div style="display: flex; gap: 20px; font-weight: bold; align-items: center;">
                                     
 //                                     <span style="color: #1a56db;">
-//                                         <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+//                                         <small style="font-weight: normal; color: var(--text-2);">Ajuda de Custo: </small>
 //                                         ${formatarMoeda(totalAjuda)}
 //                                     </span>
 
 //                                     <span style="color: #b45309;">
-//                                         <small style="font-weight: normal; color: #666;">Cachê: </small>
+//                                         <small style="font-weight: normal; color: var(--text-2);">Cachê: </small>
 //                                         ${formatarMoeda(totalCache)}
 //                                     </span>
 
 //                                     ${totalCaixinha > 0 ? `
 //                                         <span style="color: #065f46;">
-//                                             <small style="font-weight: normal; color: #666;">Caixinha: </small>
+//                                             <small style="font-weight: normal; color: var(--text-2);">Caixinha: </small>
 //                                             ${formatarMoeda(totalCaixinha)}
 //                                         </span>
 //                                     ` : ''}
 
-//                                     <span style="color: #111; margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
-//                                         <small style="font-weight: normal; color: #666;">Total: </small>
+//                                     <span style="color: var(--text-1); margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
+//                                         <small style="font-weight: normal; color: var(--text-2);">Total: </small>
 //                                         ${formatarMoeda(totalGeralFuncionario)}
 //                                     </span>
                                     
@@ -14165,7 +14165,7 @@ function obterIntervaloDatasFiltro() {
 //             // Criar container de filtros rápidos
 //             const containerFiltrosRapidos = document.createElement("div");
 //             containerFiltrosRapidos.className = "filtros-rapidos-eventos";
-//             containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
+//             containerFiltrosRapidos.style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: var(--surface-3); padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
 
 //             const opcoesFiltro = [
 //                 { id: 'todos', label: 'Todos', color: '#666' },
@@ -14181,7 +14181,7 @@ function obterIntervaloDatasFiltro() {
 //                 btn.innerText = opt.label;
 //                 btn.className = "btn-filtro-rapido";
 //                 btn.dataset.filter = opt.id;
-//                 btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
+//                 btn.style=`padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: var(--surface-1); color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
                 
 //                 if(opt.id === 'todos') {
 //                     btn.style.background = opt.color;
@@ -14192,7 +14192,7 @@ function obterIntervaloDatasFiltro() {
 //                     // Resetar estilos de todos os botões
 //                     containerFiltrosRapidos.querySelectorAll(".btn-filtro-rapido").forEach(b => {
 //                         const bColor = b.style.borderColor;
-//                         b.style.background = "white";
+//                         b.style.background = "var(--surface-1)";
 //                         b.style.color = bColor;
 //                     });
 //                     // Ativar botão clicado
@@ -14303,16 +14303,16 @@ function obterIntervaloDatasFiltro() {
 //                 if (!temFuncionarios) {
 //                     statusParaFiltro = "aguardando";
 //                     subStatusHtml = `
-//                         <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; margin-top: 4px;">
-//                             <i class="fas fa-user-plus" style="color: #6c757d; font-size: 12px;"></i>
-//                             <strong style="color:#6c757d; font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
+//                         <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: var(--surface-3); margin-top: 4px;">
+//                             <i class="fas fa-user-plus" style="color: var(--text-2); font-size: 12px;"></i>
+//                             <strong style="color:var(--text-2); font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
 //                         </span>`;
 //                 } else if (!temPendente) {
 //                     statusParaFiltro = "liquidado";
 //                     // Colocando o Liquidado no mesmo formato de "tag" dos outros alertas
 //                     subStatusHtml = `
 //                         <div style="margin-top: 4px;">
-//                             <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: #f2f9ed;">
+//                             <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: var(--surface-3);">
 //                                 <i class="fas fa-check-circle" style="color: #28a745;"></i>
 //                                 <strong style="color:#28a745; font-size: 13px;">LIQUIDADO</strong>
 //                             </span>
@@ -14343,7 +14343,7 @@ function obterIntervaloDatasFiltro() {
 //                     if (hoje > 0) html.push(`<span style="color:#f0ad4e; font-weight:bold;">${formatarMoeda(hoje)}</span>`);
 //                     if (aVencer > 0) html.push(`<span style="color:#007bff; font-weight:bold;">${formatarMoeda(aVencer)}</span>`);
                     
-//                     return html.length > 0 ? html.join('<br>') : `<span style="color:#666;">${formatarMoeda(0)}</span>`;
+//                     return html.length > 0 ? html.join('<br>') : `<span style="color:var(--text-2);">${formatarMoeda(0)}</span>`;
 //                 };
 
 //                 const header = document.createElement("button");
@@ -14359,7 +14359,7 @@ function obterIntervaloDatasFiltro() {
 //                     <div class="evento-valores-col" style="display: flex; flex-direction: column; gap: 8px; min-width: 280px;">
                         
 //                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
-//                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CACHÊ:</span>
+//                             <span class="label-categoria" style="font-size: 11px; color: var(--text-2); text-align: left;">CACHÊ:</span>
 //                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.cache?.pago || 0)}</span>
 //                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
 //                                 ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache)}
@@ -14367,7 +14367,7 @@ function obterIntervaloDatasFiltro() {
 //                         </div>
                         
 //                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
-//                             <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">AJUDA:</span>
+//                             <span class="label-categoria" style="font-size: 11px; color: var(--text-2); text-align: left;">AJUDA:</span>
 //                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.ajuda?.pago || 0)}</span>
 //                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
 //                                 ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda)}
@@ -14648,8 +14648,8 @@ function obterIntervaloDatasFiltro() {
 //                                 <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span> <span class="ap" style="color:#d9534f;">${formatarMoeda(resumo.vencidos)}</span>
 //                                 <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span> <span class="ap" style="color:#007bff;">${formatarMoeda(resumo.aVencer)}</span>
 //                                 <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
-//                                     <span class="label-categoria" style="color:#333;">TOTAL:</span> 
-//                                     <strong style="color:#333; font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
+//                                     <span class="label-categoria" style="color:var(--text-1);">TOTAL:</span> 
+//                                     <strong style="color:var(--text-1); font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
 //                                 </span>
 //                             </div>
 //                         </div>
@@ -14684,9 +14684,9 @@ function obterIntervaloDatasFiltro() {
 //                 // --- NOVO: FILTRO DE EMPRESAS PAGADORAS ---
 //                 const containerFiltroEmpresas = document.createElement("div");
 //                 containerFiltroEmpresas.className = "filtro-empresas-contas";
-//                 containerFiltroEmpresas.style = "margin: 10px; display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;";
+//                 containerFiltroEmpresas.style="margin: 10px; display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface-1); border-radius: 8px; border: 1px solid #dee2e6;";
 
-//                 containerFiltroEmpresas.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #555;">Filtrar Empresa:</span>`;
+//                 containerFiltroEmpresas.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: var(--text-1);">Filtrar Empresa:</span>`;
 
 //                 const selectEmpresa = document.createElement("select");
 //                 selectEmpresa.id = "select-empresa-pagadora";
@@ -14710,7 +14710,7 @@ function obterIntervaloDatasFiltro() {
 //                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
 //                 const containerFiltrosContas = document.createElement("div");
 //                 containerFiltrosContas.className = "filtros-rapidos-contas";
-//                 containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+//                 containerFiltrosContas.style="margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: var(--surface-3); padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
 
 //                 const opcoesContas = [
 //                     { id: 'todos', label: 'Tudo', color: '#343a40' },
@@ -14727,12 +14727,12 @@ function obterIntervaloDatasFiltro() {
 //                     btn.setAttribute("data-filtro-id", opt.id); 
 //                     btn.innerText = opt.label;
 //                     btn.className = "btn-filtro-financeiro";
-//                     btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
+//                     btn.style=`padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: var(--surface-1); color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
                     
 //                     btn.onclick = () => {
 //                         filtrarEventosNaTela(opt.id);
 //                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
-//                             b.style.background = "white"; b.style.color = b.style.borderColor;
+//                             b.style.background = "var(--surface-1)"; b.style.color = b.style.borderColor;
 //                         });
 //                         btn.style.background = opt.color; btn.style.color = "white";
 //                     };
@@ -14993,7 +14993,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         //                 <td class="comprovantes-cell">
         //                     ${estaPago 
         //                         ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-        //                         : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+        //                         : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>'
         //                     }
         //                 </td>
 
@@ -15016,8 +15016,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
         //             if (temMaisDeUmaLinha) {
         //                 linhasHtml += `
-        //                 <tr class="row-total" style="background-color: #f4f4f4; border-bottom: 2px dashed #888888 !important;">
-        //                     <td style="text-align: right; font-weight: bold; color: #333;">
+        //                 <tr class="row-total" style="background-color: var(--surface-3); border-bottom: 2px dashed #888888 !important;">
+        //                     <td style="text-align: right; font-weight: bold; color: var(--text-1);">
         //                         SUBTOTAL ${nomeAtual}:
         //                     </td>
         //                     <td style="text-align: center; font-weight: bold;">
@@ -15027,7 +15027,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         //                     ${podeVerAcoes ? `<td></td>` : ''}
         //                     <td></td>
         //                     <td></td>
-        //                     <td style="font-weight: bold; color: #111;">
+        //                     <td style="font-weight: bold; color: var(--text-1);">
         //                         ${formatarMoeda(acumuladorValorFinanceiro)}
         //                     </td>
         //                 </tr>`;
@@ -15173,7 +15173,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //                 style="vertical-align:middle; border-right:1px solid #e0e0e0;
                 //                         border-bottom:2px dashed #bbbbbb;">
                 //                 <strong>${f.nome}</strong><br>
-                //                 <small style="color:#666;">${f.funcao}</small>
+                //                 <small style="color:var(--text-2);">${f.funcao}</small>
                 //             </td>`
                 //             : '';
 
@@ -15188,7 +15188,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //                 </td>
 
                 //                 <td style="text-align:center">
-                //                     ${semCaixinha ? '<span style="color:#bbb;">—</span>' : diarias}
+                //                     ${semCaixinha ? '<span style="color:var(--text-3);">—</span>' : diarias}
                 //                 </td>
 
                 //                 <td style="text-align:center">
@@ -15198,7 +15198,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //                 ${podeVerAcoes ? `
                 //                     <td style="text-align:center">
                 //                         ${semCaixinha
-                //                             ? '<span style="color:#bbb; font-size:11px;">—</span>'
+                //                             ? '<span style="color:var(--text-3); font-size:11px;">—</span>'
                 //                             : renderConteudoAcao(f.idstaffevento, cat.tipoAcao, status)
                 //                         }
                 //                     </td>
@@ -15206,10 +15206,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 //                 <td class="comprovantes-cell">
                 //                     ${semCaixinha
-                //                         ? '<span style="font-size:9px; color:#bbb;">—</span>'
+                //                         ? '<span style="font-size:9px; color:var(--text-3);">—</span>'
                 //                         : estaPago
                 //                             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-                //                             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+                //                             : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>'
                 //                     }
                 //                 </td>
 
@@ -15219,7 +15219,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 //                 <td style="text-align:right">
                 //                     ${semCaixinha
-                //                         ? '<span style="color:#bbb;">R$ 0,00</span>'
+                //                         ? '<span style="color:var(--text-3);">R$ 0,00</span>'
                 //                         : formatarMoeda(valor)
                 //                     }
                 //                 </td>
@@ -15281,7 +15281,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //             ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
                 //                 + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
                 //                 + '<strong>' + f.nome + '</strong><br>'
-                //                 + '<small style="color:#666;">' + f.funcao + '</small>'
+                //                 + '<small style="color:var(--text-2);">' + f.funcao + '</small>'
                 //                 + '</td>'
                 //             : '';
 
@@ -15294,7 +15294,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 //         const conteudoComprovante = estaPago
                 //             ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-                //             : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+                //             : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 
                 //         linhasCats += '<tr>'
                 //             + celulaNome
@@ -15346,7 +15346,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         //     ? '<td rowspan="' + (rowspanTotal * registros.length) + '" '
                         //         + 'style="vertical-align:middle; border-right:1px solid #e0e0e0; border-bottom:2px dashed #bbbbbb;">'
                         //         + '<strong>' + f.nome + '</strong><br>'
-                        //         + '<small style="color:#666;">' + f.funcao + '</small>'
+                        //         + '<small style="color:var(--text-2);">' + f.funcao + '</small>'
                         //         + '</td>'
                         //     : '';
                         let celulaNome = '';
@@ -15382,12 +15382,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             : '';
 
                         const conteudoComprovante = staffPendente
-                            ? '<span style="font-size:9px; color:#999;">—</span>'
+                            ? '<span style="font-size:9px; color:var(--text-3);">—</span>'
                             : pagRejeitado
-                                ? '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>'
+                                ? '<i class="fas fa-lock" style="color: var(--text-3);" title="Bloqueado por Rejeição"></i>'
                                 : estaPago
                                     ? gerarHTMLComprovanteDinamico(f.idstaffevento, cat.key, status, criarHTMLComprovantes(f, cat.key))
-                                    : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+                                    : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 
                         // linhasCats += '<tr>'
                         //     + celulaNome
@@ -15446,15 +15446,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         if (staffAguardandoOrcamento) {
                             statusExibidoCx = 'Aguardando Inclusão no Orçamento';
                             classeStatusCx = 'aguardando-orcamento';
-                            comprovanteCx = '<span style="font-size:9px; color:#999;">—</span>';
+                            comprovanteCx = '<span style="font-size:9px; color:var(--text-3);">—</span>';
                         } else if (staffPendente || item.status === 'Pendente') {
                             statusExibidoCx = 'Pendente de Autorização';
                             classeStatusCx = 'pendente-autorizacao';
-                            comprovanteCx = '<span style="font-size:9px; color:#999;">—</span>';
+                            comprovanteCx = '<span style="font-size:9px; color:var(--text-3);">—</span>';
                         } else if (item.status === 'Rejeitado') {
                             statusExibidoCx = 'Rejeitado';
                             classeStatusCx = 'rejeitado';
-                            comprovanteCx = '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>';
+                            comprovanteCx = '<i class="fas fa-lock" style="color: var(--text-3);" title="Bloqueado por Rejeição"></i>';
                         } else {
                             // Autorizado — o que importa agora é o status de PAGAMENTO
                             // DESTE item (item.statuspgto), não mais o de autorização.
@@ -15465,7 +15465,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 ? `<a href="${item.comprovante}" target="_blank" class="btn-ver-comp" title="Ver comprovante"><i class="fas fa-file-invoice"></i></a>`
                                 : (estaPagoCx
                                     ? renderBotaoUploadUiverse(f.idstaffevento, 'caixinha', null, item.iditem)
-                                    : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+                                    : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>');
                         }
 
                         let celulaAcoesCx = '';
@@ -15484,7 +15484,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 conteudoAcaoCx = renderConteudoAcao(f.idstaffevento, 'Caixinha', formatarStatusFront(item.statuspgto || 'Pendente'), null, item.iditem);
                             } else if (!temAlgumAutorizadoCx && ehUltimoItemCaixinha) {
                                 // Nenhum item autorizado ainda — nada a pagar.
-                                conteudoAcaoCx = '<span class="check-finalizado"><i class="fas fa-lock" style="color: #999;" title="Nenhuma caixinha autorizada"></i></span>';
+                                conteudoAcaoCx = '<span class="check-finalizado"><i class="fas fa-lock" style="color: var(--text-3);" title="Nenhuma caixinha autorizada"></i></span>';
                             }
                             celulaAcoesCx = '<td style="text-align:center;">' + conteudoAcaoCx + '</td>';
                         }
@@ -15533,10 +15533,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         const pagoAjuste = statusAjuste.toLowerCase().startsWith('pago');
                         const rejeitadoAjuste = statusAjuste === 'Rejeitado';
                         const conteudoComprovanteAjuste = rejeitadoAjuste
-                            ? '<i class="fas fa-lock" style="color: #999;" title="Bloqueado por Rejeição"></i>'
+                            ? '<i class="fas fa-lock" style="color: var(--text-3);" title="Bloqueado por Rejeição"></i>'
                             : pagoAjuste
                                 ? gerarHTMLComprovanteDinamico(a.idajustefinanceiro, 'ajustefin', statusAjuste, criarHTMLComprovantes(a, 'ajustefin'))
-                                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+                                : '<span style="font-size:9px; color:var(--text-3);">Aguardando Pgto</span>';
 
                         linhasCats += `<tr ${estiloLinhaAjuste}>`
                             + '<td style="text-align:center;">'
@@ -15570,8 +15570,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //     }, 0);
 
                 //     linhasHtml += `
-                //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
-                //             <td colspan="2" style="text-align:right; font-weight:bold; color:#333;">
+                //         <tr class="row-total" style="background:var(--surface-3); border-bottom:2px dashed #888 !important;">
+                //             <td colspan="2" style="text-align:right; font-weight:bold; color:var(--text-1);">
                 //                 SUBTOTAL ${nome}:
                 //             </td>
                 //             <td style="text-align:center; font-weight:bold;">${totalDiarias}</td>
@@ -15593,9 +15593,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //     const totalGeral   = totalAjuda + totalCache + totalCaixinha;
 
                 //     linhasHtml += `
-                //         <tr class="row-total" style="background:#f4f4f4; border-bottom:2px dashed #888 !important;">
-                //             <td style="text-align:right; font-weight:bold; color:#333; font-size:12px;">
-                //                 SUBTOTAL<br><small style="color:#888; font-weight:400;">${nome}</small>
+                //         <tr class="row-total" style="background:var(--surface-3); border-bottom:2px dashed #888 !important;">
+                //             <td style="text-align:right; font-weight:bold; color:var(--text-1); font-size:12px;">
+                //                 SUBTOTAL<br><small style="color:var(--text-2); font-weight:400;">${nome}</small>
                 //             </td>
                 //             <td colspan="${podeVerAcoes ? 5 : 4}" style="padding: 6px 10px;">
                 //                 <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:12px;">
@@ -15641,7 +15641,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 //                 </div>
                 //             </td>
-                //             <td style="text-align:center; font-weight:bold; color:#555; font-size:12px;">
+                //             <td style="text-align:center; font-weight:bold; color:var(--text-1); font-size:12px;">
                 //                 ${totalDiarias} diárias
                 //             </td>
                 //         </tr>`;
@@ -15656,14 +15656,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //     const totalCaixinha = registros.reduce((s, f) => s + parseFloat(f.totalcaixinha_full || 0), 0);
 
                 //     linhasHtml += `
-                //         <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+                //         <tr class="row-total" style="background:var(--surface-3); border-bottom:3px solid #666 !important;">
                 //             <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
                 //                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
                                     
                 //                     <span>
-                //                         <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
-                //                         <span style="color:#555; font-weight: 500;">${nome}</span>
-                //                         <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+                //                         <strong style="color:var(--text-1);">TOTAL DO FUNCIONÁRIO:</strong> 
+                //                         <span style="color:var(--text-1); font-weight: 500;">${nome}</span>
+                //                         <span style="margin-left: 15px; background: var(--surface-4); padding: 2px 8px; border-radius: 4px; font-weight: bold;">
                 //                             ${totalDiarias} diárias
                 //                         </span>
                 //                     </span>
@@ -15671,18 +15671,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 //                     <div style="display: flex; gap: 20px; font-weight: bold;">
                                         
                 //                         <span style="color: #1a56db;">
-                //                             <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+                //                             <small style="font-weight: normal; color: var(--text-2);">Ajuda de Custo: </small>
                 //                             ${formatarMoeda(totalAjuda)}
                 //                         </span>
 
                 //                         <span style="color: #b45309;">
-                //                             <small style="font-weight: normal; color: #666;">Cachê: </small>
+                //                             <small style="font-weight: normal; color: var(--text-2);">Cachê: </small>
                 //                             ${formatarMoeda(totalCache)}
                 //                         </span>
 
                 //                         ${totalCaixinha > 0 ? `
                 //                             <span style="color: #065f46;">
-                //                                 <small style="font-weight: normal; color: #666;">Caixinha: </small>
+                //                                 <small style="font-weight: normal; color: var(--text-2);">Caixinha: </small>
                 //                                 ${formatarMoeda(totalCaixinha)}
                 //                             </span>
                 //                         ` : ''}
@@ -15803,14 +15803,14 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 // Monta a linha de total (Agora sem a trava de registros.length > 1)
                 linhasHtml += `
-                    <tr class="row-total" style="background:#f9f9f9; border-bottom:3px solid #666 !important;">
+                    <tr class="row-total" style="background:var(--surface-3); border-bottom:3px solid #666 !important;">
                         <td colspan="${podeVerAcoes ? 7 : 6}" style="padding: 10px 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 13px;">
                                 
                                 <span>
-                                    <strong style="color:#111;">TOTAL DO FUNCIONÁRIO:</strong> 
-                                    <span style="color:#555; font-weight: 500;">${nome}</span>
-                                    <span style="margin-left: 15px; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">
+                                    <strong style="color:var(--text-1);">TOTAL DO FUNCIONÁRIO:</strong> 
+                                    <span style="color:var(--text-1); font-weight: 500;">${nome}</span>
+                                    <span style="margin-left: 15px; background: var(--surface-4); padding: 2px 8px; border-radius: 4px; font-weight: bold;">
                                         ${totalDiarias} diárias
                                     </span>
                                 </span>
@@ -15818,48 +15818,48 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 <div style="display: flex; gap: 20px; font-weight: bold; align-items: center;">
                                     
                                     <span style="color: #1a56db;">
-                                        <small style="font-weight: normal; color: #666;">Ajuda de Custo: </small>
+                                        <small style="font-weight: normal; color: var(--text-2);">Ajuda de Custo: </small>
                                         ${formatarMoeda(totalAjuda)}
                                     </span>
 
                                     <span style="color: #b45309;">
-                                        <small style="font-weight: normal; color: #666;">Cachê: </small>
+                                        <small style="font-weight: normal; color: var(--text-2);">Cachê: </small>
                                         ${formatarMoeda(totalCache)}
                                     </span>
 
                                     ${totalCaixinha > 0 ? `
                                         <span style="color: #065f46;">
-                                            <small style="font-weight: normal; color: #666;">Caixinha: </small>
+                                            <small style="font-weight: normal; color: var(--text-2);">Caixinha: </small>
                                             ${formatarMoeda(totalCaixinha)}
                                         </span>
                                     ` : ''}
 
                                     ${totalAjustesFinanceiros !== 0 ? `
                                         <span style="color: ${totalAjustesFinanceiros >= 0 ? '#16a34a' : '#dc2626'};">
-                                            <small style="font-weight: normal; color: #666;">Créd/Déb: </small>
+                                            <small style="font-weight: normal; color: var(--text-2);">Créd/Déb: </small>
                                             ${formatarMoeda(totalAjustesFinanceiros)}
                                         </span>
                                     ` : ''}
 
                                     ${totalPendenteAutorizacao > 0 ? `
                                         <span style="color: #eab308;">
-                                            <small style="font-weight: normal; color: #666;">Pendentes de Autorização: </small>
+                                            <small style="font-weight: normal; color: var(--text-2);">Pendentes de Autorização: </small>
                                             ${formatarMoeda(totalPendenteAutorizacao)}
                                         </span>
                                     ` : ''}
 
-                                    <span style="color: #111; margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
-                                        <small style="font-weight: normal; color: #666;">Total: </small>
+                                    <span style="color: var(--text-1); margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
+                                        <small style="font-weight: normal; color: var(--text-2);">Total: </small>
                                         ${formatarMoeda(totalGeralFuncionario)}
                                     </span>
 
                                     <span style="color: #16a34a;">
-                                        <small style="font-weight: normal; color: #666;">Pagos: </small>
+                                        <small style="font-weight: normal; color: var(--text-2);">Pagos: </small>
                                         ${formatarMoeda(totalPagoFuncionario)}
                                     </span>
 
                                     <span style="color: #b91c1c;">
-                                        <small style="font-weight: normal; color: #666;">A Pagar: </small>
+                                        <small style="font-weight: normal; color: var(--text-2);">A Pagar: </small>
                                         ${formatarMoeda(totalAPagarFuncionario)}
                                     </span>
 
@@ -15965,8 +15965,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         </div>` : ''}
                         ${resumoStaffMestre.aguardando > 0 ? `
                         <div class="fin-resumo-item">
-                            <span class="label-categoria" style="color: #6c757d;" title="Evento ainda sem funcionários cadastrados — não entra em Vencidos/Hoje/A Vencer até ter staff.">AGUARDANDO STAFF:</span>
-                            <span class="ap" style="color: #6c757d; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aguardando)}</span>
+                            <span class="label-categoria" style="color: var(--text-2);" title="Evento ainda sem funcionários cadastrados — não entra em Vencidos/Hoje/A Vencer até ter staff.">AGUARDANDO STAFF:</span>
+                            <span class="ap" style="color: var(--text-2); font-weight: bold;">${formatarMoeda(resumoStaffMestre.aguardando)}</span>
                         </div>` : ''}
                         <div class="fin-resumo-item orcado">
                             <span class="label-categoria">TOTAL:</span>
@@ -15991,7 +15991,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // Criar container de filtros rápidos
             const containerFiltrosRapidos = document.createElement("div");
             containerFiltrosRapidos.className = "filtros-rapidos-eventos";
-            containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
+            containerFiltrosRapidos.style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: var(--surface-3); padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
 
             const opcoesFiltro = [                
                 { id: 'vencidos',   label: 'Vencidos',         color: '#d9534f' },
@@ -16008,7 +16008,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 btn.innerText = opt.label;
                 btn.className = "btn-filtro-rapido";
                 btn.dataset.filter = opt.id;
-                btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
+                btn.style=`padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: var(--surface-1); color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
                 
                 if(opt.id === 'hoje') {
                     btn.style.background = opt.color;
@@ -16019,7 +16019,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     // Resetar estilos de todos os botões
                     containerFiltrosRapidos.querySelectorAll(".btn-filtro-rapido").forEach(b => {
                         const bColor = b.style.borderColor;
-                        b.style.background = "white";
+                        b.style.background = "var(--surface-1)";
                         b.style.color = bColor;
                     });
                     // Ativar botão clicado
@@ -16253,16 +16253,16 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // if (!temFuncionarios) {
                 //     statusParaFiltro = "aguardando";
                 //     subStatusHtml = `
-                //         <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; margin-top: 4px;">
-                //             <i class="fas fa-user-plus" style="color: #6c757d; font-size: 12px;"></i>
-                //             <strong style="color:#6c757d; font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
+                //         <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: var(--surface-3); margin-top: 4px;">
+                //             <i class="fas fa-user-plus" style="color: var(--text-2); font-size: 12px;"></i>
+                //             <strong style="color:var(--text-2); font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
                 //         </span>`;
                 // } else if (!temPendente) {
                 //     statusParaFiltro = "liquidado";
                 //     // Colocando o Liquidado no mesmo formato de "tag" dos outros alertas
                 //     subStatusHtml = `
                 //         <div style="margin-top: 4px;">
-                //             <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: #f2f9ed;">
+                //             <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: var(--surface-3);">
                 //                 <i class="fas fa-check-circle" style="color: #28a745;"></i>
                 //                 <strong style="color:#28a745; font-size: 13px;">LIQUIDADO</strong>
                 //             </span>
@@ -16279,9 +16279,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 if (!temFuncionarios) {
                     statusParaFiltro = "aguardando";
                     subStatusHtml = `
-                        <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; margin-top: 4px;">
-                            <i class="fas fa-user-plus" style="color: #6c757d; font-size: 12px;"></i>
-                            <strong style="color:#6c757d; font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
+                        <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: var(--surface-3); margin-top: 4px;">
+                            <i class="fas fa-user-plus" style="color: var(--text-2); font-size: 12px;"></i>
+                            <strong style="color:var(--text-2); font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
                         </span>`;
 
                 } else if (temVencido) {
@@ -16305,7 +16305,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     statusParaFiltro = "liquidado";
                     subStatusHtml = `
                         <div style="margin-top: 4px;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: #f2f9ed;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: var(--surface-3);">
                                 <i class="fas fa-check-circle" style="color: #28a745;"></i>
                                 <strong style="color:#28a745; font-size: 13px;">LIQUIDADO</strong>
                             </span>
@@ -16361,7 +16361,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     // fora da linha de valores, mesmo o evento agora aparecendo na aba Suspensos.
                     if (suspenso > 0) html.push(`<span style="color:#ff7b00; font-weight:bold;" title="Suspenso">${formatarMoeda(suspenso)}</span>`);
 
-                    return html.length > 0 ? html.join('<br>') : `<span style="color:#666;">${formatarMoeda(0)}</span>`;
+                    return html.length > 0 ? html.join('<br>') : `<span style="color:var(--text-2);">${formatarMoeda(0)}</span>`;
                 };
 
                 const header = document.createElement("button");
@@ -16377,7 +16377,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     <div class="evento-valores-col" style="display: flex; flex-direction: column; gap: 8px; min-width: 280px;">
                         
                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
-                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CACHÊ:</span>
+                            <span class="label-categoria" style="font-size: 11px; color: var(--text-2); text-align: left;">CACHÊ:</span>
                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.cache?.pago || 0)}</span>
                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
                                 ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache, chSuspenso)}
@@ -16385,7 +16385,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         </div>
 
                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
-                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">AJUDA:</span>
+                            <span class="label-categoria" style="font-size: 11px; color: var(--text-2); text-align: left;">AJUDA:</span>
                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.ajuda?.pago || 0)}</span>
                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
                                 ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda, ajSuspenso)}
@@ -16393,7 +16393,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         </div>
                         ${(evento.caixinha?.pago > 0 || cxPendente > 0) ? `
                         <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
-                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CAIXINHA:</span>
+                            <span class="label-categoria" style="font-size: 11px; color: var(--text-2); text-align: left;">CAIXINHA:</span>
                             <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.caixinha?.pago || 0)}</span>
                             <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
                                 ${montarValorColorido(detalheVencidos.caixinha, detalheHoje.caixinha, detalheAVencer.caixinha, cxSuspenso)}
@@ -16690,7 +16690,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         });
 
                         // Efeito visual ao passar o mouse
-                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "rgba(255,255,255,0.1)"; };
+                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "var(--surface-1)"; };
                         botaoVoltar.onmouseout = () => { botaoVoltar.style.background = "transparent"; };
 
                         // 5. LÓGICA DE FECHAMENTO (RESTAURAÇÃO)
@@ -17303,8 +17303,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span> <span class="ap" style="color:#007bff;">${formatarMoeda(resumo.aVencer)}</span>
                                 ${resumo.suspensos > 0 ? `<span class="label-categoria" style="margin-left:15px; color:#c05621;" title="Nem vencida nem a vencer — pausada até alguém reativar ou resolver.">SUSPENSO:</span> <span class="ap" style="color:#c05621;">${formatarMoeda(resumo.suspensos)}</span>` : ''}
                                 <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
-                                    <span class="label-categoria" style="color:#333;">TOTAL:</span>
-                                    <strong style="color:#333; font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
+                                    <span class="label-categoria" style="color:var(--text-1);">TOTAL:</span>
+                                    <strong style="color:var(--text-1); font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
                                 </span>
                             </div>
                         </div>
@@ -17327,7 +17327,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
                 const containerFiltrosContas = document.createElement("div");
                 containerFiltrosContas.className = "filtros-rapidos-contas";
-                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+                containerFiltrosContas.style="margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--surface-3); padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
 
                 const opcoesContas = [
                     { id: 'todos', label: 'Tudo', color: '#343a40' },
@@ -17358,13 +17358,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     btn.setAttribute("data-filtro-id", opt.id);
                     btn.innerText = opt.label;
                     btn.className = "btn-filtro-financeiro";
-                    btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
+                    btn.style=`padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: var(--surface-1); color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
 
                     btn.onclick = () => {
                         statusContasAtivo = opt.id;
                         aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
-                            b.style.background = "white"; b.style.color = b.style.borderColor;
+                            b.style.background = "var(--surface-1)"; b.style.color = b.style.borderColor;
                         });
                         btn.style.background = opt.color; btn.style.color = "white";
                     };
@@ -17429,7 +17429,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     b.style.background = cor;
                     b.style.color = "white";
                 } else {
-                    b.style.background = "white";
+                    b.style.background = "var(--surface-1)";
                     b.style.color = cor;
                 }
             });
@@ -17804,7 +17804,7 @@ function converterData(dataStr) {
 //                 </div>
 //                 <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
 //                     <div class="fin-resumo-item orcado">
-//                         <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+//                         <span style="font-size: 12px; color: var(--text-2); display:block;">TOTAL DO GRUPO</span>
 //                         <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
 //                     </div>
 //                 </div>
@@ -17862,8 +17862,8 @@ function converterData(dataStr) {
 //                             });
 
 //                             const headerMes = `
-//                                 <tr class="item-financeiro-linha" data-status-filtro="${temVencidoNoMes ? 'vencidos' : 'todos'}" style="background: #f8f9fa; border-left: 5px solid #007bff;">
-//                                     <td colspan="8" style="padding: 12px; font-weight: bold; color: #333;">
+//                                 <tr class="item-financeiro-linha" data-status-filtro="${temVencidoNoMes ? 'vencidos' : 'todos'}" style="background: var(--surface-3); border-left: 5px solid #007bff;">
+//                                     <td colspan="8" style="padding: 12px; font-weight: bold; color: var(--text-1);">
 //                                         <i class="fas fa-calendar-alt" style="color: #007bff; margin-right: 8px;"></i> ${mesAno}
 //                                         ${temVencidoNoMes ? '<span style="color: #d9534f; font-size: 11px; margin-left: 10px;">(DÉBITOS PENDENTES)</span>' : ''}
 //                                     </td>
@@ -17910,11 +17910,11 @@ function converterData(dataStr) {
 //                                     if (dataExibicao === hojeBR) {
 //                                         filterLinha = "hoje";
 //                                         estiloVencido = "color: #f0ad4e; font-weight: bold;";
-//                                         avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`;
+//                                         avisoStatus = `<span style="background:#f0ad4e; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`;
 //                                     } else if (vctoISO && vctoISO < hojeISO) {
 //                                         filterLinha = "vencidos";
 //                                         estiloVencido = "color: #d9534f; font-weight: bold;";
-//                                         avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`;
+//                                         avisoStatus = `<span style="background:#d9534f; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`;
 //                                     } else {
 //                                         filterLinha = "a_vencer";
 //                                     }
@@ -17925,9 +17925,9 @@ function converterData(dataStr) {
 //                                 return `
 //                                     <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
 //                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" title="SUSPENSO" style="color: #6c757d; margin-right: 5px; display:inline-block;"></i>' : avisoStatus}
+//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" title="SUSPENSO" style="color: var(--text-2); margin-right: 5px; display:inline-block;"></i>' : avisoStatus}
 //                                             <strong>${c.nome_vinculo || '---'}</strong><br>
-//                                             <small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+//                                             <small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
 //                                         </td>
 //                                         <td style="text-align:center;">${dataExibicao}</td>
 //                                         <td style="text-align:center;">
@@ -18082,7 +18082,7 @@ function converterData(dataStr) {
 //                 </div>
 //                 <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
 //                     <div class="fin-resumo-item orcado">
-//                         <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+//                         <span style="font-size: 12px; color: var(--text-2); display:block;">TOTAL DO GRUPO</span>
 //                         <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
 //                     </div>
 //                 </div>
@@ -18123,7 +18123,7 @@ function converterData(dataStr) {
 
 //                         return Object.keys(gruposPorMes).map(mesAno => {
 //                             const itens = gruposPorMes[mesAno];
-//                             const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="8" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
+//                             const headerMes = `<tr class="item-financeiro-linha" style="background: var(--surface-3); border-left: 5px solid #007bff;"><td colspan="8" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
 
 //                             const linhas = itens.map(c => {
 //                                 const statusC = (c.status || 'pendente').toLowerCase();
@@ -18146,12 +18146,12 @@ function converterData(dataStr) {
 //                                     const dParcelaLinha = vctoISO ? new Date(vctoISO + "T12:00:00") : null;
 //                                     if(dParcelaLinha) dParcelaLinha.setHours(0,0,0,0);
 
-//                                     if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
-//                                     else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
+//                                     if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
+//                                     else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
 //                                     else if (dParcelaLinha && dParcelaLinha <= dProximos5Dias) { // AQUI
 //                                         filterLinha = "vence_5_dias";
 //                                         estiloVencido = "color: #17a2b8; font-weight: bold;";
-//                                         avisoStatus = `<span style="background:#17a2b8; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
+//                                         avisoStatus = `<span style="background:#17a2b8; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
 //                                     }
 //                                     else { filterLinha = "a_vencer"; }
 //                                 }
@@ -18161,8 +18161,8 @@ function converterData(dataStr) {
 //                                 return `
 //                                     <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-id-empresa="${c.idempresapagadora || 'nulo'}">
 //                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
-//                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
+//                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
 //                                         </td>
 //                                         <td style="text-align:center;">${dataExibicao}</td>
 //                                         <td style="text-align:center;">
@@ -18201,7 +18201,7 @@ function converterData(dataStr) {
 //                                                         <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
                                                                                                                 
 //                                                     </div>` 
-//                                                     : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+//                                                     : '<small style="color:var(--text-3); font-style: italic;">Aguardando Pagamento</small>'
 //                                                 )
 //                                             }
 //                                         </td>                                    
@@ -18346,13 +18346,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             </div>
             <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
                 <div class="fin-resumo-item orcado">
-                    <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+                    <span style="font-size: 12px; color: var(--text-2); display:block;">TOTAL DO GRUPO</span>
                     <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
                 </div>
             </div>
             ${ehFuncionario ? `
             <button type="button" class="btn-imprimir-todos-holerites" title="Imprime todos os holerites que estão sendo mostrados aqui (respeita o filtro de período ativo)" style="
-                margin-left: 10px; padding: 6px 12px; background-color: #2E8B57; color: white;
+                margin-left: 10px; padding: 6px 12px; background-color: #2E8B57; color: var(--on-brand);
                 border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;
                 white-space: nowrap;">
                 <i class="fas fa-print" style="margin-right: 5px;"></i> Imprimir todos
@@ -18362,7 +18362,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             margin-left: 10px; 
             padding: 6px 12px; 
             background-color: #007bff; 
-            color: white; 
+            color: var(--on-brand); 
             border: none; 
             border-radius: 4px; /* Estilo arredondado dos seus cards */
             cursor: pointer; 
@@ -18413,7 +18413,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                         return Object.keys(gruposPorMes).map(mesAno => {
                             const itens = gruposPorMes[mesAno];
-                            const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="${totalColunas}" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
+                            const headerMes = `<tr class="item-financeiro-linha" style="background: var(--surface-3); border-left: 5px solid #007bff;"><td colspan="${totalColunas}" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
 
                             const linhasObjs = itens.map(c => {
                                 const statusC = (c.status || 'pendente').toLowerCase();
@@ -18442,12 +18442,12 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     const dParcelaLinha = vctoISO ? new Date(vctoISO + "T12:00:00") : null;
                                     if(dParcelaLinha) dParcelaLinha.setHours(0,0,0,0);
 
-                                    if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
-                                    else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
+                                    if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
+                                    else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
                                     else if (dParcelaLinha && dParcelaLinha <= dProximos5Dias) { // AQUI
                                         filterLinha = "vence_5_dias";
                                         estiloVencido = "color: #17a2b8; font-weight: bold;";
-                                        avisoStatus = `<span style="background:#17a2b8; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
+                                        avisoStatus = `<span style="background:#17a2b8; color:var(--on-brand); padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">5 DIAS</span>`;
                                     }
                                     else { filterLinha = "a_vencer"; }
                                 }
@@ -18469,7 +18469,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // Benefícios não tem holerite/comprovante próprio pra imprimir (é o
                                 // mesmo documento do salário) — essa célula não se aplica aqui.
                                 const celulaHolerite = c.holerite_beneficios ? `
-                                    <td style="text-align:center;"><small style="color:#999;">—</small></td>` : ehFuncionario ? `
+                                    <td style="text-align:center;"><small style="color:var(--text-3);">—</small></td>` : ehFuncionario ? `
                                     <td class="celula-holerite-imprimir" style="text-align:center;">
                                         ${temComprovanteHolerite ? `
                                         <a href="javascript:void(0)"
@@ -18478,7 +18478,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             <i class="fas fa-print" style="font-size: 18px;"></i>
                                             <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
                                         </a>` : `
-                                        <small style="color:#999; font-style: italic;" title="Disponível após anexar o comprovante">Aguardando Comprovante</small>`}
+                                        <small style="color:var(--text-3); font-style: italic;" title="Disponível após anexar o comprovante">Aguardando Comprovante</small>`}
                                     </td>` : `
                                     <td style="text-align:center;">
                                         ${c.imagemconta && c.imagemconta !== '---'
@@ -18516,10 +18516,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 const btnPagarHolerite = jaPagoHolerite
                                     ? '<i class="fas fa-lock"></i>'
                                     : !conferidoHolerite
-                                        ? `<span title="Ainda não conferido na tela de RH — some daqui até ser conferido" style="color:#999; font-size:11px; font-style:italic;">Previsto</span>`
+                                        ? `<span title="Ainda não conferido na tela de RH — some daqui até ser conferido" style="color:var(--text-3); font-size:11px; font-style:italic;">Previsto</span>`
                                         : c.idholerite
                                             ? `<button type="button" onclick="${funcaoPagar}(${c.idholerite}, this)" class="btn-pago"><i class="fas fa-money-bill-wave"></i> PAGAR</button>`
-                                            : `<span title="Abra o holerite pra gerar antes de pagar" style="color:#999; font-size:11px; font-style:italic;">Gerar no holerite</span>`;
+                                            : `<span title="Abra o holerite pra gerar antes de pagar" style="color:var(--text-3); font-size:11px; font-style:italic;">Gerar no holerite</span>`;
 
                                 // Coluna inteira (header + célula) só existe pra quem tem permissão
                                 // master/supremo/devs — ver podeVerAcoesFinanceiro no topo da função.
@@ -18549,7 +18549,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // salário). Só mostra se já foi pago ou não.
                                 const celulaComprovante = c.holerite_beneficios ? `
                                     <td style="text-align:center;">
-                                        <small style="color:#999; font-style: italic;">${statusHolerite === 'pago' ? 'Pago' : 'Aguardando Pagamento'}</small>
+                                        <small style="color:var(--text-3); font-style: italic;">${statusHolerite === 'pago' ? 'Pago' : 'Aguardando Pagamento'}</small>
                                     </td>` : ehFuncionario ? `
                                     <td class="celula-comprovante-holerite" style="text-align:center;">
                                         ${(c.holerite_comprovante && c.holerite_comprovante !== '---')
@@ -18564,7 +18564,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                                     <input type="file" style="display:none" id="up_comp_hol_${c.idholerite}" onchange="uploadComprovanteHolerite(this, ${c.idholerite})">
                                                     <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_hol_${c.idholerite}').click()"></i>
                                                 </div>`
-                                                : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+                                                : '<small style="color:var(--text-3); font-style: italic;">Aguardando Pagamento</small>'
                                             )
                                         }
                                     </td>` : `
@@ -18582,7 +18582,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                                     <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
 
                                                 </div>`
-                                                : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+                                                : '<small style="color:var(--text-3); font-style: italic;">Aguardando Pagamento</small>'
                                             )
                                         }
                                     </td>`;
@@ -18612,13 +18612,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
                                     const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
                                     const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
-                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
                                         </td>`;
                                     const restoCels = `
                                             <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
                                             <td style="text-align:center;">
-                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}${dataExibicao}
+                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}${dataExibicao}
                                             </td>
                                             ${celulaAcoes}
                                             ${celulaStatus}
@@ -18639,8 +18639,8 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 return `
                                     <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
-                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
                                         </td>
                                         <td style="text-align:center;">${dataExibicao}</td>
                                         ${celulaAcoes}
@@ -18941,7 +18941,7 @@ function renderAcoesComprovante(c) {
     }
 
     // Caso contrário, está pendente
-    return `<small style="color: #999; font-style: italic;">Aguardando Pagamento</small>`;
+    return `<small style="color: var(--text-3); font-style: italic;">Aguardando Pagamento</small>`;
 }
 
 
@@ -19045,11 +19045,11 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
                 <div class="swal-row">
                     <div class="swal-col">
                         <label>Valor Original (R$):</label>
-                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" readonly style="background: #f8f9fa;">
+                        <input id="swal-vlr-original" class="swal2-input" oninput="formatReais(this)" type="text" inputmode="decimal" value="R$ ${parseFloat(valorSugerido || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}" readonly style="background: var(--surface-3);">
                     </div>
                     <div class="swal-col">
                         <label>Vencimento Original:</label>
-                        <input id="swal-dt-venc" class="swal2-input" type="text" value="${vencimentoFormatado}" readonly style="background: #f8f9fa;">
+                        <input id="swal-dt-venc" class="swal2-input" type="text" value="${vencimentoFormatado}" readonly style="background: var(--surface-3);">
                     </div>
                 </div>
 
@@ -19248,7 +19248,7 @@ window.abrirModalPagamento = abrirModalPagamento;
 //                     if (tbody && tbody.querySelectorAll('tr').length === 0) {
 //                         const accordionBody = tbody.closest('.accordion-body');
 //                         if (accordionBody) {
-//                             accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999; font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
+//                             accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:var(--text-3); font-style: italic;">Todas as pendências deste grupo foram pagas!</p>';
 //                         }
 //                     }
 //                 }, 400);
@@ -19362,7 +19362,7 @@ function verificarSeAccordionVazio(container) {
     // Se o container não tiver mais filhos (itens), mostra mensagem de vazio
     if (container && container.querySelectorAll('.linha-vencimento').length === 0) {
         container.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: #888; font-style: italic;">
+            <div style="padding: 20px; text-align: center; color: var(--text-2); font-style: italic;">
                 <i class="fas fa-check-circle" style="color: #28a745; margin-bottom: 8px; display: block; font-size: 1.5em;"></i>
                 Nenhum pagamento pendente neste grupo.
             </div>`;
@@ -20040,7 +20040,7 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
         <div class="resumo-detalhado">
             <div style="display: grid; grid-template-columns: repeat(7, 1fr); width: 100%;gap: 8px; text-align: center;">
 
-                <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
+                <div style="background: var(--surface-3); padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
                     <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>
                     <div style="font-size: 14px; color: #742a2a; border-top: 1px solid #feb2b2; padding-top: 4px;">
                         Staff: ${formatarMoeda(sVenc)} | Contas: ${formatarMoeda(cVenc)}
@@ -20075,11 +20075,11 @@ function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [],
                     </div>
                 </div>
 
-                <div style="background: white; padding: 10px; border-radius: 8px; border: 1px solid #babebb;">
-                    <h4 style="margin:0; font-size: 16px; color: #010101; text-transform: uppercase;">Total Geral: ${formatarMoeda((sVenc+cVenc) + (sHoje+cHoje) + (sAVenc+cAVenc) + (sPago+cPago) + (sSusp+cSusp) + sAguardando)}</h4>
-                    <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
+                <div style="background: var(--surface-1); padding: 10px; border-radius: 8px; border: 1px solid #babebb;">
+                    <h4 style="margin:0; font-size: 16px; color: var(--text-1); text-transform: uppercase;">Total Geral: ${formatarMoeda((sVenc+cVenc) + (sHoje+cHoje) + (sAVenc+cAVenc) + (sPago+cPago) + (sSusp+cSusp) + sAguardando)}</h4>
+                    <div style="font-size: 14px; color: var(--text-1); border-top: 1px solid #c9c9c9; padding-top: 4px;">
                         Staff: ${formatarMoeda(sVenc+sHoje+sAVenc+sPago+sSusp+sAguardando)} | Contas: ${formatarMoeda(cVenc+cHoje+cAVenc+cPago+cSusp)}
-                        ${sAguardando > 0 ? `<br><span style="color:#6c757d;" title="Evento de Staff ainda sem funcionários cadastrados">Aguardando Staff: ${formatarMoeda(sAguardando)}</span>` : ''}
+                        ${sAguardando > 0 ? `<br><span style="color:var(--text-2);" title="Evento de Staff ainda sem funcionários cadastrados">Aguardando Staff: ${formatarMoeda(sAguardando)}</span>` : ''}
                     </div>
                 </div>
 
@@ -21462,7 +21462,7 @@ function carregarEventosDoDia(data) {
   if (eventosDia.length === 0) {
     const li = document.createElement("li");
     li.textContent = "Nenhum evento para este dia.";
-    li.style.color = "#777";
+    li.style.color = "var(--text-2)";
     lista.appendChild(li);
   } else {
     eventosDia.forEach(ev => {

@@ -10,6 +10,10 @@ let cacheItens = [];
 let cacheLocais = [];
 let abaAtiva = null;
 
+// Aba de Compras (ver seção COMPRAS no fim do arquivo). Não é um local do
+// almoxarifado, por isso o valor "reservado" que nunca bate com cacheLocais.
+const ABA_COMPRAS = "__compras";
+
 async function fetchAlmox(caminho, opcoes = {}) {
   const resp = await fetchComToken(`/almoxarifado${caminho}`, opcoes);
   if (!resp) throw new Error("Falha na requisição ao módulo Almoxarifado.");
@@ -68,11 +72,20 @@ function almoxVazio(texto, icone = "inbox") {
 }
 
 // Ícone e cor da tag variam por local — só decoração, não afeta a regra de negócio.
-const ICONES_LOCAL = { "Escritório": "📄", "Consumíveis Pavilhão": "🖨️", "Camisetas": "👕" };
+// Ícones do Remix Icon (CDN já carregado no OPER-index.html).
+const ICONES_LOCAL = {
+  "Escritório": "ri-file-paper-2-line",
+  "Consumíveis Pavilhão": "ri-printer-line",
+  "Camisetas": "ri-t-shirt-line",
+};
 const TAGS_LOCAL = { "Escritório": "escritorio", "Consumíveis Pavilhão": "pavilhao", "Camisetas": "camisetas" };
 
+function classeIconeLocal(local) {
+  return ICONES_LOCAL[local] || "ri-archive-2-line";
+}
+
 function iconeParaLocal(local) {
-  return ICONES_LOCAL[local] || "📦";
+  return `<i class="${classeIconeLocal(local)}" aria-hidden="true"></i>`;
 }
 
 function tagClasseParaLocal(local) {
@@ -156,7 +169,16 @@ async function montarPainelAlmoxarifado() {
 
   panel.innerHTML = `
     <div class="ti-abas">
-      ${cacheLocais.map((local) => `<button type="button" class="ti-aba-btn" data-local="${escaparHtml(local)}">${escaparHtml(local)}</button>`).join("")}
+      ${cacheLocais
+        .map(
+          (local) => `<button type="button" class="ti-aba-btn" data-local="${escaparHtml(local)}">
+            <i class="${classeIconeLocal(local)}" aria-hidden="true"></i>${escaparHtml(local)}
+          </button>`
+        )
+        .join("")}
+      <button type="button" class="ti-aba-btn" data-local="${ABA_COMPRAS}">
+        <i class="ri-shopping-cart-2-line" aria-hidden="true"></i>Compras
+      </button>
     </div>
     <div id="almox-aba-conteudo"></div>
   `;
@@ -173,7 +195,8 @@ function trocarAbaAlmoxarifado(local) {
   document.querySelectorAll("#almox-panel .ti-aba-btn").forEach((btn) => {
     btn.classList.toggle("ativo", btn.dataset.local === local);
   });
-  renderPainelAlmoxarifado();
+  if (local === ABA_COMPRAS) renderPainelCompras();
+  else renderPainelAlmoxarifado();
 }
 
 async function renderPainelAlmoxarifado() {
@@ -406,7 +429,7 @@ async function abrirDetalheItemAlmoxarifado(iditem) {
         <div style="align-items:center;"><strong>${item.quantidade_atual}</strong><span>${escaparHtml(item.unidade_medida)}(s) em estoque</span></div>
         <div style="align-items:center;"><strong>${item.estoque_minimo}</strong><span>estoque mínimo</span></div>
       </div>
-      ${item.abaixo_minimo ? '<p style="color:#b3261e; font-weight:700; text-align:center; margin:10px 0 0; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em;">⚠ Abaixo do estoque mínimo</p>' : ""}
+      ${item.abaixo_minimo ? '<p style="color:var(--status-erro-fg); font-weight:700; text-align:center; margin:10px 0 0; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em;">⚠ Abaixo do estoque mínimo</p>' : ""}
       <div class="ti-swal-modelo-acoes" style="justify-content:center; margin-top:16px;">
         <button type="button" id="almox-detalhe-repor"><span class="material-symbols-outlined">add_circle</span>Repor</button>
         <button type="button" id="almox-detalhe-consumir" class="secundario"><span class="material-symbols-outlined">remove_circle</span>Consumir</button>
@@ -527,7 +550,7 @@ function montarQueryHistoricoAlmoxarifado(filtros) {
 function renderLinhasHistoricoAlmoxarifado(historico) {
   const tipoLabel = { entrada: "Reposição", saida: "Consumo" };
   if (!historico.length) {
-    return `<tr><td colspan="5" style="text-align:center; color:#888;">Nenhuma movimentação encontrada.</td></tr>`;
+    return `<tr><td colspan="5" style="text-align:center; color:var(--text-2);">Nenhuma movimentação encontrada.</td></tr>`;
   }
   return historico.map((h) => {
     const motivoResumo = h.motivo && h.motivo.length > 30 ? `${h.motivo.slice(0, 30)}…` : h.motivo;
@@ -551,35 +574,33 @@ async function verHistoricoItemAlmoxarifado(id, descricao) {
     <div class="ti-custodia-filtros" style="margin-bottom:16px;">
       <button type="button" id="almox-hist-voltar" class="secundario">← Voltar ao almoxarifado</button>
     </div>
-    <div class="Evt-container">
-      <h3 style="margin:0 0 16px;">Histórico — ${escaparHtml(descricao)}</h3>
-      <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
-        <div class="filtro-grupo">
-          <label class="label-select">De</label>
-          <input type="date" id="almox-hist-data-inicio" class="busca-evento-input" style="width:150px;">
+    <div class="almox-bloco">
+      <div class="almox-bloco-titulo">
+        <div><h4>Histórico — ${escaparHtml(descricao)}</h4></div>
+        <div class="almox-bloco-acoes">
+          <button type="button" id="almox-hist-filtrar" class="almox-btn-principal">Filtrar</button>
+          <button type="button" id="almox-hist-limpar" class="almox-btn-secundario">Limpar</button>
         </div>
-        <div class="filtro-grupo">
-          <label class="label-select">Até</label>
-          <input type="date" id="almox-hist-data-fim" class="busca-evento-input" style="width:150px;">
-        </div>
-        <div class="filtro-grupo">
-          <label class="label-select">Usuário</label>
-          <div class="wrapper select-wrapper busca-evento-wrapper" style="width:220px;">
-            <input type="text" id="almox-hist-usuario-busca" class="busca-evento-input" placeholder="Buscar usuário..." autocomplete="off">
-            <input type="hidden" id="almox-hist-usuario">
-          </div>
-        </div>
-        <div class="filtro-grupo">
-          <label class="label-select">Funcionário</label>
-          <div class="wrapper select-wrapper busca-evento-wrapper" style="width:220px;">
-            <input type="text" id="almox-hist-funcionario-busca" class="busca-evento-input" placeholder="Buscar funcionário..." autocomplete="off">
-            <input type="hidden" id="almox-hist-funcionario">
-          </div>
-        </div>
-        <div class="ti-custodia-filtros filtro-grupo">
-          <button type="button" id="almox-hist-filtrar">Filtrar</button>
-          <button type="button" id="almox-hist-limpar" class="secundario">Limpar</button>
-        </div>
+      </div>
+      <div class="almox-form-grid">
+        <label class="almox-campo">
+          <span>De</span>
+          <input type="date" id="almox-hist-data-inicio">
+        </label>
+        <label class="almox-campo">
+          <span>Até</span>
+          <input type="date" id="almox-hist-data-fim">
+        </label>
+        <label class="almox-campo">
+          <span>Usuário</span>
+          <input type="text" id="almox-hist-usuario-busca" placeholder="Buscar usuário..." autocomplete="off">
+          <input type="hidden" id="almox-hist-usuario">
+        </label>
+        <label class="almox-campo">
+          <span>Funcionário</span>
+          <input type="text" id="almox-hist-funcionario-busca" placeholder="Buscar funcionário..." autocomplete="off">
+          <input type="hidden" id="almox-hist-funcionario">
+        </label>
       </div>
     </div>
     <table class="ti-tabela" style="margin-top:20px;">
@@ -639,7 +660,7 @@ async function verHistoricoItemAlmoxarifado(id, descricao) {
       tbody.innerHTML = renderLinhasHistoricoAlmoxarifado(historico);
     } catch (erro) {
       console.error("Erro ao carregar histórico do item:", erro);
-      tbody.innerHTML = `<tr><td colspan="5" style="color:#a11919;">Erro ao carregar histórico.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--status-erro-fg);">Erro ao carregar histórico.</td></tr>`;
     }
   };
 
@@ -655,6 +676,1084 @@ async function verHistoricoItemAlmoxarifado(id, descricao) {
   });
 
   carregar();
+}
+
+// =============================================================================
+// ===== COMPRAS =====
+// Aba que fecha o ciclo do consumível: o que está abaixo/perto do mínimo vira
+// lista de compra, o master aprova item a item, cada item recebe cotações de
+// fornecedores diferentes e o recebimento é CONFIRMADO (quantidade editável)
+// antes de virar entrada no estoque.
+// Backend: seção COMPRAS em routes/rotaAlmoxarifado.js (/almoxarifado/compras/*).
+// =============================================================================
+
+let subAbaCompras = "sugestoes";
+let localCompras = null;    // local usado nas sugestões e no pedido novo
+let cacheSugestoes = [];
+// Rascunho da lista em montagem (sugestões + compras pontuais no mesmo carrinho).
+let rascunhoItens = [];
+let rascunhoData = "";
+let rascunhoObs = "";
+
+const moedaBR = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+function formatarValorAlmox(valor) {
+  if (valor === null || valor === undefined || valor === "") return "—";
+  return moedaBR.format(Number(valor));
+}
+
+// Data 'YYYY-MM-DD' não pode passar por new Date() (volta um dia por causa do
+// fuso), por isso o split direto.
+function formatarDataAlmox(data) {
+  if (!data) return "—";
+  const iso = String(data).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [ano, mes, dia] = iso.split("-");
+    return `${dia}/${mes}/${ano}`;
+  }
+  return new Date(data).toLocaleDateString("pt-BR");
+}
+
+function hojeISO() {
+  const hoje = new Date();
+  return new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+const STATUS_PEDIDO = {
+  pendente: { texto: "Aguardando aprovação", classe: "pendente" },
+  aprovado: { texto: "Aprovado", classe: "aprovado" },
+  comprado: { texto: "Comprado", classe: "comprado" },
+  parcial: { texto: "Recebido parcial", classe: "parcial" },
+  recebido: { texto: "Recebido", classe: "recebido" },
+  recusado: { texto: "Recusado", classe: "recusado" },
+  cancelado: { texto: "Cancelado", classe: "cancelado" },
+};
+
+const STATUS_ITEM = {
+  pendente: { texto: "Pendente", classe: "pendente" },
+  aprovado: { texto: "Aprovado", classe: "aprovado" },
+  recusado: { texto: "Recusado", classe: "recusado" },
+  recebido: { texto: "Recebido", classe: "recebido" },
+};
+
+function pillStatus(status, mapa = STATUS_PEDIDO) {
+  const info = mapa[status] || { texto: status || "—", classe: "pendente" };
+  return `<span class="almox-pedido-status ${info.classe}">${escaparHtml(info.texto)}</span>`;
+}
+
+async function renderPainelCompras() {
+  const container = document.getElementById("almox-aba-conteudo");
+  if (!container) return;
+  if (!localCompras || !cacheLocais.includes(localCompras)) localCompras = cacheLocais[0];
+
+  const subAbas = [
+    { id: "sugestoes", texto: "Nova lista", icone: "ri-add-box-line" },
+    { id: "pedidos", texto: "Listas de compra", icone: "ri-file-list-3-line" },
+    { id: "precos", texto: "Preços e durabilidade", icone: "ri-line-chart-line" },
+  ];
+
+  container.innerHTML = `
+    <div class="almox-compras-subabas">
+      ${subAbas
+        .map(
+          (s) => `<button type="button" class="almox-subaba ${s.id === subAbaCompras ? "ativo" : ""}" data-sub="${s.id}">
+            <i class="${s.icone}" aria-hidden="true"></i>${s.texto}
+          </button>`
+        )
+        .join("")}
+    </div>
+    <div id="almox-compras-conteudo">${almoxLoading()}</div>
+  `;
+
+  container.querySelectorAll(".almox-subaba").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      subAbaCompras = btn.dataset.sub;
+      renderPainelCompras();
+    })
+  );
+
+  if (subAbaCompras === "sugestoes") renderNovaLista();
+  else if (subAbaCompras === "pedidos") renderListasCompra();
+  else renderPrecosCompra();
+}
+
+// ===== Sub-aba: Nova lista (reposição + compra pontual) =====
+// Um carrinho só: o que o estoque sugere e o que alguém precisa comprar avulso
+// (mesmo sem nada perto do mínimo) entram na MESMA lista antes da aprovação.
+// Por isso a tela abre com a lista vazia e um "+ Adicionar item" em destaque —
+// as sugestões são um atalho pra encher a lista, não o único caminho.
+async function renderNovaLista() {
+  const alvo = document.getElementById("almox-compras-conteudo");
+  if (!alvo) return;
+  alvo.innerHTML = almoxLoading("Analisando o estoque...");
+
+  try {
+    cacheSugestoes = await fetchAlmox(`/compras/sugestoes?local=${encodeURIComponent(localCompras)}`);
+  } catch (erro) {
+    console.error("Erro ao carregar sugestões de compra:", erro);
+    cacheSugestoes = [];
+  }
+
+  const criticos = cacheSugestoes.filter((s) => s.abaixo_minimo).length;
+
+  alvo.innerHTML = `
+    <section class="almox-bloco">
+      <div class="almox-bloco-titulo">
+        <div>
+          <h4>Nova lista de compra</h4>
+          <p class="almox-bloco-ajuda">Vale tanto pra repor o que está acabando quanto pra uma compra pontual.</p>
+        </div>
+      </div>
+      <div class="almox-form-grid">
+        <label class="almox-campo">
+          <span>Local</span>
+          <select id="almox-compras-local">
+            ${cacheLocais.map((l) => `<option value="${escaparHtml(l)}" ${l === localCompras ? "selected" : ""}>${escaparHtml(l)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="almox-campo">
+          <span>Precisa chegar até</span>
+          <input type="date" id="almox-compras-data" value="${rascunhoData}">
+        </label>
+        <label class="almox-campo almox-campo-larga">
+          <span>Observação da lista</span>
+          <input type="text" id="almox-compras-obs" placeholder="Opcional — ex: compra para o evento X" value="${escaparHtml(rascunhoObs)}">
+        </label>
+      </div>
+    </section>
+
+    <section class="almox-bloco">
+      <div class="almox-bloco-titulo">
+        <div>
+          <h4>Itens da lista <span class="almox-contador" id="almox-rascunho-contador">${rascunhoItens.length}</span></h4>
+          <p class="almox-bloco-ajuda">Item que ainda não existe no cadastro pode entrar aqui — ele é criado no recebimento.</p>
+        </div>
+        <div class="almox-bloco-acoes">
+          <button type="button" id="almox-compras-adicionar" class="almox-btn-secundario">+ Adicionar item</button>
+          <button type="button" id="almox-compras-enviar" class="almox-btn-principal">Enviar para aprovação</button>
+        </div>
+      </div>
+      <table class="ti-tabela">
+        <thead><tr><th>Item</th><th style="width:130px;">Quantidade</th><th>Justificativa</th><th style="width:90px;"></th></tr></thead>
+        <tbody id="almox-rascunho-tbody">${renderLinhasRascunho()}</tbody>
+      </table>
+    </section>
+
+    <section class="almox-bloco">
+      <div class="almox-bloco-titulo">
+        <div>
+          <h4>Sugestões de reposição</h4>
+          <p class="almox-bloco-ajuda">${cacheSugestoes.length} item(ns) no radar${criticos ? ` · <strong class="almox-texto-critico">${criticos} abaixo do mínimo</strong>` : ""}.</p>
+        </div>
+        <div class="almox-bloco-acoes">
+          ${cacheSugestoes.length ? `<button type="button" id="almox-sug-todos" class="almox-btn-secundario">Adicionar todos à lista</button>` : ""}
+        </div>
+      </div>
+      <table class="ti-tabela">
+        <thead>
+          <tr><th>Item</th><th>Estoque</th><th>Mínimo</th><th>Cobertura</th><th>Última compra</th><th style="width:150px;">Sugestão</th></tr>
+        </thead>
+        <tbody id="almox-sug-tbody">${renderLinhasSugestao()}</tbody>
+      </table>
+    </section>
+  `;
+
+  document.getElementById("almox-compras-local").addEventListener("change", trocarLocalDaLista);
+  document.getElementById("almox-compras-data").addEventListener("change", (e) => { rascunhoData = e.target.value; });
+  document.getElementById("almox-compras-obs").addEventListener("input", (e) => { rascunhoObs = e.target.value; });
+  document.getElementById("almox-compras-adicionar").addEventListener("click", () => abrirAdicionarItemLista());
+  document.getElementById("almox-compras-enviar").addEventListener("click", enviarListaCompra);
+  document.getElementById("almox-sug-todos")?.addEventListener("click", () => {
+    cacheSugestoes.filter((s) => !s.ja_solicitado).forEach((s) => adicionarSugestaoAoRascunho(s, false));
+    atualizarRascunho();
+  });
+
+  ligarAcoesRascunho();
+  ligarAcoesSugestao();
+}
+
+// Trocar o local troca o destino do pedido inteiro — com itens já na lista isso
+// misturaria estoques diferentes, então confirma antes de limpar.
+async function trocarLocalDaLista(evento) {
+  const novoLocal = evento.target.value;
+  if (rascunhoItens.length) {
+    const confirmacao = await Swal.fire({
+      title: "Trocar o local?",
+      text: "A lista em andamento é para o local atual e será limpa.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Trocar e limpar",
+      cancelButtonText: "Manter",
+      reverseButtons: true,
+    });
+    if (!confirmacao.isConfirmed) {
+      evento.target.value = localCompras;
+      return;
+    }
+    rascunhoItens = [];
+  }
+  localCompras = novoLocal;
+  renderNovaLista();
+}
+
+function renderLinhasRascunho() {
+  if (!rascunhoItens.length) {
+    return `<tr><td colspan="4" class="almox-td-vazio">
+      Lista vazia. Use <strong>+ Adicionar item</strong> para uma compra pontual ou pegue algo das sugestões abaixo.
+    </td></tr>`;
+  }
+  return rascunhoItens
+    .map(
+      (item, indice) => `
+        <tr>
+          <td>
+            ${escaparHtml(item.descricao)}
+            <small class="almox-td-nota">${item.iditem ? escaparHtml(item.unidade_medida) : "item novo · " + escaparHtml(item.unidade_medida)}</small>
+          </td>
+          <td><input type="number" class="almox-rascunho-qtd" data-indice="${indice}" min="1" value="${item.quantidade_solicitada}"></td>
+          <td>${escaparHtml(item.justificativa) || "—"}</td>
+          <td><button type="button" class="almox-btn-mini recusar almox-rascunho-remover" data-indice="${indice}">remover</button></td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+function renderLinhasSugestao() {
+  if (!cacheSugestoes.length) {
+    return `<tr><td colspan="6" class="almox-td-vazio">Nenhum item perto do estoque mínimo neste local. 🎉</td></tr>`;
+  }
+  return cacheSugestoes
+    .map((item) => {
+      const cobertura =
+        item.dias_cobertura === null
+          ? `<span class="almox-td-nota">sem consumo registrado</span>`
+          : `${item.dias_cobertura} dia(s)`;
+      const naLista = rascunhoItens.some((r) => r.iditem === item.iditem);
+      const acao = item.ja_solicitado
+        ? `<span class="almox-pedido-status pendente">já solicitado</span>`
+        : naLista
+          ? `<span class="almox-pedido-status aprovado">na lista</span>`
+          : `<button type="button" class="almox-btn-mini almox-sug-add" data-iditem="${item.iditem}">+ ${item.quantidade_sugerida}</button>`;
+
+      return `
+        <tr class="${item.abaixo_minimo ? "almox-linha-critica" : ""}">
+          <td>${escaparHtml(item.descricao)}</td>
+          <td>${item.quantidade_atual} ${escaparHtml(item.unidade_medida)}</td>
+          <td>${item.estoque_minimo}</td>
+          <td>${cobertura}</td>
+          <td>${formatarDataAlmox(item.ultima_compra)}</td>
+          <td>${acao}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// Redesenha só as duas tabelas — o formulário do topo continua com o que o
+// usuário já digitou.
+function atualizarRascunho() {
+  const tbody = document.getElementById("almox-rascunho-tbody");
+  const contador = document.getElementById("almox-rascunho-contador");
+  const sugestoes = document.getElementById("almox-sug-tbody");
+  if (!tbody) return;
+
+  tbody.innerHTML = renderLinhasRascunho();
+  contador.textContent = rascunhoItens.length;
+  if (sugestoes) sugestoes.innerHTML = renderLinhasSugestao();
+  ligarAcoesRascunho();
+  ligarAcoesSugestao();
+}
+
+function ligarAcoesRascunho() {
+  document.querySelectorAll(".almox-rascunho-remover").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      rascunhoItens.splice(Number(btn.dataset.indice), 1);
+      atualizarRascunho();
+    })
+  );
+  document.querySelectorAll(".almox-rascunho-qtd").forEach((campo) =>
+    campo.addEventListener("change", () => {
+      const quantidade = parseInt(campo.value, 10);
+      if (!Number.isInteger(quantidade) || quantidade <= 0) {
+        campo.value = rascunhoItens[Number(campo.dataset.indice)].quantidade_solicitada;
+        return;
+      }
+      rascunhoItens[Number(campo.dataset.indice)].quantidade_solicitada = quantidade;
+    })
+  );
+}
+
+function ligarAcoesSugestao() {
+  document.querySelectorAll(".almox-sug-add").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const sugestao = cacheSugestoes.find((s) => s.iditem === Number(btn.dataset.iditem));
+      if (sugestao) adicionarSugestaoAoRascunho(sugestao);
+    })
+  );
+}
+
+function adicionarSugestaoAoRascunho(sugestao, redesenhar = true) {
+  if (rascunhoItens.some((r) => r.iditem === sugestao.iditem)) return;
+  rascunhoItens.push({
+    iditem: sugestao.iditem,
+    descricao: sugestao.descricao,
+    unidade_medida: sugestao.unidade_medida,
+    quantidade_solicitada: Number(sugestao.quantidade_sugerida) || 1,
+    justificativa: sugestao.abaixo_minimo ? "Abaixo do estoque mínimo" : "Perto do estoque mínimo",
+  });
+  if (redesenhar) atualizarRascunho();
+}
+
+// Compra pontual: qualquer item, cadastrado ou não, sem depender do mínimo.
+async function abrirAdicionarItemLista() {
+  const { value: dados } = await Swal.fire({
+    title: "Adicionar item à lista",
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-avulso-descricao" class="swal2-input" placeholder=" " autocomplete="off">
+          <span>Item</span>
+          <small>Busca no cadastro do local; se não existir, digite o nome e ele é criado no recebimento.</small>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-avulso-unidade" class="swal2-input" placeholder=" " value="unidade">
+          <span>Unidade de medida</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-avulso-qtd" class="swal2-input" min="1" value="1">
+          <span>Quantidade</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-avulso-justificativa" class="swal2-input" placeholder=" ">
+          <span>Justificativa (opcional)</span>
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Adicionar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      // Item já cadastrado sai vinculado ao cadastro — assim o recebimento repõe
+      // o estoque dele em vez de criar um item duplicado.
+      const input = document.getElementById("swal-avulso-descricao");
+      ligarBuscaComSugestoes(
+        input,
+        "swal-avulso-lista",
+        (termo) => fetchAlmox(`/compras/itens/busca?local=${encodeURIComponent(localCompras)}&busca=${encodeURIComponent(termo)}`),
+        (i) => `${i.descricao} (${i.quantidade_atual} em estoque)`,
+        (i) => {
+          input.value = i.descricao;
+          input.dataset.iditem = i.iditem;
+          document.getElementById("swal-avulso-unidade").value = i.unidade_medida;
+        },
+        { mensagemVazia: "Nenhum item cadastrado com esse nome — será criado como novo" }
+      );
+      input.addEventListener("input", () => delete input.dataset.iditem);
+    },
+    preConfirm: () => {
+      const input = document.getElementById("swal-avulso-descricao");
+      const descricao = input.value.trim();
+      const quantidade_solicitada = parseInt(document.getElementById("swal-avulso-qtd").value, 10);
+      if (!descricao) {
+        Swal.showValidationMessage("Descreva o item.");
+        return false;
+      }
+      if (!Number.isInteger(quantidade_solicitada) || quantidade_solicitada <= 0) {
+        Swal.showValidationMessage("Informe uma quantidade válida.");
+        return false;
+      }
+      return {
+        iditem: input.dataset.iditem ? Number(input.dataset.iditem) : null,
+        descricao,
+        unidade_medida: document.getElementById("swal-avulso-unidade").value.trim() || "unidade",
+        quantidade_solicitada,
+        justificativa: document.getElementById("swal-avulso-justificativa").value.trim(),
+      };
+    },
+  });
+
+  if (!dados) return;
+
+  // Mesmo item pedido duas vezes soma em vez de duplicar a linha.
+  const existente = dados.iditem ? rascunhoItens.find((r) => r.iditem === dados.iditem) : null;
+  if (existente) existente.quantidade_solicitada += dados.quantidade_solicitada;
+  else rascunhoItens.push(dados);
+
+  atualizarRascunho();
+}
+
+async function enviarListaCompra() {
+  if (!rascunhoItens.length) {
+    Swal.fire("Lista vazia", "Adicione pelo menos um item antes de enviar.", "info");
+    return;
+  }
+
+  try {
+    const { pedido } = await fetchAlmox("/compras/pedidos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        local: localCompras,
+        dt_necessidade: rascunhoData || null,
+        observacao: rascunhoObs.trim() || null,
+        itens: rascunhoItens,
+      }),
+    });
+
+    rascunhoItens = [];
+    rascunhoData = "";
+    rascunhoObs = "";
+    await Swal.fire("Enviado!", `Lista #${pedido.idpedido} enviada para aprovação.`, "success");
+    subAbaCompras = "pedidos";
+    renderPainelCompras();
+  } catch (erro) {
+    console.error("Erro ao enviar lista de compra:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao enviar a lista.", "error");
+  }
+}
+
+
+// ===== Sub-aba: Listas de compra =====
+async function renderListasCompra(filtroStatus = "todos") {
+  const alvo = document.getElementById("almox-compras-conteudo");
+  if (!alvo) return;
+
+  // Mesmo componente de pílulas do filtro de "Eventos em Aberto"
+  // (.option > .input + .btn > .span) — ver #almox-panel .almox-pills no CSS.
+  const situacoes = [
+    { valor: "todos",     label: "Todas"       },
+    { valor: "pendente",  label: "Aguardando"  },
+    { valor: "aprovado",  label: "Aprovadas"   },
+    { valor: "comprado",  label: "Compradas"   },
+    { valor: "parcial",   label: "Parcial"     },
+    { valor: "recebido",  label: "Recebidas"   },
+    { valor: "recusado",  label: "Recusadas"   },
+    { valor: "cancelado", label: "Canceladas"  },
+  ];
+
+  alvo.innerHTML = `
+      <div class="almox-campo">
+        <span>Situação</span>
+        <div class="almox-pills">
+          ${situacoes
+            .map(
+              (s) => `
+                <div class="option">
+                  <input ${s.valor === filtroStatus ? "checked" : ""} value="${s.valor}" name="almox-pedidos-status" type="radio" class="input">
+                  <div class="btn"><span class="span">${s.label}</span></div>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    <table class="ti-tabela" style="margin-top:20px;">
+      <thead>
+        <tr><th>#</th><th>Local</th><th>Solicitante</th><th>Criada em</th><th>Precisa até</th><th>Itens</th><th>Valor estimado</th><th>Situação</th></tr>
+      </thead>
+      <tbody id="almox-pedidos-tbody"><tr><td colspan="8">Carregando...</td></tr></tbody>
+    </table>
+  `;
+
+  alvo.querySelectorAll('input[name="almox-pedidos-status"]').forEach((radio) =>
+    radio.addEventListener("change", () => renderListasCompra(radio.value))
+  );
+
+  const tbody = document.getElementById("almox-pedidos-tbody");
+  try {
+    const pedidos = await fetchAlmox(`/compras/pedidos?status=${encodeURIComponent(filtroStatus)}`);
+    if (!pedidos.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-2);">Nenhuma lista nessa situação.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = pedidos
+      .map(
+        (p) => `
+          <tr class="almox-pedido-linha" data-idpedido="${p.idpedido}" style="cursor:pointer;">
+            <td>#${p.idpedido}</td>
+            <td>${escaparHtml(p.local)}</td>
+            <td>${escaparHtml(p.nome_solicitante) || "—"}</td>
+            <td>${formatarDataAlmox(p.criado_em)}</td>
+            <td>${formatarDataAlmox(p.dt_necessidade)}</td>
+            <td>${p.total_itens} item(ns)${Number(p.itens_pendentes) ? ` · ${p.itens_pendentes} pendente(s)` : ""}</td>
+            <td>${Number(p.valor_estimado) ? formatarValorAlmox(p.valor_estimado) : "—"}</td>
+            <td>${pillStatus(p.status)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    tbody.querySelectorAll(".almox-pedido-linha").forEach((linha) =>
+      linha.addEventListener("click", () => abrirPedidoCompra(Number(linha.dataset.idpedido)))
+    );
+  } catch (erro) {
+    console.error("Erro ao listar pedidos de compra:", erro);
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--status-erro-fg);">Erro ao carregar as listas.</td></tr>`;
+  }
+}
+
+async function abrirPedidoCompra(idpedido) {
+  const alvo = document.getElementById("almox-compras-conteudo");
+  if (!alvo) return;
+  alvo.innerHTML = almoxLoading("Carregando lista...");
+
+  let pedido;
+  try {
+    pedido = await fetchAlmox(`/compras/pedidos/${idpedido}`);
+  } catch (erro) {
+    console.error("Erro ao abrir pedido de compra:", erro);
+    alvo.innerHTML = almoxVazio("Erro ao carregar a lista.", "error");
+    return;
+  }
+
+  const podeAprovar = pedido.pode_aprovar;
+  const temAprovado = pedido.itens.some((i) => i.status === "aprovado");
+  const temPendente = pedido.itens.some((i) => i.status === "pendente");
+  const encerrado = ["cancelado", "recebido"].includes(pedido.status);
+
+  alvo.innerHTML = `
+    <div class="almox-bloco-acoes" style="margin-bottom:16px;">
+      <button type="button" id="almox-pedido-voltar" class="almox-btn-secundario"><i class="ri-arrow-left-line" aria-hidden="true"></i>Voltar às listas</button>
+      ${podeAprovar && temPendente && !encerrado ? `<button type="button" id="almox-pedido-aprovar-tudo" class="almox-btn-ok"><i class="ri-checkbox-multiple-line" aria-hidden="true"></i>Aprovar tudo</button>` : ""}
+      ${podeAprovar && temAprovado ? `<button type="button" id="almox-pedido-receber" class="almox-btn-principal"><i class="ri-inbox-archive-line" aria-hidden="true"></i>Confirmar recebimento</button>` : ""}
+      ${podeAprovar && !encerrado ? `<button type="button" id="almox-pedido-cancelar" class="almox-btn-erro"><i class="ri-close-circle-line" aria-hidden="true"></i>Cancelar lista</button>` : ""}
+    </div>
+
+    <div class="almox-bloco">
+      <h3 style="margin:0 0 12px;">Lista #${pedido.idpedido} — ${escaparHtml(pedido.local)} ${pillStatus(pedido.status)}</h3>
+      <div class="almox-pedido-info">
+        <div><span>Solicitante</span><strong>${escaparHtml(pedido.nome_solicitante) || "—"}</strong></div>
+        <div><span>Criada em</span><strong>${formatarDataAlmox(pedido.criado_em)}</strong></div>
+        <div><span>Precisa chegar até</span><strong>${formatarDataAlmox(pedido.dt_necessidade)}</strong></div>
+        <div><span>Aprovador</span><strong>${escaparHtml(pedido.nome_aprovador) || "—"}</strong></div>
+      </div>
+      ${pedido.observacao ? `<p style="margin:12px 0 0; color:var(--text-2);">${escaparHtml(pedido.observacao)}</p>` : ""}
+    </div>
+
+    <table class="ti-tabela" style="margin-top:20px;">
+      <thead>
+        <tr><th>Item</th><th>Solicitado</th><th>Aprovado</th><th>Recebido</th><th>Melhor cotação</th><th>Situação</th><th style="width:220px;">Ações</th></tr>
+      </thead>
+      <tbody>${pedido.itens.map((item) => renderLinhaItemPedido(item, podeAprovar, encerrado)).join("")}</tbody>
+    </table>
+  `;
+
+  document.getElementById("almox-pedido-voltar").addEventListener("click", () => renderListasCompra(pedido.status));
+  document.getElementById("almox-pedido-aprovar-tudo")?.addEventListener("click", () => aprovarListaInteira(pedido.idpedido));
+  document.getElementById("almox-pedido-receber")?.addEventListener("click", () => abrirRecebimentoPedido(pedido));
+  document.getElementById("almox-pedido-cancelar")?.addEventListener("click", () => cancelarPedidoCompra(pedido.idpedido));
+
+  alvo.querySelectorAll("[data-acao-item]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const item = pedido.itens.find((i) => i.idpedidoitem === Number(btn.dataset.idpedidoitem));
+      if (!item) return;
+      if (btn.dataset.acaoItem === "cotacoes") abrirCotacoesItem(pedido, item);
+      else decidirItemPedido(pedido, item, btn.dataset.acaoItem);
+    })
+  );
+}
+
+function renderLinhaItemPedido(item, podeAprovar, encerrado) {
+  const cotacoes = item.cotacoes || [];
+  const escolhida = cotacoes.find((c) => c.escolhida);
+  const melhor = escolhida || cotacoes[0];
+  const textoCotacao = melhor
+    ? `${escaparHtml(melhor.fornecedor)} · ${formatarValorAlmox(melhor.valor_unitario)}${escolhida ? " ✓" : ""}`
+    : "—";
+
+  // Cada ação usa a cor do status que ela gera (ver .almox-btn-mini no Style.css).
+  const acoes = [];
+  if (podeAprovar && !encerrado && item.status === "pendente") {
+    acoes.push(`<button type="button" class="almox-btn-mini aprovar" data-acao-item="aprovado" data-idpedidoitem="${item.idpedidoitem}"><i class="ri-check-line" aria-hidden="true"></i>Aprovar</button>`);
+    acoes.push(`<button type="button" class="almox-btn-mini recusar" data-acao-item="recusado" data-idpedidoitem="${item.idpedidoitem}"><i class="ri-close-line" aria-hidden="true"></i>Recusar</button>`);
+  }
+  if (podeAprovar && item.status === "aprovado") {
+    acoes.push(`<button type="button" class="almox-btn-mini info" data-acao-item="cotacoes" data-idpedidoitem="${item.idpedidoitem}"><i class="ri-price-tag-3-line" aria-hidden="true"></i>Cotações (${cotacoes.length})</button>`);
+    acoes.push(`<button type="button" class="almox-btn-mini recusar" data-acao-item="recusado" data-idpedidoitem="${item.idpedidoitem}"><i class="ri-close-line" aria-hidden="true"></i>Recusar</button>`);
+  }
+
+  return `
+    <tr>
+      <td>
+        ${escaparHtml(item.descricao)}
+        ${item.iditem ? "" : `<span class="almox-pedido-status pendente" style="margin-left:6px;">item novo</span>`}
+        ${item.justificativa ? `<br><small style="color:var(--text-2);">${escaparHtml(item.justificativa)}</small>` : ""}
+        ${item.observacao_aprovacao ? `<br><small style="color:var(--status-erro-fg);">${escaparHtml(item.observacao_aprovacao)}</small>` : ""}
+      </td>
+      <td>${item.quantidade_solicitada} ${escaparHtml(item.unidade_medida)}</td>
+      <td>${item.quantidade_aprovada ?? "—"}</td>
+      <td>${item.quantidade_recebida || "—"}</td>
+      <td>${textoCotacao}</td>
+      <td>${pillStatus(item.status, STATUS_ITEM)}</td>
+      <td>${acoes.join(" ") || "—"}</td>
+    </tr>
+  `;
+}
+
+async function decidirItemPedido(pedido, item, status) {
+  const aprovando = status === "aprovado";
+  const { value: dados } = await Swal.fire({
+    title: aprovando ? `Aprovar — ${item.descricao}` : `Recusar — ${item.descricao}`,
+    html: `
+      <div class="ti-swal-form">
+        ${
+          aprovando
+            ? `<label class="ti-swal-label-outlined">
+                 <input type="number" id="swal-decisao-qtd" class="swal2-input" min="1" value="${item.quantidade_aprovada ?? item.quantidade_solicitada}">
+                 <span>Quantidade aprovada</span>
+                 <small>Solicitado: ${item.quantidade_solicitada} ${escaparHtml(item.unidade_medida)}. Dá pra aprovar menos.</small>
+               </label>`
+            : ""
+        }
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-decisao-obs" class="swal2-input" placeholder=" ">
+          <span>${aprovando ? "Observação (opcional)" : "Motivo da recusa"}</span>
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: aprovando ? "Aprovar" : "Recusar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    preConfirm: () => {
+      const observacao_aprovacao = document.getElementById("swal-decisao-obs").value.trim();
+      if (!aprovando && !observacao_aprovacao) {
+        Swal.showValidationMessage("Explique o motivo da recusa.");
+        return false;
+      }
+      const quantidade_aprovada = aprovando ? parseInt(document.getElementById("swal-decisao-qtd").value, 10) : null;
+      if (aprovando && (!Number.isInteger(quantidade_aprovada) || quantidade_aprovada <= 0)) {
+        Swal.showValidationMessage("Informe uma quantidade válida.");
+        return false;
+      }
+      return { status, quantidade_aprovada, observacao_aprovacao };
+    },
+  });
+
+  if (!dados) return;
+
+  try {
+    await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/itens/${item.idpedidoitem}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    abrirPedidoCompra(pedido.idpedido);
+  } catch (erro) {
+    console.error("Erro ao registrar decisão do item:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao registrar a decisão.", "error");
+  }
+}
+
+async function aprovarListaInteira(idpedido) {
+  const confirmacao = await Swal.fire({
+    title: "Aprovar a lista inteira?",
+    text: "Todos os itens pendentes são aprovados na quantidade solicitada.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Aprovar tudo",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+  });
+  if (!confirmacao.isConfirmed) return;
+
+  try {
+    await fetchAlmox(`/compras/pedidos/${idpedido}/aprovar-tudo`, { method: "PUT" });
+    abrirPedidoCompra(idpedido);
+  } catch (erro) {
+    console.error("Erro ao aprovar lista:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao aprovar a lista.", "error");
+  }
+}
+
+async function cancelarPedidoCompra(idpedido) {
+  const confirmacao = await Swal.fire({
+    title: "Cancelar esta lista?",
+    text: "A lista deixa de valer para compra. Itens já recebidos continuam no estoque.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Cancelar lista",
+    cancelButtonText: "Voltar",
+    reverseButtons: true,
+  });
+  if (!confirmacao.isConfirmed) return;
+
+  try {
+    await fetchAlmox(`/compras/pedidos/${idpedido}/cancelar`, { method: "PUT" });
+    renderListasCompra("cancelado");
+  } catch (erro) {
+    console.error("Erro ao cancelar lista:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao cancelar a lista.", "error");
+  }
+}
+
+// ===== Cotações por item (comparar fornecedores) =====
+async function abrirCotacoesItem(pedido, item) {
+  const cotacoes = item.cotacoes || [];
+  const quantidade = item.quantidade_aprovada ?? item.quantidade_solicitada;
+
+  const linhas = cotacoes.length
+    ? cotacoes
+        .map(
+          (c) => `
+            <tr class="${c.escolhida ? "almox-cotacao-escolhida" : ""}">
+              <td>${escaparHtml(c.fornecedor)}</td>
+              <td>${formatarValorAlmox(c.valor_unitario)}</td>
+              <td>${formatarValorAlmox(Number(c.valor_unitario) * quantidade)}</td>
+              <td>${c.prazo_entrega_dias ?? "—"}</td>
+              <td>
+                ${c.escolhida
+                  ? "<strong>escolhida</strong>"
+                  : `<button type="button" class="almox-btn-mini aprovar" data-escolher="${c.idcotacao}"><i class="ri-check-line" aria-hidden="true"></i>escolher</button>`}
+                <button type="button" class="almox-btn-mini recusar" data-excluir="${c.idcotacao}"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+              </td>
+            </tr>
+          `
+        )
+        .join("")
+    : `<tr><td colspan="5" style="text-align:center; color:var(--text-2);">Nenhuma cotação ainda.</td></tr>`;
+
+  await Swal.fire({
+    title: `Cotações — ${item.descricao}`,
+    width: 720,
+    html: `
+      <p style="margin:0 0 10px; color:var(--text-2); font-size:13px;">Quantidade a comprar: <strong>${quantidade} ${escaparHtml(item.unidade_medida)}</strong></p>
+      <table class="ti-tabela almox-tabela-swal">
+        <thead><tr><th>Fornecedor</th><th>Unitário</th><th>Total</th><th>Prazo (dias)</th><th></th></tr></thead>
+        <tbody id="almox-cotacoes-tbody">${linhas}</tbody>
+      </table>
+      <div class="ti-swal-form" style="margin-top:16px;">
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-cot-fornecedor" class="swal2-input" placeholder=" " autocomplete="off">
+          <span>Fornecedor</span>
+          <small>Busca os fornecedores cadastrados; pode digitar um nome livre também.</small>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-cot-valor" class="swal2-input" min="0" step="0.01" placeholder=" ">
+          <span>Valor unitário</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-cot-prazo" class="swal2-input" min="0" placeholder=" ">
+          <span>Prazo de entrega (dias)</span>
+        </label>
+        <label class="ti-swal-label" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="swal-cot-escolhida" checked> Marcar como a cotação escolhida
+        </label>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Adicionar cotação",
+    cancelButtonText: "Fechar",
+    reverseButtons: true,
+    didOpen: () => {
+      const input = document.getElementById("swal-cot-fornecedor");
+      ligarBuscaComSugestoes(
+        input,
+        "swal-cot-fornecedor-lista",
+        (termo) => fetchAlmox(`/compras/fornecedores/busca?busca=${encodeURIComponent(termo)}`),
+        (f) => f.nome,
+        (f) => {
+          input.value = f.nome;
+          input.dataset.idfornecedor = f.idfornecedor;
+        },
+        { mensagemVazia: "Fornecedor não cadastrado — vai como nome livre" }
+      );
+      input.addEventListener("input", () => delete input.dataset.idfornecedor);
+
+      // Escolher/excluir agem na hora (sem fechar o modal) e recarregam a tela.
+      document.getElementById("almox-cotacoes-tbody").addEventListener("click", async (e) => {
+        const escolher = e.target.closest("[data-escolher]");
+        const excluir = e.target.closest("[data-excluir]");
+        if (!escolher && !excluir) return;
+
+        try {
+          if (escolher) {
+            await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/cotacoes/${escolher.dataset.escolher}/escolher`, { method: "PUT" });
+          } else {
+            await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/cotacoes/${excluir.dataset.excluir}`, { method: "DELETE" });
+          }
+          Swal.close();
+          abrirPedidoCompra(pedido.idpedido);
+        } catch (erro) {
+          console.error("Erro ao atualizar cotação:", erro);
+          Swal.fire("Erro", erro.message || "Erro ao atualizar a cotação.", "error");
+        }
+      });
+    },
+    preConfirm: () => {
+      const input = document.getElementById("swal-cot-fornecedor");
+      const fornecedor = input.value.trim();
+      const valor = parseFloat(document.getElementById("swal-cot-valor").value);
+      if (!fornecedor) {
+        Swal.showValidationMessage("Informe o fornecedor.");
+        return false;
+      }
+      if (!Number.isFinite(valor) || valor < 0) {
+        Swal.showValidationMessage("Informe um valor unitário válido.");
+        return false;
+      }
+      const prazo = parseInt(document.getElementById("swal-cot-prazo").value, 10);
+      return {
+        idfornecedor: input.dataset.idfornecedor ? Number(input.dataset.idfornecedor) : null,
+        fornecedor_nome: input.dataset.idfornecedor ? null : fornecedor,
+        valor_unitario: valor,
+        prazo_entrega_dias: Number.isInteger(prazo) ? prazo : null,
+        escolhida: document.getElementById("swal-cot-escolhida").checked,
+      };
+    },
+  }).then(async (resultado) => {
+    if (!resultado.isConfirmed || !resultado.value) return;
+    try {
+      await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/itens/${item.idpedidoitem}/cotacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(resultado.value),
+      });
+      abrirPedidoCompra(pedido.idpedido);
+    } catch (erro) {
+      console.error("Erro ao registrar cotação:", erro);
+      Swal.fire("Erro", erro.message || "Erro ao registrar a cotação.", "error");
+    }
+  });
+}
+
+// ===== Recebimento: confirmação manual antes de entrar no estoque =====
+// A quantidade vem preenchida com a aprovada, mas é editável — comprou mais ou
+// menos do que estava na lista, corrige aqui e é isso que entra no estoque.
+async function abrirRecebimentoPedido(pedido) {
+  const itens = pedido.itens.filter((i) => i.status === "aprovado");
+  if (!itens.length) {
+    Swal.fire("Nada a receber", "Nenhum item aprovado pendente de recebimento.", "info");
+    return;
+  }
+
+  const linhas = itens
+    .map((item) => {
+      const escolhida = (item.cotacoes || []).find((c) => c.escolhida);
+      return `
+        <tr>
+          <td style="text-align:left;">
+            ${escaparHtml(item.descricao)}
+            <br><small style="color:var(--text-2);">aprovado: ${item.quantidade_aprovada ?? item.quantidade_solicitada} ${escaparHtml(item.unidade_medida)}</small>
+          </td>
+          <td><input type="number" class="almox-rec-qtd" data-idpedidoitem="${item.idpedidoitem}" min="0"
+                     value="${item.quantidade_aprovada ?? item.quantidade_solicitada}" style="width:80px;"></td>
+          <td><input type="text" class="almox-rec-fornecedor" data-idpedidoitem="${item.idpedidoitem}"
+                     data-idfornecedor="${escolhida?.idfornecedor || ""}" value="${escolhida ? escaparHtml(escolhida.fornecedor) : ""}"
+                     placeholder="Fornecedor" style="width:150px;"></td>
+          <td><input type="number" class="almox-rec-valor" data-idpedidoitem="${item.idpedidoitem}" min="0" step="0.01"
+                     value="${escolhida?.valor_unitario ?? ""}" placeholder="0,00" style="width:100px;"></td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const { value: confirmado } = await Swal.fire({
+    title: `Confirmar recebimento — lista #${pedido.idpedido}`,
+    width: 760,
+    html: `
+      <p style="margin:0 0 10px; color:var(--text-2); font-size:13px;">
+        Confira o que realmente chegou. Só o que for confirmado aqui entra no estoque — deixe <strong>0</strong> no que não veio.
+      </p>
+      <div class="ti-swal-form" style="margin-bottom:12px;">
+        <label class="ti-swal-label-outlined">
+          <input type="date" id="swal-rec-data" class="swal2-input" value="${hojeISO()}">
+          <span>Data da compra</span>
+        </label>
+      </div>
+      <table class="ti-tabela almox-tabela-swal">
+        <thead><tr><th>Item</th><th>Recebido</th><th>Fornecedor</th><th>Valor unit.</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Confirmar e dar entrada",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      // Se o usuário reescrever o fornecedor, o vínculo com o cadastro cai e o
+      // nome digitado é o que vale.
+      document.querySelectorAll(".almox-rec-fornecedor").forEach((input) =>
+        input.addEventListener("input", () => {
+          input.dataset.idfornecedor = "";
+        })
+      );
+    },
+    preConfirm: () => {
+      const dt_compra = document.getElementById("swal-rec-data").value || null;
+      const linhasConfirmadas = [];
+
+      for (const campo of document.querySelectorAll(".almox-rec-qtd")) {
+        const idpedidoitem = Number(campo.dataset.idpedidoitem);
+        const quantidade = parseInt(campo.value, 10);
+        if (!Number.isInteger(quantidade) || quantidade < 0) {
+          Swal.showValidationMessage("Quantidade recebida inválida.");
+          return false;
+        }
+        if (quantidade === 0) continue;
+
+        const inputFornecedor = document.querySelector(`.almox-rec-fornecedor[data-idpedidoitem="${idpedidoitem}"]`);
+        const inputValor = document.querySelector(`.almox-rec-valor[data-idpedidoitem="${idpedidoitem}"]`);
+        const idfornecedor = inputFornecedor.dataset.idfornecedor;
+
+        linhasConfirmadas.push({
+          idpedidoitem,
+          quantidade,
+          dt_compra,
+          idfornecedor: idfornecedor ? Number(idfornecedor) : null,
+          fornecedor_nome: idfornecedor ? null : inputFornecedor.value.trim() || null,
+          valor_unitario: inputValor.value === "" ? null : Number(inputValor.value),
+        });
+      }
+
+      if (!linhasConfirmadas.length) {
+        Swal.showValidationMessage("Confirme a quantidade de pelo menos um item.");
+        return false;
+      }
+      return linhasConfirmadas;
+    },
+  });
+
+  if (!confirmado) return;
+
+  try {
+    const resposta = await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/receber`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itens: confirmado }),
+    });
+    await Swal.fire("Recebido!", resposta.message, "success");
+    abrirPedidoCompra(pedido.idpedido);
+  } catch (erro) {
+    console.error("Erro ao confirmar recebimento:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao confirmar o recebimento.", "error");
+  }
+}
+
+// ===== Sub-aba: Preços e durabilidade =====
+async function renderPrecosCompra(iditemSelecionado = null) {
+  const alvo = document.getElementById("almox-compras-conteudo");
+  if (!alvo) return;
+  alvo.innerHTML = almoxLoading("Carregando itens...");
+
+  let itens = [];
+  try {
+    itens = await fetchAlmox("/compras/itens");
+  } catch (erro) {
+    console.error("Erro ao listar itens com compras:", erro);
+    alvo.innerHTML = almoxVazio("Erro ao carregar os itens.", "error");
+    return;
+  }
+
+  const comCompras = itens.filter((i) => Number(i.compras) > 0);
+  if (!comCompras.length) {
+    alvo.innerHTML = almoxVazio("Nenhuma compra registrada ainda. Assim que uma lista for recebida, o histórico aparece aqui.", "receipt_long");
+    return;
+  }
+
+  const idSelecionado = iditemSelecionado || comCompras[0].iditem;
+
+  alvo.innerHTML = `
+    <div class="almox-bloco">
+      <div class="almox-form-grid">
+        <label class="almox-campo almox-campo-larga">
+          <span>Item</span>
+          <select id="almox-precos-item">
+          ${comCompras
+            .map(
+              (i) =>
+                `<option value="${i.iditem}" ${i.iditem === idSelecionado ? "selected" : ""}>${escaparHtml(i.descricao)} — ${escaparHtml(i.local)} (${i.compras} compra(s))</option>`
+            )
+            .join("")}
+          </select>
+        </label>
+      </div>
+    </div>
+    <div id="almox-precos-detalhe">${almoxLoading()}</div>
+  `;
+
+  document.getElementById("almox-precos-item").addEventListener("change", (e) => renderPrecosCompra(Number(e.target.value)));
+  carregarDetalhePrecos(idSelecionado);
+}
+
+async function carregarDetalhePrecos(iditem) {
+  const alvo = document.getElementById("almox-precos-detalhe");
+  if (!alvo) return;
+
+  try {
+    const [precos, historico] = await Promise.all([
+      fetchAlmox(`/compras/itens/${iditem}/precos`),
+      fetchAlmox(`/compras/itens/${iditem}/historico`),
+    ]);
+
+    const menorMedia = precos.length ? Number(precos[0].valor_medio) : null;
+
+    const linhasFornecedor = precos.length
+      ? precos
+          .map(
+            (f) => `
+              <tr>
+                <td>${escaparHtml(f.fornecedor)}${Number(f.valor_medio) === menorMedia ? ' <span class="almox-pedido-status aprovado">melhor média</span>' : ""}</td>
+                <td>${f.compras}</td>
+                <td>${formatarValorAlmox(f.menor_valor)}</td>
+                <td>${formatarValorAlmox(f.valor_medio)}</td>
+                <td>${formatarValorAlmox(f.ultimo_valor)}</td>
+                <td>${formatarDataAlmox(f.ultima_compra)}</td>
+                <td>${formatarValorAlmox(f.total_gasto)}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : `<tr><td colspan="7" style="text-align:center; color:var(--text-2);">Nenhuma compra com valor informado.</td></tr>`;
+
+    const linhasHistorico = historico.compras.length
+      ? historico.compras
+          .map((c) => {
+            const duracao =
+              c.duracao_estimada_dias === null
+                ? "<span style='color:var(--text-2);'>sem consumo no período</span>"
+                : `${c.duracao_estimada_dias} dia(s)${c.periodo_fechado ? "" : " <small style='color:var(--text-2);'>(em curso)</small>"}`;
+            return `
+              <tr>
+                <td>${formatarDataAlmox(c.dt_compra)}</td>
+                <td>${c.quantidade} ${escaparHtml(historico.item.unidade_medida)}</td>
+                <td>${escaparHtml(c.fornecedor) || "—"}</td>
+                <td>${formatarValorAlmox(c.valor_unitario)}</td>
+                <td>${formatarValorAlmox(c.valor_total)}</td>
+                <td>${c.consumo_periodo}</td>
+                <td>${duracao}</td>
+                <td>${c.idpedido ? `#${c.idpedido}` : "—"}</td>
+              </tr>
+            `;
+          })
+          .join("")
+      : `<tr><td colspan="8" style="text-align:center; color:var(--text-2);">Nenhuma compra registrada.</td></tr>`;
+
+    alvo.innerHTML = `
+      <h4 style="margin:20px 0 8px;">Comparativo por fornecedor</h4>
+      <table class="ti-tabela">
+        <thead><tr><th>Fornecedor</th><th>Compras</th><th>Menor unit.</th><th>Média unit.</th><th>Último unit.</th><th>Última compra</th><th>Total gasto</th></tr></thead>
+        <tbody>${linhasFornecedor}</tbody>
+      </table>
+
+      <h4 style="margin:24px 0 8px;">Histórico do item — quanto durou cada compra</h4>
+      <p style="margin:0 0 10px; color:var(--text-2); font-size:12.5px;">
+        A duração é estimada pelo consumo registrado depois de cada compra (saídas do almoxarifado).
+      </p>
+      <table class="ti-tabela">
+        <thead><tr><th>Data</th><th>Quantidade</th><th>Fornecedor</th><th>Unitário</th><th>Total</th><th>Consumo no período</th><th>Duração</th><th>Lista</th></tr></thead>
+        <tbody>${linhasHistorico}</tbody>
+      </table>
+    `;
+  } catch (erro) {
+    console.error("Erro ao carregar preços do item:", erro);
+    alvo.innerHTML = almoxVazio("Erro ao carregar o comparativo.", "error");
+  }
 }
 
 // ===== Toggle do modo Almoxarifado =====

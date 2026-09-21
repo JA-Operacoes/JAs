@@ -605,7 +605,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             return `<span style="text-decoration: line-through; color: #d9534f;">${texto}</span>`;
         }
         if (status === 'Suspenso') {
-            return `<span style="text-decoration: line-through; color: #888;">${texto}</span>`;
+            return `<span style="text-decoration: line-through; color: var(--text-2);">${texto}</span>`;
         }
         if (considerarPago && (status === 'Pago' || status === 'Pago 100%')) {
             return `${prefixo}${formatarMoeda(0)}`;
@@ -680,7 +680,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     Ajuste de Custo aplicado
                 </span>
                 <span style="display:inline-block;">
-                    <span style="display:inline-block; width:12px; height:12px; background-color:#f0f0f0; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    <span style="display:inline-block; width:12px; height:12px; background-color:var(--surface-3); border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Aguardando Autorização / Inclusão no Orçamento
                 </span>
             </p>
@@ -758,9 +758,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     // já que cinza/amarelo padrão perdem contraste em cima do vermelho escuro.
                     const linhaAjusteDestaque = !(nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') && vlrAdic !== 0;
                     if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
-                        styleDestaque = 'style="color: black; font-weight: bold; background-color: #cbe4fd;"';
+                        styleDestaque = 'style="color: var(--on-brand-escuro); font-weight: bold; background-color: #cbe4fd;"';
                     } else if (vlrAdic !== 0) {
-                        styleDestaque = 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"';
+                        styleDestaque = 'style="color: var(--on-brand); font-weight: bold; background-color: rgb(136, 9, 9);"';
                     }
 
                     const ehFuncionario = item.PERFIL_STAFF && item.PERFIL_STAFF.includes('Interno');
@@ -772,11 +772,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
                         <td class="${alinhamentos['NOME']}">${item.NOME || ''}
                             ${ehFuncMei
-                                ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNC - MEI</span>'
+                                ? '<br><span style="font-size: 8px; color: var(--on-brand); background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNC - MEI</span>'
                                 : ehFuncionario
-                                    ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>'
+                                    ? '<br><span style="font-size: 8px; color: var(--on-brand); background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">FUNCIONÁRIO</span>'
                                     : ehMei
-                                        ? '<br><span style="font-size: 8px; color: #ffffff; background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">MEI</span>'
+                                        ? '<br><span style="font-size: 8px; color: var(--on-brand); background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">MEI</span>'
                                         : ''}
                         </td>
                         ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
@@ -844,7 +844,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         if (temMaisDeUmaLinha && podeVerFinanceiro) {
                             // Funcionário com múltiplas linhas → linha de SUBTOTAL + separador azul abaixo
                             linhas += `
-                            <tr class="row-total" style="background-color: #e8e8e8;">
+                            <tr class="row-total" style="background-color: var(--surface-3);">
                                 <td colspan="${colspanSubtotal}" style="text-align: right; font-weight: bold;">
                                     SUBTOTAL ${item.NOME}:
                                 </td>

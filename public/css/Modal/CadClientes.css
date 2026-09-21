@@ -13,7 +13,7 @@
   left: 0;
   width: 100%;
   height: auto;
-  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  background-color: var(--shadow-1); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
   z-index: 999; /* Fica acima de outros elementos */
 }
@@ -27,7 +27,7 @@
   background-color: rgba(46, 46, 46, 0.356);
   padding: 5px;
   border-radius: 8px;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 15px var(--shadow-1);
   width: 80%;/* Ajuste o tamanho conforme necessário */
   max-width: 700px;/* Largura máxima do modal */
   display: none; /* Inicialmente invisível */
@@ -94,13 +94,13 @@ body{
   display: flex;                
   flex-direction: column; 
   justify-content: center;
-  background-color: white;
+  background-color: var(--surface-1);
   max-width: 700px;   
   width: 100%;  
   height: 490px; 
   margin: 0 auto;         
   padding: 10px;                
-  background-color: #cacaca; 
+  background-color: var(--surface-4); 
   border: #25ce03;    
   border-bottom-right-radius: 8px;          
   border-bottom-left-radius: 8px;         
@@ -148,9 +148,9 @@ fieldset {
   border-radius: 6px;
   font-size: 13px;
   padding: 0 15px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -162,9 +162,9 @@ fieldset {
   border-radius: 6px;
   font-size: 13px;
   padding: 0 20px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -190,9 +190,9 @@ fieldset {
   font-size: 13px;
   padding: 0 8px;
   margin-top: -1px; 
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 
@@ -205,9 +205,9 @@ fieldset {
   border-radius: 6px;
   font-size: 13px;
   padding: 0 20px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   background: transparent;
-  color: #000000;
+  color: var(--text-1);
   outline: none;
 }
 .form label,
@@ -215,7 +215,7 @@ fieldset {
 .form2 label {
   position: absolute;
   transform: translateY(-50%);
-  color: #000000;
+  color: var(--text-1);
   font-size: 12px;
   pointer-events: none;
   transition: 0.3s;
@@ -226,7 +226,7 @@ fieldset {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  color: #000000;
+  color: var(--text-1);
   font-size: 19px;
   pointer-events: none;
   transition: 0.3s;
@@ -246,14 +246,14 @@ input:not([value=""]) ~ label{
   left: 25%;
   font-size: 12px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 input:not([value=""]) ~ label {
   top: -5px;
   left: 2%;
   font-size: 15px;
   padding: 0 2px;
-  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+  background: var(--surface-4); /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
 
 input[type=date]{
@@ -297,7 +297,7 @@ label#tpcliente{
   left: 25%;
   font-size: 15px;
   padding: 0 2px;
-  background: #cacaca;
+  background: var(--surface-4);
 }
 
 /* From Uiverse.io by Shoh2008 */ 
@@ -447,10 +447,10 @@ button {
 }
 
 #btnEnviar:disabled {
-  background-color: #cccccc; /* Cinza claro */
-  color: #666666;            /* Texto mais escuro */
+  background-color: var(--surface-4); /* Cinza claro */
+  color: var(--text-2);            /* Texto mais escuro */
   cursor: not-allowed;       /* Cursor de "proibido" */
-  border: 1px solid #999999;
+  border: 1px solid var(--border-2);
   opacity: 0.8;
 }
 

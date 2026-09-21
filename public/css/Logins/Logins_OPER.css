@@ -68,7 +68,7 @@ body{
   transform: translate(-50%, -50%);
   background: rgba(58, 51, 51, 0.987);
   box-sizing: border-box;
-  box-shadow: 0 15px 25px rgba(0,0,0,.6);
+  box-shadow: 0 15px 25px var(--shadow-1);
   border-radius: 10px;
   box-shadow: 0 0 60px rgb(255, 0, 0);
 }
@@ -104,7 +104,7 @@ body{
 .login-box .user-box input:valid ~ label {
   top: -20px;
   left: 0;
-  color: #bdb8b8;
+  color: var(--text-3);
   font-size: 12px;
 }
 
@@ -124,7 +124,7 @@ body{
 
 #btnEntrar:hover {
   background: #f40303;
-  color: #fff;
+  color: var(--on-brand);
   border-radius: 5px;
   box-shadow: 0 0 5px #f40303,
               0 0 25px #f40303,
@@ -178,7 +178,7 @@ button{
   background-color: red;
   color: white;
   border-radius: 10px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-2);
   width: 100%;
   max-width: 100px;
 }

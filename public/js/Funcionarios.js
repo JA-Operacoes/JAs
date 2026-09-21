@@ -285,7 +285,7 @@ function ligarAutocompleteCBO(inputOrigem, inputFuncao, inputCBO, listaId) {
                 const sugestoes = await fetchComToken(`/funcionarios/cbo?q=${encodeURIComponent(termo)}`);
                 lista.innerHTML = "";
                 if (!Array.isArray(sugestoes) || sugestoes.length === 0) {
-                    lista.innerHTML = '<li style="padding:6px 10px; color:#999;">Nenhum CBO encontrado</li>';
+                    lista.innerHTML = '<li style="padding:6px 10px; color:var(--text-3);">Nenhum CBO encontrado</li>';
                     lista.style.display = "block";
                     return;
                 }
@@ -293,7 +293,7 @@ function ligarAutocompleteCBO(inputOrigem, inputFuncao, inputCBO, listaId) {
                     const li = document.createElement("li");
                     li.textContent = `${s.codigo} — ${s.titulo}`;
                     li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
-                    li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                    li.addEventListener("mouseover", () => { li.style.background = "var(--surface-3)"; });
                     li.addEventListener("mouseout", () => { li.style.background = ""; });
                     li.addEventListener("mousedown", (e) => {
                         e.preventDefault();
@@ -972,7 +972,7 @@ function ativarModoBuscaFuncionarios(funcionarios) {
         li.dataset.id = f.idfuncionario;
         li.textContent = f.apelido ? `${f.nome} — ${f.apelido}` : (f.nome || "");
         li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
-        li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+        li.addEventListener("mouseover", () => { li.style.background = "var(--surface-3)"; });
         li.addEventListener("mouseout", () => { li.style.background = ""; });
         // mousedown dispara antes do blur do campo, evitando que a lista suma antes do clique.
         li.addEventListener("mousedown", async (e) => {
