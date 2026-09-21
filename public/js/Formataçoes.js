@@ -463,7 +463,7 @@ export function ligarBuscaComSugestoes(input, listaId, buscar, renderItem, aoEsc
                 const itens = await buscar(termo);
                 lista.innerHTML = "";
                 if (!Array.isArray(itens) || itens.length === 0) {
-                    lista.innerHTML = `<li style="padding:6px 10px; color:#999;">${mensagemVazia}</li>`;
+                    lista.innerHTML = `<li style="padding:6px 10px; color:var(--text-3);">${mensagemVazia}</li>`;
                     lista.style.display = "block";
                     return;
                 }
@@ -471,7 +471,7 @@ export function ligarBuscaComSugestoes(input, listaId, buscar, renderItem, aoEsc
                     const li = document.createElement("li");
                     li.textContent = renderItem(item);
                     li.style.cssText = "padding:6px 10px; cursor:pointer; border-radius:4px;";
-                    li.addEventListener("mouseover", () => { li.style.background = "#f0f2f5"; });
+                    li.addEventListener("mouseover", () => { li.style.background = "var(--surface-3)"; });
                     li.addEventListener("mouseout", () => { li.style.background = ""; });
                     li.addEventListener("mousedown", (e) => {
                         e.preventDefault();

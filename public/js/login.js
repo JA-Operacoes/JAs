@@ -25,14 +25,19 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     }
 
     const dados = await response.json();
-    const { token, idusuario, nome, empresas, idempresaDefault } = dados;
+    const { token, idusuario, nome, empresas, idempresaDefault, tema } = dados;
 
     // Limpa storage e salva dados do usuário
     localStorage.clear();
     localStorage.setItem("token", token);
-    localStorage.setItem("idusuario", idusuario);    
+    localStorage.setItem("idusuario", idusuario);
     localStorage.setItem('usuarioNome', nome);
     localStorage.setItem("empresas", JSON.stringify(empresas));
+    // A fonte de verdade do tema é o banco (acompanha o usuário em qualquer máquina);
+    // o localStorage é só o cache que o snippet no <head> lê pra pintar a tela antes
+    // do primeiro paint. Como o localStorage.clear() acima apaga tudo, é aqui que ele
+    // é regravado — senão o próximo index abriria claro e escureceria depois.
+    localStorage.setItem("tema", tema === 'dark' ? 'dark' : 'light');
 
         // 📌 Encontra a empresa padrão na lista de empresas do usuário
     const empresaDefaultInfo = empresas.find(emp => emp.id === idempresaDefault);

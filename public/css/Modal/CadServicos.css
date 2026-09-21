@@ -18,7 +18,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--shadow-1);
   display: none;
   z-index: 999;
 }
@@ -73,36 +73,36 @@ body.modal-open {
   justify-content: center;
   margin: 0 0 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
 }
 #cadModalServicos .Close { display: flex; justify-content: center; align-items: center; height: 34px; }
 #cadModalServicos button.close { width: 200px; height: 28px; margin: 0; }
 
 #cadModalServicos #form-servicos {
   display: flex; flex-direction: column; gap: 12px;
-  background-color: #cacaca; height: 440px; padding: 14px;
+  background-color: var(--surface-4); height: 440px; padding: 14px;
   border-radius: 10px; overflow-y: auto; box-sizing: border-box;
 }
 
 #cadModalServicos .sv-aviso {
   font-size: 12.5px;
-  color: #333;
+  color: var(--text-1);
   margin: 0;
   font-family: monospace;
 }
 
 #cadModalServicos fieldset {
-  background: rgba(255,255,255,0.45); border: none; border-radius: 10px; padding: 12px 16px;
+  background: var(--surface-1); border: none; border-radius: 10px; padding: 12px 16px;
 }
 #cadModalServicos legend { font-size: 15px; padding: 0 4px; }
 #cadModalServicos .sv-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 #cadModalServicos .sv-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 14px; margin-top: 10px; }
 #cadModalServicos .sv-full { grid-column: 1 / -1; }
 #cadModalServicos .sv-campo { display: flex; flex-direction: column; gap: 3px; }
-#cadModalServicos .sv-campo label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #444; }
+#cadModalServicos .sv-campo label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-1); }
 #cadModalServicos .sv-campo input {
-  font-family: "Abel", sans-serif; font-size: 15px; border: 1.5px solid #9e9e9e; border-radius: 8px;
-  padding: 7px 10px; background: #fff; color: #171616;
+  font-family: "Abel", sans-serif; font-size: 15px; border: 1.5px solid var(--border-2); border-radius: 8px;
+  padding: 7px 10px; background: var(--surface-1); color: var(--text-1);
 }
 
 input#svDescricao { width: 500px; }
@@ -121,20 +121,20 @@ input#svDescricao { width: 500px; }
   position: absolute;
   left: 0; right: 0; top: 100%;
   z-index: 50;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   border-radius: 6px;
   max-height: 180px;
   overflow-y: auto;
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  box-shadow: 0 4px 12px var(--shadow-1);
 }
 #cadModalServicos .sv-combo-lista.aberta { display: block; }
 #cadModalServicos .sv-combo-lista li { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
-#cadModalServicos .sv-combo-lista li:hover { background: #f0f2f5; }
-#cadModalServicos .sv-combo-lista li.sv-combo-vazio { color: #999; cursor: default; }
+#cadModalServicos .sv-combo-lista li:hover { background: var(--surface-3); }
+#cadModalServicos .sv-combo-lista li.sv-combo-vazio { color: var(--text-3); cursor: default; }
 #cadModalServicos .sv-combo-lista li.sv-combo-vazio:hover { background: none; }
 
 #cadModalServicos .BTNs { display: flex; justify-content: space-between; gap: 8px; }

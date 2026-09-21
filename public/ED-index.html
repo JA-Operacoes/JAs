@@ -1,6 +1,21 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!-- Tema claro/escuro: aplicado ANTES de qualquer CSS carregar. Precisa ser
+         inline e síncrono — um script externo (mesmo no head) já deixaria o
+         navegador pintar a tela branca antes de escurecer. Lê só o cache do
+         localStorage; js/tema.js confirma depois com o banco. -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('tema');
+                document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    

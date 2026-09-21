@@ -14,7 +14,7 @@
   left: 0;
   width: 100%;
   height: auto;
-  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  background-color: var(--shadow-1); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
   z-index: 999; /* Fica acima de outros elementos */
 }
@@ -25,10 +25,10 @@
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-  background-color: rgba(255, 255, 255, 0.356);
+  background-color: var(--surface-vidro);
   padding: 5px;
   border-radius: 8px;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 15px var(--shadow-1);
   width: 80%;/* Ajuste o tamanho conforme necessário */
   max-width: 700px;/* Largura máxima do modal */
   display: none; /* Inicialmente invisível */
@@ -109,7 +109,7 @@ body{
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background-color: #cacaca;
+  background-color: var(--surface-4);
   max-width: 1540px;
   width: 100%;
   margin: 0 auto;
@@ -148,7 +148,7 @@ body{
   gap: 8px;
   background: none;
   border: 2px solid transparent;
-  color: #4b4b4b;
+  color: var(--text-1);
   padding: 8px 22px;
   cursor: pointer;
   border-radius: 8px;
@@ -157,7 +157,7 @@ body{
   font-size: 15px;
 }
 #cadModalLancamentos .lc-tab-btn.ativa {
-  color: #fff;
+  color: var(--on-brand);
   background: var(--primary-color, #942123);
   border-color: var(--border-color, #ce0303);
 }
@@ -213,10 +213,10 @@ body{
   position: absolute;
   top: -11px;
   left: 14px;
-  background: #cacaca;
+  background: var(--surface-4);
   font-family: "Abel", sans-serif;
   font-size: 15px;
-  color: #4b4b4b;
+  color: var(--text-1);
   margin: 0;
   padding: 0 8px;
   text-transform: uppercase;
@@ -279,7 +279,7 @@ body{
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
   cursor: pointer;
 }
 #cadModalLancamentos .perfil-radio {
@@ -288,9 +288,9 @@ body{
   width: 18px;
   height: 18px;
   margin: 0;
-  border: 2px solid #c9c9c9;
+  border: 2px solid var(--border-1);
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--surface-1);
   position: relative;
   flex-shrink: 0;
   cursor: pointer;
@@ -355,7 +355,7 @@ body{
 #cadModalLancamentos .form2 .user-label {
   order: -1;
   font-size: 12.5px;
-  color: #333;
+  color: var(--text-1);
   margin-bottom: 4px;
   pointer-events: none;
 }
@@ -363,13 +363,13 @@ body{
 #cadModalLancamentos .form2 .input {
   height: 38px;
   box-sizing: border-box;
-  border: solid 2px #9e9e9e;
+  border: solid 2px var(--border-2);
   border-radius: 10px;
-  background-color: #ffffff;
+  background-color: var(--surface-1);
   padding: 0 12px;
   font-size: 15px;
   font-family: var(--Font-primary);
-  color: #000000;
+  color: var(--text-1);
   outline: none;
   -webkit-appearance: none;
   appearance: none;
@@ -383,8 +383,8 @@ body{
 
 #cadModalLancamentos .form2 .input[readonly],
 #cadModalLancamentos .form2 .input:disabled {
-  background-color: #eaeaea;
-  color: #555;
+  background-color: var(--surface-3);
+  color: var(--text-1);
   cursor: not-allowed;
   opacity: 1;
 }
@@ -434,10 +434,10 @@ body{
   width: 100% !important;
 }
 #cadModalLancamentos .select2-container--default .select2-selection--single {
-  border: solid 2px #9e9e9e !important;
+  border: solid 2px var(--border-2) !important;
   border-radius: 10px !important;
   height: 38px !important;
-  background-color: #ffffff !important;
+  background-color: var(--surface-1) !important;
   outline: none !important;
   display: flex !important;
   align-items: center !important;
@@ -446,7 +446,7 @@ body{
 #cadModalLancamentos .select2-container--default .select2-selection--single .select2-selection__rendered {
   font-family: var(--Font-primary) !important;
   font-size: 15px !important;
-  color: #000000 !important;
+  color: var(--text-1) !important;
   padding-left: 12px !important;
   line-height: 34px !important;
 }
@@ -460,7 +460,7 @@ body{
   outline: none !important;
 }
 #cadModalLancamentos .select2-dropdown {
-  border: solid 2px #9e9e9e !important;
+  border: solid 2px var(--border-2) !important;
   border-radius: 10px !important;
   overflow: hidden;
 }
@@ -476,7 +476,7 @@ body{
   font-size: 14px !important;
   font-family: var(--Font-primary) !important;
   height: 32px !important;
-  border: solid 2px #9e9e9e !important;
+  border: solid 2px var(--border-2) !important;
   border-radius: 8px !important;
   padding: 0 8px !important;
   outline: none !important;
@@ -560,7 +560,7 @@ input[type=file]{
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  color: #333;
+  color: var(--text-1);
 }
 
 .checkbox-wrapper-33 .checkbox + .checkbox {
@@ -575,9 +575,9 @@ input[type=file]{
   flex-shrink: 0;
   width: var(--checkbox-size);
   height: var(--checkbox-size);
-  border: 2px solid #c9c9c9;
+  border: 2px solid var(--border-1);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--surface-1);
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -649,9 +649,9 @@ input[type=file]{
     margin-top: 15px;
     max-height: 300px; /* Altura máxima antes de aparecer o scroll */
     overflow-y: auto;  /* Ativa o scroll vertical se ultrapassar a altura */
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-1);
     border-radius: 8px;
-    background-color: #f8f9fa;
+    background-color: var(--surface-3);
     padding: 10px;
     display: none; /* Começa escondido, o JS mostra ao clicar no checkbox */
 }
@@ -661,20 +661,20 @@ input[type=file]{
     width: 6px;
 }
 #container-previa::-webkit-scrollbar-thumb {
-    background: #ccc;
+    background: var(--surface-4);
     border-radius: 10px;
 }
 
 .previa-titulo {
     font-size: 0.9rem;
-    color: #333;
+    color: var(--text-1);
     margin-bottom: 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-1);
     padding-bottom: 5px;
     font-weight: bold;
     position: sticky; /* Mantém o título fixo no topo enquanto rola */
     top: 0;
-    background: #f8f9fa;
+    background: var(--surface-3);
     z-index: 1;
 }
 
@@ -693,7 +693,7 @@ input[type=file]{
 
 .table-previa th {
     text-align: left;
-    color: #888;
+    color: var(--text-2);
     font-size: 0.75rem;
     text-transform: uppercase;
     padding-bottom: 5px;
@@ -701,26 +701,26 @@ input[type=file]{
 
 .table-previa td {
     padding: 6px 0;
-    border-bottom: 1px dashed #eee;
+    border-bottom: 1px dashed var(--border-1);
 }
 
 /* Destaque para a linha ao passar o mouse */
 .table-previa tr:hover {
-    background-color: #f1f1f1;
+    background-color: var(--surface-3);
 }
 
 
 
 /* Quando o container ou o label contém um input desabilitado */
 #containerPerfilFuncionario label:has(input:disabled) {
-    color: #5a5858; /* Cinza claro */
+    color: var(--text-1); /* Cinza claro */
     cursor: not-allowed;
     transition: color 0.3s ease;
 }
 
 /* Quando o input está habilitado */
 #containerPerfilFuncionario label:has(input:enabled) {
-    color: #000; /* Preto */
+    color: var(--text-1); /* Preto */
     cursor: pointer;
     font-weight: 500;
 }
@@ -842,7 +842,7 @@ button.Close {
 
 #cadModalLancamentos .lc-grupo-filtro {
   flex: 1 1 320px;
-  border: 1px solid #9e9e9e;
+  border: 1px solid var(--border-2);
   border-radius: 10px;
   padding: 10px 14px 12px;
   margin: 0;
@@ -850,7 +850,7 @@ button.Close {
 #cadModalLancamentos .lc-grupo-filtro legend {
   padding: 0 6px;
   font-size: 12.5px;
-  color: #333;
+  color: var(--text-1);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -869,7 +869,7 @@ button.Close {
   gap: 6px;
   margin-top: 8px;
   font-size: 13px;
-  color: #333;
+  color: var(--text-1);
   cursor: pointer;
 }
 #cadModalLancamentos .lc-check-ano-atual input {
@@ -889,7 +889,7 @@ button.Close {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #333;
+  color: var(--text-1);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -912,7 +912,7 @@ button.Close {
 #cadModalLancamentos .lc-tabela-wrap {
   overflow: auto;
   max-height: 55vh;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-1);
   border-radius: 8px;
   width: 100%;
   box-sizing: border-box;
@@ -921,20 +921,20 @@ button.Close {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  background: #fff;
+  background: var(--surface-1);
   font-size: 14px;
 }
 #cadModalLancamentos .lc-tabela th,
 #cadModalLancamentos .lc-tabela td {
   padding: 8px 10px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-1);
   text-align: left;
   white-space: normal;
   overflow-wrap: break-word;
 }
 #cadModalLancamentos .lc-tabela th {
   background: var(--primary-color, #942123);
-  color: #fff;
+  color: var(--on-brand);
   cursor: pointer;
   user-select: none;
   position: sticky;
@@ -955,10 +955,10 @@ button.Close {
 #cadModalLancamentos .lc-tabela th:nth-child(9), #cadModalLancamentos .lc-tabela td:nth-child(9) { width: 8%; }
 #cadModalLancamentos .lc-tabela th:nth-child(10), #cadModalLancamentos .lc-tabela td:nth-child(10) { width: 9%; }
 #cadModalLancamentos .lc-tabela tbody tr:nth-child(even) {
-  background: #f5f6f7;
+  background: var(--surface-3);
 }
 #cadModalLancamentos .lc-tabela tbody tr:hover {
-  background: #eef0f2;
+  background: var(--surface-3);
 }
 #cadModalLancamentos .lc-tabela tbody tr.lc-row-editavel {
   cursor: pointer;
@@ -996,7 +996,7 @@ button.Close {
   gap: 10px 22px;
   padding: 10px 4px 4px;
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
 }
 #cadModalLancamentos .lc-total-vencido strong {
   color: var(--Reject, #B50000);
@@ -1010,7 +1010,7 @@ button.Close {
    já define, sem duplicar regra nenhuma. */
 
 #cadModalLancamentos .pagamento-secao {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--surface-vidro-medio);
   border-radius: 10px;
   padding: 12px 16px;
   margin: 0 auto 14px;
@@ -1018,9 +1018,9 @@ button.Close {
 }
 #cadModalLancamentos .pagamento-secao > h3 {
   font-size: 15px;
-  color: #2b2a2a;
+  color: var(--text-1);
   margin: 0 0 12px;
-  border-bottom: 1px solid #b9b9b9;
+  border-bottom: 1px solid var(--border-2);
   padding-bottom: 6px;
 }
 
@@ -1063,7 +1063,7 @@ button.Close {
   height: auto;
   width: 250px;
   border-radius: 10px;
-  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  box-shadow: 4px 4px 30px var(--shadow-1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1083,13 +1083,13 @@ button.Close {
   padding: 0.65rem 1rem;
   border-radius: 0.5rem;
   background-color: var(--primary-color);
-  color: #ffffff;
+  color: var(--on-brand);
   font-family: "Abel", sans-serif;
   font-size: 0.9rem;
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .15);
+  box-shadow: 0 4px 6px -1px var(--shadow-1);
   transition: all 0.3s ease;
 }
 #cadModalLancamentos .btn-upload-arquivo:hover { background-color: var(--hover-color); }
@@ -1102,7 +1102,7 @@ button.Close {
   margin: 0;
   text-align: center;
   font-size: 13px;
-  color: #555;
+  color: var(--text-1);
 }
 
 #cadModalLancamentos .pdf {
@@ -1118,7 +1118,7 @@ button.Close {
   display: inline-flex;
   padding: 0.6rem 1.1rem;
   background-color: #488aec;
-  color: #ffffff;
+  color: var(--on-brand);
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 700;
@@ -1146,41 +1146,41 @@ button.Close {
   padding: 5px 8px;
   border-radius: 5px;
   text-decoration: none;
-  color: #007bff;
+  color: var(--status-info-fg);
   font-size: 14px;
   font-weight: normal;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background-color: #e9ecef;
-  border: 1px solid #ced4da;
+  background-color: var(--surface-3);
+  border: 1px solid var(--border-1);
 }
-#cadModalLancamentos .comprovante-salvo-link.btn-success { color: green; background-color: #d1e7dd; border-color: #c3e6cb; }
-#cadModalLancamentos .comprovante-salvo-link.btn-info { color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
+#cadModalLancamentos .comprovante-salvo-link.btn-success { color: green; background-color: var(--status-ok-bg); border-color: #c3e6cb; }
+#cadModalLancamentos .comprovante-salvo-link.btn-info { color: var(--status-info-fg); background-color: var(--status-info-bg); border-color: #bee5eb; }
 
 #cadModalLancamentos .previa-lancamentos {
   margin-top: 15px;
   padding: 10px;
-  background-color: #f9f9f9;
+  background-color: var(--surface-3);
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-1);
   width: 100%;
 }
 #cadModalLancamentos .previa-lancamentos h3 {
   font-size: 16px;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text-1);
   text-align: center;
 }
 
 #cadModalLancamentos .table-container {
   max-height: 185px;
   overflow-y: auto;
-  border: 1px solid #eee;
-  background: white;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
 }
 #cadModalLancamentos .table-container::-webkit-scrollbar { width: 6px; }
-#cadModalLancamentos .table-container::-webkit-scrollbar-thumb { background: #bbb; border-radius: 10px; }
+#cadModalLancamentos .table-container::-webkit-scrollbar-thumb { background: var(--surface-inativo); border-radius: 10px; }
 
 /* Tabela de histórico de pagamentos — nome próprio (lc-pgto-historico), não
    reaproveita .table-previa (já usado pela prévia de parcelas do cadastro,
@@ -1193,8 +1193,8 @@ button.Close {
 #cadModalLancamentos .lc-pgto-historico thead th {
   position: sticky;
   top: 0;
-  background-color: #e9e9e9;
-  color: #555;
+  background-color: var(--surface-3);
+  color: var(--text-1);
   font-size: 12px;
   z-index: 2;
   padding: 8px 4px;
@@ -1204,9 +1204,9 @@ button.Close {
 #cadModalLancamentos .lc-pgto-historico td {
   text-align: center;
   padding: 8px 4px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-1);
 }
-#cadModalLancamentos .lc-pgto-historico tr:hover { background-color: #f1f1f1; }
+#cadModalLancamentos .lc-pgto-historico tr:hover { background-color: var(--surface-3); }
 
 #cadModalLancamentos .status-badge {
   padding: 2px 8px;
@@ -1216,8 +1216,8 @@ button.Close {
   text-transform: uppercase;
   display: inline-block;
 }
-#cadModalLancamentos .status-badge.pago { background-color: #28a745; color: white; }
-#cadModalLancamentos .status-badge.pendente { background-color: #ffc107; color: #212529; }
+#cadModalLancamentos .status-badge.pago { background-color: #28a745; color: var(--on-brand); }
+#cadModalLancamentos .status-badge.pendente { background-color: #ffc107; color: var(--on-brand-escuro); }
 
 #cadModalLancamentos .celula-obs {
   max-width: 150px;
@@ -1225,10 +1225,10 @@ button.Close {
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  color: #666;
+  color: var(--text-2);
   font-size: 0.9em;
 }
-#cadModalLancamentos .celula-obs:hover { color: var(--primary-color, #3085d6); text-decoration: underline; }
+#cadModalLancamentos .celula-obs:hover { color: var(--primary-texto, #3085d6); text-decoration: underline; }
 
 #cadModalLancamentos #linkContainerConta,
 #cadModalLancamentos #linkContainerComprovante {
@@ -1240,8 +1240,8 @@ button.Close {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background-color: #ffffff;
-  color: var(--primary-color, #1976d2);
+  background-color: var(--surface-1);
+  color: var(--primary-texto, #1976d2);
   text-decoration: none;
   border-radius: 6px;
   font-size: 13px;
@@ -1253,12 +1253,12 @@ button.Close {
 }
 #cadModalLancamentos .btn-view-file:hover {
   background-color: var(--primary-color, #1976d2);
-  color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  color: var(--on-brand);
+  box-shadow: 0 2px 4px var(--shadow-1);
 }
 
 #cadModalLancamentos input[type="file"]:disabled {
-  background-color: #f4f4f4;
+  background-color: var(--surface-3);
   cursor: not-allowed;
   opacity: 0.6;
 }
