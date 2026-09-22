@@ -2,12 +2,13 @@ const fs = require("fs");
 const path = require("path");
 const acorn = require("acorn");
 
-const MAIN_JS_PATH = path.join(__dirname, "../../../public/js/Main.js");
+// renderizarPedidos e os cards saíram do Main.js para o módulo de Pedidos.
+const MAIN_JS_PATH = path.join(__dirname, "../../../public/js/Pedidos.js");
 
-// public/js/Main.js é um módulo ES de 18k+ linhas carregado direto no browser,
-// com código de topo (fetch, DOM, setInterval) que roda ao ser importado — não dá
-// para fazer require() do arquivo inteiro em teste. Em vez disso, usamos o acorn
-// para localizar apenas as declarações que renderizarPedidos precisa e as avaliamos
+// public/js/Pedidos.js é um módulo ES carregado direto no browser, com código de
+// topo (fetch, setInterval) que roda ao ser importado — não dá para fazer
+// require() do arquivo inteiro em teste. Em vez disso, usamos o acorn para
+// localizar apenas as declarações que renderizarPedidos precisa e as avaliamos
 // via `new Function`, que roda no mesmo realm jsdom do teste (document/Swal/
 // fetchComToken já definidos pelo teste ficam visíveis como globais).
 const NAMES = [
@@ -32,7 +33,11 @@ function extractDeclarations(source, names) {
   const wanted = new Set(names);
   const found = new Map();
 
-  for (const node of ast.body) {
+  for (const topo of ast.body) {
+    // `export const X = …` vem embrulhado em ExportNamedDeclaration; o que
+    // interessa é o miolo, já que `export` não é válido em `new Function`.
+    const node = topo.type === "ExportNamedDeclaration" && topo.declaration ? topo.declaration : topo;
+
     if (node.type === "FunctionDeclaration" && node.id && wanted.has(node.id.name)) {
       found.set(node.id.name, source.slice(node.start, node.end));
     } else if (node.type === "VariableDeclaration") {

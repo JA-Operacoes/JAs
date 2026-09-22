@@ -148,6 +148,14 @@ html[data-theme="dark"] {
     --shadow-2: rgba(0, 0, 0, .7);
 
     --overlay: rgba(0, 0, 0, .65);
+
+    /* O override prometido lá em cima: a cor da marca como TEXTO precisa clarear
+       aqui. O vermelho cheio (#c8102e) sobre #1e1e1e dá 2.8:1 — abaixo do mínimo
+       legível — e é o que deixava as pílulas da home e as abas do T.I. apagadas.
+       Misturar com branco mantém o matiz da empresa (cada tema tem o seu
+       --primary-color) e sobe o contraste para ~7:1, sem precisar de um valor
+       escrito à mão para cada um dos 13 temas. */
+    --primary-texto: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
 }
 
 /* ─────────────────────────────────────────────
