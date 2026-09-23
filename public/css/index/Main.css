@@ -92,6 +92,12 @@ main#conteudo {
 
 /* Container da Versão */
 .Versao-sistema {
+    /* Antes ficava no rodapé só de efeito colateral do margin:auto do #conteudoDetalhes
+       vizinho (empurra pra baixo quando sobra espaço) -- com pouco conteúdo em
+       #conteudoDetalhes (ex.: pílulas do menu-em-pílulas) esse espaço não sobrava mais e
+       a versão subia pro meio do painel. margin-top:auto aqui garante o rodapé sempre,
+       não importa quanto (ou quão pouco) conteúdo tem acima. */
+    margin-top: auto;
     padding: 10px 15px;
     background-color: var(--surface-3); /* Um fundo levemente diferente para destacar que é o rodapé */
     border-top: 1px solid var(--border-1);
@@ -1924,7 +1930,11 @@ span.nenhum-evento {
 }
 
 .equipe-box {
-  background: var(--primary-color);
+  /* Era var(--primary-color) (cor cheia da marca) -- forte demais pra uma área usada o dia
+     todo. var(--hover-color) é a mesma cor, só mais escura, e é consistente nas 13 empresas
+     (diferente de var(--border-color), que em CJG/JD vira azul-marinho -- cor do logo, não
+     uma variação do primary -- e em SN Foods é mais CLARO que o primary, não mais escuro). */
+  background: var(--hover-color);
   color: var(--font-color);
   border-radius: 10px;
   padding: 10px 15px;
