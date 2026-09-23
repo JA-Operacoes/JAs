@@ -1,0 +1,523 @@
+/* Mesma estrutura de modal do CadAjusteFinanceiro.css (Crédito/Débito de Funcionário) —
+   Despesa Extra do Evento é o mesmo tipo de tela (lançamento + histórico), só trocando
+   funcionário por evento como âncora. */
+
+.modal-open main,
+.modal-open header,
+.modal-open #content,
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
+}
+
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: var(--shadow-1);
+  display: none;
+  z-index: 999;
+}
+
+#modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--surface-vidro);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px var(--shadow-1);
+  width: 80%;
+  max-width: 700px;
+  display: none;
+  z-index: 1000;
+}
+
+#cadModalDespesaExtra.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* display:flex + flex-direction:column aqui é o que faltava: sem isso, o max-height do
+     modal não é repassado pros filhos (.modal-content > #form-despesaextra + .BTNs), e
+     quando o form cresce além do espaço disponível o excesso simplesmente transborda pra
+     fora da moldura em vez de sobrar só pro form rolar (BTNs "flutuando" fora do modal). */
+  display: flex;
+  flex-direction: column;
+  background-color: #4d4d4d;
+  padding: 5px;
+  margin-top: 10px;
+  width: 775px;
+  /* px fixo, não vh -- mesmo padrão já usado nos outros modais (CadFornecedores.css,
+     CadEventos.css etc.). vh preso a position:fixed + transform (aqui e no #modal-container
+     por fora) não estava dando a altura esperada nesse ambiente; px é direto, sem depender de
+     recálculo de viewport dentro dessa cadeia. overflow:hidden é rede de segurança, nada deve
+     vazar da moldura de jeito nenhum. */
+  height: 800px;
+  overflow: hidden;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+#cadModalDespesaExtra .modal-content {
+  display: flex;
+  flex-direction: column;
+  /* height:100% em vez de flex:1 -- é o único filho do .modal, então devia dar na mesma, mas
+     na prática (confirmado no DevTools) o flex:1 tava deixando o elemento crescer maior que o
+     espaço disponível (898px dentro de um .modal de 800px). height:100% é uma conta direta
+     (100% da content-box do pai) em vez de depender da distribuição de flex-grow. */
+  height: 100%;
+  min-height: 0; /* deixa o form interno rolar em vez de esticar a moldura inteira */
+}
+
+.modal-open #modal-overlay,
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto;
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#form-despesaextra {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  flex-direction: column;
+  /* flex-start, não center: com overflow-y:auto, "center" distribui o excesso de conteúdo
+     pros dois lados do eixo (corta o topo do form) em vez de só embaixo — mesmo bug já visto
+     em LocalMontagem.css e outros ~7 CSS de modal. */
+  justify-content: flex-start;
+  max-width: 730px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px;
+  background-color: var(--surface-4);
+  border-radius: 10px;
+  position: relative;
+  overflow-y: auto;
+  /* flex:1 + min-height:0, não max-height:85vh fixo: esse valor era só um chute (fração da
+     tela) que não sobrava espaço de verdade pro Close (título) e o .BTNs (Limpar/Enviar) —
+     com o form crescendo (campos novos, histórico maior), os dois acabavam empurrados pra
+     fora da moldura do modal. flex:1 faz o form ocupar só o espaço que sobra depois do
+     Close e do .BTNs terem o tamanho deles garantido, dentro do max-height do modal. */
+  flex: 1;
+  min-height: 0;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: transparent;
+  border-color: var(--dark-color);
+  margin: 0 auto;
+}
+
+legend {
+  margin-left: 20px;
+  padding: 0 10px;
+}
+
+.form-1coluna,
+.form-2colunas {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.form, .form-checkbox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 12px;
+  gap: 5px;
+  flex: 1;
+}
+
+.form input,
+.form select,
+.form textarea {
+  font-family: var(--Font-primary);
+  width: 100%;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 12px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-1);
+  color: var(--text-1);
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* Sem isso, o Chrome recente desenha o <select> com a aparência nativa dele (bem
+   arredondada, cor de destaque do sistema no texto) por cima do que definimos acima --
+   mesmo reset já usado noutras telas do sistema (Main.css: .select-simples). Sem o ícone
+   nativo (appearance:none tira a setinha também), desenha uma seta própria no lugar. */
+.form select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c5c5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 34px;
+}
+
+.form select:disabled { opacity: .6; cursor: not-allowed; }
+
+.form textarea {
+  height: auto;
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+.form label {
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.campo-flutuante {
+  position: relative;
+}
+
+.label-flutuante {
+  position: absolute;
+  top: -8px;
+  left: 14px;
+  background: var(--surface-4);
+  padding: 0 6px;
+  font-size: 12px !important;
+  font-weight: 600;
+  color: var(--text-1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.campo-flutuante textarea:focus ~ .label-flutuante,
+.campo-flutuante textarea:not(:placeholder-shown) ~ .label-flutuante,
+.campo-flutuante select:focus ~ .label-flutuante,
+.campo-flutuante select:valid ~ .label-flutuante {
+  opacity: 1;
+}
+
+/* Label do campo de busca de Evento e do Comprovante não têm select/textarea nativo pra
+   disparar :valid/:not(:placeholder-shown) — ficam sempre visíveis, igual .tem-arquivo faz
+   pro comprovante do Ajuste Financeiro. */
+.label-flutuante.label-sempre,
+.campo-flutuante.tem-arquivo .label-flutuante {
+  opacity: 1;
+}
+
+.label-flutuante.opcional { color: var(--text-2); }
+
+.btn-upload-comprovante {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 8px 14px;
+  background: var(--primary-color, #8B0000);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.form .btn-upload-comprovante {
+  color: #fff;
+}
+
+.btn-upload-comprovante:hover {
+  background: var(--hover-color, #a83232);
+}
+
+/* --- Busca de Evento (mesmos tokens da busca de evento/funcionário do CEO Mode) --- */
+
+.busca-evento-wrap { padding-top: 6px; }
+
+.busca-evento-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 36px;
+}
+.busca-evento-box i { color: var(--text-2); font-size: 14px; }
+.busca-evento-box input {
+  border: none; outline: none; font-size: 15px; width: 100%; background: transparent;
+  height: 100%; padding: 0; color: var(--text-1);
+}
+/* Mesma seta do .form select (SVG, não texto) -- pedido pra ficar visualmente igual
+   ao select de Orçamento logo abaixo. */
+.busca-evento-toggle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c5c5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px;
+  cursor: pointer;
+  padding: 0;
+}
+.busca-evento-toggle:hover { opacity: .65; }
+
+.evento-resumo {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+.evento-resumo strong { color: var(--text-1); }
+
+.busca-evento-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  z-index: 50;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  list-style: none;
+  margin: 0; padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 18px var(--shadow-1);
+}
+.busca-evento-lista li { padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text-1); }
+.busca-evento-lista li:hover { background: var(--surface-3); }
+.busca-evento-lista li small { color: #1f6fc4; margin-left: 6px; font-size: 12.5px; }
+.busca-evento-lista li.vazio { color: var(--text-3); cursor: default; }
+.busca-evento-lista li.busca-ano-sep {
+  padding: 8px 10px 4px; margin-top: 4px; font-size: 13px; font-weight: 700; letter-spacing: .5px;
+  color: var(--primary-color); text-transform: uppercase; cursor: default;
+  border-top: 1px solid var(--border-1);
+}
+.busca-evento-lista li.busca-ano-sep:first-child { margin-top: 0; border-top: none; }
+.busca-evento-lista li.busca-ano-sep:hover { background: transparent; }
+
+/* --- Histórico de Lançamentos --- */
+
+.previa-lancamentos {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: var(--surface-3);
+  border-radius: 8px;
+  border: 1px solid var(--border-1);
+  width: 100%;
+}
+
+.previa-lancamentos h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: var(--text-1);
+  text-align: center;
+}
+
+.table-container {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
+}
+
+.table-container::-webkit-scrollbar {
+  width: 6px;
+}
+.table-container::-webkit-scrollbar-thumb {
+  background: var(--surface-inativo);
+  border-radius: 10px;
+}
+
+.table-previa {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table-previa thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--surface-3);
+  color: var(--text-1);
+  font-size: 11px;
+  z-index: 2;
+  padding: 8px 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.table-previa td {
+  text-align: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-1);
+}
+
+.table-previa .celula-obs {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-previa tr:hover {
+  background-color: var(--surface-3);
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  display: inline-block;
+  color: #fff;
+}
+
+.status-badge.pendente { background-color: #ffc107; color: var(--on-brand-escuro); }
+.status-badge.pago { background-color: #28a745; }
+
+.tipo-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  display: inline-block;
+}
+/* Cores invertidas em relação ao tipo-badge do Ajuste Financeiro: aqui Despesa (aumenta
+   custo) é vermelho e Estorno (reduz custo) é verde -- mais intuitivo sem funcionário
+   pra dar contexto de "crédito/débito da conta de alguém". */
+.tipo-badge.despesa { background-color: #dc2626; }
+.tipo-badge.estorno { background-color: #16a34a; }
+
+.btn-editar-despesa {
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #6c757d;
+  border-radius: 6px;
+}
+.btn-editar-despesa:hover {
+  background-color: #545b62;
+}
+
+button.close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 200px;
+  height: 30px;
+  margin: 0;
+}
+
+.Close {
+  display: flex;
+  justify-content: center;
+  height: 25px;
+}
+
+button {
+  font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
+  font-size: 18px;
+  background-color: var(--primary-color);
+  width: 25%;
+  color: var(--font-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+
+.BTNs {
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.BTNs button:hover {
+  background-color: var(--hover-color);
+}
+
+/* ===== Select2 (Funcionário responsável) =====
+   O select2 vem com CSS próprio (fundo branco fixo, texto escuro fixo) que nunca foi pensado
+   pra tema escuro -- no claro isso coincide com o Roots por acaso e passa despercebido, no
+   escuro o texto da lista (herdado de algum lugar como var(--text-1), que é claro) fica claro
+   em cima do branco fixo do plugin: some tudo menos o item com hover/seleção (colorido). Usa
+   as mesmas variáveis do resto do modal, então acompanha claro/escuro sem precisar de bloco
+   separado por tema. */
+.select2-container--default .select2-selection--single {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: 6px !important;
+  height: 36px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--text-1) !important;
+  line-height: 36px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: var(--text-3) !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 34px !important;
+}
+.select2-dropdown {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border-1) !important;
+  color: var(--text-1) !important;
+}
+.select2-search--dropdown .select2-search__field {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border-2) !important;
+  color: var(--text-1) !important;
+}
+.select2-results__option {
+  background: var(--surface-1) !important;
+  color: var(--text-1) !important;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+}
+.select2-container--default .select2-results__option[aria-selected="true"] {
+  background: var(--surface-3) !important;
+  color: var(--text-1) !important;
+}

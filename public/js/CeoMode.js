@@ -25,6 +25,18 @@ const EXPLICACOES = {
     saldoStaff: "Staff orçado menos Staff cadastrado (real). Positivo = sobrou orçamento; negativo = estourou.",
     eventos: "Quantidade de eventos que aparecem no filtro atual.",
     demaisCustos: "Não é um custo único: é o que sobra do Valor fechado depois de tirar o Custo de staff (real) e o Lucro realizado. Mistura equipamento, suprimento, imposto, custo fixo e eventual resíduo da fórmula.",
+
+    // ===== Card do evento (layout novo, chaves próprias — não reaproveita as de cima pra não
+    // misturar o significado com o que o resumo/gráficos já usam). =====
+    cardValorFechado: "Valor do cliente (orçamento) menos os Aditivos — o valor original do contrato, antes do que foi cobrado a mais depois. Some com Aditivos pra chegar no Valor Contrato Final.",
+    cardCustoRealizado: "Custo real de staff já cadastrado (cachê + ajuda de custo) — inclui o que foi bonificado/aditivo e de fato virou staff contratado. Equipamento/suprimento real ainda não é rastreado no sistema, por isso hoje é só staff.",
+    cardExtraBonificado: "Quanto do orçamento é item bonificado (adicional sem cobrança do cliente) — só informativo, já está embutido no Custo Realizado quando de fato virou staff contratado, não soma de novo em Despesas Finais.",
+    cardImprevistos: "Imprevistos do evento (quebra de equipamento, multa etc.), lançados na tela própria — só conta quando Pago. Estorno (ex: seguro reembolsou parte) reduz este valor.",
+    cardAditivos: "Quanto do orçamento é item adicional pago pelo cliente (fora do contrato original) — some com Valor Fechado pra chegar no Valor Contrato Final.",
+    cardValorContratoFinal: "Valor Fechado + Aditivos — o valor total do cliente, com tudo que foi cobrado a mais incluso. Igual ao vlrcliente do orçamento.",
+    cardDespesasFinais: "Custo Realizado + Imprevistos — as despesas reais totais do evento.",
+    cardMargem: "Resultado dividido pelo Valor Contrato Final, em %.",
+    cardResultado: "Valor Contrato Final menos Despesas Finais, em R$ — o mesmo cálculo da Margem, só que em valor absoluto.",
 };
 
 // Monta um <span> com tooltip nativo (title) explicando o valor — some ao passar o mouse.
@@ -179,14 +191,41 @@ function analisarEvento(ev) {
     const baseMargem = lucroRealComNf ? valorLiquidoNf : fechado;
     const margemRealizada = baseMargem > 0 ? (lucroRealizado / baseMargem) * 100 : 0;
 
+    // ===== Card do evento (layout novo) =====
+    // Aditivo/Bonificado só quebram um número que já existe em dois (não são dado a mais):
+    // Valor Fechado passa a ser o valor ORIGINAL do contrato (sem o que foi cobrado depois),
+    // e Valor Contrato Final volta a ser o vlrcliente de sempre quando somado com Aditivos.
+    const totAditivo = Number(ev.totaditivo) || 0;
+    const totBonificado = Number(ev.totbonificado) || 0;
+    const imprevistos = Number(ev.imprevistos) || 0;
+    const valorFechadoSemAditivo = fechado - totAditivo;
+    const valorContratoFinal = fechado;
+    // Custo Realizado = Custo Staff Real, sem separar o bonificado dele: quem de fato virou
+    // staff contratado (bonificado incluso) já é custo real, nada a tirar — ver
+    // [[project_ceomode_dupla_contagem_adicional_bonificado]]. Equipamento/suprimento real
+    // ainda não existe no sistema, então por ora isso é só staff.
+    const custoRealizado = staffReal;
+    const despesasFinais = custoRealizado + imprevistos;
+    const resultado = valorContratoFinal - despesasFinais;
+    const margemFinal = valorContratoFinal > 0 ? (resultado / valorContratoFinal) * 100 : 0;
+
+    // Nivel/badge do card agora seguem a Margem NOVA (margemFinal), não a antiga
+    // (margemRealizada) — as duas podem divergir (a antiga usa NF quando existe; a nova
+    // sempre usa Custo Realizado + Imprevistos), e o badge tem que bater com o número
+    // mostrado no card, não com um cálculo escondido.
     let nivel, label;
     if (!staffCadastrado) { nivel = "pendente"; label = "⏳ Ainda não realizado"; }
     else if (!eventoConcluido) { nivel = "andamento"; label = "🔄 Em andamento"; }
-    else if (margemRealizada >= FAIXAS.otimo) { nivel = "otimo"; label = "✅ Valeu a pena"; }
-    else if (margemRealizada >= FAIXAS.ok) { nivel = "ok"; label = "⚠️ Aceitável"; }
+    else if (margemFinal >= FAIXAS.otimo) { nivel = "otimo"; label = "✅ Valeu a pena"; }
+    else if (margemFinal >= FAIXAS.ok) { nivel = "ok"; label = "⚠️ Aceitável"; }
     else { nivel = "ruim"; label = "❌ Não valeu"; }
 
-    return { venda, fechado, lucroEsperado, staffOrcado, staffReal, custoPrevisto, staffJaRealizado, saldoStaff, lucroRealizado, lucroRealComNf, margemRealizada, nivel, label };
+    return {
+        venda, fechado, lucroEsperado, staffOrcado, staffReal, custoPrevisto, staffJaRealizado, saldoStaff,
+        lucroRealizado, lucroRealComNf, margemRealizada, nivel, label,
+        totAditivo, totBonificado, imprevistos, valorFechadoSemAditivo, valorContratoFinal,
+        custoRealizado, despesasFinais, resultado, margemFinal,
+    };
 }
 
 // ===== Montagem do painel (lazy, só na primeira ativação) =====
@@ -372,11 +411,22 @@ function montarPainel() {
         .addEventListener("click", voltarDaComparacaoPorAno);
     document.getElementById("ceo-btn-expandir-graficos")
         .addEventListener("click", alternarExpandirGraficos);
-    // Delegado no container (os botões "#nrOrcamento" são recriados a cada renderEventos).
+    // Delegado no container (os botões são recriados a cada renderEventos).
     document.getElementById("ceo-eventos").addEventListener("click", (e) => {
+        const btnComparar = e.target.closest(".ceo-evt-comparar");
+        if (btnComparar) {
+            carregarEventoAnos(btnComparar.dataset.idevento, btnComparar.dataset.nmevento);
+            return;
+        }
+        const celulaImprevistos = e.target.closest(".ceo-evt-imprevistos");
+        if (celulaImprevistos) {
+            if (celulaImprevistos.dataset.idevento) {
+                abrirDetalheImprevistos(celulaImprevistos.dataset.idevento, celulaImprevistos.dataset.nmevento);
+            }
+            return;
+        }
         const btn = e.target.closest(".ceo-link-orcamento");
         if (!btn) return;
-        e.stopPropagation(); // não deixa o clique "vazar" pro card (que abriria comparar-anos)
         abrirOrcamento(btn.dataset.nrorcamento);
     });
 
@@ -1019,37 +1069,83 @@ function renderEventos(cont, analises, modo) {
         const cliente = (modo !== "cliente" && ev.nomecliente)
             ? `<span class="ceo-evt-cliente">${ev.nomecliente}</span>` : "";
 
-        // Fora do modo "anos", o card é clicável para comparar os anos daquele evento.
-        const clicavel = modo !== "anos" && ev.idevento;
-        if (clicavel) {
-            card.classList.add("clicavel");
-            card.title = "Clique para comparar os anos deste evento";
-            card.addEventListener("click", () => carregarEventoAnos(ev.idevento, ev.nmevento));
-        }
-        const dica = clicavel ? '<span class="ceo-evt-dica">comparar anos ›</span>' : "";
+        // Fora do modo "anos", tem botão pra comparar os anos daquele evento — não é mais o
+        // card inteiro que é clicável (era fácil clicar sem querer nos números do grid).
+        const podeComparar = modo !== "anos" && ev.idevento;
+        const btnComparar = podeComparar
+            ? `<button type="button" class="ceo-evt-comparar" data-idevento="${ev.idevento}" data-nmevento="${(ev.nmevento || "").replace(/"/g, "&quot;")}" title="Comparar os anos deste evento">comparar anos ›</button>`
+            : "";
 
         card.innerHTML = `
             <div class="ceo-evt-topo">
                 <div class="ceo-evt-nome">
-                    ${cliente}${ev.nmevento || "Evento"} ${selo}
+                    ${cliente}${ev.nmevento || "Evento"} ${selo}${btnComparar}
                     <small>${formatarOrcamentos(ev.nrorcamentos)} · ${formatarPeriodo(ev.dtinirealizacao, ev.dtfimrealizacao)}</small>
                 </div>
                 <span class="ceo-badge badge-${a.nivel}">${a.label}</span>
             </div>
-            ${dica}
             <div class="ceo-evt-grid">
-                <div>${explicarValor("Gasto previsto", "gastoPrevisto")}<strong>${moeda(a.custoPrevisto)}</strong></div>
-                <div>${explicarValor("Valor fechado", "valorFechado")}<strong>${moeda(a.fechado)}</strong></div>
-                <div>${explicarValor("Lucro esperado", "lucroEsperado")}<strong>${moeda(a.lucroEsperado)}</strong></div>
-                <div>${explicarValor(`Lucro realizado ${a.lucroRealComNf ? "(NF)" : "(estimado)"}`, "lucroRealizado")}<strong>${moeda(a.lucroRealizado)}</strong></div>
-                <div>${explicarValor("Margem realizada", "margem")}<strong>${pct(a.margemRealizada)}</strong></div>
-                <div>${explicarValor("Staff orçado", "staffOrcado")}<strong>${moeda(a.staffOrcado)}</strong></div>
-                <div>${explicarValor("Staff real", "staffReal")}<strong>${moeda(a.staffReal)}</strong></div>
-                <div>${explicarValor("Saldo de Staff", "saldoStaff")}<strong class="${a.saldoStaff < 0 ? "neg" : "pos"}">${moeda(a.saldoStaff)}</strong></div>
+                <div>${explicarValor("Valor Fechado", "cardValorFechado")}<strong>${moeda(a.valorFechadoSemAditivo)}</strong></div>
+                <div>${explicarValor("Gasto Previsto", "gastoPrevisto")}<strong>${moeda(a.custoPrevisto)}</strong></div>
+                <div>${explicarValor("Custo Realizado", "cardCustoRealizado")}<strong>${moeda(a.custoRealizado)}</strong></div>
+                <div>${explicarValor("Extra Bonificado", "cardExtraBonificado")}<strong>${moeda(a.totBonificado)}</strong></div>
+                <div class="ceo-evt-imprevistos" data-idevento="${ev.idevento || ""}" data-nmevento="${(ev.nmevento || "").replace(/"/g, "&quot;")}">${explicarValor("Imprevistos", "cardImprevistos")}<strong>${moeda(a.imprevistos)}</strong></div>
+                <div>${explicarValor("Aditivos", "cardAditivos")}<strong>${moeda(a.totAditivo)}</strong></div>
+                <div>${explicarValor("Valor Contrato Final", "cardValorContratoFinal")}<strong>${moeda(a.valorContratoFinal)}</strong></div>
+                <div>${explicarValor("Despesas Finais", "cardDespesasFinais")}<strong>${moeda(a.despesasFinais)}</strong></div>
+                <div>${explicarValor("Margem de Lucro", "cardMargem")}<strong class="${a.margemFinal < 0 ? "neg" : "pos"}">${pct(a.margemFinal)}</strong></div>
+                <div>${explicarValor("Resultado", "cardResultado")}<strong class="${a.resultado < 0 ? "neg" : "pos"}">${moeda(a.resultado)}</strong></div>
             </div>
         `;
         cont.appendChild(card);
     });
+}
+
+// Detalhe dos lançamentos que compõem o valor de Imprevistos de um evento (clique na célula do
+// card). Busca TODOS os lançamentos do evento (rota não filtra por ano) e filtra no cliente pelo
+// mesmo critério da soma em rotaCeo.js: só 'Pago' e, se houver ano selecionado no painel, só
+// dtreferencia daquele ano — assim o total mostrado aqui sempre bate com o valor do card.
+async function abrirDetalheImprevistos(idevento, nmevento) {
+    const anoFiltro = document.getElementById("ceo-select-ano")?.value || "";
+    Swal.fire({ title: "Carregando...", didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+    try {
+        const lancamentos = await fetchComToken(`/despesaextra/${idevento}`);
+        const pagos = (lancamentos || [])
+            .filter((d) => d.status === "Pago")
+            .filter((d) => !anoFiltro || String(d.dtreferencia).slice(0, 4) === String(anoFiltro));
+
+        if (pagos.length === 0) {
+            Swal.fire("Imprevistos", `Nenhum lançamento Pago${anoFiltro ? ` em ${anoFiltro}` : ""} para "${nmevento || "este evento"}".`, "info");
+            return;
+        }
+
+        const total = pagos.reduce((s, d) => s + (d.tipo === "Estorno" ? -Number(d.valor) : Number(d.valor)), 0);
+        const linhas = pagos.map((d) => `
+            <tr>
+                <td>${new Date(d.dtreferencia).toLocaleDateString("pt-BR")}</td>
+                <td>${d.categoria}</td>
+                <td>${d.tipo}</td>
+                <td>${d.tipo === "Estorno" ? "− " : ""}${moeda(Math.abs(Number(d.valor)))}</td>
+                <td>${d.nomefuncionario || "—"}</td>
+            </tr>
+        `).join("");
+
+        Swal.fire({
+            title: `Imprevistos — ${nmevento || "Evento"}${anoFiltro ? ` (${anoFiltro})` : ""}`,
+            html: `
+                <table class="ceo-tabela-swal">
+                    <thead><tr><th>Data</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Responsável</th></tr></thead>
+                    <tbody>${linhas}</tbody>
+                </table>
+                <p style="text-align:right;margin-top:10px;font-weight:600">Total: ${moeda(total)}</p>
+            `,
+            width: 620,
+            confirmButtonText: "Fechar",
+        });
+    } catch (err) {
+        console.error("Erro ao carregar detalhe de imprevistos (CEO):", err);
+        Swal.fire("Erro", "Não foi possível carregar os lançamentos de imprevistos.", "error");
+    }
 }
 
 // ===== Visão Geral (todas as empresas) — remuneração de funcionários =====

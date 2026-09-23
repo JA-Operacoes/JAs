@@ -3714,12 +3714,12 @@ async function abrirTelaEquipesEvento(evento) {
             <div style="display:flex; align-items:center; gap:8px; padding:4px 6px; font-size:0.82em; ${!aditivosPendentes && !pendentes && !textoReaproveitadas ? 'border-bottom:1px solid rgba(255,255,255,0.07);' : ''}">
                 <span style="width:10px; height:10px; border-radius:50%; background:${cor}; flex-shrink:0;"></span>
                 <span style="flex:1; font-weight:600; color:#eee;">${escapeHtml(f.nome)}</span>
-                <span style="color:var(--text-3); font-size:0.9em;">${periodoVaga}</span>
+                <span style="color:#eee; font-size:0.9em;">${periodoVaga}</span>
                 <span style="color:#fff; font-weight:bold; min-width:75px; text-align:right; white-space:nowrap;">
                     ${exibicaoDiariasVisuais} / ${vagasOrcadas}
                 </span>
                 <span style="min-width:70px; text-align:right; font-weight:bold; color:${disponiveis > 0 ? '#ff9800' : '#4caf50'};">
-                    Disp: ${disponiveis} <small style="color:var(--text-2); font-weight:normal;">${sufixo}</small>
+                    Disp: ${disponiveis} <small style="color:#eee; font-weight:normal;">${sufixo}</small>
                 </span>
             </div>
             ${linhaLimiteFinanceiro}
@@ -3738,12 +3738,12 @@ async function abrirTelaEquipesEvento(evento) {
         <div class="barra-progresso">
             <div class="progresso" style="width:${perc}%;"></div>
         </div>
-        <div class="equipe-totais-resumo" style="display:flex; gap:16px; padding:4px 10px; font-size:0.8em; color:#eee; background:var(--surface-1); border-radius:4px; margin:4px 0;">
+        <div class="equipe-totais-resumo" style="display:flex; gap:16px; padding:4px 10px; font-size:0.8em; color:#eee; background:rgba(255,255,255,0.08); border-radius:4px; margin:4px 0;">
             <span><strong>Total Orçado:</strong> ${totalDiariasOrcadas} diárias</span>
             <span><strong>Total Cadastrado:</strong> ${totalDiariasCadastradas} diárias</span>
         </div>
         <div class="equipe-resumo" style="padding:4px 0;">
-            ${resumoItens || "<div style='padding:6px;color:var(--text-3);'>Nenhuma função cadastrada</div>"}
+            ${resumoItens || "<div style='padding:6px;color:#aaa;'>Nenhuma função cadastrada</div>"}
         </div>
         <div class="equipe-actions">
             <button type="button" class="ver-funcionarios-btn">
