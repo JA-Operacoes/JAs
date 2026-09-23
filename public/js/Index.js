@@ -265,6 +265,80 @@ window.temPermissao = function (modulo, acao) {
       abrirModal(url, modulo);
     });
   });
+
+  // PÍLULAS: piloto do padrão "clicar no item do menu -> mostrar os links do submenu
+  // como pílulas dentro do painelDetalhes" em vez do dropdown por hover. Começa só em
+  // DEVS (1 item só, fácil de validar); se aprovado, o mesmo configurarMenuPilulas()
+  // é reaplicado pra Financeiro e outros. Reaproveita os MESMOS <a class="abrir-modal">
+  // já filtrados por permissão no forEach acima — nunca duplica a lista de itens.
+  function configurarMenuPilulas(seletorLi, tituloPainel) {
+    const li = document.querySelector(seletorLi);
+    if (!li) return;
+    const link = li.querySelector(":scope > a");
+    const painel = document.getElementById("conteudoDetalhes");
+    if (!link || !painel) return;
+
+    // Estado original do painel ("Selecione um card...") — pra poder devolver o painel
+    // principal se outro modo em tela cheia (RH/CEO/TI/Almoxarifado) for ativado por cima
+    // das pílulas, em vez de deixá-las escondidas ali até alguém sair desse modo de novo.
+    const htmlPadraoPainel = painel.innerHTML;
+
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      // Segundo clique com DEVS já ativo = fechar (mesmo gesto de "clicar de novo pra
+      // sair" do RH/CEO/TI/Almoxarifado), voltando o painel principal ao estado padrão.
+      if (li.classList.contains("ativo")) {
+        li.classList.remove("ativo");
+        painel.innerHTML = htmlPadraoPainel;
+        return;
+      }
+
+      // Só um "modo" ativo por vez, mesma regra já usada entre RH/CEO/TI/Almoxarifado
+      // (RH.js initRH()) — sem isso, clicar em DEVS com outro modo ativo não mostra nada,
+      // porque o painel principal (onde as pílulas vivem) continua escondido atrás dele.
+      document.body.classList.remove("rh-mode", "ceo-mode", "ti-mode", "almox-mode");
+      li.classList.add("ativo");
+
+      const itens = Array.from(li.querySelectorAll(".abrir-modal"))
+        .filter((a) => a.style.display !== "none");
+
+      if (itens.length === 0) {
+        painel.innerHTML = `<h3>${tituloPainel}</h3><p>Nenhum item disponível.</p>`;
+        return;
+      }
+
+      const pilulas = itens.map((a) => {
+        const icone = a.dataset.icone
+          ? `<span class="material-symbols-outlined">${a.dataset.icone}</span>`
+          : "";
+        return `<button type="button" class="menu-pill" data-modulo="${a.dataset.modulo}" data-url="${a.dataset.url}">${icone}${a.textContent.trim()}</button>`;
+      }).join("");
+      painel.innerHTML = `<h3>${tituloPainel}</h3><div class="menu-pills">${pilulas}</div>`;
+
+      painel.querySelectorAll(".menu-pill").forEach((pilula) => {
+        pilula.addEventListener("click", () => {
+          pilula.classList.add("ativo"); // desliga em fecharModal()
+          window.moduloAtual = pilula.dataset.modulo;
+          abrirModal(pilula.dataset.url, pilula.dataset.modulo);
+        });
+      });
+    });
+
+    // Se RH/CEO/TI/Almoxarifado for aberto enquanto as pílulas estão no painel, limpa de
+    // volta pro estado padrão (e desliga o "pressionado" do DEVS) — senão, ao sair desse
+    // modo (voltando pro painel principal sem ter clicado em DEVS de novo), a pílula
+    // reaparecia sozinha, do nada, com o DEVS ainda marcado como ativo.
+    document.querySelectorAll("li.RH > a, li.Ceo > a, li.TI > a, li.Almoxarifado > a")
+      .forEach((outroLink) => {
+        outroLink.addEventListener("click", () => {
+          li.classList.remove("ativo");
+          if (painel.querySelector(".menu-pills")) painel.innerHTML = htmlPadraoPainel;
+        });
+      });
+  }
+
+  configurarMenuPilulas("li.Devs", "DEVS");
 });
 
 // Seleciona o elemento pai (o <li> que tem a classe Financeiro)
@@ -317,6 +391,15 @@ async function abrirModal(url, modulo) {
     console.error("Erro ao carregar modal:", err);
     return;
   }
+
+  // O fetch do HTML já usa no-store (fetchHtmlComToken), então o texto do modal em si sempre
+  // vem fresco — mas os <link rel="stylesheet" href="css/..."> DENTRO desse HTML são inseridos
+  // via innerHTML, e o navegador busca esse CSS pela regra normal de cache HTTP, sem relação
+  // nenhuma com o no-store do fetch do HTML. Sem isso, editar o CSS de um modal já aberto antes
+  // nessa sessão (ou já em cache) continuava mostrando a versão antiga até um F5 puro na página
+  // inteira — mesmo problema que o "?t=" do script abaixo já resolve pro JS do módulo. Só toca
+  // hrefs locais (css/...) pra não quebrar URLs de CDN/Google Fonts que já vêm com query string.
+  html = html.replace(/href="(css\/[^"]+\.css)"/g, (_, caminho) => `href="${caminho}?t=${Date.now()}"`);
 
   const container = document.getElementById("modal-container");
   container.innerHTML = html;
@@ -422,6 +505,11 @@ function fecharModal() {
     document.getElementById("modal-container").innerHTML = "";
     document.getElementById("modal-overlay").style.display = "none";
     document.body.classList.remove("modal-open");
+
+    // Desliga o destaque vermelho da pílula (menu-em-pílulas) que abriu esse modal —
+    // só uma fica "ativa" por vez (não dá pra abrir outra enquanto o modal cobre a tela),
+    // então limpar todas aqui é seguro e serve pra qualquer menu que usar esse padrão.
+    document.querySelectorAll(".menu-pill.ativo").forEach((p) => p.classList.remove("ativo"));
 
     const origemAbertura = sessionStorage.getItem("origemAbertura");
 
