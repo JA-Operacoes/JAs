@@ -16,6 +16,8 @@ function queryAnalise(filtro, ordem) {
         COALESCE(o.totgeralvda, 0) AS totgeralvda,
         COALESCE(o.totgeralcto, 0) AS totgeralcto,
         COALESCE(o.totajdcto, 0)   AS totajdcto,
+        COALESCE(o.totaditivo, 0)    AS totaditivo,
+        COALESCE(o.totbonificado, 0) AS totbonificado,
         COALESCE(o.lucroreal, 0)   AS lucroreal,
         COALESCE(o.vlrcliente, 0)  AS vlrcliente,
         o.dtinirealizacao, o.dtfimrealizacao
@@ -72,6 +74,28 @@ function queryAnalise(filtro, ordem) {
       FROM notasfiscais nf
       WHERE nf.status = 'Emitida'
       GROUP BY nf.idorcamento
+    ),
+    orcs_anos AS (
+      -- despesaextras (tipo Evento) é por idevento+ano, não por idorcamento (motivo: um evento
+      -- pode ter vários orçamentos-irmãos pro MESMO ano/período — ver despesaextras). DISTINCT
+      -- aqui é essencial: sem ele, um idevento com 8 orçamentos no mesmo ano faria o JOIN abaixo
+      -- "espalhar" (fan-out) a mesma despesa 8x antes da soma final.
+      SELECT DISTINCT o.idevento, EXTRACT(YEAR FROM o.dtinirealizacao)::int AS ano
+      FROM orcs o
+    ),
+    despesas_evento AS (
+      -- Imprevistos (despesaextras) só conta quando 'Pago', mesma trava do resto do sistema.
+      -- Despesa soma, Estorno subtrai. O JOIN em d.idevento já exclui sozinho as despesas de
+      -- ESCRITÓRIO (idevento NULL nunca bate com nada) — não precisa de filtro extra.
+      SELECT oa.idevento,
+             SUM(CASE WHEN d.tipo = 'Despesa' THEN d.valor ELSE -d.valor END) AS imprevistos
+      FROM orcs_anos oa
+      JOIN despesaextras d
+        ON d.idevento = oa.idevento
+       AND EXTRACT(YEAR FROM d.dtreferencia)::int = oa.ano
+       AND d.idempresa = $1
+       AND d.status = 'Pago'
+      GROUP BY oa.idevento
     )
     SELECT
       o.idevento,
@@ -85,6 +109,8 @@ function queryAnalise(filtro, ordem) {
       SUM(o.lucroreal)   AS lucroreal,
       SUM(o.vlrcliente)  AS vlrcliente,
       SUM(o.totgeralcto + o.totajdcto) AS custo_previsto,
+      SUM(o.totaditivo)    AS totaditivo,
+      SUM(o.totbonificado) AS totbonificado,
       MIN(o.dtinirealizacao) AS dtinirealizacao,
       MAX(o.dtfimrealizacao) AS dtfimrealizacao,
       SUM(COALESCE(so.custo_staff_orcado, 0)) AS custo_staff_orcado,
@@ -92,7 +118,11 @@ function queryAnalise(filtro, ordem) {
       SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real,
       SUM(COALESCE(nr.valor_liquido_nf, 0))   AS valor_liquido_nf,
       SUM(COALESCE(nr.qtd_notas_emitidas, 0)) AS qtd_notas_emitidas,
-      SUM(COALESCE(nr.total_faturado_bruto, 0)) AS total_faturado_bruto
+      SUM(COALESCE(nr.total_faturado_bruto, 0)) AS total_faturado_bruto,
+      -- MAX, não SUM: despesas_evento já é 1 linha por idevento (agregada em orcs_anos),
+      -- mas o JOIN abaixo repete essa mesma linha em CADA orçamento-irmão do evento —
+      -- SUM somaria o mesmo valor de novo por orçamento; MAX pega o valor só uma vez.
+      MAX(COALESCE(de.imprevistos, 0)) AS imprevistos
     FROM orcs o
     JOIN eventos e   ON e.idevento  = o.idevento
     LEFT JOIN clientes c ON c.idcliente = o.idcliente
@@ -100,6 +130,7 @@ function queryAnalise(filtro, ordem) {
     LEFT JOIN staff_real  sr ON sr.idorcamento  = o.idorcamento
     LEFT JOIN ajustes_pagos aj ON aj.idorcamento = o.idorcamento
     LEFT JOIN notas_real  nr ON nr.idorcamento  = o.idorcamento
+    LEFT JOIN despesas_evento de ON de.idevento = o.idevento
     GROUP BY o.idevento, e.nmevento, c.nmfantasia
     ${ordem};
   `;
@@ -226,6 +257,8 @@ router.get("/evento-anos", async (req, res) => {
           COALESCE(o.totgeralvda, 0) AS totgeralvda,
           COALESCE(o.totgeralcto, 0) AS totgeralcto,
           COALESCE(o.totajdcto, 0)   AS totajdcto,
+          COALESCE(o.totaditivo, 0)    AS totaditivo,
+          COALESCE(o.totbonificado, 0) AS totbonificado,
           COALESCE(o.lucroreal, 0)   AS lucroreal,
           COALESCE(o.vlrcliente, 0)  AS vlrcliente,
           o.dtinirealizacao, o.dtfimrealizacao
@@ -258,6 +291,16 @@ router.get("/evento-anos", async (req, res) => {
         JOIN staffeventos se ON se.idstaffevento = af.idstaffeventopago
         WHERE af.status = 'Pago'
         GROUP BY se.idorcamento
+      ),
+      despesas_evento AS (
+        -- Mesma regra da queryAnalise: só 'Pago'; Despesa soma, Estorno subtrai. idevento já
+        -- é fixo ($2) aqui, só falta agrupar por ano (evita fan-out no JOIN abaixo quando o
+        -- ano tem vários orçamentos-irmãos).
+        SELECT EXTRACT(YEAR FROM d.dtreferencia)::int AS ano,
+               SUM(CASE WHEN d.tipo = 'Despesa' THEN d.valor ELSE -d.valor END) AS imprevistos
+        FROM despesaextras d
+        WHERE d.idevento = $2 AND d.idempresa = $1 AND d.status = 'Pago'
+        GROUP BY EXTRACT(YEAR FROM d.dtreferencia)::int
       )
       SELECT
         o.ano,
@@ -266,6 +309,8 @@ router.get("/evento-anos", async (req, res) => {
         SUM(o.totgeralvda) AS totgeralvda,
         SUM(o.totgeralcto) AS totgeralcto,
         SUM(o.totajdcto)   AS totajdcto,
+        SUM(o.totaditivo)    AS totaditivo,
+        SUM(o.totbonificado) AS totbonificado,
         SUM(o.lucroreal)   AS lucroreal,
         SUM(o.vlrcliente)  AS vlrcliente,
         SUM(o.totgeralcto + o.totajdcto) AS custo_previsto,
@@ -273,11 +318,15 @@ router.get("/evento-anos", async (req, res) => {
         SUM(COALESCE(sr.custo_staff_real, 0)) + SUM(COALESCE(aj.saldo_ajustefinanceiro, 0)) AS custo_staff_real,
         SUM(COALESCE(sr.qtd_staff_real, 0))     AS qtd_staff_real,
         MIN(o.dtinirealizacao) AS dtinirealizacao,
-        MAX(o.dtfimrealizacao) AS dtfimrealizacao
+        MAX(o.dtfimrealizacao) AS dtfimrealizacao,
+        -- MAX, não SUM: despesas_evento já é 1 linha por ano, o JOIN abaixo repete ela em
+        -- cada orçamento-irmão daquele ano — SUM somaria o mesmo valor de novo por orçamento.
+        MAX(COALESCE(de.imprevistos, 0)) AS imprevistos
       FROM orcs o
       LEFT JOIN staff_orcado so ON so.idorcamento = o.idorcamento
       LEFT JOIN staff_real  sr ON sr.idorcamento = o.idorcamento
       LEFT JOIN ajustes_pagos aj ON aj.idorcamento = o.idorcamento
+      LEFT JOIN despesas_evento de ON de.ano = o.ano
       GROUP BY o.ano
       ORDER BY o.ano ASC;
     `;
