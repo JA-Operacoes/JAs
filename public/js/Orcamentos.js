@@ -912,19 +912,39 @@ function recalcularTotaisGerais() {
   let totalVendaGeral = 0;
   let totalAjdCustoGeral = 0;
   let totalAjdGeralCustoGeral = 0;
+  let totalAditivoGeral = 0;
+  let totalBonificadoGeral = 0;
 
   // Soma os custos
   document.querySelectorAll(".totCtoDiaria").forEach((cell) => {
     totalCustoGeral += desformatarMoeda(cell.textContent);
+
+    // Total Bonificado: custo + ajuda de custo só das linhas bonificado (mesma
+    // granularidade de totgeralitem por linha), pra bater com Total Cachê + Ajd
+    // Cto, onde esse valor já está embutido — essa soma é só a quebra.
+    const linha = cell.closest("tr");
+    if (linha?.dataset?.extrabonificado === "true") {
+      const ajdCell = linha.querySelector(".totAjdCusto");
+      const ajd = ajdCell ? desformatarMoeda(ajdCell.textContent) : 0;
+      totalBonificadoGeral += desformatarMoeda(cell.textContent) + ajd;
+    }
   });
 
   // Soma as vendas (excluindo itens bonificados)
   document.querySelectorAll(".totVdaDiaria").forEach((cell) => {
     const linha = cell.closest("tr");
     const isBonificado = linha?.dataset?.extrabonificado === "true";
-    
+    const isAdicional = linha?.dataset?.adicional === "true";
+
     if (!isBonificado) {
       totalVendaGeral += desformatarMoeda(cell.textContent);
+    }
+
+    // Total Aditivo: só os adicionais que o cliente PAGA (bonificado já é
+    // adicional, mas com diária 0 — não entra aqui). Já está embutido em Total
+    // Geral Venda, essa soma é só a quebra.
+    if (isAdicional && !isBonificado) {
+      totalAditivoGeral += desformatarMoeda(cell.textContent);
     }
   });
 
@@ -958,6 +978,22 @@ function recalcularTotaisGerais() {
       style: "currency",
       currency: "BRL",
     });
+
+  const campoTotalAditivo = document.querySelector("#totalAditivo");
+  if (campoTotalAditivo) {
+    campoTotalAditivo.value = totalAditivoGeral.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
+
+  const campoTotalBonificado = document.querySelector("#totalBonificado");
+  if (campoTotalBonificado) {
+    campoTotalBonificado.value = totalBonificadoGeral.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
 
   // Atualiza o valor do cliente com o valor total de venda
   const campoValorCliente = document.querySelector("#valorCliente");
@@ -4468,6 +4504,12 @@ async function verificaOrcamento() {
         totAjdCusto: desformatarMoeda(
           document.querySelector("#totalAjdCusto").value
         ),
+        totAditivo: desformatarMoeda(
+          document.querySelector("#totalAditivo")?.value || "0"
+        ),
+        totBonificado: desformatarMoeda(
+          document.querySelector("#totalBonificado")?.value || "0"
+        ),
         lucroBruto: desformatarMoeda(document.querySelector("#Lucro").value),
         percentLucro: parsePercentValue(
           document.querySelector("#percentLucro").value
@@ -5688,6 +5730,8 @@ export async function limparOrcamento() {
     document.getElementById("totalGeralVda").value = "R$ 0,00";
     document.getElementById("totalGeralCto").value = "R$ 0,00";
     document.getElementById("totalAjdCusto").value = "R$ 0,00";
+    document.getElementById("totalAditivo").value = "R$ 0,00";
+    document.getElementById("totalBonificado").value = "R$ 0,00";
     document.getElementById("Lucro").value = "R$ 0,00";
     document.getElementById("percentLucro").value = "0%";
     document.getElementById("Desconto").value = "R$ 0,00";
@@ -6240,6 +6284,14 @@ function atualizarEstadoLiberaStaff(status) {
   const totalAjdCustoInput = document.getElementById("totalAjdCusto");
   if (totalAjdCustoInput)
     totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
+
+  const totalAditivoInput = document.getElementById("totalAditivo");
+  if (totalAditivoInput)
+    totalAditivoInput.value = formatarMoeda(orcamento.totaditivo || 0);
+
+  const totalBonificadoInput = document.getElementById("totalBonificado");
+  if (totalBonificadoInput)
+    totalBonificadoInput.value = formatarMoeda(orcamento.totbonificado || 0);
 
   const totalGeralInput = document.getElementById("totalGeral");
   if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
@@ -8946,6 +8998,14 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
   const totalAjdCustoInput = document.getElementById("totalAjdCusto");
   if (totalAjdCustoInput)
     totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
+
+  const totalAditivoInput = document.getElementById("totalAditivo");
+  if (totalAditivoInput)
+    totalAditivoInput.value = formatarMoeda(orcamento.totaditivo || 0);
+
+  const totalBonificadoInput = document.getElementById("totalBonificado");
+  if (totalBonificadoInput)
+    totalBonificadoInput.value = formatarMoeda(orcamento.totbonificado || 0);
 
   const totalGeralInput = document.getElementById("totalGeral");
   if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
