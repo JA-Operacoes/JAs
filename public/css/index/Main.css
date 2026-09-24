@@ -92,6 +92,12 @@ main#conteudo {
 
 /* Container da Versão */
 .Versao-sistema {
+    /* Antes ficava no rodapé só de efeito colateral do margin:auto do #conteudoDetalhes
+       vizinho (empurra pra baixo quando sobra espaço) -- com pouco conteúdo em
+       #conteudoDetalhes (ex.: pílulas do menu-em-pílulas) esse espaço não sobrava mais e
+       a versão subia pro meio do painel. margin-top:auto aqui garante o rodapé sempre,
+       não importa quanto (ou quão pouco) conteúdo tem acima. */
+    margin-top: auto;
     padding: 10px 15px;
     background-color: var(--surface-3); /* Um fundo levemente diferente para destacar que é o rodapé */
     border-top: 1px solid var(--border-1);
@@ -271,7 +277,7 @@ select#selectAno {
     background: transparent;
     border: none;
     font-weight: bold;
-    color: var(--text-color);
+    color: var(--text-1);
     cursor: pointer;
     outline: none;
     appearance: none; /* Remove a seta padrão para você controlar */
@@ -443,9 +449,9 @@ button#btnVoltarorc {
   cursor: pointer;
 }
 
-/* SPAN (O texto) */
+/* SPAN (O texto) — mesma correção de tema das pílulas de Vencimentos. */
 .orc-container .span {
-  color: var(--black-color);
+  color: var(--text-1);
   font-size: 11px; /* Ajuste o tamanho da fonte para caber */
 }
 
@@ -1924,7 +1930,11 @@ span.nenhum-evento {
 }
 
 .equipe-box {
-  background: var(--primary-color);
+  /* Era var(--primary-color) (cor cheia da marca) -- forte demais pra uma área usada o dia
+     todo. var(--hover-color) é a mesma cor, só mais escura, e é consistente nas 13 empresas
+     (diferente de var(--border-color), que em CJG/JD vira azul-marinho -- cor do logo, não
+     uma variação do primary -- e em SN Foods é mais CLARO que o primary, não mais escuro). */
+  background: var(--hover-color);
   color: var(--font-color);
   border-radius: 10px;
   padding: 10px 15px;
@@ -3032,9 +3042,14 @@ body.dark .indicador-evento {
   cursor: pointer;
 }
 
-/* SPAN (O texto) */
+/* SPAN (O texto das pílulas de período: Diário, Semanal, Mensal…)
+   --text-1 em vez de --black-color: aquela variável é definida por tema de
+   EMPRESA e vale "black" em todos eles, então no tema escuro o rótulo ficava
+   preto sobre fundo preto. --text-1 acompanha o claro/escuro (#1a1a1a / #e8e8e8).
+   A opção selecionada continua usando --font-color, que é a cor de contraste
+   do fundo primário. */
 .venc-container .span, .Evt-container .span {
-  color: var(--black-color);
+  color: var(--text-1);
 }
 
 /* ESTADOS */
@@ -3086,7 +3101,9 @@ body.dark .indicador-evento {
   border-radius: 34px;
   padding: 0 15px; /* Espaçamento interno */
   font-weight: var(--font-weight);
-  color: var(--text-color); /* Garante a cor do texto */
+  /* --text-color não existe em nenhum tema (era um nome solto): no escuro o
+     texto do select/data caía no preto padrão do navegador. */
+  color: var(--text-1);
   /* Remove a seta padrão em alguns navegadores para inputs */
   -webkit-appearance: none; 
   -moz-appearance: none;
@@ -3146,7 +3163,7 @@ body.dark .indicador-evento {
 .venc-container .anual-info, .Evt-container .anual-info {
   font-size: 16px;
   font-weight: bold;
-  color: var(--text-color);
+  color: var(--text-1);
   margin-top: 5px;
   padding-left: 5px;
 }
@@ -3577,6 +3594,120 @@ p.pendentes-pagos {
     gap: 10px;
 }
 
+/* ===== Cartões do resumo de vencimentos (Vencidos, Hoje, A Vencer…) =====
+   Eram sete blocos com o mesmo style inline repetido — mudar a altura exigia
+   editar os sete. Agora o layout é um só e cada cartão só escolhe a família de
+   cor (--resumo-bg/--resumo-fg/--resumo-borda), que vem da paleta de status do
+   Roots.css e por isso funciona no tema claro e no escuro.
+
+   Estrutura de cada cartão:
+     .resumo-card-titulo   rótulo curto
+     .resumo-card-valor    o número, em destaque
+     .resumo-card-extra    ESPAÇO LIVRE que estica — é aqui que entra informação
+                           nova (linhas a mais, mini-legenda, comparativo)
+     .resumo-card-detalhe  rodapé, sempre colado embaixo */
+.resumo-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(108px, auto);
+    gap: 12px;
+    width: 100%;
+    align-items: stretch;
+    text-align: center;
+}
+
+/* Cartão sozinho na última linha ocupa a largura toda em vez de ficar num
+   canto — com 7 cartões é o caso do FGTS (o 7º de 3 em 3). */
+.resumo-cards > .resumo-card:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+}
+
+.resumo-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--resumo-borda, var(--border-1));
+    background: var(--resumo-bg, var(--surface-3));
+    color: var(--resumo-fg, var(--text-1));
+    box-sizing: border-box;
+}
+
+.resumo-card-titulo {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    opacity: .9;
+}
+
+.resumo-card-valor {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+/* Espaço para informação extra. Só existe quando tem conteúdo: vazio, ele some
+   (:empty) para o cartão não ficar com um vão morto entre o valor e o rodapé.
+   Com conteúdo, estica e o cartão cresce junto (grid-auto-rows é `auto` no
+   segundo valor). */
+.resumo-card-extra {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 2px;
+    font-size: 13px;
+    opacity: .95;
+}
+
+.resumo-card-extra:empty {
+    display: none;
+}
+
+.resumo-card-detalhe {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--resumo-borda, var(--border-1));
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Famílias de cor — os tokens já têm versão clara e escura no Roots.css. */
+.resumo-card--vencido  { --resumo-bg: var(--status-erro-bg);    --resumo-fg: var(--status-erro-fg);    --resumo-borda: color-mix(in srgb, var(--status-erro-fg) 35%, transparent); }
+.resumo-card--hoje     { --resumo-bg: var(--status-alerta-bg);  --resumo-fg: var(--status-alerta-fg);  --resumo-borda: color-mix(in srgb, var(--status-alerta-fg) 35%, transparent); }
+.resumo-card--avencer  { --resumo-bg: var(--status-info-bg);    --resumo-fg: var(--status-info-fg);    --resumo-borda: color-mix(in srgb, var(--status-info-fg) 35%, transparent); }
+.resumo-card--pago     { --resumo-bg: var(--status-ok-bg);      --resumo-fg: var(--status-ok-fg);      --resumo-borda: color-mix(in srgb, var(--status-ok-fg) 35%, transparent); }
+.resumo-card--suspenso { --resumo-bg: var(--status-neutro-bg);  --resumo-fg: var(--status-neutro-fg);  --resumo-borda: color-mix(in srgb, var(--status-neutro-fg) 35%, transparent); }
+.resumo-card--fgts     { --resumo-bg: var(--status-roxo-bg);    --resumo-fg: var(--status-roxo-fg);    --resumo-borda: color-mix(in srgb, var(--status-roxo-fg) 35%, transparent); }
+.resumo-card--total    { --resumo-bg: var(--surface-1);         --resumo-fg: var(--text-1);            --resumo-borda: var(--border-2); }
+
+/* Três por linha é o padrão; em telas menores cai para dois e depois um, senão
+   o cartão fica estreito demais para o valor em destaque. */
+@media (max-width: 1100px) {
+    .resumo-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    /* Com duas colunas, quem fica sozinho na última linha é o ímpar. */
+    .resumo-cards > .resumo-card:last-child:nth-child(3n + 1) {
+        grid-column: auto;
+    }
+    .resumo-cards > .resumo-card:last-child:nth-child(2n + 1) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 680px) {
+    .resumo-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
 .resumo-status {
     display: flex;
     justify-content: center;
@@ -3955,4 +4086,372 @@ display: none;
     max-height: none !important; /* Remove o limite de 300px */
     height: auto !important;
     border: none; /* Opcional: limpa a borda para ficar mais clean */
+}
+
+/* =========================================================================
+   HOME EM PÍLULAS (padrão do TI Mode)
+   -------------------------------------------------------------------------
+   A home deixou de ser uma grade de cards grandes: agora os mesmos blocos
+   (Financeiro, Agenda, Orçamentos, Próximo Evento, Eventos em Aberto,
+   Pedidos, Atividades) viram uma fileira de pílulas no topo — o mesmo visual
+   de #ti-panel .ti-aba-btn (Style.css) — e o conteúdo continua abrindo no
+   painel de Detalhes (#painelDetalhes), exatamente como antes.
+
+   Tudo aqui é só apresentação: o HTML dos *-index.html e os IDs/classes que
+   o Main.js lê (#vencTotalGeral, #qtdEventosAbertos, #listaAgendaUsuario,
+   .card-financeiro, .card-eventos-em-abertos...) continuam no DOM e sendo
+   atualizados normalmente — os detalhes de cada bloco só ficam ocultos na
+   pílula, porque a tela cheia deles já é o painel de Detalhes.
+   ========================================================================= */
+
+/* Empilha na vertical e joga a fileira de pílulas para cima do painel de
+   Detalhes sem precisar reordenar o HTML das 13 páginas de index. Escopado à
+   home: nos modos de tela cheia (TI, CEO, RH, Almoxarifado) o #conteudo é só
+   o container do painel deles e continua sendo um bloco comum. */
+/* A home ocupa exatamente a altura útil da janela: começa logo abaixo do
+   cabeçalho fixo (--altura-topo é medida pelo Main.js, porque a barra
+   "Trocar empresa" some para quem só tem uma empresa) e termina no fim da
+   viewport. Assim não sobra faixa morta em cima nem scroll na página — quem
+   rola é o conteúdo dentro do painel de Detalhes. */
+body:not(.ti-mode):not(.ceo-mode):not(.rh-mode):not(.almox-mode) main#conteudo {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--altura-topo, 128px);
+  height: calc(100vh - var(--altura-topo, 128px));
+  padding: 12px 20px 16px;
+  overflow: hidden;
+}
+
+.cards {
+  order: -1;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 2px;
+  overflow: visible;
+}
+
+.cards .card {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 2px solid var(--primary-color, #942123);
+  border-radius: 20px;
+  background-color: var(--surface-1);
+  color: var(--primary-texto, #942123);
+  font-family: var(--Font-primary);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: .85;
+  box-shadow: none;
+  transition: all .2s ease;
+}
+
+.cards .card:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  border: 2px solid var(--primary-color, #942123);
+  background-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  box-shadow: 0 2px 8px var(--shadow-1);
+}
+
+/* No tema escuro a pílula não pode depender de opacidade para parecer "inativa":
+   sobre fundo escuro isso derruba o contraste do rótulo. Aqui ela fica em opacidade
+   cheia e a distinção entre inativa e ativa passa a ser só o preenchimento — o
+   rótulo usa --primary-texto, que clareia no escuro (ver Roots.css). */
+html[data-theme="dark"] .cards .card {
+  opacity: 1;
+  background-color: var(--surface-1);
+  border-color: color-mix(in srgb, var(--primary-color) 70%, transparent);
+}
+
+html[data-theme="dark"] .cards .card:hover {
+  border-color: var(--primary-color);
+}
+
+/* Pílula do bloco que está aberto no painel de Detalhes (marcada pelo Main.js). */
+.cards .card.pilula-ativa {
+  opacity: 1;
+  background-color: var(--primary-color, #942123);
+  border-color: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  box-shadow: 0 2px 8px var(--shadow-1);
+}
+
+/* Ícone da pílula — ligadura da Material Symbols Outlined, já carregada em
+   todas as *-index.html (evita ter que inserir um <span> em cada HTML). */
+.cards .card::before {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.cards #cardContainerVencimentos::before { content: "payments"; }
+.cards #card-agenda::before { content: "calendar_month"; }
+.cards #cardContainerOrcamentos::before { content: "request_quote"; }
+.cards #card-atividades::before { content: "history"; }
+.cards .card:has(.card-eventos)::before { content: "event_upcoming"; }
+.cards .card:has(.card-eventos-em-abertos)::before { content: "event_available"; }
+.cards .card:has(.card-financeiro)::before { content: "receipt_long"; }
+
+/* O miolo de cada card vira uma linha só. */
+.cards .card-orcamentos,
+.cards .card-eventos,
+.cards .card-atividades,
+.cards .card-financeiro,
+.cards .card-eventos-em-abertos,
+.cards .card-vencimentos,
+.cards .card-agenda {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+
+.cards .orc-header,
+.cards .evt-header,
+.cards .ativ-header,
+.cards .fin-header,
+.cards .vec-header,
+.cards .Agen-header {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cards .card div,
+.cards .card span,
+.cards .card small,
+.cards .orc-total,
+.cards .ativ-total,
+.cards .ativ-title,
+.cards .fin-total,
+.cards .fin-title,
+.cards .vec-title,
+.cards .evt-title,
+.cards .agen-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Números de resumo que continuam visíveis na própria pílula. */
+.cards .card .orc-total,
+.cards .card .evt-total,
+.cards .card #vencTotalGeral {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background-color: var(--surface-3);
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cards .card:hover .orc-total,
+.cards .card:hover .evt-total,
+.cards .card:hover #vencTotalGeral,
+.cards .card.pilula-ativa .orc-total,
+.cards .card.pilula-ativa .evt-total,
+.cards .card.pilula-ativa #vencTotalGeral {
+  background-color: var(--surface-1);
+  color: var(--primary-texto, #942123);
+}
+
+/* Detalhe de cada bloco: fica só no painel de Detalhes, não na pílula.
+   !important porque o Main.js mexe no style inline de alguns desses
+   elementos (ex.: footer.style.display no .evt-footer dos eventos em
+   aberto) — sem isso o "Clique para ver mais" reaparece dentro da pílula. */
+.cards .orc-body,
+.cards .fin-body,
+.cards .ativ-body,
+.cards .Agen-body,
+.cards .card-eventos-em-abertos .evt-body,
+.cards .evt-footer {
+  display: none !important;
+}
+
+/* Financeiro: das várias linhas do card antigo, a pílula mostra só o total anual. */
+.cards .vec-body {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.cards .vec-body > *,
+.cards .vec-body hr {
+  display: none;
+}
+/* Só o valor entra na pílula: o rótulo "Total Anual:" é um nó de texto solto
+   dentro do span (não dá pra escondê-lo sem esconder o <strong>), então ele
+   é zerado aqui e o valor volta ao tamanho de badge na regra dos totais. */
+.cards .vec-body > span:has(#vencTotalGeral) {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 0;
+}
+
+/* -------- Informação secundária das pílulas --------
+   Padrão único: o rótulo é a informação principal (cor da pílula), e o que
+   vem depois — nome do próximo evento, total anual do Financeiro — é texto
+   de apoio: menor, mais discreto, SEMPRE em uma linha só e truncado. Nenhuma
+   pílula pode crescer em altura, senão a fileira inteira desalinha. */
+.cards .card {
+  max-width: 460px;
+  overflow: hidden;
+}
+
+/* A sidebar acompanha a mesma faixa útil da home (colada no cabeçalho e indo
+   até o fim da janela). Mais específico que o #sidebar de Style.css, que é
+   carregado depois deste arquivo. */
+body:not(.ti-mode):not(.ceo-mode):not(.rh-mode):not(.almox-mode) #sidebar {
+  margin-top: var(--altura-topo, 128px);
+  height: calc(100vh - var(--altura-topo, 128px));
+}
+.cards .card-eventos > .evt-body {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+/* Sem font-size aqui: o rótulo desse span fica zerado logo acima e só o
+   <strong> do valor volta a ter tamanho (regra dos totais). */
+.cards .vec-body > span:has(#vencTotalGeral) {
+  min-width: 0;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.cards .card:hover .card-eventos > .evt-body,
+.cards .card:hover .vec-body > span:has(#vencTotalGeral),
+.cards .card.pilula-ativa .card-eventos > .evt-body,
+.cards .card.pilula-ativa .vec-body > span:has(#vencTotalGeral) {
+  color: var(--font-color, #fff);
+}
+
+/* Próximo Evento: o JS lista vários eventos separados por <br>. Na pílula
+   cabe só o mais próximo — os <br> viram espaço e o resto é cortado com
+   reticências (a lista completa continua no painel de Detalhes, e o Main.js
+   põe tudo no title da pílula). */
+.cards .card-eventos > .evt-body {
+  display: block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cards .card-eventos > .evt-body br {
+  display: none;
+}
+/* !important porque atualizarProximoEvento() escreve font-size inline
+   (1.5em/1.3em/15px) — herança do card grande, que numa pílula de uma linha
+   só desalinharia a fileira inteira. */
+.cards .card-eventos > .evt-body span,
+.cards .card-eventos > .evt-body small {
+  display: inline;
+  font-size: 12px !important;
+  font-weight: 500;
+  color: inherit;
+}
+.cards .card-eventos > .evt-body small::before {
+  content: " ";
+}
+
+/* Filtro de ano do Financeiro: continua acessível dentro da pílula, mas lido
+   como parte do rótulo — não como um segundo badge ao lado do valor. Sem
+   appearance nativa (que no tema escuro ganha caixa própria do sistema), texto
+   na mesma cor da pílula e uma setinha discreta indicando que dá pra trocar. */
+.cards #filtoanual {
+  display: inline-flex;
+  align-items: center;
+}
+
+.cards select#selectAno {
+  height: 20px;
+  width: auto;
+  padding: 0 14px 0 4px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 5px center, right 1px center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: .85;
+  appearance: none;
+  cursor: pointer;
+}
+
+.cards select#selectAno:hover {
+  opacity: 1;
+  background-color: transparent;
+  color: inherit;
+}
+
+/* A lista aberta é desenhada pelo sistema: sem cor explícita ela sai branca com
+   texto branco no tema escuro. */
+.cards select#selectAno option {
+  background-color: var(--surface-1);
+  color: var(--text-1);
+}
+
+/* O pulsar do Financeiro fica mais discreto no formato pílula. */
+#cardContainerVencimentos {
+  animation: pulsar-vermelho 2.4s infinite ease-in-out;
+}
+
+/* Painel de Detalhes: ocupa todo o espaço que sobra abaixo das pílulas —
+   sem largura/altura fixas, sem faixa vazia no rodapé. min-height:0 é o que
+   permite um filho de flex encolher e deixar o scroll acontecer dentro dele
+   (mesmo truque usado no #almox-panel, em Style.css). */
+.dashboard-container {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+.detalhes-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+}
+
+@media (min-width: 1988px) {
+  .dashboard-container {
+    width: 100%;
+    margin: 0;
+  }
+  .detalhes-panel {
+    min-width: 0;
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .cards {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .cards .card {
+    justify-content: flex-start;
+  }
 }

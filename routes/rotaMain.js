@@ -2335,14 +2335,23 @@ router.post('/notificacoes-financeiras/atualizar-status',
         }
     }),
     async (req, res) => {
+        let { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body;
+        const idempresa = req.idempresa;
+        const idUsuarioResponsavel = req.usuario?.idusuario;
+
+        if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
+
+        const statusParaAtualizar0 = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase();
+
+        // Toda a rota roda numa única transação, com a linha do staffeventos travada (FOR UPDATE
+        // OF se, mais abaixo). Antes disso, duas aprovações do MESMO staffevento resolvidas perto
+        // uma da outra (ex.: Cachê Fechado + Ajuste de Custo, ou Ajuste de Custo + FuncExcedido)
+        // podiam ler o valor antigo uma da outra e uma sobrescrever o recálculo da outra ao gravar
+        // por cima -- "autorizei mas não recalculou os totais", só quando havia mais de uma
+        // solicitação pendente pro mesmo staffevento, por isso intermitente.
+        const client = await pool.connect();
         try {
-            let { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body; 
-            const idempresa = req.idempresa;
-            const idUsuarioResponsavel = req.usuario?.idusuario;
-
-            if (!idpedido || !categoria || !acao) return res.status(400).json({ error: 'Dados incompletos' });
-
-            const statusParaAtualizar0 = acao.charAt(0).toUpperCase() + acao.slice(1).toLowerCase();
+            await client.query('BEGIN');
 
             // Saldo de Inativação: fluxo próprio, fora do mapeamento de colunas de staffeventos.
             // Autorizar exige que o financeiro tenha marcado quais dias (`diasTrabalhados`) o
@@ -2350,7 +2359,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // nunca confiando cegamente em nenhum valor pré-calculado na Inativação.
             // Rejeitar só encerra a solicitação, sem lançamento nenhum.
             if (categoria === 'saldoinativacao') {
-                const { rows: solRows } = await pool.query(
+                const { rows: solRows } = await client.query(
                     `SELECT s.idsolicitacao, s.idfuncionario, s.idregistroalterado,
                             se.datasevento, se.vlrtotcache, se.vlrtotajdcusto,
                             caixinha_valor_autorizado(se.caixinha) AS vlrcaixinha,
@@ -2361,11 +2370,12 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     [idpedido, idempresa]
                 );
                 if (solRows.length === 0) {
+                    await client.query('ROLLBACK');
                     return res.status(404).json({ error: 'Solicitação não encontrada ou já respondida.' });
                 }
                 const sol = solRows[0];
 
-                await pool.query(
+                await client.query(
                     `UPDATE solicitacoes SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW()
                      WHERE idsolicitacao = $3 AND idempresa = $4`,
                     [statusParaAtualizar0, idUsuarioResponsavel, idpedido, idempresa]
@@ -2413,7 +2423,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
                             + `Devido: R$ ${valorDevido.toFixed(2)} | Já pago: R$ ${valorJaPago.toFixed(2)} | `
                             + `${tipo === 'Debito' ? 'Saldo a favor da empresa' : 'Saldo a favor do funcionário'}: R$ ${valorAjuste.toFixed(2)}`;
 
-                        const { rows: ajusteRows } = await pool.query(
+                        const { rows: ajusteRows } = await client.query(
                             `INSERT INTO staffajustefinanceiro (
                                 idfuncionario, idempresa, idstaffeventoorigem, tipo, valor,
                                 justificativa, status, idusuariolancamento, dtlancamento
@@ -2429,6 +2439,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 res.locals.acao = 'atualizou';
                 res.locals.idregistroalterado = sol.idregistroalterado;
+                await client.query('COMMIT');
                 return res.json({
                     sucesso: true,
                     idsolicitacao: idpedido,
@@ -2455,14 +2466,14 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             // 1. RECUPERA AS DATAS E O TIPO DA SOLICITAÇÃO
             let datasDaSolicitacao = [];
-            const { rows: dadosSol } = await pool.query(`
+            const { rows: dadosSol } = await client.query(`
                 SELECT dtsolicitada, tiposolicitacao, chaveitem, vlrsolicitado FROM public.solicitacoes
                 WHERE idsolicitacao = $1 AND idempresa = $2
             `, [idpedido, idempresa]);
 
             if (dadosSol.length > 0 && dadosSol[0].dtsolicitada) {
                 const rawDts = dadosSol[0].dtsolicitada;
-                
+
                 const formatarParaISO = (v) => {
                     if (!v) return null;
                     const d = new Date(v);
@@ -2477,12 +2488,58 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 }
             }
 
+            // 2. TRAVA A LINHA DO STAFFEVENTOS (Ex: ID 3028) — precisa vir ANTES de qualquer
+            // decisão: FOR UPDATE OF se faz uma 2ª aprovação concorrente do MESMO staffevento
+            // esperar esta transação terminar (COMMIT ou ROLLBACK) antes de ler a linha, em vez
+            // de ler um valor que ainda vai mudar e sobrescrever por cima depois.
+            const { rows: rowsMestre } = await client.query(`
+                SELECT se.*, fe.perfil
+                FROM staffeventos se
+                INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
+                INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = $2
+                WHERE se.idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
+                AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
+                FOR UPDATE OF se
+            `, [idpedido, idempresa]);
+
+            if (!rowsMestre.length) {
+                console.log("❌ ERRO: Registro mestre de staffeventos não foi encontrado para esta solicitação!");
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Registro mestre não encontrado.' });
+            }
+
+            let registro = rowsMestre[0];
+            const idStaffAlvo = registro.idstaffevento;
+
+            console.log(`[REGISTRO MESTRE ANCORADO] Encontrado Staff ID: ${idStaffAlvo}`);
+
+            // 🔒 Cachê Fechado/Liberado é a BASE do cálculo dos demais (Ajuste de Custo, Caixinha,
+            // Diária Dobrada, Aditivo/FuncExcedido) — precisa ser resolvido (Autorizado ou
+            // Rejeitado) antes de qualquer um deles, senão o cálculo dos outros seria feito em
+            // cima de uma base que ainda vai mudar.
+            const categoriaAlvoEhCacheFechado = categoria === 'statuscustofechado' || categoria === 'statuscacheliberado';
+            if (!categoriaAlvoEhCacheFechado) {
+                const { rows: pendCacheFechado } = await client.query(
+                    `SELECT 1 FROM public.solicitacoes
+                     WHERE idregistroalterado = $1 AND idempresa = $2
+                       AND categoria_log = 'statuscustofechado' AND status = 'Pendente'
+                     LIMIT 1`,
+                    [idStaffAlvo, idempresa]
+                );
+                if (pendCacheFechado.length > 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(409).json({
+                        error: 'Há uma solicitação de Cachê Fechado/Liberado pendente para este funcionário/evento. Resolva-a (autorize ou rejeite) antes desta — os demais valores dependem dela.'
+                    });
+                }
+            }
+
             // 2. 🎯 ATUALIZA EXCLUSIVAMENTE A SOLICITAÇÃO ESPECÍFICA (Ex: ID 672)
             let querySolicitacoes = `
-                UPDATE public.solicitacoes 
-                SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW() 
-                WHERE idsolicitacao = $3 
-                AND idempresa = $4 
+                UPDATE public.solicitacoes
+                SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW()
+                WHERE idsolicitacao = $3
+                AND idempresa = $4
                 AND status = 'Pendente'
             `;
             const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa];
@@ -2491,36 +2548,16 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 querySolicitacoes += " AND ($5::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $5 || '%'))";
                 paramsSolicitacoes.push(dataEspecifica);
             }
-            
-            const resUpSolicitacoes = await pool.query(querySolicitacoes, paramsSolicitacoes);
+
+            const resUpSolicitacoes = await client.query(querySolicitacoes, paramsSolicitacoes);
             console.log(`[SOLICITAÇÃO ESPECÍFICA] Linhas atualizadas com o ID ${idpedido}: ${resUpSolicitacoes.rowCount}`);
-
-            // 3. BUSCA O REGISTRO MESTRE DO STAFF (Ex: ID 3028)
-            const { rows: rowsMestre } = await pool.query(`
-                SELECT se.*, fe.perfil
-                FROM staffeventos se
-                INNER JOIN funcionarios f ON se.idfuncionario = f.idfuncionario
-                INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario AND fe.idempresa = $2
-                WHERE se.idstaffevento = (SELECT idregistroalterado FROM solicitacoes WHERE idsolicitacao = $1 LIMIT 1)
-                AND EXISTS (SELECT 1 FROM staffempresas sem WHERE sem.idstaff = se.idstaff AND sem.idempresa = $2)
-            `, [idpedido, idempresa]);
-
-            if (!rowsMestre.length) {
-                console.log("❌ ERRO: Registro mestre de staffeventos não foi encontrado para esta solicitação!");
-                return res.status(404).json({ error: 'Registro mestre não encontrado.' });
-            }
-
-            let registro = rowsMestre[0];
-            const idStaffAlvo = registro.idstaffevento; 
-            
-            console.log(`[REGISTRO MESTRE ANCORADO] Encontrado Staff ID: ${idStaffAlvo}`);
 
             const mapCategorias = {
                 'statuscaixinha': 'caixinha',
                 'statusajustecusto': 'statusajustecusto',
-                'statusdiariadobrada': 'dtdiariadobrada', 
+                'statusdiariadobrada': 'dtdiariadobrada',
                 'statusmeiadiaria': 'dtmeiadiaria',
-                'statuscustofechado': 'statuscustofechado', 
+                'statuscustofechado': 'statuscustofechado',
                 'statuscacheliberado': 'statuscustofechado',
                 'statusvagasreaproveitadas': 'vagasreaproveitadas'
             };
@@ -2529,7 +2566,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             let categoriaEfetiva = categoria;
             const tipoSolicitacaoOriginal = dadosSol[0]?.tiposolicitacao || '';
 
-            if (tipoSolicitacaoOriginal.toLowerCase().includes('vaga reaproveitada') || 
+            if (tipoSolicitacaoOriginal.toLowerCase().includes('vaga reaproveitada') ||
                 tipoSolicitacaoOriginal.toLowerCase().includes('reaproveitada')) {
                 categoriaEfetiva = 'statusvagasreaproveitadas';
             }
@@ -2537,13 +2574,47 @@ router.post('/notificacoes-financeiras/atualizar-status',
             const colunaDB = mapCategorias[categoriaEfetiva];
 
             // Define se deve ir para o fluxo genérico de Aditivo de Datas (Fluxo A)
-            const isAditivoOuExtra = (categoriaEfetiva.toLowerCase().includes('aditivo') || 
-                                     categoriaEfetiva.toLowerCase().includes('vaga') || 
+            const isAditivoOuExtra = (categoriaEfetiva.toLowerCase().includes('aditivo') ||
+                                     categoriaEfetiva.toLowerCase().includes('vaga') ||
                                      categoriaEfetiva.toLowerCase().includes('extra') ||
-                                     categoriaEfetiva.toLowerCase().includes('excedido')) && 
+                                     categoriaEfetiva.toLowerCase().includes('excedido')) &&
                                      categoriaEfetiva !== 'statusvagasreaproveitadas';
 
             const isAjudaCustoPaga = (registro.statuspgtoajdcto || '').toLowerCase() === 'pago';
+
+            // ===== Valores compartilhados entre Fluxo A e Fluxo B (antes existiam duplicados,
+            // um jogo de cada dentro de cada fluxo) =====
+            const vlrCusto = parseFloat(registro.vlrcache) || 0;
+            const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
+            const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
+            const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
+            const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
+            const qtdp = parseInt(registro.qtdpessoaslote) || 1;
+            const perfil = (registro.perfil || '').toLowerCase();
+
+            // ===== O que já está Autorizado precisa sobreviver a QUALQUER recálculo "do zero"
+            // (Cachê Fechado ou Aditivo/FuncExcedido, mais abaixo) — sem isso, aprovar uma dessas
+            // categorias depois de Ajuste de Custo/Caixinha/Diária Dobrada já aprovados apagava o
+            // que já tinha sido aprovado antes. =====
+            const ajusteCustoJaAutorizado = (registro.statusajustecusto || '').trim() === 'Autorizado';
+
+            let caixinhaAtualArr = registro.caixinha;
+            if (typeof caixinhaAtualArr === 'string') { try { caixinhaAtualArr = JSON.parse(caixinhaAtualArr); } catch(e) { caixinhaAtualArr = []; } }
+            const vlrCaixinhaJaAutorizada = (Array.isArray(caixinhaAtualArr) ? caixinhaAtualArr : [])
+                .filter(it => (it.status || '').trim() === 'Autorizado')
+                .reduce((acc, it) => acc + (parseFloat(it.valor) || 0), 0);
+
+            let dtDobradaJaAutorizadaArr = registro.dtdiariadobrada;
+            if (typeof dtDobradaJaAutorizadaArr === 'string') { try { dtDobradaJaAutorizadaArr = JSON.parse(dtDobradaJaAutorizadaArr); } catch(e) { dtDobradaJaAutorizadaArr = []; } }
+            let vlrDiariaDobradaCacheJaAutorizada = 0, vlrDiariaDobradaAjdJaAutorizada = 0;
+            (Array.isArray(dtDobradaJaAutorizadaArr) ? dtDobradaJaAutorizadaArr : []).forEach(item => {
+                if ((item.status || '').trim() !== 'Autorizado') return;
+                const customCache = item.vlr_cache != null ? item.vlr_cache : (item.vlrcache != null ? item.vlrcache : null);
+                const vlrItemCache = customCache != null ? parseFloat(customCache) : vlrCusto;
+                vlrDiariaDobradaCacheJaAutorizada += vlrItemCache;
+                if (isAjudaCustoPaga) vlrDiariaDobradaCacheJaAutorizada += vlrAlimDobra;
+                else vlrDiariaDobradaAjdJaAutorizada += vlrAlimDobra;
+            });
 
             // Variável local para acumular strings JSON processadas sem sofrer mutação ou quebra de const
             let varObjetoJsonFinal = null;
@@ -2661,8 +2732,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 }
                 if (!obsModificada.endsWith('.')) obsModificada += '.';
 
-                const { rows: pendenciasReais } = await pool.query(`
-                    SELECT 1 FROM public.solicitacoes 
+                const { rows: pendenciasReais } = await client.query(`
+                    SELECT 1 FROM public.solicitacoes
                     WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
                 `, [idStaffAlvo]);
 
@@ -2686,12 +2757,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
                 let totalCache = 0;
                 let totalAjdCusto = isAjudaCustoPaga ? (parseFloat(registro.vlrtotajdcusto) || 0) : 0;
-
-                const vlrCusto = parseFloat(registro.vlrcache) || 0;
-                const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
-                const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
-                const qtdp = parseInt(registro.qtdpessoaslote) || 1;
-                const perfil = (registro.perfil || '').toLowerCase();
 
                 datasAtuais.forEach(dStr => {
                     const d = new Date(dStr + 'T12:00:00');
@@ -2730,11 +2795,17 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     }
                 });
 
-                let totalFinal = totalCache + totalAjdCusto;
+                // Ajuste de Custo já Autorizado não entra no loop acima (ele só percorre
+                // datasevento) — sem somar aqui, aprovar um Aditivo/FuncExcedido depois de um
+                // Ajuste de Custo já aprovado apagava o desconto (recálculo do zero). Caixinha
+                // não é cachê — some só no total, não no totalCache.
+                if (ajusteCustoJaAutorizado) totalCache += vlrAjuste;
+
+                let totalFinal = totalCache + totalAjdCusto + vlrCaixinhaJaAutorizada;
 
                 // Quando o registro vai ser Deletado, preserva datasevento como estava —
                 // se ficou sem datas é porque a solicitação era a única, não há necessidade de limpar.
-                const finalUpAditivo = await pool.query(`
+                const finalUpAditivo = await client.query(`
                     UPDATE staffeventos
                     SET datasevento     = CASE WHEN $5 = 'Deletado' THEN datasevento ELSE $1::jsonb END,
                         vlrtotcache     = CASE WHEN $5 = 'Deletado' THEN 0            ELSE $2       END,
@@ -2748,6 +2819,11 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 `, [JSON.stringify(datasAtuais), totalCache, totalAjdCusto, totalFinal, statusFinalStaff, obsModificada, idStaffAlvo, vagasReaproveitadasAtualizadas]);
 
                 console.log(`✅ [FLUXO A] Linhas alteradas com sucesso no staffeventos: ${finalUpAditivo.rowCount}`);
+
+                // Libera a trava da linha assim que o recálculo principal está gravado — as
+                // cascatas abaixo são melhor-esforço (erro nelas não desfaz o recálculo) e mexem
+                // em outras linhas/tabelas, não precisam segurar a transação.
+                await client.query('COMMIT');
 
                 // Cascata: marcar como Rejeitado no JSONB dtdiariadobrada as datas do aditivo rejeitado.
                 // Mantém o histórico — apenas atualiza o status, nunca remove a entrada.
@@ -2820,7 +2896,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // 🔥 FLUXO B: TRATAMENTO DAS OUTRAS CATEGORIAS
             // ==========================================
             console.log("➡️ ADITIVO FALSE: ENTRANDO NO FLUXO B");
-            if (!colunaDB) return res.status(400).json({ error: "Categoria inválida para atualização financeira" });
+            if (!colunaDB) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: "Categoria inválida para atualização financeira" });
+            }
 
             if (categoriaEfetiva === 'statusdiariadobrada' || categoriaEfetiva === 'statusmeiadiaria') {
                 let rawColuna = registro[colunaDB];
@@ -2905,11 +2984,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
             let total = 0;
             let obsDobraLog = null;
 
-            const vlrCusto = parseFloat(registro.vlrcache) || 0;
-            const vlrTransp = parseFloat(registro.vlrtransporte) || 0;
-            const vlrAlim = parseFloat(registro.vlralimentacao) || 0;
-            const vlrAlimDobra = parseFloat(registro.vlralimentacaodobra) || vlrAlim;
-            const vlrAjuste = parseFloat(registro.vlrajustecusto) || 0;
             // vlrcaixinha (coluna legado) foi descontinuada — o valor relevante aqui é o
             // DESTA solicitação específica (vlrsolicitado), não uma soma congelada do registro.
             const vlrCaixinhaDestaSolicitacao = parseFloat(dadosSol[0]?.vlrsolicitado) || 0;
@@ -2945,7 +3019,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                         obsDobraLog = `[${dataHora}] Diária Dobrada ${dataFormatada} Autorizada Valores ${vlrItemCache.toFixed(2)} (cachê) + ${vlrItemAlim.toFixed(2)} (alimentação) refletidos ao total do cachê pois AJUDA DE CUSTO já está PAGO`;
                     }
                 }
-                total = totalCache + totalAjdCusto;
+                // Caixinha não é cachê — soma só no total (vlrtotal), nunca no vlrtotcache.
+                total = totalCache + totalAjdCusto + vlrCaixinhaJaAutorizada;
 
             } else if (categoriaEfetiva === 'statusvagasreaproveitadas') {
                 let arrayVagasTemp = [];
@@ -2960,7 +3035,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     const difFinanceira = parseFloat(vagaModificada.diferenca_financeira) || 0;
                     totalCache += difFinanceira;
                 }
-                total = totalCache + totalAjdCusto;
+                // Caixinha não é cachê — soma só no total (vlrtotal), nunca no vlrtotcache.
+                total = totalCache + totalAjdCusto + vlrCaixinhaJaAutorizada;
 
             } else if (categoriaEfetiva === 'statuscustofechado' || categoriaEfetiva === 'statuscacheliberado') {
                 if (registro.nivelexperiencia === 'Fechado') {
@@ -2975,8 +3051,6 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     totalCache = 0;
                     totalAjdCusto = isAjudaCustoPaga ? (parseFloat(registro.vlrtotajdcusto) || 0) : 0;
                     const datas = Array.isArray(registro.datasevento) ? registro.datasevento : [];
-                    const qtdp = parseInt(registro.qtdpessoaslote) || 1;
-                    const perfil = (registro.perfil || '').toLowerCase();
 
                     datas.forEach(dStr => {
                         const d = new Date(dStr + 'T12:00:00');
@@ -3005,17 +3079,19 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     });
                 }
                 // Este branch recalcula o totalCache do zero (a partir de vlrcache/datas), o que
-                // apaga qualquer Ajuste de Custo já Autorizado anteriormente para este mesmo
-                // staffevento (ex.: aprovar Ajuste de Custo e, em seguida, aprovar Cachê
-                // Fechado/Liberado — a segunda aprovação sobrescrevia o desconto da primeira).
-                if ((registro.statusajustecusto || '').trim() === 'Autorizado') {
-                    totalCache += vlrAjuste;
-                }
-                total = totalCache + totalAjdCusto;
+                // apagaria Ajuste de Custo/Diária Dobrada já Autorizados anteriormente para este
+                // mesmo staffevento (ex.: aprovar Ajuste de Custo e, em seguida, aprovar Cachê
+                // Fechado/Liberado — a segunda aprovação sobrescrevia o desconto da primeira) —
+                // soma os dois de volta. Caixinha NÃO é cachê — some só no total, mais abaixo.
+                if (ajusteCustoJaAutorizado) totalCache += vlrAjuste;
+                totalCache += vlrDiariaDobradaCacheJaAutorizada;
+                totalAjdCusto += vlrDiariaDobradaAjdJaAutorizada;
+                total = totalCache + totalAjdCusto + vlrCaixinhaJaAutorizada;
 
             } else {
                 if (categoriaEfetiva === 'statusajustecusto' && statusParaAtualizar === 'Autorizado') { totalCache += vlrAjuste; }
-                total = totalCache + totalAjdCusto;
+                total = totalCache + totalAjdCusto + vlrCaixinhaJaAutorizada;
+                // Caixinha não é cachê — soma só no total (vlrtotal), nunca no vlrtotcache.
                 if (categoriaEfetiva === 'statuscaixinha' && statusParaAtualizar === 'Autorizado') { total += vlrCaixinhaDestaSolicitacao; }
             }
 
@@ -3034,8 +3110,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 valorFinalColuna = statusParaAtualizar;
             }
 
-            const { rows: pendenciasFluxoB } = await pool.query(`
-                SELECT 1 FROM public.solicitacoes 
+            const { rows: pendenciasFluxoB } = await client.query(`
+                SELECT 1 FROM public.solicitacoes
                 WHERE idregistroalterado = $1 AND status = 'Pendente' LIMIT 1
             `, [idStaffAlvo]);
 
@@ -3062,7 +3138,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
 
             console.log(`💾 [FLUXO B] Gravando com sucesso na coluna [${colunaDestinoBanco}]`);
 
-            const finalResult = await pool.query(queryUpdate, [
+            const finalResult = await client.query(queryUpdate, [
                 valorFinalColuna,
                 total,
                 totalCache,
@@ -3073,8 +3149,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 ativoCalculado,
                 novoDatasEventoJson
             ]);
-            
+
             console.log(`✅ [FLUXO B] Linhas alteradas com sucesso no staffeventos: ${finalResult.rowCount}`);
+
+            await client.query('COMMIT');
 
             res.locals.idlog_origem = idlog_origem;
             res.locals.acao = 'atualizou';
@@ -3084,8 +3162,13 @@ router.post('/notificacoes-financeiras/atualizar-status',
             return res.json({ sucesso: true, updated: finalResult.rows[0], idlog_origem, category: categoria });
 
         } catch (dbError) {
+            try { await client.query('ROLLBACK'); } catch (rollbackError) {
+                console.error('❌ Falha ao fazer ROLLBACK:', rollbackError.message);
+            }
             console.error('❌ ERRO CRÍTICO NO BANCO DE DADOS:', dbError.message);
             return res.status(500).json({ error: 'Erro ao processar atualização no banco de dados', detalhe: dbError.message });
+        } finally {
+            client.release();
         }
     }
 );
