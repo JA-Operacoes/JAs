@@ -595,13 +595,37 @@ router.get("/custodia/atual", async (req, res) => {
   }
 });
 
-async function registrarCustodia(client, { idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, observacao, idusuario }) {
+async function registrarCustodia(client, { idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, idorcamento, observacao, idusuario }) {
   await client.query(
     `INSERT INTO equipunidadehistorico
-       (idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, observacao, idusuario)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [idunidade, tipo, idfuncionario_origem || null, idfuncionario_destino || null, idevento || null, observacao || null, idusuario || null]
+       (idunidade, tipo, idfuncionario_origem, idfuncionario_destino, idevento, idorcamento, observacao, idusuario)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [idunidade, tipo, idfuncionario_origem || null, idfuncionario_destino || null, idevento || null, idorcamento || null, observacao || null, idusuario || null]
   );
+}
+
+// Um evento recorrente repete idevento em anos diferentes, e mesmo no MESMO ano pode ter
+// orçamentos-irmãos (cliente pede pra separar em faturas) -- sem isso, não dá pra saber
+// depois pra qual edição um equipamento foi de verdade (mesmo problema já resolvido em
+// staffeventos/idorcamento e despesaextras/idevento+dtreferencia). Resolve automaticamente
+// SÓ quando existe exatamente 1 orçamento não-recusado do evento no ano corrente -- é o caso
+// mais comum (evento com um orçamento só). Quando há 0 ou 2+ candidatos, devolve null (fica
+// ambíguo/sem dado) em vez de arriscar salvar o orçamento errado -- string explicando o motivo
+// vai pra observação do histórico, pra dar pra investigar depois.
+async function resolverOrcamentoUnicoDoEvento(client, idevento, idempresa) {
+  const { rows } = await client.query(
+    `SELECT o.idorcamento
+       FROM orcamentos o
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+      WHERE o.idevento = $1
+        AND oe.idempresa = $2
+        AND o.status <> 'R'
+        AND EXTRACT(YEAR FROM o.dtinirealizacao) = EXTRACT(YEAR FROM CURRENT_DATE)`,
+    [idevento, idempresa]
+  );
+  if (rows.length === 1) return { idorcamento: rows[0].idorcamento, motivoAmbiguidade: null };
+  if (rows.length === 0) return { idorcamento: null, motivoAmbiguidade: 'Nenhum orçamento não-recusado encontrado pro evento no ano corrente.' };
+  return { idorcamento: null, motivoAmbiguidade: `${rows.length} orçamentos-irmãos no ano corrente -- ambíguo, precisa resolver manualmente.` };
 }
 
 // POST entregar unidade a um funcionário
@@ -887,12 +911,17 @@ router.post("/custodia/enviar-evento",
         return res.status(400).json({ message: "Essa unidade não pode ser enviada a um evento no status atual." });
       }
 
+      const { idorcamento, motivoAmbiguidade } = await resolverOrcamentoUnicoDoEvento(client, idevento, idempresa);
+      const observacaoFinal = motivoAmbiguidade
+        ? `${observacao ? observacao + ' ' : ''}[idorcamento não resolvido: ${motivoAmbiguidade}]`
+        : (observacao || null);
+
       const updateResult = await client.query(
-        `UPDATE equipamentounidade SET status = 'evento', idevento_atual = $1 WHERE idunidade = $2 RETURNING *`,
-        [idevento, idunidade]
+        `UPDATE equipamentounidade SET status = 'evento', idevento_atual = $1, idorcamento_atual = $2, dtenvio_atual = NOW() WHERE idunidade = $3 RETURNING *`,
+        [idevento, idorcamento, idunidade]
       );
 
-      await registrarCustodia(client, { idunidade, tipo: 'envio_evento', idevento, observacao, idusuario });
+      await registrarCustodia(client, { idunidade, tipo: 'envio_evento', idevento, idorcamento, observacao: observacaoFinal, idusuario });
 
       await client.query('COMMIT');
 
@@ -941,14 +970,15 @@ router.post("/custodia/retornar-evento",
       }
 
       const idEventoAnterior = unidadeResult.rows[0].idevento_atual;
+      const idOrcamentoAnterior = unidadeResult.rows[0].idorcamento_atual;
       const novoStatus = unidadeResult.rows[0].idfuncionario_atual ? 'com_funcionario' : 'estoque';
 
       const updateResult = await client.query(
-        `UPDATE equipamentounidade SET status = $1, idevento_atual = NULL WHERE idunidade = $2 RETURNING *`,
+        `UPDATE equipamentounidade SET status = $1, idevento_atual = NULL, idorcamento_atual = NULL, dtenvio_atual = NULL WHERE idunidade = $2 RETURNING *`,
         [novoStatus, idunidade]
       );
 
-      await registrarCustodia(client, { idunidade, tipo: 'retorno_evento', idevento: idEventoAnterior, observacao, idusuario });
+      await registrarCustodia(client, { idunidade, tipo: 'retorno_evento', idevento: idEventoAnterior, idorcamento: idOrcamentoAnterior, observacao, idusuario });
 
       await client.query('COMMIT');
 
@@ -1516,24 +1546,32 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
 // /custodia/enviar-evento: status 'evento', idevento_atual, histórico de custódia) e marca
 // idevento_separacao. Remover a separação devolve a unidade ao estoque (ou para o funcionário,
 // se ela já estava emprestada) e limpa esses campos — mesmo efeito de /custodia/retornar-evento.
+// Agrupado por ORÇAMENTO (não por evento agregado) -- um evento com orçamentos-irmãos
+// (cliente pede pra separar em faturas) tinha a quantidade orçada somada sem distinção,
+// e a unidade separada não sabia dizer pra qual orçamento foi. Cada categoria já vem com
+// custo (registrado em equipamentos, não o negociado no item do orçamento -- decisão
+// tomada com a usuária) -- só leitura, sem valor de venda.
 router.get("/eventos/:idevento/separacao", async (req, res) => {
   const idempresa = req.idempresa;
   const idevento = req.params.idevento;
 
   try {
     const itensResult = await pool.query(
-      `SELECT eq.idequip, eq.descEquip, eq.modelos, SUM(oi.qtditens) AS qtdorcada
+      `SELECT o.idorcamento, o.nrorcamento, o.dtinirealizacao, o.dtfimrealizacao,
+              eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, SUM(oi.qtditens) AS qtdorcada
          FROM orcamentoitens oi
          INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
          INNER JOIN equipamentos eq ON eq.idequip = oi.idequipamento
          WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
-         GROUP BY eq.idequip, eq.descEquip, eq.modelos`,
+         GROUP BY o.idorcamento, o.nrorcamento, o.dtinirealizacao, o.dtfimrealizacao,
+                  eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip
+         ORDER BY o.dtinirealizacao, o.nrorcamento, eq.descEquip`,
       [idevento, idempresa]
     );
 
     const unidadesResult = await pool.query(
-      `SELECT idunidade, idequip, idmodelo, patrimonio, status, local, idevento_separacao
+      `SELECT idunidade, idequip, idmodelo, patrimonio, status, local, idevento_separacao, idorcamento_separacao
          FROM equipamentounidade
          WHERE idempresa = $1
            AND (status = 'estoque' OR idevento_separacao = $2)
@@ -1547,8 +1585,24 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
       unidadesPorEquip[u.idequip].push(u);
     });
 
-    const categorias = itensResult.rows.map((item) => {
-      const unidades = unidadesPorEquip[item.idequip] || [];
+    const orcamentosPorId = {};
+    itensResult.rows.forEach((item) => {
+      if (!orcamentosPorId[item.idorcamento]) {
+        orcamentosPorId[item.idorcamento] = {
+          idorcamento: item.idorcamento,
+          nrorcamento: item.nrorcamento,
+          dtinirealizacao: item.dtinirealizacao,
+          dtfimrealizacao: item.dtfimrealizacao,
+          categorias: [],
+        };
+      }
+
+      // Unidade livre (idorcamento_separacao NULL) elegível pra qualquer orçamento-irmão;
+      // unidade já separada pra OUTRO orçamento-irmão deste mesmo evento fica de fora daqui
+      // -- evita mostrar como "disponível" algo já comprometido em outra fatura.
+      const unidades = (unidadesPorEquip[item.idequip] || []).filter(
+        (u) => u.idorcamento_separacao === null || u.idorcamento_separacao === item.idorcamento
+      );
       const modelosPorId = {};
       (item.modelos || []).forEach((m) => { modelosPorId[m.id] = m; });
 
@@ -1559,7 +1613,7 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
           idunidade: u.idunidade,
           patrimonio: u.patrimonio,
           local: u.local,
-          separado: u.idevento_separacao === Number(idevento),
+          separado: u.idevento_separacao === Number(idevento) && u.idorcamento_separacao === item.idorcamento,
         });
       });
 
@@ -1574,16 +1628,17 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
         (soma, m) => soma + m.unidades.filter((u) => u.separado).length, 0
       );
 
-      return {
+      orcamentosPorId[item.idorcamento].categorias.push({
         idequip: item.idequip,
         descequip: item.descequip,
+        ctoequip: Number(item.ctoequip) || 0,
         qtdorcada: Number(item.qtdorcada),
         qtdseparada,
         modelos,
-      };
+      });
     });
 
-    res.json(categorias);
+    res.json(Object.values(orcamentosPorId));
   } catch (error) {
     console.error("Erro ao listar separação do evento:", error);
     res.status(500).json({ message: "Erro ao listar separação do evento." });
@@ -1598,13 +1653,19 @@ router.put("/eventos/:idevento/separacao",
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
     const idevento = req.params.idevento;
-    const { idunidades, acao } = req.body;
+    const { idunidades, acao, idorcamento: idorcamentoBody } = req.body;
 
     if (!Array.isArray(idunidades) || !idunidades.length) {
       return res.status(400).json({ message: "Selecione ao menos uma unidade." });
     }
     if (!['separar', 'remover'].includes(acao)) {
       return res.status(400).json({ message: "Ação inválida." });
+    }
+    // A tela de Separação já sabe de qual orçamento cada categoria veio (agrupada na
+    // origem, GET /eventos/:idevento/separacao) -- exige explícito em vez de tentar
+    // adivinhar, evita salvar num orçamento-irmão errado quando o evento tem mais de um.
+    if (acao === 'separar' && !idorcamentoBody) {
+      return res.status(400).json({ message: "idorcamento é obrigatório para separar." });
     }
 
     let client;
@@ -1627,26 +1688,30 @@ router.put("/eventos/:idevento/separacao",
         linhas = unidadesResult.rows;
 
         if (linhas.length) {
+          const idorcamento = idorcamentoBody;
+          const observacaoSeparacao = 'Enviado via tela de Separação';
+
           await client.query(
             `UPDATE equipamentounidade
-               SET status = 'evento', idevento_atual = $1,
-                   idevento_separacao = $1, separado_em = NOW(), separado_por = $2
-               WHERE idunidade = ANY($3::int[])`,
-            [idevento, idusuario || null, linhas.map((l) => l.idunidade)]
+               SET status = 'evento', idevento_atual = $1, idorcamento_atual = $2, dtenvio_atual = NOW(),
+                   idevento_separacao = $1, idorcamento_separacao = $2, separado_em = NOW(), separado_por = $3
+               WHERE idunidade = ANY($4::int[])`,
+            [idevento, idorcamento, idusuario || null, linhas.map((l) => l.idunidade)]
           );
           for (const linha of linhas) {
             await registrarCustodia(client, {
               idunidade: linha.idunidade,
               tipo: 'envio_evento',
               idevento,
-              observacao: 'Enviado via tela de Separação',
+              idorcamento,
+              observacao: observacaoSeparacao,
               idusuario,
             });
           }
         }
       } else {
         const unidadesResult = await client.query(
-          `SELECT idunidade, patrimonio, idfuncionario_atual FROM equipamentounidade
+          `SELECT idunidade, patrimonio, idfuncionario_atual, idorcamento_atual FROM equipamentounidade
              WHERE idunidade = ANY($1::int[]) AND idempresa = $2
                AND idevento_separacao = $3 AND status = 'evento' AND idevento_atual = $3
              FOR UPDATE`,
@@ -1658,8 +1723,8 @@ router.put("/eventos/:idevento/separacao",
           const novoStatus = linha.idfuncionario_atual ? 'com_funcionario' : 'estoque';
           await client.query(
             `UPDATE equipamentounidade
-               SET status = $1, idevento_atual = NULL,
-                   idevento_separacao = NULL, separado_em = NULL, separado_por = NULL
+               SET status = $1, idevento_atual = NULL, idorcamento_atual = NULL, dtenvio_atual = NULL,
+                   idevento_separacao = NULL, idorcamento_separacao = NULL, separado_em = NULL, separado_por = NULL
                WHERE idunidade = $2`,
             [novoStatus, linha.idunidade]
           );
@@ -1667,6 +1732,7 @@ router.put("/eventos/:idevento/separacao",
             idunidade: linha.idunidade,
             tipo: 'retorno_evento',
             idevento,
+            idorcamento: linha.idorcamento_atual,
             observacao: 'Removido via tela de Separação',
             idusuario,
           });
