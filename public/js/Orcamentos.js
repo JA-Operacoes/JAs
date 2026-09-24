@@ -995,13 +995,39 @@ function recalcularTotaisGerais() {
     });
   }
 
-  // Atualiza o valor do cliente com o valor total de venda
+  // Atualiza o valor do cliente: total de venda MENOS desconto MAIS acréscimo.
+  // O desconto/acréscimo negociado é preservado em R$ (não é reaplicado em % sobre
+  // a nova base), porque itens incluídos depois — aditivo ou extra bonificado — não
+  // renegociam o abatimento já acordado. Sem isso, qualquer recálculo (ex.: inclusão
+  // de um extra num orçamento fechado, onde os campos estão bloqueados e o usuário
+  // não consegue redigitar) zerava silenciosamente desconto e acréscimo.
+  const inputDescontoValor = document.querySelector("#Desconto");
+  const inputAcrescimoValor = document.querySelector("#Acrescimo");
+  const valorDesconto = desformatarMoeda(inputDescontoValor?.value || "0");
+  const valorAcrescimo = desformatarMoeda(inputAcrescimoValor?.value || "0");
+
   const campoValorCliente = document.querySelector("#valorCliente");
   if (campoValorCliente) {
-    campoValorCliente.value = totalVendaGeral.toLocaleString("pt-BR", {
+    const valorFinalCliente = totalVendaGeral - valorDesconto + valorAcrescimo;
+    campoValorCliente.value = valorFinalCliente.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
+  }
+
+  // Mantém os percentuais coerentes com a nova base de venda (o R$ é que manda).
+  const inputDescontoPercentual = document.querySelector("#percentDesc");
+  if (inputDescontoPercentual) {
+    inputDescontoPercentual.value = formatarPercentual(
+      totalVendaGeral > 0 ? (valorDesconto / totalVendaGeral) * 100 : 0
+    );
+  }
+
+  const inputAcrescimoPercentual = document.querySelector("#percentAcresc");
+  if (inputAcrescimoPercentual) {
+    inputAcrescimoPercentual.value = formatarPercentual(
+      totalVendaGeral > 0 ? (valorAcrescimo / totalVendaGeral) * 100 : 0
+    );
   }
 
   console.log(
@@ -1213,11 +1239,17 @@ function aplicarDescontoEAcrescimo(changedInputId) {
     const inputAcrescimoValor = document.getElementById("Acrescimo");
     const inputAcrescimoPercentual = document.getElementById("percentAcresc");
 
+    // Captura o que o usuário acabou de digitar ANTES do recálculo geral, porque
+    // recalcularTotaisGerais() ressincroniza os percentuais a partir dos valores em R$
+    // e sobrescreveria o percentual recém-digitado.
+    const percDescDigitado = desformatarPercentual(inputDescontoPercentual?.value || "0");
+    const percAcrescDigitado = desformatarPercentual(inputAcrescimoPercentual?.value || "0");
+
     // 2. Atualizar o total base (Venda bruta)
     if (typeof recalcularTotaisGerais === "function") {
       recalcularTotaisGerais();
     }
-    
+
     const totalBaseParaCalculo = desformatarMoeda(
       document.getElementById("totalGeralVda")?.value || "0"
     );
@@ -1231,9 +1263,9 @@ function aplicarDescontoEAcrescimo(changedInputId) {
       inputDescontoPercentual.value = formatarPercentual(perc);
     } 
     else if (changedInputId === "percentDesc") {
-      const perc = desformatarPercentual(inputDescontoPercentual.value);
-      const vlr = totalBaseParaCalculo * (perc / 100);
+      const vlr = totalBaseParaCalculo * (percDescDigitado / 100);
       inputDescontoValor.value = formatarMoeda(vlr);
+      inputDescontoPercentual.value = formatarPercentual(percDescDigitado);
     }
 
     // Lógica para ACRÉSCIMO
@@ -1243,9 +1275,9 @@ function aplicarDescontoEAcrescimo(changedInputId) {
       inputAcrescimoPercentual.value = formatarPercentual(perc);
     } 
     else if (changedInputId === "percentAcresc") {
-      const perc = desformatarPercentual(inputAcrescimoPercentual.value);
-      const vlr = totalBaseParaCalculo * (perc / 100);
+      const vlr = totalBaseParaCalculo * (percAcrescDigitado / 100);
       inputAcrescimoValor.value = formatarMoeda(vlr);
+      inputAcrescimoPercentual.value = formatarPercentual(percAcrescDigitado);
     }
 
     // 3. CÁLCULO DO RESULTADO FINAL
