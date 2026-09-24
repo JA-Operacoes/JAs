@@ -464,7 +464,7 @@ async function salvarDespesaExtra(event) {
 }
 window.salvarDespesaExtra = salvarDespesaExtra;
 
-function inicializarDespesaExtraEvento() {
+function inicializarDespesaExtra() {
     carregarFuncionariosResponsaveis();
     document.getElementById('idOrcamentoSelect').disabled = true;
 
@@ -546,8 +546,8 @@ function inicializarDespesaExtraEvento() {
 }
 
 function configurarEventosEspecificos(modulo) {
-    if (modulo.trim().toLowerCase() === 'despesaextraevento') {
-        inicializarDespesaExtraEvento();
+    if (modulo.trim().toLowerCase() === 'despesaextra') {
+        inicializarDespesaExtra();
         if (typeof aplicarPermissoes === "function" && window.permissoes) {
             aplicarPermissoes(window.permissoes);
         }
@@ -556,6 +556,6 @@ function configurarEventosEspecificos(modulo) {
 window.configurarEventosEspecificos = configurarEventosEspecificos;
 
 window.moduloHandlers = window.moduloHandlers || {};
-window.moduloHandlers['DespesaExtraEvento'] = {
-    configurar: inicializarDespesaExtraEvento
+window.moduloHandlers['DespesaExtra'] = {
+    configurar: inicializarDespesaExtra
 };

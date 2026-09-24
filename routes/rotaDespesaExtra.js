@@ -73,7 +73,7 @@ const uploadComprovanteDespesa = multer({
 // Ordenação: ano atual sempre primeiro, demais anos do mais recente pro mais antigo,
 // dentro de cada ano por nome em ordem alfabética.
 router.get("/eventos",
-    verificarPermissao("DespesaExtraEvento", "pesquisar"),
+    verificarPermissao("DespesaExtra", "pesquisar"),
     async (req, res) => {
         const idempresa = req.idempresa;
         const busca = String(req.query.busca || "").trim();
@@ -109,7 +109,7 @@ router.get("/eventos",
 // GET /despesaextra/eventos/:idEvento/orcamentos?ano=2026 — orçamentos-irmãos daquela
 // edição, pro select opcional "Orçamento de referência".
 router.get("/eventos/:idEvento/orcamentos",
-    verificarPermissao("DespesaExtraEvento", "pesquisar"),
+    verificarPermissao("DespesaExtra", "pesquisar"),
     async (req, res) => {
         const idempresa = req.idempresa;
         const { idEvento } = req.params;
@@ -136,7 +136,7 @@ router.get("/eventos/:idEvento/orcamentos",
 // mais recentes primeiro. Precisa vir ANTES de /:idEvento pra não ser engolida por ela
 // (Express bateria "escritorio" como se fosse um idEvento).
 router.get("/escritorio",
-    verificarPermissao("DespesaExtraEvento", "pesquisar"),
+    verificarPermissao("DespesaExtra", "pesquisar"),
     async (req, res) => {
         const idempresa = req.idempresa;
         try {
@@ -162,7 +162,7 @@ router.get("/escritorio",
 // GET /despesaextra/:idEvento — histórico de lançamentos do evento (todos os anos;
 // o front decide se filtra por ano selecionado)
 router.get("/:idEvento",
-    verificarPermissao("DespesaExtraEvento", "pesquisar"),
+    verificarPermissao("DespesaExtra", "pesquisar"),
     async (req, res) => {
         const idempresa = req.idempresa;
         const { idEvento } = req.params;
@@ -189,9 +189,9 @@ router.get("/:idEvento",
 
 // POST /despesaextra — cria um lançamento
 router.post("/",
-    verificarPermissao("DespesaExtraEvento", "cadastrar"),
+    verificarPermissao("DespesaExtra", "cadastrar"),
     uploadComprovanteDespesa,
-    logMiddleware("DespesaExtraEvento", {
+    logMiddleware("DespesaExtra", {
         buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null })
     }),
     async (req, res) => {
@@ -264,9 +264,9 @@ router.post("/",
 // ainda uma tela de Vencimentos própria que processe o pagamento, então o status também é
 // mudado por aqui).
 router.put("/:idDespesaExtra",
-    verificarPermissao("DespesaExtraEvento", "alterar"),
+    verificarPermissao("DespesaExtra", "alterar"),
     uploadComprovanteDespesa,
-    logMiddleware("DespesaExtraEvento", {
+    logMiddleware("DespesaExtra", {
         buscarDadosAnteriores: async (req) => {
             const result = await pool.query(
                 `SELECT * FROM despesaextras WHERE iddespesaextra = $1`,
