@@ -350,6 +350,10 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
                       
             parseInt(idMontagem) === parseInt(MontagemOriginal.idMontagem) && 
             descMontagem === MontagemOriginal.descMontagem   &&
+            cepMontagem === MontagemOriginal.cepMontagem &&
+            ruaMontagem === MontagemOriginal.ruaMontagem &&
+            numeroMontagem === MontagemOriginal.numeroMontagem &&
+            bairroMontagem === MontagemOriginal.bairroMontagem &&
             cidadeMontagem === MontagemOriginal.cidadeMontagem  &&   
             ufMontagem === MontagemOriginal.ufMontagem &&
             qtdPavilhao == MontagemOriginal.qtdPavilhao &&   
