@@ -32,7 +32,9 @@ const NOMES_MODULO_EXIBICAO = {
   'Localmontagem': 'Local Montagem',
   'Planocontas': 'Plano Contas',
   'Tipoconta': 'Tipo Conta',
-  'Funcao': 'Função'
+  'Funcao': 'Função',
+  'Despesaextra': 'Despesa Extra',
+  'Planosaude': 'Plano Saúde'
 };
 
 // Numa linha do grid, as demais permissões só ficam disponíveis se "Acesso ao Módulo"
