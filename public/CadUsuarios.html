@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="css/Logins/Usuarios.css?v=11">
+<link rel="stylesheet" href="css/Logins/Usuarios.css?v=13">
 
 <div id="cadModalUsuarios" class="login-box modal">
   <div class="modal-content">
@@ -152,60 +152,70 @@
             <!-- Empresas em que o usuário já é ativo serão adicionadas aqui via JavaScript -->
           </select>
           <a type="button" id="btnCopiarPermissoes" class="btn-discreto">Copiar<span></span></a>
+          <a type="button" id="btnPadraoTodosPermissoes" class="btn-discreto" title="Marca Acesso, Cadastrar, Alterar e Pesquisar em todos os módulos (Apagar não entra)">Padrão Todos<span></span></a>
           <a type="button" id="btnLimparTudoPermissoes" class="btn-discreto">Limpar Tudo<span></span></a>
         </div>
 
         <div class="acessos-especiais-global-row" title="Aplica o acesso especial a todos os módulos que já têm 'Acesso' marcado">
           <span class="acessos-especiais-global-titulo">Acessos Especiais (aplica a todos os módulos com Acesso marcado):</span>
 
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-supremo">
-              <label class="checkbox-permission" for="global-supremo"><span class="line line1"></span><span class="line line2"></span></label>
+          <div class="acessos-especiais-global-itens">
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-supremo">
+                <label class="checkbox-permission" for="global-supremo"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Admin Supremo</span>
             </div>
-            <span>Admin Supremo</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-master">
-              <label class="checkbox-permission" for="global-master"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-master">
+                <label class="checkbox-permission" for="global-master"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Master</span>
             </div>
-            <span>Master</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-financeiro">
-              <label class="checkbox-permission" for="global-financeiro"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-financeiro">
+                <label class="checkbox-permission" for="global-financeiro"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Financeiro</span>
             </div>
-            <span>Financeiro</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-comercial">
-              <label class="checkbox-permission" for="global-comercial"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-comercial">
+                <label class="checkbox-permission" for="global-comercial"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Comercial</span>
             </div>
-            <span>Comercial</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-rh">
-              <label class="checkbox-permission" for="global-rh"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-rh">
+                <label class="checkbox-permission" for="global-rh"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>RH</span>
             </div>
-            <span>RH</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-devs">
-              <label class="checkbox-permission" for="global-devs"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-devs">
+                <label class="checkbox-permission" for="global-devs"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Devs</span>
             </div>
-            <span>Devs</span>
-          </div>
-          <div class="acesso-especial-global-item">
-            <div class="checkbox-container">
-              <input class="checkbox-input" type="checkbox" id="global-ti">
-              <label class="checkbox-permission" for="global-ti"><span class="line line1"></span><span class="line line2"></span></label>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-ti">
+                <label class="checkbox-permission" for="global-ti"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>TI</span>
             </div>
-            <span>TI</span>
+            <div class="acesso-especial-global-item">
+              <div class="checkbox-container">
+                <input class="checkbox-input" type="checkbox" id="global-camisetas">
+                <label class="checkbox-permission" for="global-camisetas"><span class="line line1"></span><span class="line line2"></span></label>
+              </div>
+              <span>Camisetas</span>
+            </div>
           </div>
         </div>
 
@@ -218,12 +228,14 @@
               <col style="width: 50px; height: 30px;">  <!-- Alterar -->
               <col style="width: 60px; height: 30px;">  <!-- Pesquisar -->
               <col style="width: 50px; height: 30px;">  <!-- Apagar -->
+              <col style="width: 60px">  <!-- Padrão -->
               <col style="width: 60px">  <!-- Limpar -->
             </colgroup>
             <thead>
               <tr>
                 <th rowspan="2">Módulo</th>
                 <th colspan="5">Acessos Padrões</th>
+                <th rowspan="2" title="Marca Acesso, Cadastrar, Alterar e Pesquisar nesta linha">Padrão</th>
                 <th rowspan="2">Limpar</th>
               </tr>
               <tr>

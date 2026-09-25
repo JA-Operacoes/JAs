@@ -408,8 +408,9 @@ async function abrirEditarItemAlmoxarifado(item) {
 }
 
 // Editar o cadastro do item (nome, local, unidade, mínimo) é restrito às mesmas
-// flags especiais do backend (ver exigirFlagsEspeciais em rotaAlmoxarifado.js)
+// flags administrativas do backend (ver FLAGS_EDICAO_ITEM em rotaAlmoxarifado.js)
 // — front só esconde o botão (UX), quem realmente bloqueia é o servidor.
+// A flag `camisetas` NÃO entra aqui: ela libera o local, não a edição de cadastro.
 function temFlagsEspeciaisAlmox() {
   return ["supremo", "master", "financeiro", "devs"].some(
     (flag) => window.temPermissao?.("Staff", flag) ?? false
