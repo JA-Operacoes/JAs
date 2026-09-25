@@ -317,6 +317,64 @@ if (selectSuprimento) {
   });
 }
 
+// Promessa das listas do cabeçalho (Cliente, Evento, Local de Montagem e
+// Empresa Emissora). Elas vêm de fetches independentes disparados em
+// verificaOrcamento(); quem for preencher o formulário precisa esperar por
+// elas, senão `select.value = id` roda antes das <option> existirem e o
+// navegador descarta o valor SILENCIOSAMENTE — o campo fica em branco e, se o
+// usuário salvar assim, o vínculo vai null pro banco.
+let listasCabecalhoProntas = Promise.resolve();
+
+// Garante que o select tenha a <option> do valor que se quer selecionar.
+// Necessário para ids que não voltam mais na listagem (ex.: cliente/evento
+// inativado depois do orçamento ter sido criado) — sem isso o valor seria
+// perdido só por não constar na lista.
+function garantirOpcaoSelect(select, valor, texto, atributos) {
+  if (!select || valor === null || valor === undefined || valor === "") return;
+  const v = String(valor);
+  if (Array.from(select.options).some((o) => String(o.value) === v)) return;
+
+  const option = document.createElement("option");
+  option.value = v;
+  option.textContent = texto || `(#${v})`;
+  option.dataset.opcaoRestaurada = "true";
+  // Atributos data-* que outras funções leem da option (ex.: atualizarUFOrc lê
+  // data-ufmontagem) — sem eles a option recriada ficaria "muda".
+  Object.entries(atributos || {}).forEach(([nome, val]) => {
+    if (val !== null && val !== undefined && val !== "") {
+      option.setAttribute(nome, val);
+    }
+  });
+  select.appendChild(option);
+}
+
+// Define o valor de um select do cabeçalho de forma segura: cria a <option>
+// quando ela não existe (usando o nome que o próprio orçamento já traz) em vez
+// de deixar o campo vazio.
+function definirValorSelectCabecalho(select, valor, texto, atributos) {
+  if (!select) return;
+  if (valor === null || valor === undefined || valor === "") {
+    select.value = "";
+    return;
+  }
+  garantirOpcaoSelect(select, valor, texto, atributos);
+  select.value = String(valor);
+}
+
+// O módulo pode existir em mais de uma instância na página (ver comentário em
+// window.preencherFormularioComOrcamento), então a promessa publicada em
+// `window` tem prioridade sobre a variável local: é a da instância que de fato
+// disparou as cargas.
+function aguardarListasCabecalho() {
+  return window.__orcamentoListasCabecalhoProntas || listasCabecalhoProntas;
+}
+
+// Texto da option atualmente selecionada — usado para não perder a descrição ao
+// repopular a lista.
+function textoSelecionadoSelect(select) {
+  return select?.options?.[select.selectedIndex]?.textContent || "";
+}
+
 async function carregarClientesOrc() {
   try {
     const clientes = await fetchComToken("orcamentos/clientes");
@@ -327,6 +385,7 @@ async function carregarClientesOrc() {
 
     selects.forEach((select) => {
       const valorSelecionadoAtual = select.value;
+      const textoSelecionadoAtual = textoSelecionadoSelect(select);
       select.innerHTML = '<option value="">Selecione Cliente</option>';
 
       clientes.forEach((cliente) => {
@@ -338,7 +397,7 @@ async function carregarClientesOrc() {
       });
 
       if (valorSelecionadoAtual) {
-        select.value = String(valorSelecionadoAtual);
+        definirValorSelectCabecalho(select, valorSelecionadoAtual, textoSelecionadoAtual);
       }
 
       select.addEventListener("change", function () {
@@ -371,6 +430,7 @@ async function carregarEmpresasEmissorasOrc() {
 
     selects.forEach((select) => {
       const valorSelecionadoAtual = select.value;
+      const textoSelecionadoAtual = textoSelecionadoSelect(select);
       select.innerHTML = '<option value="">Selecione a empresa emissora</option>';
 
       empresas.forEach((empresa) => {
@@ -381,7 +441,7 @@ async function carregarEmpresasEmissorasOrc() {
       });
 
       if (valorSelecionadoAtual) {
-        select.value = String(valorSelecionadoAtual);
+        definirValorSelectCabecalho(select, valorSelecionadoAtual, textoSelecionadoAtual);
       }
     });
   } catch (error) {
@@ -397,6 +457,7 @@ async function carregarEventosOrc() {
 
     selects.forEach((select) => {
       const valorSelecionadoAtual = select.value;
+      const textoSelecionadoAtual = textoSelecionadoSelect(select);
       select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
       eventos.forEach((evento) => {
         let option = document.createElement("option");
@@ -409,7 +470,7 @@ async function carregarEventosOrc() {
       });
 
       if (valorSelecionadoAtual) {
-        select.value = String(valorSelecionadoAtual);
+        definirValorSelectCabecalho(select, valorSelecionadoAtual, textoSelecionadoAtual);
       }
 
       select.addEventListener("change", function () {
@@ -430,6 +491,7 @@ async function carregarLocalMontOrc() {
 
     selects.forEach((select) => {
       const valorSelecionadoAtual = select.value;
+      const textoSelecionadoAtual = textoSelecionadoSelect(select);
       // Adiciona as opções de Local de Montagem
       select.innerHTML =
         '<option value="">Selecione Local de Montagem</option>'; // Adiciona a opção padrão
@@ -448,7 +510,7 @@ async function carregarLocalMontOrc() {
       });
 
       if (valorSelecionadoAtual) {
-        select.value = String(valorSelecionadoAtual);
+        definirValorSelectCabecalho(select, valorSelecionadoAtual, textoSelecionadoAtual);
       }
 
       select.addEventListener("change", function () {
@@ -3823,10 +3885,17 @@ async function verificaOrcamento() {
   ativarTooltipStatus(); // religa o tooltip do Status ao #Status deste modal (idempotente)
 
   carregarFuncaoOrc();
-  carregarEventosOrc();
-  carregarClientesOrc();
-  carregarEmpresasEmissorasOrc();
-  carregarLocalMontOrc();
+  // As listas do cabeçalho ficam numa promessa própria: preencher o formulário
+  // antes delas chegarem deixava Cliente/Evento/Local de Montagem em branco.
+  listasCabecalhoProntas = Promise.all([
+    carregarEventosOrc(),
+    carregarClientesOrc(),
+    carregarEmpresasEmissorasOrc(),
+    carregarLocalMontOrc(),
+  ]).catch((erro) => {
+    console.error("Erro ao carregar listas do cabeçalho do orçamento:", erro);
+  });
+  window.__orcamentoListasCabecalhoProntas = listasCabecalhoProntas;
   carregarEquipamentosOrc();
   carregarSuprimentosOrc();
   configurarFormularioOrc();
@@ -4846,6 +4915,18 @@ async function verificaOrcamento() {
       // edição). Empresa Emissora e vencimento só são exigidos na hora de
       // gerar a proposta (ver PropostaouContrato).
       const camposFaltando = [];
+
+      // Cliente e Evento entram aqui como rede de segurança: se por qualquer
+      // motivo o select ficar sem valor (ex.: lista do cabeçalho que não
+      // carregou), é melhor barrar o save do que gravar null e perder o
+      // vínculo de um orçamento que já existia.
+      if (!document.querySelector(".idCliente option:checked")?.value) {
+        camposFaltando.push("Cliente");
+      }
+
+      if (!document.querySelector(".idEvento option:checked")?.value) {
+        camposFaltando.push("Evento");
+      }
 
       if (!document.querySelector(".idMontagem option:checked")?.value) {
         camposFaltando.push("Local de Montagem");
@@ -5874,15 +5955,19 @@ async function abrirNovoOrcamentoComDadosPrincipais(dados) {
   const edicaoInput = document.getElementById("edicao");
   if (edicaoInput) edicaoInput.value = dados.edicao || "";
 
+  // Mesmo motivo de preencherFormularioComOrcamento: os selects só aceitam o
+  // valor depois que as <option> das listas chegaram.
+  await aguardarListasCabecalho();
+
   const clienteSelect = document.querySelector(".idCliente");
-  if (clienteSelect) clienteSelect.value = dados.idCliente || "";
+  if (clienteSelect) definirValorSelectCabecalho(clienteSelect, dados.idCliente);
 
   const eventoSelect = document.querySelector(".idEvento");
-  if (eventoSelect) eventoSelect.value = dados.idEvento || "";
+  if (eventoSelect) definirValorSelectCabecalho(eventoSelect, dados.idEvento);
 
   const localMontagemSelect = document.querySelector(".idMontagem");
   if (localMontagemSelect) {
-    localMontagemSelect.value = dados.idMontagem || "";
+    definirValorSelectCabecalho(localMontagemSelect, dados.idMontagem);
     atualizarUFOrc(localMontagemSelect);
 
     if (dados.idMontagem) {
@@ -6015,9 +6100,14 @@ export async function preencherFormularioComOrcamento(orcamento) {
     console.warn("Elemento com ID 'Edição' não encontrado.");
   }
 
+  // Espera as listas do cabeçalho: sem isso os selects abaixo eram preenchidos
+  // antes das <option> chegarem e ficavam em branco de forma intermitente
+  // (dependia só da latência de cada fetch).
+  await aguardarListasCabecalho();
+
   const clienteSelect = document.querySelector(".idCliente");
   if (clienteSelect) {
-    clienteSelect.value = orcamento.idcliente || "";
+    definirValorSelectCabecalho(clienteSelect, orcamento.idcliente, orcamento.nomecliente);
   } else {
     console.warn("Elemento com classe '.idCliente' não encontrado.");
   }
@@ -6029,14 +6119,23 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
   const eventoSelect = document.querySelector(".idEvento");
   if (eventoSelect) {
-    eventoSelect.value = orcamento.idevento || "";
+    definirValorSelectCabecalho(eventoSelect, orcamento.idevento, orcamento.nomeevento);
   } else {
     console.warn("Elemento com classe '.idEvento' não encontrado.");
   }
 
   const localMontagemSelect = document.querySelector(".idMontagem");
   if (localMontagemSelect) {
-    localMontagemSelect.value = orcamento.idmontagem || ""; // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
+    definirValorSelectCabecalho(
+      localMontagemSelect,
+      orcamento.idmontagem,
+      orcamento.nomelocalmontagem,
+      {
+        "data-idMontagem": orcamento.idmontagem,
+        "data-descmontagem": orcamento.nomelocalmontagem,
+        "data-ufmontagem": orcamento.ufmontagem,
+      }
+    ); // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
     const ufMontagemInput = document.getElementById("ufmontagem");
     if (ufMontagemInput) {
       ufMontagemInput.value = orcamento.ufmontagem || "";
@@ -8883,23 +8982,34 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
     console.warn("Elemento com ID 'Edição' não encontrado.");
   }
 
+  await aguardarListasCabecalho();
+
   const clienteSelect = document.querySelector(".idCliente");
   if (clienteSelect) {
-    clienteSelect.value = orcamento.idcliente || "";
+    definirValorSelectCabecalho(clienteSelect, orcamento.idcliente, orcamento.nomecliente);
   } else {
     console.warn("Elemento com classe '.idCliente' não encontrado.");
   }
 
   const eventoSelect = document.querySelector(".idEvento");
   if (eventoSelect) {
-    eventoSelect.value = orcamento.idevento || "";
+    definirValorSelectCabecalho(eventoSelect, orcamento.idevento, orcamento.nomeevento);
   } else {
     console.warn("Elemento com classe '.idEvento' não encontrado.");
   }
 
   const localMontagemSelect = document.querySelector(".idMontagem");
   if (localMontagemSelect) {
-    localMontagemSelect.value = orcamento.idmontagem || "";
+    definirValorSelectCabecalho(
+      localMontagemSelect,
+      orcamento.idmontagem,
+      orcamento.nomelocalmontagem,
+      {
+        "data-idMontagem": orcamento.idmontagem,
+        "data-descmontagem": orcamento.nomelocalmontagem,
+        "data-ufmontagem": orcamento.ufmontagem,
+      }
+    );
     const ufMontagemInput = document.getElementById("ufmontagem");
     if (ufMontagemInput) {
       ufMontagemInput.value = orcamento.ufmontagem || "";
