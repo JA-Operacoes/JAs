@@ -4052,8 +4052,20 @@ display: none;
     height: 100vh !important;
     z-index: 99999 !important;
     background: var(--surface-1) !important;
+    /* A tela cheia troca o fundo do card inteiro; sem fixar a cor do texto junto, o
+       conteúdo herdava a cor de onde o card estava antes e no tema escuro dava texto
+       escuro sobre fundo escuro. */
+    color: var(--text-1) !important;
     overflow-y: auto !important;
     padding: 0 !important;
+}
+
+/* O corpo em tela cheia é posicionado por JS (position: fixed + tamanho da viewport).
+   O fundo/texto ficam aqui, por token, em vez de inline no script — inline vence o
+   tema e era o que deixava a tela cheia branca no modo escuro. */
+.accordion-item.modo-tela-cheia .accordion-body {
+    background-color: var(--surface-1) !important;
+    color: var(--text-1) !important;
 }
 
 .accordion-item.modo-tela-cheia .accordion-header {

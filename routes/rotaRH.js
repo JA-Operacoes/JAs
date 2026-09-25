@@ -46,7 +46,13 @@ const storageComprovanteRH = multer.diskStorage({
       .replace(/\s+/g, "")
       .replace(/[^a-zA-Z0-9]/g, "");
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${nomeLimpo}-${Date.now()}${ext}`);
+    // Data + hora LOCAL no lugar do timestamp cru: mesmo padrão dos demais comprovantes
+    // do sistema, legível e ainda único por segundo (o id do holerite já entra no nome).
+    const agora = new Date();
+    const p2 = n => String(n).padStart(2, "0");
+    const dataHoje = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}`;
+    const horaAgora = `${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
+    cb(null, `comprovanterh-ID${id}-${dataHoje}-${horaAgora}-${nomeLimpo}${ext}`);
   },
 });
 
