@@ -5022,6 +5022,18 @@ async function verificaOrcamento() {
       // 4. Lidar com a resposta do backend
       window._setorSugeridoCache = null;
 
+      // Se for uma criação e o backend retornar o ID, atualize o formulário.
+      // Tem que acontecer ANTES do "Manter Dados": se rodasse depois, o id/nº
+      // do orçamento recém-criado era escrito no formulário JÁ LIMPO do novo
+      // orçamento, e o save seguinte virava um PUT que sobrescrevia (e apagava
+      // os itens do) orçamento que originou o novo.
+      if (!isUpdate && resultado.id) {
+        document.getElementById("idOrcamento").value = resultado.id;
+        if (resultado.nrOrcamento) {
+          document.getElementById("nrOrcamento").value = resultado.nrOrcamento; // Atualiza o campo no formulário
+        }
+      }
+
       const { isConfirmed: desejaNovoOrcamento } = await Swal.fire({
         title: "Sucesso!",
         html:
@@ -5040,14 +5052,8 @@ async function verificaOrcamento() {
       }
 
       btnEnviar.disabled = false;
-      btnEnviar.textContent = "Salvo";
-      // Se for uma criação e o backend retornar o ID, atualize o formulário
-      if (!isUpdate && resultado.id) {
-        document.getElementById("idOrcamento").value = resultado.id;
-        if (resultado.nrOrcamento) {
-          document.getElementById("nrOrcamento").value = resultado.nrOrcamento; // Atualiza o campo no formulário
-        }
-      }
+      // No formulário novo o botão não pode dizer "Salvo" — nada foi salvo ali.
+      btnEnviar.textContent = desejaNovoOrcamento ? "Salvar Orçamento" : "Salvo";
       console.log("PROXIMO ANO", bProximoAno, idOrcamentoOriginalParaAtualizar);
       if (bProximoAno === true && idOrcamentoOriginalParaAtualizar !== null) {
         console.log(
@@ -5945,12 +5951,34 @@ export async function limparOrcamento() {
  * orçamento anterior.
  */
 async function abrirNovoOrcamentoComDadosPrincipais(dados) {
+  // `dados` vem do payload de salvamento, onde as datas são strings puras
+  // "YYYY-MM-DD" (formatarDataParaBackend). `new Date("2026-05-10")` é lido
+  // como MEIA-NOITE UTC, que em GMT-3 vira 09/05 21:00 local — o flatpickr
+  // (que trabalha em horário local) mostrava o período inteiro um dia antes.
+  // Por isso o parse é feito componente a componente, em horário local.
+  const parseDataLocal = (valor) => {
+    if (!valor) return null;
+    if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
+    const somenteData = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (somenteData) {
+      const [, ano, mes, dia] = somenteData;
+      return new Date(Number(ano), Number(mes) - 1, Number(dia));
+    }
+    const data = new Date(valor);
+    return isNaN(data.getTime()) ? null : data;
+  };
+
   // Captura os pavilhões (id/nome) selecionados ANTES de limpar, pois
   // `dados.idsPavilhoes` só tem os IDs e `limparOrcamento` não zera essa
   // variável, mas vamos reaproveitá-la explicitamente por segurança.
   const pavilhoesParaNovoOrcamento = [...selectedPavilhoes];
 
   await limparOrcamento();
+
+  // O formulário passa a ser um orçamento inédito: qualquer estado do
+  // orçamento anterior (ex.: geradoanoposterior, lido por
+  // getOrcamentoAtualCarregado no bloqueio de campos) tem que sair junto.
+  window.orcamentoAtual = null;
 
   const edicaoInput = document.getElementById("edicao");
   if (edicaoInput) edicaoInput.value = dados.edicao || "";
@@ -6000,8 +6028,8 @@ async function abrirNovoOrcamentoComDadosPrincipais(dados) {
     const periodo = periodosParaNovoOrcamento[id];
     if (!pickerInstance || typeof pickerInstance.setDate !== "function" || !periodo) continue;
 
-    const startDate = periodo.inicio ? new Date(periodo.inicio) : null;
-    const endDate = periodo.fim ? new Date(periodo.fim) : null;
+    const startDate = parseDataLocal(periodo.inicio);
+    const endDate = parseDataLocal(periodo.fim);
     const hasValidDates =
       (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
 
