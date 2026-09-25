@@ -46,8 +46,9 @@ let parcela13 = "unica"; // unica | 1 | 2
 // informativos / pagos via cartão). Escolha de tela, não persiste.
 let incluirBeneficios = false;
 
-// Dias úteis da competência (seg–sex − feriados, calculado no backend). Editável no
-// holerite mensal: VA/VT = valor/dia (cadastro do funcionário) × dias úteis.
+// Dias de benefício da competência (seg–sex, feriado não desconta — calculado no backend, ver
+// contarDiasBeneficio em routes/rotaRH.js). Editável no holerite mensal: VA/VT = valor/dia
+// (cadastro do funcionário) × dias.
 let diasUteisSel = 0;
 
 const VA_DESC = "Vale-Alimentação";
@@ -159,14 +160,31 @@ function montarPainel() {
   panel.innerHTML = `
     <div class="rh-header">
       <h2>RH — Holerite Virtual</h2>
-      <div class="rh-controls">
-        <span id="rh-busca-icone" class="material-symbols-outlined">search</span>
-        <div class="rh-busca-func">
-          <input type="text" id="rh-busca-func" placeholder="Buscar Holerite do funcionário..." autocomplete="off">
-          <input type="hidden" id="rh-func-id" value="">
-          <ul id="rh-func-lista" class="rh-func-lista" style="display:none;"></ul>
+    </div>
+    <div id="rh-competencia" class="rh-competencia" style="display:none;"></div>
+    <div id="rh-resumo" class="rh-resumo" style="display:none;"></div>
+    <!-- Barra única de controles da tela. Antes os filtros (tipo/vencimento/ano/alíquotas)
+         ficavam numa barra solta no topo, longe da lista que eles filtram, e a busca da lista
+         vinha numa segunda faixa logo abaixo dos cards — duas barras fazendo o mesmo papel.
+         Ela mora FORA do #rh-folha (reescrito inteiro a cada carregarFolha) porque os seletores
+         de competência também valem no holerite individual: com um holerite aberto, trocar o
+         mês aqui recarrega aquele holerite (ver aoMudarCompetencia). O que é exclusivo da lista
+         leva .rh-so-lista e some quando o detalhe está aberto. -->
+    <div id="rh-toolbar" class="rh-toolbar">
+      <div class="rh-toolbar-filtros">
+        <div class="rh-campo-busca" id="rh-busca-func-wrap">
+          <span class="material-symbols-outlined">search</span>
+          <div class="rh-busca-func">
+            <input type="text" id="rh-busca-func" placeholder="Abrir holerite do funcionário..." autocomplete="off">
+            <input type="hidden" id="rh-func-id" value="">
+            <ul id="rh-func-lista" class="rh-func-lista" style="display:none;"></ul>
+          </div>
         </div>
-        <select id="rh-select-tipo">
+        <div class="rh-campo-busca rh-so-lista">
+          <span class="material-symbols-outlined">filter_alt</span>
+          <input type="text" id="rh-folha-busca" placeholder="Filtrar a lista por nome..." autocomplete="off">
+        </div>
+        <select id="rh-select-tipo" title="Tipo de holerite">
           ${TIPOS_HOLERITE.map((t) => `<option value="${t.v}" ${t.v === tipoSel ? "selected" : ""}>${t.label}</option>`).join("")}
         </select>
         <span class="rh-select-label" title="Mês em que o salário é pago — o mês TRABALHADO é o anterior a esse.">Vencimento</span>
@@ -176,11 +194,17 @@ function montarPainel() {
         <select id="rh-select-ano">
           ${anos.map((a) => `<option value="${a}" ${a === anoSel ? "selected" : ""}>${a}</option>`).join("")}
         </select>
-        <button type="button" id="rh-aliquotas" class="secundario" title="Editar alíquotas (INSS/IRRF/FGTS)">⚙️ Alíquotas</button>
+      </div>
+      <div class="rh-toolbar-acoes">
+        <!-- Só aparece nos meses em que existe 13º (nov/dez): a lista mensal é longa e a seção
+             do 13º fica lá no fim, fora da primeira tela — sem este atalho ela passa batida
+             justamente no mês em que precisa ser conferida. Ver carregarFolha. -->
+        <button type="button" id="rh-ir-13" class="rh-btn-atalho rh-so-lista" style="display:none;"><span class="material-symbols-outlined">south</span>Ir para o 13º</button>
+        <button type="button" id="rh-folha-imprimir-lista" class="rh-btn-print rh-so-lista"><span class="material-symbols-outlined">checklist</span>Imprimir lista</button>
+        <button type="button" id="rh-folha-imprimir-holerites" class="rh-btn-print rh-so-lista"><span class="material-symbols-outlined">print</span>Imprimir Todos Holerites</button>
+        <button type="button" id="rh-aliquotas" class="rh-btn-ghost" title="Editar alíquotas (INSS/IRRF/FGTS)"><i class="ri-settings-5-line"></i>Alíquotas</button>
       </div>
     </div>
-    <div id="rh-competencia" class="rh-competencia" style="display:none;"></div>
-    <div id="rh-resumo" class="rh-resumo" style="display:none;"></div>
     <div id="rh-folha" class="rh-folha"></div>
     <div id="rh-detalhe" style="display:none;">
       <button type="button" id="rh-voltar" class="secundario rh-voltar">← Voltar para a lista</button>
@@ -206,28 +230,40 @@ function montarPainel() {
 
   document.getElementById("rh-voltar").addEventListener("click", mostrarLista);
 
+  // Filtro e impressões ficam ligados UMA vez: a toolbar é permanente agora, então religá-los
+  // a cada carregarFolha (como era quando ela vivia dentro do innerHTML da lista) empilharia
+  // um handler novo por troca de mês. Ambos leem o DOM/estado no momento do clique.
+  ligarFiltroNomeFolha();
+  ligarImpressoesFolha();
+  document.getElementById("rh-ir-13")?.addEventListener("click", () => {
+    document.querySelector(".rh-folha-13")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
   // Quem só tem "rh" (sem master/supremo) não abre o holerite de ninguém — busca de
   // funcionário e o seletor de tipo (mensal/férias/13º/rescisão) só existem pra abrir um
   // holerite específico, então somem daqui. O mês/ano continua (filtra a lista também).
   if (podeAbrirDetalhe()) {
     carregarFuncionarios();
   } else {
-    document.getElementById("rh-busca-icone").style.display = "none";
-    document.querySelector(".rh-busca-func").style.display = "none";
+    document.getElementById("rh-busca-func-wrap").style.display = "none";
     document.getElementById("rh-select-tipo").style.display = "none";
   }
   carregarFolha();
   carregarEmpresa();
 }
 
-// Alterna entre a lista (visão geral) e o holerite de um funcionário.
+// Alterna entre a lista (visão geral) e o holerite de um funcionário. A classe no #rh-panel é
+// o que esconde da toolbar o que só serve à lista (.rh-so-lista) — os seletores de competência
+// e a busca de funcionário continuam ali, porque servem aos dois modos.
 function mostrarHolerite() {
   document.getElementById("rh-resumo").style.display = "none";
   document.getElementById("rh-folha").style.display = "none";
   document.getElementById("rh-detalhe").style.display = "block";
+  document.getElementById("rh-panel")?.classList.add("rh-modo-detalhe");
 }
 function mostrarLista() {
   document.getElementById("rh-detalhe").style.display = "none";
+  document.getElementById("rh-panel")?.classList.remove("rh-modo-detalhe");
   // Limpa a seleção atual.
   const hidden = document.getElementById("rh-func-id"); if (hidden) hidden.value = "";
   const input = document.getElementById("rh-busca-func"); if (input) input.value = "";
@@ -540,7 +576,7 @@ function renderHolerite(h) {
             <input type="text" id="rh-resc-fgts" oninput="formatReais(this)" value="${formatarReaisInput(rescisaoInput.saldoFgts)}">
           </div>
         </div>
-        <button type="button" id="rh-calc-rescisao" class="secundario">⚙️ Calcular rescisão</button>
+        <button type="button" id="rh-calc-rescisao" class="secundario"><i class="ri-settings-5-line"></i> Calcular rescisão</button>
         <small class="rh-calc-info">Aviso indenizado e férias (vencidas/proporcionais) + 1/3 são isentos de INSS/IRRF; o 13º é tributado em base separada. Confira e ajuste se precisar.</small>
       </div>` : ""}
 
@@ -567,7 +603,7 @@ function renderHolerite(h) {
         <h4>Descontos</h4>
         <div id="rh-descontos">${descontos.map((i, idx) => linha(i, idx)).join("")}</div>
         <button type="button" id="rh-add-desconto">+ Desconto</button>
-        ${(h.tipo === "rescisao" || h.tipo === "13") ? "" : `<button type="button" id="rh-calcular" class="secundario">⚙️ Calcular INSS/IRRF</button>`}
+        ${(h.tipo === "rescisao" || h.tipo === "13") ? "" : `<button type="button" id="rh-calcular" class="secundario"><i class="ri-settings-5-line"></i> Calcular INSS/IRRF</button>`}
         <small id="rh-calc-info" class="rh-calc-info"></small>
         ${descontos.some((i) => String(i.descricao) === PLANO_SAUDE_DESC) && h.planoSaude && h.planoSaude.itens && h.planoSaude.itens.length ? `
         <div class="rh-plano-detalhe">
@@ -1207,6 +1243,74 @@ async function removerComprovante() {
   }
 }
 
+// Linhas da folha atualmente na tela. Como a toolbar (filtro e impressões) é permanente e a
+// tabela é recriada a cada carregarFolha, os handlers precisam de um lugar estável pra achar
+// os dados do mês que está em exibição.
+let linhasFolhaAtual = [];
+
+// Esconde/mostra as linhas da lista conforme o texto do filtro. Só mexe no que já está
+// carregado (sem ida ao backend) e não toca nos cards de total, que seguem representando a
+// folha inteira do mês — filtrar a visão não muda o que a empresa tem a pagar.
+function aplicarFiltroNomeFolha() {
+  const elTab = document.getElementById("rh-folha");
+  const input = document.getElementById("rh-folha-busca");
+  if (!elTab || !input) return;
+  const termo = input.value.toLowerCase().trim();
+  elTab.querySelectorAll("tr.rh-folha-linha").forEach((tr) => {
+    const bate = (tr.dataset.nome || "").toLowerCase().includes(termo);
+    tr.style.display = bate ? "" : "none";
+    const detalhe = elTab.querySelector(`tr.rh-folha-detalhe[data-detalhe-de="${tr.dataset.id}"]`);
+    if (detalhe && !bate) detalhe.style.display = "none";
+  });
+}
+
+function ligarFiltroNomeFolha() {
+  document.getElementById("rh-folha-busca")?.addEventListener("input", aplicarFiltroNomeFolha);
+}
+
+// O atalho para o 13º só existe onde há 13º (nov/dez). Mostrar um botão que rola pra lugar
+// nenhum nos outros meses seria pior que não ter botão.
+function atualizarAtalho13(qtd) {
+  const btn = document.getElementById("rh-ir-13");
+  if (!btn) return;
+  btn.style.display = qtd > 0 ? "flex" : "none";
+  btn.title = qtd > 0 ? `${qtd} lançamento(s) de 13º neste mês — ir para a lista` : "";
+}
+
+// As duas impressões respeitam o filtro: valem as linhas visíveis no momento do clique.
+function linhasVisiveisFolha() {
+  const elTab = document.getElementById("rh-folha");
+  if (!elTab) return [];
+  const idsVisiveis = new Set(
+    Array.from(elTab.querySelectorAll("tr.rh-folha-linha"))
+      .filter((tr) => tr.style.display !== "none")
+      .map((tr) => tr.dataset.id)
+  );
+  return linhasFolhaAtual.filter((l) => idsVisiveis.has(String(l.idfuncionario)));
+}
+
+function ligarImpressoesFolha() {
+  // "Imprimir lista": o relatório da tela (nome + valores + status de conferência), inclusive
+  // as linhas ainda em Previsão — útil pra bater o olho/assinar que a folha toda foi revisada.
+  document.getElementById("rh-folha-imprimir-lista")?.addEventListener("click", () => {
+    imprimirListaConferencia(linhasVisiveisFolha(), mesSel, anoSel);
+  });
+
+  // "Imprimir holerites": os documentos de verdade (2 vias cada) — só quem já está PAGO (ex.:
+  // 10 pagos + 50 pendentes na tela = imprime só os 10). Pendente/Previsão ainda pode mudar
+  // antes do pagamento, então não é hora de gerar o documento definitivo pro funcionário.
+  document.getElementById("rh-folha-imprimir-holerites")?.addEventListener("click", () => {
+    const listaImprimir = linhasVisiveisFolha()
+      .filter((l) => l.origem === "real" && l.status === "Pago")
+      .map((l) => ({ idfuncionario: l.idfuncionario, mes: mesSel, ano: anoSel, tipo: "mensal" }));
+    if (!listaImprimir.length) {
+      Swal.fire("Nada para imprimir", "Nenhum holerite pago nessa lista — só é possível imprimir depois do pagamento.", "warning");
+      return;
+    }
+    imprimirHoleritesEmLote(listaImprimir);
+  });
+}
+
 // ===== Visão geral da folha do mês (todos os funcionários) =====
 // Mostra, por funcionário, o que será pago/descontado no mês. Quem já tem holerite entra
 // com valores reais; quem não tem entra como PREVISÃO (réplica do mês anterior recalculando
@@ -1229,7 +1333,15 @@ async function carregarFolha() {
     const elComp = document.getElementById("rh-competencia");
     if (elComp && data.mesComp && data.anoComp) {
       elComp.style.display = "flex";
-      elComp.innerHTML = competenciaHtml(mesSel, anoSel, data.mesComp, data.anoComp);
+      // O chip de dias fecha a leitura da linha: salário é do mês trabalhado, VA/VT é do mês
+      // de vencimento e vale por este número de dias (seg–sex do mês, feriado não desconta).
+      // Cada linha ainda mostra os dias dela, que podem ser menos em caso de ajuste.
+      elComp.innerHTML = competenciaHtml(mesSel, anoSel, data.mesComp, data.anoComp)
+        + (data.diasUteis
+          ? `<div class="rh-mes-chip dias" title="Dias de segunda a sexta em ${MESES[mesSel - 1]}/${anoSel}; feriado não desconta. VA/VT = valor por dia (cadastro) × esses dias.">
+               <span>VA / VT pagos</span><strong>${data.diasUteis} dias</strong>
+             </div>`
+          : "");
     }
 
     if (elTot) {
@@ -1245,6 +1357,7 @@ async function carregarFolha() {
 
     if (!linhas.length) {
       elTab.innerHTML = '<p class="rh-vazio">Nenhum funcionário de salário fixo nesta empresa.</p>';
+      linhasFolhaAtual = []; // sem lista na tela, as impressões não têm o que levar
       return;
     }
 
@@ -1274,34 +1387,55 @@ async function carregarFolha() {
     // então já cobre VA+VT e qualquer outro benefício que venha a existir).
     const valorItemBenef = (l, descricao) => (l.itens || []).find((i) => i.tipo === "B" && i.descricao === descricao)?.valor || 0;
 
+    // Célula de VA/VT com a quantidade de dias embaixo do valor. Os dias saem de
+    // valor ÷ valor-dia do cadastro, e não do total de dias do mês: assim uma competência já
+    // conferida com ajuste (falta, admissão no meio do mês) mostra os dias que ela realmente
+    // pagou, em vez de repetir o número do mês cheio pra todo mundo. Sem valor-dia cadastrado
+    // não dá pra dividir — aí mostra só o valor.
+    const celulaBenef = (l, descricao, valorDia, extraClasse = "") => {
+      const valor = Number(valorItemBenef(l, descricao)) || 0;
+      const dia = Number(valorDia) || 0;
+      const dias = dia > 0 ? Math.round(valor / dia) : null;
+      const detalhe = dias !== null
+        ? `<span class="rh-dias-benef" title="${dias} dia(s) × ${formatarReaisInput(dia)} por dia">${dias} dia${dias === 1 ? "" : "s"}</span>`
+        : "";
+      return `<td class="rh-col-num ${extraClasse}">${formatarReaisInput(valor)}${detalhe}</td>`;
+    };
+
     elTab.innerHTML = `
-      <div class="rh-folha-toolbar">
-        <div class="rh-folha-busca">
-          <span class="material-symbols-outlined">search</span>
-          <input type="text" id="rh-folha-busca" placeholder="Buscar por nome na lista..." autocomplete="off">
-        </div>
-        <div class="rh-folha-toolbar-acoes">
-          <button type="button" id="rh-folha-imprimir-lista" class="rh-btn-print"><span class="material-symbols-outlined">checklist</span>Imprimir lista</button>
-          <button type="button" id="rh-folha-imprimir-holerites" class="rh-btn-print"><span class="material-symbols-outlined">print</span>Imprimir Todos Holerites</button>
-        </div>
-      </div>
       <table class="rh-folha-tab">
         <thead>
-          <tr><th></th><th>Funcionário</th><th>Proventos</th><th>Descontos</th><th>Líquido</th><th>Status Pgto</th><th>Confer. Salário</th><th>VA</th><th>VT</th><th>Total Benefícios</th><th>Confer. Benefícios</th></tr>
+          <!-- As classes abaixo é que carregam o alinhamento/largura de cada coluna (ver
+               Style.css). Antes isso vinha de nth-child, que quebrava calado a cada coluna
+               inserida no meio. A classe rh-grupo-benef marca onde começa o bloco de
+               benefícios (VA/VT), separado do bloco de salário por uma divisória. -->
+          <tr>
+            <th class="rh-col-expand"></th>
+            <th class="rh-col-nome">Funcionário</th>
+            <th class="rh-col-num">Proventos</th>
+            <th class="rh-col-num">Descontos</th>
+            <th class="rh-col-num">Líquido</th>
+            <th class="rh-col-status">Status Pgto</th>
+            <th class="rh-col-conferencia">Confer. Salário</th>
+            <th class="rh-col-num rh-grupo-benef">VA</th>
+            <th class="rh-col-num">VT</th>
+            <th class="rh-col-num">Total Benefícios</th>
+            <th class="rh-col-conferencia">Confer. Benefícios</th>
+          </tr>
         </thead>
         <tbody>
           ${linhas.map((l) => `
             <tr class="rh-folha-linha" data-id="${l.idfuncionario}" data-nome="${escHtml(l.nome)}" title="${podeEditar ? "Abrir holerite" : "Ver detalhes"}">
-              <td class="rh-expand-col"><button type="button" class="rh-expand-btn" data-expand="${l.idfuncionario}" title="Ver detalhes">▸</button></td>
-              <td>${l.nome || ""}${montarResumoInline(l)}</td>
-              <td>${formatarReaisInput(l.proventos)}</td>
-              <td>${formatarReaisInput(l.descontos)}</td>
-              <td><strong>${formatarReaisInput(l.liquido)}</strong></td>
-              <td>${badge(l)}</td>
+              <td class="rh-col-expand"><button type="button" class="rh-expand-btn" data-expand="${l.idfuncionario}" title="Ver detalhes">▸</button></td>
+              <td class="rh-col-nome"><span class="rh-nome">${l.nome || ""}</span>${montarResumoInline(l)}</td>
+              <td class="rh-col-num">${formatarReaisInput(l.proventos)}</td>
+              <td class="rh-col-num">${formatarReaisInput(l.descontos)}</td>
+              <td class="rh-col-num"><strong>${formatarReaisInput(l.liquido)}</strong></td>
+              <td class="rh-col-status">${badge(l)}</td>
               <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
-              <td>${formatarReaisInput(valorItemBenef(l, "Vale-Alimentação"))}</td>
-              <td>${formatarReaisInput(valorItemBenef(l, "Vale-Transporte"))}</td>
-              <td>${formatarReaisInput(l.beneficios)}</td>
+              ${celulaBenef(l, "Vale-Alimentação", l.valealimDia, "rh-grupo-benef")}
+              ${celulaBenef(l, "Vale-Transporte", l.valetrnspDia)}
+              <td class="rh-col-num"><strong>${formatarReaisInput(l.beneficios)}</strong></td>
               <td class="rh-col-conferencia">${conferenciaCel(l, "benef")}</td>
             </tr>
             <tr class="rh-folha-detalhe" data-detalhe-de="${l.idfuncionario}" style="display:none;">
@@ -1314,14 +1448,19 @@ async function carregarFolha() {
         <h4>13º Salário — ${linhas13[0].parcela === "1" ? "1ª parcela" : "2ª parcela"} (vencimento ${MESES[mesSel - 1]}/${anoSel})</h4>
         <table class="rh-folha-tab">
           <thead>
-            <tr><th>Funcionário</th><th>Líquido</th><th>Status Pgto</th><th>Conferência</th></tr>
+            <tr>
+              <th class="rh-col-nome">Funcionário</th>
+              <th class="rh-col-num">Líquido</th>
+              <th class="rh-col-status">Status Pgto</th>
+              <th class="rh-col-conferencia">Conferência</th>
+            </tr>
           </thead>
           <tbody>
             ${linhas13.map((l) => `
               <tr>
-                <td>${l.nome || ""}</td>
-                <td><strong>${formatarReaisInput(l.liquido)}</strong></td>
-                <td>${badge(l)}</td>
+                <td class="rh-col-nome"><span class="rh-nome">${l.nome || ""}</span></td>
+                <td class="rh-col-num"><strong>${formatarReaisInput(l.liquido)}</strong></td>
+                <td class="rh-col-status">${badge(l)}</td>
                 <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
               </tr>`).join("")}
           </tbody>
@@ -1361,59 +1500,16 @@ async function carregarFolha() {
       }
     });
 
-    // Filtro por nome — só esconde/mostra linhas já carregadas (sem nova busca no backend),
-    // não mexe nos totais do topo (eles continuam refletindo a folha inteira do mês).
-    const inputBusca = document.getElementById("rh-folha-busca");
-    if (inputBusca) {
-      inputBusca.addEventListener("input", () => {
-        const termo = inputBusca.value.toLowerCase().trim();
-        elTab.querySelectorAll("tr.rh-folha-linha").forEach((tr) => {
-          const bate = tr.dataset.nome.toLowerCase().includes(termo);
-          tr.style.display = bate ? "" : "none";
-          const detalhe = elTab.querySelector(`tr.rh-folha-detalhe[data-detalhe-de="${tr.dataset.id}"]`);
-          if (detalhe && !bate) detalhe.style.display = "none";
-        });
-      });
-    }
-
-    // As duas impressões respeitam a mesma busca (linhas visíveis na hora do clique).
-    const linhasVisiveisAgora = () => {
-      const idsVisiveis = new Set(
-        Array.from(elTab.querySelectorAll("tr.rh-folha-linha"))
-          .filter((tr) => tr.style.display !== "none")
-          .map((tr) => tr.dataset.id)
-      );
-      return linhas.filter((l) => idsVisiveis.has(String(l.idfuncionario)));
-    };
-
-    // "Imprimir lista": o relatório da tela (nome + valores + status de conferência), inclusive
-    // as linhas ainda em Previsão — útil pra bater o olho/assinar que a folha toda foi revisada.
-    const btnImprimirLista = document.getElementById("rh-folha-imprimir-lista");
-    if (btnImprimirLista) {
-      btnImprimirLista.addEventListener("click", () => {
-        imprimirListaConferencia(linhasVisiveisAgora(), mesSel, anoSel);
-      });
-    }
-
-    // "Imprimir holerites": os documentos de verdade (2 vias cada) — só quem já está PAGO (ex.:
-    // 10 pagos + 50 pendentes na tela = imprime só os 10). Pendente/Previsão ainda pode mudar
-    // antes do pagamento, então não é hora de gerar o documento definitivo pro funcionário.
-    const btnImprimirHolerites = document.getElementById("rh-folha-imprimir-holerites");
-    if (btnImprimirHolerites) {
-      btnImprimirHolerites.addEventListener("click", () => {
-        const listaImprimir = linhasVisiveisAgora()
-          .filter((l) => l.origem === "real" && l.status === "Pago")
-          .map((l) => ({ idfuncionario: l.idfuncionario, mes: mesSel, ano: anoSel, tipo: "mensal" }));
-        if (!listaImprimir.length) {
-          Swal.fire("Nada para imprimir", "Nenhum holerite pago nessa lista — só é possível imprimir depois do pagamento.", "warning");
-          return;
-        }
-        imprimirHoleritesEmLote(listaImprimir);
-      });
-    }
+    // A tabela é nova em folha a cada troca de mês; o texto digitado no filtro continua lá,
+    // então reaplica pra lista não voltar inteira com o campo preenchido.
+    linhasFolhaAtual = linhas;
+    aplicarFiltroNomeFolha();
+    atualizarAtalho13(linhas13.length);
   } catch (err) {
     console.error("Erro ao carregar folha (RH):", err);
     elTab.innerHTML = '<p class="rh-vazio">Erro ao carregar a folha do mês.</p>';
+    linhasFolhaAtual = [];
+    atualizarAtalho13(0);
     if (elTot) elTot.style.display = "none";
   }
 }
@@ -1425,10 +1521,19 @@ const escHtml = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt
 // (montarDetalheLinha) continua existindo pra quem quiser ver tudo organizado em colunas,
 // principalmente quando a lista de itens é mais longa e o resumo fica comprido.
 function montarResumoInline(l) {
-  const partes = [`Base <b>${formatarReaisInput(l.salariobase)}</b>`];
+  // Só entra no resumo o que tem valor: numa competência ainda sem lançamento, cada linha
+  // repetia "Base R$ 0,00 · Vale-Alimentação R$ 0,00 · Vale-Transporte R$ 0,00 · INSS R$ 0,00
+  // · IRRF R$ 0,00" — uma parede de zeros que escondia justamente os funcionários que têm
+  // número pra conferir. Zerado agora é uma frase curta, e o "▸" continua mostrando tudo.
+  const partes = [];
+  if (Number(l.salariobase) > 0) partes.push(`Base <b>${formatarReaisInput(l.salariobase)}</b>`);
   (l.itens || []).forEach((i) => {
+    if (!(Number(i.valor) > 0)) return;
     partes.push(`${escHtml(i.descricao)} <b>${formatarReaisInput(i.valor)}</b>`);
   });
+  if (!partes.length) {
+    return `<span class="rh-resumo-inline rh-resumo-vazio">Sem valores nesta competência</span>`;
+  }
   return `<span class="rh-resumo-inline">${partes.join(" · ")}</span>`;
 }
 
@@ -1464,9 +1569,23 @@ function montarDetalheLinha(l) {
 async function conferirHolerite(chave, conferido) {
   const [campo, idholerite] = chave.split(":");
   const rota = campo === "benef" ? "conferir-beneficios" : "conferir";
+  // A lista é recarregada inteira de propósito: conferir o salário faz o backend regravar o
+  // snapshot da competência (PUT /holerite/:id/conferir), então os valores da própria linha, os
+  // cards de total e o "Pagos / Pendentes / Previsão" mudam junto — atualizar só a badge
+  // deixaria o resto da tela mentindo. O que não pode é perder o lugar: sem guardar a rolagem,
+  // quem está conferindo o 40º funcionário voltava pro topo a cada clique e tinha que procurar
+  // de novo onde parou.
+  const painel = document.getElementById("rh-panel");
+  const posPainel = painel ? painel.scrollTop : 0;
+  const posJanela = window.scrollY;
   try {
     await fetchComToken(`/rh/holerite/${idholerite}/${rota}`, { method: "PUT", body: { conferido } });
-    carregarFolha();
+    await carregarFolha();
+    // Depois do repaint: restaurar antes da tabela nova existir não teria altura pra rolar.
+    requestAnimationFrame(() => {
+      if (painel) painel.scrollTop = posPainel;
+      window.scrollTo(0, posJanela);
+    });
   } catch (err) {
     console.error("Erro ao conferir holerite (RH):", err);
     Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível registrar a conferência.", confirmButtonText: "Ok" });
