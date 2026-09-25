@@ -854,13 +854,24 @@ router.get("/holerite", apenasEdicao, async (req, res) => {
       [h.idholerite]
     )).rows;
 
+    // Mesma regra de rascunho usada por computarLinhaFolha (tela de Folha/Vencimentos): enquanto
+    // NÃO conferido, o salário base vem do cadastro atual (funcionarioempresas.salario), não do
+    // que ficou gravado no holerite. Sem isso, um holerite pré-gerado automaticamente
+    // (garantirHoleriteMensal/garantirHolerite13, que nascem com o salário de quando rodaram —
+    // 0 pra quem ainda não tinha salário cadastrado) ficava preso nesse valor: cadastrar/corrigir
+    // o salário do funcionário não refletia nunca na tela do holerite. Depois de conferido, usa
+    // o snapshot congelado (h.salariobase), gravado por PUT /holerite/:id/conferir.
+    const salariobase = h.conferido
+      ? Number(h.salariobase) || 0
+      : Number(funcionario.salario) || 0;
+
     res.json({
       holerite: {
         idholerite: h.idholerite, idfuncionario, nome: funcionario.nome,
-        mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase: Number(h.salariobase) || 0,
+        mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase,
         ...dadosFunc,
         status: h.status, dtpagamento: h.dtpagamento, obs: h.obs, comprovante: h.comprovante || null,
-        itens, ...calcularTotais(h.salariobase, itens, h.tipo),
+        itens, ...calcularTotais(salariobase, itens, h.tipo),
       },
     });
   } catch (error) {
