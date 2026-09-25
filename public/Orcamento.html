@@ -202,16 +202,28 @@
                     <div id="itensSecaoCompleta">
                     <div class = 'Selects'>
                         <div class="selectFuncao">
-                            <label for="idFuncao">Função:</label>
-                            <select class="idFuncao" id="selectFuncao"></select>
+                            <label for="buscaFuncao">Função:</label>
+                            <!-- Busca padrão do sistema (input + sugestões): o <select> continua
+                                 aqui, escondido, porque todo o fluxo de itens lê seu value/options
+                                 e escuta o 'change'. Ver ligarBuscaProdutoOrc em Orcamentos.js. -->
+                            <div class="busca-select">
+                                <input type="text" id="buscaFuncao" class="buscaProdutoOrc" data-busca-select="selectFuncao" autocomplete="off" placeholder="Selecione Função">
+                                <select class="idFuncao" id="selectFuncao"></select>
+                            </div>
                         </div>
                         <div class="selectEquip">
-                            <label for="idEquipamento">Equipamento:</label>
-                            <select class="idEquipamento" id="selectEquipamento" ></select>
+                            <label for="buscaEquipamento">Equipamento:</label>
+                            <div class="busca-select">
+                                <input type="text" id="buscaEquipamento" class="buscaProdutoOrc" data-busca-select="selectEquipamento" autocomplete="off" placeholder="Selecione Equipamento">
+                                <select class="idEquipamento" id="selectEquipamento" ></select>
+                            </div>
                         </div>
                         <div class="selectSup">
-                            <label for="idSuprimento">Suprimento:</label>
-                            <select class="idSuprimento" id="selectSuprimento"></select>
+                            <label for="buscaSuprimento">Suprimento:</label>
+                            <div class="busca-select">
+                                <input type="text" id="buscaSuprimento" class="buscaProdutoOrc" data-busca-select="selectSuprimento" autocomplete="off" placeholder="Selecione Suprimento">
+                                <select class="idSuprimento" id="selectSuprimento"></select>
+                            </div>
                         </div>
                     </div>
 
