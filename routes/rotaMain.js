@@ -3326,14 +3326,30 @@ const storage = multer.diskStorage({
             .replace(/\s+/g, '') // Remove espaços
             .replace(/[^a-zA-Z0-9]/g, ''); // Remove símbolos
 
-        // 3. Criar uma data legível (AAAAMMDD) em vez de apenas o timestamp puro
-        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+        // 3. Carimbo de data e hora LOCAL (AAAAMMDD-HHMMSS).
+        // Antes era só AAAAMMDD (e vindo de toISOString(), ou seja, UTC — o que ainda por
+        // cima virava o dia às 21h no horário de Brasília). Sem hora/minuto/segundo, dois
+        // uploads do MESMO arquivo no mesmo dia — típico de parcelas diferentes do mesmo
+        // lançamento recorrente, ex. agosto e setembro — geravam nomes idênticos
+        // (imagemboleto-ID0-20260925-conta.pdf) e o multer SOBRESCREVIA o arquivo anterior
+        // no disco: o registro de agosto passava a apontar pro boleto de setembro.
+        // O caso do ID0 é o pior: parcela futura ainda sem idpagamento, todas caem no mesmo "ID0".
+        const agora = new Date();
+        const p2 = n => String(n).padStart(2, '0');
+        const dataHoje = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}`;
+        const horaAgora = `${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
 
         const ext = path.extname(file.originalname).toLowerCase();
-        
-        // FORMATO FINAL: comprovantepgto-ID133-20260303-aguaIndaiatuba.jfif
-        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
-        
+
+        // 4. Discriminante da parcela: qual vencimento este anexo representa.
+        // Deixa explícito no nome do arquivo a qual mês ele pertence, e blinda o caso de
+        // dois uploads dispararem dentro do mesmo segundo.
+        const vctoArquivo = req.body.dtvcto ? String(req.body.dtvcto).slice(0, 10).replace(/-/g, '') : '';
+        const sufixoVcto = vctoArquivo ? `-V${vctoArquivo}` : '';
+
+        // FORMATO FINAL: comprovantePagamento-ID133-20260303-142735-V20260805-aguaIndaiatuba.jfif
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${horaAgora}${sufixoVcto}-${nomeOriginalLimpo}${ext}`;
+
         cb(null, nomeFinal);
     }
 });
