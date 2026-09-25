@@ -4240,7 +4240,7 @@ router.get('/contas-pagar', async (req, res) => {
         // Holerites (RH) do ano inteiro, por funcionário/mês — sempre uma linha por
         // competência (real quando já existe holerite salvo, ou PREVISÃO calculada na hora,
         // igual ao /rh/folha) pra casar com o mês efetivamente projetado na tela de Vencimentos.
-        const { obterParametros, contarDiasUteis, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior } = require('./rotaRH').helpersFolha;
+        const { obterParametros, contarDiasBeneficio, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior } = require('./rotaRH').helpersFolha;
 
         const funcsFolha = (await pool.query(
             `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
@@ -4274,7 +4274,7 @@ router.get('/contas-pagar', async (req, res) => {
                 // INSS/IRRF usam a tabela do mês TRABALHADO do salário (o anterior); dias úteis
                 // de VA/VT usam o mês vigente direto (benefício não tem defasagem).
                 const { ano: anoComp } = competenciaAnterior(mes, anoFiltro);
-                const diasUteis = contarDiasUteis(anoFiltro, mes);
+                const diasUteis = contarDiasBeneficio(anoFiltro, mes);
                 const paramsFolha = await obterParametrosCache(anoComp);
                 // Gera e persiste o holerite mensal automaticamente (réplica do mês anterior +
                 // INSS/IRRF recalculado) — o RH não precisa mais entrar todo mês pra salvar; só

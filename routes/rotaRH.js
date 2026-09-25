@@ -97,22 +97,36 @@ const PARAMS_2026 = {
   fgts_aliquota: 0.08, // FGTS = 8% sobre a remuneração (custo do empregador, não desconto)
 };
 
-// Parâmetros fiscais por ano, lidos da tabela `folhaparametros` (criada manualmente —
-// ver SQL no topo do projeto). PARAMS_2026 fica só como FALLBACK de segurança caso a
-// tabela não exista ou o ano não esteja cadastrado.
+// Parâmetros fiscais por ano, lidos da tabela `aliquotas`.
+//
+// Faixas de INSS/IRRF NÃO têm fórmula: são definidas por lei/portaria a cada ano, então não dá
+// pra "calcular" 2028 a partir de 2026 — o que dá é nunca mais precisar MEXER NO CÓDIGO por
+// virada de ano. Por isso a busca é "o ano mais recente já cadastrado que não seja maior que o
+// pedido" (ORDER BY ano DESC LIMIT 1) em vez de igualdade: enquanto a tabela do ano novo não
+// sai (costuma ser publicada em dez/jan), a folha segue rodando com a última vigente — que é
+// exatamente o que o RH faria na mão — e no minuto em que alguém cadastrar o ano novo por
+// PUT /rh/parametros/:ano, todo mundo passa a usar sozinho, sem deploy.
+//
+// PARAMS_2026 continua como último recurso, pra base sem NENHUM ano cadastrado (ou tabela
+// ausente): é melhor calcular com uma tabela velha e avisar do que devolver erro e travar a
+// folha inteira. `origemAno` volta junto pra quem quiser exibir de que ano é a tabela usada.
 async function obterParametros(ano) {
   const a = parseInt(ano, 10) || new Date().getFullYear();
   try {
     const { rows } = await pool.query(
-      `SELECT inssfaixas, irrffaixas, irrfdeducaodependente,
+      `SELECT ano, inssfaixas, irrffaixas, irrfdeducaodependente,
               irrfdescontosimplificado, irrfredutor, fgtsaliquota
-       FROM aliquotas WHERE ano = $1`,
+       FROM aliquotas WHERE ano <= $1 ORDER BY ano DESC LIMIT 1`,
       [a]
     );
     if (rows.length) {
       const r = rows[0];
+      if (r.ano !== a) {
+        console.warn(`RH: sem parâmetros fiscais de ${a} em aliquotas; usando a tabela de ${r.ano} (última vigente).`);
+      }
       // Colunas JSONB já voltam como objeto/array; NUMERIC volta como string → Number().
       return {
+        origemAno: r.ano,
         inss_faixas: r.inssfaixas,
         irrf_faixas: r.irrffaixas,
         irrf_deducao_dependente: Number(r.irrfdeducaodependente),
@@ -121,11 +135,11 @@ async function obterParametros(ano) {
         fgts_aliquota: Number(r.fgtsaliquota),
       };
     }
-    console.warn(`RH: parâmetros fiscais do ano ${a} não encontrados em aliquotas; usando fallback PARAMS_2026.`);
+    console.warn(`RH: nenhum ano <= ${a} cadastrado em aliquotas; usando fallback embutido de 2026.`);
   } catch (err) {
-    console.error("RH: erro ao ler aliquotas (usando fallback PARAMS_2026):", err.message);
+    console.error("RH: erro ao ler aliquotas (usando fallback embutido de 2026):", err.message);
   }
-  return PARAMS_2026;
+  return { origemAno: 2026, ...PARAMS_2026 };
 }
 
 // ===== Motor de cálculo (funções puras) =====
@@ -494,7 +508,6 @@ function feriadosDoAno(ano) {
   return set;
 }
 
-// Conta dias úteis (seg–sex) do mês, descontando os feriados acima.
 // O mês/ano escolhido na tela (dropdown "Mês") é o VENCIMENTO — quando o salário é pago —,
 // não o mês trabalhado: por decisão do financeiro (2026-09), quem trabalha em Agosto recebe
 // em Setembro. Por isso dias úteis/VA/VT/INSS/IRRF do holerite MENSAL usam o mês ANTERIOR ao
@@ -506,16 +519,18 @@ function competenciaAnterior(mesVencimento, anoVencimento) {
     : { mes: mesVencimento - 1, ano: anoVencimento };
 }
 
-function contarDiasUteis(ano, mes) {
-  const feriados = feriadosDoAno(ano);
+// Dias de benefício (VA/VT) do mês: TODOS os dias de segunda a sexta, SEM descontar feriado
+// — regra do RH (2026-09): o crédito de VA/VT acompanha o calendário útil do mês, e um feriado
+// no meio da semana não tira o dia do funcionário. Ex.: setembro/2026 são 22 dias, mesmo com a
+// Independência (7/9) caindo numa segunda; antes a conta devolvia 21 e o VA/VT saía um dia a
+// menos. Não confundir com ultimoDiaUtil(), que é data de PAGAMENTO e continua pulando feriado
+// (banco fechado não compensa boleto).
+function contarDiasBeneficio(ano, mes) {
   const ultimoDia = new Date(ano, mes, 0).getDate();
   let dias = 0;
   for (let d = 1; d <= ultimoDia; d++) {
-    const data = new Date(ano, mes - 1, d);
-    const dow = data.getDay(); // 0=domingo, 6=sábado
+    const dow = new Date(ano, mes - 1, d).getDay(); // 0=domingo, 6=sábado
     if (dow === 0 || dow === 6) continue;
-    const isoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    if (feriados.has(isoDia)) continue;
     dias++;
   }
   return dias;
@@ -758,6 +773,23 @@ router.post("/rescisao/calcular", apenasEdicao, async (req, res) => {
   }
 });
 
+// O booleano `conferido` sozinho NÃO prova que alguém conferiu a competência: a migration
+// 20260904_150000 criou a coluna com DEFAULT true (pra não sumir holerite antigo de Contas a
+// Pagar) e, com isso, marcou como "conferida" a base inteira que já existia. Quem confere de
+// verdade passa por PUT /holerite/:id/conferir, que grava conferido_em/conferido_por JUNTO com
+// o flag — então é o carimbo, não o boolean, que diz se o snapshot (folhaholerite.salariobase)
+// vale mais que o cadastro atual. Sem essa distinção, um holerite pré-gerado antes de o
+// salário existir ficava preso em 0: o cadastro nunca chegava na tela, porque conferido=true
+// mandava usar o snapshot zerado (e o backfill da migration 20260925_120000, sendo tiro único,
+// não alcança salário cadastrado depois que ela rodou).
+//
+// Usar SÓ pra escolher entre snapshot e cadastro. O `conferido` devolvido nas respostas
+// continua sendo o da coluna, porque GET /contas-pagar (routes/rotaMain.js) decide com ele se a
+// linha entra como "real" ou "previsão" — mudar isso tiraria lançamentos reais de Vencimentos.
+function conferidoDeFato(h) {
+  return Boolean(h && h.conferido && h.conferido_em);
+}
+
 // GET /rh/holerite?idfuncionario=&mes=&ano= — holerite da competência.
 // Se ainda não existir, devolve um rascunho (não persistido) com o salário base atual.
 router.get("/holerite", apenasEdicao, async (req, res) => {
@@ -781,13 +813,14 @@ router.get("/holerite", apenasEdicao, async (req, res) => {
     );
     if (func.rowCount === 0) return res.status(404).json({ error: "Funcionário não encontrado nesta empresa." });
     const funcionario = func.rows[0];
-    // Valores de VA/VT por DIA (cadastro) e dias úteis do mês VIGENTE (seg–sex − feriados) —
+    // Valores de VA/VT por DIA (cadastro) e dias de benefício do mês VIGENTE (seg–sex, feriado
+    // NÃO desconta — ver contarDiasBeneficio) —
     // benefício é "trabalha e recebe" no mesmo mês (sem defasagem), diferente do salário, que é
     // "trabalha num mês e recebe no seguinte" (ver competenciaAnterior, usada só pra saber em
     // qual mês/ano o salário foi trabalhado e qual tabela de INSS/IRRF vale).
     const valealimDia = Number(funcionario.valealim) || 0;
     const valetrnspDia = Number(funcionario.valetrnsp) || 0;
-    const diasUteis = contarDiasUteis(ano, mes);
+    const diasUteis = contarDiasBeneficio(ano, mes);
     const competencia = tipo === "mensal" ? competenciaAnterior(mes, ano) : { mes, ano };
 
     // Plano de saúde: desconto por faixa etária (titular + dependentes) na competência.
@@ -861,9 +894,36 @@ router.get("/holerite", apenasEdicao, async (req, res) => {
     // 0 pra quem ainda não tinha salário cadastrado) ficava preso nesse valor: cadastrar/corrigir
     // o salário do funcionário não refletia nunca na tela do holerite. Depois de conferido, usa
     // o snapshot congelado (h.salariobase), gravado por PUT /holerite/:id/conferir.
-    const salariobase = h.conferido
+    // "Conferido" aqui é o carimbo, não o flag — ver conferidoDeFato acima.
+    const salariobase = conferidoDeFato(h)
       ? Number(h.salariobase) || 0
       : Number(funcionario.salario) || 0;
+
+    // Rascunho (não conferido de fato) e mensal: os itens AUTOMÁTICOS também são recalculados
+    // do cadastro na leitura — VA/VT por dias de benefício do mês e INSS/IRRF sobre o salário.
+    // Esta rota era a única das três que ainda devolvia o que estava gravado em folhaitens: a
+    // lista (computarLinhaFolha) já remonta ao vivo e o PUT /conferir regrava na hora de
+    // fechar, então a tela individual mostrava outro número que as outras duas — VA/VT com a
+    // contagem de dias de quando o holerite foi pré-gerado, e INSS/IRRF de um salário que na
+    // época ainda era 0.
+    //
+    // A troca é item a item, casando pela descrição, e NÃO um montarItensDoZero substituindo a
+    // lista inteira: o que foi lançado à mão (plano de saúde, adiantamento, bonificação...)
+    // continua intacto. Depois de conferido, nada aqui roda — vale o snapshot.
+    if (!conferidoDeFato(h) && (h.tipo || "mensal") === "mensal") {
+      const paramsComp = await obterParametros(competencia.ano);
+      const automaticos = montarItensDoZero(funcionario, paramsComp, diasUteis);
+      const pendentes = new Map(automaticos.map((i) => [i.descricao, i]));
+      itens.forEach((item) => {
+        const auto = pendentes.get(item.descricao);
+        if (!auto) return;
+        item.valor = auto.valor;
+        pendentes.delete(item.descricao);
+      });
+      // Item automático que nem existia no holerite gravado (ex.: pré-gerado antes de o
+      // funcionário ter VA/VT cadastrado) entra agora, senão a tela some com a linha.
+      pendentes.forEach((auto) => itens.push({ iditem: null, ...auto }));
+    }
 
     res.json({
       holerite: {
@@ -1032,7 +1092,7 @@ router.put("/holerite/:id/conferir", async (req, res) => {
         )).rows[0];
         if (func) {
           const params = await obterParametros(linha.ano);
-          const diasUteis = contarDiasUteis(linha.ano, linha.mes);
+          const diasUteis = contarDiasBeneficio(linha.ano, linha.mes);
           const salariobase = Number(func.salario) || 0;
           const itensNovos = montarItensDoZero(func, params, diasUteis);
           await pool.query(`UPDATE folhaholerite SET salariobase = $1 WHERE idholerite = $2`, [salariobase, idholerite]);
@@ -1246,7 +1306,9 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
     // salário/VA/VT no cadastro nunca aparece pra ninguém, porque a linha nasceu (e ficou presa)
     // com o valor de quando foi pré-gerada, meses atrás. Só depois de conferido é que o valor
     // vira definitivo (ver PUT /holerite/:id/conferir, que grava o snapshot na hora de confirmar).
-    if (!head.conferido) {
+    // Conferido = com carimbo de quem/quando (conferidoDeFato), não só o flag: a base herdou
+    // conferido=true de um DEFAULT de migration e ficaria presa num snapshot que ninguém revisou.
+    if (!conferidoDeFato(head)) {
       const salariobase = Number(f.salario) || 0;
       const itens = montarItensDoZero(f, params, diasUteis);
       const t = calcularTotais(salariobase, itens);
@@ -1257,6 +1319,9 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
         conferidoBeneficios: head.conferido_beneficios, conferidoBeneficiosEm: head.conferido_beneficios_em,
         statusBeneficios: head.status_beneficios, dtpagamentoBeneficios: head.dtpagamento_beneficios,
         salariobase, itens,
+        // Valor/dia do cadastro: a lista usa pra mostrar em quantos dias o VA/VT foi pago
+        // (valor ÷ valor-dia), sem precisar abrir o holerite.
+        valealimDia: Number(f.valealim) || 0, valetrnspDia: Number(f.valetrnsp) || 0,
         proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
       };
     }
@@ -1275,6 +1340,7 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
       conferidoBeneficios: head.conferido_beneficios, conferidoBeneficiosEm: head.conferido_beneficios_em,
       statusBeneficios: head.status_beneficios, dtpagamentoBeneficios: head.dtpagamento_beneficios,
       salariobase, itens,
+      valealimDia: Number(f.valealim) || 0, valetrnspDia: Number(f.valetrnsp) || 0,
       proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
     };
   }
@@ -1289,6 +1355,7 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
     conferido: false, conferidoEm: null, conferidoBeneficios: false, conferidoBeneficiosEm: null,
     statusBeneficios: "Previsão", dtpagamentoBeneficios: null,
     salariobase, itens,
+    valealimDia: Number(f.valealim) || 0, valetrnspDia: Number(f.valetrnsp) || 0,
     proventos: t.proventos, descontos: t.descontos, beneficios: t.beneficios, liquido: t.liquido,
   };
 }
@@ -1511,7 +1578,7 @@ router.get("/folha", async (req, res) => {
     // recebe no mesmo mês).
     const { mes: mesComp, ano: anoComp } = competenciaAnterior(mes, ano);
     const params = await obterParametros(anoComp);
-    const diasUteis = contarDiasUteis(ano, mes);
+    const diasUteis = contarDiasBeneficio(ano, mes);
 
     const funcs = (await pool.query(
       `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
@@ -1566,7 +1633,7 @@ router.get("/folha", async (req, res) => {
 // Helpers reaproveitados por routes/rotaMain.js (GET /contas-pagar) pra casar cada conta de
 // funcionário projetada com a folha (real ou prevista) da mesma competência.
 router.helpersFolha = {
-  obterParametros, contarDiasUteis, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13,
+  obterParametros, contarDiasBeneficio, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13,
   garantirHolerite13, PERFIS_FOLHA, competenciaAnterior, calcularINSS, calcularIRRF, VA_DESC, VT_DESC,
   montarItensDoZero,
 };

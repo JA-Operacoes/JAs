@@ -3218,7 +3218,7 @@ input#search-aside {
     display: block;
     width: 100%;
     max-width: 10000px;
-    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
+    margin: 138px auto 0px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -3237,50 +3237,132 @@ input#search-aside {
     margin-bottom: 24px;
   }
   #rh-panel .rh-header h2 { font-size: 22px; font-weight: 700; margin: 0; }
-  #rh-panel .rh-controls {
+
+  /* Barra única de controles, logo acima da lista que ela comanda (ver #rh-toolbar em RH.js).
+     Mesmo material dos cards de total: superfície 1, borda 1, raio 8 — assim ela lê como parte
+     da tela, e não como a faixa solta que flutuava no topo. Duas metades: filtros à esquerda,
+     ações à direita; com pouca largura, a direita quebra pra linha de baixo (flex-wrap) em vez
+     de espremer os campos. */
+  #rh-panel .rh-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 16px;
     background: var(--surface-1);
     border: 1px solid var(--border-1);
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
   }
-  #rh-panel .rh-controls .material-symbols-outlined { color: var(--text-2); }
-  #rh-panel .rh-controls select {
+  #rh-panel .rh-toolbar-filtros,
+  #rh-panel .rh-toolbar-acoes {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  /* Os dois campos de busca: o da esquerda abre o holerite de alguém, o outro filtra a lista.
+     Como fazem coisas diferentes com a mesma cara, cada um ganha um ícone próprio (lupa x
+     funil) — é o que evita o "dois campos iguais na mesma linha". */
+  #rh-panel .rh-campo-busca {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-1);
+    border-radius: 20px;
+    padding: 4px 12px;
+    height: 34px;
+  }
+  #rh-panel .rh-campo-busca .material-symbols-outlined { font-size: 18px; color: var(--text-3); }
+  /* O [type="text"] no seletor não é decoração: mais abaixo existe um
+     `#rh-panel input[type="text"]` (borda + raio + padding, para os campos do holerite) com a
+     MESMA especificidade e declarado DEPOIS desta regra — sem o atributo aqui, ele vencia o
+     desempate e o campo ganhava uma segunda caixa dentro da pílula. */
+  #rh-panel .rh-campo-busca input[type="text"] {
     border: none;
-    border-bottom: 2px solid var(--border-2);
+    outline: none;
     background: transparent;
-    padding: 4px 6px;
-    font-size: 14px;
+    box-shadow: none;
+    font-size: 13px;
+    color: var(--text-1);
+    padding: 0;
+    height: auto;
+    width: 210px;
+  }
+  #rh-panel .rh-toolbar select {
+    height: 34px;
+    border: 1px solid var(--border-1);
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-1);
+    padding: 0 10px;
+    font-size: 13px;
+    font-family: var(--Font-primary);
   }
   #rh-panel .rh-select-label {
     font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px;
     margin-left: 4px; cursor: help;
   }
+  /* "Alíquotas" é ação secundária (configuração, não operação do mês): mesma pílula dos botões
+     de impressão, só que discreta — assim não compete com "Imprimir" nem com a lista. */
+  #rh-panel .rh-btn-ghost {
+    display: flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 14px;
+    border: 1px solid var(--border-2); border-radius: 20px;
+    background: transparent; color: var(--text-2);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: var(--Font-primary);
+    transition: all .2s ease;
+  }
+  #rh-panel .rh-btn-ghost i { font-size: 16px; }
+  #rh-panel .rh-btn-ghost:hover { background: var(--surface-3); color: var(--text-1); }
+  /* Atalho "Ir para o 13º": azul do chip de mês trabalhado, pra não se confundir nem com as
+     impressões (vermelho) nem com Alíquotas (neutro) — é navegação, não ação sobre os dados. */
+  #rh-panel .rh-btn-atalho {
+    display: flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 14px;
+    border: 2px solid #3a63c0; border-radius: 20px;
+    background: var(--surface-1); color: #3a63c0;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: var(--Font-primary);
+    transition: all .2s ease;
+  }
+  #rh-panel .rh-btn-atalho .material-symbols-outlined { font-size: 18px; }
+  #rh-panel .rh-btn-atalho:hover { background: #3a63c0; color: var(--on-brand); }
+  /* Filtrar e imprimir a lista não fazem sentido com um holerite aberto — mas os seletores de
+     competência e a busca de funcionário continuam, porque servem aos dois modos. */
+  #rh-panel.rh-modo-detalhe .rh-so-lista { display: none; }
 
   /* Chips "Vencimento × Mês trabalhado" — o dropdown seleciona o vencimento; dias
      úteis/VA/VT/INSS/IRRF usam o mês anterior a esse (ver competenciaHtml em RH.js). */
   #rh-panel .rh-competencia { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  /* Chips maiores de propósito: é a informação que mais confunde na tela (o mês escolhido é o
+     do PAGAMENTO, o trabalhado é o anterior), então precisa ser lida de relance, não decifrada. */
   #rh-panel .rh-mes-chip {
-    display: flex; flex-direction: column; gap: 1px; padding: 6px 14px;
-    border-radius: 8px; border-left: 3px solid transparent;
+    display: flex; flex-direction: column; gap: 2px; padding: 10px 18px;
+    border-radius: 8px; border-left: 4px solid transparent;
   }
-  #rh-panel .rh-mes-chip span { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); }
-  #rh-panel .rh-mes-chip strong { font-size: 14px; }
+  #rh-panel .rh-mes-chip span { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-2); }
+  #rh-panel .rh-mes-chip strong { font-size: 19px; font-weight: 700; }
   #rh-panel .rh-mes-chip.venc { background: var(--status-erro-bg); border-left-color: #942123; }
   #rh-panel .rh-mes-chip.venc strong { color: #942123; }
   #rh-panel .rh-mes-chip.trab { background: var(--status-info-bg); border-left-color: #3a63c0; }
   #rh-panel .rh-mes-chip.trab strong { color: #3a63c0; }
-  #rh-panel .rh-mes-seta { color: var(--text-3); font-size: 16px; }
+  /* Dias de VA/VT: informativo, fora do par vencimento×trabalhado (por isso o cinza neutro e
+     o afastamento à esquerda — não faz parte da seta que liga os dois meses). */
+  #rh-panel .rh-mes-chip.dias {
+    background: var(--surface-2); border-left-color: var(--border-2); margin-left: 8px; cursor: help;
+  }
+  #rh-panel .rh-mes-chip.dias strong { color: var(--text-1); }
+  #rh-panel .rh-mes-seta { color: var(--text-3); font-size: 22px; }
+  /* Âncora da lista suspensa de funcionários; o campo em si herda o visual de
+     .rh-campo-busca input (a pílula da toolbar). */
   #rh-panel .rh-busca-func { position: relative; }
   #rh-panel #rh-busca-func {
     border: none;
-    border-bottom: 2px solid var(--border-2);
+    outline: none;
     background: transparent;
-    padding: 4px 6px;
-    font-size: 14px;
-    width: 260px;
+    padding: 0;
+    font-size: 13px;
+    color: var(--text-1);
+    width: 230px;
   }
   #rh-panel .rh-func-lista {
     position: absolute;
@@ -3382,31 +3464,21 @@ input#search-aside {
 
   /* Visão geral da folha do mês (tabela por funcionário) */
   #rh-panel .rh-folha { margin-bottom: 20px; }
-  #rh-panel .rh-folha-toolbar {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
-  }
-  #rh-panel .rh-folha-toolbar-acoes { display: flex; gap: 8px; }
   /* Botões de impressão — pílula vermelha (mesmo padrão das abas de CEO Mode/T.I.), de propósito
-     diferente do .secundario cinza usado em "Alíquotas": aqui é fundo branco + borda vermelha em
-     repouso, vira vermelho sólido só no hover/clique. */
+     diferente do "Alíquotas" (.rh-btn-ghost, neutro): aqui é fundo claro + borda vermelha em
+     repouso, vira vermelho sólido só no hover/clique. Altura 34 pra ficar na mesma linha de base
+     dos campos e selects da toolbar. */
   #rh-panel .rh-btn-print {
     display: flex; align-items: center; gap: 6px;
-    height: 36px; padding: 0 16px;
+    height: 34px; padding: 0 16px;
     border: 2px solid #942123; border-radius: 20px;
     background: var(--surface-1); color: var(--status-erro-fg);
     font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: var(--Font-primary);
     transition: all .2s ease;
   }
   #rh-panel .rh-btn-print .material-symbols-outlined { font-size: 18px; }
   #rh-panel .rh-btn-print:hover { background: #942123; color: var(--on-brand); }
-  #rh-panel .rh-folha-busca {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 12px; background: var(--surface-1); border: 1px solid var(--border-1); border-radius: 8px; max-width: 320px;
-  }
-  #rh-panel .rh-folha-busca .material-symbols-outlined { color: var(--text-3); font-size: 20px; }
-  #rh-panel .rh-folha-busca input {
-    border: none; outline: none; flex: 1; font-size: 13px; padding: 0;
-  }
   #rh-panel .rh-folha-tab { width: 100%; border-collapse: collapse; font-size: 14px; }
   #rh-panel .rh-folha-tab th,
   #rh-panel .rh-folha-tab td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-1); }
@@ -3423,29 +3495,51 @@ input#search-aside {
     background: var(--surface-1);
     box-shadow: inset 0 -1px 0 var(--border-1);
   }
-  #rh-panel .rh-folha-tab td:nth-child(3),
-  #rh-panel .rh-folha-tab td:nth-child(4),
-  #rh-panel .rh-folha-tab td:nth-child(5),
-  #rh-panel .rh-folha-tab td:nth-child(8),
-  #rh-panel .rh-folha-tab td:nth-child(9),
-  #rh-panel .rh-folha-tab td:nth-child(10),
-  #rh-panel .rh-folha-tab th:nth-child(3),
-  #rh-panel .rh-folha-tab th:nth-child(4),
-  #rh-panel .rh-folha-tab th:nth-child(5),
-  #rh-panel .rh-folha-tab th:nth-child(8),
-  #rh-panel .rh-folha-tab th:nth-child(9),
-  #rh-panel .rh-folha-tab th:nth-child(10) { text-align: right; font-variant-numeric: tabular-nums; }
+  /* Colunas por PAPEL, não por posição (as classes vêm de RH.js): números à direita e em
+     tabular-nums pra casar as vírgulas na vertical, e nowrap porque "R$ 3.000,00" quebrando
+     em duas linhas ("R$" em cima, valor embaixo) era o que mais embaralhava a leitura. */
+  #rh-panel .rh-folha-tab th.rh-col-num,
+  #rh-panel .rh-folha-tab td.rh-col-num {
+    text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap;
+    padding-left: 8px; padding-right: 8px;
+  }
+  /* O nome é a única coluna elástica: absorve a sobra pra que as de valor fiquem justas,
+     encostadas umas nas outras e alinhadas de cima a baixo. */
+  #rh-panel .rh-folha-tab th.rh-col-nome,
+  #rh-panel .rh-folha-tab td.rh-col-nome { width: 100%; min-width: 240px; }
+  #rh-panel .rh-folha-tab .rh-nome { font-weight: 600; }
+  /* Quantidade de dias sob o valor de VA/VT: secundário, não pode competir com o número —
+     é contexto ("R$ 880,00 referentes a 22 dias"), não um segundo valor. */
+  #rh-panel .rh-dias-benef {
+    display: block; font-size: 10.5px; color: var(--text-3); margin-top: 1px; cursor: help;
+  }
+  #rh-panel .rh-folha-tab th.rh-col-status,
+  #rh-panel .rh-folha-tab td.rh-col-status,
+  #rh-panel .rh-folha-tab th.rh-col-conferencia,
+  #rh-panel .rh-folha-tab td.rh-col-conferencia { text-align: center; white-space: nowrap; }
+  /* Divisória entre o bloco do salário e o dos benefícios (VA/VT/Total/Conferência): são duas
+     conferências independentes, que vencem em datas diferentes, e sem a separação a linha
+     virava uma fileira só de números parecidos. */
+  #rh-panel .rh-folha-tab th.rh-grupo-benef,
+  #rh-panel .rh-folha-tab td.rh-grupo-benef { border-left: 1px solid var(--border-1); }
   #rh-panel .rh-folha-tab tbody tr.rh-folha-linha { cursor: pointer; transition: background .12s; }
-  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:hover { background: var(--surface-3); }
+  /* Zebra: cada funcionário ocupa DOIS <tr> (a linha e o detalhe escondido do "▸"), por isso
+     o passo é 4n — assim alterna de funcionário em funcionário, não de <tr> em <tr>. */
+  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:nth-of-type(4n+3) { background: var(--surface-2); }
+  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:hover,
+  #rh-panel .rh-folha-tab tbody tr.rh-folha-linha:nth-of-type(4n+3):hover { background: var(--surface-3); }
 
   /* 13º salário: só aparece em nov/dez (vencimento de cada parcela), lista separada da folha
      mensal — sem benefícios (VA/VT), por isso só tem uma coluna de conferência. */
-  #rh-panel .rh-folha-13 { margin-top: 28px; }
+  /* scroll-margin-top: o atalho "Ir para o 13º" usa scrollIntoView, e sem essa folga o título
+     da seção pararia embaixo do cabeçalho grudado da tabela de cima. */
+  #rh-panel .rh-folha-13 { margin-top: 28px; scroll-margin-top: 16px; }
   #rh-panel .rh-folha-13 h4 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); }
 
   /* Coluna do "▸" que expande o detalhe (proventos/benefícios/descontos) de cada linha —
      sempre visível, mesmo pra quem só tem "rh" e não abre o holerite individual. */
-  #rh-panel .rh-folha-tab td.rh-expand-col { width: 28px; padding-right: 0; }
+  #rh-panel .rh-folha-tab th.rh-col-expand,
+  #rh-panel .rh-folha-tab td.rh-col-expand { width: 28px; padding-right: 0; }
   #rh-panel .rh-expand-btn {
     background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-2);
     width: 22px; height: 22px; border-radius: 4px; padding: 0;
@@ -3465,6 +3559,11 @@ input#search-aside {
     background: none; border: none; color: var(--text-3); font-size: 11px; text-decoration: underline;
     cursor: pointer; margin-left: 6px; padding: 0;
   }
+  /* Na lista, o "desfazer" fica numa segunda linha centralizada sob a badge: como inline com
+     margin-left ele quebrava sozinho e caía desencostado, puxando a coluna pra esquerda. */
+  #rh-panel .rh-col-conferencia .rh-badge + .rh-link-desfazer {
+    display: block; margin: 3px auto 0;
+  }
   #rh-panel .rh-link-desfazer:hover { color: #942123; }
 
   /* Resumo em texto direto embaixo do nome — dá pra conferir sem abrir o "▸" (ver
@@ -3472,6 +3571,9 @@ input#search-aside {
      a tabela ou cortar texto. */
   #rh-panel .rh-resumo-inline { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
   #rh-panel .rh-resumo-inline b { color: var(--text-2); font-weight: 600; }
+  /* Competência sem nada lançado: uma frase discreta no lugar da fileira de "R$ 0,00" (ver
+     montarResumoInline em RH.js) — o que tem valor é que precisa saltar aos olhos. */
+  #rh-panel .rh-resumo-inline.rh-resumo-vazio { font-style: italic; opacity: .65; }
 
   /* Linha de detalhe (proventos/benefícios/descontos), read-only — some/aparece com o "▸". */
   #rh-panel .rh-folha-tab tr.rh-folha-detalhe td { background: var(--surface-1); padding: 14px 20px; cursor: default; }
