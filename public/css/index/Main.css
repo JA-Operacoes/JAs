@@ -4145,7 +4145,7 @@ body:not(.ti-mode):not(.ceo-mode):not(.rh-mode):not(.almox-mode) main#conteudo {
   border: 2px solid var(--primary-color, #942123);
   border-radius: 20px;
   background-color: var(--surface-1);
-  color: var(--primary-texto, #942123);
+  color: var(--text-1);
   font-family: var(--Font-primary);
   font-size: 13px;
   font-weight: 600;
