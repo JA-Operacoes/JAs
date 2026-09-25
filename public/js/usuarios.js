@@ -55,12 +55,13 @@ function aplicarRegraAcessoNaLinha(linha) {
 // Qualquer usuário com acesso a esta tela pode conceder a permissão Devs a outro
 // usuário — não há mais restrição de "só quem já é devs pode conceder devs".
 
-// Acessos especiais (Admin Supremo, Master, Financeiro, Comercial, RH, Devs) não são
+// Acessos especiais (Admin Supremo, Master, Financeiro, Comercial, RH, Devs, TI,
+// Camisetas) não são
 // mais por módulo — é um único controle (ver CadUsuarios.html,
 // .acessos-especiais-global-row) aplicado, no momento de salvar, a todos os módulos
 // que estiverem com "Acesso" marcado (ver btnsalvarPermissao). Não liga o Acesso
 // sozinho (decisão: acesso especial não deve dar acesso ao módulo).
-const CAMPOS_ESPECIAIS_GLOBAL = ['supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs', 'ti'];
+const CAMPOS_ESPECIAIS_GLOBAL = ['supremo', 'master', 'financeiro', 'comercial', 'rh', 'devs', 'ti', 'camisetas'];
 
 function configurarAcessosEspeciaisGlobal() {
   CAMPOS_ESPECIAIS_GLOBAL.forEach(campo => {
@@ -1729,6 +1730,16 @@ function renderizarGradePermissoes(modulos) {
       linha.appendChild(td);
     });
 
+    const tdPadrao = document.createElement('td');
+    const btnPadraoLinha = document.createElement('button');
+    btnPadraoLinha.type = 'button';
+    btnPadraoLinha.className = 'btn-padrao-linha';
+    btnPadraoLinha.textContent = 'Padrão';
+    btnPadraoLinha.title = 'Marca Acesso, Cadastrar, Alterar e Pesquisar neste módulo';
+    btnPadraoLinha.addEventListener('click', () => marcarPadraoNaLinha(linha));
+    tdPadrao.appendChild(btnPadraoLinha);
+    linha.appendChild(tdPadrao);
+
     const tdLimpar = document.createElement('td');
     const btnLimparLinha = document.createElement('button');
     btnLimparLinha.type = 'button';
@@ -1749,6 +1760,25 @@ function renderizarGradePermissoes(modulos) {
   });
 }
 
+// Atalho do dia a dia: quase todo usuário entra com Acesso + Cadastrar + Alterar +
+// Pesquisar no módulo. "Apagar" fica de fora de propósito (é destrutivo, marca-se
+// caso a caso) e os acessos especiais continuam no controle global acima da grade.
+const CAMPOS_MARCAR_PADRAO = ['acesso', 'cadastrar', 'alterar', 'pesquisar'];
+
+// Marca o conjunto padrão numa linha (módulo) do grid.
+function marcarPadraoNaLinha(linha) {
+  const chkAcesso = linha.querySelector('input[data-campo="acesso"]');
+  if (!chkAcesso) return;
+  // "Acesso" primeiro: os demais checkboxes ficam disabled enquanto ele está
+  // desmarcado — aplicarRegraAcessoNaLinha os reabilita antes de marcarmos.
+  chkAcesso.checked = true;
+  aplicarRegraAcessoNaLinha(linha);
+  CAMPOS_MARCAR_PADRAO.forEach(campo => {
+    const chk = linha.querySelector(`input[data-campo="${campo}"]`);
+    if (chk) chk.checked = true;
+  });
+}
+
 // Desmarca todas as permissões de uma linha (módulo) do grid.
 function limparLinhaPermissoes(linha) {
   linha.querySelectorAll('input[type="checkbox"]').forEach(chk => { chk.checked = false; });
@@ -1758,6 +1788,13 @@ function limparLinhaPermissoes(linha) {
 document.getElementById('btnLimparTudoPermissoes').addEventListener('click', function (e) {
   e.preventDefault();
   document.querySelectorAll('#corpoTabelaPermissoes tr').forEach(limparLinhaPermissoes);
+});
+
+// Versão "todos de uma vez" do botão Padrão de cada linha — o caso comum de
+// liberar o sistema inteiro pro usuário sem clicar módulo a módulo.
+document.getElementById('btnPadraoTodosPermissoes').addEventListener('click', function (e) {
+  e.preventDefault();
+  document.querySelectorAll('#corpoTabelaPermissoes tr').forEach(marcarPadraoNaLinha);
 });
 
 // Busca todos os módulos disponíveis na empresa informada + permissões do usuário
