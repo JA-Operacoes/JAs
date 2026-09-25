@@ -699,25 +699,43 @@ async function gerarListagemSeparacao(idevento, nmevento) {
   }
 }
 
-// Monta o HTML da lista de categorias/unidades da separação (reaproveitado no render inicial e nos refreshes pós-scan)
-function montarHtmlSeparacaoCategorias(categorias) {
+// Monta o HTML das categorias/unidades de UM orçamento (reaproveitado no render inicial e
+// nos refreshes pós-scan). Custo vem cadastrado em equipamentos (não o negociado no item do
+// orçamento) -- só leitura, sem valor de venda, por decisão da usuária.
+function montarHtmlSeparacaoCategorias(categorias, idorcamento) {
   return categorias.map((c) => `
     <div class="ti-separacao-categoria" data-qtdorcada="${c.qtdorcada}">
       <div class="ti-separacao-categoria-titulo">
         <strong>${c.descequip}</strong>
         <span class="ti-separacao-contador">${c.qtdseparada}/${c.qtdorcada} separado(s)</span>
+        <span class="ti-separacao-custo">Custo R$ ${Number(c.ctoequip || 0).toFixed(2).replace(".", ",")}/dia</span>
       </div>
       ${c.modelos.map((m) => `
         <div class="ti-separacao-modelo">
           <em>${m.marca}${m.modelo ? ' / ' + m.modelo : ''}</em>
           ${!m.unidades.length ? '<div class="ti-separacao-vazio">Nenhuma unidade em estoque.</div>' : m.unidades.map((u) => `
             <label class="ti-swal-check-linha ti-separacao-linha">
-              <input type="checkbox" class="ti-check-separacao-unidade" value="${u.idunidade}" ${u.separado ? "checked" : ""}> ${u.patrimonio}
+              <input type="checkbox" class="ti-check-separacao-unidade" value="${u.idunidade}" data-idorcamento="${idorcamento}" ${u.separado ? "checked" : ""}> ${u.patrimonio}
               <span class="ti-badge-local">${u.local === 'Galpao' ? 'Galpão' : 'JA'}</span>
             </label>
           `).join("")}
         </div>
       `).join("")}
+    </div>
+  `).join("");
+}
+
+// Envolve as categorias de cada orçamento-irmão num bloco próprio, com cabeçalho de
+// identificação (nº + período) -- é o que resolve a mistura de orçamentos que a tela antiga
+// tinha (quantidade orçada somada sem dizer de qual orçamento vinha).
+function montarHtmlSeparacaoOrcamentos(orcamentos) {
+  return orcamentos.map((orc) => `
+    <div class="ti-separacao-orcamento" data-idorcamento="${orc.idorcamento}">
+      <div class="ti-separacao-orcamento-titulo">
+        <strong>Orçamento #${orc.nrorcamento}</strong>
+        <span>${formatarIntervaloData(orc.dtinirealizacao, orc.dtfimrealizacao)}</span>
+      </div>
+      ${montarHtmlSeparacaoCategorias(orc.categorias, orc.idorcamento)}
     </div>
   `).join("");
 }
@@ -731,24 +749,31 @@ function montarHtmlSeparacaoCategorias(categorias) {
 // nada é salvo no backend até clicar em "Confirmar vínculos", pra dar chance de conferir
 // tudo antes de gravar (e permitir cancelar sem sujar o banco a cada leitura).
 async function abrirSeparacaoEventoTI(idevento, nmevento) {
-  let categorias = [];
+  let orcamentos = [];
   try {
-    categorias = await fetchTI(`/eventos/${idevento}/separacao`);
+    orcamentos = await fetchTI(`/eventos/${idevento}/separacao`);
   } catch (erro) {
     console.error("Erro ao carregar separação do evento:", erro);
     Swal.fire("Erro", "Erro ao carregar dados de separação.", "error");
     return;
   }
 
-  if (!categorias.length) {
+  if (!orcamentos.some((orc) => orc.categorias.length)) {
     Swal.fire("Aviso", "Nenhum equipamento orçado para este evento.", "info");
     return;
   }
 
+  // Chave composta idunidade:idorcamento -- a mesma unidade livre pode aparecer como opção
+  // em mais de um orçamento-irmão (elegível pra qualquer um), então o estado é rastreado por
+  // combinação, não só por unidade -- senão marcar num orçamento "vazava" pro outro.
+  const chaveUnidade = (idunidade, idorc) => `${idunidade}:${idorc}`;
+
   // Estado original (vindo do backend) x pendências ainda não confirmadas.
   const original = new Map();
-  categorias.forEach((c) => c.modelos.forEach((m) => m.unidades.forEach((u) => original.set(u.idunidade, u.separado))));
-  const pendentes = new Map(); // idunidade -> true (separar) | false (remover), só quando difere do original
+  orcamentos.forEach((orc) => orc.categorias.forEach((c) => c.modelos.forEach((m) => m.unidades.forEach((u) =>
+    original.set(chaveUnidade(u.idunidade, orc.idorcamento), u.separado)
+  ))));
+  const pendentes = new Map(); // "idunidade:idorcamento" -> true (separar) | false (remover), só quando difere do original
 
   const html = `
     <div class="ti-swal-form ti-separacao-swal">
@@ -757,7 +782,7 @@ async function abrirSeparacaoEventoTI(idevento, nmevento) {
       </label>
       <div id="ti-separacao-scan-msg" class="ti-separacao-scan-msg"></div>
       <div id="ti-separacao-lista" class="ti-swal-form-scroll ti-separacao-lista">
-        ${montarHtmlSeparacaoCategorias(categorias)}
+        ${montarHtmlSeparacaoOrcamentos(orcamentos)}
       </div>
       <div id="ti-separacao-pendencias" class="ti-separacao-pendencias ti-separacao-pendencias--vazio">Nenhuma alteração pendente.</div>
     </div>
@@ -789,11 +814,12 @@ async function abrirSeparacaoEventoTI(idevento, nmevento) {
     contador.textContent = `${qtdmarcada}/${qtdorcada} separado(s)`;
   };
 
-  const marcarPendencia = (idunidade, desejado) => {
-    if (desejado === original.get(idunidade)) {
-      pendentes.delete(idunidade);
+  const marcarPendencia = (idunidade, idorcamento, desejado) => {
+    const k = chaveUnidade(idunidade, idorcamento);
+    if (desejado === original.get(k)) {
+      pendentes.delete(k);
     } else {
-      pendentes.set(idunidade, desejado);
+      pendentes.set(k, desejado);
     }
     atualizarContadorPendencias();
   };
@@ -801,7 +827,7 @@ async function abrirSeparacaoEventoTI(idevento, nmevento) {
   const ligarCheckboxes = (popup) => {
     popup.querySelectorAll(".ti-check-separacao-unidade").forEach((checkbox) => {
       checkbox.addEventListener("change", () => {
-        marcarPendencia(Number(checkbox.value), checkbox.checked);
+        marcarPendencia(Number(checkbox.value), Number(checkbox.dataset.idorcamento), checkbox.checked);
         atualizarContadorCategoria(checkbox);
       });
     });
@@ -862,15 +888,25 @@ async function abrirSeparacaoEventoTI(idevento, nmevento) {
           }
           const exato = candidatos[0];
 
-          const checkboxExistente = popup.querySelector(`.ti-check-separacao-unidade[value="${exato.idunidade}"]`);
-          const atual = pendentes.has(exato.idunidade) ? pendentes.get(exato.idunidade) : (original.get(exato.idunidade) || false);
+          // A mesma unidade pode aparecer em mais de um orçamento-irmão (livre, elegível
+          // pra qualquer um) — com só 1 na tela, marca ele; com mais de 1, não dá pra saber
+          // sozinho pra qual orçamento o leitor quis, pede pra marcar manualmente.
+          const checkboxesExistentes = popup.querySelectorAll(`.ti-check-separacao-unidade[value="${exato.idunidade}"]`);
+          if (checkboxesExistentes.length > 1) {
+            mostrarMsg(`"${exato.patrimonio}" aparece em mais de um orçamento deste evento — marque manualmente em qual.`, "#b50000");
+            return;
+          }
+          const checkboxExistente = checkboxesExistentes[0] || null;
+          const idorcamentoDoCheckbox = checkboxExistente ? Number(checkboxExistente.dataset.idorcamento) : null;
+          const k = checkboxExistente ? chaveUnidade(exato.idunidade, idorcamentoDoCheckbox) : null;
+          const atual = checkboxExistente ? (pendentes.has(k) ? pendentes.get(k) : (original.get(k) || false)) : false;
           const desejado = !atual;
 
           if (checkboxExistente) {
             checkboxExistente.checked = desejado;
             atualizarContadorCategoria(checkboxExistente);
+            marcarPendencia(exato.idunidade, idorcamentoDoCheckbox, desejado);
           }
-          marcarPendencia(exato.idunidade, desejado);
 
           mostrarMsg(
             desejado
@@ -890,34 +926,36 @@ async function abrirSeparacaoEventoTI(idevento, nmevento) {
     preConfirm: async () => {
       if (!pendentes.size) return true;
 
-      const idsSeparar = [...pendentes.entries()].filter(([, v]) => v).map(([id]) => id);
-      const idsRemover = [...pendentes.entries()].filter(([, v]) => !v).map(([id]) => id);
+      // Agrupa por (idorcamento, ação) — cada chamada ao backend só pode ter um orçamento e
+      // uma ação de cada vez (a rota exige idorcamento explícito pra "separar").
+      const grupos = new Map(); // "idorcamento:acao" -> [idunidade, ...]
+      for (const [k, desejado] of pendentes.entries()) {
+        const [idunidadeStr, idorcamentoStr] = k.split(":");
+        const grupoChave = `${idorcamentoStr}:${desejado ? "separar" : "remover"}`;
+        if (!grupos.has(grupoChave)) grupos.set(grupoChave, []);
+        grupos.get(grupoChave).push(Number(idunidadeStr));
+      }
 
       try {
         const naoVinculados = [];
 
-        if (idsSeparar.length) {
+        for (const [grupoChave, ids] of grupos.entries()) {
+          const [idorcamentoStr, acao] = grupoChave.split(":");
+          const body = { idunidades: ids, acao };
+          if (acao === "separar") body.idorcamento = Number(idorcamentoStr);
+
           const resp = await fetchTI(`/eventos/${idevento}/separacao`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idunidades: idsSeparar, acao: "separar" }),
+            body: JSON.stringify(body),
           });
-          const vinculadas = new Set((resp.unidades || []).map((u) => u.idunidade));
-          idsSeparar.filter((id) => !vinculadas.has(id)).forEach((id) => naoVinculados.push(id));
-        }
-        if (idsRemover.length) {
-          const resp = await fetchTI(`/eventos/${idevento}/separacao`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idunidades: idsRemover, acao: "remover" }),
-          });
-          const removidas = new Set((resp.unidades || []).map((u) => u.idunidade));
-          idsRemover.filter((id) => !removidas.has(id)).forEach((id) => naoVinculados.push(id));
+          const atualizadas = new Set((resp.unidades || []).map((u) => u.idunidade));
+          ids.filter((id) => !atualizadas.has(id)).forEach((id) => naoVinculados.push(id));
         }
 
         if (naoVinculados.length) {
           Swal.showValidationMessage(
-            `${naoVinculados.length} unidade(s) não puderam ser atualizadas (podem já ter sido movidas por outra ação). Recarregue e tente novamente.`
+            `${naoVinculados.length} unidade(s) não puderam ser atualizadas (podem já ter sido movidas por outra ação, ou marcadas em mais de um orçamento). Recarregue e tente novamente.`
           );
           return false;
         }

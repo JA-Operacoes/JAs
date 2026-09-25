@@ -683,6 +683,28 @@
   background: var(--surface-1);
 }
 
+/* Um bloco por orçamento-irmão do evento -- é o que resolve a tela antiga misturar
+   quantidade orçada de orçamentos diferentes sem dizer de qual vinha. */
+.ti-separacao-orcamento {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.ti-separacao-orcamento:last-child { margin-bottom: 0; }
+.ti-separacao-orcamento-titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-3);
+}
+.ti-separacao-orcamento-titulo strong { color: var(--text-1); font-size: 0.92em; }
+.ti-separacao-orcamento-titulo span { color: var(--text-2); font-size: 0.85em; }
+.ti-separacao-orcamento .ti-separacao-categoria { padding: 10px 12px 0; margin-bottom: 0; }
+.ti-separacao-orcamento .ti-separacao-categoria:last-child { padding-bottom: 10px; }
+
 .ti-separacao-categoria { margin-bottom: 14px; }
 .ti-separacao-categoria:last-child { margin-bottom: 0; }
 
@@ -694,6 +716,9 @@
   border-bottom: 1px solid var(--border-1);
 }
 .ti-separacao-contador { color: var(--text-2); font-size: 0.85em; }
+/* Custo cadastrado em equipamentos, só leitura -- sem valor de venda por decisão da
+   usuária (venda é figura comercial, não faz sentido pra tela operacional do T.I.). */
+.ti-separacao-custo { margin-left: auto; color: var(--status-ok-fg); font-size: 0.8em; font-weight: 600; }
 
 .ti-separacao-modelo { margin: 6px 0 0 8px; }
 .ti-separacao-modelo em { color: var(--text-1); font-size: 0.9em; }
