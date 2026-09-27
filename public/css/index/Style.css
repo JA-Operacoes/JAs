@@ -936,15 +936,29 @@ input#search-aside {
 
   #ti-panel { display: none; }
 
+  /* #conteudo é position:fixed (mesmo motivo já documentado em #ceo-panel-geral) --
+     a página em si nunca rola, então o painel precisa da própria altura travada +
+     scroll interno, senão a lista de eventos só rolava até onde a viewport alcançava
+     e o resto ficava inacessível (achado real: "não consigo visualizar o que tem
+     após Fenalaw"). Mesmo padrão já usado em #almox-panel/#ceo-panel-geral: só as
+     pílulas de aba ficam fixas no topo, o conteúdo de cada aba rola por conta própria. */
   body.ti-mode #ti-panel {
-    display: block;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 20000px;
     margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
+    max-height: calc(100vh - 178px); /* 138 + 40 da margem acima */
+    overflow: hidden;
     font-family: var(--Font-primary);
   }
+  body.sem-troca-empresa.ti-mode #ti-panel { max-height: calc(100vh - 140px); } /* 100 + 40 */
+
+  #ti-panel .ti-abas { flex: 0 0 auto; }
+  /* min-height:0 é o que permite o filho de um flex encolher e virar scroll. */
+  #ti-panel .ti-aba-conteudo { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
   /* ===== Almoxarifado Mode: mesmo padrão do TI Mode (tela limpa, só o header) ===== */
   body.almox-mode #sidebar,
@@ -1849,6 +1863,38 @@ input#search-aside {
   #ti-panel .ti-badge-status-orc { font-size: 12px; font-weight: 700; }
   #ti-panel .ti-evento-resumo { font-size: 13px; color: var(--text-2); margin-top: 4px; }
   #ti-panel .ti-evento-detalhe { margin-top: 12px; cursor: default; }
+
+  #ti-panel .ti-link-orcamento {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1f6fc4;
+    text-decoration: underline;
+    font-size: inherit;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  #ti-panel .ti-link-orcamento:hover { color: #14508f; }
+
+  /* Status de controle (Incerto/Confirmado/Cancelado) agora é por orçamento, não por
+     evento -- uma linha por #orçamento, cada uma com seu próprio link + status. */
+  #ti-panel .ti-evento-orcamentos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 8px;
+    cursor: default;
+  }
+  #ti-panel .ti-evento-orcamento-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  #ti-panel .ti-badge-controle {
+    font-weight: 600;
+    font-size: 12px;
+  }
 
   #ti-panel .ti-evento-controles {
     display: flex;

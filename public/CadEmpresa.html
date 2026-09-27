@@ -92,13 +92,27 @@
                   <label for="ordem">Ordem</label>
                 </div>
 
-                <button type="button" id="btnInserirLogo" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo</button>
+                <!-- Nome do arquivo *-index.html da empresa (ex.: "OPER-index.html") -- é o que
+                     decide se ela aparece na barra "Trocar empresa" (ver Index.js/rotaIndex.js).
+                     Mesma visibilidade/padrão do campo Ordem: só Devs enxergam/editam, backend
+                     preserva o valor já salvo (COALESCE) quando o campo não vem no envio. -->
+                <div class="form2" id="linhaUrlindexEmpresa" style="display:none;">
+                  <input type="text" name="urlindex" id="urlindex" placeholder=" " maxlength="50"
+                    title="Nome do arquivo da tela própria da empresa (ex.: OPER-index.html)">
+                  <label for="urlindex">Página (urlindex)</label>
+                </div>
+
               </div>
 
               <!-- Variantes claro/escuro (barra "Trocar empresa" e seletor de "Empresa
-                   Padrão" do Usuários — ver migration adiciona_icone_em_empresas). O
-                   "logo" acima já é a versão escura; aqui só falta a clara + os 2 ícones. -->
+                   Padrão" do Usuários — ver migration adiciona_icone_em_empresas). O botão
+                   de logo (escuro) mora aqui junto dos outros 3 pelo mesmo motivo -- fica
+                   confuso ter "Inserir logo" separado, lá em cima na linha de Código/Ordem.
+                   Preview dele (#previewLogo) já existe no topo do form, não duplica aqui. -->
               <div class="form-3colunas">
+                <div class="form2">
+                  <button type="button" id="btnInserirLogo" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo</button>
+                </div>
                 <div class="form2">
                   <img id="previewLogoClaro" src="#" alt="Logo claro da empresa" style="display:none; max-width:100px; max-height:50px; border-radius:6px; object-fit:contain;">
                   <button type="button" id="btnInserirLogoClaro" style="display:none; width:auto; font-size:14px; padding:8px 16px; margin:0;">Inserir logo claro</button>

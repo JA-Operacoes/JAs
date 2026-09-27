@@ -131,7 +131,8 @@ const campos = {
         digitoConta: "#digitoConta",
         tipoConta: "#tipoConta",
         pix: "#pix",
-        ordem: "#ordem"
+        ordem: "#ordem",
+        urlindex: "#urlindex"
 };
 
 const getCampo = (key) => document.querySelector(campos[key]);
@@ -216,7 +217,8 @@ const preencherFormulario = (empresa) => {
         digitoConta: empresa.digitoconta || "",
         tipoConta: empresa.tipoconta || "",
         pix: empresa.pix || "",
-        ordem: empresa.ordem ?? ""
+        ordem: empresa.ordem ?? "",
+        urlindex: empresa.urlindex ?? ""
     };
 
     // 2. Itera sobre os dados mapeados para preencher o formulário
@@ -283,6 +285,9 @@ const obterDadosFormulario = () => {
     // pra quem não tem, getCampo retorna null e isso vira null, então o backend não mexe no valor
     // já salvo (UPDATE usa COALESCE — ver rotaEmpresa.js).
     const ordemRaw = valor("ordem");
+    // Mesmo raciocínio do "ordem" acima: campo Devs-only, backend preserva o valor já
+    // salvo (COALESCE) quando vem vazio/null daqui.
+    const urlindexRaw = valor("urlindex");
     const dados = {
         nmFantasia: valor("nmFantasia").toUpperCase(),
         razaoSocial: valor("razaoSocial").toUpperCase(),
@@ -311,6 +316,7 @@ const obterDadosFormulario = () => {
         tipoConta: valor("tipoConta"),
         pix: valor("pix"),
         ordem: ordemRaw ? parseInt(ordemRaw, 10) : null,
+        urlindex: urlindexRaw || null,
     };
     console.log("Dados do formulário prontos para envio:", dados);
     return dados;
@@ -342,6 +348,7 @@ function carregarEmpresas() {
     aplicarMascaras();
     carregarBancosSelect();
     atualizarVisibilidadeCampoOrdem();
+    atualizarVisibilidadeCampoUrlindex();
 
     // Estado inicial (modal recém-aberto, formulário em branco) — sem isso o botão de
     // logo só aparecia depois de Pesquisar/Limpar/Salvar, nunca já de cara num
@@ -763,6 +770,7 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         // Preencher os campos...
         document.querySelector("#idEmpresa").value = empresa.idempresa || "";
         document.querySelector("#ordem").value = empresa.ordem ?? "";
+        document.querySelector("#urlindex").value = empresa.urlindex ?? "";
         document.querySelector("#nmFantasia").value = empresa.nmfantasia || "";
         document.querySelector("#razaoSocial").value = empresa.razaosocial || "";
         maskCNPJ.value = empresa.cnpj || '';
@@ -902,6 +910,14 @@ function usuarioTemFlagDevs() {
 // não é preenchida automaticamente — é decisão manual de negócio, então só Devs enxergam/editam.
 function atualizarVisibilidadeCampoOrdem() {
     const linha = document.querySelector("#linhaOrdemEmpresa");
+    if (linha) linha.style.display = usuarioTemFlagDevs() ? "flex" : "none";
+}
+
+// Nome do arquivo *-index.html da empresa -- mesma regra do campo Ordem acima: só Devs
+// enxergam/editam (ver notificação "empresas incompletas" em rotaNotificacao.js, que
+// avisa quando isso fica vazio numa empresa ativa).
+function atualizarVisibilidadeCampoUrlindex() {
+    const linha = document.querySelector("#linhaUrlindexEmpresa");
     if (linha) linha.style.display = usuarioTemFlagDevs() ? "flex" : "none";
 }
 
