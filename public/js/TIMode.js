@@ -325,8 +325,9 @@ async function exibirDetalheDiaTI(diaKey, eventosDoDia) {
 
   const detalhes = await Promise.all(eventosDoDia.map(async (ev) => {
     try {
+      const idorcamentos = (ev.orcamentos || []).map((o) => o.idorcamento).join(",");
       const [equipamentos, staff] = await Promise.all([
-        fetchTI(`/eventos/${ev.idevento}/equipamentos`),
+        fetchTI(`/eventos/${ev.idevento}/equipamentos?idorcamentos=${idorcamentos}`),
         fetchTI(`/eventos/${ev.idevento}/staff`),
       ]);
       return { ev, equipamentos, staff };
@@ -531,10 +532,12 @@ function renderListaEventosTI() {
   if (filtroEventosTI.busca) {
     eventos = eventos.filter((ev) => ev.nmevento.toLowerCase().includes(filtroEventosTI.busca));
   }
-  // Cancelados sempre por último, independente da data.
+  // Cancelados sempre por último, independente da data -- cancelado agora é por orçamento;
+  // um card só conta como cancelado quando TODOS os seus orçamentos estão cancelados.
+  const todoCancelado = (ev) => (ev.orcamentos || []).length > 0 && ev.orcamentos.every((o) => o.status_controle === "cancelado");
   eventos = [...eventos].sort((a, b) => {
-    const aCancelado = a.status_controle === "cancelado" ? 1 : 0;
-    const bCancelado = b.status_controle === "cancelado" ? 1 : 0;
+    const aCancelado = todoCancelado(a) ? 1 : 0;
+    const bCancelado = todoCancelado(b) ? 1 : 0;
     return aCancelado - bCancelado;
   });
 
@@ -559,13 +562,28 @@ function renderListaEventosTI() {
     const aindaNaoIniciou = (dtinicio && dtinicio > new Date()) || !!dtinicioFutura;
     const corStatus = ev.finalizado ? COR_FINALIZADO : (STATUS_ORCAMENTO_COR[ev.status_orcamento_avancado] || "#ccc");
     const labelStatus = ev.finalizado ? "Finalizado" : (STATUS_ORCAMENTO_LABEL[ev.status_orcamento_avancado] || "-");
-    const corControle = STATUS_CONTROLE_COR[ev.status_controle] || "#ccc";
-    const labelControle = STATUS_CONTROLE_LABEL[ev.status_controle] || "Incerto";
-    const cancelado = ev.status_controle === "cancelado";
     const montagem = formatarIntervaloData(ev.dtinimontagem, ev.dtfimmontagem);
+    const orcamentos = ev.orcamentos || [];
+    const idorcamentos = orcamentos.map((o) => o.idorcamento).join(",");
+    // Card só fica esmaecido quando TODOS os orçamentos da ocorrência estão cancelados --
+    // status_controle agora é por orçamento (Fechado/Recusado travam sozinhos), não por card.
+    const cancelado = orcamentos.length > 0 && orcamentos.every((o) => o.status_controle === "cancelado");
+    const linhasOrcamentos = orcamentos.map((o) => {
+      const cor = STATUS_CONTROLE_COR[o.status_controle] || "#ccc";
+      const controle = o.travado
+        ? `<span class="ti-badge-controle" style="color:${cor};" title="Status automático (orçamento ${o.status === 'F' ? 'Fechado' : 'Recusado'})">${STATUS_CONTROLE_LABEL[o.status_controle]}</span>`
+        : `<select class="ti-select-controle" data-idorcamento="${o.idorcamento}" style="color:${cor}; border-color:${cor};">
+             ${Object.entries(STATUS_CONTROLE_LABEL).map(([valor, label]) => `<option value="${valor}" ${o.status_controle === valor ? "selected" : ""}>${label}</option>`).join("")}
+           </select>`;
+      return `
+        <span class="ti-evento-orcamento-item">
+          <button type="button" class="ti-link-orcamento" data-nrorcamento="${o.nrorcamento}" title="Abrir orçamento #${o.nrorcamento}">#${o.nrorcamento}</button>
+          ${controle}
+        </span>`;
+    }).join("");
 
     return `
-      <div class="ti-evento-card ${nivel} ${cancelado ? "ti-evento-cancelado" : ""}" data-idevento="${ev.idevento}" style="border-left-color:${corStatus};">
+      <div class="ti-evento-card ${nivel} ${cancelado ? "ti-evento-cancelado" : ""}" data-idevento="${ev.idevento}" data-idorcamentos="${idorcamentos}" data-idorcamento-ancora="${ev.idorcamento_ancora}" style="border-left-color:${corStatus};">
         <div class="ti-evento-cabecalho">
           <strong>${ev.nmevento}</strong>
           <span class="ti-badge-status-orc" style="color:${corStatus};">${labelStatus}</span>
@@ -574,13 +592,11 @@ function renderListaEventosTI() {
           Montagem: ${montagem} — Fim da realização: ${dtfim}<br>
           ${ev.qtd_equipamentos_distintos} equipamento(s) / ${totalAlocado} unidade(s) — ${totalSeparado} já separada(s)
         </div>
+        <div class="ti-evento-orcamentos">${linhasOrcamentos}</div>
         <div class="ti-evento-controles">
-          <select class="ti-select-controle" data-idevento="${ev.idevento}" style="color:${corControle}; border-color:${corControle};">
-            ${Object.entries(STATUS_CONTROLE_LABEL).map(([valor, label]) => `<option value="${valor}" ${ev.status_controle === valor ? "selected" : ""}>${label}</option>`).join("")}
-          </select>
           <span class="ti-check-separado">
             <label class="ios-checkbox blue">
-              <input type="checkbox" class="ti-check-separado-input" data-idevento="${ev.idevento}" ${ev.separado ? "checked" : ""}>
+              <input type="checkbox" class="ti-check-separado-input" data-idorcamento-ancora="${ev.idorcamento_ancora}" ${ev.separado ? "checked" : ""}>
               <div class="checkbox-wrapper">
                 <div class="checkbox-bg"></div>
                 <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
@@ -592,10 +608,10 @@ function renderListaEventosTI() {
           </span>
         </div>
         ${aindaNaoIniciou ? `
-          <button type="button" class="ti-btn-ir-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}">
+          <button type="button" class="ti-btn-ir-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}" data-idorcamentos="${idorcamentos}">
             🎒 Ir para Separação
           </button>
-          <button type="button" class="ti-btn-listagem-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}">
+          <button type="button" class="ti-btn-listagem-separacao" data-idevento="${ev.idevento}" data-nmevento="${ev.nmevento}" data-idorcamentos="${idorcamentos}">
             📋 Gerar listagem de separação
           </button>
         ` : ""}
@@ -613,14 +629,21 @@ function renderListaEventosTI() {
   lista.querySelectorAll(".ti-btn-listagem-separacao").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      gerarListagemSeparacao(btn.dataset.idevento, btn.dataset.nmevento);
+      gerarListagemSeparacao(btn.dataset.idevento, btn.dataset.nmevento, btn.dataset.idorcamentos);
     });
   });
 
   lista.querySelectorAll(".ti-btn-ir-separacao").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      abrirSeparacaoEventoTI(btn.dataset.idevento, btn.dataset.nmevento);
+      abrirSeparacaoEventoTI(btn.dataset.idevento, btn.dataset.nmevento, btn.dataset.idorcamentos);
+    });
+  });
+
+  lista.querySelectorAll(".ti-link-orcamento").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      abrirOrcamentoTI(btn.dataset.nrorcamento);
     });
   });
 
@@ -628,13 +651,15 @@ function renderListaEventosTI() {
     select.addEventListener("click", (e) => e.stopPropagation());
     select.addEventListener("change", async () => {
       try {
-        await fetchTI(`/eventos/${select.dataset.idevento}/status-controle`, {
+        await fetchTI(`/orcamentos/${select.dataset.idorcamento}/status-controle`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status_controle: select.value }),
         });
-        const ev = cacheEventosAtivos.find((e) => String(e.idevento) === select.dataset.idevento);
-        if (ev) ev.status_controle = select.value;
+        const idorcamento = Number(select.dataset.idorcamento);
+        const ev = cacheEventosAtivos.find((e) => (e.orcamentos || []).some((o) => o.idorcamento === idorcamento));
+        const orc = ev?.orcamentos.find((o) => o.idorcamento === idorcamento);
+        if (orc) orc.status_controle = select.value;
         renderListaEventosTI();
       } catch (erro) {
         console.error("Erro ao atualizar status de controle:", erro);
@@ -647,12 +672,12 @@ function renderListaEventosTI() {
     checkbox.addEventListener("click", (e) => e.stopPropagation());
     checkbox.addEventListener("change", async () => {
       try {
-        await fetchTI(`/eventos/${checkbox.dataset.idevento}/separado`, {
+        await fetchTI(`/ocorrencias/${checkbox.dataset.idorcamentoAncora}/separado`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ separado: checkbox.checked }),
         });
-        const ev = cacheEventosAtivos.find((e) => String(e.idevento) === checkbox.dataset.idevento);
+        const ev = cacheEventosAtivos.find((e) => String(e.idorcamento_ancora) === checkbox.dataset.idorcamentoAncora);
         if (ev) ev.separado = checkbox.checked;
       } catch (erro) {
         console.error("Erro ao atualizar separado:", erro);
@@ -667,7 +692,7 @@ function renderListaEventosTI() {
 // o layout do modelo "checklist_separacao_equipamentos.docx" — mesmo padrão de
 // geração de documentos usado em Proposta/Contrato (Node chama Python, recebe
 // uma fileUrl, e o frontend baixa o .docx via fetch+blob).
-async function gerarListagemSeparacao(idevento, nmevento) {
+async function gerarListagemSeparacao(idevento, nmevento, idorcamentos) {
   Swal.fire({
     title: "Gerando checklist...",
     text: "Isso pode levar alguns segundos.",
@@ -676,7 +701,7 @@ async function gerarListagemSeparacao(idevento, nmevento) {
   });
 
   try {
-    const resp = await fetchTI(`/eventos/${idevento}/checklist-separacao`);
+    const resp = await fetchTI(`/eventos/${idevento}/checklist-separacao?idorcamentos=${idorcamentos}`);
     Swal.close();
 
     const respostaBlob = await fetch(resp.fileUrl, {
@@ -740,6 +765,69 @@ function montarHtmlSeparacaoOrcamentos(orcamentos) {
   `).join("");
 }
 
+// Abre um orçamento existente no módulo de Orçamento — mesmo mecanismo já usado no CEO Mode
+// (public/js/CeoMode.js, função abrirOrcamento): aciona o link do menu, espera o form montar
+// dentro do modal e preenche via preencherFormularioComOrcamento. Fica em modo só-leitura
+// automaticamente conforme a permissão do usuário em Orçamentos (gerenciarVisibilidadeValores,
+// já dentro de Orcamentos.js) — nada aqui precisa de flag de "somente visualização".
+async function abrirOrcamentoTI(nrOrcamento) {
+  if (window.temPermissao && !window.temPermissao("Orcamentos", "pesquisar")) {
+    Swal.fire("Sem permissão", "Você não tem permissão para abrir orçamentos.", "warning");
+    return;
+  }
+  const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
+  if (!linkModal) {
+    Swal.fire("Indisponível", "Módulo de Orçamento não está disponível nesta tela.", "warning");
+    return;
+  }
+  // Avisa o fecharModal() (Index.js) que veio do T.I., pra ele não dar reload geral da
+  // página ao fechar (perderia o filtro/posição da tela de T.I.) — mesmo padrão já usado
+  // pelo Aside e pelo CEO Mode.
+  sessionStorage.setItem("origemAbertura", "timode");
+  linkModal.click();
+
+  const aguardarModalPronto = () => new Promise((resolve) => {
+    const tentativa = setInterval(() => {
+      const input = document.getElementById("nrOrcamento");
+      const campoMarcacao = document.getElementById("periodoMarcacao");
+      const selectMontagem = document.querySelector(".idMontagem");
+      const selectEmpresaEmissora = document.querySelector(".idEmpresaEmissora");
+      if (
+        input &&
+        typeof window.preencherFormularioComOrcamento === "function" &&
+        campoMarcacao && campoMarcacao._flatpickr &&
+        selectMontagem && selectMontagem.options.length > 1 &&
+        selectEmpresaEmissora && selectEmpresaEmissora.options.length > 1
+      ) {
+        clearInterval(tentativa);
+        resolve(input);
+      }
+    }, 50);
+    setTimeout(() => {
+      clearInterval(tentativa);
+      resolve(document.getElementById("nrOrcamento") || null);
+    }, 5000);
+  });
+
+  const inputNr = await aguardarModalPronto();
+  if (!inputNr || typeof window.preencherFormularioComOrcamento !== "function") {
+    console.warn("⚠️ Modal não ficou pronto a tempo (campo ou função de preenchimento ausentes).");
+    return;
+  }
+
+  inputNr.value = nrOrcamento;
+  try {
+    const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
+    if (!orcDet || Array.isArray(orcDet) || !orcDet.idorcamento) {
+      console.warn("Orçamento não encontrado ao abrir pelo T.I.:", nrOrcamento);
+      return;
+    }
+    window.preencherFormularioComOrcamento?.(orcDet);
+  } catch (err) {
+    console.error("Erro ao abrir orçamento (T.I.):", err);
+  }
+}
+
 // Tela de Separação: escolher, por modelo orçado, quais unidades (patrimônio) em estoque
 // vão para este evento. Ao confirmar, a unidade é enviada de fato ao evento (status muda
 // para 'evento', sai do estoque) — mesmo efeito de /custodia/enviar-evento — e fica marcada
@@ -748,10 +836,10 @@ function montarHtmlSeparacaoOrcamentos(orcamentos) {
 // digita o código e dá Enter, identificando a unidade e marcando/desmarcando na hora — mas
 // nada é salvo no backend até clicar em "Confirmar vínculos", pra dar chance de conferir
 // tudo antes de gravar (e permitir cancelar sem sujar o banco a cada leitura).
-async function abrirSeparacaoEventoTI(idevento, nmevento) {
+async function abrirSeparacaoEventoTI(idevento, nmevento, idorcamentos) {
   let orcamentos = [];
   try {
-    orcamentos = await fetchTI(`/eventos/${idevento}/separacao`);
+    orcamentos = await fetchTI(`/eventos/${idevento}/separacao?idorcamentos=${idorcamentos}`);
   } catch (erro) {
     console.error("Erro ao carregar separação do evento:", erro);
     Swal.fire("Erro", "Erro ao carregar dados de separação.", "error");
@@ -1000,8 +1088,9 @@ async function carregarDetalheEvento(card) {
   detalhe.innerHTML = tiLoading("Carregando equipamentos do evento...");
 
   const idevento = card.dataset.idevento;
+  const idorcamentos = card.dataset.idorcamentos;
   try {
-    const equipamentos = await fetchTI(`/eventos/${idevento}/equipamentos`);
+    const equipamentos = await fetchTI(`/eventos/${idevento}/equipamentos?idorcamentos=${idorcamentos}`);
     if (!equipamentos.length) {
       detalhe.innerHTML = tiVazio("Nenhum equipamento orçado para este evento.", "inventory_2");
       return;
@@ -3785,6 +3874,13 @@ function initTIMode() {
     if (ativo) {
       // Só um "modo de tela cheia" por vez — mesma regra espelhada em CeoMode.js/RH.js.
       document.body.classList.remove("ceo-mode", "rh-mode", "almox-mode");
+      // Rede de segurança: o botão de foco em Vencimentos (Main.js, "btn-foco-contas")
+      // trava a página inteira com body.style.overflow="hidden" e só destrava no clique
+      // do "✕ FECHAR" -- sair de Vencimentos por qualquer outro caminho (ex.: clicando
+      // direto em T.I. no menu, sem fechar o foco antes) deixava esse travamento colado,
+      // e a lista de eventos do T.I. parava de rolar bem antes do fim (achado real:
+      // "não consigo visualizar o que tem após Fenalaw"). Zera aqui incondicionalmente.
+      document.body.style.overflow = "";
       const iconeCeo = document.querySelector("li.Ceo .material-symbols-outlined");
       if (iconeCeo) iconeCeo.textContent = "finance";
       const iconeRH = document.querySelector("li.RH .material-symbols-outlined");

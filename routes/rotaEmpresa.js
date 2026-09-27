@@ -348,7 +348,7 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
     nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
     regimeTributario, inscricaoMunicipal,
     idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix,
-    siglaCertificado, ordem
+    siglaCertificado, ordem, urlindex
   } = req.body;
   const idempresaDoUsuarioLogado = req.idempresa;
   try {
@@ -378,14 +378,14 @@ router.post('/', verificarPermissao('Empresas', 'cadastrar'),
          nmfantasia, razaosocial, cnpj, inscricaoestadual, emailemp, emailnf, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
          regimetributario, inscricaomunicipal,
          idbanco, agencia, digitoagencia, numeroconta, digitoconta, tipoconta, pix,
-         siglacertificado, ordem
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
+         siglacertificado, ordem, urlindex
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
        RETURNING *`,
       [
         nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
         regimeTributario || null, inscricaoMunicipal || null,
         idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null,
-        siglaManual, ordem || null
+        siglaManual, ordem || null, urlindex || null
       ]
     );
     const novaEmpresa = result.rows[0];
@@ -442,7 +442,7 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
     nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais,
     regimeTributario, inscricaoMunicipal,
     idBanco, agencia, digitoAgencia, numeroConta, digitoConta, tipoConta, pix,
-    siglaCertificado, ordem
+    siglaCertificado, ordem, urlindex
   } = req.body;
   try {
     const siglaManual = normalizarSigla(siglaCertificado) || null;
@@ -479,14 +479,15 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
         regimetributario = $18, inscricaomunicipal = $19,
         idbanco = $20, agencia = $21, digitoagencia = $22, numeroconta = $23, digitoconta = $24, tipoconta = $25, pix = $26,
         siglacertificado = COALESCE($28, siglacertificado),
-        ordem = COALESCE($29, ordem)
+        ordem = COALESCE($29, ordem),
+        urlindex = COALESCE($30, urlindex)
       WHERE idempresa = $27 RETURNING idempresa, logo`,
       [
         nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais, ativo,
         regimeTributario || null, inscricaoMunicipal || null,
         idBanco || null, agencia || null, digitoAgencia || null, numeroConta || null, digitoConta || null, tipoConta || null, pix || null,
         id,
-        siglaManual, ordem || null
+        siglaManual, ordem || null, urlindex || null
       ]
     );
     if (result.rowCount) {

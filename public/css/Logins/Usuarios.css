@@ -60,7 +60,7 @@
   font-size: 15px;
   color: rgb(255, 255, 255);
   margin: 0 auto;
-  margin-top: 50px;
+  margin-top: 80px;
 }
 
 #Registrar{
@@ -1077,11 +1077,7 @@ input:-webkit-autofill {
 /* Grid de permissões (CadUsuarios, verso): "copiar de" + tabela com todos os módulos */
 
 #formPermissao {
-  /* Fixo em px (não %): .back fica com altura computada 0 quando o cartão
-     vira, porque o rotateY em .flipper vira containing block do .back e
-     nenhum ancestral tem altura própria definida. max-height:100% herdaria
-     esse 0 e, com overflow-y:auto, sumiria com todo o conteúdo. */
-  max-height: 680px;
+  max-height: 780px;
   overflow-y: auto;
   padding-bottom: 10px;
 }
@@ -1199,34 +1195,56 @@ input:-webkit-autofill {
 }
 
 /* Duas linhas de cabeçalho empilhadas: a de categoria (Acessos Padrões) fica
-   presa no topo, a de colunas individuais fica presa logo abaixo dela. */
+   presa no topo, a de colunas individuais fica presa logo abaixo dela.
+   33px = 21px de altura + 6px de padding em cima e embaixo da primeira linha. */
 .tabela-permissoes thead tr:first-child th {
   top: 0;
-  background: #151515;
 }
 
 .tabela-permissoes thead tr:last-child th {
   top: 33px;
 }
 
-/* Acessos Especiais agora é um controle único (fora da tabela) que se aplica a
-   todos os módulos com Acesso marcado, em vez de repetir 6 checkboxes por linha. */
+/* O tom escuro é só do agrupador "Acessos Padrões" (o th com colspan). As colunas
+   que ocupam as duas linhas (Módulo, Padrão, Limpar) ficam no mesmo vermelho das
+   subcolunas, senão o cabeçalho vira dois blocos de cor desencontrados e a faixa
+   vermelha parece flutuar no meio. */
+.tabela-permissoes thead th[colspan] {
+  background: #151515;
+  border-bottom: none;
+}
+
+/* Centraliza verticalmente o rótulo das colunas que atravessam as duas linhas,
+   alinhando "Módulo/Padrão/Limpar" com o conjunto do cabeçalho. */
+.tabela-permissoes thead th[rowspan] {
+  vertical-align: middle;
+}
+
 .acessos-especiais-global-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 12px 0;
+    padding: 8px 12px;
+    background: #2a0d0d;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+}
+
+.acessos-especiais-global-itens {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 14px;
-  margin: 12px 0;
-  padding: 8px 12px;
-  background: #2a0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  width: 100%;
 }
 
 .acessos-especiais-global-titulo {
   color: #fff;
   font-size: 13px;
-  margin-right: 4px;
 }
 
 .acesso-especial-global-item {
@@ -1243,7 +1261,10 @@ input:-webkit-autofill {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.btn-limpar-linha {
+/* Mesmo botão discreto do "Limpar" da linha, só muda a cor do hover (verde =
+   marca o conjunto padrão, vermelho = limpa). */
+.btn-limpar-linha,
+.btn-padrao-linha {
   display: inline-block;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -1260,6 +1281,11 @@ input:-webkit-autofill {
 .btn-limpar-linha:hover {
   background: #f40303;
   border-color: #f40303;
+}
+
+.btn-padrao-linha:hover {
+  background: #1a7f37;
+  border-color: #1a7f37;
 }
 
 .tabela-permissoes .celula-modulo {

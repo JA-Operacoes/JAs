@@ -8047,8 +8047,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             fontSize: "12px"
                         });
 
-                        // Efeito visual ao passar o mouse
-                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "var(--surface-1)"; };
+                        // Efeito visual ao passar o mouse. Branco translúcido, não
+                        // var(--surface-1): o botão está sobre a barra de marca (vermelha
+                        // nos dois temas) — no claro, --surface-1 é branco e apagava o
+                        // texto branco do próprio botão.
+                        botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "rgba(255,255,255,0.25)"; };
                         botaoVoltar.onmouseout = () => { botaoVoltar.style.background = "transparent"; };
 
                         // 5. LÓGICA DE FECHAMENTO (RESTAURAÇÃO)
@@ -9149,7 +9152,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             </div>
             ${ehFuncionario ? `
             <button type="button" class="btn-imprimir-todos-holerites" title="Imprime todos os holerites que estão sendo mostrados aqui (respeita o filtro de período ativo)" style="
-                margin-left: 10px; padding: 6px 12px; background-color: #2E8B57; color: var(--on-brand);
+                margin-left: 10px; padding: 6px 12px; background-color: var(--status-ok-fg, #2E8B57); color: var(--on-brand);
                 border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;
                 white-space: nowrap;">
                 <i class="fas fa-print" style="margin-right: 5px;"></i> Imprimir todos
@@ -9251,6 +9254,16 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 const obsParaJs = (c.observacao || c.descricao || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
+                                // Chave única da LINHA (parcela), usada nos ids dos inputs de upload.
+                                // Não pode ser só o idpagamento: parcela futura de lançamento recorrente
+                                // ainda não tem registro em `pagamentos`, então c.idpagamento vem
+                                // null/undefined em TODOS os meses seguintes — os inputs nasciam todos com
+                                // id "up_img_undefined" e o getElementById do ícone sempre abria o PRIMEIRO
+                                // da página (agosto), mandando o upload pra parcela errada.
+                                const chaveLinha = `${c.idlancamento || 'X'}_${(vctoISO || 'semdata').replace(/-/g, '')}`;
+                                const idInputImg = `up_img_${chaveLinha}`;
+                                const idInputComp = `up_comp_${chaveLinha}`;
+
                                 // Grupo Funcionário: vencimento/pagamento/valor vêm do Holerite Virtual (RH), não
                                 // do plano de contas — o pagamento é feito dentro do próprio holerite.
                                 const statusHolerite = (c.status_holerite || 'previsao').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -9271,7 +9284,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         ${temComprovanteHolerite ? `
                                         <a href="javascript:void(0)"
                                             onclick="imprimirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite})"
-                                            style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                            style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                             <i class="fas fa-print" style="font-size: 18px;"></i>
                                             <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
                                         </a>` : `
@@ -9281,13 +9294,13 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         ${c.imagemconta && c.imagemconta !== '---'
                                             ? `<a href="javascript:void(0)"
                                                 onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))"
-                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                                 <i class="fas fa-file-invoice-dollar" style="font-size: 18px;"></i>
                                                 <span style="font-size: 10px; font-weight: bold;">Ver Conta</span>
                                             </a>`
                                             : `<div>
-                                                <input type="file" style="display:none" id="up_img_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento || ''}', 'imagem', '${c.idlancamento}', '${vctoISO}')">
-                                                <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('up_img_${c.idpagamento}').click()"></i>
+                                                <input type="file" style="display:none" id="${idInputImg}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento || ''}', 'imagem', '${c.idlancamento}', '${vctoISO}')">
+                                                <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Subir Imagem da Conta" onclick="document.getElementById('${idInputImg}').click()"></i>
                                             </div>`
                                         }
                                     </td>`;
@@ -9352,7 +9365,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         ${(c.holerite_comprovante && c.holerite_comprovante !== '---')
                                             ? `<a href="javascript:void(0)"
                                                 onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/rh/comprovantes/${c.holerite_comprovante}'))"
-                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                                 <i class="fas fa-receipt" style="font-size: 18px;"></i>
                                                 <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
                                             </a>`
@@ -9365,18 +9378,18 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                             )
                                         }
                                     </td>` : `
-                                    <td id="celula-comprovante-${c.idlancamento}" style="text-align:center;">
+                                    <td id="celula-comprovante-${chaveLinha}" class="celula-comprovante-conta" style="text-align:center;">
                                         ${(c.comprovantepgto && c.comprovantepgto !== '---')
                                             ? `<a href="javascript:void(0)"
                                                 onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))"
-                                                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                                style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                                 <i class="fas fa-receipt" style="font-size: 18px;"></i>
                                                 <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
                                             </a>`
                                             : (statusC === 'pago'
                                                 ? `<div>
-                                                    <input type="file" style="display:none" id="up_comp_${c.idpagamento}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento}', 'comprovante')">
-                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('up_comp_${c.idpagamento}').click()"></i>
+                                                    <input type="file" style="display:none" id="${idInputComp}" onchange="uploadArquivoFinanceiro(this, '${c.idpagamento || ''}', 'comprovante', '${c.idlancamento}', '${vctoISO}')">
+                                                    <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('${idInputComp}').click()"></i>
 
                                                 </div>`
                                                 : '<small style="color:var(--text-3); font-style: italic;">Aguardando Pagamento</small>'
@@ -9613,14 +9626,18 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                 });
 
                 // 3. Aplica a Expansão Real no Corpo
+                // Fundo/texto por token, não fixos: o "#fff" que estava aqui é inline e
+                // vence qualquer regra de tema, então no modo escuro a tela cheia voltava
+                // a ser uma folha branca com o texto claro da tabela sumindo dentro dela.
                 Object.assign(corpo.style, {
                     display: "block",
-                    position: "fixed", 
+                    position: "fixed",
                     top: "90px",            // Ajuste conforme sua barra superior
                     left: "0",
                     width: "100vw",
-                    height: "calc(100vh - 90px)", 
-                    backgroundColor: "#fff",
+                    height: "calc(100vh - 90px)",
+                    backgroundColor: "var(--surface-1)",
+                    color: "var(--text-1)",
                     zIndex: "99998",        // Garante que fique acima do dashboard
                     overflowY: "auto",      // O scroll PRECISA acontecer aqui
                     overflowX: "hidden",
@@ -9641,11 +9658,19 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             const botaoVoltar = document.createElement("button");
             botaoVoltar.id = "btn-fechar-tela-cheia";
             botaoVoltar.innerHTML = '✕ FECHAR';
+            // O botão fica em cima da barra de marca (vermelho JA), que não muda com o
+            // tema — então o contraste dele tem que ser resolvido contra ESSA barra, não
+            // contra a superfície da página: fundo translúcido branco + texto --on-brand,
+            // que é branco nos dois modos. O "background: white / color: #611414" antigo
+            // era um vermelho escrito à mão que ignorava tanto o tema quanto a empresa.
             Object.assign(botaoVoltar.style, {
                 position: "fixed", top: "25px", right: "20px", zIndex: "100000",
-                padding: "8px 20px", background: "white", color: "#611414",
-                border: "none", borderRadius: "20px", cursor: "pointer", fontWeight: "bold"
+                padding: "8px 20px", background: "rgba(255,255,255,0.15)", color: "var(--on-brand)",
+                border: "1px solid rgba(255,255,255,0.5)", borderRadius: "20px",
+                cursor: "pointer", fontWeight: "bold", transition: "background 0.2s"
             });
+            botaoVoltar.onmouseover = () => { botaoVoltar.style.background = "rgba(255,255,255,0.3)"; };
+            botaoVoltar.onmouseout = () => { botaoVoltar.style.background = "rgba(255,255,255,0.15)"; };
 
             botaoVoltar.onclick = (ev) => {
                 ev.stopPropagation();
@@ -9719,7 +9744,7 @@ function renderAcoesComprovante(c) {
     if (c.comprovante_url) {
         return `
             <a href="${c.comprovante_url}" target="_blank" class="btn-ver-comprovante" title="Ver Comprovante">
-                <i class="fas fa-file-invoice-dollar" style="font-size: 1.2em; color: #2E8B57;"></i>
+                <i class="fas fa-file-invoice-dollar" style="font-size: 1.2em; color: var(--status-ok-fg, #2E8B57);"></i>
             </a>
         `;
     }
@@ -9742,7 +9767,7 @@ function renderAcoesComprovante(c) {
 // function renderBotaoPagamento(c) {
 //     // 1. Se já estiver pago, mostra o ícone de confirmação
 //     if (c.status && c.status.toLowerCase() === 'pago') {
-//         return `<i class="fas fa-check-double" style="color: #2E8B57;" title="Lançamento Confirmado"></i>`;
+//         return `<i class="fas fa-check-double" style="color: var(--status-ok-fg, #2E8B57);" title="Lançamento Confirmado"></i>`;
 //     }
 
 //     // 2. Tratamento da observação para evitar quebra no JS
@@ -9775,7 +9800,7 @@ function renderAcoesComprovante(c) {
 
 function renderBotaoPagamento(c) {
     if (c.status && c.status.toLowerCase() === 'pago') {
-        return `<i class="fas fa-check-double" style="color: #2E8B57;" title="Lançamento Confirmado"></i>`;
+        return `<i class="fas fa-check-double" style="color: var(--status-ok-fg, #2E8B57);" title="Lançamento Confirmado"></i>`;
     }
 
     const textoObs = (c.observacao || c.observacao_vencimento || "").replace(/[\n\r]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '\\"');
@@ -10094,7 +10119,7 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
 
             if (container) {
                 // Substitui os botões por um ícone de check (estilo "pago")
-                container.innerHTML = `<i class="fas fa-check-double" style="color: #2E8B57; font-size: 1.2rem;" title="Pago agora"></i>`;
+                container.innerHTML = `<i class="fas fa-check-double" style="color: var(--status-ok-fg, #2E8B57); font-size: 1.2rem;" title="Pago agora"></i>`;
 
                 // Opcional: muda a cor da linha para indicar sucesso sem removê-la
                 if (linha) {
@@ -10119,26 +10144,30 @@ async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagame
             // ainda não existia). Agora que o pagamento foi criado, reaponta esses
             // inputs pro idpagamento real — senão o upload seguinte falha (400).
             if (linha && dados.idpagamento) {
+                // O id do input carrega a chave da linha (idlancamento_dtvcto) e precisa
+                // continuar único — reescrevê-lo pro idpagamento puro só troca de colisão.
+                // Aqui basta injetar o idpagamento real no onchange, preservando o id.
+                let chaveLinhaAtual = '';
                 linha.querySelectorAll('input[type="file"][id^="up_img_"], input[type="file"][id^="up_comp_"]').forEach(inp => {
                     const ehImagem = inp.id.startsWith('up_img_');
                     const prefixo = ehImagem ? 'up_img_' : 'up_comp_';
                     const tipoUpload = ehImagem ? 'imagem' : 'comprovante';
-                    const novoId = prefixo + dados.idpagamento;
-                    inp.id = novoId;
-                    inp.setAttribute('onchange', `uploadArquivoFinanceiro(this, '${dados.idpagamento}', '${tipoUpload}')`);
-                    const icone = inp.nextElementSibling;
-                    if (icone) icone.setAttribute('onclick', `document.getElementById('${novoId}').click()`);
+                    chaveLinhaAtual = inp.id.slice(prefixo.length);
+                    const vctoLinha = (dtvcto || '');
+                    inp.setAttribute('onchange', `uploadArquivoFinanceiro(this, '${dados.idpagamento}', '${tipoUpload}', '${idLancamento}', '${vctoLinha}')`);
                 });
 
                 // A célula de Comprovante só mostra o upload quando status === 'pago' —
                 // até agora ela foi renderizada como "Aguardando Pagamento" (sem input
                 // nenhum pra reapontar acima). Libera o upload aqui, na hora, sem reload.
-                const celulaComprovante = document.getElementById(`celula-comprovante-${idLancamento}`);
+                // Busca dentro da própria linha: o id da célula é por parcela, e o
+                // idlancamento sozinho aparece repetido em todos os meses projetados.
+                const celulaComprovante = linha.querySelector('.celula-comprovante-conta');
                 if (celulaComprovante && !celulaComprovante.querySelector('a')) {
-                    const novoIdComp = `up_comp_${dados.idpagamento}`;
+                    const novoIdComp = `up_comp_${chaveLinhaAtual || dados.idpagamento}`;
                     celulaComprovante.innerHTML = `
                         <div>
-                            <input type="file" style="display:none" id="${novoIdComp}" onchange="uploadArquivoFinanceiro(this, '${dados.idpagamento}', 'comprovante')">
+                            <input type="file" style="display:none" id="${novoIdComp}" onchange="uploadArquivoFinanceiro(this, '${dados.idpagamento}', 'comprovante', '${idLancamento}', '${dtvcto || ''}')">
                             <i class="fas fa-upload" style="color:#f0ad4e; cursor:pointer;" title="Enviar comprovante" onclick="document.getElementById('${novoIdComp}').click()"></i>
                         </div>`;
                 }
@@ -10304,7 +10333,7 @@ async function uploadComprovanteHolerite(inputEl, idholerite) {
         if (res && res.ok) {
             container.innerHTML = `<a href="javascript:void(0)"
                 onclick="abrirComprovanteSwal(encodeURIComponent('${res.url}'))"
-                style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                 <i class="fas fa-receipt" style="font-size: 18px;"></i>
                 <span style="font-size: 10px; font-weight: bold;">Ver Comp.</span>
             </a>`;
@@ -10315,7 +10344,7 @@ async function uploadComprovanteHolerite(inputEl, idholerite) {
             if (celulaHol) {
                 celulaHol.innerHTML = `<a href="javascript:void(0)"
                     onclick="imprimirHoleriteRH(${linha.dataset.printIdfunc}, ${linha.dataset.printMes}, ${linha.dataset.printAno})"
-                    style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                    style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                     <i class="fas fa-print" style="font-size: 18px;"></i>
                     <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
                 </a>`;
@@ -10562,7 +10591,7 @@ window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprov
             const label = tipoUpload === 'imagem' ? 'Ver Conta' : 'Ver Comp.';
             
             tdPai.innerHTML = `
-                <a href="${res.path}" target="_blank" style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                <a href="${res.path}" target="_blank" style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                     <i class="fas ${icone}" style="font-size: 18px;"></i>
                     <span style="font-size: 10px; font-weight: bold;">${label}</span>
                 </a>`;

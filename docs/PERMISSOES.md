@@ -32,6 +32,8 @@ Não pertencem a um módulo específico — são "papéis" fortes do usuário:
 | `comercial`  | acesso comercial |
 | `devs`       | acesso a dados sensíveis / config técnica |
 | `rh`         | folha de pagamento / RH mode / Alíquotas |
+| `ti`         | TI mode (almoxarifado e chamados de TI) |
+| `camisetas`  | local "Camisetas" do Almoxarifado Geral (itens, movimentações e pedidos de compra) |
 
 > **Convenção:** as flags especiais são concedidas na linha do módulo **`Staff`**.
 > O front lê pela linha do Staff; o back lê em **qualquer módulo**. Se você sempre
@@ -90,7 +92,15 @@ Detalhes do `exigirFlag`:
 - Verifica na **empresa atual** (`req.idempresa`).
 - Sem flag → `403`; sem login/empresa → `401`.
 
-> Para adicionar uma flag nova, inclua o nome em `FLAGS_ESPECIAIS` no middleware.
+> Para adicionar uma flag nova, não basta o middleware — a coluna atravessa toda a
+> cadeia de permissões:
+> 1. migration com `ALTER TABLE permissoes ADD COLUMN ... BOOLEAN DEFAULT FALSE`;
+> 2. `FLAGS_ESPECIAIS` em `middlewares/permissaoMiddleware.js` (whitelist do `exigirFlag`);
+> 3. `controllers/permissoesController.js` (SELECT/INSERT/UPDATE e grade do grid);
+> 4. `controllers/authController.js` (`/auth/permissoes` → `pode_<flag>`);
+> 5. `routes/rotaPermissoes.js` (SELECTs de log);
+> 6. `public/CadUsuarios.html` (checkbox `global-<flag>`) e `CAMPOS_ESPECIAIS_GLOBAL`
+>    em `public/js/usuarios.js`.
 
 ---
 

@@ -14369,56 +14369,58 @@ function calcularValorTotal({ statusFechadoOverride = null } = {}) {
                 totalAjdCusto += vlrAjdDiaria;
             }
         });
-       
-        // --- REGRA DE OURO: AJUSTE DE CACHÊ POR AJUDA PAGA (INCLUSÃO E REMOÇÃO) ---
-        if (isAjudaCustoPaga) {
-            // 1. Calculamos quanto vale 1 Ajuda de Custo unitária
-            let vlrAjudaUnitario = (transporte + alimentacao);
-            if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
-
-            // 2. Baseline da regra: quantas diárias a ajuda de custo JÁ PAGA (vlrtotajdcusto,
-            // valor travado no banco) realmente cobre — não quantas datas existiam quando o
-            // formulário foi aberto (qtdOriginais/datasOriginaisBanco é só um snapshot da
-            // sessão atual e não tem memória de sessões de edição anteriores; usar esse
-            // snapshot fazia o ajuste de uma sessão sumir se uma sessão seguinte alterasse
-            // datas de um jeito que fechasse na mesma contagem, ex.: remover e reinserir a
-            // mesma data). vlrtotajdcusto é o fato monetário permanente, então usamos ele.
-            const vlrtotajdcustoPago = parseFloat(cacheGlobal?.vlrtotajdcusto) || 0;
-            const qtdCobertaPelaAjuda = vlrAjudaUnitario > 0
-                ? Math.round(vlrtotajdcustoPago / vlrAjudaUnitario)
-                : qtdOriginais;
-
-            if (qtdAtuais < qtdCobertaPelaAjuda) {
-                // CASO A: REMOÇÃO - O funcionário recebeu ajuda de custo por dias que não vai trabalhar
-                // Descontamos esse excesso do Cachê (pois o campo Ajuda de Custo está travado/pago)
-                const qtdRemovida = qtdCobertaPelaAjuda - qtdAtuais;
-                const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
-
-                console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<< ", "background: #ff0000; color: #fff");
-                // Cachê não pode ficar negativo: se a ajuda de custo já paga nos dias removidos
-                // for maior que o cachê restante, o excedente vira ajustefinanceiro (Débito) no
-                // salvamento — ver window.vlrExcedenteAjusteCache, lido no momento do envio.
-                const totalAposDesconto = totalCache - valorParaDescontar;
-                if (totalAposDesconto < 0) {
-                    window.vlrExcedenteAjusteCache = Math.abs(totalAposDesconto);
-                    totalCache = 0;
-                } else {
-                    totalCache = totalAposDesconto;
-                }
-
-            } else if (qtdAtuais > qtdCobertaPelaAjuda) {
-                // CASO B: INCLUSÃO - O funcionário vai trabalhar dias extras e precisa de ajuda de custo para eles
-                // Como a ajuda original já foi paga, somamos o valor dessas novas ajudas ao Cachê
-                const qtdAdicionada = qtdAtuais - qtdCobertaPelaAjuda;
-                const valorParaAdicionar = qtdAdicionada * vlrAjudaUnitario;
-
-                console.log("%c >>> INCLUSÃO: Somando ajuda extra ao Cachê <<< ", "background: #008000; color: #fff");
-                totalCache = totalCache + valorParaAdicionar;
-            }
-        }
-       
     }
-    
+
+    // --- REGRA DE OURO: AJUSTE DE CACHÊ POR AJUDA PAGA (INCLUSÃO E REMOÇÃO) ---
+    // Roda tanto para custo fechado/autorizado quanto para custo por diária: a ajuda de
+    // custo já paga precisa ser descontada/somada do cachê independentemente de como
+    // totalCache foi calculado acima (valor acordado fixo ou soma por diária).
+    if (isAjudaCustoPaga) {
+        // 1. Calculamos quanto vale 1 Ajuda de Custo unitária
+        let vlrAjudaUnitario = (transporte + alimentacao);
+        if (perfilFuncionario === "Lote") vlrAjudaUnitario *= qtdpessoas;
+
+        // 2. Baseline da regra: quantas diárias a ajuda de custo JÁ PAGA (vlrtotajdcusto,
+        // valor travado no banco) realmente cobre — não quantas datas existiam quando o
+        // formulário foi aberto (qtdOriginais/datasOriginaisBanco é só um snapshot da
+        // sessão atual e não tem memória de sessões de edição anteriores; usar esse
+        // snapshot fazia o ajuste de uma sessão sumir se uma sessão seguinte alterasse
+        // datas de um jeito que fechasse na mesma contagem, ex.: remover e reinserir a
+        // mesma data). vlrtotajdcusto é o fato monetário permanente, então usamos ele.
+        const vlrtotajdcustoPago = parseFloat(cacheGlobal?.vlrtotajdcusto) || 0;
+        const qtdCobertaPelaAjuda = vlrAjudaUnitario > 0
+            ? Math.round(vlrtotajdcustoPago / vlrAjudaUnitario)
+            : qtdOriginais;
+
+        if (qtdAtuais < qtdCobertaPelaAjuda) {
+            // CASO A: REMOÇÃO - O funcionário recebeu ajuda de custo por dias que não vai trabalhar
+            // Descontamos esse excesso do Cachê (pois o campo Ajuda de Custo está travado/pago)
+            const qtdRemovida = qtdCobertaPelaAjuda - qtdAtuais;
+            const valorParaDescontar = qtdRemovida * vlrAjudaUnitario;
+
+            console.log("%c >>> REMOÇÃO: Descontando ajuda do Cachê <<< ", "background: #ff0000; color: #fff");
+            // Cachê não pode ficar negativo: se a ajuda de custo já paga nos dias removidos
+            // for maior que o cachê restante, o excedente vira ajustefinanceiro (Débito) no
+            // salvamento — ver window.vlrExcedenteAjusteCache, lido no momento do envio.
+            const totalAposDesconto = totalCache - valorParaDescontar;
+            if (totalAposDesconto < 0) {
+                window.vlrExcedenteAjusteCache = Math.abs(totalAposDesconto);
+                totalCache = 0;
+            } else {
+                totalCache = totalAposDesconto;
+            }
+
+        } else if (qtdAtuais > qtdCobertaPelaAjuda) {
+            // CASO B: INCLUSÃO - O funcionário vai trabalhar dias extras e precisa de ajuda de custo para eles
+            // Como a ajuda original já foi paga, somamos o valor dessas novas ajudas ao Cachê
+            const qtdAdicionada = qtdAtuais - qtdCobertaPelaAjuda;
+            const valorParaAdicionar = qtdAdicionada * vlrAjudaUnitario;
+
+            console.log("%c >>> INCLUSÃO: Somando ajuda extra ao Cachê <<< ", "background: #008000; color: #fff");
+            totalCache = totalCache + valorParaAdicionar;
+        }
+    }
+
 
     // if (typeof diariaDobradacheck !== 'undefined' && diariaDobradacheck.checked && datasDobrada?.length > 0) {
     //     const autorizadas = datasDobrada.filter(item => item.status === 'Autorizado');

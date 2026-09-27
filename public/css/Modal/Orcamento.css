@@ -404,7 +404,41 @@ body.modal-open .notif-conteudo {
     width: 250px;
     height: 40px;
   }
-  
+
+  /* Busca com digitação de Função/Equipamento/Suprimento: o <select> segue no DOM
+     só como estado (value/options/change), quem o usuário enxerga é o input. O
+     !important é necessário porque a regra genérica `select{display:flex}` acima
+     venceria tanto o atributo hidden quanto um display:none sem prioridade. */
+  .busca-select {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .busca-select select {
+    display: none !important;
+  }
+
+  .busca-select input {
+    font-family: var(--Font-primary);
+    width: 250px;
+    height: 40px;
+    border-radius: 6px;
+    font-size: 15px;
+    padding: 0 15px;
+    border: 1px solid var(--border-2);
+    background: transparent;
+    color: var(--text-1);
+    outline: none;
+  }
+
+  /* A lista de sugestões é absoluta dentro de .busca-select; sem este contexto de
+     empilhamento ela ficaria atrás da tabela de itens, que vem depois no DOM. */
+  #itensSecaoCompleta .Selects {
+    position: relative;
+    z-index: 70;
+  }
+
   select#tpAjdCusto{
     width: 130px;
     height: 30px;

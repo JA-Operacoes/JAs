@@ -46,9 +46,15 @@ const storageComprovanteDespesa = multer.diskStorage({
         const nomeOriginalLimpo = path.parse(file.originalname).name
             .replace(/\s+/g, "")
             .replace(/[^a-zA-Z0-9]/g, "");
-        const dataHoje = new Date().toISOString().split("T")[0].replace(/-/g, "");
+        // Data + hora LOCAL (AAAAMMDD-HHMMSS): só a data fazia dois uploads do mesmo
+        // arquivo no mesmo dia colidirem e o multer sobrescrever o anterior no disco —
+        // crítico aqui, onde o id cai em 'novo' enquanto a despesa ainda não foi salva.
+        const agora = new Date();
+        const p2 = n => String(n).padStart(2, "0");
+        const dataHoje = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}`;
+        const horaAgora = `${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
         const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, `comprovantedespesa-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`);
+        cb(null, `comprovantedespesa-ID${id}-${dataHoje}-${horaAgora}-${nomeOriginalLimpo}${ext}`);
     }
 });
 

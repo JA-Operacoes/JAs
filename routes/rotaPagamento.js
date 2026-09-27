@@ -69,14 +69,20 @@ const storagePagamentos = multer.diskStorage({
             .replace(/\s+/g, '') 
             .replace(/[^a-zA-Z0-9]/g, '');
 
-        // 4. Geramos a data legível (AAAAMMDD)
-        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+        // 4. Carimbo de data e hora LOCAL (AAAAMMDD-HHMMSS).
+        // Só a data não basta: dois uploads do mesmo arquivo no mesmo dia (parcelas
+        // diferentes do mesmo lançamento recorrente, ou id caindo no fallback '0')
+        // geravam nomes idênticos e o multer sobrescrevia o arquivo anterior no disco.
+        const agora = new Date();
+        const p2 = n => String(n).padStart(2, '0');
+        const dataHoje = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}`;
+        const horaAgora = `${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
 
         const ext = path.extname(file.originalname).toLowerCase();
-        
-        // RESULTADO: imagemboleto-ID133-20260303-contaLuz.pdf
-        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
-        
+
+        // RESULTADO: imagemConta-ID133-20260303-142735-contaLuz.pdf
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${horaAgora}-${nomeOriginalLimpo}${ext}`;
+
         cb(null, nomeFinal);
     }
 });

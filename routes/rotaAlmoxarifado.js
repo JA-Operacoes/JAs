@@ -36,10 +36,15 @@ const uploadFoto = multer({
 // Mesma lista precisa bater com o CHECK da coluna `local` (ver migrations).
 const LOCAIS = ["Escritório", "Consumíveis Pavilhão", "Camisetas"];
 
-// "Camisetas" é sensível (custo/estoque de brinde) — só quem tem uma das flags
-// especiais vê ou mexe nesse local (ver docs/PERMISSOES.md, mesmo padrão de
-// exigirFlag em permissaoMiddleware.js, mas aqui é condicional ao `local`).
-const FLAGS_ESPECIAIS = ["supremo", "master", "financeiro", "devs"];
+// Editar o cadastro do item (nome, local, unidade, mínimo) é sensível em qualquer
+// local — continua nas flags administrativas de sempre.
+const FLAGS_EDICAO_ITEM = ["supremo", "master", "financeiro", "devs"];
+
+// "Camisetas" é sensível (custo/estoque de brinde) e tem flag PRÓPRIA — saiu do
+// `financeiro` (ver migration nova_permissao_camisetas). Sem `camisetas` marcada,
+// nem financeiro nem master enxergam o local; só o supremo passa por cima.
+// Mesmo padrão de exigirFlag em permissaoMiddleware.js, mas condicional ao `local`.
+const FLAGS_CAMISETAS = ["supremo", "camisetas"];
 
 // Quem aprova a lista de compras, cotações e recebimento (ver seção Compras).
 const FLAGS_APROVACAO = ["master", "supremo"];
@@ -54,38 +59,44 @@ async function temAlgumaFlag(idusuario, idempresa, flags) {
   return rows.length > 0;
 }
 
-function temFlagsEspeciais(idusuario, idempresa) {
-  return temAlgumaFlag(idusuario, idempresa, FLAGS_ESPECIAIS);
+// Quem enxerga/mexe no local "Camisetas".
+function podeVerCamisetas(idusuario, idempresa) {
+  return temAlgumaFlag(idusuario, idempresa, FLAGS_CAMISETAS);
+}
+
+// Quem pode editar o cadastro de qualquer item do almoxarifado.
+function podeEditarItem(idusuario, idempresa) {
+  return temAlgumaFlag(idusuario, idempresa, FLAGS_EDICAO_ITEM);
 }
 
 function podeAprovarCompras(idusuario, idempresa) {
   return temAlgumaFlag(idusuario, idempresa, FLAGS_APROVACAO);
 }
 
-// Middleware: exige uma das flags especiais sempre, sem depender do `local`
+// Middleware: exige uma das flags administrativas sempre, sem depender do `local`
 // — usado na edição do item (nome, local, unidade, mínimo), que é sensível
 // independente de o item estar ou não em Camisetas.
-async function exigirFlagsEspeciais(req, res, next) {
+async function exigirFlagsEdicaoItem(req, res, next) {
   try {
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeEditarItem(req.usuario?.idusuario, req.idempresa);
     if (!liberado) {
       return res.status(403).json({ message: "Você não tem permissão para editar itens do almoxarifado." });
     }
     next();
   } catch (error) {
-    console.error("Erro ao verificar flags especiais:", error);
+    console.error("Erro ao verificar flags de edição de item:", error);
     res.status(500).json({ message: "Erro ao verificar permissões." });
   }
 }
 
 // Middleware: bloqueia quando o `local` (body ou query) for "Camisetas" e o
-// usuário não tiver nenhuma das flags especiais.
+// usuário não tiver a flag `camisetas` (ou `supremo`).
 async function bloquearCamisetasSemFlag(req, res, next) {
   const local = req.body?.local || req.query?.local;
   if (local !== "Camisetas") return next();
 
   try {
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     if (!liberado) {
       return res.status(403).json({ message: "Você não tem permissão para acessar Camisetas." });
     }
@@ -103,7 +114,7 @@ async function bloquearCamisetasPorItem(req, res, next) {
     const item = await pool.query(`SELECT local FROM almoxarifadogeral WHERE iditem = $1 AND idempresa = $2`, [req.params.id, req.idempresa]);
     if (item.rows[0]?.local !== "Camisetas") return next();
 
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     if (!liberado) {
       return res.status(403).json({ message: "Você não tem permissão para acessar Camisetas." });
     }
@@ -118,7 +129,7 @@ async function bloquearCamisetasPorItem(req, res, next) {
 // — "Camisetas" só entra na lista pra quem tem as flags especiais.
 router.get("/locais", verificarPermissao("Almoxarifado", "pesquisar"), async (req, res) => {
   try {
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     res.json(liberado ? LOCAIS : LOCAIS.filter((l) => l !== "Camisetas"));
   } catch (error) {
     console.error("Erro ao verificar flags de Camisetas:", error);
@@ -199,11 +210,11 @@ router.post("/",
 
 // PUT editar cadastro (descrição, unidade, mínimo) — não mexe em quantidade_atual
 // Editar o cadastro do item (nome/descrição, local, unidade, mínimo) é restrito
-// às mesmas flags especiais de Camisetas — não é sobre local aqui, é sobre a
-// ação de editar em si, então roda sempre, pra qualquer item.
+// às flags administrativas (FLAGS_EDICAO_ITEM) — não é sobre local aqui, é sobre
+// a ação de editar em si, então roda sempre, pra qualquer item.
 router.put("/:id",
   verificarPermissao("Almoxarifado", "alterar"),
-  exigirFlagsEspeciais,
+  exigirFlagsEdicaoItem,
   logMiddleware("Almoxarifado", { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
   async (req, res) => {
     const idempresa = req.idempresa;
@@ -447,7 +458,7 @@ router.get("/usuarios/busca", verificarPermissao("Almoxarifado", "pesquisar"), a
 //
 // Acesso: listar/criar pedido = Almoxarifado/pesquisar (solicitar não é cadastro
 // de item, é pedido). Aprovar, cotar, receber e cancelar = master/supremo.
-// Pedido do local "Camisetas" herda a mesma restrição de flags especiais.
+// Pedido do local "Camisetas" herda a mesma restrição da flag `camisetas`.
 // =============================================================================
 
 // Janela usada pra estimar consumo médio diário (sugestão de reposição e
@@ -486,7 +497,7 @@ async function bloquearCamisetasPorPedido(req, res, next) {
     if (!rows.length) return res.status(404).json({ message: "Pedido não encontrado." });
     if (rows[0].local !== "Camisetas") return next();
 
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     if (!liberado) {
       return res.status(403).json({ message: "Você não tem permissão para acessar Camisetas." });
     }
@@ -606,7 +617,7 @@ router.get("/compras/pedidos", verificarPermissao("Almoxarifado", "pesquisar"), 
 
   try {
     // Sem flag especial o usuário nem enxerga pedidos de Camisetas na listagem.
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     if (!liberado) condicoes.push(`p.local <> 'Camisetas'`);
 
     if (local) {
@@ -1255,7 +1266,7 @@ router.get("/compras/itens/:iditem/historico", verificarPermissao("Almoxarifado"
     }
     const item = itemResult.rows[0];
 
-    if (item.local === "Camisetas" && !(await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa))) {
+    if (item.local === "Camisetas" && !(await podeVerCamisetas(req.usuario?.idusuario, req.idempresa))) {
       return res.status(403).json({ message: "Você não tem permissão para acessar Camisetas." });
     }
 
@@ -1323,7 +1334,7 @@ router.get("/compras/itens/:iditem/precos", verificarPermissao("Almoxarifado", "
     if (!itemResult.rowCount) {
       return res.status(404).json({ message: "Item não encontrado." });
     }
-    if (itemResult.rows[0].local === "Camisetas" && !(await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa))) {
+    if (itemResult.rows[0].local === "Camisetas" && !(await podeVerCamisetas(req.usuario?.idusuario, req.idempresa))) {
       return res.status(403).json({ message: "Você não tem permissão para acessar Camisetas." });
     }
 
@@ -1356,7 +1367,7 @@ router.get("/compras/itens/:iditem/precos", verificarPermissao("Almoxarifado", "
 // GET itens com histórico de compra (lista do comparativo de preços)
 router.get("/compras/itens", verificarPermissao("Almoxarifado", "pesquisar"), async (req, res) => {
   try {
-    const liberado = await temFlagsEspeciais(req.usuario?.idusuario, req.idempresa);
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     const result = await pool.query(
       `SELECT i.iditem, i.descricao, i.local, i.unidade_medida,
               COUNT(c.idcompra) AS compras,

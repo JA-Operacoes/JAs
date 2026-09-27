@@ -647,25 +647,30 @@ router.get('/pagamentos-contas', autenticarToken(), async (req, res) => {
 // ─────────────────────────────────────────────
 // GET /notificacoes/empresas-sem-logo
 // ─────────────────────────────────────────────
-// Lembrete só pra Devs (não Supremo — só Devs cadastram logo/ícone, ver
-// exigirFlag('devs') abaixo) de quais empresas ainda estão com logo/ícone
-// incompleto (logo, logoclaro, iconeescuro ou iconeclaro). Conta 1 por
-// empresa, não por campo faltando (ver "faltando" abaixo, é só informativo).
-// "urlindex IS NOT NULL" escopa pras empresas que realmente têm página
-// própria — sem isso, linhas de teste/pessoais sem página (ex.: JOÃO, JD)
-// apareceriam pra sempre como "incompletas" sem nunca poder ser corrigidas.
+// Lembrete só pra Devs (não Supremo — só Devs cadastram esses campos, ver
+// exigirFlag('devs') abaixo) de quais empresas estão com cadastro incompleto:
+// urlindex (nome do arquivo *-index.html, decide se ela aparece na barra
+// "Trocar empresa" -- ver Index.js) ou logo/logoclaro/iconeescuro/iconeclaro.
+// Conta 1 por empresa, não por campo faltando (ver "faltando" abaixo, é só
+// informativo).
+// "ativo = true" escopa pras empresas realmente em uso -- sem isso, uma
+// empresa pausada de propósito (ex.: idempresa=15 "EP", ambiente duplo
+// EP/EP-RH ainda não confirmado com o CEO, ver memória
+// project_ep_ep_rh_ambiente_duplo) ficaria pra sempre marcada como
+// "incompleta" mesmo sem dever ter urlindex ainda.
 router.get('/empresas-sem-logo', autenticarToken(), exigirFlag('devs'), async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT idempresa, nmfantasia, logo, logoclaro, iconeescuro, iconeclaro
+      SELECT idempresa, nmfantasia, urlindex, logo, logoclaro, iconeescuro, iconeclaro
       FROM empresas
-      WHERE urlindex IS NOT NULL
-        AND (logo IS NULL OR logoclaro IS NULL OR iconeescuro IS NULL OR iconeclaro IS NULL)
+      WHERE ativo = true
+        AND (urlindex IS NULL OR logo IS NULL OR logoclaro IS NULL OR iconeescuro IS NULL OR iconeclaro IS NULL)
       ORDER BY nmfantasia
     `);
 
     const notificacoes = rows.map(e => {
       const faltando = [];
+      if (!e.urlindex) faltando.push('página própria (urlindex)');
       if (!e.logo) faltando.push('logo');
       if (!e.logoclaro) faltando.push('logo claro');
       if (!e.iconeescuro) faltando.push('ícone escuro');
@@ -680,7 +685,7 @@ router.get('/empresas-sem-logo', autenticarToken(), exigirFlag('devs'), async (r
         // ver normalizarStatus/renderizarLista em Notificacao.js.
         type: 'warning',
         icon: 'image_not_supported',
-        message: `${e.nmfantasia}: logo/ícone incompleto`,
+        message: `${e.nmfantasia}: cadastro incompleto`,
         subtext: `Falta: ${faltando.join(', ')}`,
         created_at: new Date().toISOString(),
         read: false,
@@ -692,7 +697,7 @@ router.get('/empresas-sem-logo', autenticarToken(), exigirFlag('devs'), async (r
 
     res.json(notificacoes);
   } catch (err) {
-    console.error('Erro ao buscar empresas sem logo/ícone completo:', err);
+    console.error('Erro ao buscar empresas com cadastro incompleto:', err);
     res.status(500).json([]);
   }
 });

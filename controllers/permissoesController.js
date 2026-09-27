@@ -68,6 +68,7 @@ async function listarPermissoesPorUsuario(req, res) {
       devs: !!row.devs,
       rh: !!row.rh,
       ti: !!row.ti,
+      camisetas: !!row.camisetas,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -85,7 +86,7 @@ async function upsertPermissao(client, idusuario, modulo, idempresa, flags) {
   const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
   const {
     acesso, cadastrar, alterar, pesquisar, apagar,
-    master, financeiro, supremo, comercial, devs, rh, ti
+    master, financeiro, supremo, comercial, devs, rh, ti, camisetas
   } = flags;
 
   const { rows } = await client.query(
@@ -96,19 +97,19 @@ async function upsertPermissao(client, idusuario, modulo, idempresa, flags) {
   if (rows.length > 0) {
     const updateResult = await client.query(`
       UPDATE permissoes
-      SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11, ti = $12
-      WHERE idusuario = $13 AND modulo = $14 AND idempresa = $15
+      SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8, comercial = $9, devs = $10, rh = $11, ti = $12, camisetas = $13
+      WHERE idusuario = $14 AND modulo = $15 AND idempresa = $16
       RETURNING id;
-    `, [!!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, idusuario, moduloFormatado, idempresa]);
+    `, [!!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, !!camisetas, idusuario, moduloFormatado, idempresa]);
 
     return { idpermissao: updateResult.rows[0]?.id || null, acao: 'atualizou' };
   }
 
   const insertResult = await client.query(`
-    INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, ti, idempresa)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, comercial, devs, rh, ti, camisetas, idempresa)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING id;
-  `, [idusuario, moduloFormatado, !!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, idempresa]);
+  `, [idusuario, moduloFormatado, !!cadastrar, !!alterar, !!pesquisar, !!acesso, !!apagar, !!master, !!financeiro, !!supremo, !!comercial, !!devs, !!rh, !!ti, !!camisetas, idempresa]);
 
   return { idpermissao: insertResult.rows[0].id, acao: 'cadastrou' };
 }
@@ -148,7 +149,8 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     comercial,
     devs,
     rh,
-    ti
+    ti,
+    camisetas
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
@@ -164,7 +166,7 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
   try {
     const { idpermissao, acao } = await upsertPermissao(
       db, idusuario, modulo, idempresa,
-      { acesso, cadastrar, alterar, pesquisar, apagar, master, financeiro, supremo, comercial, devs, rh, ti }
+      { acesso, cadastrar, alterar, pesquisar, apagar, master, financeiro, supremo, comercial, devs, rh, ti, camisetas }
     );
 
     await garantirVinculoEmpresa(db, idusuario, idempresa, ativo);
@@ -216,7 +218,8 @@ async function listarGradePermissoes(req, res) {
         COALESCE(p.comercial, false)   AS comercial,
         COALESCE(p.devs, false)        AS devs,
         COALESCE(p.rh, false)          AS rh,
-        COALESCE(p.ti, false)          AS ti
+        COALESCE(p.ti, false)          AS ti,
+        COALESCE(p.camisetas, false)   AS camisetas
       FROM modulos m
       LEFT JOIN permissoes p ON LOWER(p.modulo) = LOWER(m.modulo) AND p.idusuario = $1 AND p.idempresa = $2
       ORDER BY m.modulo
