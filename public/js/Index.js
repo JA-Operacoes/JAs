@@ -246,6 +246,18 @@ window.temPermissao = function (modulo, acao) {
         botao.style.display = "none";
         return;
       }
+    } else if (modulo === "Funcao") {
+      // Categoria de Função e Equipes viraram abas dentro do modal de Funções e não têm
+      // item próprio no menu: quem só tem permissão em Categoriafuncao (ou Equipe)
+      // continua chegando nelas por este item (o próprio modal decide qual aba mostrar
+      // conforme a permissão de cada módulo).
+      const podeFuncao = temPermissao("Funcao", "acessar") || temPermissao("Funcao", "pesquisar");
+      const podeCategoriaFuncao = temPermissao("Categoriafuncao", "acessar") || temPermissao("Categoriafuncao", "pesquisar");
+      const podeEquipe = temPermissao("Equipe", "acessar") || temPermissao("Equipe", "pesquisar");
+      if (!podeFuncao && !podeCategoriaFuncao && !podeEquipe) {
+        botao.style.display = "none";
+        return;
+      }
     } else if (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar")) {
       botao.style.display = "none";
       return;

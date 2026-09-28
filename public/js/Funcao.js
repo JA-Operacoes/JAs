@@ -1,5 +1,7 @@
 
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { configurarEventosCatFuncao, desinicializarCatFuncaoModal } from './CategoriaFuncao.js';
+import { configurarEventosEquipe, desinicializarEquipeModal } from './Equipe.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -411,6 +413,11 @@ async function carregarEquipesFuncao() {
 
                 equipeComDetalhes[equipe.idequipe] = equipe;
             });
+            // Agora essa função é chamada de novo toda vez que a aba Equipes salva algo,
+            // então o listener só pode ser ligado uma vez por abertura do modal (o select
+            // é recriado junto com o HTML).
+            if (!selectElement.dataset.changeLigado) {
+            selectElement.dataset.changeLigado = "1";
             selectElement.addEventListener('change', function() {
 
                 console.log("Mudança de equipe detectada.");
@@ -433,10 +440,11 @@ async function carregarEquipesFuncao() {
                     console.log("Placeholder ou valor inválido selecionado.");
                 }
                 
-                // Se a lógica for muito grande, AINDA é recomendado usar uma função externa, 
+                // Se a lógica for muito grande, AINDA é recomendado usar uma função externa,
                 // mas isso atende ao seu pedido de tratar 'change' aqui.
             });
-            
+            }
+
         } else {
             console.warn("Nenhuma equipe encontrada.");
             // O SweetAlert pode ser usado aqui, mas pode ser intrusivo
@@ -482,7 +490,13 @@ async function carregarCategoriasFuncao() {
 
                     categoriasComDetalhes[categoria.idcategoriafuncao] = categoria;
                 });
-                selectElement.addEventListener('change', preencherCustosPorCategoria);
+                // Agora essa função é chamada de novo toda vez que a aba Categoria de
+                // Função salva algo, então o listener só pode ser ligado uma vez por
+                // abertura do modal (o select é recriado junto com o HTML).
+                if (!selectElement.dataset.changeLigado) {
+                    selectElement.dataset.changeLigado = "1";
+                    selectElement.addEventListener('change', preencherCustosPorCategoria);
+                }
             } else {               
                 console.warn("Nenhuma categoria função encontrada.");
                 // O SweetAlert pode ser usado aqui, mas pode ser intrusivo
@@ -746,8 +760,11 @@ function limparFuncaoOriginal() {
 }
 
 function limparCamposFuncao() {
-    const campos = ["idFuncao", "descFuncao","CustoSenior", "CustoPleno", "CustoJunior", "CustoBase", "Venda", 
-        "transporte", "transporteSenior",  "alimentacao", "idCatFuncao","idEquipe","ObsAjc"];
+    // "transporteSenior", "idEquipe" e "ObsAjc" não correspondiam a nenhum id da tela
+    // (os reais são TranspSenior, idEquipeFuncao e as duas observações), então esses
+    // campos nunca eram limpos.
+    const campos = ["idFuncao", "descFuncao", "CustoSenior", "CustoPleno", "CustoJunior", "CustoBase", "Venda",
+        "transporte", "TranspSenior", "alimentacao", "idCatFuncao", "idEquipeFuncao", "obsFuncao", "obsProposta"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -778,12 +795,71 @@ function limparCamposFuncao() {
     }
 }
 
+// ===== Abas do modal (Funções | Categoria de Função | Equipes) =====
+// Mesma mecânica das abas dos Lançamentos Financeiros (Lancamentos.js/mudarAba): as
+// três telas ficam no mesmo DOM e só a view da aba ativa — e o grupo de botões dela —
+// aparece.
+const TITULOS_ABA_FUNCAO = {
+    funcao: 'Cadastro de Funções',
+    categoria: 'Cadastro de Categorias de Funções',
+    equipe: 'Cadastro de Equipes'
+};
+
+function mudarAbaFuncao(nome) {
+    document.querySelectorAll('#cadModalFuncao .fn-tab-btn').forEach((btn) =>
+        btn.classList.toggle('ativa', btn.dataset.fnTab === nome));
+
+    const nomesView = { funcao: 'fnViewFuncao', categoria: 'fnViewCategoria', equipe: 'fnViewEquipe' };
+    document.querySelectorAll('#cadModalFuncao .fn-view').forEach((view) =>
+        view.classList.toggle('ativa', view.id === nomesView[nome]));
+
+    document.querySelectorAll('#cadModalFuncao .fn-btns').forEach((btns) =>
+        btns.classList.toggle('ativa', btns.dataset.fnTab === nome));
+
+    const titulo = document.querySelector('#fnTitulo');
+    if (titulo) titulo.textContent = TITULOS_ABA_FUNCAO[nome] || TITULOS_ABA_FUNCAO.funcao;
+}
+
+function podeAcessarModulo(modulo) {
+    if (typeof temPermissao !== 'function') return true;
+    return temPermissao(modulo, 'acessar') || temPermissao(modulo, 'pesquisar');
+}
+
+function configurarAbasFuncao() {
+    document.querySelectorAll('#cadModalFuncao .fn-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => mudarAbaFuncao(btn.dataset.fnTab));
+    });
+
+    // Cada aba é um módulo de permissão diferente: quem não tem Categoriafuncao (ou
+    // Equipe) não enxerga a aba dela, e quem só tem uma dessas cai direto nessa aba (é
+    // assim que esse usuário chega na tela, já que elas saíram do menu).
+    const podeFuncao = podeAcessarModulo('Funcao');
+    const podeCategoria = podeAcessarModulo('Categoriafuncao');
+    const podeEquipe = podeAcessarModulo('Equipe');
+
+    const abaFuncao = document.querySelector('#fnTabFuncao');
+    const abaCategoria = document.querySelector('#fnTabCategoria');
+    const abaEquipe = document.querySelector('#fnTabEquipe');
+    if (abaFuncao && !podeFuncao) abaFuncao.style.display = 'none';
+    if (abaCategoria && !podeCategoria) abaCategoria.style.display = 'none';
+    if (abaEquipe && !podeEquipe) abaEquipe.style.display = 'none';
+
+    // Categoria salva recarrega o select "Categoria da Função" da aba Funções, que
+    // acabou de mudar de conteúdo/valores. Mesma ideia pro select "Equipe".
+    if (podeCategoria) configurarEventosCatFuncao(carregarCategoriasFuncao);
+    if (podeEquipe) configurarEventosEquipe(carregarEquipesFuncao);
+
+    const abaInicial = podeFuncao ? 'funcao' : (podeCategoria ? 'categoria' : 'equipe');
+    mudarAbaFuncao(abaInicial);
+}
+
 function configurarEventosFuncao() {
     console.log("Configurando eventos Funcao...");
     verificaFuncao(); // Carrega os Funcao ao abrir o modal
     adicionarEventoBlurFuncao();
+    configurarAbasFuncao();
     console.log("Entrou configurar Funcao no FUNCAO.js.");
-} 
+}
 window.configurarEventosFuncao = configurarEventosFuncao;
 
 function configurarEventosEspecificos(modulo) {
@@ -863,6 +939,11 @@ function desinicializarFuncaoModal() { // Renomeado para seguir o padrão 'desin
     limparCamposFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
     document.getElementById('form').reset(); // Garante que o formulário seja resetado
     document.querySelector("#idFuncao").value = ""; // Garante que o ID oculto seja limpo
+
+    // As abas Categoria de Função e Equipes fazem parte deste modal, então saem junto
+    // ao fechar.
+    desinicializarCatFuncaoModal();
+    desinicializarEquipeModal();
 
     console.log("✅ Módulo Funcao.js desinicializado.");
 }
