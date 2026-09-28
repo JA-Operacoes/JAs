@@ -1846,7 +1846,7 @@ input#search-aside {
     transition: box-shadow .2s ease, transform .2s ease, opacity .2s ease, background-color .2s ease, color .2s ease;
   }
   #ti-panel .ti-evento-card:hover {
-    background: var(--primary-color);
+    background: var(--hover-color);
     color: var(--font-color);
     box-shadow: 0 4px 12px var(--shadow-1);
     transform: translateY(-1px);
@@ -2344,11 +2344,11 @@ input#search-aside {
   }
 
   #ti-panel .ti-btn-listagem-separacao {
-    background: var(--surface-1);
-    color: var(--primary-texto, #333);
+    background: var(--primary-color);
+    color: var(--font-color);
   }
   #ti-panel .ti-btn-listagem-separacao:hover {
-    background: var(--primary-color, #333);
+    background: var(--surface-1, #333);
     color: var(--font-color, #333);
   }
 
@@ -2358,7 +2358,8 @@ input#search-aside {
     font-weight: 600;
   }
   #ti-panel .ti-btn-ir-separacao:hover {
-    background: var(--hover-color, #333);
+    background: var(--surface-1, #333);
+    color: var(--font-color, #333);
   }
 
   #ti-panel .ti-calendario-linha {
