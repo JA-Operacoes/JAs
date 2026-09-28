@@ -6076,59 +6076,100 @@ function verificarSeEventoEstaNoIntervalo(ev, inicio, fim) {
 }
 
 
-function obterIntervaloDatasFiltro() {
-    const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
-    const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
-    const mesSel = document.querySelector("#sub-filtro-select")?.value;
+// FONTE ÚNICA do período selecionado no painel de Vencimentos / Contas a Pagar.
+// Antes cada lugar (lista de eventos, lista de contas, montagem da querystring, card lateral)
+// recalculava o intervalo do próprio jeito, lendo seletores diferentes — daí o filtro "pular"
+// meses conforme por onde era chamado. Toda leitura de período passa por aqui.
+//
+// Onde mora cada sub-filtro (ver atualizarSubFiltro):
+//   diário/semanal  -> <input type="date" id="sub-filtro-data">
+//   mensal          -> <select id="sub-filtro-select"> com value 1..12
+//   trimestral      -> radios name="sub" com value 1..4
+//   semestral       -> radios name="sub" com value 1..2
+//   ano             -> <select id="selectAno"> (card Financeiro)
+function obterPeriodoVencimentos() {
+    const tipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
+    const ano = parseInt(document.getElementById('selectAno')?.value, 10) || new Date().getFullYear();
+    const inputDataStr = document.querySelector("#sub-filtro-data")?.value || "";
+    const hoje = new Date();
 
-    // 1. Pega o ano do Card Financeiro
-    const selectAno = document.getElementById('selectAno');
-    const anoRef = selectAno ? parseInt(selectAno.value, 10) : new Date().getFullYear();
+    // parseInt direto + "|| fallback" era o outro motivo dos meses pulados: o índice 0
+    // (Janeiro, depois do -1) e o próprio valor 0 são falsy, então caíam no mês de hoje.
+    const lerInteiro = (valor) => {
+        const n = parseInt(valor, 10);
+        return Number.isFinite(n) ? n : null;
+    };
+    const mesSelecionado = lerInteiro(document.querySelector("#sub-filtro-select")?.value);
+    const subSelecionado = lerInteiro(document.querySelector("input[name='sub']:checked")?.value);
+
+    // Data base só existe em diário/semanal (é o único caso com campo de data); sem ela,
+    // usa o dia de hoje reposicionado no ANO do card.
+    let dataBase;
+    if (inputDataStr) {
+        const [, m, d] = inputDataStr.split("-").map(Number);
+        dataBase = new Date(ano, m - 1, d, 12, 0, 0);
+    } else {
+        dataBase = new Date(ano, hoje.getMonth(), hoje.getDate(), 12, 0, 0);
+    }
 
     let inicio, fim;
 
-    // 2. LÓGICA DE DIA (Selecione o dia)
-    if (filtroTipo === 'diario') {
-        if (inputDataStr) {
-            // Se o usuário escolheu um dia no calendário, usamos esse dia mas FORÇAMOS o ano do Card
-            const partes = inputDataStr.split("-"); // [yyyy, mm, dd]
-            inicio = new Date(anoRef, partes[1] - 1, partes[2]);
-        } else {
-            // Se não escolheu, usamos o dia/mês de HOJE mas no ANO do Card
-            const hoje = new Date();
-            inicio = new Date(anoRef, hoje.getMonth(), hoje.getDate());
+    switch (tipo) {
+        case 'diario':
+            inicio = new Date(dataBase);
+            fim = new Date(dataBase);
+            break;
+
+        case 'semanal':
+            // Domingo a sábado da semana da data escolhida (6 dias depois, não 7 — antes o
+            // intervalo tinha 8 dias e invadia o domingo da semana seguinte).
+            inicio = new Date(dataBase);
+            inicio.setDate(dataBase.getDate() - dataBase.getDay());
+            fim = new Date(inicio);
+            fim.setDate(inicio.getDate() + 6);
+            break;
+
+        case 'mensal': {
+            const mesIndex = (mesSelecionado !== null ? mesSelecionado : hoje.getMonth() + 1) - 1;
+            inicio = new Date(ano, mesIndex, 1);
+            fim = new Date(ano, mesIndex + 1, 0);
+            break;
         }
-        fim = new Date(inicio);
-    } 
-    // 3. LÓGICA MENSAL
-    else if (filtroTipo === "mensal") {
-        const mesIndex = mesSel ? (parseInt(mesSel) - 1) : new Date().getMonth();
-        inicio = new Date(anoRef, mesIndex, 1);
-        fim = new Date(anoRef, mesIndex + 1, 0);
-    }
-    // 4. LÓGICA TRIMESTRAL
-    else if (filtroTipo === "trimestral" || filtroTipo === "trimestre") {
-        const mesIndex = mesSel ? (parseInt(mesSel) - 1) : new Date().getMonth();
-        const trimInicio = Math.floor(mesIndex / 3) * 3;
-        inicio = new Date(anoRef, trimInicio, 1);
-        fim = new Date(anoRef, trimInicio + 3, 0);
-    }
-    // 5. LÓGICA SEMANAL
-    else if (filtroTipo === "semanal" && inputDataStr) {
-        const partes = inputDataStr.split("-");
-        inicio = new Date(anoRef, partes[1] - 1, partes[2]);
-        fim = new Date(inicio);
-        fim.setDate(inicio.getDate() + 7);
-    } else {
-        // Fallback: Ano inteiro do Card
-        inicio = new Date(anoRef, 0, 1);
-        fim = new Date(anoRef, 11, 31);
+
+        case 'trimestral':
+        case 'trimestre': {
+            // Lê o radio do trimestre (1..4). Antes derivava do mês de hoje / de um select que
+            // nem existe nesse modo, então escolher "1º Trimestre" mostrava o trimestre atual.
+            const trimestre = subSelecionado !== null ? subSelecionado : Math.ceil((hoje.getMonth() + 1) / 3);
+            const mesInicio = (trimestre - 1) * 3;
+            inicio = new Date(ano, mesInicio, 1);
+            fim = new Date(ano, mesInicio + 3, 0);
+            break;
+        }
+
+        case 'semestral': {
+            const semestre = subSelecionado !== null ? subSelecionado : (hoje.getMonth() < 6 ? 1 : 2);
+            const mesInicio = (semestre - 1) * 6;
+            inicio = new Date(ano, mesInicio, 1);
+            fim = new Date(ano, mesInicio + 6, 0);
+            break;
+        }
+
+        case 'anual':
+        default:
+            inicio = new Date(ano, 0, 1);
+            fim = new Date(ano, 11, 31);
+            break;
     }
 
     inicio.setHours(0, 0, 0, 0);
     fim.setHours(23, 59, 59, 999);
 
-    console.log(`✅ FILTRO SINCRONIZADO COM CARD (${anoRef}): ${inicio.toLocaleDateString()} até ${fim.toLocaleDateString()}`);
+    return { tipo, ano, inicio, fim };
+}
+
+function obterIntervaloDatasFiltro() {
+    const { inicio, fim } = obterPeriodoVencimentos();
     return { inicio, fim };
 }
 
@@ -6144,17 +6185,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     if (valoresResumoElement) valoresResumoElement.innerHTML = '';    
 
     
-    const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
-    const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
     const anoSelecionado = parseInt(document.getElementById('selectAno')?.value) || new Date().getFullYear();
 
-    let dataAlvoBR = "";
     let hojeRelativo = new Date(); // Referência para saber o que é "Vencido"
-
-    if (inputDataStr) {
-        const [ano, mes, dia] = inputDataStr.split("-");
-        dataAlvoBR = `${dia}/${mes}/${ano}`;
-    }
 
     // Se o usuário está vendo um ano anterior (ex: 2025), o "hoje" para cálculos de 
     // vencimento deve ser o último dia daquele ano, ou os dados nunca aparecerão como "a vencer"
@@ -6165,19 +6198,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     }
     hojeRelativo.setHours(0,0,0,0);
 
-    let params = construirParametrosFiltro();
-
-    // 1. Removemos o ano que venha do filtro padrão para não dar conflito
-    params = params.split('&').filter(p => !p.startsWith('ano=') && !p.startsWith('?ano=')).join('&');
-    if (!params.startsWith('?')) params = '?' + params;
-
-    // 2. Garante a troca de período se necessário
-    if (filtroTipo === "diario" || filtroTipo === "semanal") {
-        params = params.replace("periodo=diario", "periodo=mensal").replace("periodo=semanal", "periodo=mensal");
-    }
-
-    // 3. Agora sim, injeta o ano selecionado no card4
-    const paramsComAno = `${params}&ano=${anoSelecionado}`;   
+    // construirParametrosFiltro já usa o ano do card (#selectAno) e o período correto — nada de
+    // reescrever a querystring aqui. O remendo antigo (tirar o ano, forçar periodo=mensal em
+    // diário/semanal e recolar o ano no fim) trocava o período SEM trocar o parâmetro que o
+    // acompanha: o back recebia periodo=mensal sem mes= e caía no mês do servidor.
+    const paramsComAno = construirParametrosFiltro();
 
    // console.log("AGORA VAI:", paramsComAno);
 
@@ -6197,54 +6222,36 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         console.log("DADOS EVENTOS", dados);      
 
         
+        // Período selecionado na tela — mesma fonte usada pelas contas a pagar mais abaixo,
+        // pra eventos e contas nunca mostrarem intervalos diferentes. Antes este bloco montava
+        // o range contando meses a partir do #sub-filtro-select (que só existe no modo mensal):
+        // em trimestral/semestral caía no fallback "mês 1" e varria Jan→Mar / Jan→Jun,
+        // independentemente do trimestre/semestre escolhido.
+        const periodoTela = obterPeriodoVencimentos();
+
         dados = dados.filter(ev => {
-            const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
-            const chPendente = parseFloat(ev.cache?.pendente) || 0;
-            
-            // 1. Identificar competência do evento (Mês/Ano)
-            const extrairComp = (ds) => {
+            const parseDataBR = (ds) => {
                 if (!ds || ds === '---') return null;
                 const [d, m, a] = ds.split('/').map(Number);
-                return (a * 12) + m;
+                if (!d || !m || !a) return null;
+                return new Date(a, m - 1, d, 12, 0, 0);
             };
 
-            const compAjuda = extrairComp(ev.dataVencimentoAjuda);
-            const compCache = extrairComp(ev.dataVencimentoCache);
-            const compAnoAlvo = (anoSelecionado * 12);
+            const dtAjuda = parseDataBR(ev.dataVencimentoAjuda);
+            const dtCache = parseDataBR(ev.dataVencimentoCache);
+            const dentroDoPeriodo = (dt) => !!dt && dt >= periodoTela.inicio && dt <= periodoTela.fim;
 
-            // 2. Definir o Range do Filtro
-            const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value) || 1;
-            const inicioFiltro = compAnoAlvo + mesInicial;
-            
-            let alcance = 1;
-            if (filtroTipo === "trimestral") alcance = 3;
-            else if (filtroTipo === "semestral") alcance = 6;
-            
-            const fimFiltro = inicioFiltro + alcance - 1;
+            if (dentroDoPeriodo(dtAjuda) || dentroDoPeriodo(dtCache)) return true;
 
-            // 3. LÓGICA DE FILTRAGEM (Prioridade ao Período)
-            if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
-                
-                // Verifica se a competência da Ajuda ou do Cachê entra no range
-                const ajudaNoPeriodo = (compAjuda >= inicioFiltro && compAjuda <= fimFiltro);
-                const cacheNoPeriodo = (compCache >= inicioFiltro && compCache <= fimFiltro);
-
-                // IMPORTANTE: Se for "Aguardando Cadastro", ele pode não ter data de vencimento ainda.
-                // Verificamos se há algum indício de data no evento ou se ele pertence ao ano/mês inicial
-                const semDataMasNoMes = (!compAjuda && !compCache && mesInicial === (new Date().getMonth() + 1));
-
-                if (ajudaNoPeriodo || cacheNoPeriodo || semDataMasNoMes) {
-                    return true; // Deixa passar, independente de estar liquidado ou pendente
-                }
-                return false; // Fora do período
+            // "Aguardando Cadastro": evento sem nenhuma data de vencimento ainda. Continua
+            // aparecendo apenas quando o período selecionado contém o dia de hoje (antes isso
+            // dependia do select de mês, então sumia em trimestral/semestral/semanal).
+            if (!dtAjuda && !dtCache) {
+                const agora = new Date();
+                return agora >= periodoTela.inicio && agora <= periodoTela.fim;
             }
 
-            // 4. Caso seja filtro Diário
-            if (filtroTipo === "diario") {
-                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR);
-            }
-
-            return true;
+            return false;
         });
 
         // Configuração visual do filtro caixinha
@@ -8539,77 +8546,28 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             });
 
             // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
-            let dInicioComp, dFimComp;
-            let dataBase = inputDataStr ? new Date(inputDataStr + 'T12:00:00') : new Date();
-
-            switch (filtroTipo) {
-                case 'diario':
-                    dInicioComp = new Date(dataBase);
-                    dInicioComp.setHours(0,0,0,0);
-                    dFimComp = new Date(dataBase);
-                    dFimComp.setHours(23,59,59,999);
-                    break;
-                case 'semanal':
-                    dInicioComp = new Date(dataBase);
-                    dInicioComp.setDate(dataBase.getDate() - dataBase.getDay());
-                    dInicioComp.setHours(0,0,0,0);
-                    dFimComp = new Date(dInicioComp);
-                    dFimComp.setDate(dInicioComp.getDate() + 6);
-                    dFimComp.setHours(23,59,59,999);
-                    break;
-                case 'mensal':
-                    const mesSel = parseInt(document.querySelector("#sub-filtro-select")?.value) - 1 || dataBase.getMonth();
-                    dInicioComp = new Date(anoSelecionado, mesSel, 1, 0, 0, 0);
-                    dFimComp = new Date(anoSelecionado, mesSel + 1, 0, 23, 59, 59);
-                    break;
-                case 'trimestral':
-                    const mesInicioTrim = Math.floor(dataBase.getMonth() / 3) * 3;
-                    dInicioComp = new Date(anoSelecionado, mesInicioTrim, 1, 0, 0, 0);
-                    dFimComp = new Date(anoSelecionado, mesInicioTrim + 3, 0, 23, 59, 59);
-                    break;
-                case 'semestral':
-                    const mesInicioSem = dataBase.getMonth() < 6 ? 0 : 6;
-                    dInicioComp = new Date(anoSelecionado, mesInicioSem, 1, 0, 0, 0);
-                    dFimComp = new Date(anoSelecionado, mesInicioSem + 6, 0, 23, 59, 59);
-                    break;
-                case 'anual':
-                    dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
-                    dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
-                    break;
-                default:
-                    dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
-                    dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
-            }
+            // Mesmo período já usado na lista de eventos acima (obterPeriodoVencimentos) — não
+            // recalcula mais nada aqui. O switch antigo tinha três defeitos: em 'mensal',
+            // `parseInt(...) - 1 || dataBase.getMonth()` transformava Janeiro (0, falsy) no mês
+            // de hoje; em 'trimestral'/'semestral' ignorava o radio escolhido e derivava tudo do
+            // mês corrente; e nada disso conversava com o intervalo usado pelos eventos.
+            const dInicioComp = periodoTela.inicio;
+            const dFimComp = periodoTela.fim;
 
             // --- 2. FILTRAGEM DAS CONTAS PROJETADAS ---
-            
+            // Regra única: a conta aparece se o VENCIMENTO dela cai dentro do período
+            // selecionado. As exceções antigas (atrasadas, pagas anteriores e suspensas eram
+            // aceitas com qualquer `dataVcto < dFimComp`, sem limite inferior) faziam o filtro
+            // de outubro arrastar junto tudo de janeiro a setembro. Quem quiser ver o acumulado
+            // tem os períodos maiores (trimestral/semestral/anual) e os botões de status
+            // (Atrasadas / Pagas), que continuam funcionando dentro do intervalo escolhido.
             contasParaExibir = contasProjetadas.filter(c => {
-                const dataVcto = new Date(c.dtvcto + 'T12:00:00');
-                const statusC = (c.status || '').toLowerCase();
-
-                // 1. Verificações de Status
-                const ehSuspenso = (statusC === "suspenso");
-                const ehPago = (statusC === "pago");
-
-                // 2. Lógica de Período
-                const estaNoPeriodo = (dataVcto >= dInicioComp && dataVcto <= dFimComp);
-
-                // 3. Lógica de Atrasados: SÓ é atrasado se NÃO estiver suspenso e NÃO estiver pago
-                const ehAtrasado = (!ehSuspenso && !ehPago && statusC === "atrasado" && dataVcto < dFimComp);
-
-                // 4. Lógica de Pagos Anteriores
-                const ehPagoAnterior = (ehPago && dataVcto < dFimComp && dataVcto.getFullYear() === anoFiltro);
-
-                // 5. Lógica de Suspensos: Queremos que eles apareçam se forem do período ou se estiverem "pendentes" (atrás)
-                // Se você quer que suspensos antigos continuem aparecendo na lista:
-                const ehSuspensoRelevante = (ehSuspenso && dataVcto <= dFimComp);
-
-                // Funcionário (salário/13º) é previsão automática pra TODOS os meses do ano, não
-                // uma dívida real — não deve "vazar" por estar em atraso; respeita só o período
-                // selecionado no card (mensal/semanal/diário etc), igual a qualquer outro filtro.
-                if ((c.tipovinculo || '').toLowerCase() === 'funcionario') return estaNoPeriodo;
-
-                return estaNoPeriodo || ehAtrasado || ehPagoAnterior || ehSuspensoRelevante;
+                if (!c.dtvcto) return false;
+                // slice(0,10) porque a linha pode ter vindo direto do banco com timestamp
+                // ('2026-10-05T03:00:00.000Z'); meio-dia evita o fuso empurrar pro dia anterior.
+                const dataVcto = new Date(String(c.dtvcto).slice(0, 10) + 'T12:00:00');
+                if (isNaN(dataVcto)) return false;
+                return dataVcto >= dInicioComp && dataVcto <= dFimComp;
             });
 
             // --- 3. CÁLCULO DO RESUMO BASEADO NO FILTRO ---
@@ -10674,16 +10632,25 @@ function expandirOcorrenciasNoAno(c, anoFiltro) {
     const ehParcelado = (c.tiporepeticao === "PARCELADO");
     const maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
 
+    // Vencimento dia 29/30/31 em mês curto: `new Date(ano, 1, 31)` estoura para 3 de março, o
+    // que fazia a ocorrência de FEVEREIRO sumir da lista e março aparecer duas vezes (era um
+    // dos casos de "pular mês"). Aqui o dia é limitado ao último dia do mês de destino.
+    const diaBase = vctoBase.getDate();
+    const montarData = (ano, mesIndex) => {
+        const ultimoDia = new Date(ano, mesIndex + 1, 0).getDate();
+        return new Date(ano, mesIndex, Math.min(diaBase, ultimoDia), 12, 0, 0);
+    };
+
     const ocorrencias = [];
     for (let i = 0; i < maxLoop; i++) {
         let dProj;
         if (ehFixo) {
             // Indeterminado/FIXO: projeta direto nos 12 meses do ANO FILTRADO, não a partir do
             // ano do vctobase original — senão um lançamento antigo nunca alcança anos futuros.
-            dProj = new Date(anoFiltro, i, vctoBase.getDate(), 12, 0, 0);
+            dProj = montarData(anoFiltro, i);
             if (dProj < vctoBase) continue; // não mostra competência anterior ao início do lançamento
         } else {
-            dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+            dProj = montarData(vctoBase.getFullYear(), vctoBase.getMonth() + i);
         }
 
         if (dProj.getFullYear() !== anoFiltro) {
@@ -11322,39 +11289,31 @@ window.abrirComprovantesStaff = abrirComprovantesStaff;
 window.handleFileUpload = handleFileUpload;
 
 
+// Monta a querystring enviada ao back (/main/vencimentos e /main/contas-pagar).
+// O back só estreita de fato em 'diario' e 'mensal'; qualquer outro período devolve o ano
+// inteiro e quem recorta é o filtro de tela (obterPeriodoVencimentos). Por isso aqui a regra é
+// simples: só manda mes= quando o intervalo da tela cabe DENTRO de um único mês — senão pede o
+// ano e deixa o front filtrar. Antes o modo semanal mandava o mês da data inicial e perdia os
+// dias da semana que caíam no mês seguinte (ex.: semana de 28/09 a 04/10 não trazia outubro).
 function construirParametrosFiltro() {
-    const tipoOriginal = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
-    const anoAtual = new Date().getFullYear(); 
-    
-    // Captura o mês do select (Ex: Março = 3)
-    const seletorMes = document.querySelector("#sub-filtro-select");
-    const mesSelecionado = seletorMes ? seletorMes.value : (new Date().getMonth() + 1);
+    const { tipo, ano, inicio, fim } = obterPeriodoVencimentos();
 
-    let params = `?periodo=${tipoOriginal}`;
+    // Ano vem do card Financeiro (#selectAno) — antes era fixo no ano corrente, o que só não
+    // quebrava porque carregarDetalhesVencimentos reescrevia o ano depois.
+    const mesmoMes = inicio.getFullYear() === fim.getFullYear() && inicio.getMonth() === fim.getMonth();
 
-    // 1. Regra para DIÁRIO / SEMANAL (Busca o mês todo para pegar vencidos)
-    if (tipoOriginal === "diario" || tipoOriginal === "semanal") {
-        const dataInput = document.querySelector("#sub-filtro-data")?.value;
-        const mesParaBackend = dataInput ? new Date(dataInput + "T12:00:00").getMonth() + 1 : mesSelecionado;
-        params = `?periodo=mensal&mes=${mesParaBackend}&ano=${anoAtual}`;
-    } 
-    // 2. Regra para MENSAL (Crucial para Março aparecer!)
-    else if (tipoOriginal === "mensal") {
-        params = `?periodo=mensal&mes=${mesSelecionado}&ano=${anoAtual}`;
+    if (tipo === 'diario') {
+        const p2 = n => String(n).padStart(2, '0');
+        const dataIso = `${inicio.getFullYear()}-${p2(inicio.getMonth() + 1)}-${p2(inicio.getDate())}`;
+        return `?periodo=diario&dataInicio=${dataIso}&dataFim=${dataIso}&ano=${ano}`;
     }
-    // 3. Regra para TRIMESTRAL
-    else if (tipoOriginal === "trimestral" || tipoOriginal === "trimestre") {
-        // Se você tiver rádio de trimestre (T1, T2...), ele usa. 
-        // Se não, calcula o trimestre baseado no mês do select
-        const triRadio = document.querySelector("input[name='sub']:checked")?.value;
-        const triCalculado = triRadio || Math.ceil(mesSelecionado / 3);
-        params = `?periodo=trimestral&trimestre=${triCalculado}&ano=${anoAtual}`;
+
+    if (mesmoMes) {
+        return `?periodo=mensal&mes=${inicio.getMonth() + 1}&ano=${ano}`;
     }
-    else if (tipoOriginal === "anual") {
-        params = `?periodo=anual&ano=${anoAtual}`;
-    }
-    
-    return params;
+
+    // Semanal a cavalo de dois meses, trimestral, semestral e anual: ano cheio + recorte no front.
+    return `?periodo=anual&ano=${ano}`;
 }
 
 

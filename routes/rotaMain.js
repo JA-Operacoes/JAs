@@ -3202,8 +3202,13 @@ function calcularIntervaloDeDatas(periodo, params) {
     const trimestre = parseInt(params.trimestre); // 1-4
     const semestre = parseInt(params.semestre); // 1 ou 2
 
-    // Função auxiliar para formatar Date para 'YYYY-MM-DD'
-    const formatarData = (data) => data.toISOString().split('T')[0];
+    // Função auxiliar para formatar Date para 'YYYY-MM-DD' — em horário LOCAL.
+    // Com toISOString() toda data construída como meia-noite local virava o dia ANTERIOR em
+    // UTC-3 (1º de outubro saía como 30/09), jogando o intervalo um dia pra trás.
+    const formatarData = (data) => {
+        const p2 = n => String(n).padStart(2, '0');
+        return `${data.getFullYear()}-${p2(data.getMonth() + 1)}-${p2(data.getDate())}`;
+    };
 
     // Lógica para cada período
     switch (periodo) {
@@ -3387,10 +3392,13 @@ router.get("/vencimentos", async (req, res) => {
     let startDate, endDate;
     if (periodo === 'diario') {
       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
-      startDate = fmt(d); endDate = fmt(d);
+      // dataFim é opcional (o front manda igual a dataInicio); sem ela, o dia é o próprio início.
+      const dFim = req.query.dataFim ? new Date(req.query.dataFim + 'T00:00:00') : d;
+      startDate = fmt(d); endDate = fmt(dFim);
     } else if (periodo === 'mensal') {
       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
-      const y = parseInt(req.query.ano, 10) || 2026;
+      // Fallback era o ano fixo 2026 — qualquer chamada sem ano= caía num ano cravado no código.
+      const y = anoFiltro;
       startDate = fmt(new Date(y, m - 1, 1));
       endDate = fmt(new Date(y, m, 0));
     } else {

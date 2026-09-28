@@ -604,14 +604,31 @@ async function registrarCustodia(client, { idunidade, tipo, idfuncionario_origem
   );
 }
 
+// Um evento recorrente repete idevento em anos diferentes -- sem filtrar por edição, uma
+// consulta "pelo idevento" mistura orçamentos de anos completamente diferentes (achado real:
+// idevento=96 tinha orçamento #1125/2025 e #1343/2026 juntos numa mesma tela de separação).
+// orcamentos.edicao é o campo que /eventos-ativos já usa como fonte da verdade pra "qual
+// edição estamos vendo" -- inclusive a exceção de novembro (permite já enxergar janeiro do
+// ano seguinte). Reaproveitado aqui em vez de EXTRACT(YEAR FROM dtinirealizacao) pra não ter
+// duas regras de corte de ano divergentes no mesmo módulo.
+function condicaoEdicaoAtual(aliasOrcamento = 'o') {
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
+  if (mesAtual >= 11) {
+    return `(${aliasOrcamento}.edicao = '${anoAtual}' OR (${aliasOrcamento}.edicao = '${anoAtual + 1}' AND EXTRACT(MONTH FROM ${aliasOrcamento}.dtinirealizacao) = 1))`;
+  }
+  return `${aliasOrcamento}.edicao = '${anoAtual}'`;
+}
+
 // Um evento recorrente repete idevento em anos diferentes, e mesmo no MESMO ano pode ter
 // orçamentos-irmãos (cliente pede pra separar em faturas) -- sem isso, não dá pra saber
 // depois pra qual edição um equipamento foi de verdade (mesmo problema já resolvido em
 // staffeventos/idorcamento e despesaextras/idevento+dtreferencia). Resolve automaticamente
-// SÓ quando existe exatamente 1 orçamento não-recusado do evento no ano corrente -- é o caso
-// mais comum (evento com um orçamento só). Quando há 0 ou 2+ candidatos, devolve null (fica
-// ambíguo/sem dado) em vez de arriscar salvar o orçamento errado -- string explicando o motivo
-// vai pra observação do histórico, pra dar pra investigar depois.
+// SÓ quando existe exatamente 1 orçamento não-recusado do evento na edição corrente -- é o
+// caso mais comum (evento com um orçamento só). Quando há 0 ou 2+ candidatos, devolve null
+// (fica ambíguo/sem dado) em vez de arriscar salvar o orçamento errado -- string explicando
+// o motivo vai pra observação do histórico, pra dar pra investigar depois.
 async function resolverOrcamentoUnicoDoEvento(client, idevento, idempresa) {
   const { rows } = await client.query(
     `SELECT o.idorcamento
@@ -620,12 +637,12 @@ async function resolverOrcamentoUnicoDoEvento(client, idevento, idempresa) {
       WHERE o.idevento = $1
         AND oe.idempresa = $2
         AND o.status <> 'R'
-        AND EXTRACT(YEAR FROM o.dtinirealizacao) = EXTRACT(YEAR FROM CURRENT_DATE)`,
+        AND ${condicaoEdicaoAtual('o')}`,
     [idevento, idempresa]
   );
   if (rows.length === 1) return { idorcamento: rows[0].idorcamento, motivoAmbiguidade: null };
-  if (rows.length === 0) return { idorcamento: null, motivoAmbiguidade: 'Nenhum orçamento não-recusado encontrado pro evento no ano corrente.' };
-  return { idorcamento: null, motivoAmbiguidade: `${rows.length} orçamentos-irmãos no ano corrente -- ambíguo, precisa resolver manualmente.` };
+  if (rows.length === 0) return { idorcamento: null, motivoAmbiguidade: 'Nenhum orçamento não-recusado encontrado pro evento na edição corrente.' };
+  return { idorcamento: null, motivoAmbiguidade: `${rows.length} orçamentos-irmãos na edição corrente -- ambíguo, precisa resolver manualmente.` };
 }
 
 // POST entregar unidade a um funcionário
@@ -1337,65 +1354,102 @@ router.get("/eventos-ativos", async (req, res) => {
   const idempresa = req.idempresa;
   const { filtro } = req.query; // 'abertos' (padrão) | 'finalizados' | 'todos'
 
-  // Precisa comparar a data JÁ AGREGADA (MAX por evento), não a de cada orçamento
-  // individual — filtrar antes do GROUP BY distorcia o MIN/MAX (um evento com um
-  // orçamento antigo e outro futuro "perdia" a data de início antiga, empurrando
-  // o intervalo pra frente e sumindo de filtros de período como semanal/mensal).
-  let condicaoData = "AND MAX(o.dtfimrealizacao) >= CURRENT_DATE";
-  if (filtro === 'finalizados') condicaoData = "AND MAX(o.dtfimrealizacao) < CURRENT_DATE";
+  // Compara a data JÁ AGREGADA por ocorrência (oc.dtfimrealizacao, resolvida na CTE),
+  // não a de cada orçamento individual — filtrar antes do GROUP BY distorcia o MIN/MAX (uma
+  // ocorrência com um orçamento antigo e outro futuro "perdia" a data de início antiga,
+  // empurrando o intervalo pra frente e sumindo de filtros de período como semanal/mensal).
+  let condicaoData = "AND oc.dtfimrealizacao >= CURRENT_DATE";
+  if (filtro === 'finalizados') condicaoData = "AND oc.dtfimrealizacao < CURRENT_DATE";
   else if (filtro === 'todos') condicaoData = "";
 
   // Fica só na edição do ano corrente pra não pesar a busca trazendo anos antigos/futuros
   // inteiros. A partir de novembro (mês 11) libera também janeiro do ano seguinte, já que
   // nessa altura já faz sentido começar a planejar o início do próximo ano.
-  const hojeFiltro = new Date();
-  const anoAtualFiltro = hojeFiltro.getFullYear();
-  const mesAtualFiltro = hojeFiltro.getMonth() + 1;
-  let condicaoEdicao = `o.edicao = '${anoAtualFiltro}'`;
-  if (mesAtualFiltro >= 11) {
-    condicaoEdicao = `(o.edicao = '${anoAtualFiltro}' OR (o.edicao = '${anoAtualFiltro + 1}' AND EXTRACT(MONTH FROM o.dtinirealizacao) = 1))`;
-  }
+  const condicaoEdicao = condicaoEdicaoAtual('o');
 
   try {
     const result = await pool.query(
-      `SELECT
-         ev.idevento,
-         ev.nmevento,
-         MIN(o.dtinirealizacao) AS dtinirealizacao,
-         MAX(o.dtfimrealizacao) AS dtfimrealizacao,
-         MIN(o.dtinimontagem) AS dtinimontagem,
-         MAX(o.dtfimmontagem) AS dtfimmontagem,
-         MAX(o.dtfimdesmontagem) AS dtfimdesmontagem,
-         MIN(o.dtinirealizacao) FILTER (WHERE o.dtinirealizacao > CURRENT_DATE) AS dtinirealizacao_futura,
-         STRING_AGG(DISTINCT o.status, ',') AS status_orcamentos,
-         COUNT(DISTINCT oi.idequipamento) AS qtd_equipamentos_distintos,
-         COALESCE(SUM(oi.qtditens), 0) AS qtd_total_alocada,
-         COALESCE((
-           SELECT COUNT(*) FROM equipamentounidade u
-             WHERE u.idevento_separacao = ev.idevento AND u.idempresa = $1
-         ), 0) AS qtd_separada,
-         COALESCE(tes.status_controle, 'incerto') AS status_controle,
+      `WITH base AS (
+         SELECT
+           o.idorcamento, o.nrorcamento, o.status, o.idevento,
+           o.dtinirealizacao, o.dtfimrealizacao, o.dtinimontagem, o.dtfimmontagem, o.dtfimdesmontagem,
+           oi.idequipamento, oi.qtditens,
+           -- Uma "ocorrência" do evento não é só idevento -- o mesmo idevento pode ter
+           -- orçamentos de cliente/local/período completamente diferentes (achado real:
+           -- "Evento Prospecção" com uma proposta em junho e outra em dezembro, idmontagem
+           -- diferente). idorcamento_ancora (o menor idorcamento do grupo que bate em todos
+           -- esses campos) identifica a ocorrência de forma estável -- irmãos de verdade
+           -- (split de fatura) sempre batem exatamente nesses 5 campos.
+           MIN(o.idorcamento) OVER (
+             PARTITION BY o.idevento, o.idcliente, o.idmontagem, o.dtinirealizacao, o.dtfimrealizacao
+           ) AS idorcamento_ancora
+         FROM orcamentoitens oi
+         INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
+         INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         WHERE oi.idequipamento IS NOT NULL
+           AND o.status <> 'R'
+           AND oe.idempresa = $1
+           AND ${condicaoEdicao}
+       ),
+       ocorrencias AS (
+         SELECT
+           b.idorcamento_ancora,
+           ev.idevento,
+           ev.nmevento,
+           MIN(b.dtinirealizacao) AS dtinirealizacao,
+           MAX(b.dtfimrealizacao) AS dtfimrealizacao,
+           MIN(b.dtinimontagem) AS dtinimontagem,
+           MAX(b.dtfimmontagem) AS dtfimmontagem,
+           MAX(b.dtfimdesmontagem) AS dtfimdesmontagem,
+           MIN(b.dtinirealizacao) FILTER (WHERE b.dtinirealizacao > CURRENT_DATE) AS dtinirealizacao_futura,
+           STRING_AGG(DISTINCT b.status, ',') AS status_orcamentos,
+           COUNT(DISTINCT b.idequipamento) AS qtd_equipamentos_distintos,
+           COALESCE(SUM(b.qtditens), 0) AS qtd_total_alocada,
+           json_agg(DISTINCT jsonb_build_object('idorcamento', b.idorcamento, 'nrorcamento', b.nrorcamento, 'status', b.status)) AS orcamentos,
+           array_agg(DISTINCT b.idorcamento) AS idorcamentos_ocorrencia
+         FROM base b
+         INNER JOIN eventos ev ON ev.idevento = b.idevento
+         GROUP BY b.idorcamento_ancora, ev.idevento, ev.nmevento
+       )
+       SELECT
+         oc.*,
          COALESCE(tes.separado, false) AS separado,
          tes.separado_em,
-         tes.separado_por
-       FROM orcamentoitens oi
-       INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
-       INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       INNER JOIN eventos ev ON ev.idevento = o.idevento
-       LEFT JOIN tieventostatus tes ON tes.idevento = ev.idevento AND tes.idempresa = oe.idempresa
-       WHERE oi.idequipamento IS NOT NULL
-         AND o.status <> 'R'
-         AND oe.idempresa = $1
-         AND ${condicaoEdicao}
-       GROUP BY ev.idevento, ev.nmevento, tes.status_controle, tes.separado, tes.separado_em, tes.separado_por
-       HAVING TRUE ${condicaoData}
-       ORDER BY MAX(o.dtfimrealizacao) ASC`,
+         tes.separado_por,
+         COALESCE((
+           SELECT COUNT(*) FROM equipamentounidade u
+             WHERE u.idorcamento_separacao = ANY(oc.idorcamentos_ocorrencia) AND u.idempresa = $1
+         ), 0) AS qtd_separada
+       FROM ocorrencias oc
+       LEFT JOIN tieventostatus tes ON tes.idorcamento_ancora = oc.idorcamento_ancora AND tes.idempresa = $1
+       WHERE TRUE ${condicaoData}
+       ORDER BY oc.dtfimrealizacao ASC`,
       [idempresa]
     );
+
+    // status_controle é por ORÇAMENTO: Fechado/Recusado travam automaticamente pro valor
+    // correspondente (não faz sentido pedir confirmação manual de algo já decidido no
+    // contrato); só orçamentos ainda em Aberto/Proposta/Em Andamento usam o valor manual
+    // salvo em tiorcamentostatus.
+    const idorcamentosTodos = [...new Set(result.rows.flatMap((r) => (r.orcamentos || []).map((o) => o.idorcamento)))];
+    const statusManualPorOrcamento = new Map();
+    if (idorcamentosTodos.length) {
+      const statusResult = await pool.query(
+        `SELECT idorcamento, status_controle FROM tiorcamentostatus WHERE idempresa = $1 AND idorcamento = ANY($2::int[])`,
+        [idempresa, idorcamentosTodos]
+      );
+      statusResult.rows.forEach((r) => statusManualPorOrcamento.set(r.idorcamento, r.status_controle));
+    }
+    const derivarStatusControle = (statusOrcamento, idorcamento) => {
+      if (statusOrcamento === 'F') return { status_controle: 'confirmado', travado: true };
+      if (statusOrcamento === 'R') return { status_controle: 'cancelado', travado: true };
+      return { status_controle: statusManualPorOrcamento.get(idorcamento) || 'incerto', travado: false };
+    };
 
     const hoje = new Date();
     const eventos = result.rows.map((row) => ({
       ...row,
+      orcamentos: (row.orcamentos || []).map((o) => ({ ...o, ...derivarStatusControle(o.status, o.idorcamento) })),
       status_orcamento_avancado: statusMaisAvancado(row.status_orcamentos),
       finalizado: row.dtfimrealizacao ? new Date(row.dtfimrealizacao) < hoje : false,
     }));
@@ -1408,10 +1462,14 @@ router.get("/eventos-ativos", async (req, res) => {
 });
 
 // PUT status de controle da TI (confirmado/incerto/cancelado)
-router.put("/eventos/:idevento/status-controle",
+// PUT status de controle da TI (confirmado/incerto/cancelado) -- por ORÇAMENTO, não por
+// evento (achado real: mesmo idevento pode ter ocorrências completamente diferentes).
+// Só é possível chamar isso pra orçamento ainda Aberto/Proposta/Em Andamento -- Fechado e
+// Recusado travam automaticamente no GET /eventos-ativos (derivarStatusControle).
+router.put("/orcamentos/:idorcamento/status-controle",
   logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
   async (req, res) => {
-    const idevento = req.params.idevento;
+    const idorcamento = req.params.idorcamento;
     const idempresa = req.idempresa;
     const { status_controle } = req.body;
 
@@ -1420,56 +1478,63 @@ router.put("/eventos/:idevento/status-controle",
     }
 
     try {
+      const orcRes = await pool.query(`SELECT status FROM orcamentos WHERE idorcamento = $1`, [idorcamento]);
+      if (!orcRes.rowCount) return res.status(404).json({ message: "Orçamento não encontrado." });
+      if (['F', 'R'].includes(orcRes.rows[0].status)) {
+        return res.status(400).json({ message: "Orçamento Fechado ou Recusado já tem status automático -- não é editável manualmente." });
+      }
+
       const result = await pool.query(
-        `INSERT INTO tieventostatus (idevento, idempresa, status_controle)
+        `INSERT INTO tiorcamentostatus (idorcamento, idempresa, status_controle)
            VALUES ($1, $2, $3)
-           ON CONFLICT (idevento, idempresa)
+           ON CONFLICT (idorcamento, idempresa)
            DO UPDATE SET status_controle = $3, atualizado_em = NOW()
            RETURNING *`,
-        [idevento, idempresa, status_controle]
+        [idorcamento, idempresa, status_controle]
       );
 
-      res.locals.acao = 'atualizou status de controle do evento';
-      res.locals.idregistroalterado = idevento;
+      res.locals.acao = 'atualizou status de controle do orçamento';
+      res.locals.idregistroalterado = idorcamento;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = result.rows[0];
 
       res.json({ message: "Status atualizado com sucesso!", status: result.rows[0] });
     } catch (error) {
-      console.error("Erro ao atualizar status de controle do evento:", error);
-      res.status(500).json({ message: "Erro ao atualizar status de controle do evento." });
+      console.error("Erro ao atualizar status de controle do orçamento:", error);
+      res.status(500).json({ message: "Erro ao atualizar status de controle do orçamento." });
     }
   }
 );
 
-// PUT marcar/desmarcar "equipamentos separados"
-router.put("/eventos/:idevento/separado",
+// PUT marcar/desmarcar "equipamentos separados" -- por OCORRÊNCIA (idorcamento_ancora),
+// não por idevento (o mesmo idevento pode ter ocorrências completamente diferentes).
+router.put("/ocorrencias/:idorcamentoAncora/separado",
   logMiddleware('TI', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
   async (req, res) => {
-    const idevento = req.params.idevento;
+    const idorcamentoAncora = req.params.idorcamentoAncora;
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
     const { separado } = req.body;
 
     try {
       const result = await pool.query(
-        `INSERT INTO tieventostatus (idevento, idempresa, separado, separado_em, separado_por)
+        `INSERT INTO tieventostatus (idorcamento_ancora, idempresa, separado, separado_em, separado_por)
            VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (idevento, idempresa)
+           ON CONFLICT (idorcamento_ancora, idempresa)
            DO UPDATE SET separado = $3, separado_em = $4, separado_por = $5, atualizado_em = NOW()
            RETURNING *`,
-        [idevento, idempresa, !!separado, separado ? new Date() : null, separado ? idusuario : null]
+        [idorcamentoAncora, idempresa, !!separado, separado ? new Date() : null, separado ? idusuario : null]
       );
 
       res.locals.acao = separado ? 'marcou equipamentos separados' : 'desmarcou equipamentos separados';
-      res.locals.idregistroalterado = idevento;
+      res.locals.idregistroalterado = idorcamentoAncora;
       res.locals.idusuarioAlvo = null;
       res.locals.dadosnovos = result.rows[0];
 
       res.json({ message: "Atualizado com sucesso!", status: result.rows[0] });
     } catch (error) {
-      console.error("Erro ao atualizar separado do evento:", error);
-      res.status(500).json({ message: "Erro ao atualizar separado do evento." });
+      console.error("Erro ao atualizar separado da ocorrência:", error);
+      res.status(500).json({ message: "Erro ao atualizar separado da ocorrência." });
     }
   }
 );
@@ -1501,6 +1566,13 @@ router.get("/eventos/:idevento/staff", async (req, res) => {
 router.get("/eventos/:idevento/equipamentos", async (req, res) => {
   const idempresa = req.idempresa;
   const idevento = req.params.idevento;
+  // idorcamentos já vem resolvido pelo /eventos-ativos (edição/período) -- evita essa tela
+  // reabrir a mesma pergunta com sua própria regra, que podia divergir com o tempo.
+  const idorcamentos = String(req.query.idorcamentos || '')
+    .split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (!idorcamentos.length) {
+    return res.status(400).json({ message: "idorcamentos é obrigatório." });
+  }
 
   try {
     const itensResult = await pool.query(
@@ -1519,8 +1591,9 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
          AND o.status <> 'R'
          AND oe.idempresa = $2
          AND oi.idequipamento IS NOT NULL
+         AND o.idorcamento = ANY($3::int[])
        GROUP BY eq.idequip, eq.descEquip, eq.modelos, eq.complementos, oi.idorcamento`,
-      [idevento, idempresa]
+      [idevento, idempresa, idorcamentos]
     );
 
     let equipamentos = itensResult.rows.map((item) => ({
@@ -1554,6 +1627,13 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
 router.get("/eventos/:idevento/separacao", async (req, res) => {
   const idempresa = req.idempresa;
   const idevento = req.params.idevento;
+  // idorcamentos já vem resolvido pelo /eventos-ativos (edição/período) -- evita essa tela
+  // reabrir a mesma pergunta com sua própria regra, que podia divergir com o tempo.
+  const idorcamentos = String(req.query.idorcamentos || '')
+    .split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (!idorcamentos.length) {
+    return res.status(400).json({ message: "idorcamentos é obrigatório." });
+  }
 
   try {
     const itensResult = await pool.query(
@@ -1564,10 +1644,11 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
          INNER JOIN equipamentos eq ON eq.idequip = oi.idequipamento
          WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
+           AND o.idorcamento = ANY($3::int[])
          GROUP BY o.idorcamento, o.nrorcamento, o.dtinirealizacao, o.dtfimrealizacao,
                   eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip
          ORDER BY o.dtinirealizacao, o.nrorcamento, eq.descEquip`,
-      [idevento, idempresa]
+      [idevento, idempresa, idorcamentos]
     );
 
     const unidadesResult = await pool.query(
@@ -1761,6 +1842,13 @@ router.put("/eventos/:idevento/separacao",
 router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
   const idempresa = req.idempresa;
   const idevento = req.params.idevento;
+  // idorcamentos já vem resolvido pelo /eventos-ativos (edição/período) -- evita essa tela
+  // reabrir a mesma pergunta com sua própria regra, que podia divergir com o tempo.
+  const idorcamentos = String(req.query.idorcamentos || '')
+    .split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (!idorcamentos.length) {
+    return res.status(400).json({ message: "idorcamentos é obrigatório." });
+  }
 
   try {
     const eventoResult = await pool.query(`SELECT nmevento FROM eventos WHERE idevento = $1`, [idevento]);
@@ -1776,8 +1864,9 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
          INNER JOIN equipamentos eq ON eq.idequip = oi.idequipamento
          WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
+           AND o.idorcamento = ANY($3::int[])
          GROUP BY eq.idequip, eq.descEquip, eq.complementos`,
-      [idevento, idempresa]
+      [idevento, idempresa, idorcamentos]
     );
 
     if (!itensResult.rowCount) {
@@ -1851,8 +1940,13 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
 router.get("/download/checklist/:filename", async (req, res) => {
   const { filename } = req.params;
 
-  // Evita path traversal — só aceita o nome de arquivo gerado pelo próprio script.
-  if (!/^[\w\-. ]+\.docx$/.test(filename)) {
+  // Evita path traversal — só aceita um nome simples (sem diretório) terminado em .docx.
+  // Não usar \w aqui: o nome do evento pode ter acentos (o Python preserva letras Unicode).
+  if (
+    path.basename(filename) !== filename ||
+    filename.includes("\\") ||
+    !filename.toLowerCase().endsWith(".docx")
+  ) {
     return res.status(400).json({ message: "Nome de arquivo inválido." });
   }
 
