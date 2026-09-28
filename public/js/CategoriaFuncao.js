@@ -55,14 +55,19 @@ if (typeof window.CatFuncaoOriginal === "undefined") {
     }
 };
 
+// aoSalvar: avisa a aba dona do modal (Funções) que uma categoria foi criada/alterada,
+// pra ela recarregar o select "Categoria da Função" sem precisar reabrir o modal —
+// mesmo arranjo usado entre Lançamentos e a aba de Plano de Contas.
+let aoSalvarCatFuncao = null;
+
 function verificaCatFuncao() {
 
     console.log("Carregando CategoriaFuncao...");
-       
-    const botaoEnviar = document.querySelector("#Enviar");
-    const botaoPesquisar = document.querySelector("#Pesquisar");
-    const form = document.querySelector("#form");
-    const botaoLimpar = document.querySelector("#Limpar");
+
+    const botaoEnviar = document.querySelector("#cfEnviar");
+    const botaoPesquisar = document.querySelector("#cfPesquisar");
+    const form = document.querySelector("#cfForm");
+    const botaoLimpar = document.querySelector("#cfLimpar");
 
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
@@ -72,12 +77,12 @@ function verificaCatFuncao() {
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
         console.log("Limpando Categoria Funcao...");
-        const campo = document.getElementById("descCatFuncao");
+        const campo = document.getElementById("cfDescCatFuncao");
 
         if (campo && campo.tagName.toLowerCase() === "select") {
             const input = document.createElement("input");
             input.type = "text";
-            input.id = "descCatFuncao";
+            input.id = "cfDescCatFuncao";
             input.name = "descCatFuncao";
             input.value = "Descrição da Função";
             input.className = "form";
@@ -87,7 +92,7 @@ function verificaCatFuncao() {
             campo.parentNode.replaceChild(input, campo);
             adicionarEventoBlurCatFuncao();
 
-            const label = document.querySelector('label[for="descCatFuncao"]');
+            const label = document.querySelector('label[for="cfDescCatFuncao"]');
             if (label) label.style.display = "block";
 
         }
@@ -100,18 +105,18 @@ function verificaCatFuncao() {
         event.preventDefault(); // Previne o envio padrão do formulário
         console.log("Enviando Categoria Funcao...");
 
-        const idCatFuncao = document.querySelector("#idCatFuncao").value;
-        const descCatFuncao = document.querySelector("#descCatFuncao").value.toUpperCase().trim();
-        const vlrFuncionario = document.querySelector("#valorFuncionario").value || 0.00;
-        const vlrCustoSenior = document.querySelector("#CustoSenior").value || 0.00;
-        const vlrCustoSenior2 = document.querySelector("#CustoSenior2").value || 0.00;
-        const vlrCustoPleno = document.querySelector("#CustoPleno").value || 0.00;
-        const vlrCustoJunior = document.querySelector("#CustoJunior").value || 0.00;
-        const vlrCustoBase = document.querySelector("#CustoBase").value || 0.00;
-        const vlrVenda = document.querySelector("#Venda").value || 0.00;
-        const vlrTransporte = document.querySelector("#transporte").value || 0.00;
-        const vlrTransporteSenior = document.querySelector("#TranspSenior").value || 0.00;      
-        const vlrAlimentacao = document.querySelector("#alimentacao").value || 0.00;    
+        const idCatFuncao = document.querySelector("#cfIdCatFuncao").value;
+        const descCatFuncao = document.querySelector("#cfDescCatFuncao").value.toUpperCase().trim();
+        const vlrFuncionario = document.querySelector("#cfValorFuncionario").value || 0.00;
+        const vlrCustoSenior = document.querySelector("#cfCustoSenior").value || 0.00;
+        const vlrCustoSenior2 = document.querySelector("#cfCustoSenior2").value || 0.00;
+        const vlrCustoPleno = document.querySelector("#cfCustoPleno").value || 0.00;
+        const vlrCustoJunior = document.querySelector("#cfCustoJunior").value || 0.00;
+        const vlrCustoBase = document.querySelector("#cfCustoBase").value || 0.00;
+        const vlrVenda = document.querySelector("#cfVenda").value || 0.00;
+        const vlrTransporte = document.querySelector("#cfTransporte").value || 0.00;
+        const vlrTransporteSenior = document.querySelector("#cfTranspSenior").value || 0.00;      
+        const vlrAlimentacao = document.querySelector("#cfAlimentacao").value || 0.00;    
         
         const valorFuncionario = parseFloat(String(vlrFuncionario).replace(",", "."));
         const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
@@ -214,10 +219,11 @@ function verificaCatFuncao() {
                 });
 
             
-                Swal.fire("Sucesso!", resultJson.message || "Alterações salvas com sucesso!", "success"); 
-                document.getElementById('form').reset();
-                document.querySelector("#idCatFuncao").value = "";
+                Swal.fire("Sucesso!", resultJson.message || "Alterações salvas com sucesso!", "success");
+                document.getElementById('cfForm').reset();
+                document.querySelector("#cfIdCatFuncao").value = "";
                 limparCatFuncaoOriginal();
+                if (typeof aoSalvarCatFuncao === "function") aoSalvarCatFuncao();
 
             } catch (error) {
                 console.error("Erro ao enviar dados (PUT):", error);
@@ -234,10 +240,11 @@ function verificaCatFuncao() {
                     body: JSON.stringify(dados) // Passe o objeto dados diretamente
                 });
             
-                Swal.fire("Sucesso!", resultJson.mensagem || "Categoria Função cadastrada!", "success"); 
-                document.getElementById('form').reset(); 
+                Swal.fire("Sucesso!", resultJson.mensagem || "Categoria Função cadastrada!", "success");
+                document.getElementById('cfForm').reset();
                 limparCatFuncaoOriginal();
-                document.querySelector("#idCatFuncao").value = "";
+                document.querySelector("#cfIdCatFuncao").value = "";
+                if (typeof aoSalvarCatFuncao === "function") aoSalvarCatFuncao();
 
             } catch (error) {
                 console.error("Erro ao enviar dados (POST):", error);            
@@ -261,7 +268,7 @@ function verificaCatFuncao() {
         }
 
         try {
-            const input = document.querySelector("#descCatFuncao");
+            const input = document.querySelector("#cfDescCatFuncao");
             const desc = input?.value?.trim() || "";
 
             const catfuncoes = await fetchComToken(`/categoriafuncao?descCatFuncao=${encodeURIComponent(desc)}`);
@@ -283,7 +290,7 @@ function verificaCatFuncao() {
                 input.parentNode.replaceChild(select, input);
             }
    
-            const label = document.querySelector('label[for="descCatFuncao"]');
+            const label = document.querySelector('label[for="cfDescCatFuncao"]');
             if (label) {
               label.style.display = "none"; // ou guarda o texto, se quiser restaurar exatamente o mesmo
             }
@@ -301,7 +308,7 @@ function verificaCatFuncao() {
 
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
-                novoInput.id = "descCatFuncao";
+                novoInput.id = "cfDescCatFuncao";
                 novoInput.name = "descCatFuncao";
                 novoInput.required = true;
                 novoInput.className = "form";
@@ -315,7 +322,7 @@ function verificaCatFuncao() {
                 this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurCatFuncao();
                
-                const label = document.querySelector('label[for="descCatFuncao"]');
+                const label = document.querySelector('label[for="cfDescCatFuncao"]');
                 if (label) {
                 label.style.display = "block";
                 label.textContent = "Descrição da Categoria Função"; // ou algum texto que você tenha guardado
@@ -344,7 +351,7 @@ function verificaCatFuncao() {
 function criarSelectCatFuncao(catfuncoes) {
    
     const select = document.createElement("select");
-    select.id = "descCatFuncao";
+    select.id = "cfDescCatFuncao";
     select.name = "descCatFuncao";
     select.required = true;
     select.className = "form";
@@ -382,13 +389,13 @@ document.addEventListener("mousedown", (e) => {
 });
 
 function adicionarEventoBlurCatFuncao() {
-    const input = document.querySelector("#descCatFuncao");
+    const input = document.querySelector("#cfDescCatFuncao");
     if (!input) return;
 
     input.addEventListener("blur", async function () {
         console.log("Blur no campo descCatFuncao:", this.value);
 
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
+        const botoesIgnorados = ["cfLimpar", "cfPesquisar", "Close"];
         const ehBotaoIgnorado =
             (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
@@ -429,17 +436,17 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
             throw new Error("Função não encontrada ou resposta inválida.");
         }
      
-         document.querySelector("#idCatFuncao").value = catfuncao.idcategoriafuncao;
-         document.querySelector("#valorFuncionario").value = catfuncao.vlrfuncionario || 0.00;
-         document.querySelector("#CustoSenior").value = catfuncao.ctofuncaosenior || 0.00;
-         document.querySelector("#CustoSenior2").value = catfuncao.ctofuncaosenior2 || 0.00;
-         document.querySelector("#CustoPleno").value = catfuncao.ctofuncaopleno || 0.00;
-         document.querySelector("#CustoJunior").value = catfuncao.ctofuncaojunior || 0.00;
-         document.querySelector("#CustoBase").value = catfuncao.ctofuncaobase || 0.00;
-         document.querySelector("#Venda").value = catfuncao.vdafuncao || 0.00;
-         document.querySelector("#transporte").value = catfuncao.transporte || 0.00;
-         document.querySelector("#TranspSenior").value = catfuncao.transpsenior || 0.00;      
-         document.querySelector("#alimentacao").value = catfuncao.alimentacao || 0.00;      
+         document.querySelector("#cfIdCatFuncao").value = catfuncao.idcategoriafuncao;
+         document.querySelector("#cfValorFuncionario").value = catfuncao.vlrfuncionario || 0.00;
+         document.querySelector("#cfCustoSenior").value = catfuncao.ctofuncaosenior || 0.00;
+         document.querySelector("#cfCustoSenior2").value = catfuncao.ctofuncaosenior2 || 0.00;
+         document.querySelector("#cfCustoPleno").value = catfuncao.ctofuncaopleno || 0.00;
+         document.querySelector("#cfCustoJunior").value = catfuncao.ctofuncaojunior || 0.00;
+         document.querySelector("#cfCustoBase").value = catfuncao.ctofuncaobase || 0.00;
+         document.querySelector("#cfVenda").value = catfuncao.vdafuncao || 0.00;
+         document.querySelector("#cfTransporte").value = catfuncao.transporte || 0.00;
+         document.querySelector("#cfTranspSenior").value = catfuncao.transpsenior || 0.00;      
+         document.querySelector("#cfAlimentacao").value = catfuncao.alimentacao || 0.00;      
          
         console.log("Valores da Função carregada:", catfuncao.ctofuncaosenior,  catfuncao.ctofuncaosenior2, catfuncao.ctofuncaopleno, catfuncao.ctofuncaojunior, catfuncao.ctofuncaobase, catfuncao.vdafuncao, catfuncao.transporte, catfuncao.alimentacao);
         
@@ -461,7 +468,7 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
 
     } catch (error) {
     
-        const inputIdCatFuncao = document.querySelector("#idCatFuncao");
+        const inputIdCatFuncao = document.querySelector("#cfIdCatFuncao");
         const podeCadastrarCatFuncao = temPermissao("Categoriafuncao", "cadastrar");
 
         // ✅ Se já tem ID, é edição — não mexe
@@ -521,7 +528,9 @@ function limparCatFuncaoOriginal() {
 }
 
 function limparCamposCatFuncao() {
-    const campos = ["idCatFuncao", "descCatFuncao","CustoSenior", "CustoSenior2", "CustoPleno", "CustoJunior", "CustoBase", "Venda", "transporte", "transporteSenior",  "alimentacao"];
+    // Ids da aba (prefixo cf*). "cfTranspSenior" entrou no lugar do antigo "transporteSenior",
+    // que não correspondia a nenhum id do HTML e por isso nunca era limpo.
+    const campos = ["cfIdCatFuncao", "cfDescCatFuncao", "cfCustoSenior", "cfCustoSenior2", "cfCustoPleno", "cfCustoJunior", "cfCustoBase", "cfVenda", "cfTransporte", "cfTranspSenior", "cfAlimentacao"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -535,39 +544,28 @@ function limparCamposCatFuncao() {
     
 }
 
-function configurarEventosCatFuncao() {
+export function configurarEventosCatFuncao(aoSalvar) {
     console.log("Configurando eventos Funcao...");
+    aoSalvarCatFuncao = typeof aoSalvar === "function" ? aoSalvar : null;
     verificaCatFuncao(); // Carrega os Funcao ao abrir o modal
     adicionarEventoBlurCatFuncao();
     console.log("Entrou configurar CategoriaFuncao no CATEGORIAFUNCAO.js.");
-} 
+}
 window.configurarEventosCatFuncao = configurarEventosCatFuncao;
 
-function configurarEventosEspecificos(modulo) {
-  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
-  
-  if (modulo.trim().toLowerCase() === 'categoriafuncao') {
-    
-    configurarEventosCatFuncao();
-
-    if (typeof aplicarPermissoes === "function" && window.permissoes) {// 01/06/2025
-      aplicarPermissoes(window.permissoes);
-    } else {
-      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis.");
-    }
-  
-  }
-}
-window.configurarEventosEspecificos = configurarEventosEspecificos;
+// Categoria de Função não abre mais como modal próprio: virou aba do modal de Funções
+// (CadFuncao.html), que é quem importa este arquivo. Por isso não existe mais
+// configurarEventosEspecificos aqui — essa função é global e sobrescreveria a do
+// módulo dono do modal (Funcao.js).
 
 
-function desinicializarCatFuncaoModal() { // Renomeado para seguir o padrão 'desinicializarBancosModal'
+export function desinicializarCatFuncaoModal() { // Renomeado para seguir o padrão 'desinicializarBancosModal'
     console.log("🧹 Desinicializando módulo Funcao.js...");
 
-    const botaoEnviar = document.querySelector("#Enviar");
-    const botaoPesquisar = document.querySelector("#Pesquisar");
-    const botaoLimpar = document.querySelector("#Limpar");
-    const descCatFuncaoElement = document.getElementById("descCatFuncao"); // Pode ser input ou select
+    const botaoEnviar = document.querySelector("#cfEnviar");
+    const botaoPesquisar = document.querySelector("#cfPesquisar");
+    const botaoLimpar = document.querySelector("#cfLimpar");
+    const descCatFuncaoElement = document.getElementById("cfDescCatFuncao"); // Pode ser input ou select
 
     // 1. Remover listeners de eventos dos botões fixos (usando as variáveis `let`)
     if (botaoLimpar && limparCatFuncaoButtonListener) {
@@ -617,8 +615,12 @@ function desinicializarCatFuncaoModal() { // Renomeado para seguir o padrão 'de
     // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
     window.CatFuncaoOriginal = { idCatFuncao: "", descCatFuncao: "", vlrCustoSenior: 0.00, vlrCustoSenior2: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, vlrAliemntacao: 0.00 };
     limparCamposCatFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
-    document.getElementById('form').reset(); // Garante que o formulário seja resetado
-    document.querySelector("#idCatFuncao").value = ""; // Garante que o ID oculto seja limpo
+    aoSalvarCatFuncao = null;
+    // Chamado ao fechar o modal de Funções, que pode ter sido aberto sem a aba de
+    // Categoria configurada (usuário sem permissão) — daí o acesso opcional.
+    document.getElementById('cfForm')?.reset(); // Garante que o formulário seja resetado
+    const campoIdCatFuncao = document.querySelector("#cfIdCatFuncao");
+    if (campoIdCatFuncao) campoIdCatFuncao.value = ""; // Garante que o ID oculto seja limpo
 
     console.log("✅ Módulo Funcao.js desinicializado.");
 }
