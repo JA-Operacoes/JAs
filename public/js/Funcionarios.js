@@ -149,18 +149,17 @@ window.coletarDependentes = function coletarDependentes() {
     }));
 };
 
-function usuarioTemPermissaoFinanceiro() {
-  if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
-  console.log("Usuário tem permissão Financeiro no staff");
-  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "funcionarios");
-  if (!permissaoStaff) return false;
-
-  // A flag que você usa para determinar o acesso ao financeiro
-  return !!permissaoStaff.pode_financeiro;
+// Bloco RH do cadastro (função, CBO, admissão/demissão, salário, VA/VT, plano de saúde): flag
+// RH, Master ou Supremo em QUALQUER módulo — mesmo trio do backend (/rh em server.js e
+// podeGravarDemissao em rotaFuncionario.js). Antes dependia de "financeiro" no módulo
+// Funcionarios, que não tem nada a ver com RH.
+function usuarioTemPermissaoRH() {
+  if (!Array.isArray(window.permissoes)) return false;
+  return window.permissoes.some((p) => p.pode_rh || p.pode_master || p.pode_supremo);
 }
 
-// Mostra o fieldset Financeiro só quando o perfil é Interno/Externo E o usuário tem
-// permissão financeira no Staff. Caso contrário, esconde e desliga o `required` dos
+// Mostra o fieldset RH só quando o perfil é Interno/Externo E o usuário tem permissão de RH
+// (ver usuarioTemPermissaoRH). Caso contrário, esconde e desliga o `required` dos
 // campos internos (senão um campo obrigatório escondido bloqueia o submit nativo).
 function atualizarFieldsetFinanceiro() {
   const fieldset = document.querySelector("fieldset.financeiro");
@@ -168,7 +167,10 @@ function atualizarFieldsetFinanceiro() {
 
   const perfil = document.querySelector('input[name="perfil"]:checked')?.value || "";
   const perfilElegivel = perfil === "Interno" || perfil === "ExternoH";
-  const mostrar = perfilElegivel && usuarioTemPermissaoFinanceiro();
+  const mostrar = perfilElegivel && usuarioTemPermissaoRH();
+  // Demissão fica dentro do bloco RH e segue a mesma permissão — visível junto com ele.
+  const boxDemissao = document.getElementById("boxDemissao");
+  if (boxDemissao) boxDemissao.style.display = mostrar ? "" : "none";
 
   fieldset.style.display = mostrar ? "" : "none";
   // Ativa/desativa o `required` dos campos conforme a visibilidade.
@@ -511,6 +513,10 @@ function preencherDadosImportadosFuncionario(funcionario) {
     if (inputCbo) inputCbo.value = funcionario.cbo || '';
     const inputAdmissao = document.getElementById("admissao");
     if (inputAdmissao) inputAdmissao.value = funcionario.admissao?.split('T')[0] || '';
+    // Demissão NÃO é sugerida a partir do vínculo com outra empresa: sair de uma empresa do
+    // grupo não quer dizer sair desta.
+    const inputDemissao = document.getElementById("demissao");
+    if (inputDemissao) inputDemissao.value = '';
 
     const inputSalario = document.getElementById("salario");
     if (inputSalario) {
@@ -682,7 +688,13 @@ async function verificaFuncionarios() {
         const dependentes = document.getElementById("dependentes")?.value.trim() || '0';
         const dependentesDados = JSON.stringify(coletarDependentes());
         const admissao = document.getElementById("admissao").value;
-        
+        const podeDemissao = usuarioTemPermissaoRH();
+        const demissao = podeDemissao ? (document.getElementById("demissao")?.value || '') : '';
+        if (podeDemissao && demissao && admissao && demissao < admissao) {
+            document.getElementById("demissao")?.focus();
+            return Swal.fire("Data de demissão inválida!", "A data de demissão não pode ser anterior à data de admissão.", "warning");
+        }
+
 
             // Validação de campos obrigatórios
             if (!nome || !cpf || !rg || !celularPessoal || !perfil || !dataNascimento) {
@@ -763,6 +775,8 @@ async function verificaFuncionarios() {
         formData.append("dependentes", dependentes);
         formData.append("dependentesDados", dependentesDados);
         formData.append("admissao", admissao);
+        // Só manda o campo quem pode gravar — sem ele no body, o backend nem toca na demissão.
+        if (podeDemissao) formData.append("demissao", demissao);
         formData.append("valealim", valealim);
         formData.append("valetrnsp", valetrnsp);
 
@@ -806,6 +820,12 @@ async function verificaFuncionarios() {
                     if (JSON.stringify(depOriginal) !== dependentesDados) {
                         houveAlteracao = true;
                     }
+                }
+
+                // 1.7. Demissão: compara só a data (o banco devolve ISO com hora)
+                if (!houveAlteracao && podeDemissao) {
+                    const demissaoOriginal = String(window.funcionarioOriginal.demissao || '').slice(0, 10);
+                    if (demissaoOriginal !== demissao) houveAlteracao = true;
                 }
 
                 // 2. Comparar os outros campos de texto/booleano
@@ -895,7 +915,8 @@ async function verificaFuncionarios() {
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
                     numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido,
                     pcd: pcd, ativo: ativo, bonificado: bonificado, mei: mei,
-                    adesaoPlanoSaude: adesaoPlanoSaude, tipoPlanoSaude: tipoPlanoSaude, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp
+                    adesaoPlanoSaude: adesaoPlanoSaude, tipoPlanoSaude: tipoPlanoSaude, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp,
+                    demissao
                 };
 
             } catch (error) {
@@ -1611,6 +1632,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             if (!Array.isArray(dependentesDadosCarregados)) dependentesDadosCarregados = [];
             gerarCamposDependentes(funcionario.dependentes || 0, dependentesDadosCarregados);
             document.getElementById("admissao").value = funcionario.admissao?.split('T')[0] || '';
+            const campoDemissao = document.getElementById("demissao");
+            if (campoDemissao) campoDemissao.value = funcionario.demissao?.split('T')[0] || '';
 
             document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
             document.getElementById("apelido").value = funcionario.apelido || '';
@@ -1894,7 +1917,7 @@ function limparCamposFuncionarios(){
         "banco", "codBanco", "pix", "nConta", "digitoConta",
         "agencia", "digitoAgencia", "dataNasc", "tpConta",
         "cep", "rua", "numero", "complemento", "bairro",
-        "cidade", "estado", "pais", "nomeFamiliar", "apelido", "funcao", "admisao", "cbo", "salario", "dependentes","admissao"
+        "cidade", "estado", "pais", "nomeFamiliar", "apelido", "funcao", "admisao", "cbo", "salario", "dependentes","admissao", "demissao"
     ];
 
     // --- Limpeza específica para Checkboxes (PCD e Ativo) ---
