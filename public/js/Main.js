@@ -8538,6 +8538,86 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 });
             });
 
+            // Recibos de férias (RH > Programar férias): vêm prontos do backend, só os já conferidos,
+            // com vencimento 2 dias antes do início do gozo (art. 145 CLT). É um holerite de
+            // verdade (tipo 'ferias'), então paga/anexa comprovante/imprime pelas mesmas rotas do
+            // salário — só o tipo muda na hora de abrir/imprimir (holerite_tipo = 'ferias').
+            (resContas.recibosFerias || []).forEach((rf) => {
+                const dtvctoRf = new Date(rf.dtvcto + 'T12:00:00');
+                const foiPagoRf = String(rf.status || '').toLowerCase() === 'pago';
+                const ehHojeRf = !foiPagoRf && ehMesmoDia(dtvctoRf, hoje);
+                const statusFinalRf = foiPagoRf ? 'pago' : (ehHojeRf ? 'pendente' : (dtvctoRf < hoje ? 'atrasado' : 'pendente'));
+                const statusFiltroRf = foiPagoRf ? 'liquidado' : (ehHojeRf ? 'hoje' : (dtvctoRf < hoje ? 'vencidos' : 'a_vencer'));
+                const periodoGozo = rf.gozo_inicio
+                    ? ` ${rf.gozo_inicio.split('-').reverse().join('/')} a ${rf.gozo_fim.split('-').reverse().join('/')}`
+                    : '';
+                contasProjetadas.push({
+                    idlancamento: `ferias-${rf.idholerite}`,
+                    idpagamento: null,
+                    tipovinculo: 'funcionario',
+                    holerite_tipo13: false,
+                    holerite_ferias: true,
+                    holerite_tipo: 'ferias',
+                    nome_vinculo: rf.nome,
+                    observacao: `Férias${periodoGozo}`,
+                    idfuncionario_vinculo: rf.idfuncionario,
+                    vencimento: rf.dtvcto.split('-').reverse().join('/'),
+                    dtvcto: rf.dtvcto,
+                    valorTotal: parseFloat(rf.liquido || 0),
+                    valorPago: statusFinalRf === 'pago' ? parseFloat(rf.liquido || 0) : 0,
+                    status: statusFinalRf,
+                    statusFiltro: statusFiltroRf,
+                    idholerite: rf.idholerite,
+                    holerite_mes: rf.mes,
+                    holerite_ano: rf.ano,
+                    holerite_origem: 'real',
+                    status_holerite: rf.status,
+                    holerite_dtpagamento: rf.dtpagamento,
+                    holerite_comprovante: rf.comprovante,
+                    holerite_proventos: parseFloat(rf.proventos || 0),
+                    holerite_descontos: parseFloat(rf.descontos || 0),
+                    holerite_liquido: parseFloat(rf.liquido || 0)
+                });
+            });
+
+            // Folha de Proventos à parte (bônus, prêmio, PLR — folhaproventos): o backend só
+            // manda pra Master/Supremo e só os já conferidos no RH, por isso sempre "real".
+            // Mesmo formato das linhas de benefício; idholerite carrega o idprovento, que é o
+            // que a rota de pagamento própria (pagarProventoParteFuncionario) precisa.
+            (resContas.proventosParte || []).forEach((p) => {
+                const dtvctoProv = new Date(p.dtvcto + 'T12:00:00');
+                const foiPagoProv = String(p.status || '').toLowerCase() === 'pago';
+                const ehHojeProv = !foiPagoProv && ehMesmoDia(dtvctoProv, hoje);
+                const statusFinalProv = foiPagoProv ? 'pago' : (ehHojeProv ? 'pendente' : (dtvctoProv < hoje ? 'atrasado' : 'pendente'));
+                const statusFiltroProv = foiPagoProv ? 'liquidado' : (ehHojeProv ? 'hoje' : (dtvctoProv < hoje ? 'vencidos' : 'a_vencer'));
+                contasProjetadas.push({
+                    idlancamento: `provento-${p.idprovento}`,
+                    idpagamento: null,
+                    tipovinculo: 'funcionario',
+                    holerite_tipo13: false,
+                    holerite_proventos_parte: true,
+                    nome_vinculo: p.nome,
+                    observacao: p.descricao,
+                    idfuncionario_vinculo: p.idfuncionario,
+                    vencimento: p.dtvcto.split('-').reverse().join('/'),
+                    dtvcto: p.dtvcto,
+                    valorTotal: parseFloat(p.valor || 0),
+                    valorPago: statusFinalProv === 'pago' ? parseFloat(p.valor || 0) : 0,
+                    status: statusFinalProv,
+                    statusFiltro: statusFiltroProv,
+                    idholerite: p.idprovento,
+                    holerite_mes: p.mes,
+                    holerite_ano: p.ano,
+                    holerite_origem: 'real',
+                    status_holerite: p.status,
+                    holerite_dtpagamento: p.dtpagamento,
+                    holerite_comprovante: null,
+                    holerite_proventos: 0,
+                    holerite_descontos: 0,
+                    holerite_liquido: parseFloat(p.valor || 0)
+                });
+            });
+
             // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
             let dInicioComp, dFimComp;
             let dataBase = inputDataStr ? new Date(inputDataStr + 'T12:00:00') : new Date();
@@ -9269,6 +9349,9 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 const statusHolerite = (c.status_holerite || 'previsao').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
                                 const dtPagtoHolerite = c.holerite_dtpagamento ? String(c.holerite_dtpagamento).substring(0, 10).split('-').reverse().join('/') : '---';
                                 const idFuncBotao = c.idfuncionario_vinculo || '';
+                                // Tipo do holerite pra abrir/imprimir o documento certo — sem isso,
+                                // o 13º e o recibo de férias abriam/imprimiam o holerite MENSAL do mês.
+                                const tipoHoleriteLinha = c.holerite_ferias ? 'ferias' : c.holerite_tipo13 ? '13' : 'mensal';
                                 const mesHolerite = c.holerite_mes || (dProj.getMonth() + 1);
                                 const anoHolerite = c.holerite_ano || dProj.getFullYear();
 
@@ -9278,12 +9361,12 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 const temComprovanteHolerite = !!(c.holerite_comprovante && c.holerite_comprovante !== '---');
                                 // Benefícios não tem holerite/comprovante próprio pra imprimir (é o
                                 // mesmo documento do salário) — essa célula não se aplica aqui.
-                                const celulaHolerite = c.holerite_beneficios ? `
+                                const celulaHolerite = (c.holerite_beneficios || c.holerite_proventos_parte) ? `
                                     <td style="text-align:center;"><small style="color:var(--text-3);">—</small></td>` : ehFuncionario ? `
                                     <td class="celula-holerite-imprimir" style="text-align:center;">
                                         ${temComprovanteHolerite ? `
                                         <a href="javascript:void(0)"
-                                            onclick="imprimirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite})"
+                                            onclick="imprimirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite}, '${tipoHoleriteLinha}')"
                                             style="text-decoration: none; color: var(--status-ok-fg, #2E8B57); display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                             <i class="fas fa-print" style="font-size: 18px;"></i>
                                             <span style="font-size: 10px; font-weight: bold;">Imprimir (2 vias)</span>
@@ -9307,7 +9390,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
 
                                 // Fecha o modo tela cheia (se estiver aberto) antes de navegar pro RH —
                                 // senão a barra/overlay de tela cheia fica presa por cima da tela do RH.
-                                const btnAbrirHolerite = `<button type="button" onclick="document.getElementById('btn-fechar-tela-cheia')?.click(); abrirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite})" title="Abrir Holerite" style="cursor:pointer; background:#0d6efd; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-file-invoice" style="color:#fff;"></i></button>`;
+                                const btnAbrirHolerite = `<button type="button" onclick="document.getElementById('btn-fechar-tela-cheia')?.click(); abrirHoleriteRH(${idFuncBotao}, ${mesHolerite}, ${anoHolerite}, '${tipoHoleriteLinha}')" title="Abrir Holerite" style="cursor:pointer; background:#0d6efd; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-file-invoice" style="color:#fff;"></i></button>`;
 
                                 // Funcionário (mensal OU 13º) não tem "pagamento" no fluxo de contas — o
                                 // pagamento é sempre do HOLERITE do RH (PUT /rh/holerite/:id/pagar),
@@ -9322,7 +9405,8 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // Benefícios chama uma rota de pagamento PRÓPRIA (pagar-beneficios) —
                                 // mesmo idholerite do salário, mas status/dtpagamento em colunas
                                 // separadas, então marcar um não mexe no outro.
-                                const funcaoPagar = c.holerite_beneficios ? 'pagarBeneficiosFuncionario' : 'pagarHoleriteFuncionario';
+                                const funcaoPagar = c.holerite_proventos_parte ? 'pagarProventoParteFuncionario'
+                                    : c.holerite_beneficios ? 'pagarBeneficiosFuncionario' : 'pagarHoleriteFuncionario';
                                 const btnPagarHolerite = jaPagoHolerite
                                     ? '<i class="fas fa-lock"></i>'
                                     : !conferidoHolerite
@@ -9357,7 +9441,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // Benefícios: sem upload de comprovante próprio ainda (o idholerite é o
                                 // mesmo do salário — subir um comprovante aqui misturaria com o do
                                 // salário). Só mostra se já foi pago ou não.
-                                const celulaComprovante = c.holerite_beneficios ? `
+                                const celulaComprovante = (c.holerite_beneficios || c.holerite_proventos_parte) ? `
                                     <td style="text-align:center;">
                                         <small style="color:var(--text-3); font-style: italic;">${statusHolerite === 'pago' ? 'Pago' : 'Aguardando Pagamento'}</small>
                                     </td>` : ehFuncionario ? `
@@ -9408,8 +9492,11 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // (display:none), então esse grupo inteiro ficava fora do filtro por linha
                                 // (ver "sem-filtro-rapido-por-linha", removido junto com esta mudança).
                                 if (ehFuncionario) {
-                                    const categoriaLabel = c.holerite_beneficios ? 'Benefícios (VA/VT)' : c.holerite_tipo13 ? (c.observacao || '13º salário') : 'Salário';
-                                    const categoriaClasse = c.holerite_beneficios ? 'badge-beneficios' : c.holerite_tipo13
+                                    const categoriaLabel = c.holerite_ferias ? 'Férias'
+                                        : c.holerite_proventos_parte ? 'Provento à parte'
+                                        : c.holerite_beneficios ? 'Benefícios (VA/VT)' : c.holerite_tipo13 ? (c.observacao || '13º salário') : 'Salário';
+                                    const categoriaClasse = c.holerite_ferias ? 'badge-ferias'
+                                        : (c.holerite_beneficios || c.holerite_proventos_parte) ? 'badge-beneficios' : c.holerite_tipo13
                                         ? (c.holerite_mes === 11 ? 'badge-13-1' : 'badge-13-2')
                                         : 'badge-salario';
                                     // data-func-chave: liga essa categoria ao cabeçalho de nome e à linha de
@@ -9420,7 +9507,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // pessoas (e vários meses da MESMA pessoa) dividem o grupo "Funcionários"
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
-                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${c.holerite_tipo13 ? '13' : 'mensal'}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
+                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
                                     const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
@@ -10412,6 +10499,54 @@ async function pagarBeneficiosFuncionario(idholerite, btnEl) {
     }
 }
 window.pagarBeneficiosFuncionario = pagarBeneficiosFuncionario;
+
+// Marca como pago um provento da Folha de Proventos à parte (bônus, prêmio, PLR — tabela
+// folhaproventos, PUT /rh/proventos/:id/pagar). Só aparece pra Master/Supremo e só depois de
+// conferido no RH (ver GET /contas-pagar). `idprovento` vem no campo idholerite da linha.
+async function pagarProventoParteFuncionario(idprovento, btnEl) {
+    if (!idprovento) return;
+    const conf = await Swal.fire({
+        title: 'Confirmar pagamento?',
+        text: 'O provento pago à parte será marcado como PAGO.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    try {
+        const res = await fetchComToken(`/rh/proventos/${idprovento}/pagar`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pago: true })
+        });
+        if (res && res.ok) {
+            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+
+            const linha = btnEl ? btnEl.closest('tr') : null;
+            if (linha) {
+                btnEl.outerHTML = '<i class="fas fa-lock"></i>';
+                const pilulaStatus = linha.querySelector('.status-pilula');
+                if (pilulaStatus) {
+                    pilulaStatus.className = 'status-pilula status-pago';
+                    pilulaStatus.textContent = 'PAGO';
+                }
+                const celulaData = linha.querySelector('.celula-data-pagamento');
+                if (celulaData) {
+                    celulaData.textContent = (res.dtpagamento ? String(res.dtpagamento).substring(0, 10) : new Date().toISOString().substring(0, 10)).split('-').reverse().join('/');
+                }
+                linha.style.transition = 'background-color 0.5s ease';
+                linha.style.backgroundColor = '#f0fff4';
+            }
+        } else {
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível confirmar o pagamento.', 'error');
+        }
+    } catch (err) {
+        Swal.fire('Erro', 'Não foi possível confirmar o pagamento.', 'error');
+    }
+}
+window.pagarProventoParteFuncionario = pagarProventoParteFuncionario;
 // }
 
 async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
@@ -11577,6 +11712,28 @@ async function carregarDadosVencimentos(anoFiltro) {
             const pago = b.origem === 'real' && String(b.status || '').toLowerCase() === 'pago';
             if (pago) { soma.contasPagos += vTotal; return; }
             const dVcto = new Date((b.dtvcto || "") + "T12:00:00");
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
+            else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+        });
+
+        // Recibos de férias (já conferidos) — vencem 2 dias antes do início do gozo.
+        (resContas?.recibosFerias || []).forEach(rf => {
+            if (rf.ano !== ano) return;
+            const vTotal = Number(rf.liquido || 0);
+            if (vTotal <= 0) return;
+            if (String(rf.status || '').toLowerCase() === 'pago') { soma.contasPagos += vTotal; return; }
+            const dVcto = new Date((rf.dtvcto || "") + "T12:00:00");
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
+            else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+        });
+
+        // Folha de Proventos à parte (só vem pra Master/Supremo, já conferida) — vence dia 5.
+        (resContas?.proventosParte || []).forEach(p => {
+            if (p.ano !== ano) return;
+            const vTotal = Number(p.valor || 0);
+            if (vTotal <= 0) return;
+            if (String(p.status || '').toLowerCase() === 'pago') { soma.contasPagos += vTotal; return; }
+            const dVcto = new Date((p.dtvcto || "") + "T12:00:00");
             if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
             else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
         });

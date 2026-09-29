@@ -138,9 +138,8 @@ async function salvar() {
 // ---- Abertura do modal (chamado pelo RH.js) ----
 export async function abrirAliquotas() {
 
-  const temPermissaoRH = temPermissao("Staff", "rh");
-  const temPermissaoSupremo = temPermissao("Staff", "supremo");
-  const temPermissaoTotal = temPermissaoRH || temPermissaoSupremo
+  // Flag em qualquer módulo (window.temFlag, Index.js) — RH não depende mais do módulo Staff.
+  const temPermissaoTotal = window.temFlag?.("rh", "supremo") ?? false;
 
   if (!temPermissaoTotal) {
     aviso('warning', 'Acesso negado', 'Você não tem permissão para acessar as alíquotas.');
