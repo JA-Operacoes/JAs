@@ -18,12 +18,12 @@
         <!-- Funções e Categoria de Função dividem o mesmo modal, no mesmo padrão de
              abas dos Lançamentos Financeiros (.lc-tabs/.lc-view em CadLancamentos). -->
         <div class="fn-tabs">
-            <button type="button" class="fn-tab-btn ativa" id="fnTabFuncao" data-fn-tab="funcao"><i class="ri-briefcase-line"></i>Funções</button>
-            <button type="button" class="fn-tab-btn" id="fnTabCategoria" data-fn-tab="categoria"><i class="ri-stack-line"></i>Categoria de Função</button>
+            <button type="button" class="fn-tab-btn ativa" id="fnTabCategoria" data-fn-tab="categoria"><i class="ri-stack-line"></i>Categoria de Função</button>
+            <button type="button" class="fn-tab-btn" id="fnTabFuncao" data-fn-tab="funcao"><i class="ri-briefcase-line"></i>Funções</button>
             <button type="button" class="fn-tab-btn" id="fnTabEquipe" data-fn-tab="equipe"><i class="ri-team-line"></i>Equipes</button>
         </div>
 
-        <div class="fn-view ativa" id="fnViewFuncao">
+        <div class="fn-view" id="fnViewFuncao">
             <div id="form-funcao" class="fn-painel">
 
                 <form id="form" name="form" autocomplete="on">
@@ -135,7 +135,7 @@
         <!-- Aba Categoria de Função: os ids levam o prefixo "cf" porque quase todos os
              campos têm o mesmo nome dos da aba Funções (CustoSenior, transporte, Venda,
              idCatFuncao...) e agora as duas telas vivem no mesmo DOM. -->
-        <div class="fn-view" id="fnViewCategoria">
+        <div class="fn-view ativa" id="fnViewCategoria">
             <div id="form-catfuncao" class="fn-painel">
 
                 <form id="cfForm" name="cfForm" autocomplete="on">
@@ -237,7 +237,7 @@
             </div>
         </div>
 
-        <div class="BTNs fn-btns ativa" data-fn-tab="funcao">
+        <div class="BTNs fn-btns" data-fn-tab="funcao">
             <button class="btnPesquisar" id="Pesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
             <button class="btnLimpar" id="Limpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
             <button class="btnEnviar" id="Enviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>
@@ -247,7 +247,7 @@
              mexe em .btnPesquisar/.btnEnviar conforme o módulo do modal (Funcao) e não
              deve desabilitar a outra aba — a permissão de Categoriafuncao quem confere,
              no clique, é o próprio CategoriaFuncao.js. -->
-        <div class="BTNs fn-btns" data-fn-tab="categoria">
+        <div class="BTNs fn-btns ativa" data-fn-tab="categoria">
             <button class="btnCatPesquisar" id="cfPesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
             <button class="btnCatLimpar" id="cfLimpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
             <button class="btnCatEnviar" id="cfEnviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>

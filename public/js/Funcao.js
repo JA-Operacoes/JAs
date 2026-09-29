@@ -849,7 +849,7 @@ function configurarAbasFuncao() {
     if (podeCategoria) configurarEventosCatFuncao(carregarCategoriasFuncao);
     if (podeEquipe) configurarEventosEquipe(carregarEquipesFuncao);
 
-    const abaInicial = podeFuncao ? 'funcao' : (podeCategoria ? 'categoria' : 'equipe');
+    const abaInicial = podeCategoria ? 'categoria' : (podeFuncao ? 'funcao' : 'equipe');
     mudarAbaFuncao(abaInicial);
 }
 
