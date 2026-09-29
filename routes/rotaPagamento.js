@@ -339,6 +339,17 @@ router.put("/:id",
         } = req.body;
 
         try {
+            // Remover conta/comprovante é restrito a Supremo, Master e Devs.
+            if (limparComprovanteImagem === "true" || limparComprovantePagto === "true") {
+                const { rows: permRows } = await pool.query(
+                    `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND (supremo = true OR master = true OR devs = true) LIMIT 1`,
+                    [req.usuario.idusuario, idempresa]
+                );
+                if (permRows.length === 0) {
+                    return res.status(403).json({ erro: "Você não tem permissão para remover anexos de pagamento." });
+                }
+            }
+
             let sqlArquivos = "";
             const valoresParaUpdate = [
                 vlrpago || 0,   // $1
