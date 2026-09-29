@@ -4248,7 +4248,7 @@ router.get('/contas-pagar', async (req, res) => {
         // Holerites (RH) do ano inteiro, por funcionário/mês — sempre uma linha por
         // competência (real quando já existe holerite salvo, ou PREVISÃO calculada na hora,
         // igual ao /rh/folha) pra casar com o mês efetivamente projetado na tela de Vencimentos.
-        const { obterParametros, contarDiasBeneficio, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior } = require('./rotaRH').helpersFolha;
+        const { obterParametros, contarDiasBeneficio, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior, antesDoInicioFolha, listarProventosParte, listarRecibosFerias } = require('./rotaRH').helpersFolha;
 
         const funcsFolha = (await pool.query(
             `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
@@ -4279,6 +4279,9 @@ router.get('/contas-pagar', async (req, res) => {
         const beneficios = [];
         for (const f of funcsFolha) {
             for (let mes = 1; mes <= 12; mes++) {
+                // Antes do início da folha no sistema (INICIO_FOLHA em rotaRH.js): holerites
+                // pré-gerados que nunca foram folha de verdade — não podem aparecer como vencidos.
+                if (antesDoInicioFolha(mes, anoFiltro)) continue;
                 // INSS/IRRF usam a tabela do mês TRABALHADO do salário (o anterior); dias úteis
                 // de VA/VT usam o mês vigente direto (benefício não tem defasagem).
                 const { ano: anoComp } = competenciaAnterior(mes, anoFiltro);
@@ -4290,19 +4293,21 @@ router.get('/contas-pagar', async (req, res) => {
                 // então o mês N já pode replicar o mês N-1 recém-persistido.
                 await garantirHoleriteMensal(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
                 const linha = await computarLinhaFolha(idEmpresa, f, mes, anoFiltro, paramsFolha, diasUteis);
-                // Ainda não conferido na lista do RH (rh-panel) → conta como PREVISÃO em
-                // Financeiro (entra no Previsto/A Vencer geral, mas nunca pode virar "Pago" nem
-                // aparecer como conta pronta pra pagar — o front já trata origem !== 'real'
-                // assim). Só vira "real" (pronto pra pagar de fato) depois de conferido (ver PUT
-                // /rh/holerite/:id/conferir). Não pode sumir do array: senão some também do
-                // Previsto/Total Anual, que devem contar a projeção mesmo sem conferência.
-                holerites.push({ ...linha, origem: linha.conferido ? linha.origem : "previsao", mes, ano: anoFiltro });
+                // Vencimento só existe DEPOIS do "Conferir" na lista do RH (decisão do RH,
+                // 2026-09-27): antes disso a competência não entra aqui de jeito nenhum — nem
+                // como previsão. Antes entrava como previsão, e o front marca como "Atrasado"
+                // qualquer data passada, então bastava cadastrar o salário pra aparecer uma conta
+                // vencida. Consequência aceita: Previsto/Total Anual deixam de projetar os meses
+                // ainda não conferidos. Salário e benefícios conferem em separado.
+                if (linha.conferido) {
+                    holerites.push({ ...linha, origem: "real", mes, ano: anoFiltro });
+                }
 
-                if (linha.beneficios > 0) {
+                if (linha.beneficios > 0 && linha.conferidoBeneficios) {
                     const diaVcto = ultimoDiaUtil(anoFiltro, mes);
                     beneficios.push({
                         idfuncionario: linha.idfuncionario, nome: linha.nome, idholerite: linha.idholerite,
-                        origem: linha.conferidoBeneficios ? "real" : "previsao",
+                        origem: "real",
                         status: linha.statusBeneficios, dtpagamento: linha.dtpagamentoBeneficios,
                         liquido: linha.beneficios,
                         mes, ano: anoFiltro,
@@ -4329,20 +4334,19 @@ router.get('/contas-pagar', async (req, res) => {
         for (const f of funcsFolha) {
             await garantirHolerite13(idEmpresa, f, 11, anoFiltro, "1", paramsAnoFiltro);
             const parcela1 = await computarLinha13(idEmpresa, f, 11, anoFiltro, "1", paramsAnoFiltro);
-            // Mesma lógica do salário mensal: não conferido ainda conta como previsão (Previsto/
-            // A Vencer), só não pode virar "Pago" nem aparecer como conta pronta pra pagar.
-            if (parcela1.idholerite) {
+            // Mesma regra do salário mensal: só entra depois de conferido na lista do RH.
+            if (parcela1.idholerite && parcela1.conferido) {
                 eventos13.push({
-                    ...parcela1, origem: parcela1.conferido ? parcela1.origem : "previsao",
+                    ...parcela1, origem: "real",
                     mes: 11, ano: anoFiltro, dtvcto: `${anoFiltro}-11-20`,
                 });
             }
 
             await garantirHolerite13(idEmpresa, f, 12, anoFiltro, "2", paramsAnoFiltro);
             const parcela2 = await computarLinha13(idEmpresa, f, 12, anoFiltro, "2", paramsAnoFiltro);
-            if (parcela2.idholerite) {
+            if (parcela2.idholerite && parcela2.conferido) {
                 eventos13.push({
-                    ...parcela2, origem: parcela2.conferido ? parcela2.origem : "previsao",
+                    ...parcela2, origem: "real",
                     mes: 12, ano: anoFiltro, dtvcto: `${anoFiltro}-12-30`,
                 });
             }
@@ -4351,8 +4355,30 @@ router.get('/contas-pagar', async (req, res) => {
         // fgtsAliquota: alíquota vigente do ano filtrado (padrão 8%) — o front usa isso pra
         // estimar o FGTS do período (card "FGTS Estimado" em Contas a Pagar); é só informativo,
         // pra conferir contra a guia (GRF) quando alguém lançar ela manualmente em Contas.
+        // Folha de Proventos à parte (bônus, prêmio, PLR — ver folhaproventos em rotaRH.js): só
+        // os já conferidos, e só pra Master/Supremo — mesma restrição da tela do RH, senão o
+        // valor que o RH não pode ver vazaria por aqui. Vencimento no dia 5, igual ao salário.
+        let proventosParte = [];
+        const podeVerProventos = (await pool.query(
+            `SELECT 1 FROM permissoes WHERE idusuario = $1 AND idempresa = $2 AND (master = true OR supremo = true) LIMIT 1`,
+            [req.usuario?.idusuario || null, idEmpresa]
+        )).rowCount > 0;
+        if (podeVerProventos) {
+            proventosParte = (await listarProventosParte(idEmpresa, { ano: anoFiltro, apenasConferidos: true }))
+                .filter((p) => !antesDoInicioFolha(p.mes, p.ano))
+                .map((p) => ({
+                    ...p,
+                    dtvcto: `${p.ano}-${String(p.mes).padStart(2, "0")}-05`,
+                }));
+        }
+
+        // Recibos de férias (RH > Programar férias): só depois de conferidos, igual ao salário —
+        // vencimento 2 dias antes do início do gozo (art. 145 CLT; ver vencimentoFerias).
+        const recibosFerias = (await listarRecibosFerias(idEmpresa, { ano: anoFiltro, apenasConferidos: true }))
+            .filter((r) => !antesDoInicioFolha(r.mes, r.ano));
+
         res.json({
-            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios,
+            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios, proventosParte, recibosFerias,
             fgtsAliquota: Number(paramsAnoFiltro.fgts_aliquota) || 0.08,
         });
     } catch (error) {
