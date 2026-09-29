@@ -194,7 +194,8 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
             )
             ORDER BY s.dtsolicitada[1] ASC
         ) AS solicitacoes_agrupadas,
-        COALESCE(bool_and(notif.lido), false)     AS ja_lido
+        COALESCE(bool_and(notif.lido), false)     AS ja_lido,
+        string_agg(DISTINCT s.motivorecusa, ' | ') FILTER (WHERE s.motivorecusa IS NOT NULL AND s.motivorecusa <> '') AS motivorecusa
     FROM solicitacoes s
     LEFT JOIN usuarios u      ON s.idusuariosolicitante = u.idusuario
     LEFT JOIN funcionarios f  ON s.idfuncionario = f.idfuncionario    
@@ -270,6 +271,7 @@ router.get('/solicitacoes-notificacao', autenticarToken(), async (req, res) => {
         solicitacoes_agrupadas: sol.solicitacoes_agrupadas,
         total_solicitacoes: sol.total_solicitacoes,
         periodoStr,
+        motivorecusa: sol.motivorecusa || null,
       };
 
       if (temAcessoTotal) {
