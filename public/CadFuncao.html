@@ -1,165 +1,265 @@
-<!-- <!DOCTYPE html>
-<html lang="pt-BR">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/Modal/CadFuncao.css">
-    <link rel="stylesheet" href="css/Roots/Roots.css">
-    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    
-    <title>Modal</title>
-    
-</head>
-
-<body data-modulo="Funcao">
-    
-    <div id="CadModal" class="modal">
-        <div class="modal-content"> -->
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Remixicon declarado aqui, e não só nos *-index.html: hoje a fonte está apenas em
+     OPER/JD/JOAO, e sem isso os ícones deste modal sumiriam nas outras 10 páginas. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.9.0/fonts/remixicon.css">
 <link rel="stylesheet" href="css/Modal/CadFuncao.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
-
 <div id="cadModalFuncao" class="modal">
-    <div class="modal-content">      
-            
-        <div class="Close"><button class="close" id="Fechar"> X </button></div>
-        <div id="form-funcao">
+    <div class="modal-content">
 
-                <div class="title">
-                    <h1>Cadastro de Funções</h1>
-                </div>
+        <div class="Close"><button class="close" id="Fechar" title="Fechar" type="button">X</button></div>
+
+        <div class="title">
+            <h1 id="fnTitulo">Cadastro de Funções</h1>
+        </div>
+
+        <!-- Funções e Categoria de Função dividem o mesmo modal, no mesmo padrão de
+             abas dos Lançamentos Financeiros (.lc-tabs/.lc-view em CadLancamentos). -->
+        <div class="fn-tabs">
+            <button type="button" class="fn-tab-btn ativa" id="fnTabCategoria" data-fn-tab="categoria"><i class="ri-stack-line"></i>Categoria de Função</button>
+            <button type="button" class="fn-tab-btn" id="fnTabFuncao" data-fn-tab="funcao"><i class="ri-briefcase-line"></i>Funções</button>
+            <button type="button" class="fn-tab-btn" id="fnTabEquipe" data-fn-tab="equipe"><i class="ri-team-line"></i>Equipes</button>
+        </div>
+
+        <div class="fn-view" id="fnViewFuncao">
+            <div id="form-funcao" class="fn-painel">
 
                 <form id="form" name="form" autocomplete="on">
-                    <fieldset>
-                        <legend>Cadastre a Função </legend>
 
-                        <div class="form">
-                            <input type="text" name="idFuncao" id="idFuncao" readonly style="display: none;" >
-                            <label for="idFuncao" style="display: none;">Código</label>
-                        </div> 
-                        <div class="form-row-inline">
-                            <div class="form funcao-desc">
-                                <input type="text" class="uppercase" name="descFuncao" id="descFuncao" required>
+                    <input type="text" name="idFuncao" id="idFuncao" readonly hidden>
+
+                    <fieldset class="fn-secao">
+                        <legend>Dados da função</legend>
+
+                        <div class="fn-linha fn-linha-desc">
+                            <div class="campo">
                                 <label for="descFuncao">Descrição da Função</label>
+                                <input type="text" class="uppercase" name="descFuncao" id="descFuncao" required>
                             </div>
 
-                            <div class="checkbox-wrapper-33 funcao-ativa">
+                            <div class="checkbox-wrapper-33 campo-check">
                                 <label class="checkbox" for="funcaoAtiva">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="funcaoAtiva" name="funcaoAtiva" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
                                     <p class="checkbox__textwrapper">Função Ativa</p>
-                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="funcaoAtiva" name="funcaoAtiva" />
-                                <span class="checkbox__symbol">
-                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M4 14l8 7L24 7"></path>
-                                    </svg>
-                                </span>
                                 </label>
                             </div>
                         </div>
-                        <div class="form">
-                            <!-- <label for="idCatFuncao">Categoria da Função</label> -->
-                            <!-- <div class="form-label-wrapper"> -->
-                                <span><b>Equipe</b></span>
-                            <!-- </div> -->
 
-                            <select name="idEquipeFuncao" id="idEquipeFuncao" required>
-                                <option value="" disabled selected>Selecione a Equipe</option>
-                            </select>
-                            <!-- <label for="idCatFuncao">Categoria da Função</label> -->
-                        <!-- </div>  -->
-                        <!-- <div class="form"> -->
-                            <!-- <label for="idCatFuncao">Categoria da Função</label> -->
-                            <!-- <div class="form-label-wrapper"> -->
-                                <span><b>Categoria da Função</b></span>
-                            <!-- </div> -->
-                            
-                            <select name="idCatFuncao" id="idCatFuncao" required>
-                                <option value="" disabled selected>Selecione a Categoria</option>
-                            </select>
-                            <!-- <label for="idCatFuncao">Categoria da Função</label> -->
-                        </div>
-                       
-                        <div class="form-2colunas">
-                            <div class="form-label-wrapper">
-                                <span><b>Senior</b></span>
+                        <div class="fn-linha fn-linha-2">
+                            <div class="campo">
+                                <label for="idEquipeFuncao">Equipe</label>
+                                <select name="idEquipeFuncao" id="idEquipeFuncao" required>
+                                    <option value="" disabled selected>Selecione a Equipe</option>
+                                </select>
                             </div>
-                            <div class="form2">                                
-                                <input type="text" name="CustoSenior" id="CustoSenior" required readonly>
-                                <label for="CustoSenior"> Custo Senior</label>
-                            </div>                            
-                            <div class="form2">                                
-                                <input type="text" name="TranspSenior" id="TranspSenior" required readonly>
-                                <label for="TranspSenior"> Transporte Senior </label>
+                            <div class="campo">
+                                <label for="idCatFuncao">Categoria da Função</label>
+                                <select name="idCatFuncao" id="idCatFuncao" required>
+                                    <option value="" disabled selected>Selecione a Categoria</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="form-2colunas">
-                             <div class="form-label-wrapper">
-                                <span><b>Pleno</b></span>
-                            </div>
-                            <div class="form2">                                
-                                <input type="text" name="CustoPleno" id="CustoPleno" required readonly>
-                                <label for="CustoPleno"> Custo Pleno</label>
-                            </div>  
-                            <div class="form-label-wrapper">
-                                <span><b>Junior</b></span>
-                            </div>
-                            <div class="form2">                                
-                                <input type="text" name="CustoJunior" id="CustoJunior" required readonly>
-                                <label for="CustoJunior"> Custo Junior</label>
-                            </div>
-                            <div class="form-label-wrapper">
-                                <span><b>Base</b></span>
-                            </div>
-                            <div class="form2">                                
-                                <input type="text" name="CustoBase" id="CustoBase" required readonly>
-                                <label for="CustoBase"> Custo Base </label>
-                            </div>                                                      
-                        </div>
-
-                        <div class="form-2colunas">
-                            <div class="form2">
-
-                                <input type="text" name="transporte" id="transporte" required readonly>
-                                <label for="transporte"> Transporte </label>
-                            </div>
-                            <!-- <div class="form2">
-                                <input type="text" name="almoco" id="almoco" required>
-                                <label for="almoco"> Almoço </label>
-                            </div> -->
-                            <div class="form2">
-                                <input type="text" name="alimentacao" id="alimentacao" required readonly>
-                                <label for="alimentacao"> Alimentação </label>
-                            </div>
-                            <div class="form2">                                
-                                <input type="text" name="Venda" id="Venda" required>
-                                <label for="Venda"> Venda </label>
-                            </div>
-                        </div>
-                            <div class="form-2colunas">
-                                <div class="form2">
-                                    <textarea name="obsFuncao" id="obsFuncao" style="padding-top: 0.7em;" required></textarea>
-                                    <label for="obsFuncao"> Observação da Função </label>
-                                </div>
-                                <div class="form2">
-                                    <textarea name="obsProposta" id="obsProposta" style="padding-top: 0.7em;" required></textarea>
-                                    <label for="obsProposta"> Observação para Proposta </label>
-                                </div>
-                            </div>
                     </fieldset>
-                </div>
-            <div class="BTNs">
-                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
-                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+
+                    <fieldset class="fn-secao">
+                        <legend>Custos por senioridade</legend>
+
+                        <div class="fn-linha fn-linha-4">
+                            <div class="campo">
+                                <label for="CustoSenior">Custo Senior</label>
+                                <input type="text" name="CustoSenior" id="CustoSenior" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="CustoPleno">Custo Pleno</label>
+                                <input type="text" name="CustoPleno" id="CustoPleno" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="CustoJunior">Custo Junior</label>
+                                <input type="text" name="CustoJunior" id="CustoJunior" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="CustoBase">Custo Base</label>
+                                <input type="text" name="CustoBase" id="CustoBase" required readonly>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="fn-secao">
+                        <legend>Benefícios e venda</legend>
+
+                        <div class="fn-linha fn-linha-4">
+                            <div class="campo">
+                                <label for="TranspSenior">Transporte Senior</label>
+                                <input type="text" name="TranspSenior" id="TranspSenior" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="transporte">Transporte</label>
+                                <input type="text" name="transporte" id="transporte" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="alimentacao">Alimentação</label>
+                                <input type="text" name="alimentacao" id="alimentacao" required readonly>
+                            </div>
+                            <div class="campo">
+                                <label for="Venda">Venda</label>
+                                <input type="text" name="Venda" id="Venda" required>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="fn-secao">
+                        <legend>Observações</legend>
+
+                        <div class="fn-linha fn-linha-2">
+                            <div class="campo">
+                                <label for="obsFuncao">Observação da Função</label>
+                                <textarea name="obsFuncao" id="obsFuncao" required></textarea>
+                            </div>
+                            <div class="campo">
+                                <label for="obsProposta">Observação para Proposta</label>
+                                <textarea name="obsProposta" id="obsProposta" required></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
             </div>
-        </form>
+        </div>
+
+        <!-- Aba Categoria de Função: os ids levam o prefixo "cf" porque quase todos os
+             campos têm o mesmo nome dos da aba Funções (CustoSenior, transporte, Venda,
+             idCatFuncao...) e agora as duas telas vivem no mesmo DOM. -->
+        <div class="fn-view ativa" id="fnViewCategoria">
+            <div id="form-catfuncao" class="fn-painel">
+
+                <form id="cfForm" name="cfForm" autocomplete="on">
+
+                    <input type="text" name="idCatFuncao" id="cfIdCatFuncao" readonly hidden>
+
+                    <fieldset class="fn-secao">
+                        <legend>Dados da categoria</legend>
+
+                        <div class="fn-linha fn-linha-1">
+                            <div class="campo">
+                                <label for="cfDescCatFuncao">Descrição da Categoria da Função</label>
+                                <input type="text" class="uppercase" name="descCatFuncao" id="cfDescCatFuncao" required>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="fn-secao">
+                        <legend>Custos por senioridade</legend>
+
+                        <div class="fn-linha fn-linha-4">
+                            <div class="campo">
+                                <label for="cfCustoSenior">Custo Senior</label>
+                                <input type="text" name="CustoSenior" id="cfCustoSenior" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfCustoSenior2">Custo Senior 2</label>
+                                <input type="text" name="CustoSenior2" id="cfCustoSenior2" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfCustoPleno">Custo Pleno</label>
+                                <input type="text" name="CustoPleno" id="cfCustoPleno" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfCustoJunior">Custo Junior</label>
+                                <input type="text" name="CustoJunior" id="cfCustoJunior" required>
+                            </div>
+                        </div>
+
+                        <div class="fn-linha fn-linha-4">
+                            <div class="campo">
+                                <label for="cfCustoBase">Custo Base</label>
+                                <input type="text" name="CustoBase" id="cfCustoBase" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfValorFuncionario">Valor Funcionário</label>
+                                <input type="text" name="valorFuncionario" id="cfValorFuncionario" required>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="fn-secao">
+                        <legend>Benefícios e venda</legend>
+
+                        <div class="fn-linha fn-linha-4">
+                            <div class="campo">
+                                <label for="cfTranspSenior">Transporte Senior</label>
+                                <input type="text" name="TranspSenior" id="cfTranspSenior" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfTransporte">Transporte</label>
+                                <input type="text" name="transporte" id="cfTransporte" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfAlimentacao">Alimentação</label>
+                                <input type="text" name="alimentacao" id="cfAlimentacao" required>
+                            </div>
+                            <div class="campo">
+                                <label for="cfVenda">Venda</label>
+                                <input type="text" name="Venda" id="cfVenda" required readonly>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+
+        <!-- Aba Equipes: ids com prefixo "eq" pela mesma razão do "cf" acima — as três
+             abas dividem o mesmo DOM. A empresa do vínculo (equipeempresas) é a empresa
+             logada, resolvida pela rota via contexto, então não há campo de empresa aqui. -->
+        <div class="fn-view" id="fnViewEquipe">
+            <div id="form-equipe" class="fn-painel">
+
+                <form id="eqForm" name="eqForm" autocomplete="on">
+
+                    <input type="text" name="idEquipe" id="eqIdEquipe" readonly hidden>
+
+                    <fieldset class="fn-secao">
+                        <legend>Dados da equipe</legend>
+
+                        <div class="fn-linha fn-linha-1">
+                            <div class="campo">
+                                <label for="eqDescEquipe">Nome da Equipe</label>
+                                <input type="text" class="uppercase" name="descEquipe" id="eqDescEquipe" required>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+
+        <div class="BTNs fn-btns" data-fn-tab="funcao">
+            <button class="btnPesquisar" id="Pesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
+            <button class="btnLimpar" id="Limpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>
+        </div>
+
+        <!-- Botões da aba Categoria usam classes próprias (btnCat*): aplicarPermissoes()
+             mexe em .btnPesquisar/.btnEnviar conforme o módulo do modal (Funcao) e não
+             deve desabilitar a outra aba — a permissão de Categoriafuncao quem confere,
+             no clique, é o próprio CategoriaFuncao.js. -->
+        <div class="BTNs fn-btns ativa" data-fn-tab="categoria">
+            <button class="btnCatPesquisar" id="cfPesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
+            <button class="btnCatLimpar" id="cfLimpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
+            <button class="btnCatEnviar" id="cfEnviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>
+        </div>
+
+        <!-- Mesma razão dos btnCat*: classes próprias (btnEq*) pra aplicarPermissoes(),
+             que age sobre .btnPesquisar/.btnEnviar do módulo dono do modal, não desligar
+             os botões desta aba — quem confere a permissão de Equipe é o Equipe.js. -->
+        <div class="BTNs fn-btns" data-fn-tab="equipe">
+            <button class="btnEqPesquisar" id="eqPesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
+            <button class="btnEqLimpar" id="eqLimpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
+            <button class="btnEqEnviar" id="eqEnviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>
+        </div>
     </div>
 </div>
- 
- 
-<!-- </body>
-
-</html> -->

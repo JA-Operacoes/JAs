@@ -17,6 +17,9 @@
     
     <div id="CadModal" class="modal">
         <div class="modal-content"> -->
+<!-- LEGADO: esta tela agora vive como aba "Categoria de Função" dentro de
+     CadFuncao.html; o menu não abre mais este modal sozinho. Os ids/classes abaixo
+     acompanham os usados lá, porque CategoriaFuncao.js é o mesmo arquivo. -->
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -33,17 +36,17 @@
                     <h1>Cadastro de Categorias de Funções</h1>
                 </div>
 
-                <form id="form" name="form" autocomplete="on">
+                <form id="cfForm" name="cfForm" autocomplete="on">
                     <fieldset>
                         <legend>Cadastre a Categoria da Função </legend>
                         <div class="form">
-                            <input type="text" name="idCatFuncao" id="idCatFuncao" readonly style="display: none;" >
-                            <label for="idCatFuncao" style="display: none;">Código</label>
+                            <input type="text" name="idCatFuncao" id="cfIdCatFuncao" readonly style="display: none;" >
+                            <label for="cfIdCatFuncao" style="display: none;">Código</label>
                         </div>
 
                         <div class="form">
-                            <input type="text" class="uppercase" name="descCatFuncao" id="descCatFuncao" required>
-                            <label for="descCatFuncao">Descrição da Categoria da Função</label>
+                            <input type="text" class="uppercase" name="descCatFuncao" id="cfDescCatFuncao" required>
+                            <label for="cfDescCatFuncao">Descrição da Categoria da Função</label>
                         </div>                     
 
 
@@ -56,16 +59,16 @@
                                 <span><b>Senior</b></span>
                             </div>
                             <div class="form2">                                
-                                <input type="text" name="CustoSenior" id="CustoSenior" required>
-                                <label for="CustoSenior"> Custo Senior</label>
+                                <input type="text" name="CustoSenior" id="cfCustoSenior" required>
+                                <label for="cfCustoSenior"> Custo Senior</label>
                             </div>                            
                             <div class="form2">                                
-                                <input type="text" name="CustoSenior2" id="CustoSenior2" required>
-                                <label for="CustoSenior2"> Custo Senior 2</label>
+                                <input type="text" name="CustoSenior2" id="cfCustoSenior2" required>
+                                <label for="cfCustoSenior2"> Custo Senior 2</label>
                             </div>                            
                             <div class="form2">                                
-                                <input type="text" name="TranspSenior" id="TranspSenior" required>
-                                <label for="TranspSenior"> Transporte Senior </label>
+                                <input type="text" name="TranspSenior" id="cfTranspSenior" required>
+                                <label for="cfTranspSenior"> Transporte Senior </label>
                             </div>
                         </div>
                         
@@ -74,22 +77,22 @@
                                 <span><b>Pleno</b></span>
                             </div>
                             <div class="form2">                                
-                                <input type="text" name="CustoPleno" id="CustoPleno" required>
-                                <label for="CustoPleno"> Custo Pleno</label>
+                                <input type="text" name="CustoPleno" id="cfCustoPleno" required>
+                                <label for="cfCustoPleno"> Custo Pleno</label>
                             </div>  
                             <div class="form-label-wrapper">
                                 <span><b>Junior</b></span>
                             </div>
                             <div class="form2">                                
-                                <input type="text" name="CustoJunior" id="CustoJunior" required>
-                                <label for="CustoJunior"> Custo Junior</label>
+                                <input type="text" name="CustoJunior" id="cfCustoJunior" required>
+                                <label for="cfCustoJunior"> Custo Junior</label>
                             </div>
                             <div class="form-label-wrapper">
                                 <span><b>Base</b></span>
                             </div>
                             <div class="form2">                                
-                                <input type="text" name="CustoBase" id="CustoBase" required>
-                                <label for="CustoBase"> Custo Base </label>
+                                <input type="text" name="CustoBase" id="cfCustoBase" required>
+                                <label for="cfCustoBase"> Custo Base </label>
                             </div>                                                      
                         </div>
 
@@ -99,29 +102,29 @@
                                 <span><b>Funcionario</b></span>
                             </div>
                             <div class="form2">
-                                <input type="text" name="valorFuncionario" id="valorFuncionario" required>
-                                <label for="valorFuncionario"> Valor Funcionário </label>
+                                <input type="text" name="valorFuncionario" id="cfValorFuncionario" required>
+                                <label for="cfValorFuncionario"> Valor Funcionário </label>
                             </div>
                         </div>
                             <div class="form2">
-                                <input type="text" name="transporte" id="transporte" required>
-                                <label for="transporte"> Transporte </label>
+                                <input type="text" name="transporte" id="cfTransporte" required>
+                                <label for="cfTransporte"> Transporte </label>
                             </div>                           
                             <div class="form2">
-                                <input type="text" name="alimentacao" id="alimentacao" required>
-                                <label for="alimentacao"> Alimentação </label>
+                                <input type="text" name="alimentacao" id="cfAlimentacao" required>
+                                <label for="cfAlimentacao"> Alimentação </label>
                             </div>
                             <div class="form2">                                
-                                <input type="text" name="Venda" id="Venda" required readonly>
-                                <label for="Venda"> Venda </label>
+                                <input type="text" name="Venda" id="cfVenda" required readonly>
+                                <label for="cfVenda"> Venda </label>
                             </div>
                         </div>                            
                     </fieldset>
                 </div>
             <div class="BTNs">
-                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
-                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+                <button class="btnCatPesquisar" id="cfPesquisar" type="button"><i class="ri-search-line"></i>Pesquisar</button>
+                <button class="btnCatLimpar" id="cfLimpar" type="button"><i class="ri-eraser-line"></i>Limpar</button>
+                <button class="btnCatEnviar" id="cfEnviar" type="button"><i class="ri-send-plane-2-line"></i>Enviar</button>
             </div>
         </form>
     </div>

@@ -4016,6 +4016,13 @@ display: none;
     color: var(--status-info-fg);
     border: 1px solid #93c5fd;
 }
+/* Recibo de férias (RH > Programar férias): neutro — roxo/amarelo/azul/verde já são de
+   Salário, 13º/Cachê, Benefícios/Ajuda de custo e Caixinha nesta mesma tela. */
+.badge-ferias {
+    background: var(--status-neutro-bg);
+    color: var(--status-neutro-fg);
+    border: 1px solid var(--border-1);
+}
 .badge-ferias {
     background: var(--status-ok-bg);
     color: var(--status-ok-fg);

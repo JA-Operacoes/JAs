@@ -1,0 +1,14 @@
+-- Migration: funcionarioempresas_demissao
+-- Criada em: 2026-09-28T18:00:00.000Z
+--
+-- Escreva abaixo o SQL da mudanca de ESTRUTURA (uma migration = uma mudanca).
+-- Roda dentro de uma transacao; se der erro, nada deste arquivo e aplicado.
+-- Depois de escrever: 'npm run migrate' pra aplicar no seu banco local.
+--
+-- Cadastro de Funcionarios > bloco RH: data de demissao, ao lado da admissao. Fica em
+-- funcionarioempresas (e nao em funcionarios) pelo mesmo motivo da admissao: o vinculo e por
+-- empresa -- a mesma pessoa pode sair de uma empresa do grupo e continuar em outra.
+-- So quem tem RH/Master/Supremo ve e grava o campo (ver podeGravarDemissao em
+-- routes/rotaFuncionario.js). Proximo passo combinado com a usuaria: funcionario com demissao e
+-- rescisao paga deixa de aparecer pra conferencia na folha -- ainda NAO implementado.
+ALTER TABLE funcionarioempresas ADD COLUMN IF NOT EXISTS demissao DATE;
