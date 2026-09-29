@@ -760,7 +760,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
                         styleDestaque = 'style="color: var(--on-brand-escuro); font-weight: bold; background-color: #cbe4fd;"';
                     } else if (vlrAdic !== 0) {
-                        styleDestaque = 'style="color: var(--on-brand); font-weight: bold; background-color: rgb(136, 9, 9);"';
+                        styleDestaque = 'style="color: var(--on-brand); font-weight: bold; background-color: rgb(255, 133, 133);"';
                     }
 
                     const ehFuncionario = item.PERFIL_STAFF && item.PERFIL_STAFF.includes('Interno');
@@ -795,7 +795,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${ehUltimaLinhaFuncionario ? formatarMoeda(item["CRÉDITO/DÉBITO"]) : ''}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">
-                            ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"])}
+                            ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], (ehUltimaLinhaFuncionario ? (parseFloat(item["TOT DIÁRIAS"] || 0) + parseFloat(item["CRÉDITO/DÉBITO"] || 0)) : item["TOT DIÁRIAS"]))}
                             </td>
                             <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
@@ -820,7 +820,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                 <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             ` : ''}
                             <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
-                            <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], (!funcionarioTemMultiplasLinhas ? (parseFloat(item["TOT PAGAR"] || 0) + parseFloat(item["CRÉDITO/DÉBITO"] || 0)) : item["TOT PAGAR"]), false)}</td>
+                            <td class="${alinhamentos['TOT PAGAR']}">${montarCelulaPendente('', item["STATUS PGTO"], (ehUltimaLinhaFuncionario ? (parseFloat(item["TOT PAGAR"] || 0) + parseFloat(item["CRÉDITO/DÉBITO"] || 0)) : item["TOT PAGAR"]), false)}</td>
                             <td class="${alinhamentos['STATUS COMPROVANTE']} ${obterClasseCompStatus(item["COMP STATUS"])}">${item["COMP STATUS"] || '---'}</td>
                             
                         `) : `
