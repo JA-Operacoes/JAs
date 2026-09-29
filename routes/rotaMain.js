@@ -1789,6 +1789,7 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                                        'data', s.dtsolicitada,
                                        'status', s.status,
                                        'justificativa', s.justificativa,
+                                       'motivorecusa', s.motivorecusa,
                                        'tiposolicitacao', s.tiposolicitacao)
                     ORDER BY s.dtsolicitada
                 ) AS dtsolicitada_agrupada,
@@ -2026,7 +2027,8 @@ router.get('/notificacoes-financeiras', autenticarToken(), contextoEmpresa, asyn
                     idsolicitacao: sol.idsolicitacao,
                     data: Array.isArray(sol.data) ? sol.data : [sol.data],
                     status: sol.status,
-                    justificativa: sol.justificativa || ''
+                    justificativa: sol.justificativa || '',
+                    motivorecusa: sol.motivorecusa || ''
                 })),
 
                 // Campos auxiliares para merge de combo FuncExcedido + Estouro Financeiro
@@ -2335,7 +2337,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
         }
     }),
     async (req, res) => {
-        let { idpedido, categoria, acao, data: dataEspecifica, idlog_origem } = req.body;
+        let { idpedido, categoria, acao, data: dataEspecifica, idlog_origem, motivorecusa } = req.body;
         const idempresa = req.idempresa;
         const idUsuarioResponsavel = req.usuario?.idusuario;
 
@@ -2376,9 +2378,9 @@ router.post('/notificacoes-financeiras/atualizar-status',
                 const sol = solRows[0];
 
                 await client.query(
-                    `UPDATE solicitacoes SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW()
+                    `UPDATE solicitacoes SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW(), motivorecusa = $5
                      WHERE idsolicitacao = $3 AND idempresa = $4`,
-                    [statusParaAtualizar0, idUsuarioResponsavel, idpedido, idempresa]
+                    [statusParaAtualizar0, idUsuarioResponsavel, idpedido, idempresa, motivorecusa || null]
                 );
 
                 let idAjusteGerado = null;
@@ -2537,15 +2539,15 @@ router.post('/notificacoes-financeiras/atualizar-status',
             // 2. 🎯 ATUALIZA EXCLUSIVAMENTE A SOLICITAÇÃO ESPECÍFICA (Ex: ID 672)
             let querySolicitacoes = `
                 UPDATE public.solicitacoes
-                SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW()
+                SET status = $1, idusuarioresponsavel = $2, dtresposta = NOW(), motivorecusa = $5
                 WHERE idsolicitacao = $3
                 AND idempresa = $4
                 AND status = 'Pendente'
             `;
-            const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa];
+            const paramsSolicitacoes = [statusParaAtualizar, idUsuarioResponsavel, idpedido, idempresa, motivorecusa || null];
 
             if (dataEspecifica) {
-                querySolicitacoes += " AND ($5::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $5 || '%'))";
+                querySolicitacoes += " AND ($6::date = ANY(dtsolicitada) OR (dtsolicitada::text LIKE '%' || $6 || '%'))";
                 paramsSolicitacoes.push(dataEspecifica);
             }
 
@@ -2866,14 +2868,14 @@ router.post('/notificacoes-financeiras/atualizar-status',
                     try {
                         const { rows: funcExcedidoRejeitados } = await pool.query(`
                             UPDATE public.solicitacoes
-                            SET status = 'Rejeitado', idusuarioresponsavel = $1, dtresposta = NOW()
+                            SET status = 'Rejeitado', idusuarioresponsavel = $1, dtresposta = NOW(), motivorecusa = $5
                             WHERE idregistroalterado = $2
                               AND idempresa = $3
                               AND status = 'Pendente'
                               AND tiposolicitacao ILIKE '%funcexcedido%'
                               AND dtsolicitada && $4::date[]
                             RETURNING idsolicitacao, tiposolicitacao, dtsolicitada
-                        `, [idUsuarioResponsavel, idStaffAlvo, idempresa, datasParaProcessar]);
+                        `, [idUsuarioResponsavel, idStaffAlvo, idempresa, datasParaProcessar, motivorecusa || null]);
 
                         if (funcExcedidoRejeitados.length > 0) {
                             console.log(`🔗 [CASCATA FUNCEXCEDIDO] ${funcExcedidoRejeitados.length} solicitação(ões) de FuncExcedido rejeitada(s) junto com "${tipoSolicitacaoOriginal}":`,

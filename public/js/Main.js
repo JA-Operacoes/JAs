@@ -8368,6 +8368,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     const holeriteMes = chaveHolerite ? mapaHolerites.get(chaveHolerite) : null;
                     if (chaveHolerite && holeriteMes) holeritesUsados.add(chaveHolerite);
 
+                    // Holerite com líquido zerado não tem o que pagar de verdade — nem entra na
+                    // lista, em vez de aparecer como Pendente/Atrasado à toa.
+                    if (c.tipovinculo === 'funcionario' && holeriteMes && parseFloat(holeriteMes.liquido || 0) === 0) return;
+
                     // Campos de pagamento ("c" pode ser o registro real de OUTRO mês do mesmo
                     // lançamento recorrente, ex.: agosto já pago) só entram quando este mês tem
                     // seu próprio dadoReal — senão a data de pagamento, comprovante e imagem da
@@ -8432,6 +8436,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 // Mesma comparação de data usada acima pro caso "sem lançamento" (dProj < hoje)
                 // — sem isso, um 13º de mês já passado (ex: julho, se filtro olhar meses
                 // anteriores) ficava sempre em "a_vencer", nunca em "vencidos".
+                // Valor líquido zerado não tem o que pagar de verdade — nem entra na lista,
+                // em vez de aparecer como Pendente/Atrasado (ou Pago) sem nenhuma ação possível.
+                if (parseFloat(ev.liquido || 0) === 0) return;
                 const dtvctoTreze = new Date(ev.dtvcto + 'T12:00:00');
                 const foiPagoTreze = ev.status === 'Pago';
                 const ehHojeTreze = !foiPagoTreze && ehMesmoDia(dtvctoTreze, hoje);
@@ -8471,6 +8478,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // senão o funcionário simplesmente some da tela mesmo tendo folha ativa.
             mapaHolerites.forEach((h, chave) => {
                 if (holeritesUsados.has(chave)) return;
+                // Líquido zerado (ex: funcionário afastado/sem saldo no mês) não tem o que pagar
+                // de verdade — nem entra na lista, em vez de ficar Pendente/Atrasado à toa.
+                if (parseFloat(h.liquido || 0) === 0) return;
                 // Mesma comparação de data do caso "sem lançamento" acima (dProj < hoje) — sem
                 // isso, um salário de mês já passado (ex: julho, filtrando o semestre) ficava
                 // sempre em "a_vencer", nunca em "vencidos".
@@ -8511,6 +8521,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // status/pagamento PRÓPRIOS (ver PUT /rh/holerite/:id/pagar-beneficios) — não reusa
             // o "Pago" do salário porque saem em data e por meio diferentes.
             mapaBeneficios.forEach((b) => {
+                // Sem valor de benefício nesse mês, não há nada a pagar — nem entra na lista.
+                if (parseFloat(b.liquido || 0) === 0) return;
                 const dtvctoBenef = new Date(b.dtvcto + 'T12:00:00');
                 const statusBenefRaw = (b.status || 'Previsão');
                 const foiPagoBenef = b.origem === 'real' && String(statusBenefRaw).toLowerCase() === 'pago';
@@ -8550,6 +8562,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // verdade (tipo 'ferias'), então paga/anexa comprovante/imprime pelas mesmas rotas do
             // salário — só o tipo muda na hora de abrir/imprimir (holerite_tipo = 'ferias').
             (resContas.recibosFerias || []).forEach((rf) => {
+                // Recibo de férias com líquido zerado não tem o que pagar — nem entra na lista.
+                if (parseFloat(rf.liquido || 0) === 0) return;
                 const dtvctoRf = new Date(rf.dtvcto + 'T12:00:00');
                 const foiPagoRf = String(rf.status || '').toLowerCase() === 'pago';
                 const ehHojeRf = !foiPagoRf && ehMesmoDia(dtvctoRf, hoje);
@@ -8592,6 +8606,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             // Mesmo formato das linhas de benefício; idholerite carrega o idprovento, que é o
             // que a rota de pagamento própria (pagarProventoParteFuncionario) precisa.
             (resContas.proventosParte || []).forEach((p) => {
+                // Provento à parte com valor zerado não tem o que pagar — nem entra na lista.
+                if (parseFloat(p.valor || 0) === 0) return;
                 const dtvctoProv = new Date(p.dtvcto + 'T12:00:00');
                 const foiPagoProv = String(p.status || '').toLowerCase() === 'pago';
                 const ehHojeProv = !foiPagoProv && ehMesmoDia(dtvctoProv, hoje);
@@ -8873,6 +8889,38 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     }
 }
 
+// Cada categoria (Salário/13º/Benefícios/...) do funcionário carrega seu próprio nome+badge
+// (ver comentário em nomeCel, dentro de criarAccordionVinculo) — cada categoria (Salário/13º/
+// Benefícios...) mantém sua própria <td> pra sobreviver ao filtro rápido por linha (que só
+// esconde/mostra <tr> inteiras) sem depender de um rowspan ESTÁTICO, que quebra no Chrome
+// quando a linha DONA do rowspan é justamente a que o filtro esconde. Aqui refazemos esse
+// rowspan dinamicamente a cada chamada: escondemos a <td> de nome em toda linha visível do
+// grupo (data-func-chave) exceto a primeira, e esticamos o rowSpan dela pra cobrir as demais
+// linhas visíveis — o resultado visual é uma célula mesclada de verdade (uma borda só), mas
+// sempre recalculada em cima de quem estiver visível no momento. Chamada ao montar o accordion
+// e depois de qualquer filtro que mude a visibilidade das linhas.
+function sincronizarNomesFuncionario(escopo) {
+    const porChave = new Map();
+    (escopo || document).querySelectorAll('tr.item-financeiro-linha[data-func-chave]').forEach(tr => {
+        const chave = tr.getAttribute('data-func-chave');
+        if (!porChave.has(chave)) porChave.set(chave, []);
+        porChave.get(chave).push(tr);
+    });
+    porChave.forEach(trs => {
+        const visiveis = trs.filter(tr => tr.style.display !== 'none');
+        trs.forEach(tr => {
+            const td = tr.querySelector('.nome-func-cel');
+            if (td) { td.style.display = 'none'; td.removeAttribute('rowspan'); }
+        });
+        if (visiveis.length) {
+            const td = visiveis[0].querySelector('.nome-func-cel');
+            if (td) {
+                td.style.display = '';
+                td.rowSpan = visiveis.length;
+            }
+        }
+    });
+}
 
 function filtrarEventosNaTela(statusAlvo) {
     // 1. Seleciona todos os accordions (Staff, Grupos de Financeiro, etc)
@@ -8914,6 +8962,7 @@ function filtrarEventosNaTela(statusAlvo) {
             item.querySelectorAll("[data-func-chave]:not(.item-financeiro-linha)").forEach(linha => {
                 linha.style.display = chavesVisiveis.has(linha.getAttribute("data-func-chave")) ? "" : "none";
             });
+            sincronizarNomesFuncionario(item);
 
         } else {
             // --- LÓGICA PARA STAFF (ITENS ÚNICOS) ---
@@ -8963,6 +9012,7 @@ function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca) {
         item.querySelectorAll("[data-func-chave]:not(.item-financeiro-linha)").forEach(linha => {
             linha.style.display = chavesVisiveis.has(linha.getAttribute("data-func-chave")) ? "" : "none";
         });
+        sincronizarNomesFuncionario(item);
     });
 }
 
@@ -9466,12 +9516,26 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
                                     const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
-                                    const nomeCel = `<td style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
-                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
-                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
+                                    // Nome + badge (VENCIDO/HOJE) do funcionário: essa célula é dona do
+                                    // rowSpan quando há mais de uma categoria (Salário/13º/Benefícios...) no
+                                    // MESMO funcionário/mês (data-func-chave) — cada linha continua com sua
+                                    // própria <td> (senão o filtro rápido perde a linha ao escondê-la), mas
+                                    // sincronizarNomesFuncionario (chamada ao montar o accordion e a cada
+                                    // filtro aplicado) esconde a <td> de todas as linhas do grupo exceto a
+                                    // primeira VISÍVEL, e estica o rowSpan dela pra cobrir as demais — assim
+                                    // o navegador renderiza como UMA célula mesclada de verdade, não um
+                                    // texto repetido com borda própria em cada linha.
+                                    const nomeCel = `<td class="nome-func-cel" style="border-bottom: 2px solid #dee2e6; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+                                            <span class="nome-func-principal">
+                                                ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
+                                                <strong>${c.nome_vinculo || '---'}</strong>
+                                            </span>
                                         </td>`;
                                     const restoCels = `
-                                            <td style="text-align:center;"><span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span></td>
+                                            <td style="text-align:center;">
+                                                <span class="badge-categoria ${categoriaClasse}">${categoriaLabel}</span><br>
+                                                <small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
+                                            </td>
                                             <td style="text-align:center;">
                                                 ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}${dataExibicao}
                                             </td>
@@ -9755,6 +9819,9 @@ function criarAccordionVinculo(tipo, lista, hoje) {
             }
         }
     }
+
+    if (ehFuncionario) sincronizarNomesFuncionario(item);
+
     return item;
 
 

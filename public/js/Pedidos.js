@@ -2239,9 +2239,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
             // Chama o backend sem re-render para manter o card aberto
             try {
@@ -2249,7 +2255,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp })
+                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp, motivorecusa: motivo })
                 });
                 if (!resp?.sucesso) {
                     Swal.fire('Erro', resp?.erro || 'Falha na atualização', 'error');
@@ -2278,7 +2284,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const linhaFE = secao2?.querySelector(`.linha-data-aditivo[data-data="${String(dataEsp).replace(/["\\]/g, '\\$&')}"]`);
                 const idSolFEAlvo = linhaFE?.getAttribute('data-idsolicitacao');
                 if (idSolFEAlvo && idLogFuncExc) {
-                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida');
+                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida', motivo);
                     const divBadgeFE = linhaFE.querySelector('div');
                     if (divBadgeFE) divBadgeFE.innerHTML = `<span style="font-size:12px;font-weight:bold;color:#dc2626;border:1px solid #dc2626;border-radius:3px;padding:2px 8px;">❌ Cancelado (Aditivo rejeitado)</span>`;
                 }
@@ -2307,11 +2313,17 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
-            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusvagaexcedida');
+            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusvagaexcedida', motivo);
             if (!sucesso) return;
 
             const linhaDom = target.closest('.linha-data-aditivo');
@@ -2345,16 +2357,22 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
             try {
                 const novoStatus = isAprovar ? 'Autorizado' : 'Rejeitado';
                 const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp })
+                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp, motivorecusa: motivo })
                 });
                 if (!resp?.sucesso) {
                     Swal.fire('Erro', resp?.erro || 'Falha na atualização', 'error');
@@ -2380,7 +2398,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const linhaFE = secao2?.querySelector(`.linha-data-aditivo[data-data="${String(dataEsp).replace(/["\\]/g, '\\$&')}"]`);
                 const idSolFEAlvo = linhaFE?.getAttribute('data-idsolicitacao');
                 if (idSolFEAlvo && idLogFuncExc) {
-                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida');
+                    await atualizarStatusAditivoExtra(idSolFEAlvo, 'rejeitado', dataEsp, idLogFuncExc, true, 'statusvagaexcedida', motivo);
                     const divBadgeFE = linhaFE.querySelector('div');
                     if (divBadgeFE) divBadgeFE.innerHTML = `<span style="font-size:12px;font-weight:bold;color:#dc2626;border:1px solid #dc2626;border-radius:3px;padding:2px 8px;">❌ Cancelado (${labelTipo1} rejeitado)</span>`;
                 }
@@ -2409,11 +2427,17 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
-            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusvagaexcedida');
+            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusvagaexcedida', motivo);
             if (!sucesso) return;
 
             const linhaDom = target.closest('.linha-data-aditivo');
@@ -2445,16 +2469,22 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
             try {
                 const novoStatus = isAprovar ? 'Autorizado' : 'Rejeitado';
                 const resp = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp })
+                    body: JSON.stringify({ idpedido: idSol, categoria: 'statusaditivoextra', acao: novoStatus, idlog_origem: idLog, data: dataEsp, motivorecusa: motivo })
                 });
                 if (!resp?.sucesso) {
                     Swal.fire('Erro', resp?.erro || 'Falha na atualização', 'error');
@@ -2480,7 +2510,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 const idLogDobrada = cardCombo?.getAttribute('data-idlog-dobrada');
                 if (idsDobrStr && idLogDobrada) {
                     for (const idSolD of idsDobrStr.split(',')) {
-                        await atualizarStatusAditivoExtra(idSolD.trim(), 'rejeitado', null, idLogDobrada, true, 'statusdiariadobrada');
+                        await atualizarStatusAditivoExtra(idSolD.trim(), 'rejeitado', null, idLogDobrada, true, 'statusdiariadobrada', motivo);
                     }
                 }
                 const secao2 = cardCombo?.querySelector('.combo-edb-secao-dobrada');
@@ -2510,11 +2540,17 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
-            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusdiariadobrada');
+            const sucesso = await atualizarStatusAditivoExtra(idSol, isAprovar ? 'autorizado' : 'rejeitado', dataEsp, idLog, true, 'statusdiariadobrada', motivo);
             if (!sucesso) return;
 
             const linhaDom = target.closest('.linha-data-aditivo');
@@ -2548,9 +2584,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
             const sucesso = await atualizarStatusAditivoExtra(
                 idSol,
@@ -2558,7 +2600,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 dataEspecifica,
                 idLogOrigem,
                 true,
-                'statusaditivoextra'
+                'statusaditivoextra',
+                motivo
             );
 
             if (sucesso && linhaDom) {
@@ -2661,15 +2704,21 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 showCancelButton: true,
                 confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
                 confirmButtonText: 'Confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                ...(isAprovar ? {} : {
+                    input: 'textarea',
+                    inputPlaceholder: 'Descreva o motivo da recusa (obrigatório) — vale para todas as datas...',
+                    inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+                })
             });
             if (!result.isConfirmed) return;
+            const motivo = isAprovar ? null : (result.value || '').trim();
 
             const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
             let todosOk = true;
 
             for (const idSol of ids) {
-                const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true);
+                const ok = await atualizarStatusAditivoExtra(idSol, statusTarget, null, idLogOrigem, true, 'statusaditivoextra', motivo);
                 if (!ok) { todosOk = false; break; }
             }
 
@@ -2716,20 +2765,26 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: isAprovar ? '#16a34a' : '#dc2626',
-            confirmButtonText: 'Confirmar'
+            confirmButtonText: 'Confirmar',
+            ...(isAprovar ? {} : {
+                input: 'textarea',
+                inputPlaceholder: 'Descreva o motivo da recusa (obrigatório)...',
+                inputValidator: (value) => (!value || !value.trim()) ? 'É necessário informar o motivo da recusa.' : undefined
+            })
         });
 
         if (result.isConfirmed) {
+            const motivo = isAprovar ? null : (result.value || '').trim();
             try {
                 console.log("🚀 Iniciando atualização no banco para ID:", idReferencia);
                 const idLogOriginal = actionDiv.getAttribute('data-logid');
                 const novoStatus = statusTarget;
-                
+
                 let sucesso = false;
                 if (isAditivoExtra) {
-                    sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal); 
+                    sucesso = await statusUpdateFn(idReferencia, statusTarget, cardElement, idLogOriginal, undefined, undefined, motivo);
                 } else {
-                    sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal);
+                    sucesso = await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, idLogOriginal, motivo);
                 }
 
                 if (sucesso) {
@@ -2806,17 +2861,18 @@ async function processarAcaoIndividual(idLog, dataEspecifica, novoStatus) {
     }
 }
 
-async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog) {
+async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate, idLog, motivoRecusa = null) {
     try {
-        // Garantimos que os nomes das chaves (idpedido, categoria, acao, data) 
+        // Garantimos que os nomes das chaves (idpedido, categoria, acao, data)
         // sejam exatamente o que o seu backend recebia no código antigo.
         const bodyData = {
             id_log: idLog,
             idpedido: idpedido,
             categoria: categoria, // O backend espera 'categoria', que é o seu 'campo'
-            acao: acao,            
+            acao: acao,
             idlog_origem: idLog,
-            data: dataParaUpdate && dataParaUpdate.trim() !== '' ? dataParaUpdate : null
+            data: dataParaUpdate && dataParaUpdate.trim() !== '' ? dataParaUpdate : null,
+            motivorecusa: motivoRecusa || null
         };
 
         console.log("📦 Enviando para o servidor:", bodyData);
@@ -2844,7 +2900,7 @@ async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dat
 
 
 
-async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspecifica = null, idlog_origem = null, skipConfirm = false, categoriaDinamica = 'statusaditivoextra') {
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspecifica = null, idlog_origem = null, skipConfirm = false, categoriaDinamica = 'statusaditivoextra', motivoRecusa = null) {
     console.log(`🚀 Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus} | Data Especifica: ${dataEspecifica} | Categoria: ${categoriaDinamica}`);
 
     if (!skipConfirm) {
@@ -2876,15 +2932,19 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, dataEspec
         const url = '/main/notificacoes-financeiras/atualizar-status';
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1).toLowerCase();
        
-        const payload = { 
+        const payload = {
             idpedido: idAditivoExtra,
-            categoria: categoriaDinamica, 
+            categoria: categoriaDinamica,
             acao: novoStatusCapitalizado,
             idlog_origem: idlog_origem
         };
 
         if (dataEspecifica && dataEspecifica !== 'null') {
             payload.data = dataEspecifica;
+        }
+
+        if (motivoRecusa) {
+            payload.motivorecusa = motivoRecusa;
         }
 
         const response = await fetchComToken(url, {
