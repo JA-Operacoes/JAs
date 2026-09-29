@@ -459,7 +459,7 @@ router.get("/funcionarios/busca", async (req, res) => {
          FROM funcionarios f
          INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
          WHERE fe.idempresa = $1 AND fe.ativo = true
-           AND fe.perfil IN ('Interno', 'ExternoH', 'Externo')
+           AND fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')
            AND f.nome ILIKE $2
          ORDER BY f.nome ASC LIMIT 20`,
       [idempresa, `%${busca}%`]
@@ -562,7 +562,7 @@ router.get("/custodia/funcionarios", async (req, res) => {
          LEFT JOIN equipamentos eq ON eq.idequip = u.idequip
          LEFT JOIN equipamentounidade usub ON usub.idunidade = u.substituida_por_idunidade
          WHERE fe.idempresa = $1 AND fe.ativo = true
-           AND fe.perfil IN ('Interno', 'ExternoH', 'Externo')${filtroPerfil}
+           AND fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')${filtroPerfil}
          GROUP BY f.idfuncionario, f.nome, fe.perfil
          ORDER BY f.nome ASC`,
       params

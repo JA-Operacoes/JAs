@@ -4207,7 +4207,7 @@ router.get('/contas-pagar', async (req, res) => {
                 -- Externo C/Holerite (ExternoH) — Externo comum e Freelancer não têm direito a
                 -- 13º/holerite e caem no grupo "outros", como qualquer outro lançamento genérico.
                 CASE
-                    WHEN LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') NOT IN ('Interno', 'ExternoH')
+                    WHEN LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND COALESCE(fe.perfil, '') NOT IN ('Interno', 'InternoH', 'ExternoH')
                         THEN 'outros'
                     ELSE COALESCE(NULLIF(LOWER(TRIM(l.tipovinculo)), ''), 'outros')
                 END AS tipovinculo,
@@ -4251,7 +4251,7 @@ router.get('/contas-pagar', async (req, res) => {
         const { obterParametros, contarDiasBeneficio, ultimoDiaUtil, computarLinhaFolha, garantirHoleriteMensal, computarLinha13, garantirHolerite13, PERFIS_FOLHA, competenciaAnterior, antesDoInicioFolha, listarProventosParte, listarRecibosFerias } = require('./rotaRH').helpersFolha;
 
         const funcsFolha = (await pool.query(
-            `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
+            `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp, fe.perfil
                FROM funcionarios f
                JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
               WHERE fe.idempresa = $1
