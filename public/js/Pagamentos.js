@@ -489,8 +489,8 @@ function carregarAnexosExistentes(p) {
     const inputComp = document.getElementById('comprovantePagto');
     const inputConta = document.getElementById('arquivoConta');
 
-    // REGRA: Se tem permissão de "apagar", pode remover qualquer um dos dois.
-    const podeApagarAnexo = typeof temPermissao === "function" ? temPermissao("Pagamentos", "apagar") : false;
+    // REGRA: Remover conta/comprovante é restrito a Supremo, Master e Devs.
+    const podeApagarAnexo = typeof temFlag === "function" ? temFlag("supremo", "master", "devs") : false;
 
     // Reset de flags de controle
     document.getElementById('limparComprovantePagto').value = "false";
