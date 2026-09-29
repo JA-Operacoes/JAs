@@ -10993,7 +10993,7 @@ async function carregarFuncaoStaff() {
                 }
 
                 // 2. CONTROLE DE NÍVEIS E CUSTOS
-                const isInternoOuExterno = perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO" || perfilSelecionado === "EXTERNOH";
+                const isInternoOuExterno = perfilSelecionado === "INTERNOH" || perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO" || perfilSelecionado === "EXTERNOH";
 
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     // Sempre trava Senior, Pleno, Junior — independente do perfil
@@ -11396,7 +11396,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
             isLote = false;
             labelFuncionario.textContent = "FREE-LANCER";
             labelFuncionario.style.color = "red";
-        } else if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo") || (perfilSelecionado.toLowerCase() === "externoh")) {
+        } else if ((perfilSelecionado.toLowerCase() === "internoh") || (perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo") || (perfilSelecionado.toLowerCase() === "externoh")) {
             isLote = false;
             labelFuncionario.textContent = "FUNCIONÁRIO";
             labelFuncionario.style.color = "green";           
@@ -11422,7 +11422,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
                 document.getElementById("vlrCusto").value = "0,00";
                 descBeneficioTextarea.value = "Funcionário externo Não recebe Cachê, apenas benefícios (alimentação e transporte) conforme função";
             }
-            if (perfilSelecionado.toLowerCase() === "interno")
+            if (perfilSelecionado.toLowerCase() === "interno" || perfilSelecionado.toLowerCase() === "internoh")
             {
                document.getElementById("vlrCusto").value = vlrFuncionarioAtual.toFixed(2).replace('.', ',');
                descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
@@ -11444,7 +11444,7 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
 
         // Para freelancer e lote: relê variáveis globais da função e reaplica nível
         // Para freelancer e lote: relê variáveis globais da função e reaplica nível
-    if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "externo") {
+    if (perfilSelecionado.toLowerCase() !== "interno" && perfilSelecionado.toLowerCase() !== "internoh" && perfilSelecionado.toLowerCase() !== "externo" && perfilSelecionado.toLowerCase() !== "externoh") {
         const selectFuncao = document.querySelector(".descFuncao");
         const optionFuncaoAtual = selectFuncao?.options[selectFuncao.selectedIndex];
         
