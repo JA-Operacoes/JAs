@@ -4,6 +4,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
+// Corte de início da folha (INICIO_FOLHA em rotaRH.js): holerites pré-gerados antes disso não
+// são custo real e não podem somar em nenhuma visão do CEO (nem como pendente).
+const { SQL_FOLHA_A_PARTIR_DO_INICIO } = require("./rotaRH").helpersFolha;
 
 // Monta a query de agregação por evento. `filtro` é um trecho extra de WHERE
 // (ex: "AND o.idcliente = $2") e `ordem` define a ordenação final.
@@ -519,7 +522,7 @@ router.get("/geral/funcionario", async (req, res) => {
        FROM folhaholerite h
        JOIN empresas emp ON emp.idempresa = h.idempresa
        LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
-       WHERE h.idfuncionario = $1 AND h.ano = $2 ${filtroEmpresaHolerite} ${filtroMesHolerite}
+       WHERE h.idfuncionario = $1 AND h.ano = $2 AND ${SQL_FOLHA_A_PARTIR_DO_INICIO} ${filtroEmpresaHolerite} ${filtroMesHolerite}
        GROUP BY h.idholerite, h.idempresa, emp.nmfantasia, h.mes, h.ano, h.tipo, h.status, h.salariobase,
                 h.dtpagamento, h.conferido, h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios
        ORDER BY h.mes ASC`,
@@ -621,7 +624,7 @@ router.get("/geral/panorama", async (req, res) => {
               ), 0) AS pendente
        FROM folhaholerite h
        LEFT JOIN itens it ON it.idholerite = h.idholerite
-       WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
+       WHERE h.ano = $1 AND ${SQL_FOLHA_A_PARTIR_DO_INICIO} ${filtroHolerite} ${filtroMesHolerite}
        GROUP BY h.mes`,
       params
     );
@@ -715,7 +718,7 @@ router.get("/geral/funcionarios-resumo", async (req, res) => {
                 ), 0) AS pendente
          FROM folhaholerite h
          LEFT JOIN itens it ON it.idholerite = h.idholerite
-         WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
+         WHERE h.ano = $1 AND ${SQL_FOLHA_A_PARTIR_DO_INICIO} ${filtroHolerite} ${filtroMesHolerite}
          GROUP BY h.idfuncionario
        ),
        staff_func AS (
@@ -1136,7 +1139,7 @@ router.get("/geral/pagar", async (req, res) => {
                 + COALESCE(SUM(CASE WHEN NOT (h.conferido_beneficios AND h.status_beneficios = 'Pago') THEN COALESCE(it.beneficios,0) ELSE 0 END), 0) AS pendente
        FROM folhaholerite h
        LEFT JOIN itens it ON it.idholerite = h.idholerite
-       WHERE h.ano = $1 ${filtroHolerite} ${filtroMesHolerite}
+       WHERE h.ano = $1 AND ${SQL_FOLHA_A_PARTIR_DO_INICIO} ${filtroHolerite} ${filtroMesHolerite}
        GROUP BY h.idempresa, h.mes`,
       paramsFunc
     );
@@ -1353,7 +1356,7 @@ router.get("/geral/pagar-detalhe", async (req, res) => {
          FROM folhaholerite h
          JOIN funcionarios f ON f.idfuncionario = h.idfuncionario
          LEFT JOIN folhaitens i ON i.idholerite = h.idholerite
-        WHERE h.idempresa = $1 AND h.ano = $2 ${filtroMesHolerite}
+        WHERE h.idempresa = $1 AND h.ano = $2 AND ${SQL_FOLHA_A_PARTIR_DO_INICIO} ${filtroMesHolerite}
         GROUP BY f.nome, h.idholerite, h.mes, h.ano, h.status, h.dtpagamento, h.conferido,
                  h.status_beneficios, h.dtpagamento_beneficios, h.conferido_beneficios`,
       [idempresa, ano]

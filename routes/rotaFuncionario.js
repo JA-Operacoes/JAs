@@ -112,6 +112,42 @@ const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, ""
 // numeric/date do Postgres rejeitam '' com erro de sintaxe — convertemos para NULL.
 const vazioParaNull = (v) => (v === '' || v === undefined ? null : v);
 
+// Data de demissão (funcionarioempresas.demissao): só RH/Master/Supremo gravam — mesmo trio que
+// libera o módulo RH. As flags especiais valem em qualquer módulo da empresa (mesma consulta de
+// exigirFlag em permissaoMiddleware.js). Quem não tem nem recebe o campo na tela, e se mandar
+// mesmo assim o valor é ignorado: a demissão que está no banco fica como está.
+async function podeGravarDemissao(client, idusuario, idempresa) {
+    if (!idusuario || !idempresa) return false;
+    const { rowCount } = await client.query(
+        `SELECT 1 FROM permissoes
+          WHERE idusuario = $1 AND idempresa = $2 AND (rh = true OR master = true OR supremo = true) LIMIT 1`,
+        [idusuario, idempresa]
+    );
+    return rowCount > 0;
+}
+
+// Grava a demissão do vínculo quando permitido. Chamada DEPOIS do UPDATE/INSERT principal do
+// vínculo (na mesma transação), pra não mexer na ordem dos $N das queries grandes. Devolve uma
+// mensagem de erro de validação, ou null.
+async function gravarDemissao(client, req, idfuncionario, idempresa) {
+    if (!('demissao' in req.body)) return null;
+    if (!(await podeGravarDemissao(client, req.usuario?.idusuario, idempresa))) return null;
+    const demissao = vazioParaNull(req.body.demissao);
+    if (demissao) {
+        const { rows } = await client.query(
+            `SELECT admissao FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+            [idfuncionario, idempresa]
+        );
+        const admissao = rows[0]?.admissao ? new Date(rows[0].admissao).toISOString().slice(0, 10) : null;
+        if (admissao && demissao < admissao) return "A data de demissão não pode ser anterior à data de admissão.";
+    }
+    await client.query(
+        `UPDATE funcionarioempresas SET demissao = $1 WHERE idfuncionario = $2 AND idempresa = $3`,
+        [demissao, idfuncionario, idempresa]
+    );
+    return null;
+}
+
 // GET /funcionarios/cbo?q=termo  → [{ codigo, titulo }] (até 20). Busca por código ou nome/sinônimo.
 router.get("/cbo", (req, res) => {
   try {
@@ -257,7 +293,7 @@ router.get("/", verificarPermissao("Funcionarios", "pesquisar"), async (req, res
                 func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
                 func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
                 funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
-                funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+                funce.dependentes, funce.admissao, funce.demissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
                 funce.tipoplanosaude, funce.dependentesdados`;
 
         if (nome) {
@@ -328,7 +364,7 @@ router.put("/:id",
                             func.cep, func.rua, func.numero, func.complemento, func.bairro, func.cidade, func.estado, func.pais,
                             func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
                             funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
-                            funce.dependentes, funce.admissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
+                            funce.dependentes, funce.admissao, funce.demissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
                             funce.tipoplanosaude, funce.dependentesdados
                      FROM funcionarios func
                      INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
@@ -492,6 +528,13 @@ router.put("/:id",
                         id, idempresa
                     ]
                 );
+
+                const erroDemissao = await gravarDemissao(client, req, id, idempresa);
+                if (erroDemissao) {
+                    if (req.file) fs.unlink(req.file.path, () => {});
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: erroDemissao, field: "demissao" });
+                }
 
                 const funcionarioAtualizadoId = result.rows[0].idfuncionario;
 
@@ -672,6 +715,11 @@ router.post("/",
                         adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson
                     ]
                 );
+                const erroDemissaoVinculo = await gravarDemissao(client, req, idFuncionarioExistente, idempresa);
+                if (erroDemissaoVinculo) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: erroDemissaoVinculo, field: "demissao" });
+                }
                 await client.query('COMMIT');
 
                 res.locals.acao = 'vinculou';
@@ -715,6 +763,12 @@ router.post("/",
                     adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson
                 ]
             );
+            const erroDemissaoNovo = await gravarDemissao(client, req, idNovoFuncionario, idempresa);
+            if (erroDemissaoNovo) {
+                if (req.file) fs.unlink(req.file.path, () => {});
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: erroDemissaoNovo, field: "demissao" });
+            }
             await client.query('COMMIT');
 
             res.locals.acao = 'cadastrou';

@@ -204,6 +204,15 @@ window.temPermissao = function (modulo, acao) {
       return p && p[`pode_${acao}`];
   };
 
+  // Flag especial (rh, master, supremo, devs...) em QUALQUER módulo da empresa — mesma regra do
+  // backend (exigirFlag em permissaoMiddleware.js), que nunca olhou módulo. Usar no lugar de
+  // temPermissao("Staff", flag) quando a flag não tem nada a ver com Staff: o RH, por exemplo,
+  // dependia de o usuário ter a flag marcada justamente na linha do módulo Staff.
+  window.temFlag = function (...flags) {
+      if (!Array.isArray(window.permissoes)) return false;
+      return window.permissoes.some((p) => flags.some((f) => p[`pode_${f}`] === true));
+  };
+
   // Sinaliza que window.permissoes E window.temPermissao estão prontos, para módulos
   // (ex.: RH.js) que dependem de temPermissao() no carregamento.
   document.dispatchEvent(new CustomEvent("permissoesCarregadas"));
@@ -228,7 +237,7 @@ window.temPermissao = function (modulo, acao) {
     // Aliquotas é parâmetro fiscal do RH: liberada apenas para quem tem 'rh' OU 'supremo'
     // (mesmo critério do RH mode), e não pela permissão acessar/pesquisar do módulo.
     if (modulo === "Aliquotas") {
-      if (!temPermissao("Staff", "rh") && !temPermissao("Staff", "supremo")) {
+      if (!window.temFlag("rh", "supremo")) {
         botao.style.display = "none";
         return;
       }
@@ -243,6 +252,18 @@ window.temPermissao = function (modulo, acao) {
       // Contas, então Contas/Tipo de Conta ficam ocultos do menu pro Financeiro
       // por ora (tabelas e telas continuam intactas, visíveis só a devs/supremo).
       if (!temPermissao("Staff", "devs") && !temPermissao("Staff", "supremo")) {
+        botao.style.display = "none";
+        return;
+      }
+    } else if (modulo === "Funcao") {
+      // Categoria de Função e Equipes viraram abas dentro do modal de Funções e não têm
+      // item próprio no menu: quem só tem permissão em Categoriafuncao (ou Equipe)
+      // continua chegando nelas por este item (o próprio modal decide qual aba mostrar
+      // conforme a permissão de cada módulo).
+      const podeFuncao = temPermissao("Funcao", "acessar") || temPermissao("Funcao", "pesquisar");
+      const podeCategoriaFuncao = temPermissao("Categoriafuncao", "acessar") || temPermissao("Categoriafuncao", "pesquisar");
+      const podeEquipe = temPermissao("Equipe", "acessar") || temPermissao("Equipe", "pesquisar");
+      if (!podeFuncao && !podeCategoriaFuncao && !podeEquipe) {
         botao.style.display = "none";
         return;
       }

@@ -1940,8 +1940,13 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
 router.get("/download/checklist/:filename", async (req, res) => {
   const { filename } = req.params;
 
-  // Evita path traversal — só aceita o nome de arquivo gerado pelo próprio script.
-  if (!/^[\w\-. ]+\.docx$/.test(filename)) {
+  // Evita path traversal — só aceita um nome simples (sem diretório) terminado em .docx.
+  // Não usar \w aqui: o nome do evento pode ter acentos (o Python preserva letras Unicode).
+  if (
+    path.basename(filename) !== filename ||
+    filename.includes("\\") ||
+    !filename.toLowerCase().endsWith(".docx")
+  ) {
     return res.status(400).json({ message: "Nome de arquivo inválido." });
   }
 

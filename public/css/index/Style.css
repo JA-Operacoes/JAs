@@ -1846,7 +1846,7 @@ input#search-aside {
     transition: box-shadow .2s ease, transform .2s ease, opacity .2s ease, background-color .2s ease, color .2s ease;
   }
   #ti-panel .ti-evento-card:hover {
-    background: var(--primary-color);
+    background: var(--hover-color);
     color: var(--font-color);
     box-shadow: 0 4px 12px var(--shadow-1);
     transform: translateY(-1px);
@@ -2344,11 +2344,11 @@ input#search-aside {
   }
 
   #ti-panel .ti-btn-listagem-separacao {
-    background: var(--surface-1);
-    color: var(--primary-texto, #333);
+    background: var(--primary-color);
+    color: var(--font-color);
   }
   #ti-panel .ti-btn-listagem-separacao:hover {
-    background: var(--primary-color, #333);
+    background: var(--surface-1, #333);
     color: var(--font-color, #333);
   }
 
@@ -2358,7 +2358,8 @@ input#search-aside {
     font-weight: 600;
   }
   #ti-panel .ti-btn-ir-separacao:hover {
-    background: var(--hover-color, #333);
+    background: var(--surface-1, #333);
+    color: var(--font-color, #333);
   }
 
   #ti-panel .ti-calendario-linha {
@@ -3357,7 +3358,58 @@ input#search-aside {
     font-family: var(--Font-primary);
     transition: all .2s ease;
   }
-  #rh-panel .rh-btn-ghost i { font-size: 16px; }
+  #rh-panel .rh-btn-ghost i, #rh-panel .rh-btn-ghost .material-symbols-outlined { font-size: 16px; }
+
+  /* ===== Modal "Férias a vencer" (RHFerias.js) — fica no Swal, fora do #rh-panel ===== */
+  .rhf-popup .rhf-filtros {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+    margin-bottom: 14px; text-align: left; font-size: 13px; color: var(--text-2);
+  }
+  .rhf-popup .rhf-filtros label { display: flex; flex-direction: column; gap: 3px; }
+  .rhf-popup .rhf-filtros input[type="date"], .rhf-popup .rhf-filtros select,
+  .rhf-popup .rhf-hist-datas input {
+    height: 34px; padding: 0 8px; border: 1px solid var(--border-1); border-radius: 6px;
+    background: var(--surface-1); color: var(--text-1); font-size: 13px;
+  }
+  .rhf-popup .rhf-check { flex-direction: row !important; align-items: center; gap: 6px !important; height: 34px; }
+  .rhf-popup .rhf-atalhos { display: flex; gap: 4px; }
+  .rhf-popup .rhf-atalhos button, .rhf-popup .rhf-btn {
+    height: 34px; padding: 0 12px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border-1); background: var(--surface-3); color: var(--text-1);
+  }
+  .rhf-popup .rhf-btn:not(.rhf-btn-ghost) { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+  .rhf-popup .rhf-btn-ghost { background: transparent; }
+  .rhf-popup #rhf-resultado { max-height: 60vh; overflow: auto; }
+  .rhf-popup .rhf-tab { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  .rhf-popup .rhf-tab th {
+    position: sticky; top: 0; background: var(--surface-3); color: var(--text-2);
+    font-weight: 600; padding: 8px; border-bottom: 1px solid var(--border-1);
+  }
+  .rhf-popup .rhf-tab td { padding: 8px; border-bottom: 1px solid var(--border-1); color: var(--text-1); vertical-align: middle; }
+  .rhf-popup .rhf-tab small { color: var(--text-2); }
+  .rhf-popup .rhf-num { text-align: right; white-space: nowrap; }
+  .rhf-popup .rhf-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .rhf-popup .rhf-vazio { color: var(--text-2); padding: 20px 0; }
+  .rhf-popup .rhf-nota { display: block; margin-top: 8px; color: var(--text-2); text-align: left; }
+  .rhf-popup .rhf-hist-datas { display: flex; justify-content: center; gap: 10px; font-size: 13px; }
+  .rhf-popup .rhf-acoes { display: flex; gap: 6px; justify-content: flex-end; }
+  /* Programar férias */
+  .rhf-popup .rhf-bloco { text-align: left; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rhf-popup .rhf-bloco > strong { font-size: 13px; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+  .rhf-popup .rhf-campo { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-2); }
+  .rhf-popup .rhf-campo select { height: 36px; padding: 0 8px; border: 1px solid var(--border-1); border-radius: 6px; background: var(--surface-1); color: var(--text-1); }
+  .rhf-popup .rhf-gozo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; font-size: 13px; color: var(--text-2); }
+  .rhf-popup .rhf-gozo label { display: flex; flex-direction: column; gap: 3px; }
+  .rhf-popup .rhf-gozo input { height: 34px; padding: 0 8px; border: 1px solid var(--border-1); border-radius: 6px; background: var(--surface-1); color: var(--text-1); }
+  .rhf-popup .rhf-gozo-rotulo { width: 120px; padding-bottom: 8px; font-weight: 600; color: var(--text-1); }
+  .rhf-popup .rhf-g-dias { padding-bottom: 8px; min-width: 80px; }
+  .rhf-popup .rhf-abono { justify-content: flex-start; font-size: 13px; color: var(--text-1); }
+  .rhf-popup #rhf-p-previa { align-self: flex-start; }
+  .rhf-popup .rhf-aviso { padding: 8px 12px; border-radius: 6px; font-size: 13px; background: var(--status-alerta-bg); color: var(--status-alerta-fg); margin-bottom: 8px; }
+  .rhf-popup .rhf-aviso-erro { background: var(--status-erro-bg); color: var(--status-erro-fg); }
+  .rhf-popup .rhf-recibo { border: 1px solid var(--border-1); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; color: var(--text-1); }
+  .rhf-popup .rhf-recibo .rhf-tab { margin-top: 6px; }
+  .rhf-popup .rhf-total td { font-weight: 700; border-top: 2px solid var(--border-1); }
   #rh-panel .rh-btn-ghost:hover { background: var(--surface-3); color: var(--text-1); }
   /* Atalho "Ir para o 13º": azul do chip de mês trabalhado, pra não se confundir nem com as
      impressões (vermelho) nem com Alíquotas (neutro) — é navegação, não ação sobre os dados. */
@@ -3581,6 +3633,11 @@ input#search-aside {
      da seção pararia embaixo do cabeçalho grudado da tabela de cima. */
   #rh-panel .rh-folha-13 { margin-top: 28px; scroll-margin-top: 16px; }
   #rh-panel .rh-folha-13 h4 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); }
+  /* Holerite tipo "Férias" aberto sem recibo: aponta pro botão Programar férias. */
+  #rh-panel .rh-aviso-ferias {
+    margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    background: var(--status-info-bg); color: var(--status-info-fg);
+  }
 
   /* Coluna do "▸" que expande o detalhe (proventos/benefícios/descontos) de cada linha —
      sempre visível, mesmo pra quem só tem "rh" e não abre o holerite individual. */
@@ -3654,6 +3711,17 @@ input#search-aside {
   #rh-panel .rh-item { display: flex; gap: 8px; margin-bottom: 6px; }
   #rh-panel .rh-item .rh-item-desc { flex: 1; }
   #rh-panel .rh-item .rh-item-valor { width: 140px; }
+  /* Provento do holerite mensal: select de tipo ocupa o espaço da descrição (que só aparece em
+     "Outro…") + checkbox "No holerite". Travado = já conferido/pago na Folha de Proventos. */
+  #rh-panel .rh-item-provento { align-items: center; flex-wrap: wrap; }
+  #rh-panel .rh-item-provento .rh-item-tipoprov { flex: 1; min-width: 180px; }
+  #rh-panel .rh-item-noholerite { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; white-space: nowrap; color: var(--text-2); }
+  #rh-panel .rh-item-bloqueado { opacity: 0.75; }
+  /* Alíquota efetiva do INSS/IRRF (só leitura, ver atualizarPercentuaisImpostos em RH.js). */
+  #rh-panel .rh-item .rh-item-pct {
+    width: 80px; text-align: right; cursor: default;
+    background: var(--surface-4); color: var(--text-2);
+  }
   #rh-panel input[type="text"], #rh-panel input[type="number"] {
     border: 1px solid var(--border-1);
     border-radius: 6px;
