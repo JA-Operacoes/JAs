@@ -485,9 +485,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 END +
                                 CASE WHEN (tse.statuspgto IS DISTINCT FROM 'Pago') AND tse.statusajustecusto = 'Autorizado' THEN COALESCE(tse.vlrajustecusto, 0) ELSE 0 END +
                                 CASE WHEN (tse.statuspgtocaixinha IS DISTINCT FROM 'Pago') AND caixinha_status_agregado(tse.caixinha) = 'Autorizado' THEN COALESCE(caixinha_valor_autorizado(tse.caixinha), 0) ELSE 0 END +
-                                CASE WHEN tse.statuspgto IS DISTINCT FROM 'Pago' THEN 
+                                CASE WHEN tse.statuspgto IS DISTINCT FROM 'Pago' THEN
                                     COALESCE(da.vlr_dobras, 0) + COALESCE(da.vlr_meias, 0)
-                                    ELSE 0 
+                                    ELSE 0
                                 END
                             ) AS NUMERIC(10,2)) AS "TOT PAGAR"
 

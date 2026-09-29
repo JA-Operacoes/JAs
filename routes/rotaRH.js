@@ -85,7 +85,7 @@ const uploadComprovanteRH = multer({
 }).single("comprovante");
 
 // Perfis considerados "salário fixo" (entram na folha).
-const PERFIS_FOLHA = ["Interno", "ExternoH"];
+const PERFIS_FOLHA = ["Interno", "InternoH", "ExternoH"];
 
 // Parâmetros fiscais padrão de 2026 (Receita Federal / Portaria Interm. MPS-MF nº 13;
 // Leis 15.191/2025 e 15.270/2025). Fixos no código (sem tabela de parâmetros).
@@ -221,6 +221,12 @@ function calcularIRRF(bruto, inss, dependentes, params) {
   };
 }
 
+// 'Interno' participa da folha (salário, VA/VT, 13º, férias) mas sem retenção de INSS/IRRF —
+// só 'InternoH' e 'ExternoH' têm holerite completo com desconto de imposto (ver PERFIS_FOLHA).
+function perfilTemImposto(perfil) {
+  return perfil !== "Interno";
+}
+
 // Calcula os totais de um holerite a partir do salário base + itens.
 // Itens: 'P' = provento tributável, 'B' = benefício não-tributável (VA/VT — fora da
 // base de impostos e, por padrão, fora do líquido), 'D' = desconto.
@@ -349,6 +355,7 @@ function calcularRescisao(input, params) {
   const aviso = input.avisoPrevio || "indenizado"; // indenizado | trabalhado | dispensado | nao_cumprido
   const feriasVencidas = Math.max(0, Number(input.feriasVencidas) || 0);
   const saldoFgts = Number(input.saldoFgts) || 0;
+  const temImposto = perfilTemImposto(input.perfil);
 
   const adm = input.admissao ? new Date(String(input.admissao).slice(0, 10) + "T00:00:00") : null;
   const fim = input.desligamento ? new Date(String(input.desligamento).slice(0, 10) + "T00:00:00") : null;
@@ -439,14 +446,14 @@ function calcularRescisao(input, params) {
   // ===== INSS / IRRF =====
   // Base mensal tributável (saldo de salário e quaisquer outros itens tributáveis mensais).
   const baseMensal = round2(proventos.filter((p) => p.tributavel).reduce((s, p) => s + p.valor, 0));
-  const inssMensal = baseMensal > 0 ? calcularINSS(baseMensal, params) : 0;
-  const irMensal = baseMensal > 0 ? calcularIRRF(baseMensal, inssMensal, dependentes, params) : { irrf: 0 };
+  const inssMensal = baseMensal > 0 && temImposto ? calcularINSS(baseMensal, params) : 0;
+  const irMensal = baseMensal > 0 && temImposto ? calcularIRRF(baseMensal, inssMensal, dependentes, params) : { irrf: 0 };
   if (inssMensal > 0) descontos.push({ descricao: "INSS", valor: inssMensal });
   if (irMensal.irrf > 0) descontos.push({ descricao: "IRRF", valor: irMensal.irrf });
 
   // 13º: base separada (INSS e IRRF próprios).
-  const inss13 = valor13 > 0 ? calcularINSS(valor13, params) : 0;
-  const ir13 = valor13 > 0 ? calcularIRRF(valor13, inss13, dependentes, params) : { irrf: 0 };
+  const inss13 = valor13 > 0 && temImposto ? calcularINSS(valor13, params) : 0;
+  const ir13 = valor13 > 0 && temImposto ? calcularIRRF(valor13, inss13, dependentes, params) : { irrf: 0 };
   if (inss13 > 0) descontos.push({ descricao: "INSS 13º", valor: inss13 });
   if (ir13.irrf > 0) descontos.push({ descricao: "IRRF 13º", valor: ir13.irrf });
 
@@ -723,7 +730,7 @@ router.post("/holerite/calcular", async (req, res) => {
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
     const func = await pool.query(
-      `SELECT f.idfuncionario, f.nome, fe.dependentes
+      `SELECT f.idfuncionario, f.nome, fe.dependentes, fe.perfil
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -731,6 +738,7 @@ router.post("/holerite/calcular", async (req, res) => {
     );
     if (func.rowCount === 0) return res.status(404).json({ error: "Funcionário não encontrado nesta empresa." });
     const dependentes = func.rows[0].dependentes;
+    const perfilFuncionario = func.rows[0].perfil;
 
     const params = await obterParametros(parseInt(ano, 10) || new Date().getFullYear());
     if (!params) return res.status(404).json({ error: "Parâmetros fiscais não cadastrados." });
@@ -740,8 +748,9 @@ router.post("/holerite/calcular", async (req, res) => {
     const proventos = itens.filter((i) => i.tipo === "P").reduce((s, i) => s + (Number(i.valor) || 0), 0);
     const bruto = base + proventos;
 
-    const inss = calcularINSS(bruto, params);
-    const ir = calcularIRRF(bruto, inss, dependentes, params);
+    const temImposto = perfilTemImposto(perfilFuncionario);
+    const inss = temImposto ? calcularINSS(bruto, params) : 0;
+    const ir = temImposto ? calcularIRRF(bruto, inss, dependentes, params) : { irrf: 0, baseIrrf: 0, baseIrrfSimplificada: 0, aliquota: 0 };
 
     // Bases informativas do rodapé do holerite.
     const fgtsAliquota = Number(params.fgts_aliquota) || 0.08;
@@ -773,7 +782,7 @@ router.post("/rescisao/calcular", async (req, res) => {
     if (!idfuncionario) return res.status(400).json({ error: "idfuncionario obrigatório." });
 
     const func = await pool.query(
-      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.admissao
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.admissao, fe.perfil
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -794,6 +803,7 @@ router.post("/rescisao/calcular", async (req, res) => {
       avisoPrevio: req.body.avisoPrevio,
       feriasVencidas: req.body.feriasVencidas,
       saldoFgts: req.body.saldoFgts,
+      perfil: f.perfil,
     }, params);
 
     res.json(resultado);
@@ -835,7 +845,7 @@ router.get("/holerite", async (req, res) => {
     const func = await pool.query(
       `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.funcao, fe.cbo, fe.admissao,
               fe.valealim, fe.valetrnsp, f.datanascimento, fe.dependentesdados,
-              fe.adesaoplanosaude, f.idtipoplanosaude
+              fe.adesaoplanosaude, f.idtipoplanosaude, fe.perfil
        FROM funcionarios f
        JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
        WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
@@ -900,10 +910,12 @@ router.get("/holerite", async (req, res) => {
             { tipo: "D", descricao: "Adiantamento 1ª parcela", valor: s / 2 },
           ];
           const params = await obterParametros(ano);
-          const inss = calcularINSS(s, params);
-          const ir = calcularIRRF(s, inss, funcionario.dependentes, params);
-          if (inss > 0) itensRascunho.push({ tipo: "D", descricao: "INSS", valor: inss });
-          if (ir.irrf > 0) itensRascunho.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+          if (perfilTemImposto(funcionario.perfil)) {
+            const inss = calcularINSS(s, params);
+            const ir = calcularIRRF(s, inss, funcionario.dependentes, params);
+            if (inss > 0) itensRascunho.push({ tipo: "D", descricao: "INSS", valor: inss });
+            if (ir.irrf > 0) itensRascunho.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+          }
         }
       }
       return res.json({
@@ -1159,7 +1171,7 @@ router.put("/holerite/:id/conferir", async (req, res) => {
 
       if (linha.tipo === "mensal") {
         const func = (await pool.query(
-          `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
+          `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp, fe.perfil
              FROM funcionarios f JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
             WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
           [linha.idfuncionario, idempresa]
@@ -1628,7 +1640,7 @@ const FERIAS_MES_DESC = "Dias de férias (pagos no recibo de férias)";
 
 // Itens do recibo: férias + 1/3 tributáveis (INSS/IRRF próprios, IRRF em separado do mês);
 // abono pecuniário + 1/3 são isentos (art. 144 CLT) — entram no líquido, fora da base.
-function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono) {
+function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, perfil) {
   const s = Number(salario) || 0;
   const ferias = round2(s / 30 * diasGozo);
   const terco = round2(ferias / 3);
@@ -1642,10 +1654,12 @@ function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono) 
     itens.push({ tipo: "P", descricao: ABONO_TERCO_DESC, valor: round2(vAbono / 3) });
   }
   const baseTributavel = ferias + terco;
-  const inss = calcularINSS(baseTributavel, params);
-  const ir = calcularIRRF(baseTributavel, inss, dependentes, params);
-  if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
-  if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+  if (perfilTemImposto(perfil)) {
+    const inss = calcularINSS(baseTributavel, params);
+    const ir = calcularIRRF(baseTributavel, inss, dependentes, params);
+    if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
+    if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+  }
   return itens;
 }
 
@@ -1719,14 +1733,14 @@ async function recalcularReciboFerias(client, idempresa, idholerite) {
     return;
   }
   const h = (await client.query(
-    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes
+    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes, fe.perfil
        FROM folhaholerite h JOIN funcionarioempresas fe ON fe.idfuncionario = h.idfuncionario AND fe.idempresa = h.idempresa
       WHERE h.idholerite = $1`,
     [idholerite]
   )).rows[0];
   const params = await obterParametros(h.ano);
   const diasGozo = gozos.reduce((s, g) => s + (Number(g.dias) || 0), 0);
-  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono));
+  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono), h.perfil);
   const obs = `Gozo: ${gozos.map((g) => `${g.ini.split("-").reverse().join("/")} a ${g.fim.split("-").reverse().join("/")}`).join(" e ")}`
     + ` · Período aquisitivo ${gozos[0].aq_ini.split("-").reverse().join("/")} a ${gozos[0].aq_fim.split("-").reverse().join("/")}`
     + ` · Pagar até ${vencimentoFerias(gozos[0].ini).split("-").reverse().join("/")}`;
@@ -1833,11 +1847,12 @@ async function prepararProgramacaoFerias(idempresa, body) {
 
   // Recibos: um por mês de INÍCIO do gozo (ver UNIQUE de folhaholerite).
   const cadastro = (await pool.query(
-    `SELECT salario, dependentes FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+    `SELECT salario, dependentes, perfil FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
     [idfuncionario, idempresa]
   )).rows[0] || {};
   const salario = Number(cadastro.salario) || 0;
   const dependentes = cadastro.dependentes;
+  const perfilFunc = cadastro.perfil;
   if (salario <= 0) return { erro: "Funcionário sem salário no cadastro — não há como calcular as férias." };
   const porMes = new Map();
   gozos.forEach((g, i) => {
@@ -1859,7 +1874,7 @@ async function prepararProgramacaoFerias(idempresa, body) {
     // Gozos que JÁ estão nesse recibo (mesmo mês) entram na conta junto com os novos.
     const jaNoRecibo = existente ? todosGozos.filter((x) => x.idholerite === existente.idholerite) : [];
     const diasGozo = r.gozos.reduce((s, g) => s + g.dias, 0) + jaNoRecibo.reduce((s, x) => s + (Number(x.dias) || 0), 0);
-    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono));
+    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono), perfilFunc);
     const inicioRecibo = [...r.gozos.map((g) => g.inicio), ...jaNoRecibo.map((x) => x.gozo_inicio)].sort()[0];
     recibos.push({
       ...r, idholerite: existente?.idholerite || null, itens,
@@ -2181,8 +2196,9 @@ function montarItensDoZero(f, params, diasUteis, proventosTributaveis = 0, diasF
   const bruto = salariobase - descontoFerias + (Number(proventosTributaveis) || 0);
   const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
   const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
-  const inss = calcularINSS(bruto, params);
-  const ir = calcularIRRF(bruto, inss, f.dependentes, params);
+  const temImposto = perfilTemImposto(f.perfil);
+  const inss = temImposto ? calcularINSS(bruto, params) : 0;
+  const ir = temImposto ? calcularIRRF(bruto, inss, f.dependentes, params) : { irrf: 0 };
   const itens = [
     { tipo: "B", descricao: VA_DESC, valor: va },
     { tipo: "B", descricao: VT_DESC, valor: vt },
@@ -2240,8 +2256,9 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
     // existir); descontos manuais recorrentes (ex.: plano de saúde) são replicados como estão.
     // PROVENTOS manuais (hora extra, comissão...) NÃO são replicados: são do mês em que foram
     // lançados — copiar pro mês seguinte pagaria a mesma hora extra de novo.
-    const inss = calcularINSS(salariobase, params);
-    const ir = calcularIRRF(salariobase, inss, f.dependentes, params);
+    const temImposto = perfilTemImposto(f.perfil);
+    const inss = temImposto ? calcularINSS(salariobase, params) : 0;
+    const ir = temImposto ? calcularIRRF(salariobase, inss, f.dependentes, params) : { irrf: 0 };
     const itensAnteriores = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
       [ant.idholerite]
@@ -2334,7 +2351,7 @@ async function computarLinha13(idempresa, f, mes, ano, parcela, params) {
     ];
     // Prévia (holerite ainda não gerado): mesma conta que garantirHolerite13 vai persistir,
     // pra não mostrar um valor em Vencimentos e gerar outro quando a data realmente chegar.
-    if (params) {
+    if (params && perfilTemImposto(f.perfil)) {
       const inss = calcularINSS(s, params);
       const ir = calcularIRRF(s, inss, f.dependentes, params);
       if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
@@ -2383,7 +2400,7 @@ async function garantirHolerite13(idempresa, f, mes, ano, parcela, params) {
       { tipo: "P", descricao: "13º salário", valor: s },
       { tipo: "D", descricao: "Adiantamento 1ª parcela", valor: s / 2 },
     ];
-    if (params) {
+    if (params && perfilTemImposto(f.perfil)) {
       const inss = calcularINSS(s, params);
       const ir = calcularIRRF(s, inss, f.dependentes, params);
       if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
@@ -2430,7 +2447,7 @@ router.get("/folha", async (req, res) => {
     }
 
     const funcs = (await pool.query(
-      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp
+      `SELECT f.idfuncionario, f.nome, fe.salario, fe.dependentes, fe.valealim, fe.valetrnsp, fe.perfil
          FROM funcionarios f
          JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
         WHERE fe.idempresa = $1

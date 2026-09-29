@@ -410,7 +410,7 @@ router.get("/funcionarios/busca", verificarPermissao("Almoxarifado", "pesquisar"
          FROM funcionarios f
          INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
          WHERE fe.idempresa = $1 AND fe.ativo = true
-           AND fe.perfil IN ('Interno', 'ExternoH', 'Externo')
+           AND fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')
            AND f.nome ILIKE $2
          ORDER BY f.nome ASC LIMIT 20`,
       [idempresa, `%${busca}%`]
