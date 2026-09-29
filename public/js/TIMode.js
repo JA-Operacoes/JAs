@@ -1868,7 +1868,7 @@ async function verHistoricoUnidadeTI(idunidade, patrimonio) {
 }
 
 // ===== Alocação (todos os funcionários e quem está com qual equipamento) =====
-const TI_PERFIL_LABEL = { Interno: "Interno", ExternoH: "Externo c/ Holerite", Externo: "Externo" };
+const TI_PERFIL_LABEL = { Interno: "Interno", InternoH: "Interno c/ Holerite", ExternoH: "Externo c/ Holerite", Externo: "Externo" };
 
 async function renderAbaCustodia() {
   const container = document.getElementById("ti-aba-custodia");

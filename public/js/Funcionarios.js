@@ -34,6 +34,7 @@ let inputApelidoFuncionarioBlurListener = null;
 let inputNomeFuncionarioInputListener = null;
 let inputApelidoFuncionarioInputListener = null;
 let cpfBlurListener = null;
+let checkboxAtivoChangeListener = null;
 
 if (typeof window.funcionarioriginal === "undefined") {
     window.funcionarioOriginal = {
@@ -166,7 +167,7 @@ function atualizarFieldsetFinanceiro() {
   if (!fieldset) return;
 
   const perfil = document.querySelector('input[name="perfil"]:checked')?.value || "";
-  const perfilElegivel = perfil === "Interno" || perfil === "ExternoH";
+  const perfilElegivel = perfil === "Interno" || perfil === "InternoH" || perfil === "ExternoH";
   const mostrar = perfilElegivel && usuarioTemPermissaoRH();
   // Demissão fica dentro do bloco RH e segue a mesma permissão — visível junto com ele.
   const boxDemissao = document.getElementById("boxDemissao");
@@ -596,6 +597,43 @@ async function verificaFuncionarios() {
     if (checkboxAdesaoPlanoSaude) {
         checkboxAdesaoPlanoSaude.addEventListener("change", atualizarTipoPlanoSaude);
     }
+
+    const checkboxAtivo = document.getElementById("ativo");
+    const inputMotivoInativado = document.getElementById("motivoInativado");
+    if (checkboxAtivo && checkboxAtivoChangeListener) {
+        checkboxAtivo.removeEventListener("change", checkboxAtivoChangeListener);
+    }
+    if (checkboxAtivo) {
+        checkboxAtivoChangeListener = () => {
+            if (checkboxAtivo.checked) {
+                if (inputMotivoInativado) inputMotivoInativado.value = '';
+                return;
+            }
+            Swal.fire({
+                title: "Atenção!",
+                html: `<p>Justifique a inativação</p><textarea id="motivo" class="swal2-textarea" placeholder="Digite o motivo da Inativação..." style="display: flex; justify-content:center; width:373px;" ></textarea>`,
+                icon: "warning",
+                showCancelButton: true,
+                cancelButtonText: "Cancelar",
+                confirmButtonText: "Desativar",
+                preConfirm: () => {
+                    const motivo = document.getElementById("motivo").value.trim();
+                    if (!motivo) {
+                        Swal.showValidationMessage("Informe o motivo da desativação.");
+                    }
+                    return motivo;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (inputMotivoInativado) inputMotivoInativado.value = result.value;
+                } else {
+                    checkboxAtivo.checked = true;
+                    if (inputMotivoInativado) inputMotivoInativado.value = '';
+                }
+            });
+        };
+        checkboxAtivo.addEventListener("change", checkboxAtivoChangeListener);
+    }
     const selectNomePlanoSaude = document.getElementById("nomePlanoSaude");
     if (selectNomePlanoSaude) {
         selectNomePlanoSaude.addEventListener("change", () => carregarTiposPlanoSaude(selectNomePlanoSaude.value));
@@ -706,7 +744,7 @@ async function verificaFuncionarios() {
             // que mostra o fieldset Financeiro — ver atualizarFieldsetFinanceiro). Para os
             // demais perfis o campo fica oculto e não tem CBO; se ainda assim ele carregar um
             // valor "preso" (ex.: sugestão importada de outra empresa via CPF), não bloqueia.
-            const perfilTemRH = perfil === "Interno" || perfil === "ExternoH";
+            const perfilTemRH = perfil === "Interno" || perfil === "InternoH" || perfil === "ExternoH";
             if (perfilTemRH && cbo && !(await cboEhValido(cbo))) {
                 document.getElementById("cbo")?.focus();
                 return Swal.fire("CBO inválido!", `O código "${cbo}" não existe na tabela oficial de CBO. Digite a Função ou o CBO e escolha uma opção da lista de sugestões.`, "warning");
@@ -764,6 +802,7 @@ async function verificaFuncionarios() {
         formData.append("apelido", apelido);
         formData.append("pcd", pcd); // <- envia como string "true" ou "false"
         formData.append("ativo", ativo); // 🎯 CAMPO ATIVO: Adicionado ao FormData
+        formData.append("motivoInativado", document.getElementById("motivoInativado")?.value || '');
         formData.append("bonificado", bonificado);
         formData.append("mei", mei);
         formData.append("adesaoPlanoSaude", adesaoPlanoSaude);
@@ -1183,6 +1222,12 @@ function desinicializarFuncionariosModal() {
         selectLinguasChangeListener = null;
         console.log("Listener de change do selectLinguas removido.");
     }
+    const checkboxAtivoEl = document.getElementById("ativo");
+    if (checkboxAtivoEl && checkboxAtivoChangeListener) {
+        checkboxAtivoEl.removeEventListener("change", checkboxAtivoChangeListener);
+        checkboxAtivoChangeListener = null;
+        console.log("Listener de change do checkbox ativo removido.");
+    }
     if (botaoLimpar && limparFuncionariosButtonListener) {
         botaoLimpar.removeEventListener("click", limparFuncionariosButtonListener);
         limparFuncionariosButtonListener = null;
@@ -1478,6 +1523,10 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             const checkboxAtivo = document.getElementById("ativo");
             if (checkboxAtivo) {
                 checkboxAtivo.checked = funcionario.ativo === true;
+            }
+            const inputMotivoInativado = document.getElementById("motivoInativado");
+            if (inputMotivoInativado) {
+                inputMotivoInativado.value = funcionario.motivoinativado || '';
             }
 
             const checkboxBonificado = document.getElementById("bonificado");
@@ -1952,6 +2001,8 @@ function limparCamposFuncionarios(){
     if (campoAtivo && campoAtivo.type === "checkbox") {
         campoAtivo.checked = true; // 🎯 DEVE SER TRUE
     }
+    const campoMotivoInativado = document.getElementById("motivoInativado");
+    if (campoMotivoInativado) campoMotivoInativado.value = '';
     // -----------------------------------------------------------
 
 

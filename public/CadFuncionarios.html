@@ -29,9 +29,9 @@
                     </span>
                   </label>
                   <label>
-                    <input type="radio" name="perfil" id="ExternoH" value="ExternoH" class="radio-input"/>
+                    <input type="radio" name="perfil" id="InternoH" value="InternoH" class="radio-input" />
                     <span class="radio-tile">
-                      <span class="radio-label">Externo C/Holerite</span>
+                      <span class="radio-label">Interno C/Holerite</span>
                     </span>
                   </label>
                   <label>
@@ -41,17 +41,24 @@
                     </span>
                   </label>
                   <label>
+                    <input type="radio" name="perfil" id="ExternoH" value="ExternoH" class="radio-input"/>
+                    <span class="radio-tile">
+                      <span class="radio-label">Externo C/Holerite</span>
+                    </span>
+                  </label>
+                  <label>
                     <input type="radio" name="perfil" id="Freelancer" value="Freelancer" class="radio-input" />
                     <span class="radio-tile">
                       <span class="radio-label">Freelancer</span>
                     </span>
                   </label>
-                  <label>
+                  <label style="display: none;" >
                     <input type="radio" name="perfil" id="Lote" value="Lote" class="radio-input" />
                     <span class="radio-tile">
                       <span class="radio-label">Lote</span>
                     </span>
                   </label>
+                  
                 </div>
               <div class="container">
                 <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
@@ -163,7 +170,7 @@
                   </div>
                 </label>
               </div>
-
+              <input type="hidden" id="motivoInativado" name="motivoInativado" value="" />
 
             </div>
 
@@ -218,6 +225,9 @@
                 <input type="text" name="cbo" id="cbo" required>
                 <label for="cbo">CBO</label>
               </div>
+            </div>
+
+            <div class="form-2colunas">
               <div class="form2">
                 <input type="date" name="admissao" id="admissao" required>
                 <label for="admissao">Data de Admisao</label>
@@ -227,7 +237,16 @@
                 <input type="date" name="demissao" id="demissao">
                 <label for="demissao">Data de Demissão</label>
               </div>
+              <div class="form2">
+                <input type="text" name="valeA" id="valealim" oninput="formatReais(this)" value="0">
+                <label for="valealim">Vale Alimentação (dia)</label>
+              </div>
+              <div class="form2">
+                <input type="text" name="valeT" id="valetrnsp" oninput="formatReais(this)" value="0">
+                <label for="valetrnsp">Vale Transporte (dia)</label>
+              </div>
             </div>
+
             <div class="form-2colunas">
               <div class="form2">
                 <input type="text" name="salario" id="salario" oninput="formatReais(this)" required>
@@ -236,14 +255,6 @@
               <div class="form2">
                 <input type="number" name="dependentes" id="dependentes" min="0" value="0" oninput="gerarCamposDependentes(this.value)">
                 <label for="dependentes">Dependentes</label>
-              </div>
-              <div class="form2">
-                <input type="text" name="valeA" id="valealim" oninput="formatReais(this)" value="0">
-                <label for="valealim">Vale Alimentação (dia)</label>
-              </div>
-              <div class="form2">
-                <input type="text" name="valeT" id="valetrnsp" oninput="formatReais(this)" value="0">
-                <label for="valetrnsp">Vale Transporte (dia)</label>
               </div>
             </div>
             
