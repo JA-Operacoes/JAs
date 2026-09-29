@@ -1113,31 +1113,31 @@ button.Close {
   gap: 20px;
 }
 
+/* Par do .btn-view-file ao lado (mesmo padding/raio/fonte), só troca a cor de marca
+   pelo par de erro (--status-erro-bg/fg do Roots.css) por ser ação destrutiva. */
 #cadModalLancamentos .btn-remover-anexo {
-  border: none;
   display: inline-flex;
-  padding: 0.6rem 1.1rem;
-  background-color: #488aec;
-  color: var(--on-brand);
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 700;
-  text-align: center;
-  cursor: pointer;
-  text-transform: uppercase;
-  vertical-align: middle;
   align-items: center;
-  border-radius: 0.5rem;
-  user-select: none;
-  gap: 0.5rem;
-  box-shadow: 0 4px 6px -1px #488aec31, 0 2px 4px -1px #488aec17;
-  transition: all 0.6s ease;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--surface-1);
+  color: var(--status-erro-fg);
+  border: 1px solid var(--status-erro-fg);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: "Abel", sans-serif;
+  font-weight: bold;
+  text-transform: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 #cadModalLancamentos .btn-remover-anexo:hover {
-  box-shadow: 0 10px 15px -3px #488aec4f, 0 4px 6px -2px #488aec17;
+  background-color: var(--status-erro-fg);
+  color: var(--on-brand);
+  box-shadow: 0 2px 4px var(--shadow-1);
 }
 #cadModalLancamentos .btn-remover-anexo:focus,
-#cadModalLancamentos .btn-remover-anexo:active { opacity: 0.85; box-shadow: none; }
+#cadModalLancamentos .btn-remover-anexo:active { opacity: 0.85; }
 #cadModalLancamentos .btn-remover-anexo svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 
 #cadModalLancamentos .comprovante-salvo-link {
