@@ -55,6 +55,84 @@ const VA_DESC = "Vale-Alimentação";
 const VT_DESC = "Vale-Transporte";
 const PLANO_SAUDE_DESC = "Plano de Saúde";
 
+// Tipos pré-definidos do "+ Provento" (holerite mensal). `holerite` é só o padrão da opção
+// "Incluir no holerite" — quem lança pode trocar. Marcado: vira item do holerite (folhaitens,
+// entra no INSS/IRRF e é visível pro RH). Desmarcado: vai pra Folha de Proventos à parte
+// (folhaproventos, só Master/Supremo — ver rotaRH.js). A tributação de verdade de cada caso
+// (ex.: bônus habitual) é decisão da contabilidade, não do sistema.
+const TIPOS_PROVENTO = [
+  { label: "Hora extra 50%", holerite: true },
+  { label: "Hora extra 100%", holerite: true },
+  { label: "DSR sobre horas extras", holerite: true },
+  { label: "Adicional noturno", holerite: true },
+  { label: "Comissão", holerite: true },
+  { label: "Gratificação", holerite: true },
+  { label: "Adicional de insalubridade", holerite: true },
+  { label: "Adicional de periculosidade", holerite: true },
+  { label: "Sobreaviso", holerite: true },
+  { label: "Quebra de caixa", holerite: true },
+  { label: "Bônus", holerite: false },
+  { label: "Prêmio", holerite: false },
+  { label: "PLR", holerite: false },
+  { label: "Ajuda de custo", holerite: false },
+  { label: "Diárias de viagem", holerite: false },
+  { label: "Reembolso de despesas", holerite: false },
+];
+const PROVENTO_OUTRO = "Outro";
+
+// Linha de provento do holerite MENSAL: select de tipo (+ texto livre em "Outro"), valor e
+// "Incluir no holerite". `p.parte` = veio da Folha de Proventos à parte; `p.bloqueado` = já
+// conferido/pago lá, então aparece só pra leitura e não é reenviado ao salvar (o backend
+// também não mexe nele — ver POST /rh/holerite).
+function linhaProventoHtml(p = {}) {
+  const desc = String(p.descricao || "");
+  const conhecido = TIPOS_PROVENTO.find((t) => t.label === desc);
+  const tipoEscolhido = conhecido ? desc : (desc ? PROVENTO_OUTRO : TIPOS_PROVENTO[0].label);
+  const noHolerite = p.parte ? false : (desc ? true : TIPOS_PROVENTO[0].holerite);
+  const dis = p.bloqueado ? "disabled" : "";
+  const esc = (s) => String(s).replace(/"/g, "&quot;");
+  return `
+    <div class="rh-item rh-item-provento${p.bloqueado ? " rh-item-bloqueado" : ""}"${p.idprovento ? ` data-idprovento="${p.idprovento}"` : ""}${p.bloqueado ? ` data-bloqueado="1"` : ""}>
+      <select class="rh-item-tipoprov" ${dis}>
+        ${TIPOS_PROVENTO.map((t) => `<option value="${esc(t.label)}" ${t.label === tipoEscolhido ? "selected" : ""}>${t.label}</option>`).join("")}
+        <option value="${PROVENTO_OUTRO}" ${tipoEscolhido === PROVENTO_OUTRO ? "selected" : ""}>Outro…</option>
+      </select>
+      <input type="text" class="rh-item-desc" value="${esc(conhecido ? "" : desc)}" placeholder="Descrição" style="${tipoEscolhido === PROVENTO_OUTRO ? "" : "display:none;"}" ${dis}>
+      <input type="text" class="rh-item-valor" oninput="formatReais(this)" value="${formatarReaisInput(p.valor)}" ${dis}>
+      ${ehMasterRH() ? `
+      <label class="rh-item-noholerite" title="Desmarcado: vai pra Folha de Proventos à parte (só Master), fora do holerite e do INSS/IRRF">
+        <input type="checkbox" class="rh-item-noholerite-chk" ${noHolerite ? "checked" : ""} ${dis}> No holerite
+      </label>` : ""}
+      ${p.bloqueado
+        ? `<span class="rh-badge ${p.status === "Pago" ? "badge-pago" : "badge-conferido"}" title="Já ${p.status === "Pago" ? "pago" : "conferido"} na Folha de Proventos — desfaça lá pra editar">${p.status === "Pago" ? "Pago" : "✔ Conferido"}</span>`
+        : `<button type="button" class="rh-item-rm" title="Remover">✕</button>`}
+    </div>`;
+}
+
+// Liga os eventos de UMA linha de provento (select de tipo e checkbox) — usada tanto nas linhas
+// renderizadas com o holerite quanto nas adicionadas depois pelo "+ Provento".
+function ligarLinhaProvento(div) {
+  const sel = div.querySelector(".rh-item-tipoprov");
+  const inpDesc = div.querySelector(".rh-item-desc");
+  const chk = div.querySelector(".rh-item-noholerite-chk");
+  if (sel) sel.addEventListener("change", () => {
+    const tipo = TIPOS_PROVENTO.find((t) => t.label === sel.value);
+    inpDesc.style.display = sel.value === PROVENTO_OUTRO ? "" : "none";
+    if (tipo && chk) chk.checked = tipo.holerite; // padrão do tipo; quem lança pode trocar
+    recalcular();
+  });
+  if (chk) chk.addEventListener("change", recalcular);
+  const rm = div.querySelector(".rh-item-rm");
+  if (rm) rm.addEventListener("click", () => { div.remove(); recalcular(); });
+}
+
+// Descrição efetiva de uma linha de provento: o tipo do select, ou o texto livre em "Outro".
+function descricaoLinhaProvento(el) {
+  const sel = el.querySelector(".rh-item-tipoprov");
+  if (sel && sel.value !== PROVENTO_OUTRO) return sel.value;
+  return el.querySelector(".rh-item-desc").value.trim();
+}
+
 // Monta as linhas de benefício VA/VT a partir do valor/dia × dias úteis.
 function presetBeneficiosVAVT(diaVA, diaVT, dias) {
   const itens = [];
@@ -109,10 +187,10 @@ function preset13(parcela, salariobase) {
 function presetItens(tipo, salariobase) {
   const s = Number(salariobase) || 0;
   // Mensal: VA/VT são montados por dias úteis (ver presetBeneficiosVAVT), não aqui.
-  if (tipo === "ferias") return [
-    { tipo: "P", descricao: "Férias", valor: s },
-    { tipo: "P", descricao: "1/3 constitucional", valor: s / 3 },
-  ];
+  // Férias: sem preset manual — o recibo nasce do "Programar férias" (datas de gozo, dias,
+  // abono, INSS/IRRF), ver RHFerias.js / POST /rh/ferias/programar. O preset antigo (salário
+  // cheio + 1/3, sem datas) nunca descontava nada do mensal nem chegava em Vencimentos.
+  if (tipo === "ferias") return [];
   if (tipo === "13") return preset13(parcela13, s);
   // Rescisão: não há preset fixo — as verbas são calculadas pelo botão "Calcular rescisão"
   // a partir das datas/motivo/aviso prévio informados no holerite.
@@ -139,10 +217,15 @@ function competenciaHtml(mesVenc, anoVenc, mesTrab, anoTrab) {
 }
 
 function podeAbrirDetalhe() {
-  // As flags rh/master/supremo desse módulo ficam no permissoes.modulo = "Staff" — não existe
-  // um módulo "RH" dedicado (mesma convenção já usada no filtro de Alíquotas em Index.js e no
-  // controle de comprovante aqui embaixo).
-  return (window.temPermissao?.("Staff", "master") ?? false) || (window.temPermissao?.("Staff", "supremo") ?? false);
+  // Todo mundo do RH abre/edita o holerite individual (decisão de 2026-09-28) — mesmo trio que
+  // libera o módulo (server.js). Flag em qualquer módulo (window.temFlag, Index.js).
+  return window.temFlag?.("rh", "master", "supremo") ?? false;
+}
+
+// Só Master/Supremo: marcar como pago e tudo da Folha de Proventos à parte (bônus, prêmio,
+// PLR) — pro RH ela não existe na tela. O backend barra de novo (apenasMaster em rotaRH.js).
+function ehMasterRH() {
+  return window.temFlag?.("master", "supremo") ?? false;
 }
 
 // ===== Montagem do painel (lazy, só na 1ª ativação) =====
@@ -202,6 +285,8 @@ function montarPainel() {
         <button type="button" id="rh-ir-13" class="rh-btn-atalho rh-so-lista" style="display:none;"><span class="material-symbols-outlined">south</span>Ir para o 13º</button>
         <button type="button" id="rh-folha-imprimir-lista" class="rh-btn-print rh-so-lista"><span class="material-symbols-outlined">checklist</span>Imprimir lista</button>
         <button type="button" id="rh-folha-imprimir-holerites" class="rh-btn-print rh-so-lista"><span class="material-symbols-outlined">print</span>Imprimir Todos Holerites</button>
+        ${ehMasterRH() ? `<button type="button" id="rh-folha-imprimir-proventos" class="rh-btn-print rh-so-lista" title="Recibos dos proventos pagos à parte do holerite (bônus, prêmio, PLR) deste mês"><span class="material-symbols-outlined">payments</span>Imprimir Proventos</button>` : ""}
+        <button type="button" id="rh-ferias" class="rh-btn-ghost" title="Listagem de férias a vencer e vencidas, por período"><span class="material-symbols-outlined">event_upcoming</span>Férias a Vencer/Vencidas</button>
         <button type="button" id="rh-aliquotas" class="rh-btn-ghost" title="Editar alíquotas (INSS/IRRF/FGTS)"><i class="ri-settings-5-line"></i>Alíquotas</button>
       </div>
     </div>
@@ -228,6 +313,16 @@ function montarPainel() {
     }
   });
 
+  // Férias a vencer (listagem por período, fora da conferência) — carregado sob demanda.
+  document.getElementById("rh-ferias").addEventListener("click", async () => {
+    try {
+      const mod = await import("./RHFerias.js");
+      mod.abrirFeriasAVencer();
+    } catch (err) {
+      console.error("Erro ao abrir férias a vencer:", err);
+    }
+  });
+
   document.getElementById("rh-voltar").addEventListener("click", mostrarLista);
 
   // Filtro e impressões ficam ligados UMA vez: a toolbar é permanente agora, então religá-los
@@ -235,6 +330,7 @@ function montarPainel() {
   // um handler novo por troca de mês. Ambos leem o DOM/estado no momento do clique.
   ligarFiltroNomeFolha();
   ligarImpressoesFolha();
+  document.getElementById("rh-folha-imprimir-proventos")?.addEventListener("click", imprimirTodosProventos);
   document.getElementById("rh-ir-13")?.addEventListener("click", () => {
     document.querySelector(".rh-folha-13")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -392,6 +488,9 @@ async function carregarHolerite(idfuncionario) {
     // Plano de saúde é desconto RECORRENTE: garante a linha em todo rascunho mensal de
     // quem aderiu (holerite ainda não salvo). Holerites já salvos mantêm o valor gravado.
     aplicarDescontoPlanoSaude();
+    // Tabela do ano TRABALHADO (mensal) — mesma usada no cálculo — pra faixa do INSS/IRRF.
+    const anoTabela = (tipoSel === "mensal" && holeriteAtual.competenciaAno) ? holeriteAtual.competenciaAno : holeriteAtual.ano;
+    paramsFiscaisHolerite = await carregarParametrosFiscais(anoTabela);
     renderHolerite(holeriteAtual);
     // Holerite já salvo: já traz as bases (FGTS/INSS/IRRF) preenchidas, pois já foram calculadas.
     if (holeriteAtual.idholerite) atualizarBasesCalculadas();
@@ -417,7 +516,7 @@ function totaisHolerite(h, incluirBeneficios) {
     else if (i.tipo === "B") beneficios += v;
     else proventosItens += v;
   });
-  const proventos = (h.tipo === "13" ? 0 : base) + proventosItens; // salário + proventos tributáveis
+  const proventos = ((h.tipo === "13" || h.tipo === "ferias") ? 0 : base) + proventosItens; // salário + proventos tributáveis
   const liquido = proventos - descontos + (incluirBeneficios ? beneficios : 0);
   return { base, beneficios, proventos, descontos, liquido };
 }
@@ -448,9 +547,7 @@ function renderHolerite(h) {
   const pago = h.status === "Pago";
   // Só master/dev pode trocar um comprovante já anexado ou removê-lo. O primeiro
   // anexo é liberado para o usuário de RH.
-  const podeAlterarComprovante =
-    (window.temPermissao?.("Staff", "master") ?? false) ||
-    (window.temPermissao?.("Staff", "devs") ?? false);
+  const podeAlterarComprovante = window.temFlag?.("master", "devs") ?? false;
 
   const linha = (i, idx) => `
     <div class="rh-item" data-idx="${idx}">
@@ -460,6 +557,12 @@ function renderHolerite(h) {
     </div>`;
 
   cont.innerHTML = `
+${h.tipo === "ferias" && !h.idholerite ? `
+<div class="rh-aviso-ferias">
+  Nenhum recibo de férias com início em ${MESES[h.mes - 1]}/${h.ano}. Para lançar férias use
+  <strong>Programar férias</strong> (no fim desta tela): o sistema calcula o recibo pelas datas de gozo,
+  desconta os dias no holerite mensal e manda pra Vencimentos depois da conferência.
+</div>` : ""}
 <div class="rh-card">
     <div class="rh-card-topo">
         <div class="rh-infos">
@@ -582,8 +685,14 @@ function renderHolerite(h) {
 
       <div class="rh-bloco">
         <h4>Proventos</h4>
-        <div id="rh-proventos">${proventos.map((i, idx) => linha(i, idx)).join("")}</div>
-        <button type="button" id="rh-add-provento">+ Provento (bônus, hora extra…)</button>
+        <div id="rh-proventos">${h.tipo === "mensal"
+          ? proventos.map((i) => linhaProventoHtml(i)).join("") +
+            (h.proventosParte || []).map((p) => linhaProventoHtml({
+              ...p, parte: true, bloqueado: p.conferido || p.status === "Pago",
+            })).join("")
+          : proventos.map((i, idx) => linha(i, idx)).join("")}</div>
+        <button type="button" id="rh-add-provento">+ Provento (hora extra, bônus…)</button>
+        ${h.tipo === "mensal" && ehMasterRH() ? `<small class="rh-calc-info">"No holerite" desmarcado = pago à parte, na Folha de Proventos (visível só para Master): não entra no holerite, no INSS/IRRF nem no líquido acima.</small>` : ""}
       </div>
 
       <div class="rh-bloco">
@@ -603,7 +712,7 @@ function renderHolerite(h) {
         <h4>Descontos</h4>
         <div id="rh-descontos">${descontos.map((i, idx) => linha(i, idx)).join("")}</div>
         <button type="button" id="rh-add-desconto">+ Desconto</button>
-        ${(h.tipo === "rescisao" || h.tipo === "13") ? "" : `<button type="button" id="rh-calcular" class="secundario"><i class="ri-settings-5-line"></i> Calcular INSS/IRRF</button>`}
+        ${(h.tipo === "rescisao" || h.tipo === "13" || h.tipo === "ferias") ? "" : `<button type="button" id="rh-calcular" class="secundario"><i class="ri-settings-5-line"></i> Calcular INSS/IRRF</button>`}
         <small id="rh-calc-info" class="rh-calc-info"></small>
         ${descontos.some((i) => String(i.descricao) === PLANO_SAUDE_DESC) && h.planoSaude && h.planoSaude.itens && h.planoSaude.itens.length ? `
         <div class="rh-plano-detalhe">
@@ -640,8 +749,11 @@ function renderHolerite(h) {
       </div>
 
       <div class="rh-acoes">
+        ${h.tipo === "mensal" && ehMasterRH() && (h.proventosParte || []).length ? `
+        <button type="button" id="rh-imprimir-proventos" class="secundario" title="Recibo dos proventos pagos à parte do holerite (já salvos)"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">payments</span> Imprimir proventos à parte</button>` : ""}
+        <button type="button" id="rh-programar-ferias" class="secundario" title="Programar férias deste funcionário (gera o recibo de férias)"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">beach_access</span> Programar férias</button>
         <button type="button" id="rh-salvar">Salvar holerite</button>
-        <button type="button" id="rh-pagar" class="${pago ? "secundario" : ""}">${pago ? "Reverter p/ Pendente" : "Marcar como pago"}</button>
+        ${ehMasterRH() ? `<button type="button" id="rh-pagar" class="${pago ? "secundario" : ""}">${pago ? "Reverter p/ Pendente" : "Marcar como pago"}</button>` : ""}
         ${pago ? (!h.comprovante ? `
         <button type="button" id="rh-comprovante">
             <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" >
@@ -658,8 +770,9 @@ function renderHolerite(h) {
   `;
 
   // ---- binds ----
-  cont.querySelectorAll(".rh-item-rm").forEach((b) =>
+  cont.querySelectorAll(".rh-item:not(.rh-item-provento) .rh-item-rm").forEach((b) =>
     b.addEventListener("click", (e) => { e.target.closest(".rh-item").remove(); recalcular(); }));
+  cont.querySelectorAll(".rh-item-provento").forEach(ligarLinhaProvento);
   // Delegação: recalcula a cada digitação em QUALQUER campo de item (descrição ou valor),
   // incluindo linhas adicionadas depois, além do salário base.
   ["rh-proventos", "rh-beneficios", "rh-descontos"].forEach((id) => {
@@ -680,7 +793,38 @@ function renderHolerite(h) {
     renderHolerite(holeriteAtual);
   });
 
-  document.getElementById("rh-add-provento").addEventListener("click", () => addLinha("rh-proventos"));
+  // Recibo dos proventos à parte deste funcionário/mês — usa o que está SALVO (h.proventosParte
+  // veio do backend); linha nova ainda não salva não entra.
+  document.getElementById("rh-imprimir-proventos")?.addEventListener("click", () => {
+    imprimirRecibosProventos([{
+      func: { idfuncionario: h.idfuncionario, nome: h.nome, funcao: h.funcao, cbo: h.cbo, admissao: h.admissao },
+      proventos: h.proventosParte || [],
+    }], h.mes, h.ano);
+  });
+
+  // Programar férias (RHFerias.js, carregado sob demanda). Ao terminar, recarrega o holerite
+  // aberto e a lista — o mensal muda (dias de férias/VA-VT) e o recibo aparece na conferência.
+  document.getElementById("rh-programar-ferias")?.addEventListener("click", async () => {
+    try {
+      const mod = await import("./RHFerias.js");
+      mod.abrirProgramarFerias(h.idfuncionario, h.nome, () => {
+        carregarHolerite(h.idfuncionario);
+        carregarFolha();
+      });
+    } catch (err) {
+      console.error("Erro ao abrir Programar férias:", err);
+    }
+  });
+
+  document.getElementById("rh-add-provento").addEventListener("click", () => {
+    if (h.tipo !== "mensal") return addLinha("rh-proventos");
+    const tmp = document.createElement("div");
+    tmp.innerHTML = linhaProventoHtml();
+    const div = tmp.firstElementChild;
+    ligarLinhaProvento(div);
+    document.getElementById("rh-proventos").appendChild(div);
+    recalcular();
+  });
   document.getElementById("rh-add-beneficio").addEventListener("click", () => addLinha("rh-beneficios"));
   document.getElementById("rh-add-desconto").addEventListener("click", () => addLinha("rh-descontos"));
   const btnCalc = document.getElementById("rh-calcular");
@@ -689,7 +833,7 @@ function renderHolerite(h) {
   if (btnResc) btnResc.addEventListener("click", calcularRescisao);
   document.getElementById("rh-salvar-base").addEventListener("click", salvarSalarioBase);
   document.getElementById("rh-salvar").addEventListener("click", () => salvarHolerite());
-  document.getElementById("rh-pagar").addEventListener("click", () => alternarPagamento(!pago));
+  document.getElementById("rh-pagar")?.addEventListener("click", () => alternarPagamento(!pago));
 
   // Comprovante de pagamento (imagem/PDF/JFIF): clique abre o seletor de arquivo.
   const btnComp = document.getElementById("rh-comprovante");
@@ -711,6 +855,8 @@ function renderHolerite(h) {
   if (btnCompRm) btnCompRm.addEventListener("click", removerComprovante);
   const btnImprimir = document.getElementById("rh-imprimir");
   if (btnImprimir) btnImprimir.addEventListener("click", imprimirHolerite);
+
+  atualizarPercentuaisImpostos(lerHolerite());
 }
 
 // Rótulo do tipo de holerite para o cabeçalho do documento impresso.
@@ -739,7 +885,7 @@ function montarViaImpressao(h, t, titulo) {
   // No 13º o valor da parcela já vem inteiro nos itens (ex.: "13º salário (1ª parcela)") — a
   // linha "Salário base" aqui é só a referência do cadastro, não soma no total (ver
   // totaisHolerite), então não entra no recibo pra não sugerir uma soma que não existe.
-  const linhasVenc = (h.tipo === "13" ? [] : [linha("Salário base", "30 dias", h.salariobase, null)])
+  const linhasVenc = ((h.tipo === "13" || h.tipo === "ferias") ? [] : [linha("Salário base", "30 dias", h.salariobase, null)])
     .concat(proventos.map((i) => linha(i.descricao, "", i.valor, null)));
   const linhasDesc = descontos.map((i) => linha(i.descricao, "", null, i.valor));
 
@@ -819,6 +965,142 @@ function montarViaImpressao(h, t, titulo) {
       <div>Assinatura do funcionário — ${esc(h.nome)}<br><small>Declaro estar ciente dos valores e descontos acima.</small></div>
     </div>
   </section>`;
+}
+
+// ===== Recibo de proventos pagos À PARTE (bônus, prêmio, PLR — folhaproventos) =====
+// Documento próprio, separado do holerite (esses valores não entram nele nem no INSS/IRRF),
+// só pra Master/Supremo. Mesmo layout de 2 vias do holerite, com assinatura. Serve tanto pro
+// botão dentro do holerite (um funcionário) quanto pro "Imprimir Proventos" da lista (todos).
+function montarViaProventos(func, proventos, mes, ano, titulo) {
+  const esc = (s) => String(s ?? "").replace(/</g, "&lt;");
+  const total = proventos.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+  let cod = 0;
+  return `
+  <section class="via">
+    <div class="via-tag">${titulo}</div>
+    <table class="cab">
+      <tr>
+        <td class="emp">
+          <strong>${esc(empresaAtual?.razaosocial || empresaAtual?.nmfantasia || "—")}</strong><br>
+          CNPJ: ${esc(empresaAtual?.cnpj || "—")}<br>
+          ${esc(empresaAtual?.endereco || "")} ${esc(empresaAtual?.numero || "")} — ${esc(empresaAtual?.cidade || "")}/${esc(empresaAtual?.estado || "")}
+        </td>
+        <td class="doc">
+          <div class="doc-titulo">Recibo de Proventos</div>
+          <div>Referência: <strong>${String(mes).padStart(2, "0")}/${ano}</strong></div>
+          <div>Pago à parte do holerite</div>
+        </td>
+      </tr>
+    </table>
+    <table class="func">
+      <colgroup><col class="col-cod"><col><col><col class="col-cbo"><col class="col-adm"></colgroup>
+      <tr><th>Código</th><th>Nome do Funcionário</th><th>Função</th><th>CBO</th><th>Admissão</th></tr>
+      <tr><td>${esc(func.idfuncionario)}</td><td>${esc(func.nome)}</td><td>${esc(func.funcao || "—")}</td><td>${esc(func.cbo || "—")}</td><td>${formatData(func.admissao)}</td></tr>
+    </table>
+    <hr class="rh-separador">
+    <table class="itens">
+      <thead><tr><th class="c">Cód.</th><th class="d">Descrição</th><th class="r">Situação</th><th class="v">Valor</th></tr></thead>
+      <tbody>
+        ${proventos.map((p) => `
+          <tr>
+            <td class="c">${String(++cod).padStart(3, "0")}</td>
+            <td class="d">${esc(p.descricao)}</td>
+            <td class="r">${p.status === "Pago" ? `Pago${p.dtpagamento ? " " + formatData(p.dtpagamento) : ""}` : (p.conferido ? "Conferido" : "Pendente")}</td>
+            <td class="v">${formatarReaisInput(p.valor)}</td>
+          </tr>`).join("")}
+      </tbody>
+      <tfoot><tr class="tot"><td colspan="3">Total a receber</td><td class="v">${formatarReaisInput(total)}</td></tr></tfoot>
+    </table>
+    <div class="benef">Valores pagos fora do holerite — não integram a folha de pagamento nem a base de INSS/IRRF deste documento.</div>
+    <div class="assinatura">
+      <div class="linha"></div>
+      <div>Assinatura do funcionário — ${esc(func.nome)}<br><small>Declaro ter recebido os valores acima.</small></div>
+    </div>
+  </section>`;
+}
+
+// grupos = [{ func: {idfuncionario, nome, funcao, cbo, admissao}, proventos: [...] }]
+function imprimirRecibosProventos(grupos, mes, ano) {
+  if (!grupos.length) {
+    Swal.fire("Nada para imprimir", "Nenhum provento à parte lançado nessa competência.", "info");
+    return;
+  }
+  const win = window.open("", "_blank");
+  if (!win) { Swal.fire("Bloqueado", "Permita pop-ups para imprimir.", "warning"); return; }
+  const css = `
+    @page { size: A4 portrait; margin: 10mm; }
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; color: #111; }
+    .pagina { page-break-after: always; } .pagina:last-child { page-break-after: auto; }
+    .via { padding: 6px 4px; break-inside: avoid; page-break-inside: avoid; }
+    .via-tag { text-align: right; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .corte { border-top: 1px dashed #999; text-align: center; font-size: 10px; color: #999; margin: 10px 0; padding-top: 2px; letter-spacing: 1px; }
+    table { border-collapse: collapse; width: 100%; }
+    table.cab { border: 1px solid #333; }
+    table.cab td { padding: 8px 10px; vertical-align: top; font-size: 12px; }
+    table.cab .emp { width: 62%; border-right: 1px solid #333; line-height: 1.5; }
+    table.cab .doc { font-size: 12px; line-height: 1.6; }
+    table.cab .doc-titulo { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    table.func { border: 1px solid #333; border-top: none; font-size: 12px; table-layout: fixed; }
+    table.func th, table.func td { border-right: 1px solid #ccc; padding: 5px 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+    table.func th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; }
+    table.func th:last-child, table.func td:last-child { border-right: none; }
+    table.func .col-cod { width: 9%; } table.func .col-cbo { width: 12%; } table.func .col-adm { width: 13%; }
+    hr.rh-separador { border: none; border-top: 1px solid #333; margin: 8px 0; }
+    table.itens { border: 1px solid #333; font-size: 12px; }
+    table.itens th { background: #efefef; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #444; padding: 5px 8px; border-right: 1px solid #ccc; text-align: left; }
+    table.itens td { padding: 4px 8px; border-right: 1px solid #eee; }
+    table.itens th.v, table.itens td.v { text-align: right; white-space: nowrap; }
+    table.itens th:last-child, table.itens td:last-child { border-right: none; }
+    table.itens td.c { color: #888; width: 42px; } table.itens td.r { color: #666; width: 130px; }
+    table.itens tfoot .tot td { border-top: 2px solid #333; font-weight: bold; padding: 6px 8px; text-transform: uppercase; font-size: 11px; }
+    .benef { font-size: 11px; color: #555; margin-top: 8px; }
+    .assinatura { margin-top: 26px; font-size: 12px; }
+    .assinatura .linha { border-top: 1px solid #333; width: 340px; margin: 0 auto 4px; }
+    .assinatura > div:last-child { text-align: center; }
+    .assinatura small { color: #666; }`;
+  const corpo = grupos.map((g) => `
+    <div class="pagina">
+      ${montarViaProventos(g.func, g.proventos, mes, ano, "Via do Funcionário")}
+      <div class="corte">✂ - - - - - - - - - - - - - - - - - - recorte aqui - - - - - - - - - - - - - - - - - -</div>
+      ${montarViaProventos(g.func, g.proventos, mes, ano, "Via da Empresa")}
+    </div>`).join("");
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Recibos de proventos — ${String(mes).padStart(2, "0")}/${ano}</title><style>${css}</style></head><body>${corpo}</body></html>`);
+  win.document.close();
+  win.focus();
+  win.onafterprint = () => win.close();
+  try { win.print(); } catch (e) {}
+}
+
+// Agrupa a lista plana de GET /rh/proventos por funcionário (um recibo cada).
+function agruparProventosPorFuncionario(proventos) {
+  const mapa = new Map();
+  proventos.forEach((p) => {
+    if (!mapa.has(p.idfuncionario)) {
+      mapa.set(p.idfuncionario, {
+        func: { idfuncionario: p.idfuncionario, nome: p.nome, funcao: p.funcao, cbo: p.cbo, admissao: p.admissao },
+        proventos: [],
+      });
+    }
+    mapa.get(p.idfuncionario).proventos.push(p);
+  });
+  return [...mapa.values()];
+}
+
+// Botão "Imprimir Proventos" da lista: todos os proventos à parte do mês selecionado,
+// respeitando o filtro de nome da lista (igual às outras impressões da barra).
+async function imprimirTodosProventos() {
+  if (!ehMasterRH()) return;
+  try {
+    if (!empresaAtual) await carregarEmpresa();
+    const { proventos = [] } = await fetchComToken(`/rh/proventos?mes=${mesSel}&ano=${anoSel}`);
+    const termo = (document.getElementById("rh-folha-busca")?.value || "").toLowerCase().trim();
+    const filtrados = termo ? proventos.filter((p) => String(p.nome || "").toLowerCase().includes(termo)) : proventos;
+    imprimirRecibosProventos(agruparProventosPorFuncionario(filtrados), mesSel, anoSel);
+  } catch (err) {
+    console.error("Erro ao imprimir proventos à parte:", err);
+    Swal.fire("Erro", "Não foi possível carregar os proventos para impressão.", "error");
+  }
 }
 
 // Imprime 2 vias (Funcionário e Empresa) do holerite pago, cada uma com assinatura, seguidas
@@ -918,13 +1200,27 @@ function addLinha(containerId) {
 function lerHolerite() {
   const salariobase = desformatarReais(document.getElementById("rh-salariobase").value);
   const ler = (containerId, tipo) =>
-    Array.from(document.querySelectorAll(`#${containerId} .rh-item`)).map((el) => ({
+    Array.from(document.querySelectorAll(`#${containerId} .rh-item:not(.rh-item-provento)`)).map((el) => ({
       tipo,
       descricao: el.querySelector(".rh-item-desc").value.trim(),
       valor: desformatarReais(el.querySelector(".rh-item-valor").value),
     })).filter((i) => i.descricao);
-  const itens = [...ler("rh-proventos", "P"), ...ler("rh-beneficios", "B"), ...ler("rh-descontos", "D")];
-  return { ...holeriteAtual, salariobase, itens, tipo: tipoSel };
+  // Proventos do holerite mensal (com select de tipo): "No holerite" marcado vira item 'P';
+  // desmarcado vai pra Folha de Proventos à parte. Os travados (já conferidos/pagos lá) não
+  // entram em nenhum dos dois — o backend preserva eles como estão.
+  const proventosNoHolerite = [];
+  const proventosParte = [];
+  document.querySelectorAll("#rh-proventos .rh-item-provento:not([data-bloqueado])").forEach((el) => {
+    const descricao = descricaoLinhaProvento(el);
+    if (!descricao) return;
+    const item = { tipo: "P", descricao, valor: desformatarReais(el.querySelector(".rh-item-valor").value) };
+    // Sem o checkbox (usuário só de RH) tudo vai pro holerite — ele não lança à parte.
+    const chk = el.querySelector(".rh-item-noholerite-chk");
+    if (!chk || chk.checked) proventosNoHolerite.push(item);
+    else proventosParte.push(item);
+  });
+  const itens = [...ler("rh-proventos", "P"), ...proventosNoHolerite, ...ler("rh-beneficios", "B"), ...ler("rh-descontos", "D")];
+  return { ...holeriteAtual, salariobase, itens, proventosParte, tipo: tipoSel };
 }
 
 // Garante o desconto RECORRENTE de plano de saúde no rascunho mensal de quem aderiu.
@@ -962,6 +1258,96 @@ function aplicarDiasUteis(dias) {
   recalcular();
 }
 
+// Tabela de INSS/IRRF do ano da competência (GET /rh/parametros), carregada ao abrir o holerite
+// — é dela que sai a FAIXA mostrada ao lado do INSS/IRRF. Cache por ano.
+const cacheParametrosFiscais = new Map();
+let paramsFiscaisHolerite = null;
+async function carregarParametrosFiscais(ano) {
+  if (!cacheParametrosFiscais.has(ano)) {
+    cacheParametrosFiscais.set(ano, fetchComToken(`/rh/parametros?ano=${ano}`).catch(() => null));
+  }
+  return cacheParametrosFiscais.get(ano);
+}
+
+// Faixa (alíquota NOMINAL da tabela) em que a base cai — é o que o holerite comum mostra na
+// coluna "Ref." (ex.: INSS 14%, IRRF 15%). Decisão de 2026-09-28: seguir o uso comum do RH em
+// vez da alíquota efetiva (valor ÷ base). Mesma regra do backend (calcularINSS/calcularIRRF em
+// rotaRH.js): INSS pelo bruto; IRRF pela base (bruto − INSS − dependentes, ou desconto
+// simplificado — a que der menos imposto).
+function faixaDaTabela(base, faixas) {
+  if (!Array.isArray(faixas) || !faixas.length) return null;
+  return faixas.find((f) => f.ate === null || f.ate === undefined || base <= Number(f.ate)) || faixas[faixas.length - 1];
+}
+function faixaINSS(bruto, params) {
+  const faixas = params?.inss_faixas || [];
+  if (!faixas.length || bruto <= 0) return null;
+  const teto = Number(faixas[faixas.length - 1].ate);
+  const f = faixaDaTabela(bruto, faixas);
+  return { aliquota: Number(f.aliquota) || 0, teto: bruto > teto };
+}
+function faixaIRRF(bruto, inss, dependentes, params) {
+  const faixas = params?.irrf_faixas || [];
+  if (!faixas.length) return null;
+  const rend = bruto - inss;
+  const imp = (base) => {
+    const f = faixaDaTabela(base, faixas);
+    return Math.max(0, base * Number(f.aliquota) - Number(f.deduzir || 0));
+  };
+  const baseCompleta = Math.max(0, rend - (Number(dependentes) || 0) * (Number(params.irrf_deducao_dependente) || 0));
+  const baseSimpl = Math.max(0, rend - (Number(params.irrf_desconto_simplificado) || 0));
+  const base = imp(baseSimpl) < imp(baseCompleta) ? baseSimpl : baseCompleta;
+  return { aliquota: Number(faixaDaTabela(base, faixas).aliquota) || 0, base };
+}
+
+// Campo só-leitura com a FAIXA do INSS/IRRF ao lado do valor (ver faixaDaTabela). Criado/
+// atualizado aqui (e não no template da linha) porque as linhas de INSS/IRRF nascem por três
+// caminhos diferentes: render do holerite, "+ Desconto" digitado e "Calcular INSS/IRRF".
+function atualizarPercentuaisImpostos(h) {
+  const cont = document.getElementById("rh-descontos");
+  if (!cont) return;
+  const params = paramsFiscaisHolerite;
+  // Base = salário + proventos do holerite, menos os dias de férias já pagos no recibo
+  // (desconto automático do mensal) — mesma base que o backend usa pro INSS.
+  const diasFeriasDesc = (h.itens || []).filter((i) => i.tipo === "D" && String(i.descricao).startsWith("Dias de férias"))
+    .reduce((s, i) => s + (Number(i.valor) || 0), 0);
+  const bruto = ((h.tipo === "13" || h.tipo === "ferias") ? 0 : Number(h.salariobase) || 0) - diasFeriasDesc +
+    (h.itens || []).filter((i) => i.tipo === "P").reduce((s, i) => s + (Number(i.valor) || 0), 0);
+  const inss = Number((h.itens || []).find((i) => i.tipo === "D" && i.descricao.toUpperCase() === "INSS")?.valor) || 0;
+  const fmtPct = (v) => `${(v * 100).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+
+  cont.querySelectorAll(".rh-item").forEach((el) => {
+    const desc = el.querySelector(".rh-item-desc").value.trim().toUpperCase();
+    let pctEl = el.querySelector(".rh-item-pct");
+    if (desc !== "INSS" && desc !== "IRRF") { pctEl?.remove(); return; }
+    if (!pctEl) {
+      pctEl = document.createElement("input");
+      pctEl.type = "text";
+      pctEl.readOnly = true;
+      pctEl.tabIndex = -1;
+      pctEl.className = "rh-item-pct";
+      el.querySelector(".rh-item-valor").before(pctEl);
+    }
+    const valor = desformatarReais(el.querySelector(".rh-item-valor").value);
+    if (!params) { pctEl.value = "—"; pctEl.title = "Tabela de alíquotas não carregada"; return; }
+    if (desc === "INSS") {
+      const f = faixaINSS(bruto, params);
+      pctEl.value = f ? fmtPct(f.aliquota) : "—";
+      pctEl.title = f
+        ? `Faixa do INSS para o bruto de ${formatarReaisInput(bruto)}${f.teto ? " — acima do teto: desconto limitado ao máximo" : ""}. `
+          + `O cálculo é progressivo (cada parte do salário paga a alíquota da sua faixa), por isso o valor não é ${fmtPct(f.aliquota)} do bruto.`
+        : "";
+    } else {
+      const f = faixaIRRF(bruto, inss, h.dependentes, params);
+      // Faixa > 0 mas IRRF zerado = redutor da Lei 15.270/2025 (isenção até R$ 5.000).
+      const isento = !f || f.aliquota === 0 || valor === 0;
+      pctEl.value = !f ? "—" : isento ? "Isento" : fmtPct(f.aliquota);
+      pctEl.title = !f ? "" : isento
+        ? (f.aliquota === 0 ? "Base abaixo da primeira faixa do IRRF." : `Base de ${formatarReaisInput(f.base)} cai na faixa de ${fmtPct(f.aliquota)}, mas o redutor da Lei 15.270/2025 zera o imposto.`)
+        : `Faixa do IRRF para a base de ${formatarReaisInput(f.base)} (bruto − INSS − deduções).`;
+    }
+  });
+}
+
 function recalcular() {
   const h = lerHolerite();
   const t = totaisHolerite(h, incluirBeneficios);
@@ -973,6 +1359,7 @@ function recalcular() {
   set("beneficios", t.beneficios);
   set("descontos", t.descontos);
   set("liquido", t.liquido);
+  atualizarPercentuaisImpostos(h);
 }
 
 // Grava Salário/Dependentes/VA-dia/VT-dia no CADASTRO do funcionário (funcionarioempresas) —
@@ -1148,6 +1535,7 @@ async function salvarHolerite(silencioso = false) {
       body: {
         idfuncionario: h.idfuncionario, mes: h.mes, ano: h.ano, tipo: h.tipo,
         salariobase: h.salariobase, obs: h.obs || null, itens: h.itens,
+        ...(h.tipo === "mensal" && ehMasterRH() ? { proventosParte: h.proventosParte } : {}),
       },
     });
 
@@ -1324,6 +1712,7 @@ async function carregarFolha() {
     const data = await fetchComToken(`/rh/folha?mes=${mesSel}&ano=${anoSel}`);
     const linhas = data.linhas || [];
     const linhas13 = data.linhas13 || [];
+    const linhasFerias = data.linhasFerias || [];
     const t = data.totais || { proventos: 0, descontos: 0, liquido: 0, pagos: 0, pendentes: 0, previsoes: 0, qtd: 0 };
 
     // Só exibe a lista/totais quando estamos no modo lista; no holerite isto roda em 2º
@@ -1353,6 +1742,14 @@ async function carregarFolha() {
         <div class="rh-resumo-card"><span>Líquido da folha</span><strong>${formatarReaisInput(t.liquido)}</strong></div>
         <div class="rh-resumo-card"><span>Pagos / Pendentes / Previsão</span><strong>${t.pagos} / ${t.pendentes} / ${t.previsoes}</strong></div>
       `;
+    }
+
+    if (data.antesDoInicio) {
+      const ini = data.inicioFolha || {};
+      elTab.innerHTML = `<p class="rh-vazio">A folha no sistema começa no vencimento de ${MESES[(ini.mes || 1) - 1]}/${ini.ano || ""} — meses anteriores não são gerados nem conferidos por aqui.</p>`;
+      linhasFolhaAtual = [];
+      atualizarAtalho13(0);
+      return;
     }
 
     if (!linhas.length) {
@@ -1465,7 +1862,44 @@ async function carregarFolha() {
               </tr>`).join("")}
           </tbody>
         </table>
+      </div>` : ""}
+      ${linhasFerias.length ? `
+      <!-- Recibos de férias com início de gozo neste mês (Programar férias). Fora dos totais da
+           folha, igual ao 13º; o mesmo "Conferir" libera o recibo pra Vencimentos. -->
+      <div class="rh-folha-13 rh-folha-ferias">
+        <h4>Recibos de férias — início do gozo em ${MESES[mesSel - 1]}/${anoSel}</h4>
+        <table class="rh-folha-tab">
+          <thead>
+            <tr>
+              <th class="rh-col-nome">Funcionário</th>
+              <th class="rh-col-nome">Gozo</th>
+              <th class="rh-col-nome">Pagar até</th>
+              <th class="rh-col-num">Líquido</th>
+              <th class="rh-col-status">Status Pgto</th>
+              <th class="rh-col-conferencia">Conferência</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasFerias.map((l) => `
+              <tr class="rh-folha-ferias-linha" data-id="${l.idfuncionario}" title="${podeEditar ? "Abrir recibo de férias" : ""}">
+                <td class="rh-col-nome"><span class="rh-nome">${escHtml(l.nome)}</span></td>
+                <td class="rh-col-nome">${l.gozo_inicio ? `${formatData(l.gozo_inicio + "T12:00:00")} a ${formatData(l.gozo_fim + "T12:00:00")} (${l.dias} dias)` : "—"}</td>
+                <td class="rh-col-nome">${formatData(l.dtvcto + "T12:00:00")}</td>
+                <td class="rh-col-num"><strong>${formatarReaisInput(l.liquido)}</strong></td>
+                <td class="rh-col-status">${badge(l)}</td>
+                <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
       </div>` : ""}`;
+
+    // Linha de recibo de férias abre o holerite TIPO FÉRIAS daquele funcionário/mês.
+    if (podeEditar) {
+      elTab.querySelectorAll("tr.rh-folha-ferias-linha").forEach((tr) => {
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", () => abrirHoleriteExterno(tr.dataset.id, mesSel, anoSel, "ferias"));
+      });
+    }
 
     elTab.querySelectorAll(".rh-expand-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -1505,12 +1939,84 @@ async function carregarFolha() {
     linhasFolhaAtual = linhas;
     aplicarFiltroNomeFolha();
     atualizarAtalho13(linhas13.length);
+
+    // Folha de Proventos à parte: só Master/Supremo — pra quem só tem "rh" o bloco nem existe
+    // (e GET /rh/proventos devolve 403 de qualquer jeito).
+    if (ehMasterRH()) await renderProventosParte(elTab);
   } catch (err) {
     console.error("Erro ao carregar folha (RH):", err);
     elTab.innerHTML = '<p class="rh-vazio">Erro ao carregar a folha do mês.</p>';
     linhasFolhaAtual = [];
     atualizarAtalho13(0);
     if (elTot) elTot.style.display = "none";
+  }
+}
+
+// Bloco "Folha de Proventos à parte" no fim da lista (bônus, prêmio, PLR... lançados no
+// holerite com "No holerite" desmarcado). Conferência própria, independente do holerite: só
+// depois de conferido vira conta em Contas a Pagar (pra Master/Supremo — ver GET /contas-pagar),
+// onde é pago. Não entra nos cards de total de cima, que são só da folha do holerite.
+async function renderProventosParte(elTab) {
+  const bloco = document.createElement("div");
+  bloco.className = "rh-folha-13 rh-proventos-parte";
+  elTab.appendChild(bloco);
+  try {
+    const { proventos = [] } = await fetchComToken(`/rh/proventos?mes=${mesSel}&ano=${anoSel}`);
+    const total = proventos.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+    const statusBadge = (p) => p.status === "Pago"
+      ? `<span class="rh-badge badge-pago">Pago</span>`
+      : `<span class="rh-badge badge-pendente">Pendente</span>`;
+    const conferenciaCel = (p) => {
+      if (p.status === "Pago") return `<span class="rh-badge badge-conferido">✔ Conferido</span>`;
+      if (p.conferido) {
+        const quando = p.conferido_em ? new Date(p.conferido_em).toLocaleDateString("pt-BR") : "";
+        return `<span class="rh-badge badge-conferido" title="Conferido em ${quando}">✔ Conferido</span>
+                <button type="button" class="rh-link-desfazer" data-desconferir-prov="${p.idprovento}">desfazer</button>`;
+      }
+      return `<button type="button" class="rh-btn-conferir" data-conferir-prov="${p.idprovento}">Conferir</button>`;
+    };
+    bloco.innerHTML = `
+      <h4>Folha de Proventos à parte — vencimento ${MESES[mesSel - 1]}/${anoSel} <small>(visível só para Master · total ${formatarReaisInput(total)})</small></h4>
+      ${proventos.length ? `
+      <table class="rh-folha-tab">
+        <thead>
+          <tr>
+            <th class="rh-col-nome">Funcionário</th>
+            <th class="rh-col-nome">Provento</th>
+            <th class="rh-col-num">Valor</th>
+            <th class="rh-col-status">Status Pgto</th>
+            <th class="rh-col-conferencia">Conferência</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${proventos.map((p) => `
+            <tr>
+              <td class="rh-col-nome"><span class="rh-nome">${escHtml(p.nome)}</span></td>
+              <td class="rh-col-nome">${escHtml(p.descricao)}</td>
+              <td class="rh-col-num"><strong>${formatarReaisInput(p.valor)}</strong></td>
+              <td class="rh-col-status">${statusBadge(p)}</td>
+              <td class="rh-col-conferencia">${conferenciaCel(p)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>` : `<p class="rh-vazio">Nenhum provento à parte neste mês. Lance pelo holerite do funcionário (+ Provento, com "No holerite" desmarcado).</p>`}`;
+
+    const conferir = async (id, conferido) => {
+      try {
+        await fetchComToken(`/rh/proventos/${id}/conferir`, { method: "PUT", body: { conferido } });
+        bloco.remove();
+        await renderProventosParte(elTab);
+      } catch (err) {
+        console.error("Erro ao conferir provento (RH):", err);
+        Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível registrar a conferência.", confirmButtonText: "Ok" });
+      }
+    };
+    bloco.querySelectorAll("[data-conferir-prov]").forEach((b) =>
+      b.addEventListener("click", () => conferir(b.dataset.conferirProv, true)));
+    bloco.querySelectorAll("[data-desconferir-prov]").forEach((b) =>
+      b.addEventListener("click", () => conferir(b.dataset.desconferirProv, false)));
+  } catch (err) {
+    console.error("Erro ao carregar Folha de Proventos (RH):", err);
+    bloco.innerHTML = '<p class="rh-vazio">Erro ao carregar a Folha de Proventos à parte.</p>';
   }
 }
 
@@ -1978,11 +2484,8 @@ function initRH() {
   if (!li || !link) return;
 
   // RH mode: 'rh' (lista + conferência), 'master' ou 'supremo' (lista + holerite individual).
-  const temPermissaoRH = temPermissao("Staff", "rh");
-  const temPermissaoMaster = temPermissao("Staff", "master");
-  const temPermissaoSupremo = temPermissao("Staff", "supremo");
-
-  const temAcessoRH = temPermissaoRH || temPermissaoMaster || temPermissaoSupremo
+  // Flag em qualquer módulo — mesmo critério do backend (server.js, exigirFlag no /rh).
+  const temAcessoRH = window.temFlag?.("rh", "master", "supremo") ?? false;
 
   if (!temAcessoRH) {
     li.style.display = "none";
