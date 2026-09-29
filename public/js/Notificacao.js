@@ -341,7 +341,11 @@ function renderizarLista(notificacoes) {
 
       <div class="notif-conteudo">
         <div class="notif-info">
-          <p class="notif-mensagem">${n.message}</p>
+          <p class="notif-mensagem">${n.message}
+            ${n.status === 'Recusada' && n.motivorecusa
+              ? `<button type="button" class="notif-btn-motivo" title="Ver motivo da recusa"><span class="material-symbols-outlined">info</span></button>`
+              : ''}
+          </p>
           <small class="notif-data">${n.subtext || ''}</small>
           <small class="notif-data">${n.subtext2 || ''}</small>
           </div>
@@ -357,6 +361,17 @@ function renderizarLista(notificacoes) {
     item.addEventListener('click', () => {
       if (item.dataset.lida === 'false' || !item.classList.contains('notif-lida')) {
         marcarComoLida(item.dataset.id);
+      }
+    });
+  });
+
+  lista.querySelectorAll('.notif-btn-motivo').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const li = btn.closest('.notif-item');
+      const n = notificacoes.find(x => x.id === li?.dataset.id);
+      if (n?.motivorecusa && typeof Swal !== 'undefined') {
+        Swal.fire({ title: 'Motivo da Rejeição', text: n.motivorecusa, icon: 'info' });
       }
     });
   });

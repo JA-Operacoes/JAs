@@ -99,6 +99,25 @@
 .notif-nao-lida:hover .notif-data { color: #ffffff; }
 
 .notif-mensagem { margin: 0 0 4px; font-size: 13px; line-height: 1.4; }
+
+.notif-btn-motivo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 18px; height: 18px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--status-info-bg, rgba(0,0,0,0.08));
+  color: #e53e3e;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.notif-btn-motivo .material-symbols-outlined { font-size: 13px; line-height: 1; }
+.notif-btn-motivo:hover { background: #e53e3e; color: var(--on-brand, #fff); }
+
 .notif-data { font-size: 11px; color: var(--text-1); }
 .notif-vazia { padding: 28px 16px; text-align: center; color: var(--text-1); font-size: 13px; }
 
