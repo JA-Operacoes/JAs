@@ -2,12 +2,13 @@
 const router = express.Router();
 const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
-const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+const { verificarPermissao, exigirFlag } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
 
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { carregarCiclosFornecedor, pagarCicloFornecedor, anexarArquivoCiclo, calcularDataCiclo, removerAnexoCiclo, estornarCicloFornecedor } = require('../utils/cicloFornecedor');
 
 
 // Normaliza "setor" (texto livre do orçamento, ex: "1") e "pavilhão" (nome
@@ -3368,10 +3369,24 @@ const upload = multer({
         if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf' || ext === '.jfif') {
             cb(null, true);
         } else {
-            cb(new Error("Apenas imagens (JPG/PNG/JFIF) e PDFs são permitidos."));
+            cb(new Error(`Formato "${ext || file.mimetype}" não permitido. Envie uma imagem (JPG, PNG, JFIF) ou PDF.`));
         }
     }
 });
+
+// Erro do multer (formato não permitido no fileFilter, arquivo acima de 10 MB) não pode subir
+// pro tratador global — lá vira 500 "Algo deu errado!" e o usuário não sabe o que corrigir.
+// Responde 400 com a mensagem certa, nos três nomes de campo que as telas de Vencimentos leem
+// (`error` no upload de staff/contas, `erro` no fetchComToken).
+const tratarErroUpload = (middlewareUpload) => (req, res, next) => {
+    middlewareUpload(req, res, (err) => {
+        if (!err) return next();
+        const mensagem = err.code === 'LIMIT_FILE_SIZE'
+            ? 'Arquivo maior que 10 MB. Envie um arquivo menor.'
+            : (err.message || 'Não foi possível receber o arquivo.');
+        return res.status(400).json({ success: false, sucesso: false, error: mensagem, erro: mensagem, message: mensagem });
+    });
+};
 
 
 router.get("/vencimentos", async (req, res) => {
@@ -3467,8 +3482,19 @@ router.get("/vencimentos", async (req, res) => {
           tse.comppgtocache50,
           tse.comppgtocaixinha,
           tse.comppgtoajdcusto50,
-          tse.comppgtoajdcusto
+          tse.comppgtoajdcusto,
+          -- Pago via empreiteira: cachê/ajuda saem daqui e entram na conta do fornecedor
+          -- (Contas a Pagar, ver utils/cicloFornecedor.js); só a caixinha continua aqui.
+          tse.idfornecedor,
+          fvinc.nmfantasia AS nmfornecedorvinculo,
+          to_char(tse.dtciclofornecedor, 'YYYY-MM-DD') AS dtciclofornecedor,
+          fvincemp.tipopgto AS fornecedor_tipopgto,
+          fvincemp.intervalodias AS fornecedor_intervalodias,
+          to_char(fvincemp.dtbasepgto, 'YYYY-MM-DD') AS fornecedor_dtbasepgto,
+          fvincemp.diamespgto AS fornecedor_diamespgto
         FROM staffeventos tse
+        LEFT JOIN fornecedores fvinc ON fvinc.idfornecedor = tse.idfornecedor
+        LEFT JOIN fornecedorempresas fvincemp ON fvincemp.idfornecedor = tse.idfornecedor AND fvincemp.idempresa = $4
         CROSS JOIN LATERAL (
           SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
           FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
@@ -3485,7 +3511,7 @@ router.get("/vencimentos", async (req, res) => {
       ORDER BY nome ASC;
     `;
 
-    const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
+    const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate, idempresa]);
 
     // statusstaff='Pendente' é ambíguo: pode ser (a) ainda aguardando decisão do
     // Aditivo/Extra/FuncExcedido, OU (b) já Autorizado mas ainda não incluído no
@@ -3554,8 +3580,11 @@ router.get("/vencimentos", async (req, res) => {
             // negativo). Sem isso, esse valor negativo abatia o total do EVENTO (chT/ajT/cxT) e
             // qualquer bucket de status que essa pessoa estivesse (Pago/Suspenso/Recusado/
             // Pendente), fazendo o resumo mostrar menos do que a soma real dos casos positivos.
-            const vC = Math.max(0, parseFloat(s.totalcache_full) || 0);
-            const vA = Math.max(0, parseFloat(s.totalajudacusto_full) || 0);
+            // Vinculado a empreiteira: cachê/ajuda são pagos na conta do fornecedor, então não
+            // entram nos totais do evento aqui (senão contariam duas vezes no Vencimentos).
+            const viaFornecedor = !!s.idfornecedor;
+            const vC = viaFornecedor ? 0 : Math.max(0, parseFloat(s.totalcache_full) || 0);
+            const vA = viaFornecedor ? 0 : Math.max(0, parseFloat(s.totalajudacusto_full) || 0);
             const vX = Math.max(0, parseFloat(s.totalcaixinha_full) || 0);
 
             chT += vC; ajT += vA; cxT += vX;
@@ -3626,8 +3655,24 @@ router.get("/vencimentos", async (req, res) => {
 
             const { caixinha, ...sSemCaixinhaRaw } = s;
 
+            // Pago via empreiteira: data do ciclo em que este lançamento é pago (mesma regra de
+            // Contas a Pagar), pro bloco Staff mostrar "A pagar / Vencido / Pago via X".
+            let dtcicloFornecedor = null;
+            if (viaFornecedor) {
+                const vencCacheISO = dtFimDesmontagem
+                    ? new Date(dtFimDesmontagem.getTime() + 2 * 86400000).toLocaleDateString('sv-SE')
+                    : null;
+                dtcicloFornecedor = s.dtciclofornecedor || calcularDataCiclo({
+                    tipopgto: s.fornecedor_tipopgto,
+                    intervalodias: s.fornecedor_intervalodias,
+                    dtbasepgto: s.fornecedor_dtbasepgto,
+                    diamespgto: s.fornecedor_diamespgto,
+                }, vencCacheISO);
+            }
+
             return {
                 ...sSemCaixinhaRaw,
+                dtciclo_fornecedor: dtcicloFornecedor,
                 periodo_eventoini_fmt: formatarDDMMYYYY(s.periodo_eventoini_all),
                 periodo_eventofim_fmt: formatarDDMMYYYY(s.periodo_eventofim_all),
                 totalpagar: vC + vA + vX,
@@ -3720,6 +3765,9 @@ router.get("/vencimentos", async (req, res) => {
 
                 ev.funcionarios.forEach(f => {
                     if (f.idfuncionario !== idfuncionario) return;
+                    // Pago via empreiteira: o crédito/débito entra no total do fornecedor
+                    // (decisão 2026-09-25), não na linha da pessoa no bloco Staff.
+                    if (f.idfornecedor) return;
 
                     const ajustesValidosAqui = listaAjustes.filter(a => {
                         if (a.status === 'Pago') {
@@ -4033,7 +4081,7 @@ router.post("/vencimentos/update-status",
         }
 });
 
-router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMiddleware("Vencimentos", {
+router.post("/vencimentos/upload-comprovante", tratarErroUpload(upload.single('arquivo')), logMiddleware("Vencimentos", {
     buscarDadosAnteriores: async (req) => {
         const { idStaff, tipo } = req.body;
         if (tipo === 'ajustefin') {
@@ -4377,8 +4425,12 @@ router.get('/contas-pagar', async (req, res) => {
         const recibosFerias = (await listarRecibosFerias(idEmpresa, { ano: anoFiltro, apenasConferidos: true }))
             .filter((r) => !antesDoInicioFolha(r.mes, r.ano));
 
+        // Freelancers pagos via empreiteira: uma conta por fornecedor × ciclo de pagamento,
+        // gerada na hora a partir dos staffeventos (não cria lançamento em `lancamentos`).
+        const ciclosFornecedor = await carregarCiclosFornecedor(idEmpresa, { ano: anoFiltro });
+
         res.json({
-            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios, proventosParte, recibosFerias,
+            sucesso: true, anoReferencia: anoFiltro, contas: rows, holerites, eventos13, beneficios, proventosParte, recibosFerias, ciclosFornecedor,
             fgtsAliquota: Number(paramsAnoFiltro.fgts_aliquota) || 0.08,
         });
     } catch (error) {
@@ -4386,6 +4438,148 @@ router.get('/contas-pagar', async (req, res) => {
     }
 });
 
+
+// ===== Ciclo de pagamento de empreiteira (freelancers pagos via fornecedor) =====
+// Comprovante e NF do ciclo vão pra mesma pasta dos comprovantes de staff, porque ficam
+// gravados nos próprios staffeventos (comppgtocache/comppgtoajdcusto/compnotafiscal) — é isso
+// que mantém o Relatório de Cachê e o filtro "pago" dele funcionando sem mudança.
+const uploadCicloFornecedor = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => {
+            const dir = './uploads/staff_comprovantes/';
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+            const agora = new Date();
+            const p2 = n => String(n).padStart(2, '0');
+            const carimbo = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}-${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
+            const nomeLimpo = path.parse(file.originalname).name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+            const sorteio = Math.random().toString(36).slice(2, 6);
+            cb(null, `ciclofornecedor-${file.fieldname}-${carimbo}-${sorteio}-${nomeLimpo}${path.extname(file.originalname).toLowerCase()}`);
+        }
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf' || ext === '.jfif') cb(null, true);
+        else cb(new Error(`Formato "${ext || file.mimetype}" não permitido. Envie uma imagem (JPG, PNG, JFIF) ou PDF.`));
+    }
+});
+const caminhoArquivoCiclo = (arquivo) => arquivo ? `/uploads/staff_comprovantes/${arquivo.filename}` : null;
+const dataCicloValida = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+
+// Paga os liberados do ciclo (quem tem solicitação pendente fica em aberto). Mesmas flags que
+// liberam a coluna AÇÕES de Contas a Pagar no front (master/supremo/devs).
+router.post('/ciclo-fornecedor/pagar',
+    exigirFlag('master', 'supremo', 'devs'),
+    tratarErroUpload(uploadCicloFornecedor.fields([{ name: 'comprovante', maxCount: 1 }, { name: 'notafiscal', maxCount: 1 }])),
+    logMiddleware('Vencimentos', {
+        buscarDadosAnteriores: async (req) => ({ dadosanteriores: { idfornecedor: req.body.idfornecedor, dtciclo: req.body.dtciclo }, idregistroalterado: req.body.idfornecedor })
+    }),
+    async (req, res) => {
+        const idfornecedor = parseInt(req.body.idfornecedor, 10);
+        const { dtciclo } = req.body;
+        if (!idfornecedor || !dataCicloValida(dtciclo)) {
+            return res.status(400).json({ sucesso: false, erro: "Fornecedor e data do ciclo são obrigatórios." });
+        }
+        try {
+            const resultado = await pagarCicloFornecedor(req.idempresa, idfornecedor, dtciclo, {
+                comprovante: caminhoArquivoCiclo(req.files?.comprovante?.[0]),
+                notafiscal: caminhoArquivoCiclo(req.files?.notafiscal?.[0]),
+            });
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idfornecedor;
+            res.locals.dadosnovos = { idfornecedor, dtciclo, ...resultado };
+            return res.json({ sucesso: true, ...resultado });
+        } catch (error) {
+            console.error("Erro ao pagar ciclo do fornecedor:", error);
+            return res.status(error.status || 500).json({ sucesso: false, erro: error.status ? error.message : "Erro ao pagar o ciclo." });
+        }
+    }
+);
+
+// Anexa o comprovante (depois de pago) ou a NF do ciclo (a qualquer momento).
+router.post('/ciclo-fornecedor/anexo',
+    exigirFlag('master', 'supremo', 'devs'),
+    tratarErroUpload(uploadCicloFornecedor.single('arquivo')),
+    logMiddleware('Vencimentos', {
+        buscarDadosAnteriores: async (req) => ({ dadosanteriores: { idfornecedor: req.body.idfornecedor, dtciclo: req.body.dtciclo, campo: req.body.campo }, idregistroalterado: req.body.idfornecedor })
+    }),
+    async (req, res) => {
+        const idfornecedor = parseInt(req.body.idfornecedor, 10);
+        const { dtciclo, campo } = req.body;
+        if (!req.file) return res.status(400).json({ sucesso: false, erro: "Nenhum arquivo enviado." });
+        if (!idfornecedor || !dataCicloValida(dtciclo) || !['comprovante', 'notafiscal'].includes(campo)) {
+            return res.status(400).json({ sucesso: false, erro: "Fornecedor, data do ciclo e tipo do anexo são obrigatórios." });
+        }
+        try {
+            const caminho = caminhoArquivoCiclo(req.file);
+            await anexarArquivoCiclo(req.idempresa, idfornecedor, dtciclo, campo, caminho);
+            res.locals.acao = 'cadastrou';
+            res.locals.idregistroalterado = idfornecedor;
+            res.locals.dadosnovos = { idfornecedor, dtciclo, campo, caminho };
+            return res.json({ sucesso: true, path: caminho });
+        } catch (error) {
+            console.error("Erro ao anexar arquivo do ciclo:", error);
+            return res.status(error.status || 500).json({ sucesso: false, erro: error.status ? error.message : "Erro ao anexar o arquivo." });
+        }
+    }
+);
+
+// Remove a NF/listagem ou o comprovante do ciclo. O arquivo fica no servidor; o caminho antigo
+// fica registrado no log (dadosanteriores) pra consulta.
+router.post('/ciclo-fornecedor/remover-anexo',
+    exigirFlag('master', 'supremo', 'devs'),
+    logMiddleware('Vencimentos', {
+        buscarDadosAnteriores: async (req) => ({ dadosanteriores: { ...req.body }, idregistroalterado: req.body.idfornecedor })
+    }),
+    async (req, res) => {
+        const idfornecedor = parseInt(req.body.idfornecedor, 10);
+        const { dtciclo, campo } = req.body;
+        if (!idfornecedor || !dataCicloValida(dtciclo) || !['comprovante', 'notafiscal'].includes(campo)) {
+            return res.status(400).json({ sucesso: false, erro: "Fornecedor, data do ciclo e tipo do anexo são obrigatórios." });
+        }
+        try {
+            const resultado = await removerAnexoCiclo(req.idempresa, idfornecedor, dtciclo, campo);
+            res.locals.acao = 'excluiu';
+            res.locals.idregistroalterado = idfornecedor;
+            res.locals.dadosnovos = { idfornecedor, dtciclo, campo, arquivoRemovido: resultado.removido };
+            return res.json({ sucesso: true, ...resultado });
+        } catch (error) {
+            console.error("Erro ao remover anexo do ciclo:", error);
+            return res.status(error.status || 500).json({ sucesso: false, erro: error.status ? error.message : "Erro ao remover o anexo." });
+        }
+    }
+);
+
+// Estorna o pagamento do ciclo inteiro — só Supremo, como o Reverter das contas. Motivo
+// obrigatório (vai pro obspospgto de cada pessoa e pro log).
+router.post('/ciclo-fornecedor/estornar',
+    exigirFlag('supremo'),
+    logMiddleware('Vencimentos', {
+        buscarDadosAnteriores: async (req) => ({ dadosanteriores: { ...req.body }, idregistroalterado: req.body.idfornecedor })
+    }),
+    async (req, res) => {
+        const idfornecedor = parseInt(req.body.idfornecedor, 10);
+        const { dtciclo } = req.body;
+        const motivo = String(req.body.motivo || '').trim();
+        if (!idfornecedor || !dataCicloValida(dtciclo)) {
+            return res.status(400).json({ sucesso: false, erro: "Fornecedor e data do ciclo são obrigatórios." });
+        }
+        if (motivo.length < 5) return res.status(400).json({ sucesso: false, erro: "Informe o motivo do estorno." });
+        try {
+            const resultado = await estornarCicloFornecedor(req.idempresa, idfornecedor, dtciclo, motivo);
+            res.locals.acao = 'atualizou';
+            res.locals.idregistroalterado = idfornecedor;
+            res.locals.dadosnovos = { idfornecedor, dtciclo, motivo, ...resultado };
+            return res.json({ sucesso: true, idsEstornados: resultado.idsEstornados, ajustesEstornados: resultado.ajustesEstornados });
+        } catch (error) {
+            console.error("Erro ao estornar ciclo:", error);
+            return res.status(error.status || 500).json({ sucesso: false, erro: error.status ? error.message : "Erro ao estornar o ciclo." });
+        }
+    }
+);
 
 router.post('/confirmar-pagamento-conta',
     logMiddleware('pagamentos', {
@@ -4485,7 +4679,7 @@ router.post('/confirmar-pagamento-conta',
 
 
 router.post("/vencimentoconta/uploads_comprovantesconta", 
-    upload.single('comprovante'),
+    tratarErroUpload(upload.single('comprovante')),
     logMiddleware('pagamentos comp.', {
         buscarDadosAnteriores: async (req) => {
             // Usamos o nome enviado pelo FormData: idPagamento

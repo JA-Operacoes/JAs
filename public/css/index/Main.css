@@ -3425,6 +3425,8 @@ body.dark .indicador-evento {
 .status-atrasado { background: #b02a37; color: var(--on-brand); font-weight: 600; border-radius: 10%; }
 .status-pendente-autorizacao { background: #eab308; color: var(--on-brand-escuro); font-weight: 600; border-radius: 10%; }
 .status-aguardando-orcamento { background: #7c3aed; color: var(--on-brand); font-weight: 600; border-radius: 10%; }
+/* Freelancer pago via empreiteira: linha só de conferência no bloco Staff (paga em Contas). */
+.status-via-empreiteira { background: #475569; color: var(--on-brand); font-weight: 600; border-radius: 10%; }
 
 
 .acoes-master, .acoes-supremo, .acoes-financeiro {
