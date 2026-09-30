@@ -60,9 +60,10 @@ function formatarMoedaExibicao(valor) {
 //     }
 // }
 
-async function carregarLancamentosParaPagto() {
+export async function carregarLancamentosParaPagto() {
     const select = document.querySelector("#idLancamentoSelect");
     if (!select) return;
+    const valorAtual = select.value; // recarregar ao trocar de aba não pode perder a seleção
 
     try {
         const lancamentos = await fetchComToken("/pagamentos/lancamentos");
@@ -80,6 +81,8 @@ async function carregarLancamentosParaPagto() {
             opt.dataset.vctobase = l.vctobase;
             select.appendChild(opt);
         });
+
+        if (valorAtual) select.value = valorAtual;
 
         configurarBuscaLancamento();
 

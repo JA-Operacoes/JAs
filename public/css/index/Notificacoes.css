@@ -2,7 +2,7 @@
 
 .notif-sino {
   background: none; border: none; cursor: pointer;
-  font-size: 18px; color: var(--cor-texto, #fff);
+  font-size: 18px; color: var(--font-color, #fff);
   position: relative; padding: 4px 8px;
 }
 
@@ -20,7 +20,7 @@
   position: absolute;
   right: 0; top: calc(100% + 10px);
   width: 520px;
-  background: var(--cor-fundo-card, #fff);
+  background: var(--surface-1);
   border: 1px solid var(--border-1);
   border-radius: 10px;
   box-shadow: 0 8px 24px var(--shadow-1);
@@ -155,7 +155,7 @@
   color: var(--Aproved-color);
 }
 
-.notif-recusado{
+.notif-recusada{
   background-color: var(--Reject);
   color: var(--Reject-color);
 }
@@ -185,7 +185,7 @@
   justify-content: center;
   align-items: center;
   background: var(--background-base-color);
-  color: var(--black-color);
+  color: var(--text-1);
   border: none;
   padding: 8px 12px;
   cursor: pointer;

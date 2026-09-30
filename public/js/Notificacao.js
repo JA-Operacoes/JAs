@@ -63,7 +63,11 @@ function normalizarStatus(notif, fonte) {
   };
 
   if (fonte === 'banco') {
-    status = notif.status || 'Todas';
+    // Vem do metadata (ver NotificacaoServices) no vocabulário que o filtro de
+    // status do backend espera (rotaNotificacao.js: mapStatus) — traduz pro
+    // vocabulário de exibição das abas, igual às outras fontes abaixo.
+    const mapaBanco = { Pendente: 'Pendente', Aprovado: 'Aprovada', Recusado: 'Recusada', Finalizado: 'Finalizado' };
+    status = mapaBanco[notif.status] || 'Todas';
 
   } else if (fonte === 'sol') {
     // Backend já normaliza: 'Pendente', 'Aprovada', 'Recusada', 'Finalizado'
@@ -105,6 +109,11 @@ function montarAbas() {
 
   const abas = [
     { key: 'Todas',      label: 'Todas',       icon: 'notifications' },
+    // Corte por ASSUNTO (não por status): junta pedido de compra do Almoxarifado
+    // geral e orçamento de equipamento do TI — os dois são "compras de um
+    // almoxarifado" na prática. Qualquer um pode solicitar, por isso fica
+    // visível pra todo mundo, sem gate de master/financeiro.
+    { key: 'Compras',    label: 'Compras',     icon: 'shopping_cart' },
     { key: 'Pendente',   label: 'Pendentes',   icon: 'schedule' },
     { key: 'Aprovada',   label: 'Aprovadas',   icon: 'check_circle' },
     { key: 'Recusada',   label: 'Recusadas',   icon: 'cancel' },
@@ -116,10 +125,19 @@ function montarAbas() {
   }
 
   // Ajusta altura da lista conforme quantidade de abas (cada aba extra = ~80px no aside)
-  const altura = (master || financeiro) ? '560px' : '460px';
+  const altura = (master || financeiro) ? '640px' : '540px';
   document.documentElement.style.setProperty('--lista-height', altura);
 
   return abas;
+}
+
+// "Compras" corta por categoria (metadata.categoria === 'compras'), setada no
+// backend tanto pelo Almoxarifado geral quanto pelo orçamento de equipamento
+// do TI — as demais abas continuam cortando por status, como sempre.
+function filtrarPorAba(lista, aba) {
+  if (aba === 'Todas') return lista;
+  if (aba === 'Compras') return lista.filter(n => n.categoria === 'compras');
+  return lista.filter(n => n.status === aba);
 }
 
 // Chamado ao clicar no toast-resumo de contas vencidas (ver listaPag.forEach
@@ -128,7 +146,7 @@ function abrirNotificacoesVencidos() {
   abaAtiva = 'Vencidos';
   document.getElementById('notif-dropdown')?.classList.add('aberto');
   renderizarAbas(listaCompletaGlobal);
-  renderizarLista(listaCompletaGlobal.filter(n => n.status === 'Vencidos'));
+  renderizarLista(filtrarPorAba(listaCompletaGlobal, 'Vencidos'));
 }
 
 // ─────────────────────────────────────────────
@@ -143,8 +161,12 @@ async function buscarNotificacoes() {
     // contas). Resultado: o toast de "Conta Vencida" disparava um por conta
     // (via o bloco de retornoInclusao, nunca tocado) mesmo depois de resumir
     // o bloco — porque o resumo tinha sido aplicado na variável errada.
+    // "Compras" é filtro por categoria, não por status — o backend não conhece
+    // esse valor (ver mapStatus em rotaNotificacao.js), então busca tudo e o
+    // corte por categoria acontece aqui embaixo, junto com o das outras abas.
+    const statusParaBackend = (abaAtiva === 'Todas' || abaAtiva === 'Compras') ? '' : abaAtiva;
     const [resNotif, resAgenda, resSol, resInclusao, resRetornoInclusao, resPag, resEmpresasSemLogo] = await Promise.all([
-      apiFetch(`/notificacoes?status=${abaAtiva === 'Todas' ? '' : abaAtiva}`),
+      apiFetch(`/notificacoes?status=${statusParaBackend}`),
       apiFetch('/notificacoes/agenda-notificacao'),
       apiFetch('/notificacoes/solicitacoes-notificacao'),
       apiFetch('/notificacoes/inclusao-orcamentos-notificacao'),
@@ -172,6 +194,18 @@ async function buscarNotificacoes() {
     const listaEmpresasSemLogo = Array.isArray(empresasSemLogoData) ? empresasSemLogoData : [];
 
     // --- TOASTS ---
+    // Notificações "de verdade" (tabela notificacao, criadas via criarNotificacao
+    // no backend — ex.: aprovação de compra do Almoxarifado, orçamento do TI).
+    // Diferente das listas abaixo (computadas na hora a partir de outras tabelas,
+    // sem "read" próprio), aqui só estoura toast pra quem ainda não leu — senão,
+    // ao reabrir o app, tudo que já foi visto no sino voltaria a aparecer.
+    notificacoesBanco.forEach(notif => {
+      if (!notif.read && !toastsExibidos.has(notif.id)) {
+        exibirToastGeral(notif);
+        toastsExibidos.add(notif.id);
+        salvarToastsExibidos();
+      }
+    });
     listaAgenda.forEach(notif => {
       if (!toastsExibidos.has(notif.id)) {
         exibirToastGeral(notif);
@@ -270,11 +304,7 @@ async function buscarNotificacoes() {
 
     atualizarBadge(totalNaoLidas);
     renderizarAbas(listaCompletaGlobal);
-
-    const filtradas = abaAtiva === 'Todas'
-      ? listaCompletaGlobal
-      : listaCompletaGlobal.filter(n => n.status === abaAtiva);
-    renderizarLista(filtradas);
+    renderizarLista(filtrarPorAba(listaCompletaGlobal, abaAtiva));
 
   } catch (e) {
     console.error('Erro ao buscar notificações:', e);
@@ -291,9 +321,7 @@ function renderizarAbas(todasNotificacoes) {
   const ABAS = montarAbas(); // monta aqui para garantir que window.temPermissao já está disponível
 
   container.innerHTML = ABAS.map(a => {
-    const count = a.key === 'Todas'
-      ? todasNotificacoes.length
-      : todasNotificacoes.filter(n => n.status === a.key).length;
+    const count = filtrarPorAba(todasNotificacoes, a.key).length;
 
     return `
       <button class="aba-btn ${abaAtiva === a.key ? 'ativa' : ''}" data-key="${a.key}">
@@ -309,10 +337,7 @@ function renderizarAbas(todasNotificacoes) {
       e.stopPropagation();
       abaAtiva = btn.dataset.key;
       renderizarAbas(listaCompletaGlobal);
-      const filtradas = abaAtiva === 'Todas'
-        ? listaCompletaGlobal
-        : listaCompletaGlobal.filter(n => n.status === abaAtiva);
-      renderizarLista(filtradas);
+      renderizarLista(filtrarPorAba(listaCompletaGlobal, abaAtiva));
     });
   });
 }

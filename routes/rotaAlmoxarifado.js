@@ -9,6 +9,7 @@ const path = require("path");
 const pool = require("../db/conexaoDB");
 const { verificarPermissao } = require("../middlewares/permissaoMiddleware");
 const logMiddleware = require("../middlewares/logMiddleware");
+const { criarNotificacao } = require("../src/services/NotificacaoServices");
 
 // Foto do item — mesmo padrão de empresas.logo (routes/rotaEmpresa.js): nome
 // fixo por item, um novo upload sobrescreve o anterior em vez de acumular.
@@ -36,6 +37,10 @@ const uploadFoto = multer({
 // Mesma lista precisa bater com o CHECK da coluna `local` (ver migrations).
 const LOCAIS = ["Escritório", "Consumíveis Pavilhão", "Camisetas"];
 
+// Consumo de Pavilhão é sempre pra um evento — os outros locais não amarram
+// a lista a um evento específico.
+const LOCAL_EXIGE_EVENTO = "Consumíveis Pavilhão";
+
 // Editar o cadastro do item (nome, local, unidade, mínimo) é sensível em qualquer
 // local — continua nas flags administrativas de sempre.
 const FLAGS_EDICAO_ITEM = ["supremo", "master", "financeiro", "devs"];
@@ -47,7 +52,13 @@ const FLAGS_EDICAO_ITEM = ["supremo", "master", "financeiro", "devs"];
 const FLAGS_CAMISETAS = ["supremo", "camisetas"];
 
 // Quem aprova a lista de compras, cotações e recebimento (ver seção Compras).
-const FLAGS_APROVACAO = ["master", "supremo"];
+// Financeiro entra aqui porque é quem decide a compra em si — master/supremo
+// continuam podendo aprovar por cima.
+const FLAGS_APROVACAO = ["master", "supremo", "financeiro"];
+
+// Quem enxerga a lista de compras de TODO MUNDO (não só a própria). Devs entra
+// aqui mas não em FLAGS_APROVACAO — vê tudo pra suporte, mas não decide compra.
+const FLAGS_VISIVEL_TUDO = ["master", "supremo", "financeiro", "devs"];
 
 async function temAlgumaFlag(idusuario, idempresa, flags) {
   if (!idusuario || !idempresa) return false;
@@ -71,6 +82,24 @@ function podeEditarItem(idusuario, idempresa) {
 
 function podeAprovarCompras(idusuario, idempresa) {
   return temAlgumaFlag(idusuario, idempresa, FLAGS_APROVACAO);
+}
+
+function podeVerTodasCompras(idusuario, idempresa) {
+  return temAlgumaFlag(idusuario, idempresa, FLAGS_VISIVEL_TUDO);
+}
+
+// Todos os usuários que podem aprovar compras na empresa (master/supremo/financeiro)
+// — usado pra avisar geral quando uma lista nova chega pra aprovação.
+async function listarAprovadoresCompras(idempresa) {
+  const condicao = FLAGS_APROVACAO.map((f) => `${f} = true`).join(" OR ");
+  // DISTINCT é obrigatório: `permissoes` tem uma linha por módulo (ver coluna
+  // `modulo`), então o mesmo usuário aparece várias vezes se a flag estiver
+  // marcada em mais de um módulo — sem isso, notificação (e toast) duplicado.
+  const { rows } = await pool.query(
+    `SELECT DISTINCT idusuario FROM permissoes WHERE idempresa = $1 AND (${condicao})`,
+    [idempresa]
+  );
+  return rows.map((r) => r.idusuario);
 }
 
 // Middleware: exige uma das flags administrativas sempre, sem depender do `local`
@@ -288,13 +317,19 @@ router.put("/:id/movimentacao",
   async (req, res) => {
     const idempresa = req.idempresa;
     const idusuario = req.usuario?.idusuario;
-    const { tipo, quantidade, motivo, idfuncionario_solicitante } = req.body;
+    const { tipo, quantidade, motivo, idfuncionario_solicitante, area_uso } = req.body;
 
     if (!["entrada", "saida"].includes(tipo)) {
       return res.status(400).json({ message: "Tipo de movimentação inválido." });
     }
     if (!Number.isInteger(quantidade) || quantidade <= 0) {
       return res.status(400).json({ message: "Quantidade inválida." });
+    }
+    // Onde o item vai ser USADO (Pavilhão/Interno) — só faz sentido perguntar
+    // quando tem um funcionário retirando (o campo nem aparece na tela sem
+    // isso); "uso próprio" não tem o que marcar.
+    if (area_uso && !["Pavilhão", "Interno"].includes(area_uso)) {
+      return res.status(400).json({ message: "Área de uso inválida." });
     }
 
     let client;
@@ -324,9 +359,17 @@ router.put("/:id/movimentacao",
       );
 
       await client.query(
-        `INSERT INTO almoxarifadogeralhistorico (iditem, tipo, quantidade, motivo, idusuario, idfuncionario_solicitante)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-        [item.iditem, tipo, quantidade, motivo || null, idusuario || null, idfuncionario_solicitante || null]
+        `INSERT INTO almoxarifadogeralhistorico (iditem, tipo, quantidade, motivo, idusuario, idfuncionario_solicitante, area_uso)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          item.iditem,
+          tipo,
+          quantidade,
+          motivo || null,
+          idusuario || null,
+          idfuncionario_solicitante || null,
+          idfuncionario_solicitante ? area_uso || null : null,
+        ]
       );
 
       await client.query("COMMIT");
@@ -620,6 +663,14 @@ router.get("/compras/pedidos", verificarPermissao("Almoxarifado", "pesquisar"), 
     const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
     if (!liberado) condicoes.push(`p.local <> 'Camisetas'`);
 
+    // Sem master/supremo/financeiro/devs, só enxerga as próprias listas —
+    // quem tem uma dessas flags vê de todo mundo (precisa pra aprovar/receber).
+    const vePermissaoTudo = await podeVerTodasCompras(req.usuario?.idusuario, req.idempresa);
+    if (!vePermissaoTudo) {
+      valores.push(req.usuario?.idusuario || null);
+      condicoes.push(`p.idusuario_solicitante = $${valores.length}`);
+    }
+
     if (local) {
       valores.push(local);
       condicoes.push(`p.local = $${valores.length}`);
@@ -641,6 +692,7 @@ router.get("/compras/pedidos", verificarPermissao("Almoxarifado", "pesquisar"), 
       `SELECT p.*,
               u.nome AS nome_solicitante,
               ua.nome AS nome_aprovador,
+              e.nmevento,
               COUNT(pi.idpedidoitem) AS total_itens,
               COUNT(*) FILTER (WHERE pi.status = 'pendente') AS itens_pendentes,
               COUNT(*) FILTER (WHERE pi.status = 'recusado') AS itens_recusados,
@@ -654,8 +706,9 @@ router.get("/compras/pedidos", verificarPermissao("Almoxarifado", "pesquisar"), 
          LEFT JOIN almoxarifadopedidoitem pi ON pi.idpedido = p.idpedido
          LEFT JOIN usuarios u ON u.idusuario = p.idusuario_solicitante
          LEFT JOIN usuarios ua ON ua.idusuario = p.idusuario_aprovador
+         LEFT JOIN eventos e ON e.idevento = p.idevento
         WHERE ${condicoes.join(" AND ")}
-        GROUP BY p.idpedido, u.nome, ua.nome
+        GROUP BY p.idpedido, u.nome, ua.nome, e.nmevento
         ORDER BY p.criado_em DESC`,
       valores
     );
@@ -667,19 +720,77 @@ router.get("/compras/pedidos", verificarPermissao("Almoxarifado", "pesquisar"), 
   }
 });
 
+// GET itens aprovados de TODOS os pedidos (não de um só) — base pro botão
+// "Imprimir aprovados"/"Enviar por WhatsApp" ao lado dos filtros da listagem,
+// que olha o cenário geral em vez de exigir abrir lista por lista.
+router.get("/compras/itens-aprovados", verificarPermissao("Almoxarifado", "pesquisar"), async (req, res) => {
+  const { local } = req.query;
+  const condicoes = [
+    "p.idempresa = $1",
+    "p.status <> 'cancelado'",
+    "pi.quantidade_aprovada IS NOT NULL",
+    "pi.status <> 'recusado'",
+  ];
+  const valores = [req.idempresa];
+
+  try {
+    const liberado = await podeVerCamisetas(req.usuario?.idusuario, req.idempresa);
+    if (!liberado) condicoes.push(`p.local <> 'Camisetas'`);
+
+    // Mesma regra da listagem: sem master/supremo/financeiro/devs, só os
+    // itens aprovados das PRÓPRIAS listas entram no imprimir/WhatsApp/receber.
+    const vePermissaoTudo = await podeVerTodasCompras(req.usuario?.idusuario, req.idempresa);
+    if (!vePermissaoTudo) {
+      valores.push(req.usuario?.idusuario || null);
+      condicoes.push(`p.idusuario_solicitante = $${valores.length}`);
+    }
+
+    if (local) {
+      if (!LOCAIS.includes(local)) return res.status(400).json({ message: "Local inválido." });
+      valores.push(local);
+      condicoes.push(`p.local = $${valores.length}`);
+    }
+
+    const { rows } = await pool.query(
+      `SELECT pi.idpedidoitem, pi.idpedido, pi.descricao, pi.unidade_medida, pi.quantidade_aprovada, pi.status,
+              p.local, p.criado_em, u.nome AS nome_solicitante
+         FROM almoxarifadopedidoitem pi
+         JOIN almoxarifadopedido p ON p.idpedido = pi.idpedido
+         LEFT JOIN usuarios u ON u.idusuario = p.idusuario_solicitante
+        WHERE ${condicoes.join(" AND ")}
+        ORDER BY p.idpedido, pi.idpedidoitem`,
+      valores
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error("Erro ao listar itens aprovados:", error);
+    res.status(500).json({ message: "Erro ao listar itens aprovados." });
+  }
+});
+
 // GET detalhe do pedido (itens + cotações de cada item)
 router.get("/compras/pedidos/:id", verificarPermissao("Almoxarifado", "pesquisar"), bloquearCamisetasPorPedido, async (req, res) => {
   try {
     const pedidoResult = await pool.query(
-      `SELECT p.*, u.nome AS nome_solicitante, ua.nome AS nome_aprovador
+      `SELECT p.*, u.nome AS nome_solicitante, ua.nome AS nome_aprovador, e.nmevento
          FROM almoxarifadopedido p
          LEFT JOIN usuarios u ON u.idusuario = p.idusuario_solicitante
          LEFT JOIN usuarios ua ON ua.idusuario = p.idusuario_aprovador
+         LEFT JOIN eventos e ON e.idevento = p.idevento
         WHERE p.idpedido = $1 AND p.idempresa = $2`,
       [req.params.id, req.idempresa]
     );
     if (!pedidoResult.rowCount) {
       return res.status(404).json({ message: "Pedido não encontrado." });
+    }
+
+    // Sem master/supremo/financeiro/devs, só o próprio solicitante abre a
+    // lista — mesma regra da listagem, aplicada aqui pra não dar pra contornar
+    // digitando o ID de uma lista de outra pessoa direto na URL.
+    const vePermissaoTudo = await podeVerTodasCompras(req.usuario?.idusuario, req.idempresa);
+    if (!vePermissaoTudo && pedidoResult.rows[0].idusuario_solicitante !== req.usuario?.idusuario) {
+      return res.status(403).json({ message: "Você só pode ver as próprias listas de compra." });
     }
 
     const itensResult = await pool.query(
@@ -728,10 +839,13 @@ router.post("/compras/pedidos",
   bloquearCamisetasSemFlag,
   logMiddleware("Almoxarifado", { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
   async (req, res) => {
-    const { local, dt_necessidade, observacao, itens } = req.body;
+    const { local, dt_necessidade, observacao, itens, idevento } = req.body;
 
     if (!local || !LOCAIS.includes(local)) {
       return res.status(400).json({ message: "Local inválido." });
+    }
+    if (local === LOCAL_EXIGE_EVENTO && !idevento) {
+      return res.status(400).json({ message: "Escolha o evento dessa compra de Consumíveis Pavilhão." });
     }
     if (!Array.isArray(itens) || !itens.length) {
       return res.status(400).json({ message: "Inclua pelo menos um item na lista." });
@@ -750,10 +864,20 @@ router.post("/compras/pedidos",
       client = await pool.connect();
       await client.query("BEGIN");
 
+      let idEventoValido = null;
+      if (local === LOCAL_EXIGE_EVENTO) {
+        const { rows } = await client.query(`SELECT idevento FROM eventos WHERE idevento = $1`, [idevento]);
+        if (!rows.length) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Evento não encontrado." });
+        }
+        idEventoValido = rows[0].idevento;
+      }
+
       const pedidoResult = await client.query(
-        `INSERT INTO almoxarifadopedido (idempresa, local, dt_necessidade, observacao, idusuario_solicitante)
-           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [req.idempresa, local, dt_necessidade || null, observacao || null, req.usuario?.idusuario || null]
+        `INSERT INTO almoxarifadopedido (idempresa, local, dt_necessidade, observacao, idusuario_solicitante, idevento)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [req.idempresa, local, dt_necessidade || null, observacao || null, req.usuario?.idusuario || null, idEventoValido]
       );
       const pedido = pedidoResult.rows[0];
 
@@ -796,6 +920,49 @@ router.post("/compras/pedidos",
       res.locals.dadosnovos = pedido;
 
       res.status(201).json({ message: "Lista de compra enviada para aprovação!", pedido });
+
+      // Avisa quem aprova compras (master/supremo/financeiro) pelo sininho —
+      // fora do fluxo de resposta, não pode atrasar/derrubar o 201 já enviado.
+      const solicitanteNome = req.usuario?.nomeusuario || "Alguém";
+      const dataSolicitacao = new Date(pedido.criado_em).toLocaleDateString("pt-BR");
+      listarAprovadoresCompras(req.idempresa)
+        .then((idusuarios) =>
+          Promise.all(
+            idusuarios
+              .filter((idusuario) => idusuario !== req.usuario?.idusuario)
+              .map((idusuario) =>
+                criarNotificacao(idusuario, req.idempresa, {
+                  tipo: "info",
+                  mensagem: `Nova lista de compra do Almoxarifado (${local}) aguardando aprovação.`,
+                  metadata: {
+                    modulo: "Almoxarifado",
+                    categoria: "compras",
+                    status: "Pendente",
+                    idpedido: pedido.idpedido,
+                    subtext: `${solicitanteNome} · ${itens.length} ${itens.length === 1 ? "item" : "itens"} · ${dataSolicitacao}`,
+                  },
+                })
+              )
+          )
+        )
+        .catch((erro) => console.error("Erro ao notificar aprovadores de compra:", erro));
+
+      // Avisa o próprio solicitante que a lista saiu — sem isso ele só sabe pelo
+      // toast/mensagem de sucesso na hora do envio, e não tem como acompanhar
+      // depois (ex.: reabriu o app dias depois) que a lista ainda está pendente.
+      if (pedido.idusuario_solicitante) {
+        criarNotificacao(pedido.idusuario_solicitante, req.idempresa, {
+          tipo: "info",
+          mensagem: `Sua lista de compra do Almoxarifado (${local}) foi enviada e está aguardando aprovação.`,
+          metadata: {
+            modulo: "Almoxarifado",
+            categoria: "compras",
+            status: "Pendente",
+            idpedido: pedido.idpedido,
+            subtext: `${itens.length} ${itens.length === 1 ? "item" : "itens"} · ${dataSolicitacao}`,
+          },
+        }).catch((erro) => console.error("Erro ao notificar solicitante de compra:", erro));
+      }
     } catch (error) {
       if (client) await client.query("ROLLBACK");
       console.error("Erro ao criar pedido de compra:", error);
@@ -825,7 +992,8 @@ router.put("/compras/pedidos/:id/itens/:idpedidoitem",
       await client.query("BEGIN");
 
       const itemResult = await client.query(
-        `SELECT pi.* FROM almoxarifadopedidoitem pi
+        `SELECT pi.*, p.idusuario_solicitante, p.local
+           FROM almoxarifadopedidoitem pi
            JOIN almoxarifadopedido p ON p.idpedido = pi.idpedido
           WHERE pi.idpedidoitem = $1 AND pi.idpedido = $2 AND p.idempresa = $3 FOR UPDATE`,
         [req.params.idpedidoitem, req.params.id, req.idempresa]
@@ -869,6 +1037,27 @@ router.put("/compras/pedidos/:id/itens/:idpedidoitem",
       res.locals.dadosnovos = atualizado.rows[0];
 
       res.json({ message: "Decisão registrada.", item: atualizado.rows[0], status_pedido: statusPedido });
+
+      // Avisa quem pediu que o item da lista teve uma decisão.
+      const solicitante = itemResult.rows[0].idusuario_solicitante;
+      if (solicitante && solicitante !== req.usuario?.idusuario) {
+        criarNotificacao(solicitante, req.idempresa, {
+          tipo: status === "aprovado" ? "sucesso" : "erro",
+          mensagem: status === "aprovado"
+            ? `Item aprovado na sua lista de compra (${itemResult.rows[0].local}): ${atualizado.rows[0].descricao}`
+            : `Item recusado na sua lista de compra (${itemResult.rows[0].local}): ${atualizado.rows[0].descricao}`,
+          metadata: {
+            modulo: "Almoxarifado",
+            categoria: "compras",
+            // Valores no vocabulário que o filtro de status do backend espera
+            // (ver mapStatus em rotaNotificacao.js) — o front traduz pra
+            // "Aprovada"/"Recusada" na exibição (ver normalizarStatus, fonte 'banco').
+            status: status === "aprovado" ? "Aprovado" : "Recusado",
+            idpedido: req.params.id,
+            idpedidoitem: req.params.idpedidoitem,
+          },
+        }).catch((erro) => console.error("Erro ao notificar solicitante de compra:", erro));
+      }
     } catch (error) {
       if (client) await client.query("ROLLBACK");
       console.error("Erro ao aprovar item do pedido:", error);
@@ -892,7 +1081,7 @@ router.put("/compras/pedidos/:id/aprovar-tudo",
       await client.query("BEGIN");
 
       const pedido = await client.query(
-        `SELECT idpedido FROM almoxarifadopedido
+        `SELECT idpedido, idusuario_solicitante, local FROM almoxarifadopedido
           WHERE idpedido = $1 AND idempresa = $2 AND status <> 'cancelado' FOR UPDATE`,
         [req.params.id, req.idempresa]
       );
@@ -922,6 +1111,15 @@ router.put("/compras/pedidos/:id/aprovar-tudo",
       res.locals.dadosnovos = { itens_aprovados: rowCount };
 
       res.json({ message: `${rowCount} item(ns) aprovado(s).`, status_pedido: statusPedido });
+
+      const solicitante = pedido.rows[0].idusuario_solicitante;
+      if (solicitante && solicitante !== req.usuario?.idusuario) {
+        criarNotificacao(solicitante, req.idempresa, {
+          tipo: "sucesso",
+          mensagem: `Sua lista de compra do Almoxarifado (${pedido.rows[0].local}) foi aprovada.`,
+          metadata: { modulo: "Almoxarifado", categoria: "compras", status: "Aprovado", idpedido: req.params.id },
+        }).catch((erro) => console.error("Erro ao notificar solicitante de compra:", erro));
+      }
     } catch (error) {
       if (client) await client.query("ROLLBACK");
       console.error("Erro ao aprovar lista de compra:", error);
@@ -955,6 +1153,17 @@ router.put("/compras/pedidos/:id/cancelar",
       res.locals.dadosnovos = result.rows[0];
 
       res.json({ message: "Pedido cancelado.", pedido: result.rows[0] });
+
+      const solicitante = result.rows[0].idusuario_solicitante;
+      if (solicitante && solicitante !== req.usuario?.idusuario) {
+        criarNotificacao(solicitante, req.idempresa, {
+          tipo: "erro",
+          mensagem: `Sua lista de compra do Almoxarifado (${result.rows[0].local}) foi cancelada.`,
+          // Não existe aba "Cancelada" no sino — cai em Recusado/Recusada, mesmo
+          // grupo visual (vermelho) das respostas negativas.
+          metadata: { modulo: "Almoxarifado", categoria: "compras", status: "Recusado", idpedido: req.params.id },
+        }).catch((erro) => console.error("Erro ao notificar solicitante de compra:", erro));
+      }
     } catch (error) {
       console.error("Erro ao cancelar pedido de compra:", error);
       res.status(500).json({ message: "Erro ao cancelar pedido." });
@@ -1404,6 +1613,25 @@ router.get("/compras/fornecedores/busca", verificarPermissao("Almoxarifado", "pe
   } catch (error) {
     console.error("Erro ao buscar fornecedores (Compras):", error);
     res.status(500).json({ message: "Erro ao buscar fornecedores." });
+  }
+});
+
+// GET autocomplete de evento (pra lista de compra de Consumíveis Pavilhão —
+// ver LOCAL_EXIGE_EVENTO). `eventos` não é escopada por empresa (ver schema),
+// por isso a busca é só pelo nome, sem filtro de idempresa.
+router.get("/compras/eventos/busca", verificarPermissao("Almoxarifado", "pesquisar"), async (req, res) => {
+  const busca = (req.query.busca || "").trim();
+  if (!busca) return res.json([]);
+
+  try {
+    const result = await pool.query(
+      `SELECT idevento, nmevento FROM eventos WHERE nmevento ILIKE $1 ORDER BY nmevento ASC LIMIT 20`,
+      [`%${busca}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar eventos (Compras):", error);
+    res.status(500).json({ message: "Erro ao buscar eventos." });
   }
 });
 

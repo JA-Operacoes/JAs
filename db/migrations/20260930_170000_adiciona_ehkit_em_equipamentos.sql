@@ -1,0 +1,11 @@
+-- Migration: adiciona_ehkit_em_equipamentos
+-- Criada em: 2026-09-30T20:00:00.000Z
+--
+-- Alguns equipamentos cadastrados sao, na pratica, kits (ex: "Notebook e
+-- impressora de etiquetas") sem estoque proprio -- o estoque real esta nos
+-- equipamentos individuais que os compoem. `ehkit` marca esse tipo; quando
+-- true, o campo `complementos` (ja existente) passa a guardar a composicao
+-- do kit como [{idequip, descequip, quantidade}] em vez da lista de
+-- acessorios em texto livre (ver routes/rotaEquipamento.js e
+-- public/js/Equipamentos.js).
+ALTER TABLE equipamentos ADD COLUMN IF NOT EXISTS ehkit BOOLEAN NOT NULL DEFAULT false;

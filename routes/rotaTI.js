@@ -444,6 +444,218 @@ router.get("/almoxarifado/:id/movimentacoes", async (req, res) => {
   }
 });
 
+// ===== Compras (TI) =====
+// Mesmo fluxo de aprovação do Almoxarifado Geral (routes/rotaAlmoxarifado.js:
+// pedido -> aprovação item a item -> cotação -> recebimento), reaproveitando
+// as MESMAS tabelas (almoxarifadopedido/almoxarifadopedidoitem/...) só com
+// `local = 'TI'` — sem tabela nova. Por isso o pedido do TI já aparece
+// sozinho na tela "Listas de compra" do Almoxarifado Geral (mesma query, sem
+// filtro de local) e quem aprova lá (master/supremo/financeiro/devs) aprova
+// esse também, sem nenhuma rota nova nesse lado.
+//
+// O que fica só aqui (montado sob /ti, protegido por exigirFlag('ti','supremo')
+// no server.js): criar o pedido e a pessoa acompanhar as próprias listas —
+// aprovar/recusar/cotar/receber continuam exclusivamente em
+// /almoxarifado/compras/pedidos/:id/... (rotaAlmoxarifado.js), porque quem
+// decide já usa aquela tela hoje pros outros locais.
+//
+// Item do TI é sempre "avulso" (iditem null) — a tabela `almoxarifadoti` tem
+// seu próprio id (idconsumivel), que não bate com a FK de
+// almoxarifadopedidoitem.iditem (aponta pra almoxarifadogeral). No
+// recebimento (rotaAlmoxarifado.js) o item avulso vira linha nova em
+// almoxarifadogeral com local='TI' — ver migration
+// permite_local_ti_em_almoxarifadogeral.
+const LOCAL_TI = "TI";
+const FLAGS_APROVACAO_COMPRAS_TI = ["master", "supremo", "financeiro"];
+
+async function listarAprovadoresComprasTI(idempresa) {
+  const condicao = FLAGS_APROVACAO_COMPRAS_TI.map((f) => `${f} = true`).join(" OR ");
+  const { rows } = await pool.query(
+    `SELECT DISTINCT idusuario FROM permissoes WHERE idempresa = $1 AND (${condicao})`,
+    [idempresa]
+  );
+  return rows.map((r) => r.idusuario);
+}
+
+// GET autocomplete de evento — pra marcar "essa compra é pra um evento" na
+// solicitação (mesmo padrão de routes/rotaAlmoxarifado.js:
+// GET /compras/eventos/busca). Precisa de rota própria aqui porque quem só
+// tem a flag `ti` não passa em verificarPermissao("Almoxarifado", ...).
+router.get("/almoxarifado/compras/eventos/busca", async (req, res) => {
+  const busca = (req.query.busca || "").trim();
+  if (!busca) return res.json([]);
+
+  try {
+    const result = await pool.query(
+      `SELECT idevento, nmevento FROM eventos WHERE nmevento ILIKE $1 ORDER BY nmevento ASC LIMIT 20`,
+      [`%${busca}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar eventos (Compras TI):", error);
+    res.status(500).json({ message: "Erro ao buscar eventos." });
+  }
+});
+
+// GET lista de pedidos de compra do TI
+router.get("/almoxarifado/compras/pedidos", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.*,
+              u.nome AS nome_solicitante,
+              ua.nome AS nome_aprovador,
+              e.nmevento,
+              COUNT(pi.idpedidoitem) AS total_itens,
+              COUNT(*) FILTER (WHERE pi.status = 'pendente') AS itens_pendentes,
+              COUNT(*) FILTER (WHERE pi.status = 'recusado') AS itens_recusados,
+              COUNT(*) FILTER (WHERE pi.status = 'recebido') AS itens_recebidos
+         FROM almoxarifadopedido p
+         LEFT JOIN almoxarifadopedidoitem pi ON pi.idpedido = p.idpedido
+         LEFT JOIN usuarios u ON u.idusuario = p.idusuario_solicitante
+         LEFT JOIN usuarios ua ON ua.idusuario = p.idusuario_aprovador
+         LEFT JOIN eventos e ON e.idevento = p.idevento
+        WHERE p.idempresa = $1 AND p.local = $2
+        GROUP BY p.idpedido, u.nome, ua.nome, e.nmevento
+        ORDER BY p.criado_em DESC`,
+      [req.idempresa, LOCAL_TI]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao listar pedidos de compra do TI:", error);
+    res.status(500).json({ message: "Erro ao listar pedidos de compra." });
+  }
+});
+
+// GET detalhe de um pedido de compra do TI (acompanhamento — decisão continua
+// em /almoxarifado/compras/pedidos/:id/...)
+router.get("/almoxarifado/compras/pedidos/:id", async (req, res) => {
+  try {
+    const pedidoResult = await pool.query(
+      `SELECT p.*, u.nome AS nome_solicitante, ua.nome AS nome_aprovador, e.nmevento
+         FROM almoxarifadopedido p
+         LEFT JOIN usuarios u ON u.idusuario = p.idusuario_solicitante
+         LEFT JOIN usuarios ua ON ua.idusuario = p.idusuario_aprovador
+         LEFT JOIN eventos e ON e.idevento = p.idevento
+        WHERE p.idpedido = $1 AND p.idempresa = $2 AND p.local = $3`,
+      [req.params.id, req.idempresa, LOCAL_TI]
+    );
+    if (!pedidoResult.rowCount) {
+      return res.status(404).json({ message: "Pedido não encontrado." });
+    }
+
+    const itensResult = await pool.query(
+      `SELECT pi.* FROM almoxarifadopedidoitem pi WHERE pi.idpedido = $1 ORDER BY pi.idpedidoitem ASC`,
+      [req.params.id]
+    );
+
+    res.json({ ...pedidoResult.rows[0], itens: itensResult.rows });
+  } catch (error) {
+    console.error("Erro ao buscar pedido de compra do TI:", error);
+    res.status(500).json({ message: "Erro ao buscar pedido de compra." });
+  }
+});
+
+// POST criar pedido (lista de compra) do TI
+router.post("/almoxarifado/compras/pedidos",
+  logMiddleware("TI", { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
+  async (req, res) => {
+    const { dt_necessidade, observacao, itens, idevento } = req.body;
+
+    if (!Array.isArray(itens) || !itens.length) {
+      return res.status(400).json({ message: "Inclua pelo menos um item na lista." });
+    }
+    for (const item of itens) {
+      if (!item.descricao || !String(item.descricao).trim()) {
+        return res.status(400).json({ message: "Todo item precisa de descrição." });
+      }
+      if (!Number.isInteger(item.quantidade_solicitada) || item.quantidade_solicitada <= 0) {
+        return res.status(400).json({ message: `Quantidade inválida para "${item.descricao}".` });
+      }
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query("BEGIN");
+
+      // "idevento" marca que essa compra é pra um evento específico — opcional
+      // (nem toda compra de TI é pra evento), mas se vier tem que existir.
+      let idEventoValido = null;
+      if (idevento) {
+        const { rows } = await client.query(`SELECT idevento FROM eventos WHERE idevento = $1`, [idevento]);
+        if (!rows.length) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Evento não encontrado." });
+        }
+        idEventoValido = rows[0].idevento;
+      }
+
+      const pedidoResult = await client.query(
+        `INSERT INTO almoxarifadopedido (idempresa, local, dt_necessidade, observacao, idusuario_solicitante, idevento)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [req.idempresa, LOCAL_TI, dt_necessidade || null, observacao || null, req.usuario?.idusuario || null, idEventoValido]
+      );
+      const pedido = pedidoResult.rows[0];
+
+      for (const item of itens) {
+        await client.query(
+          `INSERT INTO almoxarifadopedidoitem
+             (idpedido, iditem, descricao, unidade_medida, quantidade_solicitada, justificativa)
+           VALUES ($1, NULL, $2, $3, $4, $5)`,
+          [
+            pedido.idpedido,
+            String(item.descricao).trim().slice(0, 120),
+            (item.unidade_medida || "unidade").slice(0, 20),
+            item.quantidade_solicitada,
+            item.justificativa ? String(item.justificativa).slice(0, 255) : null,
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.locals.acao = "criou pedido de compra do TI";
+      res.locals.idregistroalterado = pedido.idpedido;
+      res.locals.idusuarioAlvo = null;
+      res.locals.dadosnovos = pedido;
+
+      res.status(201).json({ message: "Lista de compra enviada para aprovação!", pedido });
+
+      // Mesmo padrão de notificação do Almoxarifado Geral (categoria "compras",
+      // aparece na aba Compras do sino de quem aprova).
+      const solicitanteNome = req.usuario?.nomeusuario || "Alguém";
+      const dataSolicitacao = new Date(pedido.criado_em).toLocaleDateString("pt-BR");
+      listarAprovadoresComprasTI(req.idempresa)
+        .then((idusuarios) =>
+          Promise.all(
+            idusuarios
+              .filter((idusuario) => idusuario !== req.usuario?.idusuario)
+              .map((idusuario) =>
+                criarNotificacao(idusuario, req.idempresa, {
+                  tipo: "info",
+                  mensagem: "Nova lista de compra do TI aguardando aprovação.",
+                  metadata: {
+                    modulo: "TI",
+                    categoria: "compras",
+                    status: "Pendente",
+                    idpedido: pedido.idpedido,
+                    subtext: `${solicitanteNome} · ${itens.length} ${itens.length === 1 ? "item" : "itens"} · ${dataSolicitacao}`,
+                  },
+                })
+              )
+          )
+        )
+        .catch((erro) => console.error("Erro ao notificar aprovadores de compra do TI:", erro));
+    } catch (error) {
+      if (client) await client.query("ROLLBACK");
+      console.error("Erro ao criar pedido de compra do TI:", error);
+      res.status(500).json({ message: "Erro ao criar pedido de compra." });
+    } finally {
+      if (client) client.release();
+    }
+  }
+);
+
 // ===== Custódia por funcionário =====
 
 // GET autocomplete de funcionário (mesmo padrão de /ceo/geral/funcionarios, dentro do TI)
@@ -1614,6 +1826,85 @@ router.get("/eventos/:idevento/equipamentos", async (req, res) => {
   }
 });
 
+// Expande itens de kit (eq.ehkit) nos componentes reais, multiplicando a quantidade
+// orçada do kit pela quantidade de cada componente (eq.complementos = [{idequip,
+// descequip, quantidade}]) -- kit não tem `equipamentounidade` própria, quem tem
+// estoque físico são os componentes. Usado tanto pela tela de Separação quanto pelo
+// checklist (routes abaixo), pra não duplicar essa regra em dois lugares.
+//
+// `itensRows` precisa ter: idorcamento, idequip, descEquip, ctoequip, modelos,
+// complementos, ehkit, qtdorcada (uma linha por idequip orçado, já somado por
+// orçamento -- é o retorno de SUM(oi.qtditens) GROUP BY ... eq.idequip).
+//
+// Retorna Map<idorcamento, Map<idequip, linha>>, com `linha.viaKit` acumulando, pra
+// cada kit que contribuiu com aquele componente, quanto ele pediu -- é o que permite
+// avisar "esse item é necessário pra montar tal kit" em vez de só somar tudo calado.
+async function expandirItensComKit(itensRows) {
+  const idsComponentesFaltando = new Set();
+  itensRows.forEach((item) => {
+    if (item.ehkit) {
+      (item.complementos || []).forEach((c) => { if (c?.idequip) idsComponentesFaltando.add(Number(c.idequip)); });
+    }
+  });
+  itensRows.forEach((item) => idsComponentesFaltando.delete(Number(item.idequip)));
+
+  const infoComponentes = {};
+  if (idsComponentesFaltando.size) {
+    const componentesResult = await pool.query(
+      `SELECT idequip, descEquip, modelos, ctoequip, complementos, ehkit
+         FROM equipamentos WHERE idequip = ANY($1::int[])`,
+      [Array.from(idsComponentesFaltando)]
+    );
+    componentesResult.rows.forEach((c) => { infoComponentes[c.idequip] = c; });
+  }
+
+  const porOrcamento = new Map();
+  itensRows.forEach((item) => {
+    if (!porOrcamento.has(item.idorcamento)) porOrcamento.set(item.idorcamento, new Map());
+    const categoriasPorIdequip = porOrcamento.get(item.idorcamento);
+
+    const linhas = item.ehkit
+      ? (item.complementos || [])
+          .filter((c) => c?.idequip)
+          .map((c) => {
+            const idequipComponente = Number(c.idequip);
+            const info = infoComponentes[idequipComponente]
+              || itensRows.find((r) => Number(r.idequip) === idequipComponente);
+            const qtd = Number(item.qtdorcada) * (Number(c.quantidade) || 1);
+            return {
+              idequip: idequipComponente,
+              descequip: info?.descequip || c.descequip || '',
+              ctoequip: Number(info?.ctoequip) || 0,
+              modelos: info?.modelos || [],
+              complementos: !info?.ehkit ? (info?.complementos || []) : [],
+              qtdorcada: qtd,
+              viaKit: [{ descequip: item.descequip, quantidade: qtd }],
+            };
+          })
+      : [{
+          idequip: item.idequip,
+          descequip: item.descequip,
+          ctoequip: Number(item.ctoequip) || 0,
+          modelos: item.modelos,
+          complementos: item.complementos || [],
+          qtdorcada: Number(item.qtdorcada),
+          viaKit: [],
+        }];
+
+    linhas.forEach((linha) => {
+      const existente = categoriasPorIdequip.get(linha.idequip);
+      if (existente) {
+        existente.qtdorcada += linha.qtdorcada;
+        existente.viaKit.push(...linha.viaKit);
+      } else {
+        categoriasPorIdequip.set(linha.idequip, { ...linha, viaKit: [...linha.viaKit] });
+      }
+    });
+  });
+
+  return porOrcamento;
+}
+
 // ===== Separação de unidades (patrimônio) para um evento =====
 // "Confirmar vínculos" já envia a unidade fisicamente para o evento (mesmo efeito de
 // /custodia/enviar-evento: status 'evento', idevento_atual, histórico de custódia) e marca
@@ -1638,7 +1929,8 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
   try {
     const itensResult = await pool.query(
       `SELECT o.idorcamento, o.nrorcamento, o.dtinirealizacao, o.dtfimrealizacao,
-              eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, SUM(oi.qtditens) AS qtdorcada
+              eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, eq.ehkit, eq.complementos,
+              SUM(oi.qtditens) AS qtdorcada
          FROM orcamentoitens oi
          INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
@@ -1646,10 +1938,24 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
          WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
            AND o.idorcamento = ANY($3::int[])
          GROUP BY o.idorcamento, o.nrorcamento, o.dtinirealizacao, o.dtfimrealizacao,
-                  eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip
+                  eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, eq.ehkit, eq.complementos
          ORDER BY o.dtinirealizacao, o.nrorcamento, eq.descEquip`,
       [idevento, idempresa, idorcamentos]
     );
+
+    const cabecalhoPorOrcamento = {};
+    itensResult.rows.forEach((item) => {
+      if (!cabecalhoPorOrcamento[item.idorcamento]) {
+        cabecalhoPorOrcamento[item.idorcamento] = {
+          idorcamento: item.idorcamento,
+          nrorcamento: item.nrorcamento,
+          dtinirealizacao: item.dtinirealizacao,
+          dtfimrealizacao: item.dtfimrealizacao,
+        };
+      }
+    });
+
+    const porOrcamento = await expandirItensComKit(itensResult.rows);
 
     const unidadesResult = await pool.query(
       `SELECT idunidade, idequip, idmodelo, patrimonio, status, local, idevento_separacao, idorcamento_separacao
@@ -1666,60 +1972,57 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
       unidadesPorEquip[u.idequip].push(u);
     });
 
-    const orcamentosPorId = {};
-    itensResult.rows.forEach((item) => {
-      if (!orcamentosPorId[item.idorcamento]) {
-        orcamentosPorId[item.idorcamento] = {
-          idorcamento: item.idorcamento,
-          nrorcamento: item.nrorcamento,
-          dtinirealizacao: item.dtinirealizacao,
-          dtfimrealizacao: item.dtfimrealizacao,
-          categorias: [],
-        };
-      }
+    const orcamentos = Array.from(porOrcamento.entries()).map(([idorcamento, categoriasPorIdequip]) => {
+      const categorias = Array.from(categoriasPorIdequip.values()).map((linha) => {
+        // Unidade livre (idorcamento_separacao NULL) elegível pra qualquer orçamento-irmão;
+        // unidade já separada pra OUTRO orçamento-irmão deste mesmo evento fica de fora daqui
+        // -- evita mostrar como "disponível" algo já comprometido em outra fatura.
+        const unidades = (unidadesPorEquip[linha.idequip] || []).filter(
+          (u) => u.idorcamento_separacao === null || u.idorcamento_separacao === idorcamento
+        );
+        const modelosPorId = {};
+        (linha.modelos || []).forEach((m) => { modelosPorId[m.id] = m; });
 
-      // Unidade livre (idorcamento_separacao NULL) elegível pra qualquer orçamento-irmão;
-      // unidade já separada pra OUTRO orçamento-irmão deste mesmo evento fica de fora daqui
-      // -- evita mostrar como "disponível" algo já comprometido em outra fatura.
-      const unidades = (unidadesPorEquip[item.idequip] || []).filter(
-        (u) => u.idorcamento_separacao === null || u.idorcamento_separacao === item.idorcamento
-      );
-      const modelosPorId = {};
-      (item.modelos || []).forEach((m) => { modelosPorId[m.id] = m; });
-
-      const unidadesPorModelo = {};
-      unidades.forEach((u) => {
-        if (!unidadesPorModelo[u.idmodelo]) unidadesPorModelo[u.idmodelo] = [];
-        unidadesPorModelo[u.idmodelo].push({
-          idunidade: u.idunidade,
-          patrimonio: u.patrimonio,
-          local: u.local,
-          separado: u.idevento_separacao === Number(idevento) && u.idorcamento_separacao === item.idorcamento,
+        const unidadesPorModelo = {};
+        unidades.forEach((u) => {
+          if (!unidadesPorModelo[u.idmodelo]) unidadesPorModelo[u.idmodelo] = [];
+          unidadesPorModelo[u.idmodelo].push({
+            idunidade: u.idunidade,
+            patrimonio: u.patrimonio,
+            local: u.local,
+            separado: u.idevento_separacao === Number(idevento) && u.idorcamento_separacao === idorcamento,
+          });
         });
+
+        const modelos = Object.keys(modelosPorId).map((idmodelo) => ({
+          idmodelo,
+          marca: modelosPorId[idmodelo].marca,
+          modelo: modelosPorId[idmodelo].modelo,
+          unidades: unidadesPorModelo[idmodelo] || [],
+        }));
+
+        const qtdseparada = modelos.reduce(
+          (soma, m) => soma + m.unidades.filter((u) => u.separado).length, 0
+        );
+
+        return {
+          idequip: linha.idequip,
+          descequip: linha.descequip,
+          ctoequip: linha.ctoequip,
+          qtdorcada: linha.qtdorcada,
+          qtdseparada,
+          modelos,
+          // Presente só quando parte (ou tudo) dessa quantidade veio da composição de um
+          // kit orçado -- ver expandirItensComKit. A tela de Separação usa isso pra avisar
+          // "necessário pra montar" em vez de só mostrar o número já somado.
+          viaKit: linha.viaKit,
+        };
       });
 
-      const modelos = Object.keys(modelosPorId).map((idmodelo) => ({
-        idmodelo,
-        marca: modelosPorId[idmodelo].marca,
-        modelo: modelosPorId[idmodelo].modelo,
-        unidades: unidadesPorModelo[idmodelo] || [],
-      }));
-
-      const qtdseparada = modelos.reduce(
-        (soma, m) => soma + m.unidades.filter((u) => u.separado).length, 0
-      );
-
-      orcamentosPorId[item.idorcamento].categorias.push({
-        idequip: item.idequip,
-        descequip: item.descequip,
-        ctoequip: Number(item.ctoequip) || 0,
-        qtdorcada: Number(item.qtdorcada),
-        qtdseparada,
-        modelos,
-      });
+      return { ...cabecalhoPorOrcamento[idorcamento], categorias };
     });
 
-    res.json(Object.values(orcamentosPorId));
+    res.json(orcamentos);
   } catch (error) {
     console.error("Erro ao listar separação do evento:", error);
     res.status(500).json({ message: "Erro ao listar separação do evento." });
@@ -1858,20 +2161,28 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
     const nmevento = eventoResult.rows[0].nmevento;
 
     const itensResult = await pool.query(
-      `SELECT eq.idequip, eq.descEquip, eq.complementos, SUM(oi.qtditens) AS qtdorcada
+      `SELECT eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, eq.ehkit, eq.complementos,
+              SUM(oi.qtditens) AS qtdorcada
          FROM orcamentoitens oi
          INNER JOIN orcamentos o ON o.idorcamento = oi.idorcamento
          INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
          INNER JOIN equipamentos eq ON eq.idequip = oi.idequipamento
          WHERE o.idevento = $1 AND o.status <> 'R' AND oe.idempresa = $2 AND oi.idequipamento IS NOT NULL
            AND o.idorcamento = ANY($3::int[])
-         GROUP BY eq.idequip, eq.descEquip, eq.complementos`,
+         GROUP BY eq.idequip, eq.descEquip, eq.modelos, eq.ctoequip, eq.ehkit, eq.complementos`,
       [idevento, idempresa, idorcamentos]
     );
 
     if (!itensResult.rowCount) {
       return res.status(400).json({ message: "Nenhum equipamento orçado para este evento." });
     }
+
+    // expandirItensComKit agrupa por idorcamento -- o checklist é por evento inteiro
+    // (todos os orçamentos escolhidos somados numa lista só), então usa um idorcamento
+    // fixo só pra reaproveitar a mesma expansão/soma de kit da tela de Separação.
+    const linhasParaExpandir = itensResult.rows.map((item) => ({ ...item, idorcamento: 0 }));
+    const porOrcamento = await expandirItensComKit(linhasParaExpandir);
+    const categoriasPorIdequip = porOrcamento.get(0) || new Map();
 
     const separadasResult = await pool.query(
       `SELECT idequip, patrimonio FROM equipamentounidade WHERE idempresa = $1 AND idevento_separacao = $2`,
@@ -1885,11 +2196,12 @@ router.get("/eventos/:idevento/checklist-separacao", async (req, res) => {
 
     const dados = {
       nmevento,
-      categorias: itensResult.rows.map((item) => ({
-        descequip: item.descequip,
-        qtdorcada: Number(item.qtdorcada),
-        complementos: item.complementos || [],
-        patrimonios: patrimoniosPorEquip[item.idequip] || [],
+      categorias: Array.from(categoriasPorIdequip.values()).map((linha) => ({
+        descequip: linha.descequip,
+        qtdorcada: linha.qtdorcada,
+        complementos: linha.complementos || [],
+        patrimonios: patrimoniosPorEquip[linha.idequip] || [],
+        viakit: linha.viaKit || [],
       })),
     };
 
@@ -2327,7 +2639,7 @@ router.put("/orcamentos-compra/:id/decisao",
         criarNotificacao(orcamento.idusuario_solicitante, idempresa, {
           tipo: status === 'aprovado' ? 'sucesso' : 'erro',
           mensagem: status === 'aprovado' ? `Orçamento aprovado: ${resumo}` : `Orçamento recusado: ${resumo}`,
-          metadata: { modulo: 'TI', idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
+          metadata: { modulo: 'TI', categoria: 'compras', status: status === 'aprovado' ? 'Aprovado' : 'Recusado', idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
         }).catch((erro) => console.error("Erro ao criar notificação de decisão de orçamento:", erro));
       }
 

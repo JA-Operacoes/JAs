@@ -468,7 +468,7 @@ router.get("/equipamentos", async (req, res) => {
       SELECT eq.*
       FROM equipamentos eq
       INNER JOIN equipamentoempresas eqe ON eqe.idequip = eq.idequip
-      WHERE eqe.idempresa = $1
+      WHERE eqe.idempresa = $1 AND eq.usointerno = false
       ORDER BY eq.descequip
     `,
       [idempresa]
@@ -1591,6 +1591,29 @@ router.post("/salvarContratoUrl",
   }
 });
 
+// A proposta referencia Empresa Emissora e vencimento(s) — confere o que está
+// SALVO no banco (não o que está na tela), senão dá pra gerar proposta com
+// dado que nunca foi gravado. Devolve a lista do que falta (vazia = ok).
+async function camposFaltandoParaProposta(client, idorcamento) {
+  const faltando = [];
+
+  const { rows: orc } = await client.query(
+    `SELECT idempresaemissora FROM orcamentos WHERE idorcamento = $1`,
+    [idorcamento]
+  );
+  if (!orc[0]?.idempresaemissora) faltando.push("Empresa Emissora da NF");
+
+  const { rows: parcelas } = await client.query(
+    `SELECT dtvencimento FROM orcamentoparcelas WHERE idorcamento = $1`,
+    [idorcamento]
+  );
+  if (parcelas.length === 0 || parcelas.some((p) => !p.dtvencimento)) {
+    faltando.push(parcelas.length > 1 ? "Vencimento de todas as parcelas" : "Data de vencimento");
+  }
+
+  return faltando;
+}
+
 router.get("/:nrOrcamento/proposta",
   autenticarToken(),
   contextoEmpresa,
@@ -1639,6 +1662,14 @@ router.get("/:nrOrcamento/proposta",
 
       if (resultOrcamento.rows.length === 0) {
         return res.status(404).json({ error: "Orçamento não encontrado" });
+      }
+
+      const faltando = await camposFaltandoParaProposta(client, resultOrcamento.rows[0].idorcamento);
+      if (faltando.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Salve o orçamento com os campos obrigatórios antes de gerar a proposta: ${faltando.join(", ")}.`,
+        });
       }
 
       const dados = resultOrcamento.rows[0];
@@ -1856,6 +1887,14 @@ router.get("/:nrOrcamento/proposta/adicionais",
 
       if (resultOrcamento.rows.length === 0) {
         return res.status(404).json({ error: "Orçamento não encontrado" });
+      }
+
+      const faltando = await camposFaltandoParaProposta(client, resultOrcamento.rows[0].idorcamento);
+      if (faltando.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Salve o orçamento com os campos obrigatórios antes de gerar a proposta: ${faltando.join(", ")}.`,
+        });
       }
 
       const dados = resultOrcamento.rows[0];
@@ -2083,6 +2122,14 @@ router.post(
 
       if (resultOrcamento.rows.length === 0) {
         return res.status(404).json({ error: "Orçamento não encontrado" });
+      }
+
+      const faltando = await camposFaltandoParaProposta(client, resultOrcamento.rows[0].idorcamento);
+      if (faltando.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Salve o orçamento com os campos obrigatórios antes de gerar a proposta: ${faltando.join(", ")}.`,
+        });
       }
 
       const dados = resultOrcamento.rows[0];

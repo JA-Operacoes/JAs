@@ -94,7 +94,7 @@ async function decidir(req, res, novoStatus) {
         mensagem: novoStatus === "aprovado"
           ? `Orçamento aprovado: ${resumo}`
           : `Orçamento recusado: ${resumo}`,
-        metadata: { modulo: "TI", idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
+        metadata: { modulo: "TI", categoria: "compras", status: novoStatus === "aprovado" ? "Aprovado" : "Recusado", idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
       }).catch((erro) => console.error("Erro ao criar notificação de decisão de orçamento:", erro));
     }
 

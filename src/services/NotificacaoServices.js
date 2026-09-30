@@ -14,6 +14,7 @@ async function buscarNotificacoes(idusuario, idempresa, { apenasNaoLidas = false
   const { rows } = await pool.query(
     `SELECT
         idnotificacao AS id,
+        idreferencia,
         tipo          AS type,
         mensagem      AS message,
         lido          AS read,
@@ -31,6 +32,11 @@ async function buscarNotificacoes(idusuario, idempresa, { apenasNaoLidas = false
     id:       `notif-${n.id}`,
     icon:     n.metadata?.icon     || 'notifications',
     subtext:  n.metadata?.subtext  || '',
+    categoria: n.metadata?.categoria || null,
+    // Tabela `notificacao` não tem coluna status própria (ver information_schema) —
+    // fluxos de aprovação (compras, orçamento) guardam o status deles aqui dentro
+    // do metadata pra cair nas mesmas abas Pendente/Aprovada/Recusada do sino.
+    status: n.metadata?.status || null,
     iconRead: n.read ? 'done_all'    : 'check_small',
     typeRead: n.read ? 'success'     : 'danger',
     ficticio: false,

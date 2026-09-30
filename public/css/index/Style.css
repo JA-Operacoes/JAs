@@ -1422,12 +1422,34 @@ input#search-aside {
   }
   #almox-panel .almox-campo { display: flex; flex-direction: column; gap: 5px; }
   #almox-panel .almox-campo-larga { grid-column: span 2; min-width: 220px; }
-  #almox-panel .almox-campo > span {
+  /* Topo da listagem de compras: rótulo colado nas pílulas de situação de um
+     lado, botões de ação geral do outro — tudo numa linha só, quebrando pra
+     duas apenas se a tela for estreita demais pra caber tudo. Independente de
+     .almox-campo (que é rótulo-em-cima/campo-embaixo) porque aqui o rótulo
+     fica AO LADO das pílulas, não acima. */
+  #almox-panel .almox-campo-linha {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  /* Label "Situação" + pílulas agrupados — sem isso, space-between do pai
+     espalha rótulo, pílulas e botões em 3 pontas opostas da tela. */
+  #almox-panel .almox-campo-filtro {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #almox-panel .almox-campo > span,
+  #almox-panel .almox-campo-filtro > span {
     font-size: 10.5px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .04em;
     color: var(--text-2);
+    white-space: nowrap;
   }
   /* :not(radio/checkbox) é essencial: o radio das pílulas de filtro fica
      absoluto cobrindo a pílula — com fundo e borda ele tapava o texto. */
