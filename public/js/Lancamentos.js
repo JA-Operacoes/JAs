@@ -5,7 +5,7 @@ import { ligarBuscaComSugestoes } from './Formataçoes.js';
 // Reaproveita a tela real de Pagamentos (Registro de Pagamentos) tal como já
 // existe — só o form é embutido aqui como aba, sem duplicar nenhuma regra de
 // negócio dele (upload, permissões, histórico). Ver plano/nota no HTML.
-import { configurarEventosPagamentos } from './Pagamentos.js';
+import { configurarEventosPagamentos, carregarLancamentosParaPagto } from './Pagamentos.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -670,6 +670,8 @@ async function carregarSelectEmpresaPagadora() {
     const selectEmpresaPagadora = document.querySelector("#empresaPagadora");
     if (!selectEmpresaPagadora) return;
 
+    const valorAtual = selectEmpresaPagadora.value;
+
     try {
         const empresas = await fetchComToken('/lancamentos/empresas');
         selectEmpresaPagadora.innerHTML = '<option value="" disabled selected>Selecione a Empresa Pagadora</option>';
@@ -683,6 +685,7 @@ async function carregarSelectEmpresaPagadora() {
                 //}
             });
         }
+        if (valorAtual) selectEmpresaPagadora.value = valorAtual;
         ligarBuscaSelectOculto("#empresaPagadoraBusca", "#empresaPagadora", "empresapagadora-sugestoes");
         sincronizarTextoBuscaSelect("#empresaPagadoraBusca", "#empresaPagadora");
     } catch (error) {
@@ -693,6 +696,8 @@ async function carregarSelectEmpresaPagadora() {
 async function carregarSelectCentroCusto() {
     const selectCentroCusto = document.querySelector("#centroCusto");
     if (!selectCentroCusto) return;
+
+    const valorAtual = selectCentroCusto.value;
 
     try {
         const centrocusto = await fetchComToken('/lancamentos/centrocusto');
@@ -707,6 +712,7 @@ async function carregarSelectCentroCusto() {
                 //}
             });
         }
+        if (valorAtual) selectCentroCusto.value = valorAtual;
         ligarBuscaSelectOculto("#centroCustoBusca", "#centroCusto", "centrocusto-sugestoes");
         sincronizarTextoBuscaSelect("#centroCustoBusca", "#centroCusto");
     } catch (error) {
@@ -1392,6 +1398,23 @@ async function vgCarregarFiltrosSelects() {
     }
 }
 
+// Recarrega só o select "Nome do Lançamento" (mantendo a seleção atual) — chamado ao
+// voltar pra Visão Geral, pra um lançamento recém-cadastrado já aparecer no filtro sem F5.
+async function vgAtualizarSelectLancamentos() {
+    try {
+        const lancamentos = await fetchComToken('/lancamentos');
+        const select = document.getElementById('lcVgFiltroDescricao');
+        if (!select) return;
+        const selecionado = select.value;
+        select.innerHTML = '<option value="">Todos</option>' +
+            (Array.isArray(lancamentos) ? lancamentos : [])
+                .map((l) => `<option value="${l.idlancamento}">${l.descricao}</option>`).join('');
+        select.value = selecionado;
+    } catch (error) {
+        console.error('Erro ao atualizar lançamentos (Visão Geral):', error);
+    }
+}
+
 // Empresa Pagadora do filtro: montado a partir da 1ª carga (sem filtro nenhum) da
 // própria Visão Geral, não de uma lista separada — só interessam aqui as empresas que
 // realmente aparecem no ambiente atual (próprias + "emprestadas" do ambiente 1, ver
@@ -1846,7 +1869,23 @@ function mudarAba(nome) {
 
     // Recarrega ao entrar na Visão Geral — pode ter cadastrado/editado um lançamento
     // na aba "Lançamentos" desde a última vez que essa lista foi buscada.
-    if (nome === 'visaogeral') carregarVisaoGeralLancamentos();
+    if (nome === 'visaogeral') {
+        vgAtualizarSelectLancamentos();
+        carregarVisaoGeralLancamentos();
+    }
+
+    // Aba Lançamentos: plano de contas / centro de custo / empresa podem ter sido
+    // cadastrados nas outras abas, e a lista de descrições (autocomplete) pode ter mudado.
+    if (nome === 'lista') {
+        configurarComboboxDescricao();
+        carregarSelectPlanoContas();
+        carregarSelectCentroCusto();
+        carregarSelectEmpresaPagadora();
+    }
+
+    // Baixa de Contas: um lançamento recém-cadastrado precisa estar na lista de escolha.
+    // (Plano de Contas e Centro de Custo já buscam a lista fresca a cada "Pesquisar".)
+    if (nome === 'pagamentos') carregarLancamentosParaPagto();
 }
 
 let pagamentosConfigurados = false;
