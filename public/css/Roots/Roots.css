@@ -5,7 +5,13 @@
 
 /*  cores principais */
     --dark-base-color: black;
-    --background-base-color: #cacaca;
+    /* Era fixo (#cacaca) — some junto com o cinza claro do tema claro no dark,
+       porque referenciava um valor literal em vez de --surface-3 (que já tem
+       par claro/escuro, ver bloco de temas abaixo). Só funciona porque
+       --surface-3 é declarada antes deste :root ser fechado no cascade real
+       do navegador — var() resolve pelo valor computado, não pela ordem
+       textual no arquivo. */
+    --background-base-color: var(--surface-3);
     --light-base-color: white;
 
     --JA-Oper-color:#c8102e;

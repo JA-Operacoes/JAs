@@ -43,7 +43,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  background: var(--cor-fundo-card, #fff);
+  background: var(--surface-1);
   border: 1px solid var(--shadow-1);
   border-radius: 10px;
   /* Compacto de propósito — o container fica em top:0 (canto mais alto
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--cor-texto, #1a1a1a);
+  color: var(--text-1);
   transition: transform 0.3s cubic-bezier(.4,0,.2,1),
   opacity 0.3s ease,
   box-shadow 0.3s ease;
@@ -70,19 +70,7 @@
 .toast-clicavel { cursor: pointer; }
 .toast-clicavel:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16); }
 
-/* Dark theme */
-body.dark-theme .toast-item {
-  background: #2d2d2d;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f0f0f0;
-  box-shadow: 0 2px 8px var(--shadow-1);
-}
-
 #toast-stack-container.toast-hovered .toast-item {
-  box-shadow: 0 6px 20px var(--shadow-1);
-}
-
-body.dark-theme #toast-stack-container.toast-hovered .toast-item {
   box-shadow: 0 6px 20px var(--shadow-1);
 }
 
@@ -124,10 +112,6 @@ body.dark-theme #toast-stack-container.toast-hovered .toast-item {
   text-overflow: ellipsis;
 }
 
-body.dark-theme .toast-sub {
-  color: var(--text-3);
-}
-
 /* Botão fechar */
 .toast-close {
   font-size: 18px;
@@ -142,11 +126,7 @@ body.dark-theme .toast-sub {
 }
 
 .toast-close:hover {
-  color: var(--cor-texto, #333);
-}
-
-body.dark-theme .toast-close:hover {
-  color: #fff;
+  color: var(--text-1);
 }
 
 /* Barra de progresso */

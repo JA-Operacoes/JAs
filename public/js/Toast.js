@@ -98,7 +98,6 @@ function removeToast(obj) {
  */
 export function exibirToast(type, msg, sub = '', onClick = null) {
   const c = getContainer();
-  const isDark = document.body.classList.contains('dark-theme');
 
   const el = document.createElement('div');
   el.className = `toast-item toast-${type}`;
