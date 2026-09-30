@@ -802,7 +802,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         linhas += `
                         <tr class="row-grupo-empreiteira">
                             <td colspan="${colunas.length}" style="text-align:left; padding:6px 8px; font-weight:bold; background: var(--surface-3); border-left: 4px solid var(--primary-color);">
-                                EMPREITEIRA · ${empreiteiraAtual}
+                                FORNECEDOR · ${empreiteiraAtual}
                             </td>
                         </tr>`;
                     }
@@ -960,10 +960,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <span style="display:flex; gap:16px; font-weight:bold;">
                                         <span>Tot. Geral: ${formatarMoeda(totGeralEmp)}</span>
                                         <span style="${creditoEmp < 0 ? 'color:#c0392b;' : creditoEmp > 0 ? 'color:#27ae60;' : ''}">Crédito/Débito: ${formatarMoeda(creditoEmp)}</span>
-                                        <span>Total da empreiteira: ${formatarMoeda(totGeralEmp + creditoEmp)}</span>
+                                        <span>Total Lote de Funcionários: ${formatarMoeda(totGeralEmp + creditoEmp)}</span>
                                     </span>
                                 </div>
-                                <small style="color: var(--text-2);">Caixinha não entra neste total: continua paga por pessoa.</small>
                             </td>
                         </tr>`;
                         if (proximoItem) linhas += `
