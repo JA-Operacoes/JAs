@@ -1,0 +1,13 @@
+-- Migration: remove_idfornecedorvinculo_de_funcionarioempresas
+-- Criada em: 2026-09-29T19:00:00.000Z
+--
+-- Escreva abaixo o SQL da mudanca de ESTRUTURA (uma migration = uma mudanca).
+-- Roda dentro de uma transacao; se der erro, nada deste arquivo e aplicado.
+-- Depois de escrever: 'npm run migrate' pra aplicar no seu banco local.
+--
+-- Freelancer pago via empreiteira: a escolha saiu do cadastro do funcionario e foi pro proprio
+-- lancamento no Staff (check "Empreiteira/Lote" + fornecedor), porque a mesma pessoa pode ir por
+-- empreiteiras diferentes -- ou por conta propria -- em eventos diferentes. O vinculo que vale
+-- continua em staffeventos.idfornecedor (criado em 20260929_120000); a coluna de "padrao" do
+-- cadastro ficou sem uso e sai aqui pra nao ficar um campo esquecido no banco.
+ALTER TABLE funcionarioempresas DROP COLUMN IF EXISTS idfornecedorvinculo;
