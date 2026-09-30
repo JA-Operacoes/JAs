@@ -5928,12 +5928,14 @@ window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = n
 };
 
 
-window.abrirComprovanteSwal = function(encodedUrl) {
+// `titulo`: padrão continua "Comprovante de Pagamento" (todos os usos antigos); anexos que não são
+// comprovante (NF / listagem da empreiteira no ciclo de fornecedor) passam "Ver Anexo".
+window.abrirComprovanteSwal = function(encodedUrl, titulo = 'Comprovante de Pagamento') {
     const url = decodeURIComponent(encodedUrl);
     const ext = (url.split('.').pop() || '').toLowerCase();
 
     const configBase = {
-        title: 'Comprovante de Pagamento',
+        title: titulo,
         icon: 'info',
         showCancelButton: true,
         cancelButtonText: 'Fechar',
@@ -5944,10 +5946,10 @@ window.abrirComprovanteSwal = function(encodedUrl) {
    // if (ext === 'pdf') {
         Swal.fire({
             ...configBase,
-            text: 'Deseja visualizar o PDF ou baixar o arquivo?',
+            text: ext === 'pdf' ? 'Deseja visualizar o PDF ou baixar o arquivo?' : 'Deseja visualizar ou baixar o arquivo?',
             showDenyButton: true,
             confirmButtonText: '<i class="fas fa-eye"></i> Abrir no Navegador',
-            denyButtonText: '<i class="fas fa-download"></i> Baixar PDF',
+            denyButtonText: `<i class="fas fa-download"></i> ${ext === 'pdf' ? 'Baixar PDF' : 'Baixar Arquivo'}`,
         }).then(res => {
             if (res.isConfirmed) window.open(url, '_blank');
             else if (res.isDenied) triggerDownload(url);
@@ -6681,13 +6683,21 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                 CATEGORIAS.forEach((cat, idxCat) => {
                         const valor = cat.getValor(f);
+                        // Pago via empreiteira: cachê/ajuda aparecem só pra conferência — o
+                        // pagamento é feito na conta do fornecedor (Contas a Pagar), então aqui
+                        // não tem botão, comprovante nem entra nos totais.
+                        const viaFornecedor = !!f.idfornecedor;
 
-                        const status       = staffAguardandoOrcamento
+                        const status       = viaFornecedor
+                            ? 'Via Empreiteira'
+                            : staffAguardandoOrcamento
                             ? 'Aguardando Inclusão no Orçamento'
                             : (staffPendente ? 'Pendente de Autorização' : cat.getStatus(f));
                         const diarias      = cat.getDiarias(f);
-                        const estaPago     = !staffPendente && status.toLowerCase().startsWith('pago');
-                        const classeStatus = staffAguardandoOrcamento
+                        const estaPago     = !viaFornecedor && !staffPendente && status.toLowerCase().startsWith('pago');
+                        const classeStatus = viaFornecedor
+                            ? 'via-empreiteira'
+                            : staffAguardandoOrcamento
                             ? 'aguardando-orcamento'
                             : (staffPendente ? 'pendente-autorizacao' : status.toLowerCase().replace(/\s+/g, '-').replace('%', ''));
 
@@ -6735,7 +6745,9 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         // Pré-computa células com lógica condicional — evita template aninhado
                         const celulaAcoes = podeVerAcoes
                             ? '<td style="text-align:center; ' + estiloBorda + '">'
-                                + (staffPendente
+                                + (viaFornecedor
+                                    ? textoPagamentoViaFornecedor(f, cat.getStatus(f), staffPendente)
+                                    : staffPendente
                                     // Sem botão possível (registro travado) — em vez de repetir
                                     // "Pendente de Autorização"/"Aguardando Inclusão no Orçamento"
                                     // (já visível na coluna Status), mostra a justificativa real
@@ -6746,7 +6758,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 + '</td>'
                             : '';
 
-                        const conteudoComprovante = staffPendente
+                        const conteudoComprovante = (viaFornecedor || staffPendente)
                             ? '<span style="font-size:9px; color:var(--text-3);">—</span>'
                             : pagRejeitado
                                 ? '<i class="fas fa-lock" style="color: var(--text-3);" title="Bloqueado por Rejeição"></i>'
@@ -6785,7 +6797,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             + celulaAcoes
                             + '<td class="comprovantes-cell">' + conteudoComprovante + '</td>'
                             + '<td class="status-celula status-' + classeStatus + '">' + status + '</td>'
-                            + `<td class="valor-celula ${classeValorRejeitado}" style="text-align:right;">${formatarMoeda(valor)}</td>`
+                            + `<td class="valor-celula ${classeValorRejeitado}" style="text-align:right;${viaFornecedor ? ' color:var(--text-3);' : ''}">${formatarMoeda(valor)}</td>`
                             + '</tr>';
                     });
 
@@ -7070,14 +7082,16 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     return f.statuspgto === 'Rejeitado' ? s : s + parseFloat(f.qtddiarias_filtradas || 0);
                 }, 0);
 
+                // Pago via empreiteira (f.idfornecedor): cachê/ajuda são pagos na conta do
+                // fornecedor, então ficam fora dos totais da pessoa aqui — só a caixinha conta.
                 const totalAjuda = registros.reduce((s, f) => {
-                    if (f.statusstaff === 'Pendente') return s;
+                    if (f.statusstaff === 'Pendente' || f.idfornecedor) return s;
                     // Verifica status da ajuda de custo especificamente, se houver um campo próprio
                     return f.statuspgtoajdcto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0));
                 }, 0);
 
                 const totalCache = registros.reduce((s, f) => {
-                    if (f.statusstaff === 'Pendente') return s;
+                    if (f.statusstaff === 'Pendente' || f.idfornecedor) return s;
                     return f.statuspgto === 'Rejeitado' ? s : s + valorConsiderandoParcial(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
                 }, 0);
 
@@ -7119,12 +7133,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 };
 
                 const totalAjudaPago = registros.reduce((s, f) => {
-                    if (f.statusstaff === 'Pendente') return s;
+                    if (f.statusstaff === 'Pendente' || f.idfornecedor) return s;
                     return s + calcPagoCategoria(f.statuspgtoajdcto, parseFloat(f.totalajudacusto_full || 0));
                 }, 0);
 
                 const totalCachePago = registros.reduce((s, f) => {
-                    if (f.statusstaff === 'Pendente') return s;
+                    if (f.statusstaff === 'Pendente' || f.idfornecedor) return s;
                     return s + calcPagoCategoria(f.statuspgto, parseFloat(f.cache_com_ajuste || 0));
                 }, 0);
 
@@ -7158,8 +7172,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                         .reduce((si, it) => si + (parseFloat(it.valor) || 0), 0);
 
                     if (f.statusstaff === 'Pendente' && !f.aguardandoInclusaoOrcamento) {
-                        const vAjuda = parseFloat(f.totalajudacusto_full || 0);
-                        const vCache = parseFloat(f.cache_com_ajuste || 0);
+                        const vAjuda = f.idfornecedor ? 0 : parseFloat(f.totalajudacusto_full || 0);
+                        const vCache = f.idfornecedor ? 0 : parseFloat(f.cache_com_ajuste || 0);
                         const vCaixinhaAutorizada = parseFloat(f.totalcaixinha_full || 0);
                         return s + vAjuda + vCache + vCaixinhaAutorizada + itensPendentesCx;
                     }
@@ -8641,6 +8655,53 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 });
             });
 
+            // Freelancers pagos via empreiteira: uma conta por fornecedor × ciclo, montada no
+            // backend a partir dos staffeventos (utils/cicloFornecedor.js). Entra no grupo
+            // FORNECEDOR, mas com ações próprias (conferir/pagar liberados/NF) — ver
+            // linhaCicloFornecedor em criarAccordionVinculo.
+            window._ciclosFornecedor = {};
+            (resContas.ciclosFornecedor || []).forEach((cf) => {
+                const chaveCiclo = `${cf.idfornecedor}_${cf.dtciclo.replace(/-/g, '')}`;
+                window._ciclosFornecedor[chaveCiclo] = cf;
+                const dtvctoCf = new Date(cf.dtciclo + 'T12:00:00');
+                const quitadoCf = cf.status === 'Pago';
+                const ehHojeCf = !quitadoCf && ehMesmoDia(dtvctoCf, hoje);
+                // Mesma leitura das contas projetadas: futuro sem nada pago é "Projeção"; vira
+                // "Pendente" no dia (ou se já teve pagamento parcial) e "Atrasado" depois da data.
+                const statusFinalCf = quitadoCf ? 'pago'
+                    : (!ehHojeCf && dtvctoCf < hoje) ? 'atrasado'
+                    : (ehHojeCf || cf.pago > 0) ? 'pendente'
+                    : 'projeção';
+                const statusFiltroCf = quitadoCf ? 'liquidado' : (ehHojeCf ? 'hoje' : (dtvctoCf < hoje ? 'vencidos' : 'a_vencer'));
+                const periodoCf = cf.dtinicio
+                    ? `ciclo ${cf.dtinicio.split('-').reverse().slice(0, 2).join('/')} a ${cf.dtciclo.split('-').reverse().slice(0, 2).join('/')}`
+                    : 'por evento';
+                contasProjetadas.push({
+                    idlancamento: `ciclo-${chaveCiclo}`,
+                    idpagamento: null,
+                    tipovinculo: 'fornecedor',
+                    ciclo_fornecedor: true,
+                    chave_ciclo: chaveCiclo,
+                    nome_vinculo: cf.nmfantasia,
+                    observacao: `Equipe · ${periodoCf} · ${cf.qtdEventos} evento${cf.qtdEventos > 1 ? 's' : ''} · ${cf.qtdPessoas} pessoa${cf.qtdPessoas > 1 ? 's' : ''}`,
+                    vencimento: cf.dtciclo.split('-').reverse().join('/'),
+                    dtvcto: cf.dtciclo,
+                    valorTotal: cf.total,
+                    // `valor` é o que o resumo geral soma como pendente (atualizarResumoGeralEstatico):
+                    // num ciclo parcial, só o que ainda falta pagar.
+                    valor: quitadoCf ? cf.total : cf.saldo,
+                    valorPago: cf.pago,
+                    vlrpago: cf.pago,
+                    saldo: quitadoCf ? 0 : cf.saldo,
+                    status: statusFinalCf,
+                    statusFiltro: statusFiltroCf,
+                    comprovantepgto: cf.comprovante,
+                    imagemconta: null,
+                    holerite_mes: Number(cf.dtciclo.slice(5, 7)),
+                    holerite_ano: Number(cf.dtciclo.slice(0, 4)),
+                });
+            });
+
             // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
             // Mesmo período já usado na lista de eventos acima (obterPeriodoVencimentos) — não
             // recalcula mais nada aqui. O switch antigo tinha três defeitos: em 'mensal',
@@ -9277,7 +9338,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                             ${podeVerAcoesFinanceiro ? '<th style="text-align:center">AÇÕES</th>' : ''}
                             <th style="text-align:center">STATUS</th>
                             <th style="text-align:center">DATA PAGAMENTO</th>
-                            <th style="text-align:center">${ehFuncionario ? 'HOLERITE' : 'IMAGEM CONTA'}</th>
+                            <th style="text-align:center">${ehFuncionario ? 'HOLERITE' : 'IMAGEM CONTA / NF'}</th>
                             <th style="text-align:center">COMPROVANTE</th>
                             <th style="text-align:right">VALOR</th>
                         </tr>
@@ -9360,8 +9421,12 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 // Tipo do holerite pra abrir/imprimir o documento certo — sem isso,
                                 // o 13º e o recibo de férias abriam/imprimiam o holerite MENSAL do mês.
                                 const tipoHoleriteLinha = c.holerite_ferias ? 'ferias' : c.holerite_tipo13 ? '13' : 'mensal';
-                                const mesHolerite = c.holerite_mes || (dProj.getMonth() + 1);
-                                const anoHolerite = c.holerite_ano || dProj.getFullYear();
+                                // Fallback pelo próprio vencimento da linha: `dProj` não existe
+                                // neste escopo (é do loop de projeção em carregarDetalhesVencimentos)
+                                // e estourava ReferenceError em qualquer conta sem holerite_mes —
+                                // ex.: ciclo de empreiteira.
+                                const mesHolerite = c.holerite_mes || (vctoISO ? Number(vctoISO.slice(5, 7)) : null);
+                                const anoHolerite = c.holerite_ano || (vctoISO ? Number(vctoISO.slice(0, 4)) : null);
 
                                 // Imprimir só libera depois que o comprovante já foi anexado — a impressão
                                 // agora inclui o comprovante junto (ver imprimirHoleriteExterno em RH.js),
@@ -9553,6 +9618,44 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                         mesHolerite, anoHolerite,
                                         valorLinha,
                                     };
+                                }
+
+                                // Ciclo de empreiteira (freelancers pagos via fornecedor): ações,
+                                // NF e comprovante próprios — o pagamento marca os staffeventos
+                                // do ciclo, não passa por `pagamentos` (ver abrirCicloFornecedor).
+                                if (c.ciclo_fornecedor) {
+                                    const cf = window._ciclosFornecedor?.[c.chave_ciclo] || {};
+                                    const chaveJs = String(c.chave_ciclo).replace(/'/g, '');
+                                    const btnConferir = `<button type="button" onclick="abrirCicloFornecedor('${chaveJs}')" title="Conferir pessoas e pagar" style="cursor:pointer; background:#0d6efd; border:none; padding:5px 8px; border-radius:4px; color:#fff; font-size:11px; font-weight:bold;"><i class="fas fa-users"></i> CONFERIR</button>`;
+                                    const celulaAcoesCiclo = !podeVerAcoesFinanceiro ? '' : `
+                                        <td style="text-align:center;">
+                                            <div style="display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap;">
+                                                ${cf.valorLiberado > 0.009 ? `<button type="button" onclick="abrirCicloFornecedor('${chaveJs}', true)" class="btn-pago"><i class="fas fa-money-bill-wave"></i> PAGAR</button>` : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : '')}
+                                                ${btnConferir}
+                                            </div>
+                                            ${cf.valorAguardando > 0.009 ? `<small style="display:block; color:var(--text-2); font-size:10px; margin-top:3px;" title="Solicitação pendente ou pagamento suspenso">${formatarMoeda(cf.valorAguardando)} aguardando</small>` : ''}
+                                        </td>`;
+                                    const pilulaCiclo = cf.status === 'Parcial' && statusC !== 'pago'
+                                        ? `<span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span><small style="display:block; color:var(--text-2); font-size:10px; margin-top:2px;">parcial · pago ${formatarMoeda(cf.pago || 0)}</small>`
+                                        : `<span class="status-pilula status-${statusC}">${statusC.toUpperCase()}</span>`;
+                                    const celulaNF = htmlAnexoCicloFornecedor(cf, chaveJs, 'notafiscal');
+                                    const celulaCompCiclo = htmlAnexoCicloFornecedor(cf, chaveJs, 'comprovante');
+                                    return `
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha" data-status-filtro="${filterLinha}">
+                                        <td style="${estiloVencido}">
+                                            ${avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong>
+                                            <span style="margin-left:6px; padding:1px 6px; border-radius:8px; font-size:10px; font-weight:bold; background:#475569; color:var(--on-brand);">STAFF</span>
+                                            <br><small style="color:var(--text-2);">${c.observacao || ''}</small>
+                                        </td>
+                                        <td style="text-align:center;">${dataExibicao}</td>
+                                        ${celulaAcoesCiclo}
+                                        <td style="text-align:center;">${pilulaCiclo}</td>
+                                        <td style="text-align:center;">---</td>
+                                        <td style="text-align:center;" data-anexo-ciclo="notafiscal">${celulaNF}</td>
+                                        <td style="text-align:center;" data-anexo-ciclo="comprovante">${celulaCompCiclo}</td>
+                                        <td style="text-align:right; ${estiloVencido}"><strong>${formatarMoeda(c.valorTotal || 0)}</strong></td>
+                                    </tr>`;
                                 }
 
                                 return `
@@ -10467,7 +10570,10 @@ async function uploadComprovanteHolerite(inputEl, idholerite) {
         }
     } catch (err) {
         container.innerHTML = htmlOriginal;
-        Swal.fire('Erro', 'Não foi possível anexar o comprovante.', 'error');
+        // /rh/holerite/:id/comprovante já responde 400 com o motivo em `error` (formato não
+        // permitido, arquivo grande) — mostra ele em vez da mensagem genérica.
+        inputEl.value = '';
+        Swal.fire('Arquivo não enviado', err.corpo?.error || err.corpo?.erro || 'Não foi possível anexar o comprovante.', 'error');
     }
 }
 window.uploadComprovanteHolerite = uploadComprovanteHolerite;
@@ -10572,6 +10678,354 @@ async function pagarProventoParteFuncionario(idprovento, btnEl) {
     }
 }
 window.pagarProventoParteFuncionario = pagarProventoParteFuncionario;
+
+// ===== Ciclo de empreiteira (freelancers pagos via fornecedor) =====
+// Conferência por evento/pessoa + pagamento dos liberados. Quem tem solicitação pendente (ou
+// pagamento suspenso) aparece como "Aguardando" e fica em aberto no mesmo ciclo — é pago num
+// novo clique depois de resolvido (decisão da usuária em 2026-09-29).
+function recarregarVencimentosAposCiclo() {
+    if (typeof carregarDetalhesVencimentos === 'function') {
+        carregarDetalhesVencimentos(document.getElementById('vencimentos-conteudo'), document.getElementById('valores-resumo'));
+    }
+}
+
+async function abrirCicloFornecedor(chave, focoPagar = false) {
+    const cf = window._ciclosFornecedor?.[chave];
+    if (!cf) return Swal.fire('Ciclo não encontrado', 'Recarregue a tela de Vencimentos e tente de novo.', 'warning');
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const dataBR = (iso) => iso ? iso.split('-').reverse().join('/') : '---';
+    const situacaoPessoa = (p) => {
+        if (p.quitado) return '<span style="color:var(--status-ok-fg, #15803d); font-weight:bold;">Pago</span>';
+        if (p.pendente) return '<span style="color:#b45309; font-weight:bold;" title="Solicitação pendente (aditivo, ajuste de custo, cachê fechado...)">Aguardando autorização</span>';
+        if (p.suspenso) return '<span style="color:var(--text-2); font-weight:bold;">Suspenso</span>';
+        return '<span style="color:#0d6efd; font-weight:bold;">Liberado</span>';
+    };
+
+    const porEvento = new Map();
+    cf.pessoas.forEach((p) => {
+        if (!porEvento.has(p.idevento)) porEvento.set(p.idevento, { nome: p.nmevento, pessoas: [] });
+        porEvento.get(p.idevento).pessoas.push(p);
+    });
+
+    let linhas = '';
+    porEvento.forEach((ev) => {
+        const subtotal = ev.pessoas.reduce((s, p) => s + p.total, 0);
+        linhas += `<tr style="background:var(--surface-3);"><td colspan="6" style="padding:6px 8px; font-weight:bold; text-align:left;">${esc(ev.nome)}</td></tr>`;
+        ev.pessoas.forEach((p) => {
+            linhas += `<tr>
+                <td style="text-align:left; padding:4px 8px;">${esc(p.nome)}<br><small style="color:var(--text-2);">${esc(p.funcao)} · ${dataBR(p.dtini)} a ${dataBR(p.dtfim)}</small></td>
+                <td style="text-align:center;">${p.qtddiarias}</td>
+                <td style="text-align:right;">${formatarMoeda(p.cache)}</td>
+                <td style="text-align:right;">${formatarMoeda(p.ajuda)}</td>
+                <td style="text-align:center;">${situacaoPessoa(p)}</td>
+                <td style="text-align:right; font-weight:bold;">${formatarMoeda(p.total)}</td>
+            </tr>`;
+        });
+        linhas += `<tr><td colspan="5" style="text-align:right; padding:4px 8px; font-style:italic; color:var(--text-2);">Subtotal ${esc(ev.nome)}</td><td style="text-align:right; font-style:italic;">${formatarMoeda(subtotal)}</td></tr>`;
+    });
+
+    if (cf.ajustes.length) {
+        linhas += `<tr style="background:var(--surface-3);"><td colspan="6" style="padding:6px 8px; font-weight:bold; text-align:left;">Crédito / Débito</td></tr>`;
+        cf.ajustes.forEach((a) => {
+            const cor = a.tipo === 'Credito' ? '#16a34a' : '#dc2626';
+            linhas += `<tr>
+                <td colspan="4" style="text-align:left; padding:4px 8px;">${esc(a.nome)} — ${a.tipo === 'Credito' ? 'Crédito' : 'Débito'}<br><small style="color:var(--text-2);">${esc(a.justificativa || '')}${a.nmevento_origem ? ` · origem: ${esc(a.nmevento_origem)}` : ''}</small></td>
+                <td style="text-align:center;">${a.status === 'Pago' ? '<span style="color:var(--status-ok-fg, #15803d); font-weight:bold;">Pago</span>' : 'Entra no pagamento'}</td>
+                <td style="text-align:right; color:${cor}; font-weight:bold;">${a.tipo === 'Credito' ? '' : '-'}${formatarMoeda(a.valor)}</td>
+            </tr>`;
+        });
+    }
+
+    const regra = cf.tipopgto === 'INTERVALO' ? `a cada ${cf.intervalodias} dias`
+        : cf.tipopgto === 'MENSAL' ? `todo dia ${cf.diamespgto}` : 'por evento';
+    const podePagar = cf.valorLiberado > 0.009 && (temPermissao("Pagamentos", "devs") || temPermissao("Pagamentos", "supremo") || temPermissao("Pagamentos", "master"));
+    const precisaNF = cf.envianf && !cf.notafiscal;
+
+    const html = `
+        <div style="text-align:left; font-size:13px; margin-bottom:8px;">
+            <div><strong>${esc(cf.nmfantasia)}</strong> · PIX: <strong>${esc(cf.pix || '—')}</strong></div>
+            <div style="color:var(--text-2);">Pagamento ${regra} · vencimento ${dataBR(cf.dtciclo)}${cf.dtinicio ? ` · ciclo ${dataBR(cf.dtinicio)} a ${dataBR(cf.dtciclo)}` : ''} · ${cf.envianf ? 'emite NF' : 'não emite NF'}</div>
+        </div>
+        <div style="max-height:45vh; overflow:auto; border:1px solid var(--border-1); border-radius:6px;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead><tr style="background:var(--surface-4);">
+                    <th style="text-align:left; padding:6px 8px;">Freelancer</th><th>Diárias</th><th style="text-align:right;">Cachê</th>
+                    <th style="text-align:right;">Ajuda</th><th>Situação</th><th style="text-align:right; padding-right:8px;">Total</th>
+                </tr></thead>
+                <tbody>${linhas}</tbody>
+            </table>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-top:10px; font-size:12px; text-align:center;">
+            <div><span style="color:var(--text-2);">Total do ciclo</span><br><strong style="font-size:15px;">${formatarMoeda(cf.total)}</strong></div>
+            <div><span style="color:var(--text-2);">Já pago</span><br><strong style="font-size:15px; color:var(--status-ok-fg, #15803d);">${formatarMoeda(cf.pago)}</strong></div>
+            <div><span style="color:var(--text-2);">Liberado agora</span><br><strong style="font-size:15px; color:#0d6efd;">${formatarMoeda(cf.valorLiberado)}</strong></div>
+            <div><span style="color:var(--text-2);">Aguardando</span><br><strong style="font-size:15px; color:#b45309;">${formatarMoeda(cf.valorAguardando)}</strong></div>
+        </div>
+        ${blocoAnexosEAcoesCiclo(cf, chave)}
+        ${podePagar ? `
+        <div style="text-align:left; margin-top:12px; display:flex; flex-direction:column; gap:6px; font-size:12px;">
+            ${precisaNF ? `<label>Nota fiscal do ciclo <span style="color:#d9534f;">(obrigatória)</span><br><input type="file" id="cicloArquivoNF" accept="image/*,.pdf,.jfif"></label>` : ''}
+            ${!cf.envianf && !cf.notafiscal ? `<label>Listagem de funcionários enviada pela empreiteira (opcional)<br><input type="file" id="cicloArquivoNF" accept="image/*,.pdf,.jfif"></label>` : ''}
+            <label>Comprovante de pagamento (opcional, dá pra anexar depois)<br><input type="file" id="cicloArquivoComp" accept="image/*,.pdf,.jfif"></label>
+        </div>` : ''}`;
+
+    const resultado = await Swal.fire({
+        title: 'Conferência do ciclo',
+        html,
+        width: 820,
+        showCancelButton: true,
+        cancelButtonText: 'Fechar',
+        showConfirmButton: podePagar,
+        confirmButtonText: `<i class="fas fa-money-bill-wave"></i> Pagar liberados · ${formatarMoeda(cf.valorLiberado)}`,
+        focusConfirm: focoPagar,
+        preConfirm: async () => {
+            const arqNF = document.getElementById('cicloArquivoNF')?.files?.[0];
+            const arqComp = document.getElementById('cicloArquivoComp')?.files?.[0];
+            if (precisaNF && !arqNF) {
+                Swal.showValidationMessage('Este fornecedor emite NF: anexe a nota fiscal do ciclo antes de pagar.');
+                return false;
+            }
+            const formData = new FormData();
+            formData.append('idfornecedor', cf.idfornecedor);
+            formData.append('dtciclo', cf.dtciclo);
+            if (arqNF) formData.append('notafiscal', arqNF);
+            if (arqComp) formData.append('comprovante', arqComp);
+            try {
+                return await fetchComToken('/main/ciclo-fornecedor/pagar', { method: 'POST', body: formData });
+            } catch (err) {
+                Swal.showValidationMessage(err.corpo?.erro || err.message || 'Não foi possível pagar o ciclo.');
+                return false;
+            }
+        }
+    });
+
+    if (resultado.isConfirmed && resultado.value?.sucesso) {
+        const aguardando = resultado.value.valorAguardando || 0;
+        await Swal.fire({
+            icon: 'success',
+            title: 'Ciclo pago',
+            text: aguardando > 0.009
+                ? `${formatarMoeda(resultado.value.valorPago)} pagos. ${formatarMoeda(aguardando)} continuam aguardando autorização neste ciclo.`
+                : `${formatarMoeda(resultado.value.valorPago)} pagos.`,
+            timer: 2500,
+            showConfirmButton: false
+        });
+        recarregarVencimentosAposCiclo();
+    }
+}
+window.abrirCicloFornecedor = abrirCicloFornecedor;
+
+// Conteúdo das células de anexo da linha do ciclo (coluna IMAGEM CONTA / NF e COMPROVANTE).
+// Usado na montagem da linha e de novo logo depois de um anexo, pra trocar a célula na hora.
+// Quem não emite NF usa o MESMO campo (compnotafiscal) pra anexar a listagem de funcionários
+// que a empreiteira mandou — opcional, só documenta quem foi declarado e pago no ciclo.
+function htmlAnexoCicloFornecedor(cf, chaveJs, campo) {
+    const link = (url, icone, rotulo, titulo) =>
+        `<a href="javascript:void(0)" onclick="abrirComprovanteSwal(encodeURIComponent('${url}'), '${titulo}')" style="text-decoration:none; color: var(--status-ok-fg, #2E8B57); display:flex; flex-direction:column; align-items:center; gap:2px;"><i class="fas ${icone}" style="font-size: 18px;"></i><span style="font-size: 10px; font-weight: bold;">${rotulo}</span></a>`;
+    const botaoUpload = (idInput, cor, dica, legenda) => `<div>
+            <input type="file" style="display:none" id="${idInput}" accept="image/*,.pdf,.jfif" onchange="anexarArquivoCicloFornecedor(this, '${chaveJs}', '${campo}')">
+            <i class="fas fa-upload" style="color:${cor}; cursor:pointer;" title="${dica}" onclick="document.getElementById('${idInput}').click()"></i>
+            ${legenda ? `<small style="display:block; color:${cor === '#d9534f' ? '#d9534f' : 'var(--text-3)'}; font-size:10px;">${legenda}</small>` : ''}
+        </div>`;
+
+    if (campo === 'notafiscal') {
+        if (cf.notafiscal) {
+            return cf.envianf
+                ? link(cf.notafiscal, 'fa-file-invoice', 'Ver NF', 'Ver Anexo')
+                : link(cf.notafiscal, 'fa-list-check', 'Ver Listagem', 'Ver Anexo');
+        }
+        return cf.envianf
+            ? botaoUpload(`up_nf_${chaveJs}`, '#d9534f', 'Anexar NF do ciclo (obrigatória para pagar)', 'NF pendente')
+            : botaoUpload(`up_nf_${chaveJs}`, '#f0ad4e', 'Anexar a listagem de funcionários enviada pela empreiteira (opcional)', 'Listagem (opcional)');
+    }
+
+    if (cf.comprovante) return link(cf.comprovante, 'fa-receipt', 'Ver Comp.', 'Comprovante de Pagamento');
+    return cf.pago > 0
+        ? botaoUpload(`up_compciclo_${chaveJs}`, '#f0ad4e', 'Enviar comprovante', '')
+        : '<small style="color:var(--text-3); font-style: italic;">Aguardando Pagamento</small>';
+}
+
+// Área "Anexos do ciclo" + Histórico/Estornar dentro do CONFERIR. Ver/Trocar/Remover mudam o
+// ciclo inteiro (todas as pessoas). Estornar só aparece pra Supremo e com algo já pago.
+function blocoAnexosEAcoesCiclo(cf, chave) {
+    const chaveJs = String(chave).replace(/'/g, '');
+    const podeAlterar = temPermissao("Pagamentos", "devs") || temPermissao("Pagamentos", "supremo") || temPermissao("Pagamentos", "master");
+    const podeEstornar = temPermissao("Pagamentos", "supremo") && cf.pago > 0;
+    const nomeArquivo = (url) => url ? String(url).split('/').pop() : '';
+    const btn = (rotulo, onclick, cor = 'var(--text-1)', borda = 'var(--border-2)') =>
+        `<button type="button" onclick="${onclick}" style="width:auto; font-size:12px; padding:4px 10px; border-radius:4px; border:1px solid ${borda}; background:var(--surface-1); color:${cor}; cursor:pointer;">${rotulo}</button>`;
+
+    const cartao = (titulo, campo, url, podeAnexar) => `
+        <div style="border:1px solid var(--border-1); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:6px; text-align:left;">
+            <strong style="font-size:12px; letter-spacing:.03em;">${titulo}</strong>
+            <span style="font-size:11px; color:var(--text-2); word-break:break-all;">${url ? nomeArquivo(url) : 'Nenhum arquivo'}</span>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                ${url ? btn('Ver', `abrirComprovanteSwal(encodeURIComponent('${url}'), '${campo === 'comprovante' ? 'Comprovante de Pagamento' : 'Ver Anexo'}')`) : ''}
+                ${podeAlterar && podeAnexar ? btn(url ? 'Trocar' : 'Anexar', `trocarAnexoCicloFornecedor('${chaveJs}', '${campo}')`) : ''}
+                ${podeAlterar && url ? btn('Remover', `Swal.close(); removerAnexoCicloFornecedor('${chaveJs}', '${campo}')`, '#d9534f', '#d9534f') : ''}
+            </div>
+        </div>`;
+
+    return `
+        <div style="margin-top:12px; text-align:left;">
+            <strong style="font-size:13px;">Anexos do ciclo</strong>
+            <span style="font-size:11px; color:var(--text-2); margin-left:6px;">trocar ou remover vale para todas as pessoas do ciclo</span>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px; margin-top:6px;">
+                ${cartao(cf.envianf ? 'NOTA FISCAL' : 'LISTAGEM DE FUNCIONÁRIOS', 'notafiscal', cf.notafiscal, true)}
+                ${cartao('COMPROVANTE', 'comprovante', cf.comprovante, cf.pago > 0)}
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+                ${btn('<i class="fas fa-clock-rotate-left"></i> Histórico da empreiteira', `abrirHistoricoEmpreiteira(${Number(cf.idfornecedor)})`)}
+                ${podeEstornar ? btn('<i class="fas fa-rotate-left"></i> Estornar pagamento', `Swal.close(); estornarCicloFornecedor('${chaveJs}')`, '#d9534f', '#d9534f') : ''}
+            </div>
+        </div>`;
+}
+
+function celulaAnexoCiclo(chave, campo) {
+    const chaveLimpa = String(chave).replace(/'/g, '');
+    return document.querySelector(`#linha-pgto-ciclo-${chaveLimpa} [data-anexo-ciclo="${campo}"]`);
+}
+
+// Trocar anexo pelo CONFERIR: abre o seletor de arquivo e reaproveita o mesmo envio da linha.
+function trocarAnexoCicloFornecedor(chave, campo) {
+    Swal.close();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.pdf,.jfif';
+    input.style.display = 'none';
+    input.addEventListener('change', async () => {
+        await anexarArquivoCicloFornecedor(input, chave, campo);
+        input.remove();
+    });
+    document.body.appendChild(input);
+    input.click();
+}
+window.trocarAnexoCicloFornecedor = trocarAnexoCicloFornecedor;
+
+// Remove NF/listagem ou comprovante do ciclo. O arquivo continua no servidor e fica no log.
+async function removerAnexoCicloFornecedor(chave, campo) {
+    const cf = window._ciclosFornecedor?.[chave];
+    if (!cf) return;
+    const nomeAnexo = campo === 'comprovante' ? 'o comprovante' : (cf.envianf ? 'a nota fiscal' : 'a listagem');
+    const conf = await Swal.fire({
+        icon: 'warning',
+        title: `Remover ${nomeAnexo}?`,
+        text: `Sai do ciclo de ${cf.dtciclo.split('-').reverse().join('/')} em todas as pessoas. O arquivo continua guardado no servidor e no log.${campo === 'notafiscal' && cf.envianf ? ' Como este fornecedor emite NF, um novo pagamento deste ciclo vai exigir anexar de novo.' : ''}`,
+        showCancelButton: true,
+        confirmButtonText: 'Remover',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        focusCancel: true
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        await fetchComToken('/main/ciclo-fornecedor/remover-anexo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idfornecedor: cf.idfornecedor, dtciclo: cf.dtciclo, campo })
+        });
+        if (campo === 'notafiscal') cf.notafiscal = null; else cf.comprovante = null;
+        const celula = celulaAnexoCiclo(chave, campo);
+        if (celula) celula.innerHTML = htmlAnexoCicloFornecedor(cf, String(chave).replace(/'/g, ''), campo);
+        Swal.fire({ icon: 'success', title: 'Anexo removido', timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+    } catch (err) {
+        Swal.fire('Não foi possível remover', err.corpo?.erro || err.message || 'Erro ao remover o anexo.', 'error');
+    }
+}
+window.removerAnexoCicloFornecedor = removerAnexoCicloFornecedor;
+
+// Estorna o ciclo inteiro (só Supremo): cachê/ajuda pagos por este ciclo e o crédito/débito
+// quitado junto voltam pra Pendente. Motivo obrigatório, gravado em cada pessoa e no log.
+async function estornarCicloFornecedor(chave) {
+    const cf = window._ciclosFornecedor?.[chave];
+    if (!cf) return;
+    const { value: motivo, isConfirmed } = await Swal.fire({
+        icon: 'warning',
+        title: 'Estornar pagamento do ciclo',
+        html: `<div style="text-align:left; font-size:13px;">
+                <p style="margin:0 0 8px;"><strong>${cf.nmfantasia}</strong> · vencimento ${cf.dtciclo.split('-').reverse().join('/')} · pago ${formatarMoeda(cf.pago)}</p>
+                <p style="margin:0;">Cachê, ajuda e crédito/débito pagos por este ciclo voltam para <strong>Pendente</strong>, e o comprovante sai do ciclo (continua no log). O ciclo volta a aparecer em aberto.</p>
+            </div>`,
+        input: 'textarea',
+        inputLabel: 'Motivo do estorno (obrigatório)',
+        inputPlaceholder: 'Ex.: pago em duplicidade em 21/09, devolvido pelo banco em 23/09',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar estorno',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#d9534f',
+        reverseButtons: true,
+        focusCancel: true,
+        inputValidator: (v) => (!v || v.trim().length < 5) ? 'Descreva o motivo do estorno.' : undefined
+    });
+    if (!isConfirmed) return;
+    try {
+        const r = await fetchComToken('/main/ciclo-fornecedor/estornar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idfornecedor: cf.idfornecedor, dtciclo: cf.dtciclo, motivo: motivo.trim() })
+        });
+        await Swal.fire({
+            icon: 'success',
+            title: 'Ciclo estornado',
+            text: `${r.idsEstornados.length} lançamento(s) voltaram para Pendente${r.ajustesEstornados ? ` e ${r.ajustesEstornados} crédito/débito` : ''}.`,
+            timer: 2500,
+            showConfirmButton: false
+        });
+        recarregarVencimentosAposCiclo();
+    } catch (err) {
+        Swal.fire('Não foi possível estornar', err.corpo?.erro || err.message || 'Erro ao estornar o ciclo.', 'error');
+    }
+}
+window.estornarCicloFornecedor = estornarCicloFornecedor;
+
+// Histórico da empreiteira: abre Relatórios já em "Pagamentos a Empreiteiras" filtrado nela
+// (initRelatorios lê window.filtroRelatorioEmpreiteira) pelo próprio link do menu.
+function abrirHistoricoEmpreiteira(idfornecedor) {
+    const link = document.querySelector('a.abrir-modal[data-modulo="Relatorios"]');
+    if (!link || link.style.display === 'none') {
+        return Swal.fire('Sem acesso', 'Você não tem permissão para a tela de Relatórios.', 'info');
+    }
+    Swal.close();
+    document.getElementById('btn-fechar-tela-cheia')?.click();
+    window.filtroRelatorioEmpreiteira = { idfornecedor };
+    // Fechar o Relatório volta pro Vencimentos como estava (sem o reload padrão do fecharModal).
+    window.retornoAposFecharModal = () => {};
+    link.click();
+}
+window.abrirHistoricoEmpreiteira = abrirHistoricoEmpreiteira;
+
+// Anexa a NF/listagem (a qualquer momento) ou o comprovante (depois de pago) direto da linha do
+// ciclo. Troca só a célula na hora — sem recarregar a tela, que perderia o foco/acordeão aberto.
+async function anexarArquivoCicloFornecedor(inputEl, chave, campo) {
+    const cf = window._ciclosFornecedor?.[chave];
+    const arquivo = inputEl.files?.[0];
+    if (!cf || !arquivo) return;
+
+    // Pega a célula ANTES de mexer no conteúdo (depois o input sai do DOM). Vindo do CONFERIR
+    // (Trocar), o input não está na linha — acha a célula pela linha do ciclo.
+    const celula = inputEl.closest('td') || celulaAnexoCiclo(chave, campo);
+    const htmlOriginal = celula ? celula.innerHTML : '';
+    if (celula) celula.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color:#007bff; font-size:18px;"></i>`;
+
+    const formData = new FormData();
+    formData.append('idfornecedor', cf.idfornecedor);
+    formData.append('dtciclo', cf.dtciclo);
+    formData.append('campo', campo);
+    formData.append('arquivo', arquivo);
+    try {
+        const resposta = await fetchComToken('/main/ciclo-fornecedor/anexo', { method: 'POST', body: formData });
+        if (campo === 'notafiscal') cf.notafiscal = resposta.path; else cf.comprovante = resposta.path;
+        if (celula) celula.innerHTML = htmlAnexoCicloFornecedor(cf, String(chave).replace(/'/g, ''), campo);
+        const tituloAnexo = campo !== 'notafiscal' ? 'Comprovante anexado' : (cf.envianf ? 'NF anexada' : 'Listagem anexada');
+        Swal.fire({ icon: 'success', title: tituloAnexo, timer: 1200, showConfirmButton: false, position: 'top-end', toast: true });
+    } catch (err) {
+        if (celula) celula.innerHTML = htmlOriginal;
+        inputEl.value = '';
+        Swal.fire('Arquivo não enviado', err.corpo?.erro || err.message || 'Não foi possível anexar o arquivo.', 'error');
+    }
+}
+window.anexarArquivoCicloFornecedor = anexarArquivoCicloFornecedor;
 // }
 
 async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
@@ -11420,6 +11874,35 @@ async function atualizarCardsResumoSilencioso() {
 }
 
 
+// Freelancer pago via empreiteira, no bloco Staff: situação real do pagamento dele na conta do
+// fornecedor (Contas a Pagar), pra não parecer que já foi pago. Usa o status da própria
+// categoria (Cachê/Ajuda) e a data do ciclo calculada no backend (dtciclo_fornecedor).
+function textoPagamentoViaFornecedor(f, statusCategoria, staffPendente) {
+    const nome = f.nmfornecedorvinculo || 'empreiteira';
+    const dt = f.dtciclo_fornecedor || '';
+    const dtBR = dt ? dt.split('-').reverse().join('/') : '';
+    const status = String(statusCategoria || '');
+
+    let texto, cor, dica;
+    if (status.startsWith('Pago') && !status.includes('50')) {
+        texto = `Pago via ${nome}`; cor = 'var(--status-ok-fg, #15803d)';
+        dica = 'Pago na conta do fornecedor, em Contas a Pagar';
+    } else if (status === 'Rejeitado') {
+        texto = `Rejeitado · via ${nome}`; cor = 'var(--text-3)'; dica = 'Pagamento rejeitado';
+    } else if (staffPendente) {
+        texto = `Aguardando autorização · via ${nome}`; cor = '#b45309';
+        dica = 'Fica em aberto no ciclo do fornecedor até a solicitação ser resolvida';
+    } else {
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const vencido = dt && new Date(dt + 'T00:00:00') < hoje;
+        texto = `${vencido ? 'Vencido' : 'A pagar'} via ${nome}`;
+        cor = vencido ? '#d9534f' : '#0d6efd';
+        dica = `Pago na conta do fornecedor, em Contas a Pagar${dtBR ? ` — vencimento ${dtBR}` : ''}`;
+    }
+    return `<small title="${dica}" style="color:${cor}; font-weight:bold;">${texto}</small>`
+        + (dtBR && !texto.startsWith('Pago') && !texto.startsWith('Rejeitado') ? `<br><small style="color:var(--text-2); font-size:10px;">venc. ${dtBR}</small>` : '');
+}
+
 function renderConteudoAcao(id, tipo, statusAtual, idEventoContexto = null, iditemCaixinha = null) {
     const statusLimpo = (statusAtual || "").trim();
     // idEventoContexto: só usado por AjusteFin (crédito/débito), pra registrar em qual
@@ -11762,6 +12245,19 @@ async function carregarDadosVencimentos(anoFiltro) {
             const dVcto = new Date((p.dtvcto || "") + "T12:00:00");
             if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += vTotal;
             else if (dVcto < hoje) soma.contasVencidas += vTotal; else soma.contasAVencer += vTotal;
+        });
+
+        // Ciclos de empreiteira (freelancers pagos via fornecedor) — o cachê/ajuda deles não
+        // entra mais no bloco Staff (o backend já tira dos totais do evento), então soma aqui
+        // como conta, pelo saldo em aberto de cada ciclo.
+        (resContas?.ciclosFornecedor || []).forEach(cf => {
+            const pago = Number(cf.pago || 0);
+            const saldo = Number(cf.saldo || 0);
+            if (pago > 0) soma.contasPagos += pago;
+            if (cf.status === 'Pago' || saldo <= 0.009) return;
+            const dVcto = new Date((cf.dtciclo || "") + "T12:00:00");
+            if (ehMesmoDia(dVcto, hoje)) soma.contasHoje += saldo;
+            else if (dVcto < hoje) soma.contasVencidas += saldo; else soma.contasAVencer += saldo;
         });
 
         // --- 3. ATUALIZAÇÃO DA UI (STAFF + CONTAS) ---

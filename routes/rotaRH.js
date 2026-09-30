@@ -74,7 +74,8 @@ const fileFilterComprovanteRH = (req, file, cb) => {
   if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
     cb(null, true);
   } else {
-    cb(new Error("Apenas imagens e PDFs são permitidos."), false);
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    cb(new Error(`Formato "${ext || file.mimetype}" não permitido. Envie uma imagem (JPG, PNG, JFIF) ou PDF.`), false);
   }
 };
 
@@ -1253,7 +1254,10 @@ router.put("/holerite/:id/conferir-beneficios", async (req, res) => {
 // multipart/form-data, campo "comprovante" (imagem/PDF/JFIF, até 10MB).
 router.post("/holerite/:id/comprovante", (req, res) => {
   uploadComprovanteRH(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
+    if (err) {
+      const mensagem = err.code === "LIMIT_FILE_SIZE" ? "Arquivo maior que 10 MB. Envie um arquivo menor." : err.message;
+      return res.status(400).json({ error: mensagem });
+    }
     try {
       const idempresa = req.idempresa;
       const idholerite = parseInt(req.params.id, 10);

@@ -535,7 +535,18 @@ function fecharModal() {
     const origemAbertura = sessionStorage.getItem("origemAbertura");
 
     // 3. Lógica de Ação Pós-Fechamento (Callback vs. Refresh Geral)
-    
+
+    // Retorno pedido por quem abriu este modal a partir de OUTRA tela (ex.: Relatórios aberto
+    // pelo "Ver pagamentos" do Cadastro de Fornecedor volta pro fornecedor; pelo "Histórico" do
+    // Vencimentos, só fecha sem recarregar). Vale uma vez só.
+    if (typeof window.retornoAposFecharModal === 'function') {
+        const retorno = window.retornoAposFecharModal;
+        window.retornoAposFecharModal = null;
+        window.moduloAtual = null;
+        setTimeout(retorno, 0);
+        return;
+    }
+
     // ⭐️ PASSO CRUCIAL: Se a função de callback específica existir (definida em abrirDetalhesEquipe), chame-a.
     if (typeof window.onStaffModalClosed === 'function') {
         console.log("Fechamento de modal detectado. Chamando callback específico (voltarParaEquipes).");

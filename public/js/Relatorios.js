@@ -162,8 +162,34 @@ function initRelatorios() {
         gerarRelatorio();
     }
 
+    // Pagamentos a Empreiteiras: troca os filtros ao escolher o tipo; e, se a tela foi aberta
+    // por "Ver pagamentos" (Cadastro de Fornecedor) ou "Histórico da empreiteira" (Vencimentos),
+    // já abre nesse tipo, filtrada no fornecedor, e gera.
+    document.querySelectorAll('input[name="reportType"]').forEach(radio => {
+        radio.addEventListener('change', alternarFiltrosEmpreiteira);
+    });
+    const filtroInicial = window.filtroRelatorioEmpreiteira;
+    window.filtroRelatorioEmpreiteira = null;
+
     console.log("⚙️ Relatórios inicializado.");
     configurarLayoutPorPermissao();
+
+    if (filtroInicial) {
+        const radioEmp = document.getElementById('empreiteirasRadio');
+        if (radioEmp) {
+            radioEmp.checked = true;
+            alternarFiltrosEmpreiteira().then(() => {
+                const sel = document.getElementById('empreiteiraSelect');
+                if (sel && filtroInicial.idfornecedor) sel.value = String(filtroInicial.idfornecedor);
+                // Ano escolhido no resumo do Cadastro de Fornecedor: período do ano inteiro.
+                if (filtroInicial.ano) {
+                    document.getElementById('reportStartDate').value = `${filtroInicial.ano}-01-01`;
+                    document.getElementById('reportEndDate').value = `${filtroInicial.ano}-12-31`;
+                }
+                gerarRelatorio();
+            });
+        }
+    }
     const temAcesso = usuarioTemPermissaoFinanceiro();
     if (temAcesso) {
         console.log("%c💰 STATUS: Usuário com Permissão FINANCEIRA", "color: white; background: green; padding: 5px; border-radius: 3px; font-weight: bold;");
@@ -767,6 +793,20 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     const ehMei = item.PERFIL_MEI;
                     const ehFuncMei = ehFuncionario && ehMei;
 
+                    // Pago via empreiteira: o backend já manda as pessoas de cada empreiteira
+                    // juntas (ORDER BY "EMPREITEIRA") — abre o grupo com um cabeçalho aqui e fecha
+                    // com o total no nome/PIX dela lá embaixo, depois do subtotal da pessoa.
+                    const empreiteiraAtual = item.EMPREITEIRA || null;
+                    const itemAnterior = dadosFechamento[index - 1];
+                    if (podeVerFinanceiro && empreiteiraAtual && (!itemAnterior || itemAnterior.EMPREITEIRA !== empreiteiraAtual)) {
+                        linhas += `
+                        <tr class="row-grupo-empreiteira">
+                            <td colspan="${colunas.length}" style="text-align:left; padding:6px 8px; font-weight:bold; background: var(--surface-3); border-left: 4px solid var(--primary-color);">
+                                FORNECEDOR · ${empreiteiraAtual}
+                            </td>
+                        </tr>`;
+                    }
+
                     linhas += `
                     <tr ${styleDestaque}>
                         <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
@@ -779,7 +819,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                         ? '<br><span style="font-size: 8px; color: var(--on-brand); background: rgb(136, 9, 9); padding: 1px 3px; border-radius: 3px; font-weight: normal;">MEI</span>'
                                         : ''}
                         </td>
-                        ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
+                        ${podeVerFinanceiro
+                            ? `<td class="${alinhamentos['PIX']}">${empreiteiraAtual ? `<span style="color: var(--text-3);">via ${empreiteiraAtual}</span>` : (item.PIX || '')}</td>`
+                            : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
                         <td class="${alinhamentos['INÍCIO']}">${formatarData(item.INÍCIO) || ''}</td>
                         <td class="${alinhamentos['TÉRMINO']}">${formatarData(item.TÉRMINO) || ''}</td>
 
@@ -893,6 +935,40 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
 
                         // Zera o acumulador para o próximo funcionário
                         subtotalFuncionario = { TOT_DIARIAS: 0, TOT_AJUDA: 0, TOT_GERAL: 0, TOT_PAGAR: 0, VLR_CAIXINHA: 0 };
+                    }
+
+                    // Fecha o grupo da empreiteira: total no nome e PIX dela. Soma o TOT GERAL
+                    // (sem caixinha — caixinha continua por pessoa, fora do empreiteiro) + o
+                    // Crédito/Débito de cada pessoa UMA vez (é saldo da pessoa, repetido em todas
+                    // as linhas dela — ver comentário do CREDITO_DEBITO acima).
+                    if (podeVerFinanceiro && empreiteiraAtual && (!proximoItem || proximoItem.EMPREITEIRA !== empreiteiraAtual)) {
+                        const linhasEmpreiteira = dadosFechamento.filter(d => d.EMPREITEIRA === empreiteiraAtual);
+                        const totGeralEmp = linhasEmpreiteira.reduce((s, d) => s + parseFloat(d["TOT GERAL"] || 0), 0);
+                        const creditoPorPessoa = new Map();
+                        linhasEmpreiteira.forEach(d => creditoPorPessoa.set(d.NOME, parseFloat(d["CRÉDITO/DÉBITO"] || 0)));
+                        const creditoEmp = [...creditoPorPessoa.values()].reduce((s, v) => s + v, 0);
+                        const qtdPessoasEmp = creditoPorPessoa.size;
+                        linhas += `
+                        <tr class="row-total row-total-empreiteira" style="background: var(--surface-3);">
+                            <td colspan="${colunas.length}" style="padding:8px; border-bottom: 2px solid var(--primary-color);">
+                                <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 16px;">
+                                    <span>
+                                        <strong>TOTAL ${empreiteiraAtual}</strong>
+                                        <span style="margin-left:8px;">PIX: <strong>${item["PIX EMPREITEIRA"] || '—'}</strong></span>
+                                        <span style="margin-left:8px; color: var(--text-2);">${qtdPessoasEmp} pessoa${qtdPessoasEmp > 1 ? 's' : ''}</span>
+                                    </span>
+                                    <span style="display:flex; gap:16px; font-weight:bold;">
+                                        <span>Tot. Geral: ${formatarMoeda(totGeralEmp)}</span>
+                                        <span style="${creditoEmp < 0 ? 'color:#c0392b;' : creditoEmp > 0 ? 'color:#27ae60;' : ''}">Crédito/Débito: ${formatarMoeda(creditoEmp)}</span>
+                                        <span>Total Lote de Funcionários: ${formatarMoeda(totGeralEmp + creditoEmp)}</span>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>`;
+                        if (proximoItem) linhas += `
+                            <tr class="row-separador-funcionario" style="height: 4px; background-color: #d0e8ff; border: none;">
+                                <td colspan="${colunas.length}" style="padding: 0; font-size: 0; border-top: 2px solid #7ab8f5; border-bottom: none;"></td>
+                            </tr>`;
                     }
                 });
 
@@ -1051,6 +1127,225 @@ const getPeriodoConsolidado = (evento, fasesSelecionadas, phaseKeyMap) => {
     };
 };
 
+// ===== Pagamentos a Empreiteiras =====
+// Consulta rápida dos ciclos pagos/em aberto de cada empreiteira (freelancers pagos via
+// fornecedor, ver utils/cicloFornecedor.js). Só leitura: trocar/remover anexo e estornar ficam no
+// CONFERIR do Vencimentos. O período é a data do PAGAMENTO (ciclo), não a do evento.
+let empreiteirasCarregadas = false;
+
+async function alternarFiltrosEmpreiteira() {
+    const ehEmpreiteiras = document.querySelector('input[name="reportType"]:checked')?.value === 'empreiteiras';
+    const mostrar = (el, sim) => { if (el) el.style.display = sim ? '' : 'none'; };
+    document.querySelectorAll('.filtrosEmpreiteira').forEach(el => mostrar(el, ehEmpreiteiras));
+    ['.Eventos', '.Clientes', '.Equipes', '#fsFasesEvento', '#fsOpcoesPagamento'].forEach(sel => {
+        document.querySelectorAll(`#Relatorios ${sel}`).forEach(el => mostrar(el, !ehEmpreiteiras));
+    });
+    const saida = document.getElementById('reportOutput');
+    if (saida) saida.innerHTML = '';
+
+    if (!ehEmpreiteiras) return;
+
+    // Período padrão da tela é "hoje a hoje", que não faz sentido pra pagamento de ciclo —
+    // abre no ano corrente inteiro (o usuário ajusta se quiser).
+    const ini = document.getElementById('reportStartDate');
+    const fim = document.getElementById('reportEndDate');
+    if (ini && fim && ini.value === fim.value) {
+        const ano = new Date().getFullYear();
+        ini.value = `${ano}-01-01`;
+        fim.value = `${ano}-12-31`;
+    }
+
+    if (empreiteirasCarregadas) return;
+    try {
+        const lista = await fetchComToken('/relatorios/empreiteiras/lista');
+        const sel = document.getElementById('empreiteiraSelect');
+        (Array.isArray(lista) ? lista : []).forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.idfornecedor;
+            opt.textContent = f.nmfantasia;
+            sel.appendChild(opt);
+        });
+        empreiteirasCarregadas = true;
+    } catch (e) {
+        console.error('Erro ao carregar empreiteiras:', e);
+    }
+}
+
+async function gerarRelatorioEmpreiteiras() {
+    const dataInicio = document.getElementById('reportStartDate').value;
+    const dataFim = document.getElementById('reportEndDate').value;
+    const idfornecedor = document.getElementById('empreiteiraSelect').value;
+    const situacao = document.getElementById('situacaoEmpreiteiraSelect').value;
+    const saida = document.getElementById('reportOutput');
+
+    if (!dataInicio || !dataFim) {
+        return Swal.fire({ icon: 'warning', title: 'Período obrigatório', text: 'Informe a data de início e a de término do pagamento.' });
+    }
+    if (dataInicio > dataFim) {
+        return Swal.fire({ icon: 'warning', title: 'Período inválido', text: 'A data de início não pode ser depois da data de término.' });
+    }
+
+    saida.innerHTML = '<p>Carregando pagamentos...</p>';
+    let ciclos = [];
+    try {
+        const qs = new URLSearchParams({ dataInicio, dataFim, situacao });
+        if (idfornecedor) qs.set('idfornecedor', idfornecedor);
+        const resp = await fetchComToken(`/relatorios/empreiteiras?${qs.toString()}`);
+        ciclos = resp?.ciclos || [];
+    } catch (e) {
+        saida.innerHTML = '';
+        return Swal.fire({ icon: 'error', title: 'Erro', text: e.corpo?.erro || 'Não foi possível carregar os pagamentos.' });
+    }
+
+    if (!ciclos.length) {
+        saida.innerHTML = '<p>Nenhum pagamento de empreiteira nesse período e filtro.</p>';
+        return;
+    }
+
+    window._relatorioEmpreiteiras = { ciclos, dataInicio, dataFim, situacao };
+    saida.innerHTML = montarRelatorioEmpreiteirasHtml(ciclos, { expandido: false, dataInicio, dataFim });
+
+    saida.querySelectorAll('.rel-emp-ciclo').forEach(tr => {
+        const alternar = () => {
+            const det = saida.querySelector(`#${tr.dataset.detalhe}`);
+            const abrir = tr.getAttribute('aria-expanded') !== 'true';
+            tr.setAttribute('aria-expanded', abrir);
+            if (det) det.style.display = abrir ? '' : 'none';
+        };
+        tr.addEventListener('click', alternar);
+        tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); alternar(); } });
+    });
+    saida.querySelector('#btnImprimirEmpreiteiras')?.addEventListener('click', () => {
+        const d = window._relatorioEmpreiteiras;
+        imprimirRelatorio(montarRelatorioEmpreiteirasHtml(d.ciclos, { expandido: true, impressao: true, dataInicio: d.dataInicio, dataFim: d.dataFim }));
+    });
+}
+
+// `expandido`: detalhe (evento → pessoa) já aberto — usado na impressão, que não tem clique.
+function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao = false, dataInicio, dataFim } = {}) {
+    const brl = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const dataBR = (iso) => iso ? iso.split('-').reverse().join('/') : '---';
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const corSituacao = (st) => st === 'Pago' ? 'rel-emp-pago' : st === 'Parcial' ? 'rel-emp-parcial' : 'rel-emp-aberto';
+    const linkAnexo = (url, rotulo) => url
+        ? (impressao ? `<span>${rotulo}</span>` : `<a href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${rotulo}</a>`)
+        : '<span class="rel-emp-vazio">—</span>';
+
+    const porFornecedor = new Map();
+    ciclos.forEach(c => {
+        if (!porFornecedor.has(c.idfornecedor)) porFornecedor.set(c.idfornecedor, []);
+        porFornecedor.get(c.idfornecedor).push(c);
+    });
+
+    const totalGeral = ciclos.reduce((s, c) => s + c.total, 0);
+    const pagoGeral = ciclos.reduce((s, c) => s + c.pago, 0);
+    let linhas = '';
+    let idx = 0;
+
+    porFornecedor.forEach((lista) => {
+        const f = lista[0];
+        const regra = f.tipopgto === 'INTERVALO' ? `a cada ${f.intervalodias} dias` : f.tipopgto === 'MENSAL' ? `todo dia ${f.diamespgto}` : 'por evento';
+        linhas += `<tr class="rel-emp-grupo"><td colspan="9"><strong>${esc(f.nmfantasia)}</strong> · PIX ${esc(f.pix || '—')} · ${regra} · ${f.envianf ? 'emite NF' : 'não emite NF (listagem)'}</td></tr>`;
+
+        lista.sort((a, b) => a.dtciclo.localeCompare(b.dtciclo)).forEach(c => {
+            const idDet = `rel-emp-det-${idx++}`;
+            const periodo = c.dtinicio ? `${dataBR(c.dtinicio).slice(0, 5)} a ${dataBR(c.dtciclo).slice(0, 5)}` : 'por evento';
+            linhas += `<tr class="rel-emp-ciclo" data-detalhe="${idDet}" tabindex="0" aria-expanded="${expandido}">
+                <td>${impressao ? '' : '<span class="rel-emp-seta">▶</span> '}<strong>${dataBR(c.dtciclo)}</strong></td>
+                <td class="text-center">${periodo}</td>
+                <td class="text-center">${c.qtdEventos}</td>
+                <td class="text-center">${c.qtdPessoas}</td>
+                <td class="text-center"><span class="rel-emp-situacao ${corSituacao(c.status)}">${c.status === 'Pendente' ? 'Em aberto' : c.status}</span></td>
+                <td class="text-center">${linkAnexo(c.notafiscal, c.envianf ? 'Ver NF' : 'Ver Listagem')}</td>
+                <td class="text-center">${linkAnexo(c.comprovante, 'Ver Comp.')}</td>
+                <td class="text-right">${brl(c.pago)}</td>
+                <td class="text-right">${brl(c.total)}</td>
+            </tr>`;
+
+            // Detalhe: evento → pessoa, e crédito/débito do ciclo
+            const porEvento = new Map();
+            c.pessoas.forEach(p => {
+                if (!porEvento.has(p.idevento)) porEvento.set(p.idevento, { nome: p.nmevento, pessoas: [] });
+                porEvento.get(p.idevento).pessoas.push(p);
+            });
+            let det = `<table class="report-table rel-emp-det-tabela"><thead><tr>
+                <th>Freelancer</th><th>Função</th><th class="text-center">Diárias</th><th class="text-right">Cachê</th>
+                <th class="text-right">Ajuda</th><th class="text-center">Situação</th><th class="text-right">Total</th></tr></thead><tbody>`;
+            porEvento.forEach(ev => {
+                det += `<tr class="rel-emp-evento"><td colspan="7">${esc(ev.nome)}</td></tr>`;
+                ev.pessoas.forEach(p => {
+                    const sit = p.quitado ? 'Pago' : p.pendente ? 'Aguardando autorização' : p.suspenso ? 'Suspenso' : 'Em aberto';
+                    det += `<tr><td>${esc(p.nome)}</td><td>${esc(p.funcao)}</td><td class="text-center">${p.qtddiarias}</td>
+                        <td class="text-right">${brl(p.cache)}</td><td class="text-right">${brl(p.ajuda)}</td>
+                        <td class="text-center">${sit}</td><td class="text-right">${brl(p.total)}</td></tr>`;
+                });
+            });
+            (c.ajustes || []).forEach(a => {
+                det += `<tr><td>${esc(a.nome)}</td><td colspan="4">${a.tipo === 'Credito' ? 'Crédito' : 'Débito'} · ${esc(a.justificativa || '')}</td>
+                    <td class="text-center">${a.status === 'Pago' ? 'Pago' : 'Em aberto'}</td>
+                    <td class="text-right">${a.tipo === 'Credito' ? '' : '-'}${brl(a.valor)}</td></tr>`;
+            });
+            det += '</tbody></table>';
+            linhas += `<tr class="rel-emp-detalhe" id="${idDet}" style="${expandido ? '' : 'display:none;'}"><td colspan="9">${det}</td></tr>`;
+        });
+
+        const tot = lista.reduce((s, c) => s + c.total, 0);
+        const pago = lista.reduce((s, c) => s + c.pago, 0);
+        linhas += `<tr class="rel-emp-total"><td colspan="7" class="text-right">TOTAL ${esc(f.nmfantasia.toUpperCase())}</td>
+            <td class="text-right">${brl(pago)}</td><td class="text-right">${brl(tot)}</td></tr>`;
+    });
+
+    linhas += `<tr class="rel-emp-total-geral"><td colspan="7" class="text-right">TOTAL GERAL</td>
+        <td class="text-right">${brl(pagoGeral)}</td><td class="text-right">${brl(totalGeral)}</td></tr>`;
+
+    // Impressão roda num iframe sem o CSS da tela (ver imprimirRelatorio) — leva o próprio estilo.
+    const estiloImpressao = impressao ? `<style>
+        .rel-emp-cabecalho{display:flex;justify-content:space-between;margin:6px 0 10px}
+        .rel-emp-cabecalho span{display:block;font-size:12px;color:#555}
+        .rel-emp-resumo{display:flex;gap:24px;margin-bottom:10px;font-size:12px}
+        .rel-emp-resumo span{display:block;color:#555}
+        .rel-emp-grupo td{background:#e6e6e6;font-size:13px;border-left:4px solid #c8102e}
+        .rel-emp-total td{font-weight:bold;background:#f4dadd}
+        .rel-emp-total-geral td{font-weight:bold;background:#d8d8d8}
+        .rel-emp-evento td{font-weight:bold;background:#f2f2f2}
+        .rel-emp-detalhe > td{padding:4px 4px 10px 24px}
+        .rel-emp-vazio{color:#999}
+    </style>` : '';
+
+    return `
+    <div class="relatorio-evento rel-emp">
+        ${estiloImpressao}
+        ${impressao ? `<div class="print-header-top">
+            <img src="${empresaLogoPath}" alt="Logo Empresa" class="logo-ja">
+            <div class="header-title-container"><h1 class="header-title">Pagamentos a Empreiteiras</h1></div>
+        </div>` : ''}
+        <div class="rel-emp-cabecalho">
+            <div>
+                <strong>Pagamentos a Empreiteiras</strong>
+                <span>Pagamentos de ${dataBR(dataInicio)} a ${dataBR(dataFim)}</span>
+            </div>
+            ${impressao ? '' : '<button type="button" id="btnImprimirEmpreiteiras" class="rel-emp-btn">Imprimir</button>'}
+        </div>
+        <div class="rel-emp-resumo">
+            <div><span>Ciclos</span><strong>${ciclos.length}</strong></div>
+            <div><span>Pago</span><strong class="rel-emp-pago-txt">${brl(pagoGeral)}</strong></div>
+            <div><span>Em aberto</span><strong class="rel-emp-aberto-txt">${brl(totalGeral - pagoGeral)}</strong></div>
+            <div><span>Total</span><strong>${brl(totalGeral)}</strong></div>
+        </div>
+        <div class="rel-emp-rolagem">
+            <table class="report-table">
+                <thead><tr>
+                    <th>Pagamento</th><th class="text-center">Período coberto</th><th class="text-center">Eventos</th>
+                    <th class="text-center">Pessoas</th><th class="text-center">Situação</th><th class="text-center">NF / Listagem</th>
+                    <th class="text-center">Comprovante</th><th class="text-right">Pago</th><th class="text-right">Total</th>
+                </tr></thead>
+                <tbody>${linhas}</tbody>
+            </table>
+        </div>
+        ${impressao ? '' : '<p class="rel-emp-dica">Clique num pagamento para ver os eventos e as pessoas. Para trocar ou remover anexos, ou estornar, use o CONFERIR em Vencimentos.</p>'}
+    </div>`;
+}
+
 async function gerarRelatorio() {
     console.log('Iniciando a geração do relatório...');
 
@@ -1064,6 +1359,14 @@ async function gerarRelatorio() {
     // Obtém os dados dos campos
     //const tipo = document.getElementById('reportType').value;
     const tipo = document.querySelector('input[name="reportType"]:checked').value;
+
+    // Pagamentos a Empreiteiras tem fluxo próprio (outra rota, sem evento/fase/cliente, mostrado
+    // na própria tela em vez de ir direto pra impressão) — ver gerarRelatorioEmpreiteiras.
+    if (tipo === 'empreiteiras') {
+        try { await gerarRelatorioEmpreiteiras(); }
+        finally { gerarRelatorioBtn.disabled = false; }
+        return;
+    }
     const incluirPendentes = checkPendentes.checked; // Será true ou false
     const incluirPagos = checkPagos.checked;         // Será true ou false
     const dataInicio = document.getElementById('reportStartDate').value;

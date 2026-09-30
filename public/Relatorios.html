@@ -64,12 +64,24 @@
                 <p class="checkbox__textwrapper">Cachê + Ajuda de Custo </p>
               </label>
             </div>
+
+            <div class="checkbox-wrapper-33">
+              <label class="checkbox">
+                <input class="checkbox__trigger visuallyhidden" type="radio" id="empreiteirasRadio" name="reportType" value="empreiteiras" />
+                <span class="checkbox__symbol">
+                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 14l8 7L24 7"></path>
+                  </svg>
+                </span>
+                <p class="checkbox__textwrapper">Pagamentos a Empreiteiras</p>
+              </label>
+            </div>
           </div> </div>
       </div>
       <br>
 </fieldset>
 
-        <fieldset>
+        <fieldset id="fsFasesEvento">
           <legend>Filtrar por Fase Específica do Evento:</legend>
           <br>
           <div class="tpRelatorio">
@@ -154,7 +166,7 @@
           <br>
         </fieldset>
           
-        <fieldset>
+        <fieldset id="fsOpcoesPagamento">
           <legend>Opções:</legend>
           <br>
           <div class="tpRelatorio">
@@ -226,7 +238,23 @@
             <option value="">Selecione uma Equipe</option>
           </select>
         </div>
-      </div>      
+
+        <!-- Pagamentos a Empreiteiras: filtros próprios (o período é a data do pagamento/ciclo) -->
+        <div class="filtrosEmpreiteira" style="display: none;">
+          <label for="empreiteiraSelect">Empreiteira:</label>
+          <select id="empreiteiraSelect">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="filtrosEmpreiteira" style="display: none;">
+          <label for="situacaoEmpreiteiraSelect">Situação:</label>
+          <select id="situacaoEmpreiteiraSelect">
+            <option value="todas">Todas</option>
+            <option value="pago">Pagos</option>
+            <option value="aberto">Em aberto</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <div class="BTNs">

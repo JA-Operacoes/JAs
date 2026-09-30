@@ -1610,6 +1610,8 @@ display: none;
 }
 
 .restrito-visualizacao .checkbox-wrapper-33.checkbox-coluna.contratarstaff,
+.restrito-visualizacao .empreiteira-orcamento,
+.restrito-visualizacao #tabela td.Empreiteira,
 .restrito-visualizacao .form2,
 .restrito-visualizacao .Selects,
 .restrito-visualizacao .selectPav,
@@ -2183,3 +2185,69 @@ table.parcelas-tabela input[readonly] {
 .parc-status-chip.cancelada { background: var(--Reject, #B50000); }
 
 
+
+/* ─────────────────────────────────────────────
+   Freelancer pago via empreiteira (ver configurarEmpreiteiraOrcamento em Orcamentos.js)
+   Topo: empreiteira padrão do orçamento. Tabela: coluna "Empreiteira" por item de staff.
+ ───────────────────────────────────────────── */
+/* Mesmo visual dos campos vizinhos (.form + input.preenchido ~ label): borda fina, fundo
+   transparente e rótulo pequeno em cima da borda. */
+.empreiteira-orcamento {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 12px;
+}
+.empreiteira-orcamento select {
+  font-family: var(--Font-primary);
+  font-size: 12px;
+  height: 30px;
+  width: 240px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-2);
+  background: transparent;
+  color: var(--text-1);
+  outline: none;
+}
+.empreiteira-orcamento select:focus { border: 2px solid var(--border-color); }
+.empreiteira-orcamento select option { background: var(--surface-1); color: var(--text-1); }
+.empreiteira-orcamento label {
+  position: absolute;
+  top: 0;
+  left: 5%;
+  transform: translateY(-50%);
+  margin-left: 10px;
+  padding: 0 2px;
+  font-size: 11px;
+  color: var(--text-1);
+  background: var(--surface-4);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#tabela td.Empreiteira { text-align: center; }
+#tabela .empreiteira-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+#tabela .empreiteira-item-input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+#tabela .empreiteira-item-select {
+  font-family: var(--Font-primary);
+  font-size: 12px;
+  height: 26px;
+  max-width: 150px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-1);
+  color: var(--text-1);
+}

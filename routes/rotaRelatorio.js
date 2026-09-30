@@ -338,6 +338,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             tse.nivelexperiencia,
                             tbf.nome AS "NOME",
                             tbf.pix AS "PIX",
+                            -- Pago via empreiteira: o front agrupa por aqui e mostra o PIX dela no total.
+                            fvinc.nmfantasia AS "EMPREITEIRA",
+                            fvinc.pix AS "PIX EMPREITEIRA",
                             fe.perfil AS "PERFIL_FUNC",
                             (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
                             (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
@@ -496,9 +499,10 @@ router.get("/", autenticarToken(), contextoEmpresa,
                         JOIN staffempresas semp ON tse.idstaff = semp.idstaff
                         JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                         LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
-                        WHERE semp.idempresa = $1 
-                            ${whereStatus} 
-                            ${wherePeriodoFinal} 
+                        LEFT JOIN fornecedores fvinc ON fvinc.idfornecedor = tse.idfornecedor
+                        WHERE semp.idempresa = $1
+                            ${whereStatus}
+                            ${wherePeriodoFinal}
                             AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                             AND jsonb_array_length(
                                 (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
@@ -509,7 +513,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                     -- solicitação/inclusão no orçamento, ou crédito/débito diferente de zero
                     -- (mesmo staff "Interno" em dia de semana sem cachê extra).
                     WHERE ("QTD" > 0 OR "VLR ADICIONAL" != 0 OR "STATUS SOLICITAÇÃO" IS NOT NULL OR "CRÉDITO/DÉBITO" != 0)
-                    ORDER BY "nomeEvento", "NOME";
+                    -- Empreiteiras primeiro, cada uma com suas pessoas juntas (o front fecha o
+                    -- grupo com o total dela); depois quem recebe direto, como antes.
+                    ORDER BY "nomeEvento", ("EMPREITEIRA" IS NULL), "EMPREITEIRA", "NOME";
                     `;
 
                 } else if (tipo === 'operacional') {
@@ -788,6 +794,9 @@ router.get("/", autenticarToken(), contextoEmpresa,
                                 COALESCE(tse.vlrtotcache, 0) as vlrtotcache,  
                                 COALESCE(tse.vlrtotajdcusto, 0) as vlrtotajdcusto, 
                                 tbf.pix AS "PIX",
+                                -- Pago via empreiteira: o front agrupa por aqui e mostra o PIX dela no total.
+                                fvinc.nmfantasia AS "EMPREITEIRA",
+                                fvinc.pix AS "PIX EMPREITEIRA",
                                 fe.perfil AS "PERFIL_STAFF",
                                 fe.mei AS "PERFIL_MEI",
                                 (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
@@ -899,11 +908,13 @@ router.get("/", autenticarToken(), contextoEmpresa,
                             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
                             JOIN funcionarioempresas fe ON fe.idfuncionario = tbf.idfuncionario AND fe.idempresa = semp.idempresa
                             LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
+                            LEFT JOIN fornecedores fvinc ON fvinc.idfornecedor = tse.idfornecedor
                             WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
                             AND tse.statusstaff NOT IN ('Deletado', 'Inativado')
                             AND jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql})) > 0
                         ) AS sub
-                        ORDER BY sub."nomeEvento", sub."NOME";
+                        -- Empreiteiras primeiro, cada uma com suas pessoas juntas (ver tipo 'cache').
+                        ORDER BY sub."nomeEvento", (sub."EMPREITEIRA" IS NULL), sub."EMPREITEIRA", sub."NOME";
                     `;
                 }
 
@@ -1565,6 +1576,50 @@ router.get('/empresas/:id', autenticarToken(), async (req, res) => {
     } catch (err) {
         console.error("❌ Erro ao buscar empresa:", err);
         return res.status(500).json({ error: "Erro interno ao validar acesso à empresa." });
+    }
+});
+
+// ===== Pagamentos a Empreiteiras (freelancers pagos via fornecedor) =====
+// Consulta rápida fora do Vencimentos: ciclos (fornecedor × data de pagamento) com pessoas,
+// eventos, valores e anexos. Só leitura — trocar/remover anexo e estornar ficam no CONFERIR do
+// Vencimentos. O período filtra pela DATA DO CICLO (pagamento), não pela data do evento.
+// Mesmo nível de acesso das opções financeiras da tela de Relatórios.
+const { carregarCiclosFornecedor, CATEGORIA_EMPREITEIRA } = require('../utils/cicloFornecedor');
+const { exigirFlag } = require('../middlewares/permissaoMiddleware');
+
+router.get('/empreiteiras/lista', exigirFlag('financeiro', 'master', 'supremo', 'devs'), async (req, res) => {
+    try {
+        const { rows } = await pool.query(
+            `SELECT f.idfornecedor, f.nmfantasia
+               FROM fornecedores f
+               JOIN fornecedorempresas fe ON fe.idfornecedor = f.idfornecedor
+              WHERE fe.idempresa = $1 AND fe.categoria = $2
+              ORDER BY f.nmfantasia`,
+            [req.idempresa, CATEGORIA_EMPREITEIRA]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error("Erro ao listar empreiteiras do relatório:", error);
+        res.status(500).json({ erro: "Erro ao listar empreiteiras." });
+    }
+});
+
+router.get('/empreiteiras', exigirFlag('financeiro', 'master', 'supremo', 'devs'), async (req, res) => {
+    const idfornecedor = parseInt(req.query.idfornecedor, 10) || null;
+    const { dataInicio, dataFim } = req.query;
+    const situacao = ['pago', 'aberto'].includes(req.query.situacao) ? req.query.situacao : 'todas';
+    const dataValida = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+    if (!dataValida(dataInicio) || !dataValida(dataFim)) {
+        return res.status(400).json({ erro: "Informe a data de início e a de término." });
+    }
+    try {
+        const ciclos = (await carregarCiclosFornecedor(req.idempresa, { idfornecedor }))
+            .filter((c) => c.dtciclo >= dataInicio && c.dtciclo <= dataFim)
+            .filter((c) => situacao === 'todas' || (situacao === 'pago' ? c.status === 'Pago' : c.status !== 'Pago'));
+        res.json({ ciclos });
+    } catch (error) {
+        console.error("Erro no relatório de empreiteiras:", error);
+        res.status(500).json({ erro: "Erro ao gerar o relatório de empreiteiras." });
     }
 });
 

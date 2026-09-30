@@ -148,9 +148,140 @@ const campos = {
         agencia: "#agencia",
         digitoagencia: "#digitoAgencia",
         conta: "#nConta",
-        digitoconta: "#digitoConta"
-  
+        digitoconta: "#digitoConta",
+        categoria: "#categoria",
+        envianf: "#enviaNF",
+        tipopgto: "#tipoPgto",
+        intervalodias: "#intervaloDias",
+        dtbasepgto: "#dtBasePgto",
+        diamespgto: "#diaMesPgto"
+
 };
+
+// Resumo dos pagamentos do ano (só empreiteira já salva) + botão que abre o Relatório de
+// Pagamentos a Empreiteiras filtrado nela. `null` esconde o bloco (fornecedor novo/limpo).
+// Ano mostrado no resumo — começa no ano atual; o select lista só os anos que tiveram ciclo.
+let anoResumoPagamentos = null;
+
+async function carregarResumoPagamentosEquipe(idfornecedor, ano = anoResumoPagamentos) {
+    const bloco = document.getElementById("resumoPagamentosEquipe");
+    const dados = document.getElementById("dadosPagamentosEquipe");
+    if (!bloco || !dados) return;
+    bloco.dataset.idfornecedor = idfornecedor || "";
+    if (!idfornecedor) { bloco.style.display = "none"; anoResumoPagamentos = null; return; }
+
+    try {
+        const qs = ano ? `?ano=${ano}` : "";
+        const r = await fetchComToken(`/fornecedores/${idfornecedor}/resumo-pagamentos${qs}`);
+        const brl = (v) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        const proximo = r.proximoVencimento ? ` (${r.proximoVencimento.split("-").reverse().join("/")})` : "";
+        const anos = [...new Set([...(r.anos || []), r.ano])].sort((a, b) => b - a);
+        dados.innerHTML = `
+            <label for="anoPagamentosEquipe" class="ano-pagamentos-equipe">Pagamentos em
+                <select id="anoPagamentosEquipe">${anos.map(a => `<option value="${a}" ${a === r.ano ? "selected" : ""}>${a}</option>`).join("")}</select>
+            </label>
+            <span>Ciclos pagos: <b>${r.ciclosPagos}</b></span>
+            <span>Total pago: <b>${brl(r.totalPago)}</b></span>
+            <span>Em aberto: <b>${brl(r.totalEmAberto)}</b>${proximo}</span>`;
+        document.getElementById("anoPagamentosEquipe")?.addEventListener("change", (e) => {
+            carregarResumoPagamentosEquipe(idfornecedor, Number(e.target.value));
+        });
+        bloco.style.display = "";
+    } catch (e) {
+        console.error("Erro ao carregar resumo de pagamentos:", e);
+        bloco.style.display = "none";
+    }
+}
+
+// Abre Relatórios já no tipo "Pagamentos a Empreiteiras", filtrado no fornecedor: deixa o filtro
+// numa variável global (lida por initRelatorios) e aciona o próprio link do menu, que carrega o
+// módulo com as permissões normais. Link escondido = usuário sem acesso a Relatórios.
+function abrirRelatorioEmpreiteira(idfornecedor) {
+    const link = document.querySelector('a.abrir-modal[data-modulo="Relatorios"]');
+    if (!link || link.style.display === "none") {
+        return Swal.fire("Sem acesso", "Você não tem permissão para a tela de Relatórios.", "info");
+    }
+    const ano = document.getElementById("anoPagamentosEquipe")?.value || new Date().getFullYear();
+    window.filtroRelatorioEmpreiteira = { idfornecedor, ano };
+    // Ao fechar o Relatório (X), volta pro Cadastro de Fornecedor com este fornecedor carregado
+    // (ver retornoAposFecharModal em fecharModal, Index.js).
+    const nmfantasia = window.fornecedorOriginal?.nmFantasia || document.getElementById("nmFantasia")?.value || "";
+    window.retornoAposFecharModal = () => {
+        const linkForn = document.querySelector('a.abrir-modal[data-modulo="Fornecedores"]');
+        if (!linkForn) return;
+        window.fornecedorParaReabrir = { idfornecedor, nmfantasia, ano };
+        linkForn.click();
+    };
+    link.click();
+}
+
+// Reaberto depois do Relatório: recarrega o fornecedor que estava na tela.
+async function reabrirFornecedorAposRelatorio() {
+    const alvo = window.fornecedorParaReabrir;
+    window.fornecedorParaReabrir = null;
+    if (!alvo?.nmfantasia) return;
+    try {
+        const fornecedor = await fetchComToken(`/fornecedores?nmFantasia=${encodeURIComponent(alvo.nmfantasia)}`);
+        if (fornecedor && fornecedor.idfornecedor) {
+            anoResumoPagamentos = alvo.ano ? Number(alvo.ano) : null;
+            preencherFormulario(fornecedor);
+        }
+    } catch (e) {
+        console.error("Erro ao reabrir fornecedor:", e);
+    }
+}
+
+// Pagamento de equipe (empreiteira): os campos de regra só aparecem pra categoria
+// EMPREITEIRA, e dentro dela só os do tipo de vencimento escolhido.
+function atualizarBlocoPagamentoEquipe() {
+    const categoria = document.getElementById("categoria")?.value || "";
+    const ehEmpreiteira = categoria === "EMPREITEIRA";
+    const tipo = document.getElementById("tipoPgto")?.value || "EVENTO";
+
+    const blocoNF = document.getElementById("blocoEnviaNF");
+    const blocoRegra = document.getElementById("blocoRegraPgto");
+    if (blocoNF) blocoNF.style.display = ehEmpreiteira ? "" : "none";
+    if (blocoRegra) blocoRegra.style.display = ehEmpreiteira ? "" : "none";
+    document.querySelectorAll(".campoIntervalo").forEach(el => { el.style.display = tipo === "INTERVALO" ? "" : "none"; });
+    document.querySelectorAll(".campoMensal").forEach(el => { el.style.display = tipo === "MENSAL" ? "" : "none"; });
+
+    // Atalho aceso quando o intervalo digitado bate com ele (7 = semanal, 14 = quinzenal).
+    const diasAtual = document.getElementById("intervaloDias")?.value || "";
+    document.querySelectorAll(".btn-atalho-intervalo").forEach(btn => {
+        btn.classList.toggle("ativo", btn.dataset.dias === diasAtual);
+    });
+
+    const dias = parseInt(document.getElementById("intervaloDias")?.value, 10);
+    const base = document.getElementById("dtBasePgto")?.value;
+    const diaMes = parseInt(document.getElementById("diaMesPgto")?.value, 10);
+
+    // Dica embaixo do intervalo: múltiplo de 7 cai sempre no mesmo dia da semana (o da data do
+    // primeiro pagamento); qualquer outro número faz o dia andar a cada pagamento.
+    const dica = document.getElementById("dicaIntervalo");
+    if (dica) {
+        const nomesDia = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+        if (!(dias > 0)) dica.textContent = "";
+        else if (dias % 7 === 0) dica.textContent = base
+            ? `Sempre ${nomesDia[new Date(base + "T12:00:00").getDay()]}`
+            : "Sempre no mesmo dia da semana do primeiro pagamento";
+        else dica.textContent = "O dia da semana muda a cada pagamento";
+    }
+
+    const resumo = document.getElementById("resumoRegraPgto");
+    if (!resumo) return;
+    if (tipo === "INTERVALO" && dias > 0 && base) {
+        const nomes = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+        const dBase = new Date(base + "T12:00:00");
+        const proximos = [0, 1, 2].map(i => new Date(dBase.getTime() + i * dias * 86400000).toLocaleDateString("pt-BR"));
+        resumo.textContent = `Paga a cada ${dias} dias${dias % 7 === 0 ? `, sempre ${nomes[dBase.getDay()]}` : ""}: ${proximos.join(", ")}… Cada evento entra no primeiro pagamento depois do vencimento do cachê.`;
+    } else if (tipo === "MENSAL" && diaMes >= 1) {
+        resumo.textContent = `Paga todo dia ${diaMes}${diaMes > 28 ? " (mês mais curto paga no último dia)" : ""}. Entra tudo com vencimento de cachê até o dia do pagamento.`;
+    } else if (tipo === "EVENTO") {
+        resumo.textContent = "Uma conta por evento, no vencimento do cachê (2 dias após o fim da desmontagem).";
+    } else {
+        resumo.textContent = "";
+    }
+}
 
 const getCampo = (key) => document.querySelector(campos[key]);
 
@@ -209,9 +340,19 @@ const preencherFormulario = (fornecedor) => {
         agencia: fornecedor.agencia || "",
         digitoagencia: fornecedor.digitoagencia || "",
         conta: fornecedor.conta || "",
-        digitoconta: fornecedor.digitoconta || ""
-       
+        digitoconta: fornecedor.digitoconta || "",
+        categoria: fornecedor.categoria || "",
+        envianf: fornecedor.envianf === true,
+        tipopgto: fornecedor.categoria ? (fornecedor.tipopgto || "EVENTO") : "",
+        intervalodias: fornecedor.intervalodias ?? "",
+        dtbasepgto: fornecedor.dtbasepgto || "",
+        diamespgto: fornecedor.diamespgto ?? ""
+
     };
+    if (!fornecedor.tipopgto) setCampo("tipopgto", "EVENTO");
+    atualizarBlocoPagamentoEquipe();
+    carregarResumoPagamentosEquipe(fornecedor.categoria === "EMPREITEIRA" ? fornecedor.idfornecedor : null, anoResumoPagamentos);
+    anoResumoPagamentos = null; // próximo fornecedor pesquisado abre no ano atual
 
     console.log("Fornecedor original CarregarFornecedor:", window.fornecedorOriginal);
 
@@ -309,6 +450,8 @@ const limparFormulario = () => {
     form.reset();
     document.querySelector("#idFornecedor").value = "";
     if (typeof limparFornecedorOriginal === "function") limparFornecedorOriginal();
+    atualizarBlocoPagamentoEquipe();
+    carregarResumoPagamentosEquipe(null);
     
     
 };
@@ -344,7 +487,14 @@ const obterDadosFormulario = () => {
         agencia: valor("agencia"),
         digitoagencia: valor("digitoagencia"),
         conta: valor("conta"),
-        digitoconta: valor("digitoconta")
+        digitoconta: valor("digitoconta"),
+        categoria: valor("categoria"),
+        // Fora da categoria Empreiteira as regras de pagamento não se aplicam (o backend zera).
+        envianf: valor("categoria") === "EMPREITEIRA" && getCampo("envianf")?.checked === true,
+        tipopgto: valor("categoria") === "EMPREITEIRA" ? valor("tipopgto") : "",
+        intervalodias: valor("categoria") === "EMPREITEIRA" && valor("tipopgto") === "INTERVALO" ? valor("intervalodias") : "",
+        dtbasepgto: valor("categoria") === "EMPREITEIRA" && valor("tipopgto") === "INTERVALO" ? valor("dtbasepgto") : "",
+        diamespgto: valor("categoria") === "EMPREITEIRA" && valor("tipopgto") === "MENSAL" ? valor("diamespgto") : ""
     };
     console.log("Dados do formulário prontos para envio:", dados);
     return dados;
@@ -354,7 +504,31 @@ const obterDadosFormulario = () => {
 function carregarFornecedores() {
     console.log("Configurando eventos para o modal de fornecedors");
    
-    aplicarMascaras();  
+    aplicarMascaras();
+
+    ["categoria", "tipoPgto", "intervaloDias", "dtBasePgto", "diaMesPgto"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("change", atualizarBlocoPagamentoEquipe);
+            el.addEventListener("input", atualizarBlocoPagamentoEquipe);
+        }
+    });
+    document.getElementById("btnVerPagamentosEquipe")?.addEventListener("click", () => {
+        const id = document.getElementById("resumoPagamentosEquipe")?.dataset.idfornecedor;
+        if (id) abrirRelatorioEmpreiteira(id);
+    });
+
+    // Atalhos Semanal (7) / Quinzenal (14): quinzenal é a cada 14 dias — duas semanas, pra
+    // cair sempre no mesmo dia da semana da data base (com 15 o dia andaria a cada ciclo).
+    document.querySelectorAll(".btn-atalho-intervalo").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const campo = document.getElementById("intervaloDias");
+            if (!campo) return;
+            campo.value = btn.dataset.dias;
+            atualizarBlocoPagamentoEquipe();
+        });
+    });
+    atualizarBlocoPagamentoEquipe();
 
     const tpFornecedorInput = document.getElementById('tpfornecedor');
     if(tpFornecedorInput){
@@ -430,6 +604,13 @@ function carregarFornecedores() {
         // Valida campos obrigatórios
         if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
             return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
+        }
+
+        if (dados.tipopgto === "INTERVALO" && (!(parseInt(dados.intervalodias, 10) > 0) || !dados.dtbasepgto)) {
+            return Swal.fire("Atenção!", "Pagamento a cada N dias: informe o intervalo (quinzenal = 14) e a data do primeiro pagamento.", "warning");
+        }
+        if (dados.tipopgto === "MENSAL" && !(parseInt(dados.diamespgto, 10) >= 1 && parseInt(dados.diamespgto, 10) <= 31)) {
+            return Swal.fire("Atenção!", "Pagamento mensal: informe o dia do mês (1 a 31).", "warning");
         }
 
         // Valida alterações
@@ -998,8 +1179,8 @@ function limparFornecedorOriginal() {
 }
 
 function limparCamposFornecedores(){
-    const campos = ["idFornecedor", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailFornecedor", "pix", "site", "telefone", "nmContato", "celContato", "emailContato", "cep", "rua", "numero", "complemento", "bairro", "cidade", "estado", "pais", "tpfornecedor", "observacao", "codBanco", "Agencia", "digitoAgencia", "nConta", "digitoConta"];  
-   
+    const campos = ["idFornecedor", "nmFantasia", "razaoSocial", "cnpj", "inscEstadual", "emailFornecedor", "pix", "site", "telefone", "nmContato", "celContato", "emailContato", "cep", "rua", "numero", "complemento", "bairro", "cidade", "estado", "pais", "tpfornecedor", "observacao", "codBanco", "Agencia", "digitoAgencia", "nConta", "digitoConta", "categoria", "enviaNF", "intervaloDias", "dtBasePgto", "diaMesPgto"];
+
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -1010,6 +1191,10 @@ function limparCamposFornecedores(){
             }
         }
     });
+    const campoTipoPgto = document.getElementById("tipoPgto");
+    if (campoTipoPgto) campoTipoPgto.value = "EVENTO";
+    atualizarBlocoPagamentoEquipe();
+    carregarResumoPagamentosEquipe(null);
 
     // Garante que o campo "ativo" (checkbox) seja desmarcado
     const campoAtivo = document.getElementById("ativo");
@@ -1062,6 +1247,7 @@ function configurarEventosFornecedores() {
     carregarFornecedores();
     adicionarEventoBlurFornecedor() ;
     configurarVerificacaoCnpj(); // detecta CPF/CNPJ já cadastrado (nesta ou em outra empresa)
+    reabrirFornecedorAposRelatorio(); // voltando do Relatório de Empreiteiras ("Ver pagamentos")
 }
 window.configurarEventosFornecedores = configurarEventosFornecedores;
 

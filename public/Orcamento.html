@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<link rel="stylesheet" href="css/Modal/Orcamento.css?v=1">
+<link rel="stylesheet" href="css/Modal/Orcamento.css?v=1.21.0">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 <div id="cadModalOrcamentos" class="modal">
     <div class="modal-content">
@@ -68,6 +68,17 @@
                                     </svg>
                                 </span>
                             </label>
+                        </div>
+
+                        <!-- Freelancer pago via empreiteira: padrão do orçamento (opcional). Escolher aqui
+                             marca todos os itens de staff com esta empreiteira; cada item pode ser ajustado
+                             na coluna "Empreiteira" da tabela. O Staff pré-marca o lançamento pelo item. -->
+                        <div class="empreiteira-orcamento">
+                            <label for="empreiteiraOrcamento">Empreiteira/Lote de Funcionários</label>
+                            <select id="empreiteiraOrcamento" name="empreiteiraOrcamento"
+                                title="Escolha para marcar todos os itens de staff com esta empreiteira. Cada item pode ser ajustado na tabela.">
+                                <option value="">Sem empreiteira padrão</option>
+                            </select>
                         </div>
                         
                         <div class="form">
@@ -258,6 +269,7 @@
                                     <th style="display: none;"></th>
                                     <th class="Proposta">Proposta</th>
                                     <th class="LiberarContratacao" title="Desmarque para impedir a contratação de staff para este item específico, mesmo com o orçamento liberado/fechado.">Contratar</th>
+                                    <th class="Empreiteira" title="Marque para o staff deste item ser pago via empreiteira (lote de funcionários). O Staff já traz marcado ao lançar.">Empreiteira</th>
                                     <th class="cacheFechado">Cachê Fechado</th>
                                     <th class="Categoria">Categoria</th>
                                     <th class="qtdProduto">Qtd Itens</th>

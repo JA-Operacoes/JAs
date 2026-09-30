@@ -2516,3 +2516,38 @@ table.mostrar-inativos tr.row-inativo { display: table-row; }
     background-color: #1a6fc4;
     color: var(--on-brand);
 }
+
+/* ─────────────────────────────────────────────
+   Pago via empreiteira (check "Empreiteira/Lote" + fornecedor), abaixo da avaliação.
+   Só aparece pra Freelancer, Externo e Lote (ver atualizarBlocoEmpreiteiraStaff em Staff.js).
+ ───────────────────────────────────────────── */
+.bloco-empreiteira-staff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin: 8px auto 0;
+}
+.bloco-empreiteira-staff .check-empreiteira-staff {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 16px;
+  cursor: pointer;
+}
+.bloco-empreiteira-staff .check-empreiteira-staff input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+.bloco-empreiteira-staff #idFornecedorStaff { width: 270px; }
+.bloco-empreiteira-staff .aviso-empreiteira-staff {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.bloco-empreiteira-staff.travado .check-empreiteira-staff { cursor: not-allowed; opacity: .75; }
