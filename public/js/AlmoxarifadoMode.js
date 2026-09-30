@@ -478,6 +478,37 @@ async function abrirMovimentacaoItemAlmoxarifado(item, tipo) {
           <span>Retirando para</span>
           <small>Opcional — deixe em branco se for para uso próprio.</small>
         </label>
+        ${tipo === "saida"
+          ? `<div id="swal-almox-mov-area-wrap" style="display:none; text-align:left;">
+               <span style="font-size:12px; font-weight:600; color:var(--text-2);">Vai ser usado em:</span>
+               <div style="display:flex; gap:16px; margin-top:6px;">
+                 <label class="ti-swal-check">
+                   <span class="ios-checkbox">
+                     <input type="checkbox" id="swal-almox-mov-area-pavilhao">
+                     <div class="checkbox-wrapper">
+                       <div class="checkbox-bg"></div>
+                       <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                         <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+                       </svg>
+                     </div>
+                   </span>
+                   Pavilhão
+                 </label>
+                 <label class="ti-swal-check">
+                   <span class="ios-checkbox">
+                     <input type="checkbox" id="swal-almox-mov-area-interno">
+                     <div class="checkbox-wrapper">
+                       <div class="checkbox-bg"></div>
+                       <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                         <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+                       </svg>
+                     </div>
+                   </span>
+                   Interno
+                 </label>
+               </div>
+             </div>`
+          : ""}
         <label class="ti-swal-label-outlined">
           <input type="text" id="swal-almox-mov-motivo" class="swal2-input" placeholder=" ">
           <span>Motivo (opcional)</span>
@@ -492,6 +523,10 @@ async function abrirMovimentacaoItemAlmoxarifado(item, tipo) {
     didOpen: () => {
       const inputBusca = document.getElementById("swal-almox-mov-funcionario-busca");
       const inputOculto = document.getElementById("swal-almox-mov-funcionario");
+      const areaWrap = document.getElementById("swal-almox-mov-area-wrap");
+      const chkPavilhao = document.getElementById("swal-almox-mov-area-pavilhao");
+      const chkInterno = document.getElementById("swal-almox-mov-area-interno");
+
       ligarBuscaComSugestoes(
         inputBusca,
         "swal-almox-mov-funcionario-lista",
@@ -500,12 +535,24 @@ async function abrirMovimentacaoItemAlmoxarifado(item, tipo) {
         (f) => {
           inputBusca.value = f.nome;
           inputOculto.value = f.idfuncionario;
+          if (areaWrap) areaWrap.style.display = "block";
         },
         { mensagemVazia: "Nenhum funcionário encontrado" }
       );
+      // Só aparece com um funcionário escolhido da lista — apagar o nome (ou
+      // digitar sem escolher) esconde de novo e descarta a marcação.
       inputBusca.addEventListener("input", () => {
-        if (!inputBusca.value.trim()) inputOculto.value = "";
+        if (!inputBusca.value.trim()) {
+          inputOculto.value = "";
+          if (areaWrap) areaWrap.style.display = "none";
+        }
       });
+
+      // Só um marcado por vez — funciona como um switch Pavilhão/Interno.
+      if (chkPavilhao && chkInterno) {
+        chkPavilhao.addEventListener("change", () => { if (chkPavilhao.checked) chkInterno.checked = false; });
+        chkInterno.addEventListener("change", () => { if (chkInterno.checked) chkPavilhao.checked = false; });
+      }
     },
     preConfirm: () => {
       const quantidade = parseInt(document.getElementById("swal-almox-mov-qtd").value, 10);
@@ -515,7 +562,10 @@ async function abrirMovimentacaoItemAlmoxarifado(item, tipo) {
         Swal.showValidationMessage("Informe uma quantidade válida.");
         return false;
       }
-      return { quantidade, motivo, idfuncionario_solicitante };
+      let area_uso = null;
+      if (document.getElementById("swal-almox-mov-area-pavilhao")?.checked) area_uso = "Pavilhão";
+      else if (document.getElementById("swal-almox-mov-area-interno")?.checked) area_uso = "Interno";
+      return { quantidade, motivo, idfuncionario_solicitante, area_uso };
     }
   });
 
@@ -530,6 +580,7 @@ async function abrirMovimentacaoItemAlmoxarifado(item, tipo) {
         quantidade: formValues.quantidade,
         motivo: formValues.motivo,
         idfuncionario_solicitante: formValues.idfuncionario_solicitante,
+        area_uso: formValues.area_uso,
       }),
     });
     renderPainelAlmoxarifado();
@@ -558,7 +609,7 @@ function renderLinhasHistoricoAlmoxarifado(historico) {
     return `
     <tr>
       <td>${new Date(h.criado_em).toLocaleString("pt-BR")}</td>
-      <td>${tipoLabel[h.tipo] || h.tipo} de ${h.quantidade}</td>
+      <td>${tipoLabel[h.tipo] || h.tipo} de ${h.quantidade}${h.area_uso ? ` <small style="color:var(--text-2);">(${escaparHtml(h.area_uso)})</small>` : ""}</td>
       <td>${escaparHtml(h.nome_usuario) || "—"}</td>
       <td>${escaparHtml(h.nome_funcionario_solicitante) || "—"}</td>
       <td>${h.motivo ? `<button type="button" class="ti-btn-ver-motivo secundario" data-idmovimentacao="${h.idmovimentacao}">${escaparHtml(motivoResumo)}</button>` : "—"}</td>
@@ -695,6 +746,11 @@ let cacheSugestoes = [];
 let rascunhoItens = [];
 let rascunhoData = "";
 let rascunhoObs = "";
+let rascunhoEvento = null;  // { idevento, nmevento } — só usado em Consumíveis Pavilhão
+
+// Consumo de Pavilhão é sempre pra um evento — precisa bater com
+// LOCAL_EXIGE_EVENTO em routes/rotaAlmoxarifado.js.
+const LOCAL_EXIGE_EVENTO = "Consumíveis Pavilhão";
 
 const moedaBR = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -745,7 +801,9 @@ function pillStatus(status, mapa = STATUS_PEDIDO) {
 async function renderPainelCompras() {
   const container = document.getElementById("almox-aba-conteudo");
   if (!container) return;
-  if (!localCompras || !cacheLocais.includes(localCompras)) localCompras = cacheLocais[0];
+  // Local não vem mais pré-selecionado — a pessoa escolhe (ver "Selecione o
+  // Local" em renderNovaLista). Só zera se o local salvo não existir mais.
+  if (localCompras && !cacheLocais.includes(localCompras)) localCompras = null;
 
   const subAbas = [
     { id: "sugestoes", texto: "Nova lista", icone: "ri-add-box-line" },
@@ -788,14 +846,21 @@ async function renderNovaLista() {
   if (!alvo) return;
   alvo.innerHTML = almoxLoading("Analisando o estoque...");
 
-  try {
-    cacheSugestoes = await fetchAlmox(`/compras/sugestoes?local=${encodeURIComponent(localCompras)}`);
-  } catch (erro) {
-    console.error("Erro ao carregar sugestões de compra:", erro);
+  // Sem local escolhido ainda não tem o que sugerir — nem faz sentido chamar
+  // o backend (ele exige local válido e devolveria 400).
+  if (localCompras) {
+    try {
+      cacheSugestoes = await fetchAlmox(`/compras/sugestoes?local=${encodeURIComponent(localCompras)}`);
+    } catch (erro) {
+      console.error("Erro ao carregar sugestões de compra:", erro);
+      cacheSugestoes = [];
+    }
+  } else {
     cacheSugestoes = [];
   }
 
   const criticos = cacheSugestoes.filter((s) => s.abaixo_minimo).length;
+  const precisaEvento = localCompras === LOCAL_EXIGE_EVENTO;
 
   alvo.innerHTML = `
     <section class="almox-bloco">
@@ -807,22 +872,33 @@ async function renderNovaLista() {
       </div>
       <div class="almox-form-grid">
         <label class="almox-campo">
-          <span>Local</span>
+          <span>Local *</span>
           <select id="almox-compras-local">
+            <option value="" ${!localCompras ? "selected" : ""} disabled>Selecione o Local</option>
             ${cacheLocais.map((l) => `<option value="${escaparHtml(l)}" ${l === localCompras ? "selected" : ""}>${escaparHtml(l)}</option>`).join("")}
           </select>
         </label>
+        ${precisaEvento
+          ? `<label class="almox-campo">
+               <span>Evento *</span>
+               <input type="text" id="almox-compras-evento" placeholder="Busque o evento pelo nome" autocomplete="off"
+                      value="${rascunhoEvento ? escaparHtml(rascunhoEvento.nmevento) : ""}">
+             </label>`
+          : ""}
         <label class="almox-campo">
           <span>Precisa chegar até</span>
-          <input type="date" id="almox-compras-data" value="${rascunhoData}">
+          <input type="date" id="almox-compras-data" value="${rascunhoData}" ${localCompras ? "" : "disabled"}>
         </label>
         <label class="almox-campo almox-campo-larga">
           <span>Observação da lista</span>
-          <input type="text" id="almox-compras-obs" placeholder="Opcional — ex: compra para o evento X" value="${escaparHtml(rascunhoObs)}">
+          <input type="text" id="almox-compras-obs" placeholder="Opcional — ex: compra para o evento X" value="${escaparHtml(rascunhoObs)}" ${localCompras ? "" : "disabled"}>
         </label>
       </div>
     </section>
 
+    ${!localCompras
+      ? almoxVazio("Escolha o local acima pra começar a montar a lista.", "info")
+      : `
     <section class="almox-bloco">
       <div class="almox-bloco-titulo">
         <div>
@@ -856,10 +932,14 @@ async function renderNovaLista() {
         </thead>
         <tbody id="almox-sug-tbody">${renderLinhasSugestao()}</tbody>
       </table>
-    </section>
+    </section>`
+    }
   `;
 
   document.getElementById("almox-compras-local").addEventListener("change", trocarLocalDaLista);
+  if (precisaEvento) ligarBuscaEventoLista();
+  if (!localCompras) return;
+
   document.getElementById("almox-compras-data").addEventListener("change", (e) => { rascunhoData = e.target.value; });
   document.getElementById("almox-compras-obs").addEventListener("input", (e) => { rascunhoObs = e.target.value; });
   document.getElementById("almox-compras-adicionar").addEventListener("click", () => abrirAdicionarItemLista());
@@ -894,7 +974,30 @@ async function trocarLocalDaLista(evento) {
     rascunhoItens = [];
   }
   localCompras = novoLocal;
+  rascunhoEvento = null; // evento só vale pro local que exigia — troque de local, escolhe de novo
   renderNovaLista();
+}
+
+// Autocomplete do campo "Evento" (só aparece quando o local exige — ver
+// LOCAL_EXIGE_EVENTO/renderNovaLista). Mesmo padrão de busca do fornecedor em
+// abrirCotacoesItem.
+function ligarBuscaEventoLista() {
+  const input = document.getElementById("almox-compras-evento");
+  if (!input) return;
+  ligarBuscaComSugestoes(
+    input,
+    "almox-compras-evento-lista",
+    (termo) => fetchAlmox(`/compras/eventos/busca?busca=${encodeURIComponent(termo)}`),
+    (e) => e.nmevento,
+    (e) => {
+      input.value = e.nmevento;
+      rascunhoEvento = { idevento: e.idevento, nmevento: e.nmevento };
+    },
+    { mensagemVazia: "Nenhum evento encontrado" }
+  );
+  // Digitar de novo sem escolher da lista invalida a seleção anterior — senão
+  // dava pra escrever qualquer texto e mandar com o idevento antigo colado.
+  input.addEventListener("input", () => { rascunhoEvento = null; });
 }
 
 function renderLinhasRascunho() {
@@ -1087,6 +1190,14 @@ async function abrirAdicionarItemLista() {
 }
 
 async function enviarListaCompra() {
+  if (!localCompras) {
+    Swal.fire("Escolha o local", "Selecione o local antes de enviar a lista.", "info");
+    return;
+  }
+  if (localCompras === LOCAL_EXIGE_EVENTO && !rascunhoEvento) {
+    Swal.fire("Escolha o evento", "Consumíveis Pavilhão exige escolher o evento da compra.", "info");
+    return;
+  }
   if (!rascunhoItens.length) {
     Swal.fire("Lista vazia", "Adicione pelo menos um item antes de enviar.", "info");
     return;
@@ -1101,12 +1212,14 @@ async function enviarListaCompra() {
         dt_necessidade: rascunhoData || null,
         observacao: rascunhoObs.trim() || null,
         itens: rascunhoItens,
+        idevento: rascunhoEvento?.idevento || null,
       }),
     });
 
     rascunhoItens = [];
     rascunhoData = "";
     rascunhoObs = "";
+    rascunhoEvento = null;
     await Swal.fire("Enviado!", `Lista #${pedido.idpedido} enviada para aprovação.`, "success");
     subAbaCompras = "pedidos";
     renderPainelCompras();
@@ -1124,31 +1237,38 @@ async function renderListasCompra(filtroStatus = "todos") {
 
   // Mesmo componente de pílulas do filtro de "Eventos em Aberto"
   // (.option > .input + .btn > .span) — ver #almox-panel .almox-pills no CSS.
+  // "Compradas"/"Parcial" saíram (status intermediário, pouco usado como
+  // filtro) — "Todas" voltou por pedido.
   const situacoes = [
     { valor: "todos",     label: "Todas"       },
     { valor: "pendente",  label: "Aguardando"  },
     { valor: "aprovado",  label: "Aprovadas"   },
-    { valor: "comprado",  label: "Compradas"   },
-    { valor: "parcial",   label: "Parcial"     },
-    { valor: "recebido",  label: "Recebidas"   },
     { valor: "recusado",  label: "Recusadas"   },
     { valor: "cancelado", label: "Canceladas"  },
+    { valor: "recebido",  label: "Recebidas"   },
   ];
 
   alvo.innerHTML = `
-      <div class="almox-campo">
-        <span>Situação</span>
-        <div class="almox-pills">
-          ${situacoes
-            .map(
-              (s) => `
-                <div class="option">
-                  <input ${s.valor === filtroStatus ? "checked" : ""} value="${s.valor}" name="almox-pedidos-status" type="radio" class="input">
-                  <div class="btn"><span class="span">${s.label}</span></div>
-                </div>
-              `
-            )
-            .join("")}
+      <div class="almox-campo-linha">
+        <div class="almox-campo-filtro">
+          <span>Situação</span>
+          <div class="almox-pills">
+            ${situacoes
+              .map(
+                (s) => `
+                  <div class="option">
+                    <input ${s.valor === filtroStatus ? "checked" : ""} value="${s.valor}" name="almox-pedidos-status" type="radio" class="input">
+                    <div class="btn"><span class="span">${s.label}</span></div>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </div>
+        <div class="almox-bloco-acoes">
+          <button type="button" id="almox-itens-aprovados-receber" class="almox-btn-principal"><i class="ri-inbox-archive-line" aria-hidden="true"></i>Recebimento geral</button>
+          <button type="button" id="almox-itens-aprovados-imprimir" class="almox-btn-secundario"><i class="ri-printer-line" aria-hidden="true"></i>Imprimir aprovados</button>
+          <button type="button" id="almox-itens-aprovados-whatsapp" class="almox-btn-secundario"><i class="ri-whatsapp-line" aria-hidden="true"></i>Enviar por WhatsApp</button>
         </div>
       </div>
     <table class="ti-tabela" style="margin-top:20px;">
@@ -1162,6 +1282,9 @@ async function renderListasCompra(filtroStatus = "todos") {
   alvo.querySelectorAll('input[name="almox-pedidos-status"]').forEach((radio) =>
     radio.addEventListener("change", () => renderListasCompra(radio.value))
   );
+  document.getElementById("almox-itens-aprovados-receber")?.addEventListener("click", abrirRecebimentoGeral);
+  document.getElementById("almox-itens-aprovados-imprimir")?.addEventListener("click", imprimirItensAprovadosGeral);
+  document.getElementById("almox-itens-aprovados-whatsapp")?.addEventListener("click", enviarItensAprovadosWhatsapp);
 
   const tbody = document.getElementById("almox-pedidos-tbody");
   try {
@@ -1231,6 +1354,7 @@ async function abrirPedidoCompra(idpedido) {
         <div><span>Criada em</span><strong>${formatarDataAlmox(pedido.criado_em)}</strong></div>
         <div><span>Precisa chegar até</span><strong>${formatarDataAlmox(pedido.dt_necessidade)}</strong></div>
         <div><span>Aprovador</span><strong>${escaparHtml(pedido.nome_aprovador) || "—"}</strong></div>
+        ${pedido.nmevento ? `<div><span>Evento</span><strong>${escaparHtml(pedido.nmevento)}</strong></div>` : ""}
       </div>
       ${pedido.observacao ? `<p style="margin:12px 0 0; color:var(--text-2);">${escaparHtml(pedido.observacao)}</p>` : ""}
     </div>
@@ -1393,6 +1517,148 @@ async function cancelarPedidoCompra(idpedido) {
   }
 }
 
+// ===== Impressão e envio por WhatsApp dos itens aprovados (visão geral,
+// atalho ao lado dos filtros da listagem — não depende de abrir lista por
+// lista) =====
+
+// Agrupa o retorno flat de /compras/itens-aprovados por pedido, pra exibir
+// "lista #12 — Escritório" com os itens dela embaixo, tanto na impressão
+// quanto na mensagem de WhatsApp.
+function agruparItensAprovadosPorPedido(itens) {
+  const porPedido = new Map();
+  for (const item of itens) {
+    if (!porPedido.has(item.idpedido)) {
+      porPedido.set(item.idpedido, {
+        idpedido: item.idpedido,
+        local: item.local,
+        nome_solicitante: item.nome_solicitante,
+        criado_em: item.criado_em,
+        itens: [],
+      });
+    }
+    porPedido.get(item.idpedido).itens.push(item);
+  }
+  return [...porPedido.values()];
+}
+
+async function buscarItensAprovadosGeral() {
+  return fetchAlmox("/compras/itens-aprovados");
+}
+
+async function imprimirItensAprovadosGeral() {
+  let itens;
+  try {
+    itens = await buscarItensAprovadosGeral();
+  } catch (erro) {
+    console.error("Erro ao buscar itens aprovados:", erro);
+    return Swal.fire("Erro", "Erro ao buscar os itens aprovados.", "error");
+  }
+  if (!itens.length) return Swal.fire("Nada por aqui", "Não há itens aprovados no momento.", "info");
+
+  // Lista única — sem separar por pedido/solicitante, é só o que precisa ser
+  // pego no mercado/fornecedor, ponto.
+  const linhas = itens
+    .map(
+      (item) => `
+        <tr>
+          <td class="col-check"><span class="checkbox-papel"></span></td>
+          <td>${escaparHtml(item.descricao)}</td>
+          <td>${item.quantidade_aprovada} ${escaparHtml(item.unidade_medida)}</td>
+          <td class="col-valor">R$</td>
+          <td></td>
+        </tr>`
+    )
+    .join("");
+  const tabela = `
+    <table>
+      <thead><tr><th class="col-check">Pego</th><th>Item</th><th>Quantidade aprovada</th><th>Valor unitário pago</th><th>Fornecedor</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+
+  const janelaImprimir = window.open("", "ImpressaoItensAprovados", "height=700,width=900");
+  janelaImprimir.document.write(`
+    <html>
+      <head>
+        <title>Itens aprovados — Almoxarifado</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a1a; }
+          h1 { font-size: 18px; margin-bottom: 12px; }
+          table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+          th, td { border: 1px solid #ccc; padding: 8px; font-size: 13px; text-align: left; }
+          th { background: #f0f0f0; }
+          /* Colunas em branco pra preencher à mão: caixinha pra marcar "já
+             peguei" e um traço pra anotar o valor unitário decidido na hora
+             da compra — isso é o que volta pro financeiro lançar no sistema. */
+          .col-check { width: 60px; text-align: center; }
+          .col-valor { width: 130px; }
+          .checkbox-papel {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid #333;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Itens aprovados — Almoxarifado</h1>
+        ${tabela}
+      </body>
+    </html>
+  `);
+  janelaImprimir.document.close();
+
+  // Delay pra deixar o documento terminar de montar antes do diálogo de
+  // impressão abrir (mesmo padrão usado em IndiceAnual.js/imprimirRelatorio).
+  setTimeout(() => janelaImprimir.print(), 400);
+}
+
+// Normaliza pra E.164 sem o "+": só dígitos, e assume Brasil (55) quando o
+// usuário digita só DDD + número (10 ou 11 dígitos) sem o código do país.
+function normalizarNumeroWhatsapp(bruto) {
+  const digitos = String(bruto).replace(/\D/g, "");
+  return digitos.length <= 11 ? `55${digitos}` : digitos;
+}
+
+function montarMensagemWhatsappGeral(grupos) {
+  const blocos = grupos.map((grupo) => {
+    const linhas = grupo.itens.map((item) => `• ${item.descricao} — ${item.quantidade_aprovada} ${item.unidade_medida}`);
+    return [`Lista #${grupo.idpedido} — ${grupo.local} (${grupo.nome_solicitante || "—"})`, ...linhas].join("\n");
+  });
+  return [`Itens aprovados — Almoxarifado`, "", blocos.join("\n\n")].join("\n");
+}
+
+async function enviarItensAprovadosWhatsapp() {
+  let itens;
+  try {
+    itens = await buscarItensAprovadosGeral();
+  } catch (erro) {
+    console.error("Erro ao buscar itens aprovados:", erro);
+    return Swal.fire("Erro", "Erro ao buscar os itens aprovados.", "error");
+  }
+  if (!itens.length) return Swal.fire("Nada por aqui", "Não há itens aprovados no momento.", "info");
+
+  const { value: numero } = await Swal.fire({
+    title: "Enviar por WhatsApp",
+    input: "text",
+    inputLabel: "Número com DDD (o código do país é opcional, assume Brasil)",
+    inputPlaceholder: "Ex.: 11 91234-5678",
+    showCancelButton: true,
+    confirmButtonText: "Abrir WhatsApp",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    inputValidator: (valor) => {
+      const digitos = (valor || "").replace(/\D/g, "");
+      if (digitos.length < 10 || digitos.length > 13) return "Informe um número válido, com DDD.";
+    },
+  });
+  if (!numero) return;
+
+  const texto = encodeURIComponent(montarMensagemWhatsappGeral(agruparItensAprovadosPorPedido(itens)));
+  // wa.me só manda texto — sem anexo automático. Quem quiser o PDF junto usa o
+  // "Imprimir aprovados" e anexa manualmente na conversa que abrir aqui.
+  window.open(`https://wa.me/${normalizarNumeroWhatsapp(numero)}?text=${texto}`, "_blank", "noopener");
+}
+
 // ===== Cotações por item (comparar fornecedores) =====
 async function abrirCotacoesItem(pedido, item) {
   const cotacoes = item.cotacoes || [];
@@ -1526,11 +1792,11 @@ async function abrirCotacoesItem(pedido, item) {
 // ===== Recebimento: confirmação manual antes de entrar no estoque =====
 // A quantidade vem preenchida com a aprovada, mas é editável — comprou mais ou
 // menos do que estava na lista, corrige aqui e é isso que entra no estoque.
-async function abrirRecebimentoPedido(pedido) {
+async function abrirRecebimentoPedido(pedido, { navegarAoConcluir = true } = {}) {
   const itens = pedido.itens.filter((i) => i.status === "aprovado");
   if (!itens.length) {
     Swal.fire("Nada a receber", "Nenhum item aprovado pendente de recebimento.", "info");
-    return;
+    return false;
   }
 
   const linhas = itens
@@ -1620,7 +1886,7 @@ async function abrirRecebimentoPedido(pedido) {
     },
   });
 
-  if (!confirmado) return;
+  if (!confirmado) return false;
 
   try {
     const resposta = await fetchAlmox(`/compras/pedidos/${pedido.idpedido}/receber`, {
@@ -1629,11 +1895,181 @@ async function abrirRecebimentoPedido(pedido) {
       body: JSON.stringify({ itens: confirmado }),
     });
     await Swal.fire("Recebido!", resposta.message, "success");
-    abrirPedidoCompra(pedido.idpedido);
+    if (navegarAoConcluir) abrirPedidoCompra(pedido.idpedido);
+    return true;
   } catch (erro) {
     console.error("Erro ao confirmar recebimento:", erro);
     Swal.fire("Erro", erro.message || "Erro ao confirmar o recebimento.", "error");
+    return false;
   }
+}
+
+// Recebe UM item de uma vez (usado pelo modo "item a item" do recebimento
+// geral) — mesmos campos da tela de recebimento por lista, só que pra uma
+// linha só, chamando o mesmo endpoint com um único item no array.
+async function receberItemIndividual(item) {
+  const { value: dados } = await Swal.fire({
+    title: `Receber — ${item.descricao}`,
+    html: `
+      <p style="margin:0 0 10px; color:var(--text-2); font-size:13px;">
+        Lista #${item.idpedido} — ${escaparHtml(item.local)} · aprovado: ${item.quantidade_aprovada} ${escaparHtml(item.unidade_medida)}
+      </p>
+      <div class="ti-swal-form">
+        <label class="ti-swal-label-outlined">
+          <input type="date" id="swal-rec-item-data" class="swal2-input" value="${hojeISO()}">
+          <span>Data da compra</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-rec-item-qtd" class="swal2-input" min="0" value="${item.quantidade_aprovada}">
+          <span>Quantidade recebida</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-rec-item-fornecedor" class="swal2-input" placeholder=" ">
+          <span>Fornecedor</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-rec-item-valor" class="swal2-input" min="0" step="0.01" placeholder="0,00">
+          <span>Valor unitário</span>
+        </label>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Confirmar recebimento",
+    cancelButtonText: "Pular",
+    reverseButtons: true,
+    preConfirm: () => {
+      const quantidade = parseInt(document.getElementById("swal-rec-item-qtd").value, 10);
+      if (!Number.isInteger(quantidade) || quantidade < 0) {
+        Swal.showValidationMessage("Quantidade inválida.");
+        return false;
+      }
+      const valorStr = document.getElementById("swal-rec-item-valor").value;
+      return {
+        dt_compra: document.getElementById("swal-rec-item-data").value || null,
+        quantidade,
+        fornecedor_nome: document.getElementById("swal-rec-item-fornecedor").value.trim() || null,
+        valor_unitario: valorStr === "" ? null : Number(valorStr),
+      };
+    },
+  });
+  if (!dados || dados.quantidade === 0) return;
+
+  try {
+    await fetchAlmox(`/compras/pedidos/${item.idpedido}/receber`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        itens: [
+          {
+            idpedidoitem: item.idpedidoitem,
+            quantidade: dados.quantidade,
+            dt_compra: dados.dt_compra,
+            idfornecedor: null,
+            fornecedor_nome: dados.fornecedor_nome,
+            valor_unitario: dados.valor_unitario,
+          },
+        ],
+      }),
+    });
+  } catch (erro) {
+    console.error("Erro ao confirmar recebimento do item:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao confirmar o recebimento.", "error");
+  }
+}
+
+// Botão "Recebimento geral" (ao lado dos filtros): olha todo item aprovado de
+// toda lista, não só de uma — a pessoa escolhe se confere lista a lista (uma
+// tela por pedido, reaproveitando abrirRecebimentoPedido) ou item a item (de
+// todas as listas misturadas, uma por uma).
+async function abrirRecebimentoGeral() {
+  let itens;
+  try {
+    itens = await buscarItensAprovadosGeral();
+  } catch (erro) {
+    console.error("Erro ao buscar itens aprovados:", erro);
+    return Swal.fire("Erro", "Erro ao buscar os itens aprovados.", "error");
+  }
+  // /compras/itens-aprovados também devolve item já recebido e recusado (útil
+  // pro histórico de imprimir/WhatsApp) — aqui só interessa o que ainda está
+  // esperando entrada no estoque. Recusado/cancelado o próprio endpoint já
+  // tira; falta tirar o que já foi recebido antes.
+  itens = itens.filter((i) => i.status === "aprovado");
+  if (!itens.length) return Swal.fire("Nada a receber", "Não há itens aprovados aguardando recebimento.", "info");
+
+  const grupos = agruparItensAprovadosPorPedido(itens);
+
+  // Checkbox "ios-checkbox" — nosso padrão de seleção em Swal (mesmo usado no
+  // TI Mode) — em vez do radio nativo do SweetAlert. Se comportam como radio
+  // (só um marcado por vez) via o didOpen logo abaixo.
+  const { value: modo } = await Swal.fire({
+    title: "Recebimento geral",
+    icon: "question",
+    html: `
+      <p style="margin:0 0 14px; color:var(--text-2); font-size:13px;">${grupos.length} lista(s) com item(ns) aprovado(s) aguardando recebimento.</p>
+      <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+        <label class="ti-swal-check">
+          <span class="ios-checkbox">
+            <input type="checkbox" id="swal-recgeral-lista">
+            <div class="checkbox-wrapper">
+              <div class="checkbox-bg"></div>
+              <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+              </svg>
+            </div>
+          </span>
+          Lista a lista (uma tela por lista, igual já existe hoje)
+        </label>
+        <label class="ti-swal-check">
+          <span class="ios-checkbox">
+            <input type="checkbox" id="swal-recgeral-item">
+            <div class="checkbox-wrapper">
+              <div class="checkbox-bg"></div>
+              <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+              </svg>
+            </div>
+          </span>
+          Item a item (de todas as listas misturadas, um a um)
+        </label>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Continuar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      const chkLista = document.getElementById("swal-recgeral-lista");
+      const chkItem = document.getElementById("swal-recgeral-item");
+      chkLista.addEventListener("change", () => { if (chkLista.checked) chkItem.checked = false; });
+      chkItem.addEventListener("change", () => { if (chkItem.checked) chkLista.checked = false; });
+    },
+    preConfirm: () => {
+      if (document.getElementById("swal-recgeral-lista").checked) return "lista";
+      if (document.getElementById("swal-recgeral-item").checked) return "item";
+      Swal.showValidationMessage("Escolha uma opção.");
+      return false;
+    },
+  });
+  if (!modo) return;
+
+  if (modo === "lista") {
+    for (const grupo of grupos) {
+      let pedidoCompleto;
+      try {
+        pedidoCompleto = await fetchAlmox(`/compras/pedidos/${grupo.idpedido}`);
+      } catch (erro) {
+        console.error(`Erro ao carregar lista #${grupo.idpedido} pro recebimento:`, erro);
+        continue;
+      }
+      await abrirRecebimentoPedido(pedidoCompleto, { navegarAoConcluir: false });
+    }
+  } else {
+    for (const item of itens) {
+      await receberItemIndividual(item);
+    }
+  }
+
+  renderListasCompra();
 }
 
 // ===== Sub-aba: Preços e durabilidade =====

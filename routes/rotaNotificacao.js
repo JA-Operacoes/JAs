@@ -49,8 +49,10 @@ router.patch('/:id/lida', autenticarToken(), async (req, res) => {
   try {
     const idusuario = req.usuario.idusuario;
     const idempresa = req.idempresa;
-    const { id } = req.params;
-    await svc.marcarComoLida(idusuario, id, idempresa);
+    // Front manda o id como "notif-123" (ver NotificacaoServices.buscarNotificacoes,
+    // que prefixa pra não colidir com os ids das outras listas computadas).
+    const idnotificacao = String(req.params.id).replace(/^notif-/, '');
+    await svc.marcarComoLida(idnotificacao, idusuario, idempresa);
     res.json({ ok: true });
   } catch (err) {
     console.error('Erro ao marcar como lida:', err);

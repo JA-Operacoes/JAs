@@ -2327,7 +2327,7 @@ router.put("/orcamentos-compra/:id/decisao",
         criarNotificacao(orcamento.idusuario_solicitante, idempresa, {
           tipo: status === 'aprovado' ? 'sucesso' : 'erro',
           mensagem: status === 'aprovado' ? `Orçamento aprovado: ${resumo}` : `Orçamento recusado: ${resumo}`,
-          metadata: { modulo: 'TI', idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
+          metadata: { modulo: 'TI', categoria: 'compras', status: status === 'aprovado' ? 'Aprovado' : 'Recusado', idorcamento: orcamento.idorcamento, idmanutencao: orcamento.idmanutencao },
         }).catch((erro) => console.error("Erro ao criar notificação de decisão de orçamento:", erro));
       }
 
