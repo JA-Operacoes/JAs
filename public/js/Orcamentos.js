@@ -1773,6 +1773,131 @@ window.toggleEditavel = function(checkbox) {
 // (#liberaContratacao, em atualizarEstadoLiberaStaff): o checkbox por item só
 // pode ser clicado depois que o orçamento sai do status "A" (Aberto), o que
 // na prática acontece junto com a geração do contrato/proposta.
+// ===== Freelancer pago via empreiteira, definido no orçamento =====
+// Coluna "Empreiteira" da tabela: check + select por item de staff (item com função). O select
+// do topo (#empreiteiraOrcamento) é o padrão: escolher ali marca todos os itens de staff, e um
+// item de staff incluído depois já nasce marcado. O ITEM é o que vale pro Staff pré-marcar.
+let empreiteirasOrcamento = null; // [{idfornecedor, nmfantasia}] — carregado uma vez
+
+function htmlCelulaEmpreiteiraItem(item) {
+  const marcado = item?.empreiteira === true;
+  const idf = marcado && item?.idfornecedorempreiteira ? String(item.idfornecedorempreiteira) : "";
+  // Linha nova (sem item carregado): marcada pelo topo quando virar item de staff.
+  const nova = item ? "" : ' data-emp-nova="1"';
+  return `<td class="Empreiteira"${nova}>
+        <div class="empreiteira-item" style="display: none;">
+          <input type="checkbox" class="empreiteira-item-input" title="Pago via empreiteira" ${marcado ? "checked" : ""}>
+          <select class="empreiteira-item-select" data-valor="${idf}" style="${marcado ? "" : "display: none;"}">
+            <option value="">Empreiteira…</option>
+          </select>
+        </div>
+      </td>`;
+}
+
+function opcoesEmpreiteiraHtml(textoVazio) {
+  return `<option value="">${textoVazio}</option>` + (empreiteirasOrcamento || [])
+    .map((f) => `<option value="${f.idfornecedor}">${String(f.nmfantasia).replace(/</g, "&lt;")}</option>`).join("");
+}
+
+async function carregarEmpreiteirasOrcamento() {
+  if (empreiteirasOrcamento === null) {
+    try {
+      const lista = await fetchComToken("/staff/empreiteiras");
+      empreiteirasOrcamento = Array.isArray(lista) ? lista : [];
+    } catch (e) {
+      console.error("Erro ao carregar empreiteiras:", e);
+      empreiteirasOrcamento = [];
+    }
+  }
+  const topo = document.getElementById("empreiteiraOrcamento");
+  if (topo) {
+    const valor = topo.dataset.valor || topo.value || "";
+    topo.innerHTML = opcoesEmpreiteiraHtml("Sem empreiteira padrão");
+    topo.value = valor;
+  }
+  sincronizarCelulasEmpreiteira();
+}
+
+// Mostra os controles só nas linhas de staff, preenche os selects e aplica o padrão do topo nas
+// linhas novas que já viraram item de staff.
+function sincronizarCelulasEmpreiteira() {
+  const topoValor = document.getElementById("empreiteiraOrcamento")?.value || "";
+  document.querySelectorAll("#tabela tbody tr").forEach((tr) => {
+    const celula = tr.querySelector("td.Empreiteira");
+    if (!celula) return;
+    const wrapper = celula.querySelector(".empreiteira-item");
+    const check = celula.querySelector(".empreiteira-item-input");
+    const select = celula.querySelector(".empreiteira-item-select");
+    const ehStaff = !!(tr.querySelector(".idFuncao")?.value || tr.dataset.idfuncao);
+    if (wrapper) wrapper.style.display = ehStaff ? "" : "none";
+    if (!ehStaff || !check || !select) return;
+
+    if (empreiteirasOrcamento && select.options.length <= 1) {
+      const valor = select.dataset.valor || select.value || "";
+      select.innerHTML = opcoesEmpreiteiraHtml("Empreiteira…");
+      select.value = valor;
+    }
+    if (celula.dataset.empNova === "1") {
+      delete celula.dataset.empNova;
+      if (topoValor) { check.checked = true; select.value = topoValor; select.dataset.valor = topoValor; }
+    }
+    select.style.display = check.checked ? "" : "none";
+  });
+}
+
+function aplicarEmpreiteiraTopoNosItens(idfornecedor) {
+  if (!idfornecedor) return; // limpar o topo não desmarca os itens (cada um fica como está)
+  document.querySelectorAll("#tabela tbody tr").forEach((tr) => {
+    const ehStaff = !!(tr.querySelector(".idFuncao")?.value || tr.dataset.idfuncao);
+    const check = tr.querySelector(".empreiteira-item-input");
+    const select = tr.querySelector(".empreiteira-item-select");
+    if (!ehStaff || !check || !select) return;
+    check.checked = true;
+    select.value = idfornecedor;
+    select.dataset.valor = idfornecedor;
+    select.style.display = "";
+  });
+}
+
+function configurarEmpreiteiraOrcamento() {
+  const topo = document.getElementById("empreiteiraOrcamento");
+  if (topo && !topo.dataset.ligado) {
+    topo.dataset.ligado = "1";
+    topo.addEventListener("change", () => { topo.dataset.valor = topo.value; aplicarEmpreiteiraTopoNosItens(topo.value); });
+  }
+  const tabela = document.getElementById("tabela");
+  if (tabela && !tabela.dataset.empLigado) {
+    tabela.dataset.empLigado = "1";
+    tabela.addEventListener("change", (e) => {
+      if (e.target.classList?.contains("empreiteira-item-input")) {
+        const select = e.target.closest("td")?.querySelector(".empreiteira-item-select");
+        if (select) {
+          select.style.display = e.target.checked ? "" : "none";
+          if (!e.target.checked) { select.value = ""; select.dataset.valor = ""; }
+        }
+        return;
+      }
+      if (e.target.classList?.contains("empreiteira-item-select")) { e.target.dataset.valor = e.target.value; return; }
+      // Produto/função escolhido numa linha: ela pode ter virado item de staff.
+      sincronizarCelulasEmpreiteira();
+    });
+    tabela.addEventListener("focusout", () => sincronizarCelulasEmpreiteira());
+  }
+  carregarEmpreiteirasOrcamento();
+}
+
+// Item marcado como Empreiteira/Lote sem empreiteira escolhida: devolve o nome do item.
+function itemEmpreiteiraSemFornecedor() {
+  for (const tr of document.querySelectorAll("#tabela tbody tr")) {
+    const check = tr.querySelector(".empreiteira-item-input");
+    const ehStaff = !!(tr.querySelector(".idFuncao")?.value || tr.dataset.idfuncao);
+    if (ehStaff && check?.checked && !tr.querySelector(".empreiteira-item-select")?.value) {
+      return tr.querySelector(".produto")?.textContent.trim() || "item sem nome";
+    }
+  }
+  return null;
+}
+
 function aplicarBloqueioLiberarContratacaoItens() {
   const statusAtual = document.getElementById("Status")?.value || "";
   const isBloqueado = statusAtual === "A";
@@ -1848,7 +1973,8 @@ function adicionarLinhaOrc() {
                 </label>
             </div>
         </td>
-        <td class="cacheFechado">
+        ${htmlCelulaEmpreiteiraItem(null)}
+      <td class="cacheFechado">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
                     <input class="checkbox__trigger visuallyhidden chk-cache-fechado" type="checkbox" onchange="toggleEditavel(this)" />
@@ -2280,6 +2406,7 @@ function adicionarLinhaOrc() {
   aplicarMascaraMoeda();
   limparSelects();
   aplicarBloqueioLiberarContratacaoItens();
+  sincronizarCelulasEmpreiteira();
 }
 
 
@@ -2373,6 +2500,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
         </div>
       </td>
 
+      ${htmlCelulaEmpreiteiraItem(null)}
       <td class="cacheFechado">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
@@ -3973,6 +4101,7 @@ function ligarFiltroProdutoItens() {
 async function verificaOrcamento() {
   initializeAllFlatpickrsInModal();
   ativarTooltipStatus(); // religa o tooltip do Status ao #Status deste modal (idempotente)
+  configurarEmpreiteiraOrcamento(); // select do topo + coluna "Empreiteira" dos itens
 
   carregarFuncaoOrc();
   // As listas do cabeçalho ficam numa promessa própria: preencher o formulário
@@ -4647,13 +4776,26 @@ async function verificaOrcamento() {
         }
       }
       // ===== FIM DA VALIDAÇÃO =====
-      
+
+      // Item de staff marcado como Empreiteira/Lote precisa da empreiteira escolhida.
+      const itemSemEmpreiteira = itemEmpreiteiraSemFornecedor();
+      if (itemSemEmpreiteira) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Empreiteira não escolhida",
+          text: `O item "${itemSemEmpreiteira}" está marcado como Empreiteira/Lote, mas sem empreiteira. Escolha a empreiteira ou desmarque o item.`,
+        });
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "Salvar Orçamento";
+        return;
+      }
 
       const dadosOrcamento = {
         id: orcamentoId,
         nomenclatura: document.querySelector("#nomenclatura")?.value,
         status: formData.get("Status"),
         contratarstaff: document.querySelector('#liberaContratacao')?.checked || false,
+        idFornecedorEmpreiteira: document.getElementById('empreiteiraOrcamento')?.value || null,
         idCliente:
           document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
         idEvento:
@@ -4818,6 +4960,9 @@ async function verificaOrcamento() {
                 false,
             cachefechado: !!linha.querySelector('.cacheFechado input[type="checkbox"]')?.checked || false,
             liberarcontratacao: linha.querySelector('.liberarContratacao-input')?.checked ?? true,
+            empreiteira: linha.querySelector('.empreiteira-item-input')?.checked === true,
+            idfornecedorempreiteira: linha.querySelector('.empreiteira-item-input')?.checked
+                ? (linha.querySelector('.empreiteira-item-select')?.value || null) : null,
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
             qtditens:
                 parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
@@ -5124,6 +5269,35 @@ async function verificaOrcamento() {
         document.getElementById("idOrcamento").value = resultado.id;
         if (resultado.nrOrcamento) {
           document.getElementById("nrOrcamento").value = resultado.nrOrcamento; // Atualiza o campo no formulário
+        }
+      }
+
+      // Algum item trocou de empreiteira e já tem gente lançada (não paga) com outra: avisa e
+      // oferece aplicar. Nada muda sem confirmar; pagos nunca mudam (o backend nem lista).
+      const divergentesEmpreiteira = resultado.staffEmpreiteiraDivergente || [];
+      if (isUpdate && divergentesEmpreiteira.length) {
+        const nomes = divergentesEmpreiteira.slice(0, 8)
+          .map((d) => `<li>${String(d.nome || "").replace(/</g, "&lt;")} <small>(${String(d.funcao || "").replace(/</g, "&lt;")})</small></li>`).join("");
+        const extra = divergentesEmpreiteira.length > 8 ? `<li>… e mais ${divergentesEmpreiteira.length - 8}</li>` : "";
+        const { isConfirmed: aplicarEmpreiteira } = await Swal.fire({
+          icon: "question",
+          title: "Lançamentos com outra empreiteira",
+          html: `${divergentesEmpreiteira.length} lançamento(s) de staff deste orçamento, ainda não pagos, estão com empreiteira diferente da que ficou no item:
+                 <ul style="text-align:left; margin:10px 0 0;">${nomes}${extra}</ul>
+                 <p style="font-size:13px; margin-top:10px;">Aplicar a empreiteira do orçamento neles? Os já pagos não mudam.</p>`,
+          showCancelButton: true,
+          confirmButtonText: "Aplicar nos não pagos",
+          cancelButtonText: "Deixar como está",
+          reverseButtons: true,
+        });
+        if (aplicarEmpreiteira) {
+          try {
+            const idParaAplicar = orcamentoId || document.getElementById("idOrcamento")?.value;
+            const r = await fetchComToken(`/orcamentos/${idParaAplicar}/aplicar-empreiteira-staff`, { method: "POST" });
+            await Swal.fire({ icon: "success", title: "Empreiteira aplicada", text: `${r.atualizados} lançamento(s) atualizados.`, timer: 1800, showConfirmButton: false });
+          } catch (e) {
+            await Swal.fire("Não foi possível aplicar", e.corpo?.erro || e.message || "Erro ao aplicar a empreiteira.", "error");
+          }
         }
       }
 
@@ -5980,6 +6154,7 @@ export async function limparOrcamento() {
         statusInput.value = "A";
     }
     aplicarBloqueioLiberarContratacaoItens();
+  sincronizarCelulasEmpreiteira();
 
     // Desbloquear todos os campos e botões
     console.log("DEBUG: Desbloqueando campos e botões...");
@@ -6410,6 +6585,12 @@ const checkLiberaStaff = document.getElementById("liberaContratacao");
   if (checkLiberaStaff) {
     // 1. Define se o checkbox está marcado ou não baseado no banco
     checkLiberaStaff.checked = !!orcamento.contratarstaff;
+    // Empreiteira padrão do topo: guarda no dataset caso a lista ainda não tenha chegado.
+    const topoEmpreiteira = document.getElementById("empreiteiraOrcamento");
+    if (topoEmpreiteira) {
+      topoEmpreiteira.dataset.valor = orcamento.idfornecedorempreiteira ? String(orcamento.idfornecedorempreiteira) : "";
+      topoEmpreiteira.value = topoEmpreiteira.dataset.valor;
+    }
 
     const statusInput = document.getElementById("Status");
 
@@ -6445,6 +6626,7 @@ function atualizarEstadoLiberaStaff(status) {
 
     // Reaplica a mesma regra aos checkboxes por item.
     aplicarBloqueioLiberarContratacaoItens();
+  sincronizarCelulasEmpreiteira();
 }
 
     // Estado inicial com base no orcamento carregado
@@ -6845,6 +7027,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
           </label>
         </div>
       </td>
+      ${htmlCelulaEmpreiteiraItem(item)}
       <td class="cacheFechado">
         <div class="checkbox-wrapper-33">
           <label class="checkbox">
@@ -7044,6 +7227,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
 
   aplicarMascaraMoeda();
   aplicarBloqueioLiberarContratacaoItens();
+  sincronizarCelulasEmpreiteira();
 }
 
 

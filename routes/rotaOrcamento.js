@@ -11,6 +11,139 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const multer = require("multer");
+const { CATEGORIA_EMPREITEIRA } = require("../utils/cicloFornecedor");
+
+// ===== Freelancer pago via empreiteira, definido no orçamento =====
+// O ITEM é a fonte da verdade (orcamentoitens.empreiteira / idfornecedorempreiteira): o Staff
+// pré-marca o lançamento com a empreiteira do item da função. O topo do orçamento
+// (orcamentos.idfornecedorempreiteira) é só o padrão que marca todos os itens de staff.
+// Gravado numa query à parte, depois do INSERT/UPDATE do item, pra não mexer nas listas
+// grandes de parâmetros daquelas queries.
+async function empreiteirasValidasDaEmpresa(client, idempresa) {
+  const { rows } = await client.query(
+    `SELECT idfornecedor FROM fornecedorempresas WHERE idempresa = $1 AND categoria = $2`,
+    [idempresa, CATEGORIA_EMPREITEIRA]
+  );
+  return new Set(rows.map((r) => r.idfornecedor));
+}
+
+function normalizarEmpreiteira(valor, validas, rotulo) {
+  const id = parseInt(valor, 10) || null;
+  if (id && !validas.has(id)) {
+    throw Object.assign(new Error(`${rotulo}: a empreiteira escolhida não está cadastrada como Empreiteira nesta empresa.`), { status: 400 });
+  }
+  return id;
+}
+
+async function gravarEmpreiteiraItem(client, idorcamentoitem, item, validas) {
+  const ehStaff = !!item.idfuncao;
+  const marcado = ehStaff && (item.empreiteira === true || item.empreiteira === "true");
+  const idf = marcado ? normalizarEmpreiteira(item.idfornecedorempreiteira, validas, `Item "${item.produto || ''}"`) : null;
+  if (marcado && !idf) {
+    throw Object.assign(new Error(`Item "${item.produto || ''}": marcado como Empreiteira/Lote, mas sem empreiteira escolhida.`), { status: 400 });
+  }
+  await client.query(
+    `UPDATE orcamentoitens SET empreiteira = $1, idfornecedorempreiteira = $2 WHERE idorcamentoitem = $3`,
+    [marcado, idf, idorcamentoitem]
+  );
+}
+
+// Lançamentos de staff do orçamento, AINDA NÃO PAGOS, cuja empreiteira difere da do item da
+// função (casando função + setor, igual à regra de "liberar contratação"). Só perfis que podem
+// ir via empreiteira. `soItens`: limita aos itens que mudaram nesta gravação.
+async function staffDivergenteDaEmpreiteira(db, idorcamento, soItens = null) {
+  const { rows } = await db.query(
+    `SELECT se.idstaffevento, se.nmfuncionario, se.nmfuncao, se.idfornecedor AS atual,
+            oi.idorcamentoitem, CASE WHEN oi.empreiteira THEN oi.idfornecedorempreiteira END AS esperado
+       FROM staffeventos se
+       JOIN orcamentoitens oi
+         ON oi.idorcamento = se.idorcamento AND oi.idfuncao = se.idfuncao
+        AND regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+          = regexp_replace(upper(unaccent(trim(COALESCE(se.setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+       JOIN staffempresas sem ON sem.idstaff = se.idstaff
+       JOIN funcionarioempresas fe ON fe.idfuncionario = se.idfuncionario AND fe.idempresa = sem.idempresa
+      WHERE se.idorcamento = $1
+        AND se.statusstaff NOT IN ('Inativo', 'Deletado')
+        AND se.dtciclofornecedor IS NULL
+        AND COALESCE(se.statuspgto, '') NOT LIKE 'Pago%'
+        AND COALESCE(se.statuspgtoajdcto, '') NOT LIKE 'Pago%'
+        AND lower(fe.perfil) IN ('freelancer', 'externo', 'lote')
+        AND ($2::int[] IS NULL OR oi.idorcamentoitem = ANY($2::int[]))
+        AND se.idfornecedor IS DISTINCT FROM (CASE WHEN oi.empreiteira THEN oi.idfornecedorempreiteira END)`,
+    [idorcamento, soItens]
+  );
+  return rows;
+}
+
+// Aplicar a empreiteira do orçamento nos lançamentos não pagos (depois de confirmar o aviso).
+router.post(
+  "/:id/aplicar-empreiteira-staff",
+  autenticarToken(),
+  contextoEmpresa,
+  verificarPermissao("Orcamentos", "alterar"),
+  async (req, res) => {
+    const idorcamento = parseInt(req.params.id, 10);
+    if (!idorcamento) return res.status(400).json({ erro: "Orçamento inválido." });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rowCount: daEmpresa } = await client.query(
+        `SELECT 1 FROM orcamentoempresas WHERE idorcamento = $1 AND idempresa = $2`,
+        [idorcamento, req.idempresa]
+      );
+      if (!daEmpresa) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ erro: "Orçamento não encontrado nesta empresa." });
+      }
+      const divergentes = await staffDivergenteDaEmpreiteira(client, idorcamento);
+      for (const d of divergentes) {
+        await client.query(`UPDATE staffeventos SET idfornecedor = $1 WHERE idstaffevento = $2`, [d.esperado, d.idstaffevento]);
+      }
+      await client.query("COMMIT");
+      res.json({ sucesso: true, atualizados: divergentes.length });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Erro ao aplicar empreiteira do orçamento no staff:", error);
+      res.status(500).json({ erro: "Erro ao aplicar a empreiteira nos lançamentos." });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// Empreiteira sugerida pro lançamento de staff: a do item da função (+ setor) no orçamento.
+// Usado pelo Staff pra pré-marcar o check "Empreiteira/Lote" num lançamento novo.
+router.get(
+  "/empreiteira-sugerida",
+  autenticarToken(),
+  contextoEmpresa,
+  async (req, res) => {
+    const idorcamento = parseInt(req.query.idorcamento, 10);
+    const idfuncao = parseInt(req.query.idfuncao, 10);
+    if (!idorcamento || !idfuncao) return res.json({ idfornecedor: null });
+    try {
+      const { rows } = await pool.query(
+        `SELECT oi.idfornecedorempreiteira AS idfornecedor, f.nmfantasia,
+                (regexp_replace(upper(unaccent(trim(COALESCE(oi.setor,'')))), '^PAV(ILHAO)?\\.?\\s*', '')
+                  = regexp_replace(upper(unaccent(trim(COALESCE($3::text,'')))), '^PAV(ILHAO)?\\.?\\s*', '')) AS mesmosetor
+           FROM orcamentoitens oi
+           JOIN orcamentoempresas oe ON oe.idorcamento = oi.idorcamento AND oe.idempresa = $4
+           JOIN fornecedores f ON f.idfornecedor = oi.idfornecedorempreiteira
+          WHERE oi.idorcamento = $1 AND oi.idfuncao = $2 AND oi.empreiteira = true
+          ORDER BY mesmosetor DESC, oi.idorcamentoitem`,
+        [idorcamento, idfuncao, req.query.setor || "", req.idempresa]
+      );
+      // Mais de um item da mesma função com empreiteiras diferentes e sem setor que desempate:
+      // não chuta — o usuário escolhe no Staff.
+      const distintas = new Set(rows.map((r) => r.idfornecedor));
+      const escolhido = rows[0] && (rows[0].mesmosetor || distintas.size === 1) ? rows[0] : null;
+      res.json({ idfornecedor: escolhido?.idfornecedor || null, nmfantasia: escolhido?.nmfantasia || null });
+    } catch (error) {
+      console.error("Erro ao sugerir empreiteira do orçamento:", error);
+      res.status(500).json({ erro: "Erro ao buscar a empreiteira do orçamento." });
+    }
+  }
+);
 
 // Aplica autenticação em todas as rotas
 // router.use(autenticarToken);
@@ -48,7 +181,7 @@ router.get(
             o.vlrimposto, o.percentimposto, o.vlrcliente, o.nomenclatura,
             o.formapagamento, o.edicao, o.geradoanoposterior,
             o.indicesaplicados, o.vlrctofixo, o.percentctofixo,
-            o.contratourl, o.contratarstaff, o.idempresaemissora
+            o.contratourl, o.contratarstaff, o.idempresaemissora, o.idfornecedorempreiteira
         FROM orcamentos o
         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
         LEFT JOIN clientes c ON o.idcliente = c.idcliente
@@ -89,7 +222,7 @@ router.get(
             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
             vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
             totgeralitem, setor, cachefechado, adicional, idsolicitacao, obsbonificado,
-            liberarcontratacao
+            liberarcontratacao, empreiteira, idfornecedorempreiteira
         FROM orcamentoitens
         WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
@@ -586,6 +719,11 @@ router.post(
       );
       const { idorcamento, nrorcamento } = resultOrcamento.rows[0]; // Agora desestrutura ambos
 
+      // Empreiteira padrão do topo (opcional) — os itens trazem a própria, gravada item a item.
+      const empreiteirasValidas = await empreiteirasValidasDaEmpresa(client, idempresa);
+      const idFornecedorEmpreiteiraTopo = normalizarEmpreiteira(req.body.idFornecedorEmpreiteira, empreiteirasValidas, "Topo do orçamento");
+      await client.query(`UPDATE orcamentos SET idfornecedorempreiteira = $1 WHERE idorcamento = $2`, [idFornecedorEmpreiteiraTopo, idorcamento]);
+
       if (nrOrcamentoOriginal) {
         try {
           const updateOriginalQuery = `
@@ -785,7 +923,7 @@ router.post(
                             $15, $16, $17, $18, $19,
                             $20, $21, $22, $23,
                             $24, $25, $26, $27, $28, $29
-                        );
+                        ) RETURNING idorcamentoitem;
                     `;
           const itemValues = [
             idorcamento,
@@ -818,7 +956,8 @@ router.post(
             item.setor,
             item.cachefechado
           ];
-          await client.query(insertItemQuery, itemValues);
+          const { rows: itemInserido } = await client.query(insertItemQuery, itemValues);
+          await gravarEmpreiteiraItem(client, itemInserido[0].idorcamentoitem, item, empreiteirasValidas);
         }
       }
 
@@ -879,8 +1018,9 @@ router.post(
     } catch (error) {
       await client.query("ROLLBACK"); // Reverte a transação em caso de erro
       console.error("Erro ao salvar orçamento e seus itens:", error);
+      // error.status: validação com mensagem pro usuário (ex.: item de empreiteira sem fornecedor).
       res
-        .status(500)
+        .status(error.status || 500)
         .json({ error: "Erro ao salvar orçamento.", detail: error.message });
     } finally {
       client.release(); // Libera o cliente do pool
@@ -3009,6 +3149,19 @@ router.put("/:id",
 
       await client.query(updateOrcamentoQuery, orcamentoValues);
 
+      // Empreiteira: padrão do topo + foto de como cada item estava ANTES desta gravação, pra
+      // avisar no fim quais lançamentos de staff ficaram com empreiteira diferente do item.
+      const empreiteirasValidas = await empreiteirasValidasDaEmpresa(client, idempresa);
+      const idFornecedorEmpreiteiraTopo = normalizarEmpreiteira(req.body.idFornecedorEmpreiteira, empreiteirasValidas, "Topo do orçamento");
+      await client.query(`UPDATE orcamentos SET idfornecedorempreiteira = $1 WHERE idorcamento = $2`, [idFornecedorEmpreiteiraTopo, idOrcamento]);
+      const { rows: empreiteiraItensAntes } = await client.query(
+        `SELECT idorcamentoitem, CASE WHEN empreiteira THEN idfornecedorempreiteira END AS idf
+           FROM orcamentoitens WHERE idorcamento = $1`,
+        [idOrcamento]
+      );
+      const empreiteiraAntesPorItem = new Map(empreiteiraItensAntes.map((r) => [r.idorcamentoitem, r.idf || null]));
+      const itensEmpreiteiraAlterados = [];
+
       // 2. Lidar com Pavilhões
       const currentPavilhoesResult = await client.query(
         `SELECT idpavilhao FROM orcamentopavilhoes WHERE idorcamento = $1;`,
@@ -3487,6 +3640,14 @@ router.put("/:id",
           ];
 
           await client.query(updateItemQuery, itemValues);
+          await gravarEmpreiteiraItem(client, item.id, item, empreiteirasValidas);
+          const { rows: empDepois } = await client.query(
+            `SELECT CASE WHEN empreiteira THEN idfornecedorempreiteira END AS idf FROM orcamentoitens WHERE idorcamentoitem = $1`,
+            [item.id]
+          );
+          if ((empDepois[0]?.idf || null) !== (empreiteiraAntesPorItem.get(Number(item.id)) ?? null)) {
+            itensEmpreiteiraAlterados.push(Number(item.id));
+          }
 
         } else {
           // INSERT DE NOVO ITEM
@@ -3514,7 +3675,7 @@ router.put("/:id",
                 $24, $25, $26,
                 $27, $28, $29,
                 $30, $31, $32, $33, $34
-            )
+            ) RETURNING idorcamentoitem
           `;
 
           // Usa ids_solicitacoes (array agrupado do GET) ou wrapa idsolicitacao singular
@@ -3545,7 +3706,8 @@ router.put("/:id",
             liberarContratacaoItem            // $34
           ];
 
-          await client.query(insertItemQuery, itemValues);
+          const { rows: itemNovo } = await client.query(insertItemQuery, itemValues);
+          await gravarEmpreiteiraItem(client, itemNovo[0].idorcamentoitem, item, empreiteirasValidas);
         }
 
         // Ativar staffevento com suporte a array de solicitacoes
@@ -3759,6 +3921,13 @@ router.put("/:id",
         }
       }
 
+      // Itens que trocaram de empreiteira nesta gravação: lançamentos NÃO pagos que ficaram com
+      // outra empreiteira voltam no response pro front avisar e oferecer "Aplicar nos não pagos".
+      // Nada é alterado automaticamente.
+      const staffEmpreiteiraDivergente = itensEmpreiteiraAlterados.length
+        ? await staffDivergenteDaEmpreiteira(client, idOrcamento, itensEmpreiteiraAlterados)
+        : [];
+
       await client.query("COMMIT");
 
       res.locals.acao = 'atualizou';
@@ -3778,11 +3947,16 @@ router.put("/:id",
         idlocalmontagem: idMontagem,
       };
 
-      res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
+      res.status(200).json({
+        message: "Orçamento atualizado com sucesso!",
+        id: idOrcamento,
+        staffEmpreiteiraDivergente: staffEmpreiteiraDivergente.map((d) => ({ nome: d.nmfuncionario, funcao: d.nmfuncao })),
+      });
     } catch (error) {
       await client.query("ROLLBACK");
       console.error("Erro ao atualizar orçamento e seus itens:", error);
-      res.status(500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
+      // error.status: validação com mensagem pro usuário (ex.: item de empreiteira sem fornecedor).
+      res.status(error.status || 500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
     } finally {
       client.release();
     }
