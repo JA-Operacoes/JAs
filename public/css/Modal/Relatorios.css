@@ -172,7 +172,10 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-miterlimit: 10;
-  color: var(--primary-texto);
+  /* Verde de "ok" do Roots (escuro no tema claro, claro no escuro). Era var(--primary-texto),
+     que dentro do modal fica inválida (a cor da empresa vem da classe .tema-* da página) e
+     caía no color:white do .checkbox — sumia no tema claro. */
+  color: var(--status-ok-fg, #15803d);
   display: inline-block;
 }
 
@@ -629,3 +632,51 @@ fieldset{
             color: var(--text-1);
         }
 }
+/* ─────────────────────────────────────────────
+   Pagamentos a Empreiteiras (resultado na própria tela, #reportOutput)
+ ───────────────────────────────────────────── */
+.rel-emp { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.rel-emp-cabecalho { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.rel-emp-cabecalho strong { font-size: 18px; }
+.rel-emp-cabecalho span { display: block; font-size: 13px; color: var(--text-2); }
+
+/* Reseta "button { width: 25%; font-size: 20px }" da tela de Relatórios. */
+.rel-emp .rel-emp-btn {
+  width: auto; font-size: 14px; padding: 6px 16px; border-radius: 6px;
+  background: var(--primary-color); color: var(--on-brand);
+}
+
+.rel-emp-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.rel-emp-resumo > div { border: 1px solid var(--border-1); border-radius: 6px; padding: 8px 10px; background: var(--surface-3); }
+.rel-emp-resumo span { display: block; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.rel-emp-resumo strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.rel-emp-pago-txt { color: var(--status-ok-fg); }
+.rel-emp-aberto-txt { color: var(--status-info-fg); }
+
+.rel-emp-rolagem { overflow-x: auto; }
+.rel-emp .report-table td { vertical-align: middle; }
+.rel-emp .text-right { text-align: right; font-variant-numeric: tabular-nums; }
+.rel-emp .text-center { text-align: center; }
+
+.rel-emp-grupo td { background: var(--surface-3) !important; border-left: 4px solid var(--primary-color) !important; }
+.rel-emp-ciclo { cursor: pointer; }
+.rel-emp-ciclo:hover td { background: color-mix(in srgb, var(--primary-color) 6%, var(--surface-1)); }
+.rel-emp-ciclo:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+.rel-emp-seta { display: inline-block; width: 12px; color: var(--primary-color); transition: transform .15s; }
+.rel-emp-ciclo[aria-expanded="true"] .rel-emp-seta { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .rel-emp-seta { transition: none; } }
+
+.rel-emp-detalhe > td { padding: 4px 8px 12px 28px !important; background: var(--surface-1) !important; white-space: normal; }
+.rel-emp-det-tabela { box-shadow: none; font-size: 0.85rem; }
+.rel-emp-det-tabela th { background-color: var(--surface-4) !important; color: var(--text-1) !important; }
+.rel-emp-evento td { font-weight: bold; background: var(--surface-3) !important; }
+
+.rel-emp-total td { font-weight: bold; border-bottom: 2px solid var(--primary-color) !important; background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-1)) !important; }
+.rel-emp-total-geral td { font-weight: bold; background: var(--surface-4) !important; }
+
+.rel-emp-situacao { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.rel-emp-pago { background: var(--status-ok-bg); color: var(--status-ok-fg); }
+.rel-emp-parcial { background: var(--status-alerta-bg); color: var(--status-alerta-fg); }
+.rel-emp-aberto { background: var(--status-info-bg); color: var(--status-info-fg); }
+.rel-emp-vazio { color: var(--text-3); }
+.rel-emp a { color: var(--status-ok-fg); font-weight: bold; }
