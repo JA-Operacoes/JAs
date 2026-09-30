@@ -77,17 +77,17 @@ router.put("/:id",
   async (req, res) => {
   const id = req.params.id;
   const idempresa = req.idempresa;
-  const { descEquip, custo, venda, modelos, complementos } = req.body;
+  const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
 
   try {
       const result = await pool.query(
         `UPDATE equipamentos e
           SET descEquip = $1, ctoEquip = $2, vdaEquip = $3,
-              modelos = $4::jsonb, complementos = $5::jsonb
+              modelos = $4::jsonb, complementos = $5::jsonb, ehkit = $6, usointerno = $7
           FROM equipamentoempresas ee
-          WHERE e.idequip = $6 AND ee.idequip = e.idequip AND ee.idempresa = $7
+          WHERE e.idequip = $8 AND ee.idequip = e.idequip AND ee.idempresa = $9
           RETURNING e.idequip`,
-        [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), id, idempresa]
+        [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), !!ehkit, !!usointerno, id, idempresa]
       );
 
       if (result.rowCount) {
@@ -116,7 +116,7 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
       }
   }),
   async (req, res) => {
-  const { descEquip, custo, venda, modelos, complementos } = req.body;
+  const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
   const idempresa = req.idempresa;
 
   let client; // Variável para a conexão de transação
@@ -128,9 +128,10 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
 
       // 1. Insere o novo equipamento na tabela 'equipamentos'
       const resultEquipamento = await client.query(
-          `INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip, modelos, complementos)
-             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb) RETURNING idequip, descEquip, modelos, complementos`,
-          [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || [])]
+          `INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip, modelos, complementos, ehkit, usointerno)
+             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)
+             RETURNING idequip, descEquip, modelos, complementos, ehkit, usointerno`,
+          [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), !!ehkit, !!usointerno]
       );
 
       const novoEquipamento = resultEquipamento.rows[0];

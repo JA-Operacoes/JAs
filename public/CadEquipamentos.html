@@ -44,6 +44,49 @@
 
             </form>
             <br>
+            <section class="equip-secao equip-checks">
+                <label class="ti-swal-check">
+                    <span class="ios-checkbox">
+                        <input type="checkbox" id="chkEhKit">
+                        <div class="checkbox-wrapper">
+                            <div class="checkbox-bg"></div>
+                            <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                                <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+                            </svg>
+                        </div>
+                    </span>
+                    É um kit (composto por outros equipamentos já cadastrados)?
+                </label>
+                <label class="ti-swal-check">
+                    <span class="ios-checkbox">
+                        <input type="checkbox" id="chkUsoInterno">
+                        <div class="checkbox-wrapper">
+                            <div class="checkbox-bg"></div>
+                            <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                                <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+                            </svg>
+                        </div>
+                    </span>
+                    Uso interno (não aparece para escolha em orçamentos de evento)?
+                </label>
+            </section>
+
+            <section class="equip-secao" id="fieldset-kit-equipamento" style="display:none;">
+                <h3>Composição do kit</h3>
+                <p class="equip-hint">Escolha os equipamentos que fazem parte deste kit e quantas unidades de cada um ele exige.</p>
+                <table class="equip-tabela" id="tabela-kit-equipamento">
+                    <thead>
+                        <tr>
+                            <th>Equipamento</th>
+                            <th style="width:110px;">Quantidade</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-kit-equipamento"></tbody>
+                </table>
+                <button class="equip-add" id="btnAdicionarKitItem" type="button">+ Adicionar equipamento</button>
+            </section>
+
             <section class="equip-secao" id="fieldset-modelos-equipamento">
                 <h3>Modelos (marca / modelo)</h3>
                 <p class="equip-hint">O estoque (unidades/patrimônios) é controlado na aba Estoque do TI Mode.</p>

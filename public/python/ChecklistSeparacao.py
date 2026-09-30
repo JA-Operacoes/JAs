@@ -16,21 +16,29 @@ def gerar_checklist(dados):
     categorias_entrada = dados.get("categorias") or []
 
     categorias = []
+    # Item que existe só por causa de um kit orçado (ver rotaTI.js, expandirItensComKit)
+    # vira uma nota em "Observações Gerais" (modelo tem um {%p for %} logo abaixo desse
+    # título) em vez de uma linha de item na tabela -- não é algo que se marca/separa
+    # à parte, é só o motivo de parte da quantidade já contada estar ali.
+    notasgerais = []
     for categoria in categorias_entrada:
         nome = categoria.get("descequip", "Equipamento")
         qtd = categoria.get("qtdorcada", 0)
         complementos = categoria.get("complementos") or []
         patrimonios = categoria.get("patrimonios") or []
+        viakit = categoria.get("viakit") or []
         itens = [{"nome": nome, "qtd": qtd}] + [{"nome": item, "qtd": ""} for item in complementos]
         itens += [{"nome": f"Patrimônio separado: {patrimonio}", "qtd": ""} for patrimonio in patrimonios]
         categorias.append({"nome": nome, "qtd": qtd, "itens": itens})
 
+        for v in viakit:
+            notasgerais.append(f"{nome}: {v.get('quantidade')} necessário(s) para montar {v.get('descequip')}")
 
     pasta_script = os.path.dirname(os.path.abspath(__file__))
     caminho_modelo = os.path.join(pasta_script, "..", "..", "models", "ChecklistSeparacaoEquipamentos.docx")
 
     doc = DocxTemplate(caminho_modelo)
-    doc.render({"nmevento": nmevento, "categorias": categorias})
+    doc.render({"nmevento": nmevento, "categorias": categorias, "notasgerais": notasgerais})
 
     pasta_saida = os.path.join(pasta_script, "..", "..", "uploads", "Checklist")
     os.makedirs(pasta_saida, exist_ok=True)

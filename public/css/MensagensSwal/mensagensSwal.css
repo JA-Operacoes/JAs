@@ -720,6 +720,17 @@
    usuária (venda é figura comercial, não faz sentido pra tela operacional do T.I.). */
 .ti-separacao-custo { margin-left: auto; color: var(--status-ok-fg); font-size: 0.8em; font-weight: 600; }
 
+.ti-separacao-via-kit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 0.8em;
+  font-style: italic;
+  margin-top: 2px;
+}
+.ti-separacao-via-kit .material-symbols-outlined { font-size: 14px; }
+
 .ti-separacao-modelo { margin: 6px 0 0 8px; }
 .ti-separacao-modelo em { color: var(--text-1); font-size: 0.9em; }
 .ti-separacao-vazio { color: var(--text-2); font-size: 0.9em; padding: 4px 0; }

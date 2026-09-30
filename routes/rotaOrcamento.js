@@ -468,7 +468,7 @@ router.get("/equipamentos", async (req, res) => {
       SELECT eq.*
       FROM equipamentos eq
       INNER JOIN equipamentoempresas eqe ON eqe.idequip = eq.idequip
-      WHERE eqe.idempresa = $1
+      WHERE eqe.idempresa = $1 AND eq.usointerno = false
       ORDER BY eq.descequip
     `,
       [idempresa]
