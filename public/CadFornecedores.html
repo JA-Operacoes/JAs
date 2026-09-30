@@ -83,6 +83,72 @@
 
           </fieldset><br>
 
+          <fieldset class="pagamento-equipe">
+            <legend>Pagamento de Equipe</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <select name="categoria" id="categoria">
+                  <option value="">Fornecedor comum</option>
+                  <option value="EMPREITEIRA">Empreiteira / Lote de Funcionários</option>
+                </select>
+                <label for="categoria">Categoria</label>
+              </div>
+              <div class="checkbox-wrapper-33" id="blocoEnviaNF" style="display: none;">
+                <label class="checkbox" title="Exige a nota fiscal do ciclo antes de pagar. Desmarque para quem só coordena e repassa o valor.">
+                  <p class="checkbox__textwrapper">Emite NF</p>
+                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="enviaNF" name="enviaNF" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
+                      version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div id="blocoRegraPgto" style="display: none;">
+              <div class="form-2colunas">
+                <div class="form2">
+                  <select name="tipoPgto" id="tipoPgto">
+                    <option value="EVENTO">Por evento (2 dias após o fim)</option>
+                    <option value="INTERVALO">A cada N dias</option>
+                    <option value="MENSAL">Mensal</option>
+                  </select>
+                  <label for="tipoPgto">Vencimento</label>
+                </div>
+                <div class="form2 campoIntervalo">
+                  <input type="number" name="intervaloDias" id="intervaloDias" min="1" step="1" placeholder=" "
+                    title="Semanal = 7 · Quinzenal = 14 (duas semanas, sempre no mesmo dia da semana)">
+                  <label for="intervaloDias">A cada quantos dias</label>
+                  <div class="atalhos-intervalo">
+                    <button type="button" class="btn-atalho-intervalo" data-dias="7">Semanal</button>
+                    <button type="button" class="btn-atalho-intervalo" data-dias="14">Quinzenal</button>
+                  </div>
+                  <small id="dicaIntervalo" class="dica-intervalo"></small>
+                </div>
+                <div class="form2 campoIntervalo">
+                  <input type="date" name="dtBasePgto" id="dtBasePgto"
+                    title="O dia da semana dos próximos pagamentos sai desta data">
+                  <label for="dtBasePgto">Primeiro pagamento</label>
+                </div>
+                <div class="form2 campoMensal">
+                  <input type="number" name="diaMesPgto" id="diaMesPgto" min="1" max="31" step="1" placeholder=" "
+                    title="Mês com menos dias paga no último dia">
+                  <label for="diaMesPgto">Dia do mês</label>
+                </div>
+              </div>
+              <small id="resumoRegraPgto" style="display: block; color: var(--text-2); margin: 4px 0 0 4px;"></small>
+
+              <!-- Pagamentos do ano da empreiteira: só com fornecedor carregado. "Ver pagamentos" abre
+                   o Relatório de Pagamentos a Empreiteiras já filtrado nele. -->
+              <div id="resumoPagamentosEquipe" class="resumo-pagamentos-equipe" style="display: none;">
+                <div class="dados-pagamentos" id="dadosPagamentosEquipe"></div>
+                <button type="button" class="btn-ver-pagamentos" id="btnVerPagamentosEquipe">Ver pagamentos</button>
+              </div>
+            </div>
+          </fieldset><br>
+
           <fieldset>
             <legend>Dados Bancários</legend>
             <div class="form-2colunas">

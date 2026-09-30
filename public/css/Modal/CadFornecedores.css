@@ -85,17 +85,23 @@ body{
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 300px;
+    /* Era 300px: compensava o topo cortado pelo justify-content:center do #form-content.
+       Com o form alinhado no topo (flex-start), só um respiro normal. */
+    margin-top: 5px;
 }
 
 
 #form-content {
   font-family: "Abel", sans-serif;
   display: flex;                
-  flex-direction: column; 
-  justify-content: center;
+  flex-direction: column;
+  /* flex-start, não center: com overflow-y:auto, "center" joga o excesso pra cima e pra
+     baixo quando o conteúdo passa da altura — o título e o CNPJ ficavam cortados no topo sem
+     dar pra rolar até eles (apareceu ao entrar o bloco "Pagamento de Equipe"). Mesmo bug já
+     corrigido em LocalMontagem.css e CadDespesaExtraEvento.css. */
+  justify-content: flex-start;
   background-color: var(--surface-1);
-  max-width: 700px;   
+  max-width: 700px;
   width: 100%;  
   height: 720px; 
   margin: 0 auto;         
@@ -548,3 +554,234 @@ button.Close {
   background-color: #555;
 }
 
+
+/* ─────────────────────────────────────────────
+   Pagamento de Equipe (empreiteira)
+   Aqui o rótulo fica ACIMA do campo, fora da borda: as regras genéricas de .form2 label /
+   .form-2colunas label (position:absolute, rótulo flutuando na borda) grudavam "Categoria"
+   no texto do select e jogavam o label do checkbox "Emite NF" pra fora do fieldset.
+   Tudo escopado em .pagamento-equipe pra não mexer no resto do cadastro.
+ ───────────────────────────────────────────── */
+.pagamento-equipe .form-2colunas {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  /* Alinha pelo topo: rótulos numa linha só e campos noutra, mesmo quando uma coluna tem
+     conteúdo extra embaixo (a dica do intervalo). */
+  align-items: flex-start;
+  gap: 4px 16px;
+  padding: 0 8px;
+}
+
+.pagamento-equipe .form2 {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.pagamento-equipe .form2 label,
+.pagamento-equipe .form2 input ~ label,
+.pagamento-equipe .form2 select ~ label {
+  position: static;
+  transform: none;
+  order: -1;              /* rótulo acima do campo, mesmo vindo depois no HTML */
+  top: auto;
+  left: auto;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: transparent;
+}
+
+.pagamento-equipe .form2 select,
+.pagamento-equipe .form2 input {
+  flex: none;
+  box-sizing: border-box;
+  margin-top: 0;
+}
+
+.pagamento-equipe #categoria {
+  width: 270px;
+  min-width: 270px;
+  max-width: 270px;
+}
+
+.pagamento-equipe #tipoPgto,
+.pagamento-equipe #diaMesPgto {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  padding: 0 10px;
+}
+
+/* "A cada quantos dias": número curto com os atalhos ao lado, dica embaixo. Grid em vez do
+   column do .form2 pra input e botões ficarem na mesma linha dos outros campos. O JS mostra/
+   esconde esta coluna com style.display = "" / "none", que volta pro grid daqui. */
+.pagamento-equipe .campoIntervalo {
+  display: grid;
+  grid-template-columns: 80px auto;
+  column-gap: 8px;
+  row-gap: 4px;
+  align-items: center;
+}
+.pagamento-equipe .campoIntervalo label { grid-column: 1 / -1; grid-row: 1; }
+.pagamento-equipe .campoIntervalo #intervaloDias { grid-column: 1; grid-row: 2; }
+.pagamento-equipe .campoIntervalo .atalhos-intervalo { grid-column: 2; grid-row: 2; }
+.pagamento-equipe .campoIntervalo .dica-intervalo { grid-column: 1 / -1; grid-row: 3; }
+
+.pagamento-equipe #intervaloDias {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  padding: 0 8px;
+  text-align: center;
+}
+
+.pagamento-equipe .atalhos-intervalo {
+  display: flex;
+  gap: 6px;
+}
+
+/* Reseta a regra genérica "button { width: 25%; font-size: 20px }" do modal (feita pros
+   botões Pesquisar/Limpar/Enviar), que cortava o texto dos atalhos. */
+.pagamento-equipe .btn-atalho-intervalo {
+  width: auto;
+  height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-family: var(--Font-primary);
+  font-size: 12px;
+  border-radius: 15px;
+  /* Cor da empresa direto (com reserva): --primary-texto nasce no :root, onde a cor da empresa
+     ainda não existe (ela vem da classe .tema-* da página), e dentro do modal ficava inválida —
+     o navegador descartava a borda inteira e o botão parecia só texto. */
+  border: 1px solid var(--primary-color, var(--border-2));
+  background: var(--surface-1);
+  color: var(--text-1);
+  box-shadow: 0 1px 2px var(--shadow-1);
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.pagamento-equipe .btn-atalho-intervalo:hover {
+  background: var(--primary-color10, var(--surface-3));
+  box-shadow: 0 2px 4px var(--shadow-2);
+}
+.pagamento-equipe .btn-atalho-intervalo:focus-visible {
+  outline: 2px solid var(--primary-color, var(--border-2));
+  outline-offset: 2px;
+}
+.pagamento-equipe .btn-atalho-intervalo.ativo {
+  background: var(--primary-color, var(--surface-4));
+  border-color: var(--primary-color, var(--border-2));
+  color: var(--on-brand);
+}
+
+.pagamento-equipe .dica-intervalo {
+  font-size: 11px;
+  color: var(--text-2);
+  min-height: 14px;
+}
+
+.pagamento-equipe #dtBasePgto {
+  width: 150px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
+/* Checkbox "Emite NF": volta pro fluxo normal (a regra de .form-2colunas label o deixava
+   absoluto) e alinha com a base do select de Categoria. */
+.pagamento-equipe .checkbox-wrapper-33 {
+  /* 8px de margem + ~18px do rótulo dos outros campos: a caixinha fica na altura do select. */
+  margin: 26px 0 8px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.pagamento-equipe .checkbox-wrapper-33 label.checkbox {
+  position: static;
+  transform: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.pagamento-equipe .checkbox-wrapper-33 .checkbox__textwrapper {
+  order: 1;               /* texto depois da caixinha: "☐ Emite NF" */
+  margin: 0;
+}
+
+.pagamento-equipe #resumoRegraPgto {
+  padding: 0 8px 6px;
+  font-size: 12px;
+}
+
+
+/* Resumo dos pagamentos do ano + "Ver pagamentos" (abre o Relatório de Empreiteiras). */
+.pagamento-equipe .resumo-pagamentos-equipe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 10px 8px 6px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-2);
+  border-radius: 6px;
+  background: var(--surface-3);
+}
+.pagamento-equipe .dados-pagamentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.pagamento-equipe .dados-pagamentos b { font-variant-numeric: tabular-nums; }
+.pagamento-equipe .btn-ver-pagamentos {
+  width: auto;
+  height: 30px;
+  margin: 0;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--Font-primary);
+  font-size: 13px;
+  border-radius: 6px;
+  border: none;
+  background: var(--primary-color, var(--surface-4));
+  color: var(--on-brand);
+  cursor: pointer;
+}
+
+/* Seletor de ano do resumo de pagamentos (só anos que tiveram ciclo). */
+.pagamento-equipe .ano-pagamentos-equipe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.pagamento-equipe .ano-pagamentos-equipe select {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: 26px;
+  padding: 0 6px;
+  font-family: var(--Font-primary);
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-1);
+  color: var(--text-1);
+}

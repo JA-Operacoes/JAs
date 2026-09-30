@@ -4,6 +4,7 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
+const { CATEGORIA_EMPREITEIRA, TIPOS_PGTO, carregarCiclosFornecedor } = require('../utils/cicloFornecedor');
 
 // Aplica autenticação em todas as rotas
 router.use(autenticarToken());
@@ -15,7 +16,36 @@ const CAMPOS_SELECT = `
     c.idfornecedor, c.nmfantasia, c.razaosocial, c.cnpj, c.inscestadual, c.emailfornecedor, c.pix, c.telefone,
     c.cep, c.rua, c.numero, c.complemento, c.bairro, c.cidade, c.estado, c.pais, c.tpfornecedor,
     ce.ativo, ce.nmcontato, ce.celcontato, ce.emailcontato, ce.observacao,
-    ce.codbanco, ce.agencia, ce.digitoagencia, ce.conta, ce.digitoconta`;
+    ce.codbanco, ce.agencia, ce.digitoagencia, ce.conta, ce.digitoconta,
+    ce.categoria, ce.envianf, ce.tipopgto, ce.intervalodias, to_char(ce.dtbasepgto, 'YYYY-MM-DD') AS dtbasepgto, ce.diamespgto`;
+
+// Pagamento de equipe via empreiteira (ver utils/cicloFornecedor.js). Só a categoria
+// EMPREITEIRA guarda regra de pagamento; qualquer outra categoria zera os campos, pra não sobrar
+// uma regra antiga "escondida" num fornecedor que deixou de ser empreiteira.
+function normalizarPagamentoEquipe(body) {
+  const categoria = String(body.categoria || "").trim().toUpperCase() || null;
+  if (categoria !== CATEGORIA_EMPREITEIRA) {
+    return { categoria, envianf: false, tipopgto: null, intervalodias: null, dtbasepgto: null, diamespgto: null };
+  }
+  const tipopgto = TIPOS_PGTO.includes(body.tipopgto) ? body.tipopgto : "EVENTO";
+  const intervalodias = parseInt(body.intervalodias, 10);
+  const diamespgto = parseInt(body.diamespgto, 10);
+  const dados = {
+    categoria,
+    envianf: body.envianf === true || body.envianf === "true",
+    tipopgto,
+    intervalodias: tipopgto === "INTERVALO" ? intervalodias : null,
+    dtbasepgto: tipopgto === "INTERVALO" ? (String(body.dtbasepgto || "").slice(0, 10) || null) : null,
+    diamespgto: tipopgto === "MENSAL" ? diamespgto : null,
+  };
+  if (tipopgto === "INTERVALO" && (!(dados.intervalodias > 0) || !dados.dtbasepgto)) {
+    return { erro: "Pagamento a cada N dias precisa do intervalo (ex.: 14 para quinzenal) e da data do primeiro pagamento." };
+  }
+  if (tipopgto === "MENSAL" && !(dados.diamespgto >= 1 && dados.diamespgto <= 31)) {
+    return { erro: "Pagamento mensal precisa do dia do mês (1 a 31)." };
+  }
+  return dados;
+}
 
 // GET verifica se o CPF/CNPJ já existe (em qualquer empresa) — fornecedor pode ser
 // pessoa física ou jurídica (tpfornecedor F/J) — usado no cadastro para detectar
@@ -80,6 +110,34 @@ router.get("/verificar-cnpj/:cnpj", verificarPermissao('Fornecedores', 'cadastra
         console.error("Erro ao verificar CPF/CNPJ do fornecedor:", error);
         res.status(500).json({ message: "Erro ao verificar CPF/CNPJ." });
     }
+});
+
+// Resumo dos pagamentos de equipe do ano (empreiteira) pro bloco "Pagamento de Equipe" do
+// cadastro — o detalhe fica no Relatório de Pagamentos a Empreiteiras ("Ver pagamentos").
+router.get("/:id/resumo-pagamentos", verificarPermissao('Fornecedores', 'pesquisar'), async (req, res) => {
+  const idfornecedor = parseInt(req.params.id, 10);
+  const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+  if (!idfornecedor) return res.status(400).json({ message: "Fornecedor inválido." });
+  try {
+    // Todos os anos de uma vez (pra montar o seletor de ano do resumo) e filtra o escolhido.
+    const todos = await carregarCiclosFornecedor(req.idempresa, { idfornecedor });
+    const anos = [...new Set(todos.map(c => Number(c.dtciclo.slice(0, 4))))].sort((a, b) => b - a);
+    const ciclos = todos.filter(c => Number(c.dtciclo.slice(0, 4)) === ano);
+    const pagos = ciclos.filter(c => c.status === 'Pago');
+    const emAberto = ciclos.filter(c => c.status !== 'Pago');
+    const proximo = emAberto.sort((a, b) => a.dtciclo.localeCompare(b.dtciclo))[0] || null;
+    res.json({
+      ano,
+      anos,
+      ciclosPagos: pagos.length,
+      totalPago: ciclos.reduce((s, c) => s + c.pago, 0),
+      totalEmAberto: emAberto.reduce((s, c) => s + c.saldo, 0),
+      proximoVencimento: proximo ? proximo.dtciclo : null,
+    });
+  } catch (error) {
+    console.error("Erro ao resumir pagamentos do fornecedor:", error);
+    res.status(500).json({ message: "Erro ao carregar os pagamentos do fornecedor." });
+  }
 });
 
 // GET todas ou por descrição
@@ -181,6 +239,9 @@ router.put(
     const digitoagencia = req.body.digitoagencia || null;
     console.log("DADOS RECEBIDOS", req.body);
 
+    const pgtoEquipe = normalizarPagamentoEquipe(req.body);
+    if (pgtoEquipe.erro) return res.status(400).json({ message: pgtoEquipe.erro });
+
     let client;
 
     try {
@@ -257,12 +318,20 @@ router.put(
              agencia = $7,
              digitoagencia = $8,
              conta = $9,
-             digitoconta = $10
+             digitoconta = $10,
+             categoria = $13,
+             envianf = $14,
+             tipopgto = $15,
+             intervalodias = $16,
+             dtbasepgto = $17,
+             diamespgto = $18
          WHERE idfornecedor = $11 AND idempresa = $12`,
         [
           ativo, nmContato, celContato, emailContato, observacao,
           codbanco, agencia, digitoagencia, conta, digitoconta,
-          id, idempresa
+          id, idempresa,
+          pgtoEquipe.categoria, pgtoEquipe.envianf, pgtoEquipe.tipopgto,
+          pgtoEquipe.intervalodias, pgtoEquipe.dtbasepgto, pgtoEquipe.diamespgto
         ]
       );
 
@@ -318,6 +387,9 @@ router.post(
 
     console.log("DADOS RECEBIDOS NO POST:", req.body);
 
+    const pgtoEquipe = normalizarPagamentoEquipe(req.body);
+    if (pgtoEquipe.erro) return res.status(400).json({ erro: pgtoEquipe.erro, message: pgtoEquipe.erro });
+
     const idempresa = req.idempresa;
     let client;
 
@@ -358,11 +430,14 @@ router.post(
         await client.query(
           `INSERT INTO fornecedorempresas (
             idfornecedor, idempresa, ativo, nmcontato, celcontato, emailcontato, observacao,
-            codbanco, agencia, digitoagencia, conta, digitoconta
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            codbanco, agencia, digitoagencia, conta, digitoconta,
+            categoria, envianf, tipopgto, intervalodias, dtbasepgto, diamespgto
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
           [
             idfornecedor, idempresa, ativo, nmContato, celContato, emailContato, observacao,
-            codbanco, agencia, digitoagencia, conta, digitoconta
+            codbanco, agencia, digitoagencia, conta, digitoconta,
+            pgtoEquipe.categoria, pgtoEquipe.envianf, pgtoEquipe.tipopgto,
+            pgtoEquipe.intervalodias, pgtoEquipe.dtbasepgto, pgtoEquipe.diamespgto
           ]
         );
 
@@ -400,11 +475,14 @@ router.post(
       await client.query(
         `INSERT INTO fornecedorempresas (
           idfornecedor, idempresa, ativo, nmcontato, celcontato, emailcontato, observacao,
-          codbanco, agencia, digitoagencia, conta, digitoconta
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          codbanco, agencia, digitoagencia, conta, digitoconta,
+          categoria, envianf, tipopgto, intervalodias, dtbasepgto, diamespgto
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
         [
           idfornecedor, idempresa, ativo, nmContato, celContato, emailContato, observacao,
-          codbanco, agencia, digitoagencia, conta, digitoconta
+          codbanco, agencia, digitoagencia, conta, digitoconta,
+          pgtoEquipe.categoria, pgtoEquipe.envianf, pgtoEquipe.tipopgto,
+          pgtoEquipe.intervalodias, pgtoEquipe.dtbasepgto, pgtoEquipe.diamespgto
         ]
       );
 
