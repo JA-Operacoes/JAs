@@ -7,6 +7,51 @@ const logMiddleware = require('../middlewares/logMiddleware');
 const registrarLog = require('../utils/logger');
 
 // --- Importações e Configuração do Multer ---
+const { CATEGORIA_EMPREITEIRA } = require('../utils/cicloFornecedor');
+
+// Freelancer pago via empreiteira — escolhido POR LANÇAMENTO no Staff (check "Empreiteira/Lote"
+// + fornecedor), não mais no cadastro do funcionário: a mesma pessoa pode ir por empreiteiras
+// diferentes (ou por conta própria) em eventos diferentes. Só perfis que recebem por evento.
+// Trava: se cachê/ajuda deste lançamento já foram pagos (direto ou por ciclo), o vínculo não
+// muda — pagamento feito não troca de dono; pra mudar, primeiro estorna.
+const PERFIS_VINCULO_EMPREITEIRA = ['freelancer', 'externo', 'lote'];
+
+async function aplicarVinculoEmpreiteira(client, { idstaffevento, idempresa, body, old = null }) {
+    if (!('idfornecedor' in body)) return; // front antigo sem o campo: não mexe
+    const novo = parseInt(body.idfornecedor, 10) || null;
+    const anterior = old ? (old.idfornecedor || null) : null;
+    if (old && novo === anterior) return;
+
+    const erro = (msg) => Object.assign(new Error(msg), { status: 400 });
+
+    if (old) {
+        const jaPago = !!old.dtciclofornecedor
+            || String(old.statuspgto || '').startsWith('Pago')
+            || String(old.statuspgtoajdcto || '').startsWith('Pago');
+        if (jaPago) {
+            throw Object.assign(new Error('Este lançamento já tem pagamento feito — não dá pra trocar a empreiteira. Estorne o pagamento antes.'), { status: 409 });
+        }
+    }
+
+    if (novo) {
+        const { rows: perfilRows } = await client.query(
+            `SELECT perfil FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+            [body.idfuncionario, idempresa]
+        );
+        const perfil = String(perfilRows[0]?.perfil || '').toLowerCase();
+        if (!PERFIS_VINCULO_EMPREITEIRA.includes(perfil)) {
+            throw erro('Só Freelancer, Externo e Lote podem ser pagos via empreiteira.');
+        }
+        const { rowCount } = await client.query(
+            `SELECT 1 FROM fornecedorempresas WHERE idfornecedor = $1 AND idempresa = $2 AND categoria = $3`,
+            [novo, idempresa, CATEGORIA_EMPREITEIRA]
+        );
+        if (!rowCount) throw erro('O fornecedor escolhido não está cadastrado como Empreiteira nesta empresa.');
+    }
+
+    await client.query(`UPDATE staffeventos SET idfornecedor = $1 WHERE idstaffevento = $2`, [novo, idstaffevento]);
+}
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Para manipulação de arquivos (apagar antigos)
@@ -224,6 +269,24 @@ function deletarArquivoAntigo(relativePath) {
     }
 }
 
+
+// Empreiteiras ativas da empresa, pro select do check "Empreiteira/Lote" do lançamento.
+router.get('/empreiteiras', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT f.idfornecedor, f.nmfantasia, fe.tipopgto, fe.intervalodias, fe.diamespgto
+         FROM fornecedores f
+         JOIN fornecedorempresas fe ON fe.idfornecedor = f.idfornecedor
+        WHERE fe.idempresa = $1 AND fe.categoria = $2 AND COALESCE(fe.ativo, true) = true
+        ORDER BY f.nmfantasia`,
+      [req.idempresa, CATEGORIA_EMPREITEIRA]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Erro ao listar empreiteiras:", error);
+    res.status(500).json({ erro: 'Erro ao listar empreiteiras.' });
+  }
+});
 
 router.get('/equipe', async (req, res) => {
   
@@ -1801,6 +1864,9 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.statuspgtoajdcto,
           se.statuspgtocaixinha,
           se.qtdpessoaslote,
+          se.idfornecedor,
+          (SELECT fv.nmfantasia FROM fornecedores fv WHERE fv.idfornecedor = se.idfornecedor) AS nmfornecedorvinculo,
+          se.dtciclofornecedor,
           se.tipoajudacustoviagem,
           se.statuspgtocaixinha,
           se.statuspgtoajdcto,
@@ -2350,6 +2416,10 @@ router.put("/:idStaffEvento",
                     paths.inativardeletar, paths.cache50, JSON.stringify(caixinha)
                 ]
             );
+
+            // Pago via empreiteira (check "Empreiteira/Lote"): valida e grava, com a trava de
+            // pagamento já feito (usa o registro ANTES desta edição, `old`).
+            await aplicarVinculoEmpreiteira(client, { idstaffevento: idStaffEvento, idempresa, body, old });
 
             // Ajuda de custo já paga que sobrou ao remover data(s) e não coube no Cachê (o front
             // trava vlrtotcache em 0 nesse caso, ver calcularValorTotal/REGRA DE OURO) — em vez de
@@ -2930,7 +3000,8 @@ router.put("/:idStaffEvento",
         } catch (e) {
             if (client) await client.query('ROLLBACK');
             console.error("❌ Erro no PUT Staff:", e);
-            res.status(500).json({ error: e.message });
+            // e.status: erro de validação com mensagem pro usuário (ex.: aplicarVinculoEmpreiteira).
+            res.status(e.status || 500).json({ error: e.message, ...(e.status ? { erro: e.message } : {}) });
         } finally { if (client) client.release(); }
     }
 
@@ -3983,6 +4054,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         const novoIdStaffEvento = resIns.rows[0].idstaffevento;
         console.log(`📌 [INSERT STAFFEVENTOS] - Sucesso! ID Gerado: ${novoIdStaffEvento}`);
 
+        // Pago via empreiteira: escolhido no próprio lançamento (check "Empreiteira/Lote").
+        await aplicarVinculoEmpreiteira(client, { idstaffevento: novoIdStaffEvento, idempresa, body });
+
         // ====================================================================
         // 🚀 5. REGISTRAR SOLICITAÇÕES FINANCEIRAS
         // ====================================================================
@@ -4121,7 +4195,8 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         if (client) await client.query('ROLLBACK');
         console.error("\n❌ Erro Crítico ao salvar staff (Transação Revertida):", e);
         console.error("📋 Estado da variável jsonVagasReaproveitadas no erro:", jsonVagasReaproveitadas);
-        res.status(500).json({ sucesso: false, error: e.message });
+        // e.status: erro de validação com mensagem pro usuário (ex.: aplicarVinculoEmpreiteira).
+        res.status(e.status || 500).json({ sucesso: false, error: e.message, ...(e.status ? { erro: e.message } : {}) });
     } finally { 
         if (client) client.release(); 
     }

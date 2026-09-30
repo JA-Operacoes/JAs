@@ -1845,6 +1845,9 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
 
     qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
+    // Pago via empreiteira: marca o check/fornecedor do lançamento e trava se já pago.
+    definirEmpreiteiraStaff(eventData);
+
     // Campos Financeiros
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
     transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
@@ -4915,6 +4918,12 @@ async function verificaStaff() {
             if (meiaDiariacheck.checked && periodoMeiaDiaria.length === 0) {
                 return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Meia Diária no evento.", "warning");
             }
+            // Pago via empreiteira: marcou o check, tem que escolher a empreiteira.
+            const vinculoEmpreiteira = lerEmpreiteiraStaff();
+            if (vinculoEmpreiteira.faltaEscolher) {
+                document.getElementById('idFornecedorStaff')?.focus();
+                return Swal.fire("Campo obrigatório!", "Você marcou Empreiteira/Lote: escolha a empreiteira que paga este lançamento.", "warning");
+            }
 
             // 🔥 VALIDAÇÃO INTELIGENTE COM ABERTURA DO MODAL (PARA POST E PUT)
             if (diariaDobrada && periodoDobrado.length > 0) {
@@ -6255,6 +6264,7 @@ async function verificaStaff() {
                     ) ||
                     logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
                     logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0)) ||
+                    logAndCheck('Empreiteira', String(currentEditingStaffEvent.idfornecedor || ''), vinculoEmpreiteira.idfornecedor, String(currentEditingStaffEvent.idfornecedor || '') !== vinculoEmpreiteira.idfornecedor) ||
                     logAndCheck('StatusStaff', statusStaffAntigoParaComparacao, statusStaffNovoParaComparacao, statusStaffAntigoParaComparacao !== statusStaffNovoParaComparacao) ||
                     nivelFoiTrocado; // ← Se houve troca de nível, força alteração
 
@@ -6962,6 +6972,8 @@ async function verificaStaff() {
 
             formData.append('qtdpessoas', qtdPessoas.toString());
             formData.append('idorcamento', idOrcamentoAtual);
+            // '' = recebe direto (desfaz vínculo); o backend recusa trocar se já houve pagamento.
+            formData.append('idfornecedor', vinculoEmpreiteira.idfornecedor);
 
             formData.append('idfuncao', idFuncao);
             formData.append('nmfuncao', descFuncao);
@@ -9567,6 +9579,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         }
 
         idOrcamentoAtual = orcamentoBase.idorcamento;
+        sugerirEmpreiteiraDoOrcamento(); // orçamento resolvido: pré-marca a empreiteira do item (lançamento novo)
 
         // 🛑 [PONTO DE CORREÇÃO] Se o modo silencioso estiver ativo, para a execução aqui!
         if (ignorarModalVisivel) {
@@ -11367,6 +11380,162 @@ function configurarBuscaTextoFuncionarioStaff(select, funcionarios) {
     });
 }
 
+// ===== Pago via empreiteira (check "Empreiteira/Lote" + fornecedor) =====
+// Escolhido POR LANÇAMENTO: a mesma pessoa pode ir por empreiteiras diferentes (ou por conta
+// própria) em eventos diferentes. Só Freelancer, Externo e Lote. Lançamento novo vem sempre
+// desmarcado. Com cachê/ajuda já pagos (direto ou por ciclo), fica travado — pra mudar, estorna.
+const PERFIS_EMPREITEIRA_STAFF = ['freelancer', 'externo', 'lote'];
+let empreiteirasStaffCarregadas = false;
+
+async function carregarEmpreiteirasStaff() {
+    const select = document.getElementById('idFornecedorStaff');
+    if (!select || empreiteirasStaffCarregadas) return;
+    try {
+        const lista = await fetchComToken('/staff/empreiteiras');
+        (Array.isArray(lista) ? lista : []).forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.idfornecedor;
+            const regra = f.tipopgto === 'INTERVALO' ? ` · a cada ${f.intervalodias} dias`
+                : f.tipopgto === 'MENSAL' ? ` · todo dia ${f.diamespgto}` : '';
+            opt.textContent = `${f.nmfantasia}${regra}`;
+            select.appendChild(opt);
+        });
+        empreiteirasStaffCarregadas = true;
+        // Lançamento carregado antes da lista chegar: aplica o valor guardado.
+        if (select.dataset.valorPendente) select.value = select.dataset.valorPendente;
+    } catch (e) {
+        console.error('Erro ao carregar empreiteiras:', e);
+    }
+}
+
+function aplicarCheckEmpreiteiraStaff() {
+    const check = document.getElementById('checkEmpreiteiraStaff');
+    const select = document.getElementById('idFornecedorStaff');
+    if (!check || !select) return;
+    select.style.display = check.checked ? '' : 'none';
+    if (!check.checked) { select.value = ''; select.dataset.valorPendente = ''; }
+}
+
+// Mostra o bloco só pros perfis que recebem por evento; nos demais, desfaz a marcação.
+function atualizarBlocoEmpreiteiraStaff(perfil) {
+    const bloco = document.getElementById('blocoEmpreiteiraStaff');
+    if (!bloco) return;
+    const permitido = PERFIS_EMPREITEIRA_STAFF.includes(String(perfil || '').toLowerCase().trim());
+    bloco.style.display = permitido ? '' : 'none';
+    if (!permitido && !bloco.classList.contains('travado')) {
+        const check = document.getElementById('checkEmpreiteiraStaff');
+        if (check) check.checked = false;
+        aplicarCheckEmpreiteiraStaff();
+    }
+}
+
+function resetEmpreiteiraStaff() {
+    const bloco = document.getElementById('blocoEmpreiteiraStaff');
+    const check = document.getElementById('checkEmpreiteiraStaff');
+    const select = document.getElementById('idFornecedorStaff');
+    const aviso = document.getElementById('avisoEmpreiteiraStaff');
+    if (bloco) { bloco.classList.remove('travado'); bloco.style.display = 'none'; delete bloco.dataset.usuario; delete bloco.dataset.sugerido; }
+    if (check) { check.checked = false; check.disabled = false; }
+    if (select) { select.disabled = false; select.value = ''; select.dataset.valorPendente = ''; select.style.display = 'none'; }
+    if (aviso) aviso.textContent = '';
+}
+
+// Carrega o vínculo de um lançamento existente e trava se já houve pagamento.
+function definirEmpreiteiraStaff(eventData) {
+    resetEmpreiteiraStaff();
+    const bloco = document.getElementById('blocoEmpreiteiraStaff');
+    const check = document.getElementById('checkEmpreiteiraStaff');
+    const select = document.getElementById('idFornecedorStaff');
+    const aviso = document.getElementById('avisoEmpreiteiraStaff');
+    if (!bloco || !check || !select) return;
+
+    const idf = eventData?.idfornecedor ? String(eventData.idfornecedor) : '';
+    const perfilAtual = document.getElementById('perfilFuncionario')?.value || eventData?.perfil || '';
+    bloco.style.display = (idf || PERFIS_EMPREITEIRA_STAFF.includes(String(perfilAtual).toLowerCase().trim())) ? '' : 'none';
+
+    if (idf) {
+        check.checked = true;
+        select.dataset.valorPendente = idf;
+        // Empreiteira inativada depois: garante a opção pra exibir o vínculo gravado.
+        if (!select.querySelector(`option[value="${idf}"]`) && eventData.nmfornecedorvinculo) {
+            const opt = document.createElement('option');
+            opt.value = idf;
+            opt.textContent = eventData.nmfornecedorvinculo;
+            select.appendChild(opt);
+        }
+        select.value = idf;
+    }
+    aplicarCheckEmpreiteiraStaff();
+    if (idf) select.value = idf;
+
+    const jaPago = !!eventData?.dtciclofornecedor
+        || String(eventData?.statuspgto || '').startsWith('Pago')
+        || String(eventData?.statuspgtoajdcto || '').startsWith('Pago');
+    if (jaPago) {
+        bloco.classList.add('travado');
+        check.disabled = true;
+        select.disabled = true;
+        if (aviso) aviso.textContent = idf
+            ? 'Pagamento já feito por esta empreiteira: não dá pra trocar. Para mudar, estorne o pagamento no Vencimentos.'
+            : 'Pagamento já feito direto: não dá pra passar para empreiteira. Para mudar, estorne o pagamento antes.';
+    }
+}
+
+// Lançamento NOVO: pré-marca com a empreiteira do item da função no orçamento (definida no
+// Orçamento). Não mexe se o usuário já tocou no check/select, se está editando ou travado.
+let seqSugestaoEmpreiteira = 0;
+async function sugerirEmpreiteiraDoOrcamento() {
+    const bloco = document.getElementById('blocoEmpreiteiraStaff');
+    const check = document.getElementById('checkEmpreiteiraStaff');
+    const select = document.getElementById('idFornecedorStaff');
+    const aviso = document.getElementById('avisoEmpreiteiraStaff');
+    if (!bloco || !check || !select) return;
+    if (currentEditingStaffEvent || bloco.style.display === 'none' || bloco.classList.contains('travado') || bloco.dataset.usuario === '1') return;
+
+    const idorcamento = idOrcamentoAtual || getUrlParameter('idorcamento');
+    const idfuncao = document.getElementById('descFuncao')?.value || getUrlParameter('idfuncao');
+    if (!idorcamento || !idfuncao) return;
+
+    const seq = ++seqSugestaoEmpreiteira;
+    try {
+        const qs = new URLSearchParams({ idorcamento, idfuncao, setor: document.getElementById('setor')?.value || '' });
+        const r = await fetchComToken(`/orcamentos/empreiteira-sugerida?${qs.toString()}`);
+        if (seq !== seqSugestaoEmpreiteira || bloco.dataset.usuario === '1' || currentEditingStaffEvent) return; // resposta velha
+        const idf = r?.idfornecedor ? String(r.idfornecedor) : '';
+        if (!idf) {
+            // Item sem empreiteira: desfaz só uma sugestão anterior nossa, nunca escolha do usuário.
+            if (bloco.dataset.sugerido === '1') { check.checked = false; aplicarCheckEmpreiteiraStaff(); if (aviso) aviso.textContent = ''; delete bloco.dataset.sugerido; }
+            return;
+        }
+        if (!select.querySelector(`option[value="${idf}"]`)) {
+            const opt = document.createElement('option');
+            opt.value = idf;
+            opt.textContent = r.nmfantasia || idf;
+            select.appendChild(opt);
+        }
+        check.checked = true;
+        aplicarCheckEmpreiteiraStaff();
+        select.value = idf;
+        select.dataset.valorPendente = idf;
+        bloco.dataset.sugerido = '1';
+        if (aviso) aviso.textContent = 'Marcado pelo orçamento (item desta função). Desmarque se esta pessoa recebe direto.';
+    } catch (e) {
+        console.error('Erro ao sugerir empreiteira do orçamento:', e);
+    }
+}
+
+// Valor que vai pro backend: '' = recebe direto.
+function lerEmpreiteiraStaff() {
+    const bloco = document.getElementById('blocoEmpreiteiraStaff');
+    const check = document.getElementById('checkEmpreiteiraStaff');
+    const select = document.getElementById('idFornecedorStaff');
+    if (!bloco || !check || !select) return { idfornecedor: '', faltaEscolher: false };
+    // Travado: manda o que já estava gravado (o backend não deixa mudar mesmo).
+    if (bloco.classList.contains('travado')) return { idfornecedor: check.checked ? (select.value || select.dataset.valorPendente || '') : '', faltaEscolher: false };
+    if (bloco.style.display === 'none' || !check.checked) return { idfornecedor: '', faltaEscolher: false };
+    return { idfornecedor: select.value || '', faltaEscolher: !select.value };
+}
+
 function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSelecionado) {
     document.getElementById("apelidoFuncionario").value = selectedOption.getAttribute("data-apelido");
     document.getElementById("idFuncionario").value = selectedOption.getAttribute("data-idfuncionario");
@@ -11383,6 +11552,10 @@ function processarSelecaoFuncionario(selectEl, selectedOption, idFuncionarioSele
 
 
     const perfilSelecionado = selectedOption.getAttribute("data-perfil");
+    // Lançamento novo: check sempre desmarcado. Editando, mantém o que veio do lançamento.
+    if (!currentEditingStaffEvent) resetEmpreiteiraStaff();
+    atualizarBlocoEmpreiteiraStaff(perfilSelecionado);
+    sugerirEmpreiteiraDoOrcamento(); // lançamento novo: vem marcado se o item do orçamento for de empreiteira
     const labelFuncionario = document.getElementById("labelFuncionario");
     const avaliacaoSelect = document.getElementById("avaliacao");
     const tarjaDiv = document.getElementById("tarjaAvaliacao");
@@ -11996,6 +12169,7 @@ function limparCamposStaff() {
     console.log("Iniciando limpeza completa do formulário Staff.");
 
     currentEditingStaffEvent = null;
+    resetEmpreiteiraStaff();
 
     window.statusPgtoCacheOriginalDoBanco = "";
     window.statusPgtoAjudaOriginalDoBanco = "";
@@ -12256,6 +12430,7 @@ async function limparCamposStaffParcial() {
 
     // 1. Reset de variáveis de controle e Foto
     currentEditingStaffEvent = null;
+    resetEmpreiteiraStaff(); // próximo lançamento vem sempre desmarcado
     //currentEditingStaffEvent = {};
     isFormLoadedFromDoubleClick = false;
 
@@ -23236,6 +23411,23 @@ function configurarEventosStaff() {
     console.log("Configurando eventos Staff...");
 
     prefillEventFired = false;
+
+    // Pago via empreiteira: lista de empreiteiras + mostrar/esconder o select pelo check.
+    empreiteirasStaffCarregadas = false;
+    carregarEmpreiteirasStaff();
+    document.getElementById('checkEmpreiteiraStaff')?.addEventListener('change', () => {
+        // Mexeu no check: a sugestão do orçamento não sobrescreve mais a escolha.
+        const bloco = document.getElementById('blocoEmpreiteiraStaff');
+        if (bloco) bloco.dataset.usuario = '1';
+        const aviso = document.getElementById('avisoEmpreiteiraStaff');
+        if (aviso && !bloco?.classList.contains('travado')) aviso.textContent = '';
+        aplicarCheckEmpreiteiraStaff();
+    });
+    document.getElementById('idFornecedorStaff')?.addEventListener('change', () => {
+        const bloco = document.getElementById('blocoEmpreiteiraStaff');
+        if (bloco) bloco.dataset.usuario = '1';
+    });
+    document.getElementById('descFuncao')?.addEventListener('change', () => sugerirEmpreiteiraDoOrcamento());
     const containerPDF = document.querySelector('.pdf');
 
     // Se o usuário NÃO tiver a permissão Master, oculta o container.

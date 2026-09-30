@@ -82,6 +82,20 @@
                         </select>
                       </div>
                       <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
+
+                      <!-- Pago via empreiteira: escolhido POR LANÇAMENTO (a mesma pessoa pode ir por
+                           empreiteiras diferentes, ou por conta própria, em eventos diferentes).
+                           Só Freelancer, Externo e Lote. Travado depois de pago. -->
+                      <div id="blocoEmpreiteiraStaff" class="bloco-empreiteira-staff" style="display: none;">
+                        <label class="check-empreiteira-staff" for="checkEmpreiteiraStaff">
+                          <input type="checkbox" id="checkEmpreiteiraStaff">
+                          <span>Empreiteira/Lote</span>
+                        </label>
+                        <select id="idFornecedorStaff" style="display: none;">
+                          <option value="">Selecione a empreiteira</option>
+                        </select>
+                        <small id="avisoEmpreiteiraStaff" class="aviso-empreiteira-staff"></small>
+                      </div>
                       <br>
                       <label id="labelFuncionario" style="display: none; font-weight: bold; color: green; font-size: 100px;"></label>
                       <button id="btnGerarFichaPendente" type="button" class="btn-ficha">
