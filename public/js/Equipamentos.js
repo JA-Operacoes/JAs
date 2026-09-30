@@ -1,4 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
+import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -33,14 +34,53 @@ if (typeof window.EquipamentoOriginal === "undefined") {
         idEquip: "",
         descEquip: "",
         vlrCusto: "",
-        vlrVenda: ""
+        vlrVenda: "",
+        modelos: [],
+        complementos: [],
+        ehkit: false,
+        usointerno: false
     };
+}
+
+// Cache dos equipamentos pra busca de componentes de kit -- carregado uma vez por
+// abertura do modal (ver garantirCacheEquipamentosKit), igual ao padrão de cache
+// client-side usado no TI Mode (cacheConsumiveis/cacheEquipamentos).
+let cacheEquipamentosParaKit = null;
+
+async function garantirCacheEquipamentosKit() {
+    if (!cacheEquipamentosParaKit) {
+        cacheEquipamentosParaKit = (await fetchComToken("/equipamentos")) || [];
+    }
+    return cacheEquipamentosParaKit;
+}
+
+// Modelos, Complementos, a composição do kit e o checkbox "Uso interno" só podem
+// ser vistos/editados por quem tem a flag "ti" (mesma flag especial que libera o
+// TI Mode no backend -- FLAGS_ESPECIAIS em middlewares/permissaoMiddleware.js,
+// checada lá via exigirFlag('ti', 'supremo')). Quem só tem a permissão comum de
+// Equipamentos nem vê essas seções -- só o checkbox "É kit?" continua visível.
+function podeVerAreaDoTI() {
+    return typeof window.temFlag === "function" && window.temFlag("ti", "supremo");
+}
+
+function aplicarSomenteLeituraForaDoTI() {
+    if (podeVerAreaDoTI()) return;
+
+    const containers = [
+        document.getElementById("fieldset-modelos-equipamento"),
+        document.getElementById("fieldset-complementos-equipamento"),
+        document.getElementById("fieldset-kit-equipamento"),
+    ];
+    containers.forEach((container) => { if (container) container.style.display = "none"; });
+
+    const linhaUsoInterno = document.getElementById("chkUsoInterno")?.closest("label");
+    if (linhaUsoInterno) linhaUsoInterno.style.display = "none";
 }
 
 function verificaEquipamento() {
 
     console.log("Carregando Equipamento...");
-    
+
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#form");
@@ -50,6 +90,8 @@ function verificaEquipamento() {
         console.error("Formulário ou botão não encontrado no DOM.");
         return;
     }
+
+    aplicarSomenteLeituraForaDoTI();
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
@@ -88,12 +130,17 @@ function verificaEquipamento() {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
+        const ehkit = document.getElementById("chkEhKit")?.checked || false;
+        const usointerno = document.getElementById("chkUsoInterno")?.checked || false;
+
         const dados = {
             descEquip,
             custo,
             venda,
-            modelos: coletarModelosEquipamento(),
-            complementos: coletarComplementosEquipamento()
+            ehkit,
+            usointerno,
+            modelos: ehkit ? [] : coletarModelosEquipamento(),
+            complementos: ehkit ? coletarKitEquipamento() : coletarComplementosEquipamento()
         };
 
         // Verifica alterações
@@ -103,6 +150,8 @@ function verificaEquipamento() {
             descEquip === window.EquipamentoOriginal?.descEquip &&
             Number(custo).toFixed(2) === Number(window.EquipamentoOriginal?.vlrCusto).toFixed(2) &&
             Number(venda).toFixed(2) === Number(window.EquipamentoOriginal?.vlrVenda).toFixed(2)&&
+            ehkit === !!window.EquipamentoOriginal?.ehkit &&
+            usointerno === !!window.EquipamentoOriginal?.usointerno &&
             JSON.stringify(dados.modelos) === JSON.stringify(window.EquipamentoOriginal?.modelos) &&
             JSON.stringify(dados.complementos) === JSON.stringify(window.EquipamentoOriginal?.complementos) &&
             !existeFotoModeloPendente()
@@ -447,11 +496,28 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
             idEquip: equipamentos.idequip,
             descEquip: equipamentos.descequip,
             vlrCusto: equipamentos.ctoequip,
-            vlrVenda: equipamentos.vdaequip
+            vlrVenda: equipamentos.vdaequip,
+            modelos: equipamentos.modelos || [],
+            complementos: equipamentos.complementos || [],
+            ehkit: !!equipamentos.ehkit,
+            usointerno: !!equipamentos.usointerno
         };
 
-        renderModelosEquipamento(equipamentos.modelos || []);
-        renderComplementosEquipamento(equipamentos.complementos || []);
+        const chkEhKit = document.getElementById("chkEhKit");
+        if (chkEhKit) chkEhKit.checked = !!equipamentos.ehkit;
+        aplicarModoKitEquipamento(!!equipamentos.ehkit);
+
+        const chkUsoInterno = document.getElementById("chkUsoInterno");
+        if (chkUsoInterno) chkUsoInterno.checked = !!equipamentos.usointerno;
+
+        if (equipamentos.ehkit) {
+            renderKitEquipamento(equipamentos.complementos || []);
+        } else {
+            renderModelosEquipamento(equipamentos.modelos || []);
+            renderComplementosEquipamento(equipamentos.complementos || []);
+        }
+
+        aplicarSomenteLeituraForaDoTI();
 
     } catch (error) {
         
@@ -559,12 +625,44 @@ function limparCamposEquipamento() {
         idEquip: "",
         descEquip: "",
         vlrCusto: "",
-        vlrVenda: ""
+        vlrVenda: "",
+        modelos: [],
+        complementos: [],
+        ehkit: false,
+        usointerno: false
     };
+
+    const chkEhKit = document.getElementById("chkEhKit");
+    if (chkEhKit) chkEhKit.checked = false;
+    aplicarModoKitEquipamento(false);
+
+    const chkUsoInterno = document.getElementById("chkUsoInterno");
+    if (chkUsoInterno) chkUsoInterno.checked = false;
 
     limparModelosEquipamento();
     limparComplementosEquipamento();
+    limparKitEquipamento();
 }
+
+function aplicarModoKitEquipamento(ehKit) {
+    const fieldsetKit = document.getElementById("fieldset-kit-equipamento");
+    const fieldsetModelos = document.getElementById("fieldset-modelos-equipamento");
+    const fieldsetComplementos = document.getElementById("fieldset-complementos-equipamento");
+    if (fieldsetKit) fieldsetKit.style.display = ehKit ? "block" : "none";
+    if (fieldsetModelos) fieldsetModelos.style.display = ehKit ? "none" : "block";
+    if (fieldsetComplementos) fieldsetComplementos.style.display = ehKit ? "none" : "block";
+
+    // Quem não tem a flag "ti" não pode ver essas seções de jeito nenhum --
+    // reaplica por cima do toggle acima, senão marcar/desmarcar "É kit?" reabriria
+    // o fieldset-kit-equipamento (ver aplicarSomenteLeituraForaDoTI).
+    aplicarSomenteLeituraForaDoTI();
+}
+
+document.addEventListener("change", (event) => {
+    if (event.target?.id === "chkEhKit") {
+        aplicarModoKitEquipamento(event.target.checked);
+    }
+});
 
 // =============================================================================
 // Modelos (marca/modelo) e Complementos do equipamento — vivem como JSONB
@@ -763,7 +861,88 @@ document.addEventListener("click", (event) => {
         const corpo = document.getElementById("corpo-complementos-equipamento");
         if (corpo) corpo.appendChild(criarLinhaComplementoEquipamento());
     }
+    if (event.target?.id === "btnAdicionarKitItem") {
+        event.preventDefault();
+        const corpo = document.getElementById("corpo-kit-equipamento");
+        if (corpo) corpo.appendChild(criarLinhaKitEquipamento());
+    }
 });
+
+// ===== Composição do kit (busca equipamentos já cadastrados + quantidade) =====
+
+let contadorLinhaKit = 0;
+
+function limparKitEquipamento() {
+    const corpo = document.getElementById("corpo-kit-equipamento");
+    if (corpo) corpo.innerHTML = "";
+}
+
+function criarLinhaKitEquipamento(item = null) {
+    const tr = document.createElement("tr");
+    tr.dataset.idequip = item?.idequip ?? "";
+    const listaId = `kit-lista-sugestoes-${contadorLinhaKit++}`;
+
+    tr.innerHTML = `
+        <td>
+            <input type="text" class="input-kit-busca uppercase" placeholder="Buscar equipamento..." autocomplete="off" value="${item?.descequip ? String(item.descequip).toUpperCase() : ""}">
+        </td>
+        <td><input type="number" class="input-kit-quantidade" min="1" value="${item?.quantidade || 1}"></td>
+        <td><button type="button" class="btnRemoverKitItem equip-rm">✕</button></td>
+    `;
+
+    const inputBusca = tr.querySelector(".input-kit-busca");
+    // Digitar de novo sem escolher da lista invalida o idequip já selecionado --
+    // evita salvar o kit com um componente que não confere mais com o texto exibido.
+    inputBusca.addEventListener("input", function () {
+        this.value = this.value.toUpperCase();
+        tr.dataset.idequip = "";
+    });
+
+    ligarBuscaComSugestoes(
+        inputBusca,
+        listaId,
+        async (termo) => {
+            const idEquipAtual = document.querySelector("#idEquip")?.value;
+            const equipamentos = await garantirCacheEquipamentosKit();
+            return equipamentos
+                .filter((e) => !e.ehkit && String(e.idequip) !== String(idEquipAtual || ""))
+                .filter((e) => e.descequip?.toLowerCase().includes(termo.toLowerCase()))
+                .slice(0, 20);
+        },
+        (e) => e.descequip,
+        (e) => {
+            inputBusca.value = e.descequip;
+            tr.dataset.idequip = e.idequip;
+        },
+        { mensagemVazia: "Nenhum equipamento encontrado" }
+    );
+
+    tr.querySelector(".btnRemoverKitItem").addEventListener("click", () => tr.remove());
+
+    return tr;
+}
+
+function renderKitEquipamento(lista) {
+    limparKitEquipamento();
+    const corpo = document.getElementById("corpo-kit-equipamento");
+    if (!corpo) return;
+    (lista || []).forEach((item) => corpo.appendChild(criarLinhaKitEquipamento(item)));
+}
+
+function coletarKitEquipamento() {
+    const corpo = document.getElementById("corpo-kit-equipamento");
+    if (!corpo) return [];
+
+    return Array.from(corpo.querySelectorAll("tr"))
+        .map((tr) => {
+            const idequip = tr.dataset.idequip;
+            const descequip = tr.querySelector(".input-kit-busca")?.value.trim();
+            const quantidade = parseInt(tr.querySelector(".input-kit-quantidade")?.value || "1", 10);
+            if (!idequip || !descequip) return null;
+            return { idequip: Number(idequip), descequip, quantidade: quantidade > 0 ? quantidade : 1 };
+        })
+        .filter(Boolean);
+}
 
 function configurarEventosEquipamento() {
     console.log("Configurando eventos Equipamento...");

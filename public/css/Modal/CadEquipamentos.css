@@ -193,6 +193,20 @@ input[readonly] ~ .user-label {
   color: var(--text-1);
 }
 
+/* Somente leitura pra quem não tem a flag "ti" (ver aplicarSomenteLeituraForaDoTI
+   em Equipamentos.js) -- Modelos/Complementos/Composição do kit e o checkbox de
+   Uso interno ficam acinzentados e sem interação; só "É kit?" continua liberado. */
+#cadModalEquipamentos input:disabled,
+#cadModalEquipamentos button:disabled,
+#cadModalEquipamentos select:disabled,
+#cadModalEquipamentos textarea:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+#cadModalEquipamentos .ti-swal-check:has(input:disabled) {
+  cursor: not-allowed;
+}
+
 /* ===== Tabelas de linhas dinâmicas (Modelos / Complementos) ===== */
 #cadModalEquipamentos .equip-tabela {
   width: 100%;
@@ -275,6 +289,13 @@ input[readonly] ~ .user-label {
   font-size: 12px;
   color: var(--text-1);
   margin: -4px 0 8px;
+}
+
+/* Checkboxes do cadastro (É um kit? / Uso interno?) -- usa o mesmo padrão
+   "ios-checkbox"/.ti-swal-check do resto do sistema (ver mensagensSwal.css),
+   só o espaçamento entre as duas linhas é específico daqui. */
+#cadModalEquipamentos .equip-checks .ti-swal-check + .ti-swal-check {
+  margin-top: 10px;
 }
 
 /* ===== Rodapé (padrão .BTNs) ===== */

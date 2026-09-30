@@ -735,6 +735,12 @@ function montarHtmlSeparacaoCategorias(categorias, idorcamento) {
         <span class="ti-separacao-contador">${c.qtdseparada}/${c.qtdorcada} separado(s)</span>
         <span class="ti-separacao-custo">Custo R$ ${Number(c.ctoequip || 0).toFixed(2).replace(".", ",")}/dia</span>
       </div>
+      ${(c.viaKit && c.viaKit.length) ? `
+        <div class="ti-separacao-via-kit" title="Parte (ou toda) essa quantidade não foi orçada solta -- é o que esses kits exigem">
+          <span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+          Necessário para montar: ${c.viaKit.map((v) => `${v.quantidade}x ${escaparHtml(v.descequip)}`).join(", ")}
+        </div>
+      ` : ""}
       ${c.modelos.map((m) => `
         <div class="ti-separacao-modelo">
           <em>${m.marca}${m.modelo ? ' / ' + m.modelo : ''}</em>
@@ -1170,36 +1176,69 @@ async function renderAbaEstoque() {
         </div>
       </div>
       <div id="ti-cards-estoque" class="ti-grid-quadrado" style="margin-top:20px;">
-        ${equipamentos.map((e) => {
-          const modelos = e.modelos || [];
-          const totalEstoque = modelos.reduce((soma, m) => soma + qtdModeloPorLocal(m), 0);
-          // Números da categoria inteira (não mudam com o filtro de local): total
-          // de unidades vivas e quantas não estão paradas no estoque — alocadas
-          // com funcionário, em evento ou em manutenção.
-          const totalCategoria = modelos.reduce((soma, m) => soma + (Number(m.qtdtotal) || 0), 0);
-          const emEstoqueGeral = modelos.reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
-          const emUso = totalCategoria - emEstoqueGeral;
-          return `
-            <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
-                 data-busca="${e.descequip} ${modelos.map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
-                 title="Clique para ver os modelos cadastrados">
-              <span class="ti-card-quadrado-nome">${e.descequip}</span>
-              <strong class="ti-card-quadrado-qtd">${totalEstoque}</strong>
-              <span class="ti-card-quadrado-legenda">${legendaLocal}</span>
-              <span class="ti-card-quadrado-rodape">
-                <span title="Total de unidades da categoria"><strong>${totalCategoria}</strong> no total</span>
-                <span title="Unidades alocadas, em evento ou em manutenção"><strong>${emUso}</strong> em uso</span>
-              </span>
-            </div>
-          `;
-        }).join("")}
+        ${(() => {
+          // Kit (e.ehkit) não tem `modelos` próprios -- o estoque real dele é o
+          // mínimo, entre os componentes (e.complementos = [{idequip, quantidade}]),
+          // de quanto dá pra montar com o que cada componente tem hoje. Por isso
+          // primeiro monta o estoque de TODO mundo, pra depois o kit poder consultar
+          // o estoque dos seus componentes na mesma resposta.
+          const estoquePorIdequip = {};
+          equipamentos.forEach((e) => {
+            estoquePorIdequip[e.idequip] = (e.modelos || []).reduce((soma, m) => soma + qtdModeloPorLocal(m), 0);
+          });
+
+          return equipamentos.map((e) => {
+            if (e.ehkit) {
+              const componentes = e.complementos || [];
+              const disponivelKit = componentes.length
+                ? Math.min(...componentes.map((c) => Math.floor((estoquePorIdequip[c.idequip] || 0) / (Number(c.quantidade) || 1))))
+                : 0;
+              return `
+                <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}" data-kit="1"
+                     data-busca="${e.descequip} ${componentes.map((c) => c.descequip || '').join(' ')}"
+                     title="Clique para ver a composição do kit">
+                  <span class="ti-card-quadrado-nome">${e.descequip}</span>
+                  <strong class="ti-card-quadrado-qtd">${disponivelKit}</strong>
+                  <span class="ti-card-quadrado-legenda">disponível para montar</span>
+                </div>
+              `;
+            }
+
+            const modelos = e.modelos || [];
+            const totalEstoque = estoquePorIdequip[e.idequip];
+            // Números da categoria inteira (não mudam com o filtro de local): total
+            // de unidades vivas e quantas não estão paradas no estoque — alocadas
+            // com funcionário, em evento ou em manutenção.
+            const totalCategoria = modelos.reduce((soma, m) => soma + (Number(m.qtdtotal) || 0), 0);
+            const emEstoqueGeral = modelos.reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
+            const emUso = totalCategoria - emEstoqueGeral;
+            return `
+              <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
+                   data-busca="${e.descequip} ${modelos.map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
+                   title="Clique para ver os modelos cadastrados">
+                <span class="ti-card-quadrado-nome">
+                  ${e.descequip}
+                  ${e.usointerno ? '<span class="ti-badge-local" title="Nunca aparece pra escolha em orçamento de evento">Uso interno</span>' : ''}
+                </span>
+                <strong class="ti-card-quadrado-qtd">${totalEstoque}</strong>
+                <span class="ti-card-quadrado-legenda">${legendaLocal}</span>
+                <span class="ti-card-quadrado-rodape">
+                  <span title="Total de unidades da categoria"><strong>${totalCategoria}</strong> no total</span>
+                  <span title="Unidades alocadas, em evento ou em manutenção"><strong>${emUso}</strong> em uso</span>
+                </span>
+              </div>
+            `;
+          }).join("");
+        })()}
       </div>
     `;
 
     ativarBuscaClientSide("ti-busca-estoque", "#ti-cards-estoque .ti-card-quadrado", (card) => card.dataset.busca || "");
 
     container.querySelectorAll(".ti-card-quadrado").forEach((card) =>
-      card.addEventListener("click", () => abrirModelosCategoriaTI(Number(card.dataset.idequip)))
+      card.addEventListener("click", () => card.dataset.kit
+        ? abrirComposicaoKitTI(Number(card.dataset.idequip))
+        : abrirModelosCategoriaTI(Number(card.dataset.idequip)))
     );
 
     container.querySelectorAll('input[name="ti-localEstoque"]').forEach((radio) => {
@@ -1218,6 +1257,48 @@ async function abrirModelosCategoriaTI(idequip) {
   const equipamento = cacheEquipamentos.find((e) => e.idequip === idequip);
   if (!equipamento) return;
   await montarSwalModelosCategoria(equipamento);
+}
+
+// Kit não tem modelos/unidades próprios -- só mostra, pra cada componente, quanto
+// estoque ele tem hoje e quanto o kit exige (mesmo cálculo do card, ver renderAbaEstoque).
+async function abrirComposicaoKitTI(idequip) {
+  const kit = cacheEquipamentos.find((e) => e.idequip === idequip);
+  if (!kit) return;
+
+  const estoquePorIdequip = {};
+  cacheEquipamentos.forEach((e) => {
+    estoquePorIdequip[e.idequip] = (e.modelos || []).reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
+  });
+
+  const componentes = kit.complementos || [];
+
+  await Swal.fire({
+    title: kit.descequip,
+    html: `
+      <div class="ti-swal-modelos-grid">
+        ${!componentes.length ? "<p>Nenhum componente cadastrado para este kit.</p>" : componentes.map((c) => {
+          const estoqueComponente = estoquePorIdequip[c.idequip] || 0;
+          const quantidade = Number(c.quantidade) || 1;
+          const disponivel = Math.floor(estoqueComponente / quantidade);
+          return `
+          <div class="ti-swal-modelo-card">
+            <div class="ti-swal-modelo-header">
+              <span class="ti-swal-modelo-titulo">${escaparHtml(c.descequip || '')}</span>
+            </div>
+            <div class="ti-swal-modelo-numeros">
+              <div><strong>${estoqueComponente}</strong><span>em estoque</span></div>
+              <div><strong>${quantidade}</strong><span>por kit</span></div>
+              <div><strong>${disponivel}</strong><span>kits possíveis</span></div>
+            </div>
+          </div>
+        `;
+        }).join("")}
+      </div>
+    `,
+    showConfirmButton: false,
+    showCancelButton: true,
+    cancelButtonText: "Fechar",
+  });
 }
 
 // Reabre o modal com dados atualizados (chamado depois de entrada/baixa feitas de dentro dele)
@@ -3061,11 +3142,15 @@ async function renderAbaAlmoxarifado() {
       <div class="ti-custodia-filtros">
         <input type="text" id="ti-busca-almoxarifado" class="ti-input-busca" placeholder="Buscar item pelo nome...">
         <button type="button" id="ti-btn-novo-consumivel">+ Cadastrar item</button>
+        <button type="button" id="ti-btn-solicitar-compra"><i class="ri-shopping-cart-2-line" aria-hidden="true"></i> Solicitar compra</button>
+        <button type="button" id="ti-btn-solicitacoes-compra"><i class="ri-file-list-3-line" aria-hidden="true"></i> Minhas solicitações</button>
       </div>
       <div id="ti-lista-almoxarifado" style="margin-top:20px;">${renderGrid(itens)}</div>
     `;
 
     document.getElementById("ti-btn-novo-consumivel")?.addEventListener("click", abrirCadastroConsumivelTI);
+    document.getElementById("ti-btn-solicitar-compra")?.addEventListener("click", renderSolicitarCompraTI);
+    document.getElementById("ti-btn-solicitacoes-compra")?.addEventListener("click", renderSolicitacoesComprasTI);
     bindCards();
 
     document.getElementById("ti-busca-almoxarifado")?.addEventListener("input", (e) => {
@@ -3078,6 +3163,332 @@ async function renderAbaAlmoxarifado() {
     console.error("Erro ao carregar almoxarifado:", erro);
     container.innerHTML = tiVazio("Erro ao carregar almoxarifado.", "error");
   }
+}
+
+// ===== Compras (TI) =====
+// Mesmo fluxo do Almoxarifado Geral (pedido -> aprovação -> recebimento),
+// reaproveitando as mesmas tabelas por baixo (ver routes/rotaTI.js, seção
+// "Compras (TI)") — aqui só monta a lista e acompanha; quem aprova continua
+// usando a tela "Listas de compra" do Almoxarifado Geral, onde esse pedido
+// aparece sozinho com local "TI".
+const STATUS_PEDIDO_TI = {
+  pendente: '<i class="ri-time-line" aria-hidden="true"></i> Aguardando aprovação',
+  aprovado: '<i class="ri-checkbox-circle-line" aria-hidden="true"></i> Aprovado',
+  comprado: '<i class="ri-shopping-bag-3-line" aria-hidden="true"></i> Comprado',
+  parcial: '<i class="ri-inbox-archive-line" aria-hidden="true"></i> Recebido parcial',
+  recebido: '<i class="ri-inbox-archive-line" aria-hidden="true"></i> Recebido',
+  recusado: '<i class="ri-close-line" aria-hidden="true"></i> Recusado',
+  cancelado: '<i class="ri-close-circle-line" aria-hidden="true"></i> Cancelado',
+};
+let carrinhoComprasTI = [];
+let rascunhoEventoTI = null; // { idevento, nmevento } — só quando a compra é pra um evento
+
+function renderLinhasCarrinhoComprasTI() {
+  if (!carrinhoComprasTI.length) {
+    return `<tr><td colspan="4" style="text-align:center; color:var(--text-2);">Lista vazia. Use "+ Adicionar item".</td></tr>`;
+  }
+  return carrinhoComprasTI
+    .map(
+      (item, indice) => `
+        <tr>
+          <td>${escaparHtml(item.descricao)}</td>
+          <td>${item.quantidade_solicitada} ${escaparHtml(item.unidade_medida)}</td>
+          <td>${escaparHtml(item.justificativa) || "—"}</td>
+          <td><button type="button" class="ti-btn-remover-carrinho" data-indice="${indice}" style="border:none; background:none; color:var(--status-erro-fg); cursor:pointer; font-size:12px;">remover</button></td>
+        </tr>`
+    )
+    .join("");
+}
+
+async function renderSolicitarCompraTI() {
+  const container = document.getElementById("ti-aba-almoxarifado");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="ti-custodia-filtros">
+      <button type="button" id="ti-compra-voltar"><i class="ri-arrow-left-line" aria-hidden="true"></i> Voltar ao almoxarifado</button>
+    </div>
+    <div style="margin-top:16px;">
+      <h4>Solicitar compra</h4>
+      <div class="ti-swal-form">
+        <label class="ti-swal-label-outlined">
+          <input type="date" id="ti-compra-data" class="swal2-input">
+          <span>Precisa chegar até (opcional)</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="ti-compra-obs" class="swal2-input" placeholder=" ">
+          <span>Observação da lista (opcional)</span>
+        </label>
+      </div>
+      <label class="ti-swal-check" style="margin-top:8px;">
+        <span class="ios-checkbox">
+          <input type="checkbox" id="ti-compra-para-evento" ${rascunhoEventoTI ? "checked" : ""}>
+          <div class="checkbox-wrapper">
+            <div class="checkbox-bg"></div>
+            <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+              <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+            </svg>
+          </div>
+        </span>
+        É pra um evento?
+      </label>
+      <label class="ti-swal-label-outlined" id="ti-compra-evento-wrap" style="display:${rascunhoEventoTI ? "block" : "none"}; margin-top:8px;">
+        <input type="text" id="ti-compra-evento-busca" class="swal2-input" placeholder=" " autocomplete="off"
+               value="${rascunhoEventoTI ? escaparHtml(rascunhoEventoTI.nmevento) : ""}">
+        <span>Evento</span>
+      </label>
+    </div>
+    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <h4 style="margin:0;">Itens da lista</h4>
+      <div class="ti-custodia-filtros" style="margin-bottom:0;">
+        <button type="button" id="ti-compra-add-item">+ Adicionar item</button>
+        <button type="button" id="ti-compra-enviar">Enviar para aprovação</button>
+      </div>
+    </div>
+    <table class="ti-tabela" style="margin-top:12px;">
+      <thead><tr><th>Item</th><th style="width:130px;">Quantidade</th><th>Justificativa</th><th style="width:90px;"></th></tr></thead>
+      <tbody id="ti-compra-carrinho-tbody">${renderLinhasCarrinhoComprasTI()}</tbody>
+    </table>
+  `;
+
+  document.getElementById("ti-compra-voltar").addEventListener("click", () => {
+    carrinhoComprasTI = [];
+    rascunhoEventoTI = null;
+    renderAbaAlmoxarifado();
+  });
+  document.getElementById("ti-compra-add-item").addEventListener("click", abrirAdicionarItemCarrinhoTI);
+  document.getElementById("ti-compra-enviar").addEventListener("click", enviarSolicitacaoCompraTI);
+  ligarAcoesCarrinhoComprasTI();
+
+  const chkEvento = document.getElementById("ti-compra-para-evento");
+  const eventoWrap = document.getElementById("ti-compra-evento-wrap");
+  const eventoBusca = document.getElementById("ti-compra-evento-busca");
+  chkEvento.addEventListener("change", () => {
+    eventoWrap.style.display = chkEvento.checked ? "block" : "none";
+    if (!chkEvento.checked) {
+      rascunhoEventoTI = null;
+      eventoBusca.value = "";
+    }
+  });
+  ligarBuscaComSugestoes(
+    eventoBusca,
+    "ti-compra-evento-lista",
+    (termo) => fetchTI(`/almoxarifado/compras/eventos/busca?busca=${encodeURIComponent(termo)}`),
+    (e) => e.nmevento,
+    (e) => {
+      eventoBusca.value = e.nmevento;
+      rascunhoEventoTI = { idevento: e.idevento, nmevento: e.nmevento };
+    },
+    { mensagemVazia: "Nenhum evento encontrado" }
+  );
+  // Digitar de novo sem escolher da lista invalida a seleção anterior.
+  eventoBusca.addEventListener("input", () => { rascunhoEventoTI = null; });
+}
+
+function ligarAcoesCarrinhoComprasTI() {
+  document.querySelectorAll(".ti-btn-remover-carrinho").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      carrinhoComprasTI.splice(Number(btn.dataset.indice), 1);
+      atualizarCarrinhoComprasTI();
+    })
+  );
+}
+
+function atualizarCarrinhoComprasTI() {
+  const tbody = document.getElementById("ti-compra-carrinho-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = renderLinhasCarrinhoComprasTI();
+  ligarAcoesCarrinhoComprasTI();
+}
+
+// Busca no cadastro já carregado (cacheConsumiveis) só pra sugerir descrição e
+// unidade — não cria vínculo, o item entra "avulso" mesmo (ver rotaTI.js).
+async function abrirAdicionarItemCarrinhoTI() {
+  const { value: dados } = await Swal.fire({
+    title: "Adicionar item à lista",
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label-outlined" style="position:relative;">
+          <input type="text" id="swal-ti-compra-item-busca" class="swal2-input" placeholder=" " autocomplete="off">
+          <span>Item</span>
+          <small>Busca no cadastro existente ou digite um item novo.</small>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-ti-compra-item-unidade" class="swal2-input" value="unidade" placeholder=" ">
+          <span>Unidade de medida</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="number" id="swal-ti-compra-item-qtd" class="swal2-input" min="1" value="1">
+          <span>Quantidade</span>
+        </label>
+        <label class="ti-swal-label-outlined">
+          <input type="text" id="swal-ti-compra-item-justificativa" class="swal2-input" placeholder=" ">
+          <span>Justificativa (opcional)</span>
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Adicionar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      const inputBusca = document.getElementById("swal-ti-compra-item-busca");
+      const inputUnidade = document.getElementById("swal-ti-compra-item-unidade");
+      ligarBuscaComSugestoes(
+        inputBusca,
+        "swal-ti-compra-item-lista",
+        (termo) => cacheConsumiveis.filter((c) => c.descricao.toLowerCase().includes(termo.toLowerCase())).slice(0, 20),
+        (c) => c.descricao,
+        (c) => {
+          inputBusca.value = c.descricao;
+          inputUnidade.value = c.unidade_medida;
+        },
+        { mensagemVazia: "Item novo — sem cadastro ainda" }
+      );
+    },
+    preConfirm: () => {
+      const descricao = document.getElementById("swal-ti-compra-item-busca").value.trim();
+      const unidade_medida = document.getElementById("swal-ti-compra-item-unidade").value.trim() || "unidade";
+      const quantidade_solicitada = parseInt(document.getElementById("swal-ti-compra-item-qtd").value, 10);
+      const justificativa = document.getElementById("swal-ti-compra-item-justificativa").value.trim();
+      if (!descricao) {
+        Swal.showValidationMessage("Descreva o item.");
+        return false;
+      }
+      if (!Number.isInteger(quantidade_solicitada) || quantidade_solicitada <= 0) {
+        Swal.showValidationMessage("Informe uma quantidade válida.");
+        return false;
+      }
+      return { descricao, unidade_medida, quantidade_solicitada, justificativa };
+    },
+  });
+
+  if (!dados) return;
+  carrinhoComprasTI.push(dados);
+  atualizarCarrinhoComprasTI();
+}
+
+async function enviarSolicitacaoCompraTI() {
+  if (!carrinhoComprasTI.length) {
+    Swal.fire("Lista vazia", "Adicione pelo menos um item antes de enviar.", "info");
+    return;
+  }
+  const paraEvento = document.getElementById("ti-compra-para-evento").checked;
+  if (paraEvento && !rascunhoEventoTI) {
+    Swal.fire("Escolha o evento", "Marcou que é pra um evento — busque e escolha qual.", "info");
+    return;
+  }
+
+  try {
+    const { pedido } = await fetchTI("/almoxarifado/compras/pedidos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dt_necessidade: document.getElementById("ti-compra-data").value || null,
+        observacao: document.getElementById("ti-compra-obs").value.trim() || null,
+        itens: carrinhoComprasTI,
+        idevento: paraEvento ? rascunhoEventoTI.idevento : null,
+      }),
+    });
+
+    carrinhoComprasTI = [];
+    rascunhoEventoTI = null;
+    await Swal.fire("Enviado!", `Lista #${pedido.idpedido} enviada para aprovação.`, "success");
+    renderSolicitacoesComprasTI();
+  } catch (erro) {
+    console.error("Erro ao enviar solicitação de compra do TI:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao enviar a lista.", "error");
+  }
+}
+
+async function renderSolicitacoesComprasTI() {
+  const container = document.getElementById("ti-aba-almoxarifado");
+  if (!container) return;
+  container.innerHTML = tiLoading("Carregando solicitações...");
+
+  let pedidos = [];
+  try {
+    pedidos = await fetchTI("/almoxarifado/compras/pedidos");
+  } catch (erro) {
+    console.error("Erro ao listar solicitações de compra do TI:", erro);
+    container.innerHTML = tiVazio("Erro ao carregar as solicitações.", "error");
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="ti-custodia-filtros">
+      <button type="button" id="ti-compra-voltar"><i class="ri-arrow-left-line" aria-hidden="true"></i> Voltar ao almoxarifado</button>
+    </div>
+    ${!pedidos.length
+      ? tiVazio("Nenhuma solicitação de compra ainda.", "inbox")
+      : `
+    <table class="ti-tabela" style="margin-top:16px;">
+      <thead><tr><th>#</th><th>Solicitante</th><th>Evento</th><th>Criada em</th><th>Itens</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${pedidos
+          .map(
+            (p) => `
+              <tr class="ti-linha-clicavel" data-idpedido="${p.idpedido}" style="cursor:pointer;">
+                <td>#${p.idpedido}</td>
+                <td>${escaparHtml(p.nome_solicitante) || "—"}</td>
+                <td>${escaparHtml(p.nmevento) || "—"}</td>
+                <td>${new Date(p.criado_em).toLocaleDateString("pt-BR")}</td>
+                <td>${p.total_itens} item(ns)${Number(p.itens_pendentes) ? ` · ${p.itens_pendentes} pendente(s)` : ""}</td>
+                <td>${STATUS_PEDIDO_TI[p.status] || p.status}</td>
+              </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`
+    }
+  `;
+
+  document.getElementById("ti-compra-voltar").addEventListener("click", renderAbaAlmoxarifado);
+  container.querySelectorAll(".ti-linha-clicavel").forEach((linha) =>
+    linha.addEventListener("click", () => abrirDetalheSolicitacaoCompraTI(Number(linha.dataset.idpedido)))
+  );
+}
+
+async function abrirDetalheSolicitacaoCompraTI(idpedido) {
+  let pedido;
+  try {
+    pedido = await fetchTI(`/almoxarifado/compras/pedidos/${idpedido}`);
+  } catch (erro) {
+    console.error("Erro ao buscar solicitação de compra do TI:", erro);
+    Swal.fire("Erro", "Erro ao carregar a solicitação.", "error");
+    return;
+  }
+
+  const STATUS_ITEM_TI = { pendente: "Pendente", aprovado: "Aprovado", recusado: "Recusado", recebido: "Recebido" };
+  const linhas = pedido.itens
+    .map(
+      (item) => `
+        <tr>
+          <td>${escaparHtml(item.descricao)}</td>
+          <td>${item.quantidade_solicitada} ${escaparHtml(item.unidade_medida)}</td>
+          <td>${item.quantidade_aprovada ?? "—"}</td>
+          <td>${STATUS_ITEM_TI[item.status] || item.status}</td>
+        </tr>`
+    )
+    .join("");
+
+  Swal.fire({
+    title: `Lista #${pedido.idpedido}`,
+    width: 640,
+    html: `
+      <p style="margin:0 0 10px; color:var(--text-2); font-size:13px; text-align:left;">
+        ${STATUS_PEDIDO_TI[pedido.status] || pedido.status}
+        ${pedido.nome_aprovador ? ` · aprovador: ${escaparHtml(pedido.nome_aprovador)}` : ""}
+        ${pedido.nmevento ? ` · evento: ${escaparHtml(pedido.nmevento)}` : ""}
+      </p>
+      <table class="ti-tabela almox-tabela-swal">
+        <thead><tr><th>Item</th><th>Solicitado</th><th>Aprovado</th><th>Situação</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `,
+    confirmButtonText: "Fechar",
+  });
 }
 
 async function abrirCadastroConsumivelTI() {
