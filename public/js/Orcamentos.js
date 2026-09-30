@@ -10121,7 +10121,9 @@ function gerenciarBotoesProposta(status) {
 
 // Empresa Emissora e Data de Vencimento não são obrigatórias para salvar o
 // orçamento, só para gerar a proposta (ela referencia esses dados no PDF).
-function validarCamposParaProposta() {
+// A proposta é gerada a partir do que está SALVO no banco, então além de
+// exigir os campos na tela, confere se o que está na tela já foi salvo.
+async function validarCamposParaProposta() {
   const camposFaltando = [];
 
   if (!document.querySelector(".idEmpresaEmissora")?.value) {
@@ -10147,11 +10149,53 @@ function validarCamposParaProposta() {
     return false;
   }
 
+  const naoSalvos = await camposNaoSalvosParaProposta();
+  if (naoSalvos.length) {
+    Swal.fire({
+      title: "Salve o orçamento antes de gerar a proposta",
+      html: `Estes campos foram alterados e ainda não foram salvos:<br><br><b>${naoSalvos.join("</b><br><b>")}</b><br><br>Clique em Salvar e gere a proposta em seguida.`,
+      icon: "warning",
+      confirmButtonText: "Entendido",
+    });
+    return false;
+  }
+
   return true;
 }
 
+// Compara Empresa Emissora e vencimento(s) da tela com o que está gravado.
+// Em caso de falha na consulta não bloqueia: o backend confere de novo.
+async function camposNaoSalvosParaProposta() {
+  const idOrcamento = document.getElementById("idOrcamento")?.value?.trim();
+  if (!idOrcamento) return ["Orçamento ainda não salvo"];
+
+  const naoSalvos = [];
+  try {
+    const nrOrcamento = document.getElementById("nrOrcamento")?.value?.trim();
+    const [salvo, parcelasSalvas] = await Promise.all([
+      fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`, { method: "GET" }),
+      fetchComToken(`orcamentos/${idOrcamento}/parcelas`),
+    ]);
+
+    const emissoraTela = document.querySelector(".idEmpresaEmissora")?.value || "";
+    if (String(salvo?.idempresaemissora || "") !== String(emissoraTela)) {
+      naoSalvos.push("Empresa Emissora da NF");
+    }
+
+    const normalizar = (d) => (d ? converterDataISOParaBR(d) : "");
+    const tela = (coletarParcelasParaEnviar() || []).map((p) => normalizar(p.dtvencimento));
+    const banco = (Array.isArray(parcelasSalvas) ? parcelasSalvas : []).map((p) => normalizar(p.dtvencimento));
+    if (tela.length !== banco.length || tela.some((d, i) => d !== banco[i])) {
+      naoSalvos.push(tela.length > 1 ? "Vencimento das parcelas" : "Data de vencimento");
+    }
+  } catch (error) {
+    console.error("Erro ao conferir campos salvos da proposta:", error);
+  }
+  return naoSalvos;
+}
+
 async function gerarPropostaPDF() {
-  if (!validarCamposParaProposta()) return;
+  if (!(await validarCamposParaProposta())) return;
 
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
   let nrOrcamento = "";
@@ -10326,7 +10370,7 @@ function podeAtualizarParaStatusP(statusAtual) {
 }
 
 async function gerarPropostaAdicionaisPDF() {
-  if (!validarCamposParaProposta()) return;
+  if (!(await validarCamposParaProposta())) return;
 
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
   let nrOrcamento = "";
