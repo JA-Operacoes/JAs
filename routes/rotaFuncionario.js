@@ -225,7 +225,7 @@ router.get("/verificar-cpf/:cpf", verificarPermissao('Funcionarios', 'cadastrar'
         // empresas do grupo. O usuário confere e ajusta antes de salvar.
         const vinculoExemplo = await pool.query(
             `SELECT perfil, lote, ativo, bonificado, mei, funcao, cbo, admissao, salario,
-                    dependentes, dependentesdados, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude
+                    dependentes, dependentesdados, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, domestico
              FROM funcionarioempresas
              WHERE idfuncionario = $1
              ORDER BY id DESC LIMIT 1`,
@@ -294,7 +294,7 @@ router.get("/", verificarPermissao("Funcionarios", "pesquisar"), async (req, res
                 func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
                 funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
                 funce.dependentes, funce.admissao, funce.demissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
-                funce.tipoplanosaude, funce.dependentesdados, funce.motivoinativado`;
+                funce.tipoplanosaude, funce.dependentesdados, funce.motivoinativado, funce.domestico`;
 
         if (nome) {
             // Busca funcionário por nome na empresa específica, ignorando acento (unaccent) —
@@ -365,7 +365,7 @@ router.put("/:id",
                             func.datanascimento, func.nomefamiliar, func.apelido, func.pcd,
                             funce.perfil, funce.lote, funce.ativo, funce.bonificado, funce.mei, funce.salario, funce.funcao, funce.cbo,
                             funce.dependentes, funce.admissao, funce.demissao, funce.valealim, funce.valetrnsp, funce.adesaoplanosaude,
-                            funce.tipoplanosaude, funce.dependentesdados
+                            funce.tipoplanosaude, funce.dependentesdados, funce.domestico
                      FROM funcionarios func
                      INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
                      WHERE func.idfuncionario = $1 AND funce.idempresa = $2`,
@@ -391,7 +391,7 @@ router.put("/:id",
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes, admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados, motivoInativado
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados, motivoInativado, domestico
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para um
@@ -519,12 +519,14 @@ router.put("/:id",
                     `UPDATE funcionarioempresas
                      SET perfil = $1, lote = $2, ativo = $3, bonificado = $4, mei = $5, salario = $6, funcao = $7,
                          cbo = $8, dependentes = $9, admissao = $10, valealim = $11, valetrnsp = $12,
-                         adesaoplanosaude = $13, tipoplanosaude = $14, dependentesdados = $15, motivoinativado = $16
-                     WHERE idfuncionario = $17 AND idempresa = $18`,
+                         adesaoplanosaude = $13, tipoplanosaude = $14, dependentesdados = $15, motivoinativado = $16,
+                         domestico = $17
+                     WHERE idfuncionario = $18 AND idempresa = $19`,
                     [
                         perfil, lote, ativo, bonificado, mei,
                         vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
                         adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson, ativo === true || ativo === 'true' ? null : vazioParaNull(motivoInativado),
+                        domestico === true || domestico === 'true',
                         id, idempresa
                     ]
                 );
@@ -608,7 +610,7 @@ router.post("/",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
             complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, lote, ativo, bonificado, mei, salario, funcao, cbo, dependentes,admissao, valealim, valetrnsp,
-            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados, motivoInativado
+            adesaoPlanoSaude, tipoPlanoSaude, idTipoPlanoSaude, dependentesDados, motivoInativado, domestico
         } = req.body;
 
         // dependentesDados chega como string JSON (FormData). Normaliza para array.
@@ -706,14 +708,15 @@ router.post("/",
                 await client.query(
                     `INSERT INTO FuncionarioEmpresas (
                         idFuncionario, idEmpresa, perfil, lote, ativo, bonificado, mei, salario, funcao, cbo,
-                        dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados, motivoinativado
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+                        dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados, motivoinativado, domestico
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
                     [
                         idFuncionarioExistente, idempresa,
                         perfil, lote, ativo, bonificado, mei,
                         vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
                         adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson,
-                        ativo === true || ativo === 'true' ? null : vazioParaNull(motivoInativado)
+                        ativo === true || ativo === 'true' ? null : vazioParaNull(motivoInativado),
+                        domestico === true || domestico === 'true'
                     ]
                 );
                 const erroDemissaoVinculo = await gravarDemissao(client, req, idFuncionarioExistente, idempresa);
@@ -755,14 +758,15 @@ router.post("/",
             await client.query(
                 `INSERT INTO FuncionarioEmpresas (
                     idFuncionario, idEmpresa, perfil, lote, ativo, bonificado, mei, salario, funcao, cbo,
-                    dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados, motivoinativado
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+                    dependentes, admissao, valealim, valetrnsp, adesaoplanosaude, tipoplanosaude, dependentesdados, motivoinativado, domestico
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
                 [
                     idNovoFuncionario, idempresa,
                     perfil, lote, ativo, bonificado, mei,
                     vazioParaNull(salario), funcao, vazioParaNull(cbo), vazioParaNull(dependentes), vazioParaNull(admissao), vazioParaNull(valealim), vazioParaNull(valetrnsp),
                     adesaoPlanoSaude, tipoPlanoSaude, dependentesDadosJson,
-                    ativo === true || ativo === 'true' ? null : vazioParaNull(motivoInativado)
+                    ativo === true || ativo === 'true' ? null : vazioParaNull(motivoInativado),
+                    domestico === true || domestico === 'true'
                 ]
             );
             const erroDemissaoNovo = await gravarDemissao(client, req, idNovoFuncionario, idempresa);

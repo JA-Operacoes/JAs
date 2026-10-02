@@ -39,6 +39,7 @@ function linhaInss(tbody, faixa = {}) {
   tr.innerHTML = `
     <td><input type="text" inputmode="numeric" oninput="formatReais(this)" class="f-ate" value="${fmtMoeda(faixa.ate)}"></td>
     <td><input type="number" step="0.01" min="0" class="f-aliq" value="${faixa.aliquota != null ? paraPct(faixa.aliquota) : ''}"></td>
+    <td><input type="text" inputmode="numeric" oninput="formatReais(this)" class="f-ded" value="${fmtMoeda(faixa.deduzir)}"></td>
     <td><button type="button" class="aliq-rm" title="Remover">✕</button></td>`;
   tr.querySelector('.aliq-rm').addEventListener('click', () => tr.remove());
   tbody.appendChild(tr);
@@ -96,6 +97,8 @@ async function salvar() {
     .map((tr) => ({
       ate: moeda(tr.querySelector('.f-ate')) || 0,
       aliquota: paraFrac(num(tr.querySelector('.f-aliq'))),
+      // Parcela a deduzir: usada só nas férias do doméstico (calcularINSSDeducao em rotaRH.js).
+      deduzir: moeda(tr.querySelector('.f-ded')) || 0,
     }))
     .filter((f) => f.ate > 0);
 

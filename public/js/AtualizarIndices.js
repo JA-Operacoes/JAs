@@ -91,8 +91,8 @@ function verificaAtualizarIndice() {
         const vlrCusto = document.querySelector("#ctoEquip").value;
         const vlrVenda = document.querySelector("#vdaEquip").value;
 
-        const custo = parseFloat(vlrCusto.replace(",", "."));
-        const venda = parseFloat(vlrVenda.replace(",", "."));
+        const custo = parseFloat(desformatarReais(vlrCusto));
+        const venda = parseFloat(desformatarReais(vlrVenda));
 
         // Permissões
         const temPermissaoCadastrar = temPermissao("AtualizarIndices", "cadastrar");
@@ -152,7 +152,6 @@ function verificaAtualizarIndice() {
             });            
 
             await Swal.fire("Sucesso!", respostaApi.message || "AtualizarIndice salvo com sucesso.", "success");
-            limparCamposAtualizarIndice();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -527,7 +526,6 @@ async function carregarAtualizarIndiceDescricao(desc, elementoAtual) {
             });            
 
             await Swal.fire("Sucesso!", respostaApi.message || "AtualizarIndice salvo com sucesso.", "success");
-            limparCamposAtualizarIndice();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);

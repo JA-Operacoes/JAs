@@ -1990,7 +1990,7 @@ function adicionarLinhaOrc() {
         <td class="Categoria"><input type="text" class="categoria-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdProduto">
             <div class="add-less">
-                <input type="number" class="qtdProduto" min="0" value="0" readonly>
+                <input type="number" class="qtdProduto" min="0" value="0">
                 <div class="Bt">
                     <button type="button" class="increment">+</button>
                     <button type="button" class="decrement">-</button>

@@ -157,6 +157,10 @@ async function obterParametros(ano) {
 
 // ===== Motor de cálculo (funções puras) =====
 // INSS progressivo fatiado: aplica a alíquota de cada faixa só sobre a parcela dentro dela.
+// O valor de CADA faixa é truncado em centavos (não arredondado) antes de somar — é assim que a
+// contabilidade chega no INSS de férias (decisão 2026-10-02, caso 3.165,00 + 1/3 = 4.220,00 →
+// 394,98; somando exato e arredondando no fim dava 395,00). Um segundo caso (2.743,00 →
+// 327,47) ainda não bate (dá 327,46) e está sendo averiguado com o RH/contabilidade.
 function calcularINSS(bruto, params) {
   const faixas = params.inss_faixas || [];
   let inss = 0, anterior = 0;
@@ -164,12 +168,32 @@ function calcularINSS(bruto, params) {
     const teto = Number(f.ate);
     if (bruto > anterior) {
       const parcela = Math.min(bruto, teto) - anterior;
-      inss += parcela * Number(f.aliquota);
+      // + 1e-7: evita perder 1 centavo por erro de ponto flutuante (ex.: 115.36999999...).
+      inss += Math.floor(parcela * Number(f.aliquota) * 100 + 1e-7) / 100;
     }
     anterior = teto;
     if (bruto <= teto) break;
   }
   return Math.round(inss * 100) / 100;
+}
+
+// INSS pelo método da PARCELA A DEDUZIR (alíquota da faixa × base − deduzir), centavos CORTADOS.
+// Usado só nas FÉRIAS do empregado doméstico (funcionarioempresas.domestico) — contabilidade,
+// 2026-10-02: base 3.657,33 → 3.657,33 × 12% − 111,40 = 327,4796 → 327,47. A parcela a deduzir
+// fica em cada faixa de aliquotas.inssfaixas (campo "deduzir", editável na tela de Alíquotas).
+// Acima do teto da última faixa a base é limitada ao teto (INSS máximo). Faixa sem "deduzir"
+// (tabela antiga nunca reeditada) cai no cálculo fatiado normal, pra não calcular errado.
+function calcularINSSDeducao(bruto, params) {
+  const faixas = params.inss_faixas || [];
+  if (!faixas.length || faixas.some((f) => f.deduzir === undefined || f.deduzir === null)) {
+    return calcularINSS(bruto, params);
+  }
+  const teto = Number(faixas[faixas.length - 1].ate);
+  const base = Math.min(Number(bruto) || 0, teto);
+  const faixa = faixas.find((f) => base <= Number(f.ate)) || faixas[faixas.length - 1];
+  const inss = base * Number(faixa.aliquota) - Number(faixa.deduzir);
+  // + 1e-7: evita perder 1 centavo por erro de ponto flutuante.
+  return Math.max(0, Math.floor(inss * 100 + 1e-7) / 100);
 }
 
 // Imposto bruto de uma base segundo a tabela progressiva (faixa.ate=null => última, sem teto).
@@ -557,21 +581,63 @@ function antesDoInicioFolha(mes, ano) {
 const SQL_FOLHA_A_PARTIR_DO_INICIO =
   `(h.ano > ${INICIO_FOLHA.ano} OR (h.ano = ${INICIO_FOLHA.ano} AND h.mes >= ${INICIO_FOLHA.mes}))`;
 
-// Dias de benefício (VA/VT) do mês: TODOS os dias de segunda a sexta, SEM descontar feriado
-// — regra do RH (2026-09): o crédito de VA/VT acompanha o calendário útil do mês, e um feriado
-// no meio da semana não tira o dia do funcionário. Ex.: setembro/2026 são 22 dias, mesmo com a
-// Independência (7/9) caindo numa segunda; antes a conta devolvia 21 e o VA/VT saía um dia a
-// menos. Não confundir com ultimoDiaUtil(), que é data de PAGAMENTO e continua pulando feriado
-// (banco fechado não compensa boleto).
+// Dias de benefício (VA/VT) do mês: dias de segunda a sexta DESCONTANDO os feriados fixos e
+// móveis de São Paulo (feriadosDoAno) — regra do RH (2026-09-30), que reverteu a regra anterior
+// de contar o calendário seg–sex inteiro. Ex.: setembro/2026 são 21 dias (22 seg–sex menos a
+// Independência, 7/9). Mesma lista usada em ultimoDiaUtil() (data de pagamento).
 function contarDiasBeneficio(ano, mes) {
+  const feriados = feriadosDoAno(ano);
   const ultimoDia = new Date(ano, mes, 0).getDate();
   let dias = 0;
   for (let d = 1; d <= ultimoDia; d++) {
     const dow = new Date(ano, mes - 1, d).getDay(); // 0=domingo, 6=sábado
     if (dow === 0 || dow === 6) continue;
+    const isoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (feriados.has(isoDia)) continue;
     dias++;
   }
   return dias;
+}
+
+// Ajustes manuais de dias de VA/VT do mês (tabela folhadiasbeneficio — histórico, vale a linha
+// mais recente de cada escopo). Devolve { geral, porFunc }: `geral` = ajuste de TODOS (idfuncionario
+// NULL), `porFunc` = Map idfuncionario → ajuste individual. `dias` null = ajuste removido.
+async function ajustesDiasBeneficio(idempresa, mes, ano) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (COALESCE(idfuncionario, 0))
+            iddiasbeneficio, idfuncionario, dias, justificativa, criadoem
+       FROM folhadiasbeneficio
+      WHERE idempresa = $1 AND mes = $2 AND ano = $3
+      ORDER BY COALESCE(idfuncionario, 0), iddiasbeneficio DESC`,
+    [idempresa, mes, ano]
+  );
+  const porFunc = new Map();
+  let geral = null;
+  for (const r of rows) {
+    if (r.idfuncionario === null) geral = r;
+    else porFunc.set(r.idfuncionario, r);
+  }
+  return { geral, porFunc };
+}
+
+// Dias de VA/VT que valem pra UM funcionário no mês de vencimento. Prioridade:
+//  1) ajuste individual — valor FINAL (o RH já considerou férias/atestado/admissão);
+//  2) ajuste de todos — substitui só o número do calendário; férias programadas continuam saindo;
+//  3) calendário (contarDiasBeneficio) menos as férias programadas.
+// O ajuste de todos NÃO vale pra quem já teve os benefícios conferidos ANTES dele ter sido
+// lançado (`conferidoBenefEm`) — o que já foi conferido não muda por baixo do RH.
+// `diasCalendario` = contarDiasBeneficio(ano, mes) (quem chama já tem); `ajusteFerias` pode ser null.
+async function resolverDiasBeneficio(idempresa, idfuncionario, mes, ano, diasCalendario, ajusteFerias, conferidoBenefEm = null) {
+  const { geral, porFunc } = await ajustesDiasBeneficio(idempresa, mes, ano);
+  const ind = porFunc.get(Number(idfuncionario));
+  if (ind && ind.dias !== null) {
+    return { dias: ind.dias, origem: "individual", justificativa: ind.justificativa, diasCalendario };
+  }
+  let base = diasCalendario, origem = "calendario", justificativa = null;
+  const geralValeAqui = geral && geral.dias !== null
+    && !(conferidoBenefEm && new Date(conferidoBenefEm) < new Date(geral.criadoem));
+  if (geralValeAqui) { base = geral.dias; origem = "todos"; justificativa = geral.justificativa; }
+  return { dias: diasUteisSemFerias(base, ajusteFerias), origem, justificativa, diasCalendario };
 }
 
 // Vencimento dos BENEFÍCIOS (VA/VT) — último dia útil do próprio mês vigente (sem defasagem,
@@ -866,7 +932,16 @@ router.get("/holerite", async (req, res) => {
     const ajusteFerias = tipo === "mensal"
       ? await ajusteFeriasMensal(idempresa, idfuncionario, mes, ano)
       : { diasFerias: 0, diasUteisFerias: 0 };
-    const diasUteis = diasUteisSemFerias(contarDiasBeneficio(ano, mes), ajusteFerias);
+    // Ajuste manual de dias (folhadiasbeneficio) entra aqui: individual > todos > calendário.
+    const benefConfEm = tipo === "mensal"
+      ? (await pool.query(
+          `SELECT conferido_beneficios_em FROM folhaholerite
+            WHERE idempresa = $1 AND idfuncionario = $2 AND mes = $3 AND ano = $4 AND COALESCE(tipo,'mensal') = 'mensal'`,
+          [idempresa, idfuncionario, mes, ano]
+        )).rows[0]?.conferido_beneficios_em || null
+      : null;
+    const diasInfo = await resolverDiasBeneficio(idempresa, idfuncionario, mes, ano, contarDiasBeneficio(ano, mes), ajusteFerias, benefConfEm);
+    const diasUteis = diasInfo.dias;
     const competencia = tipo === "mensal" ? competenciaAnterior(mes, ano) : { mes, ano };
 
     // Plano de saúde: desconto por faixa etária (titular + dependentes) na competência.
@@ -885,6 +960,7 @@ router.get("/holerite", async (req, res) => {
       funcao: funcionario.funcao, cbo: funcionario.cbo,
       admissao: funcionario.admissao, dependentes: funcionario.dependentes,
       valealimDia, valetrnspDia, diasUteis, planoSaude,
+      diasOrigem: diasInfo.origem, diasJustificativa: diasInfo.justificativa, diasCalendario: diasInfo.diasCalendario,
       competenciaMes: competencia.mes, competenciaAno: competencia.ano,
     };
 
@@ -1182,7 +1258,12 @@ router.put("/holerite/:id/conferir", async (req, res) => {
           // o ano do vencimento, e em janeiro o valor congelado saía diferente do que a lista mostrava.
           const params = await obterParametros(competenciaAnterior(linha.mes, linha.ano).ano);
           const ajuste = await ajusteFeriasMensal(idempresa, linha.idfuncionario, linha.mes, linha.ano);
-          const diasUteis = diasUteisSemFerias(contarDiasBeneficio(linha.ano, linha.mes), ajuste);
+          const benefConfEm = (await pool.query(
+            `SELECT conferido_beneficios_em FROM folhaholerite WHERE idholerite = $1`, [idholerite]
+          )).rows[0]?.conferido_beneficios_em || null;
+          const diasUteis = (await resolverDiasBeneficio(
+            idempresa, linha.idfuncionario, linha.mes, linha.ano, contarDiasBeneficio(linha.ano, linha.mes), ajuste, benefConfEm
+          )).dias;
           const salariobase = Number(func.salario) || 0;
           // Recalcula só VA/VT/INSS/IRRF (+ desconto de dias de férias) — hora extra, plano de
           // saúde e outros itens lançados à mão ficam (antes eram apagados aqui).
@@ -1246,6 +1327,80 @@ router.put("/holerite/:id/conferir-beneficios", async (req, res) => {
     res.json({ ok: true, ...rows[0] });
   } catch (error) {
     console.error("ERRO RH /holerite/:id/conferir-beneficios:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /rh/dias-beneficio — ajusta a quantidade de dias de VA/VT do mês de vencimento, com
+// justificativa obrigatória (tabela folhadiasbeneficio, histórico). Body:
+// { mes, ano, idfuncionario (omitido/null = TODOS), dias (null = remove o ajuste), justificativa }.
+// Individual é bloqueado se os benefícios do funcionário já foram conferidos/pagos; o de TODOS
+// nunca mexe em quem já conferiu antes (ver resolverDiasBeneficio).
+router.post("/dias-beneficio", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario || null;
+    const mes = parseInt(req.body.mes, 10);
+    const ano = parseInt(req.body.ano, 10);
+    const idfuncionario = req.body.idfuncionario ? parseInt(req.body.idfuncionario, 10) : null;
+    const justificativa = String(req.body.justificativa || "").trim();
+    const remover = req.body.dias === null || req.body.dias === undefined || req.body.dias === "";
+    const dias = remover ? null : Number(req.body.dias);
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!mes || !ano) return res.status(400).json({ error: "mes e ano obrigatórios." });
+    if (antesDoInicioFolha(mes, ano)) return res.status(400).json({ error: "Competência anterior ao início da folha no sistema." });
+    if (!remover && (!Number.isInteger(dias) || dias < 0 || dias > 31)) {
+      return res.status(400).json({ error: "Informe um número inteiro de dias entre 0 e 31." });
+    }
+    if (justificativa.length < 5) return res.status(400).json({ error: "Justificativa obrigatória (mín. 5 caracteres)." });
+
+    if (idfuncionario) {
+      const h = (await pool.query(
+        `SELECT conferido_beneficios, conferido_beneficios_em, status_beneficios
+           FROM folhaholerite
+          WHERE idempresa = $1 AND idfuncionario = $2 AND mes = $3 AND ano = $4 AND COALESCE(tipo,'mensal') = 'mensal'`,
+        [idempresa, idfuncionario, mes, ano]
+      )).rows[0];
+      if (h && ((h.conferido_beneficios && h.conferido_beneficios_em) || h.status_beneficios === "Pago")) {
+        return res.status(409).json({ error: "Benefícios deste funcionário já foram conferidos/pagos. Desfaça a conferência para alterar os dias." });
+      }
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO folhadiasbeneficio (idempresa, mes, ano, idfuncionario, dias, justificativa, idusuario)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING iddiasbeneficio, dias, justificativa, criadoem`,
+      [idempresa, mes, ano, idfuncionario, dias, justificativa, idusuario]
+    );
+    res.json({ ok: true, ajuste: rows[0] });
+  } catch (error) {
+    console.error("ERRO RH POST /dias-beneficio:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /rh/dias-beneficio/historico?mes=&ano=&idfuncionario= — alterações do escopo (sem
+// idfuncionario = ajustes de TODOS), da mais recente pra mais antiga.
+router.get("/dias-beneficio/historico", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const mes = parseInt(req.query.mes, 10);
+    const ano = parseInt(req.query.ano, 10);
+    const idfuncionario = req.query.idfuncionario ? parseInt(req.query.idfuncionario, 10) : null;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!mes || !ano) return res.status(400).json({ error: "mes e ano obrigatórios." });
+    const { rows } = await pool.query(
+      `SELECT d.iddiasbeneficio, d.dias, d.justificativa, d.criadoem, u.nome AS usuario
+         FROM folhadiasbeneficio d
+         LEFT JOIN usuarios u ON u.idusuario = d.idusuario
+        WHERE d.idempresa = $1 AND d.mes = $2 AND d.ano = $3
+          AND d.idfuncionario IS NOT DISTINCT FROM $4::integer
+        ORDER BY d.iddiasbeneficio DESC`,
+      [idempresa, mes, ano, idfuncionario]
+    );
+    res.json({ historico: rows });
+  } catch (error) {
+    console.error("ERRO RH GET /dias-beneficio/historico:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1644,7 +1799,7 @@ const FERIAS_MES_DESC = "Dias de férias (pagos no recibo de férias)";
 
 // Itens do recibo: férias + 1/3 tributáveis (INSS/IRRF próprios, IRRF em separado do mês);
 // abono pecuniário + 1/3 são isentos (art. 144 CLT) — entram no líquido, fora da base.
-function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, perfil) {
+function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, perfil, domestico = false) {
   const s = Number(salario) || 0;
   const ferias = round2(s / 30 * diasGozo);
   const terco = round2(ferias / 3);
@@ -1659,7 +1814,8 @@ function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, 
   }
   const baseTributavel = ferias + terco;
   if (perfilTemImposto(perfil)) {
-    const inss = calcularINSS(baseTributavel, params);
+    // Doméstico: INSS de férias por alíquota × base − parcela a deduzir (ver calcularINSSDeducao).
+    const inss = domestico ? calcularINSSDeducao(baseTributavel, params) : calcularINSS(baseTributavel, params);
     const ir = calcularIRRF(baseTributavel, inss, dependentes, params);
     if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
     if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
@@ -1679,8 +1835,9 @@ function vencimentoFerias(gozoInicioIso) {
 }
 
 // Dias de sobreposição entre [ini, fim] e o mês (ano, mes). `soUteis` conta só seg–sex (mesma
-// regra de contarDiasBeneficio, feriado não desconta).
+// regra de contarDiasBeneficio: também pula feriados de SP, pra não descontar duas vezes).
 function diasNoMes(iniIso, fimIso, ano, mes, soUteis = false) {
+  const feriados = feriadosDoAno(ano);
   const primeiro = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const ultimo = `${ano}-${String(mes).padStart(2, "0")}-${String(new Date(Date.UTC(ano, mes, 0)).getUTCDate()).padStart(2, "0")}`;
   const a = iniIso > primeiro ? iniIso : primeiro;
@@ -1690,7 +1847,7 @@ function diasNoMes(iniIso, fimIso, ano, mes, soUteis = false) {
   let n = 0;
   for (let d = a; d <= b; d = somarDiasIso(d, 1)) {
     const dow = isoParaUTC(d).getUTCDay();
-    if (dow !== 0 && dow !== 6) n++;
+    if (dow !== 0 && dow !== 6 && !feriados.has(d)) n++;
   }
   return n;
 }
@@ -1737,14 +1894,14 @@ async function recalcularReciboFerias(client, idempresa, idholerite) {
     return;
   }
   const h = (await client.query(
-    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes, fe.perfil
+    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes, fe.perfil, fe.domestico
        FROM folhaholerite h JOIN funcionarioempresas fe ON fe.idfuncionario = h.idfuncionario AND fe.idempresa = h.idempresa
       WHERE h.idholerite = $1`,
     [idholerite]
   )).rows[0];
   const params = await obterParametros(h.ano);
   const diasGozo = gozos.reduce((s, g) => s + (Number(g.dias) || 0), 0);
-  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono), h.perfil);
+  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono), h.perfil, h.domestico === true);
   const obs = `Gozo: ${gozos.map((g) => `${g.ini.split("-").reverse().join("/")} a ${g.fim.split("-").reverse().join("/")}`).join(" e ")}`
     + ` · Período aquisitivo ${gozos[0].aq_ini.split("-").reverse().join("/")} a ${gozos[0].aq_fim.split("-").reverse().join("/")}`
     + ` · Pagar até ${vencimentoFerias(gozos[0].ini).split("-").reverse().join("/")}`;
@@ -1851,7 +2008,7 @@ async function prepararProgramacaoFerias(idempresa, body) {
 
   // Recibos: um por mês de INÍCIO do gozo (ver UNIQUE de folhaholerite).
   const cadastro = (await pool.query(
-    `SELECT salario, dependentes, perfil FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+    `SELECT salario, dependentes, perfil, domestico FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
     [idfuncionario, idempresa]
   )).rows[0] || {};
   const salario = Number(cadastro.salario) || 0;
@@ -1878,7 +2035,7 @@ async function prepararProgramacaoFerias(idempresa, body) {
     // Gozos que JÁ estão nesse recibo (mesmo mês) entram na conta junto com os novos.
     const jaNoRecibo = existente ? todosGozos.filter((x) => x.idholerite === existente.idholerite) : [];
     const diasGozo = r.gozos.reduce((s, g) => s + g.dias, 0) + jaNoRecibo.reduce((s, x) => s + (Number(x.dias) || 0), 0);
-    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono), perfilFunc);
+    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono), perfilFunc, cadastro.domestico === true);
     const inicioRecibo = [...r.gozos.map((g) => g.inicio), ...jaNoRecibo.map((x) => x.gozo_inicio)].sort()[0];
     recibos.push({
       ...r, idholerite: existente?.idholerite || null, itens,
@@ -2132,9 +2289,11 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
       // Férias programadas no mês: desconta os dias já pagos no recibo (salário) e tira os
       // dias de férias do VA/VT — ver ajusteFeriasMensal.
       const ajuste = await ajusteFeriasMensal(idempresa, f.idfuncionario, mes, ano);
-      const itens = mesclarItensAutomaticos(gravados, f, params, diasUteisSemFerias(diasUteis, ajuste), ajuste.diasFerias);
+      const d = await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, ajuste, head.conferido_beneficios_em);
+      const itens = mesclarItensAutomaticos(gravados, f, params, d.dias, ajuste.diasFerias);
       const t = calcularTotais(salariobase, itens);
       return {
+        diasBeneficio: d.dias, diasOrigem: d.origem, diasJustificativa: d.justificativa, diasCalendario: d.diasCalendario,
         idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
         origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
         conferido: head.conferido, conferidoEm: head.conferido_em,
@@ -2155,7 +2314,10 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
       [head.idholerite]
     )).rows;
     const t = calcularTotais(salariobase, itens);
+    // Só informativo (origem/justificativa na lista) — o valor já está congelado nos itens.
+    const d = await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, null, head.conferido_beneficios_em);
     return {
+      diasOrigem: d.origem, diasJustificativa: d.justificativa, diasCalendario: d.diasCalendario,
       idfuncionario: f.idfuncionario, nome: f.nome, idholerite: head.idholerite,
       origem: "real", status: head.status, dtpagamento: head.dtpagamento, comprovante: head.comprovante,
       conferido: head.conferido, conferidoEm: head.conferido_em,
@@ -2169,9 +2331,11 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
 
   const salariobase = Number(f.salario) || 0;
 
-  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis);
+  const d = await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, null);
+  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, d.dias);
   const t = calcularTotais(salariobase, itens);
   return {
+    diasBeneficio: d.dias, diasOrigem: d.origem, diasJustificativa: d.justificativa, diasCalendario: d.diasCalendario,
     idfuncionario: f.idfuncionario, nome: f.nome, idholerite: null,
     origem: "previsao", status: "Previsão", dtpagamento: null, comprovante: null,
     conferido: false, conferidoEm: null, conferidoBeneficios: false, conferidoBeneficiosEm: null,
@@ -2304,7 +2468,8 @@ async function garantirHoleriteMensal(idempresa, f, mes, ano, params, diasUteis)
   const idholerite = criado.rows[0]?.idholerite;
   if (!idholerite) return; // já existia (ou outra requisição criou primeiro)
 
-  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis);
+  const dias = (await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, null)).dias;
+  const itens = await montarItensPrevisaoMensal(idempresa, f, mes, ano, params, dias);
   for (const i of itens) {
     await pool.query(
       `INSERT INTO folhaitens (idholerite, tipo, descricao, valor) VALUES ($1, $2, $3, $4)`,
@@ -2498,7 +2663,10 @@ router.get("/folha", async (req, res) => {
     // pra Contas a Pagar.
     const linhasFerias = await listarRecibosFerias(idempresa, { mes, ano });
 
-    res.json({ linhas, linhas13, linhasFerias, totais, mes, ano, mesComp, anoComp, diasUteis });
+    // Ajuste vigente de TODOS (se houver) — a tela mostra no chip e como padrão do modal.
+    const diasGeral = (await ajustesDiasBeneficio(idempresa, mes, ano)).geral?.dias ?? null;
+
+    res.json({ linhas, linhas13, linhasFerias, totais, mes, ano, mesComp, anoComp, diasUteis, diasGeral });
   } catch (error) {
     console.error("ERRO RH /folha:", error);
     res.status(500).json({ error: error.message });

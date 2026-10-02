@@ -8824,8 +8824,28 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 inputBuscaContas.placeholder = "🔎 Buscar por vínculo ou descrição...";
                 inputBuscaContas.autocomplete = "off";
                 inputBuscaContas.style = "flex: 1; min-width: 220px; padding: 6px 10px; border-radius: 15px; border: 1px solid #ccc; font-size: 12px;";
-                inputBuscaContas.addEventListener("input", () => {
-                    aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
+                // Filtro por dia de vencimento (combina com status + texto).
+                const inputDataContas = document.createElement("input");
+                inputDataContas.type = "date";
+                inputDataContas.id = "buscaContasDataVcto";
+                inputDataContas.title = "Mostrar só as contas que vencem neste dia";
+                inputDataContas.style = "padding: 5px 10px; border-radius: 15px; border: 1px solid #ccc; font-size: 12px;";
+
+                const btnLimparData = document.createElement("button");
+                btnLimparData.type = "button";
+                btnLimparData.innerText = "✕";
+                btnLimparData.title = "Limpar filtro de data";
+                btnLimparData.style = "display: none; padding: 4px 9px; border-radius: 15px; border: 1px solid #ccc; background: var(--surface-1); color: var(--text-2); cursor: pointer; font-size: 12px;";
+
+                const reaplicarFiltroContas = () => {
+                    btnLimparData.style.display = inputDataContas.value ? "" : "none";
+                    aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value, inputDataContas.value);
+                };
+                inputBuscaContas.addEventListener("input", reaplicarFiltroContas);
+                inputDataContas.addEventListener("change", reaplicarFiltroContas);
+                btnLimparData.addEventListener("click", () => {
+                    inputDataContas.value = "";
+                    reaplicarFiltroContas();
                 });
 
                 opcoesContas.forEach(opt => {
@@ -8838,7 +8858,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
                     btn.onclick = () => {
                         statusContasAtivo = opt.id;
-                        aplicarFiltroContas(wrapperContas, statusContasAtivo, inputBuscaContas.value);
+                        reaplicarFiltroContas();
                         containerFiltrosContas.querySelectorAll("button").forEach(b => {
                             b.style.background = "var(--surface-1)"; b.style.color = b.style.borderColor;
                         });
@@ -8847,6 +8867,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                     containerFiltrosContas.appendChild(btn);
                 });
 
+                containerFiltrosContas.appendChild(inputDataContas);
+                containerFiltrosContas.appendChild(btnLimparData);
                 containerFiltrosContas.appendChild(inputBuscaContas);
                 wrapperContas.appendChild(containerFiltrosContas);
                 accordionContainer.appendChild(btnMestreContas);
@@ -9044,7 +9066,8 @@ function filtrarEventosNaTela(statusAlvo) {
 
 // Filtro combinado (status + busca por texto) só pra seção "Contas a Pagar" — scoped ao
 // wrapperContas pra não mexer no filtro de Staff, que usa filtrarEventosNaTela globalmente.
-function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca) {
+function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca, dataVcto) {
+    // dataVcto: "YYYY-MM-DD" (input type=date) — mostra só as contas que vencem naquele dia.
     const termo = (termoBusca || "").trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
     wrapperContas.querySelectorAll(".accordion-item").forEach(item => {
@@ -9057,7 +9080,10 @@ function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca) {
             const textoLinha = linha.textContent.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
             const bateTexto = !termo || textoLinha.includes(termo);
 
-            const mostrar = bateStatus && bateTexto;
+            // Linhas sem data (cabeçalho de mês) saem quando há filtro por dia.
+            const bateData = !dataVcto || linha.getAttribute("data-dtvcto") === dataVcto;
+
+            const mostrar = bateStatus && bateTexto && bateData;
             linha.style.display = mostrar ? "" : "none";
             if (mostrar) temFilhoVisivel = true;
         });
@@ -9580,7 +9606,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // pessoas (e vários meses da MESMA pessoa) dividem o grupo "Funcionários"
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
-                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
+                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
                                     // Nome + badge (VENCIDO/HOJE) do funcionário: essa célula é dona do
                                     // rowSpan quando há mais de uma categoria (Salário/13º/Benefícios...) no
                                     // MESMO funcionário/mês (data-func-chave) — cada linha continua com sua
@@ -9641,7 +9667,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     const celulaNF = htmlAnexoCicloFornecedor(cf, chaveJs, 'notafiscal');
                                     const celulaCompCiclo = htmlAnexoCicloFornecedor(cf, chaveJs, 'comprovante');
                                     return `
-                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha" data-status-filtro="${filterLinha}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha" data-status-filtro="${filterLinha}" data-dtvcto="${vctoISO}">
                                         <td style="${estiloVencido}">
                                             ${avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong>
@@ -9659,7 +9685,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 }
 
                                 return `
-                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
@@ -10152,14 +10178,19 @@ async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, ven
             if (!vlrTotal || !dataPgto) return Swal.showValidationMessage('Preencha os campos obrigatórios!');
 
             // Validação de Observação (Não obriga se for funcionário)
-            if (!isFuncionario && (eAtrasado || vlrAtraso > 0 || vlrDesconto > 0)) {
+            // Justificativa só quando há algo a explicar: data de pagamento diferente do
+            // vencimento original, atraso ou desconto. Usa a data ESCOLHIDA no campo, não
+            // "hoje" — pagar no próprio vencimento (ou antes) sem ajuste não exige nada.
+            const vencimentoISO = String(vencimento).slice(0, 10);
+            const dataDiferente = dataPgto !== vencimentoISO;
+            if (!isFuncionario && (dataDiferente || vlrAtraso > 0 || vlrDesconto > 0)) {
                 if (obsFinal === "" || obsFinal === obsExistente.trim()) {
                     return Swal.showValidationMessage('Justifique a alteração na observação.');
                 }
             }
 
             let tags = "";
-            if (eAtrasado) tags += " Atrasado ";
+            if (!isFuncionario && dataPgto > vencimentoISO) tags += " Atrasado ";
             if (vlrAtraso > 0) tags += `[Atraso: R$ ${vlrAtraso.toFixed(2)}] `;
             if (vlrDesconto > 0) tags += `[Desconto: R$ ${vlrDesconto.toFixed(2)}] `;
 
