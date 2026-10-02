@@ -79,6 +79,10 @@ router.put("/:id",
   const idempresa = req.idempresa;
   const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
 
+  if (!descEquip || custo === undefined || custo === null || isNaN(custo) || venda === undefined || venda === null || isNaN(venda)) {
+    return res.status(400).json({ message: "Descrição, custo e venda são obrigatórios e devem ser numéricos." });
+  }
+
   try {
       const result = await pool.query(
         `UPDATE equipamentos e
@@ -118,6 +122,10 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
   async (req, res) => {
   const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
   const idempresa = req.idempresa;
+
+  if (!descEquip || custo === undefined || custo === null || isNaN(custo) || venda === undefined || venda === null || isNaN(venda)) {
+    return res.status(400).json({ message: "Descrição, custo e venda são obrigatórios e devem ser numéricos." });
+  }
 
   let client; // Variável para a conexão de transação
 

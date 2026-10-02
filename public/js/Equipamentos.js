@@ -109,8 +109,8 @@ function verificaEquipamento() {
         const vlrCusto = document.querySelector("#ctoEquip").value;
         const vlrVenda = document.querySelector("#vdaEquip").value;
 
-        const custo = parseFloat(vlrCusto.replace(",", "."));
-        const venda = parseFloat(vlrVenda.replace(",", "."));
+        const custo = parseFloat(desformatarReais(vlrCusto));
+        const venda = parseFloat(desformatarReais(vlrVenda));
 
         // Permissões
         const temPermissaoCadastrar = temPermissao("Equipamentos", "cadastrar");
@@ -189,7 +189,6 @@ function verificaEquipamento() {
             await enviarFotosModelosPendentes(idEquipSalvo);
 
             await Swal.fire("Sucesso!", respostaApi.message || respostaApi.mensagem || "Equipamento salvo com sucesso.", "success");
-            limparCamposEquipamento();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
