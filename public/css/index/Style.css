@@ -947,10 +947,11 @@ input#search-aside {
     flex-direction: column;
     width: 100%;
     max-width: 20000px;
-    margin: 138px auto 40px; /* 100 + 38 da barra-empresas */
+    margin: 100px auto 40px; /* 100 + 38 da barra-empresas */
     padding: 0 24px 40px;
     box-sizing: border-box;
-    max-height: calc(100vh - 178px); /* 138 + 40 da margem acima */
+    height: 100%;
+    max-height: calc(100vh - 20px); /* 138 + 40 da margem acima */
     overflow: hidden;
     font-family: var(--Font-primary);
   }
@@ -1886,17 +1887,26 @@ input#search-aside {
   #ti-panel .ti-evento-resumo { font-size: 13px; color: var(--text-2); margin-top: 4px; }
   #ti-panel .ti-evento-detalhe { margin-top: 12px; cursor: default; }
 
+  /* Era um "link" (fundo nenhum, azul sublinhado) -- virou pílula pequena, mesmo
+     padrão de botão secundário usado em outros lugares do TI Mode (ex:
+     .ti-swal-modelo-acoes button.secundario), só compacto o bastante pra caber
+     vários lado a lado num card de evento com orçamentos-irmãos. */
   #ti-panel .ti-link-orcamento {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #1f6fc4;
-    text-decoration: underline;
-    font-size: inherit;
+    background: var(--surface-1);
+    border: 1.5px solid var(--primary-color, #942123);
+    border-radius: 14px;
+    padding: 3px 12px;
+    color: var(--primary-texto, #942123);
+    font-size: 12px;
+    font-weight: 700;
     font-family: inherit;
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
   }
-  #ti-panel .ti-link-orcamento:hover { color: #14508f; }
+  #ti-panel .ti-link-orcamento:hover {
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
+  }
 
   /* Status de controle (Incerto/Confirmado/Cancelado) agora é por orçamento, não por
      evento -- uma linha por #orçamento, cada uma com seu próprio link + status. */
@@ -1918,13 +1928,6 @@ input#search-aside {
     font-size: 12px;
   }
 
-  #ti-panel .ti-evento-controles {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-top: 10px;
-    cursor: default;
-  }
   #ti-panel .ti-select-controle {
     border-radius: 6px;
     border: 1px solid var(--border-1);
@@ -2236,18 +2239,35 @@ input#search-aside {
     margin-bottom: 14px;
   }
   #ti-panel .ti-custodia-filtros button {
+    display: inline-flex;
+    align-items: center;
     border: none;
+    gap: 8px;
     border-radius: 20px;
     padding: 8px 18px;
     background: var(--primary-color, #942123);
     color: var(--font-color, #fff);
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     box-shadow: 0 2px 6px var(--shadow-1);
   }
+  #ti-panel .ti-custodia-filtros button .material-symbols-outlined { font-size: 16px; }
   #ti-panel .ti-custodia-filtros button:hover { filter: brightness(1.1); }
   #ti-panel .ti-custodia-filtros button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+
+  /* Switch Funcionários/Freelancers -- Funcionários é sempre o padrão ao abrir a aba
+     (ver renderAbaCustodia). Os dois botões herdam o estilo pílula de
+     .ti-custodia-filtros button acima; só o inativo precisa de override (outline em
+     vez de preenchido), pra diferenciar do ativo sem criar um sistema visual novo. */
+  #ti-panel .ti-custodia-switch { display: flex; align-items: center; gap: 6px; background: var(--surface-3); padding: 4px; border-radius: 24px; }
+  #ti-panel .ti-custodia-switch-btn { padding: 8px 16px; box-shadow: none; }
+  #ti-panel .ti-custodia-switch-btn:not(.ativo) {
+    background: transparent;
+    color: var(--text-2);
+  }
+  #ti-panel .ti-custodia-switch-btn:not(.ativo):hover { filter: none; background: var(--surface-1); }
+
   #ti-panel .ti-custodia-filtros .ti-input-busca {
     flex: 1 1 220px;
     min-width: 180px;
@@ -2499,15 +2519,54 @@ input#search-aside {
   #ti-panel .ti-cal-badge.ti-cal-nivel-facil { background: var(--Aproved, #046800); color: var(--Aproved-color, #fff); }
   #ti-panel .ti-cal-badge.ti-cal-nivel-medio { background: var(--Pending, #FFBD29); color: var(--Pending-color, #000); }
   #ti-panel .ti-cal-badge.ti-cal-nivel-dificil { background: var(--Reject, #B50000); color: var(--Reject-color, #fff); }
+  /* Preenchido (não outline com --primary-texto) -- esse token depende de um
+     color-mix que, dependendo da cor da empresa, ainda fica escuro/pouco
+     contrastante no tema escuro. Fundo sólido + --font-color é o mesmo padrão
+     já usado nos outros botões de ação do TI Mode (ex: .ti-btn-ir-separacao). */
   #ti-panel .ti-cal-detalhe button {
-    border: 1px solid var(--primary-color, #999);
-    background: var(--surface-1);
-    color: var(--primary-texto, #333);
+    border: 1px solid var(--primary-color, #942123);
+    background: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
     border-radius: 6px;
     padding: 4px 10px;
     cursor: pointer;
     font-size: 12px;
     margin-top: 8px;
+  }
+  #ti-panel .ti-cal-detalhe button:hover {
+    background: var(--surface-1, #333);
+    color: var(--font-color, #333);
+  }
+  /* Botão "Voltar" pro calendário + lista de próximos eventos -- fica no topo do
+     painel de detalhe (dia ou evento clicado), separado do resto por ser navegação,
+     não ação sobre o conteúdo (por isso o visual diferente do botão genérico acima).
+     Precisa do qualificador "button" pra ficar mais específico que a regra genérica
+     "#ti-panel .ti-cal-detalhe button" logo acima -- sem isso, padding/cor dali
+     vazavam por cima (cor de texto caindo no fallback #333, ilegível no tema escuro). */
+  #ti-panel .ti-cal-detalhe button.ti-cal-btn-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+    margin: 0 0 12px;
+    padding: 6px 12px 6px 8px;
+    border: 1px solid var(--border-1);
+    background: var(--surface-1);
+    color: var(--text-1);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  #ti-panel .ti-cal-detalhe button.ti-cal-btn-voltar .material-symbols-outlined {
+    font-size: 10px;
+    line-height: 1;
+  }
+  #ti-panel .ti-cal-detalhe button.ti-cal-btn-voltar:hover {
+    background: var(--primary-color, #942123);
+    border-color: var(--primary-color, #942123);
+    color: var(--font-color, #fff);
   }
 
   /* ===== Painel CEO (conteúdo da tela limpa) ===== */

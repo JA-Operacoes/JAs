@@ -77,17 +77,33 @@ router.put("/:id",
   async (req, res) => {
   const id = req.params.id;
   const idempresa = req.idempresa;
-  const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
+  const { descEquip, custo, venda, modelos, complementos, ehkit } = req.body;
+
+  // PUT parcial: o cadastro geral manda {descEquip, custo, venda, ehkit} (sem mexer em
+  // modelos/complementos, que agora só o Estoque do TI Mode edita) e o Estoque manda só
+  // o campo que mudou (ex: {modelos:[...]}, sozinho -- "uso interno" vive dentro de cada
+  // objeto do array `modelos`, não é mais coluna própria). Campo ausente vira NULL no
+  // bind -- nunca `undefined` direto pro pg -- e o COALESCE mantém o valor que já tava salvo.
+  const descEquipParam = descEquip !== undefined ? descEquip : null;
+  const custoParam = custo !== undefined ? custo : null;
+  const vendaParam = venda !== undefined ? venda : null;
+  const modelosParam = modelos !== undefined ? JSON.stringify(modelos) : null;
+  const complementosParam = complementos !== undefined ? JSON.stringify(complementos) : null;
+  const ehkitParam = ehkit !== undefined ? !!ehkit : null;
 
   try {
       const result = await pool.query(
         `UPDATE equipamentos e
-          SET descEquip = $1, ctoEquip = $2, vdaEquip = $3,
-              modelos = $4::jsonb, complementos = $5::jsonb, ehkit = $6, usointerno = $7
+          SET descEquip = COALESCE($1, e.descEquip),
+              ctoEquip = COALESCE($2, e.ctoEquip),
+              vdaEquip = COALESCE($3, e.vdaEquip),
+              modelos = COALESCE($4::jsonb, e.modelos),
+              complementos = COALESCE($5::jsonb, e.complementos),
+              ehkit = COALESCE($6, e.ehkit)
           FROM equipamentoempresas ee
-          WHERE e.idequip = $8 AND ee.idequip = e.idequip AND ee.idempresa = $9
-          RETURNING e.idequip`,
-        [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), !!ehkit, !!usointerno, id, idempresa]
+          WHERE e.idequip = $7 AND ee.idequip = e.idequip AND ee.idempresa = $8
+          RETURNING e.*`,
+        [descEquipParam, custoParam, vendaParam, modelosParam, complementosParam, ehkitParam, id, idempresa]
       );
 
       if (result.rowCount) {
@@ -116,7 +132,7 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
       }
   }),
   async (req, res) => {
-  const { descEquip, custo, venda, modelos, complementos, ehkit, usointerno } = req.body;
+  const { descEquip, custo, venda, modelos, complementos, ehkit } = req.body;
   const idempresa = req.idempresa;
 
   let client; // Variável para a conexão de transação
@@ -128,10 +144,10 @@ router.post("/", verificarPermissao('Equipamentos', 'cadastrar'),
 
       // 1. Insere o novo equipamento na tabela 'equipamentos'
       const resultEquipamento = await client.query(
-          `INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip, modelos, complementos, ehkit, usointerno)
-             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)
-             RETURNING idequip, descEquip, modelos, complementos, ehkit, usointerno`,
-          [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), !!ehkit, !!usointerno]
+          `INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip, modelos, complementos, ehkit)
+             VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6)
+             RETURNING idequip, descEquip, modelos, complementos, ehkit`,
+          [descEquip, custo, venda, JSON.stringify(modelos || []), JSON.stringify(complementos || []), !!ehkit]
       );
 
       const novoEquipamento = resultEquipamento.rows[0];
