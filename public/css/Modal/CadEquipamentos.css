@@ -91,7 +91,10 @@ body {
   justify-content: flex-start;
   background-color: var(--surface-4);
   max-width: 700px;
-  height: 600px;
+  /* Era altura fixa de 600px -- sobrava bastante vazio desde que Modelos/
+     Complementos/Kit saíram daqui pro Estoque do TI Mode. Altura acompanha o
+     conteúdo agora (o modal como um todo já trava em max-height: 92vh). */
+  height: auto;
   width: 100%;
   min-height: 0;
   margin: 0 auto;
@@ -193,109 +196,21 @@ input[readonly] ~ .user-label {
   color: var(--text-1);
 }
 
-/* Somente leitura pra quem não tem a flag "ti" (ver aplicarSomenteLeituraForaDoTI
-   em Equipamentos.js) -- Modelos/Complementos/Composição do kit e o checkbox de
-   Uso interno ficam acinzentados e sem interação; só "É kit?" continua liberado. */
-#cadModalEquipamentos input:disabled,
-#cadModalEquipamentos button:disabled,
-#cadModalEquipamentos select:disabled,
-#cadModalEquipamentos textarea:disabled {
-  opacity: .55;
-  cursor: not-allowed;
-}
-#cadModalEquipamentos .ti-swal-check:has(input:disabled) {
-  cursor: not-allowed;
-}
-
-/* ===== Tabelas de linhas dinâmicas (Modelos / Complementos) ===== */
-#cadModalEquipamentos .equip-tabela {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 8px;
-}
-#cadModalEquipamentos .equip-tabela th,
-#cadModalEquipamentos .equip-tabela td {
-  padding: 5px 8px;
-  text-align: left;
-}
-#cadModalEquipamentos .equip-tabela th {
-  font-size: 11px;
-  color: var(--text-1);
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-#cadModalEquipamentos .equip-tabela td:last-child,
-#cadModalEquipamentos .equip-tabela th:last-child { width: 36px; text-align: center; }
-#cadModalEquipamentos .equip-tabela input {
-  width: 100%;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 0 10px;
-  border: 1px solid var(--border-2);
-  background: transparent;
-  color: var(--text-1);
-  outline: none;
-  box-sizing: border-box;
-}
-/* Foto do modelo: miniatura clicavel na primeira coluna da tabela de modelos.
-   O <input type="file"> real fica escondido dentro do <label>, entao clicar na
-   propria miniatura ja abre o seletor de arquivo. */
-#cadModalEquipamentos .equip-tabela td.equip-modelo-foto-celula,
-#cadModalEquipamentos .equip-tabela th:first-child { width: 48px; text-align: center; }
-#cadModalEquipamentos .equip-modelo-foto {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  border: 1px dashed var(--border-2);
-  background: var(--surface-vidro-medio);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-  color: var(--text-2);
-}
-#cadModalEquipamentos .equip-modelo-foto:hover { border-style: solid; filter: brightness(1.08); }
-#cadModalEquipamentos .equip-modelo-foto img { width: 100%; height: 100%; object-fit: cover; }
-#cadModalEquipamentos .equip-modelo-foto .material-symbols-outlined { font-size: 20px; }
-#cadModalEquipamentos .equip-modelo-foto input[type="file"] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  overflow: hidden;
-}
-
-#cadModalEquipamentos .equip-rm {
-  border: none;
-  background: transparent;
-  color: #b51d1d;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-}
-#cadModalEquipamentos .equip-add {
-  margin-top: 8px;
-  background: var(--surface-vidro-forte);
-  border: 1px solid var(--border-2);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-1);
-}
 #cadModalEquipamentos .equip-hint {
   font-size: 12px;
-  color: var(--text-1);
-  margin: -4px 0 8px;
+  color: var(--text-2);
+  margin: 6px 0 0;
 }
 
-/* Checkboxes do cadastro (É um kit? / Uso interno?) -- usa o mesmo padrão
-   "ios-checkbox"/.ti-swal-check do resto do sistema (ver mensagensSwal.css),
-   só o espaçamento entre as duas linhas é específico daqui. */
-#cadModalEquipamentos .equip-checks .ti-swal-check + .ti-swal-check {
-  margin-top: 10px;
+/* --border-1 (usado por padrão em .ti-swal-check .ios-checkbox, ver
+   mensagensSwal.css) fica próximo demais de --surface-1 no tema deste modal --
+   o quadradinho desmarcado quase some, sem contraste nenhum. Troca só aqui pra
+   --border-2, a mesma borda avermelhada já usada nos outros campos do form. */
+#cadModalEquipamentos .ti-swal-check .ios-checkbox {
+  --checkbox-border: var(--border-2);
+}
+#cadModalEquipamentos .equip-checks {
+  padding-bottom: 16px;
 }
 
 /* ===== Rodapé (padrão .BTNs) ===== */

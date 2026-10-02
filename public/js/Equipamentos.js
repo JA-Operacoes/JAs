@@ -1,5 +1,4 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
-import { ligarBuscaComSugestoes } from './Formataçoes.js';
 
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -35,46 +34,8 @@ if (typeof window.EquipamentoOriginal === "undefined") {
         descEquip: "",
         vlrCusto: "",
         vlrVenda: "",
-        modelos: [],
-        complementos: [],
-        ehkit: false,
-        usointerno: false
+        ehkit: false
     };
-}
-
-// Cache dos equipamentos pra busca de componentes de kit -- carregado uma vez por
-// abertura do modal (ver garantirCacheEquipamentosKit), igual ao padrão de cache
-// client-side usado no TI Mode (cacheConsumiveis/cacheEquipamentos).
-let cacheEquipamentosParaKit = null;
-
-async function garantirCacheEquipamentosKit() {
-    if (!cacheEquipamentosParaKit) {
-        cacheEquipamentosParaKit = (await fetchComToken("/equipamentos")) || [];
-    }
-    return cacheEquipamentosParaKit;
-}
-
-// Modelos, Complementos, a composição do kit e o checkbox "Uso interno" só podem
-// ser vistos/editados por quem tem a flag "ti" (mesma flag especial que libera o
-// TI Mode no backend -- FLAGS_ESPECIAIS em middlewares/permissaoMiddleware.js,
-// checada lá via exigirFlag('ti', 'supremo')). Quem só tem a permissão comum de
-// Equipamentos nem vê essas seções -- só o checkbox "É kit?" continua visível.
-function podeVerAreaDoTI() {
-    return typeof window.temFlag === "function" && window.temFlag("ti", "supremo");
-}
-
-function aplicarSomenteLeituraForaDoTI() {
-    if (podeVerAreaDoTI()) return;
-
-    const containers = [
-        document.getElementById("fieldset-modelos-equipamento"),
-        document.getElementById("fieldset-complementos-equipamento"),
-        document.getElementById("fieldset-kit-equipamento"),
-    ];
-    containers.forEach((container) => { if (container) container.style.display = "none"; });
-
-    const linhaUsoInterno = document.getElementById("chkUsoInterno")?.closest("label");
-    if (linhaUsoInterno) linhaUsoInterno.style.display = "none";
 }
 
 function verificaEquipamento() {
@@ -90,8 +51,6 @@ function verificaEquipamento() {
         console.error("Formulário ou botão não encontrado no DOM.");
         return;
     }
-
-    aplicarSomenteLeituraForaDoTI();
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
@@ -131,17 +90,8 @@ function verificaEquipamento() {
         }
 
         const ehkit = document.getElementById("chkEhKit")?.checked || false;
-        const usointerno = document.getElementById("chkUsoInterno")?.checked || false;
 
-        const dados = {
-            descEquip,
-            custo,
-            venda,
-            ehkit,
-            usointerno,
-            modelos: ehkit ? [] : coletarModelosEquipamento(),
-            complementos: ehkit ? coletarKitEquipamento() : coletarComplementosEquipamento()
-        };
+        const dados = { descEquip, custo, venda, ehkit };
 
         // Verifica alterações
         if (
@@ -150,11 +100,7 @@ function verificaEquipamento() {
             descEquip === window.EquipamentoOriginal?.descEquip &&
             Number(custo).toFixed(2) === Number(window.EquipamentoOriginal?.vlrCusto).toFixed(2) &&
             Number(venda).toFixed(2) === Number(window.EquipamentoOriginal?.vlrVenda).toFixed(2)&&
-            ehkit === !!window.EquipamentoOriginal?.ehkit &&
-            usointerno === !!window.EquipamentoOriginal?.usointerno &&
-            JSON.stringify(dados.modelos) === JSON.stringify(window.EquipamentoOriginal?.modelos) &&
-            JSON.stringify(dados.complementos) === JSON.stringify(window.EquipamentoOriginal?.complementos) &&
-            !existeFotoModeloPendente()
+            ehkit === !!window.EquipamentoOriginal?.ehkit
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -184,9 +130,6 @@ function verificaEquipamento() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });
-
-            const idEquipSalvo = idEquip || respostaApi?.equipamentos?.idequip;
-            await enviarFotosModelosPendentes(idEquipSalvo);
 
             await Swal.fire("Sucesso!", respostaApi.message || respostaApi.mensagem || "Equipamento salvo com sucesso.", "success");
 
@@ -496,27 +439,11 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
             descEquip: equipamentos.descequip,
             vlrCusto: equipamentos.ctoequip,
             vlrVenda: equipamentos.vdaequip,
-            modelos: equipamentos.modelos || [],
-            complementos: equipamentos.complementos || [],
-            ehkit: !!equipamentos.ehkit,
-            usointerno: !!equipamentos.usointerno
+            ehkit: !!equipamentos.ehkit
         };
 
         const chkEhKit = document.getElementById("chkEhKit");
         if (chkEhKit) chkEhKit.checked = !!equipamentos.ehkit;
-        aplicarModoKitEquipamento(!!equipamentos.ehkit);
-
-        const chkUsoInterno = document.getElementById("chkUsoInterno");
-        if (chkUsoInterno) chkUsoInterno.checked = !!equipamentos.usointerno;
-
-        if (equipamentos.ehkit) {
-            renderKitEquipamento(equipamentos.complementos || []);
-        } else {
-            renderModelosEquipamento(equipamentos.modelos || []);
-            renderComplementosEquipamento(equipamentos.complementos || []);
-        }
-
-        aplicarSomenteLeituraForaDoTI();
 
     } catch (error) {
         
@@ -625,322 +552,11 @@ function limparCamposEquipamento() {
         descEquip: "",
         vlrCusto: "",
         vlrVenda: "",
-        modelos: [],
-        complementos: [],
-        ehkit: false,
-        usointerno: false
+        ehkit: false
     };
 
     const chkEhKit = document.getElementById("chkEhKit");
     if (chkEhKit) chkEhKit.checked = false;
-    aplicarModoKitEquipamento(false);
-
-    const chkUsoInterno = document.getElementById("chkUsoInterno");
-    if (chkUsoInterno) chkUsoInterno.checked = false;
-
-    limparModelosEquipamento();
-    limparComplementosEquipamento();
-    limparKitEquipamento();
-}
-
-function aplicarModoKitEquipamento(ehKit) {
-    const fieldsetKit = document.getElementById("fieldset-kit-equipamento");
-    const fieldsetModelos = document.getElementById("fieldset-modelos-equipamento");
-    const fieldsetComplementos = document.getElementById("fieldset-complementos-equipamento");
-    if (fieldsetKit) fieldsetKit.style.display = ehKit ? "block" : "none";
-    if (fieldsetModelos) fieldsetModelos.style.display = ehKit ? "none" : "block";
-    if (fieldsetComplementos) fieldsetComplementos.style.display = ehKit ? "none" : "block";
-
-    // Quem não tem a flag "ti" não pode ver essas seções de jeito nenhum --
-    // reaplica por cima do toggle acima, senão marcar/desmarcar "É kit?" reabriria
-    // o fieldset-kit-equipamento (ver aplicarSomenteLeituraForaDoTI).
-    aplicarSomenteLeituraForaDoTI();
-}
-
-document.addEventListener("change", (event) => {
-    if (event.target?.id === "chkEhKit") {
-        aplicarModoKitEquipamento(event.target.checked);
-    }
-});
-
-// =============================================================================
-// Modelos (marca/modelo) e Complementos do equipamento — vivem como JSONB
-// dentro da própria linha de equipamentos; a tabela só edita em memória, o
-// array inteiro é enviado junto no POST/PUT de /equipamentos.
-// =============================================================================
-
-function gerarIdLocal() {
-    return (window.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-}
-
-function limparModelosEquipamento() {
-    const corpo = document.getElementById("corpo-modelos-equipamento");
-    if (corpo) corpo.innerHTML = "";
-}
-
-function criarLinhaModeloEquipamento(modelo = null) {
-    const tr = document.createElement("tr");
-    tr.dataset.idmodelo = modelo?.id ?? gerarIdLocal();
-
-    // Foto do modelo: o caminho salvo fica no dataset (vai de volta no JSONB em
-    // coletarModelosEquipamento) e o arquivo escolhido fica em tr._fotoPendente,
-    // enviado só DEPOIS de salvar o equipamento — o upload precisa do idequip
-    // e do modelo já gravado no JSONB (ver enviarFotosModelosPendentes).
-    tr.dataset.foto = modelo?.foto ?? "";
-    tr._fotoPendente = null;
-
-    tr.innerHTML = `
-        <td class="equip-modelo-foto-celula">
-            <label class="equip-modelo-foto" title="Clique para escolher a foto deste modelo">
-                ${modelo?.foto
-                    ? `<img src="/${modelo.foto}" alt="">`
-                    : `<span class="material-symbols-outlined">add_a_photo</span>`}
-                <input type="file" accept="image/*" class="input-modelo-foto">
-            </label>
-        </td>
-        <td><input type="text" class="input-modelo-marca uppercase" value="${modelo?.marca ?? ""}" placeholder="Ex: HP"></td>
-        <td><input type="text" class="input-modelo-modelo uppercase" value="${modelo?.modelo ?? ""}" placeholder="Ex: EliteBook"></td>
-        <td><input type="number" class="input-modelo-qtdeminima" min="0" value="${modelo?.qtdeminima ?? 0}"></td>
-        <td><button type="button" class="btnRemoverModelo equip-rm">✕</button></td>
-    `;
-
-    tr.dataset.temUnidades = modelo?.id ? "1" : "0";
-
-    tr.querySelectorAll(".uppercase").forEach((input) => {
-        input.addEventListener("input", function () { this.value = this.value.toUpperCase(); });
-    });
-
-    // Pré-visualiza na hora (sem subir nada ainda) e guarda o arquivo na linha.
-    tr.querySelector(".input-modelo-foto").addEventListener("change", function () {
-        const arquivo = this.files[0];
-        if (!arquivo) return;
-        tr._fotoPendente = arquivo;
-        const label = this.closest(".equip-modelo-foto");
-        const urlPreview = URL.createObjectURL(arquivo);
-        label.querySelector("img")?.remove();
-        label.querySelector(".material-symbols-outlined")?.remove();
-        const img = document.createElement("img");
-        img.src = urlPreview;
-        img.alt = "";
-        img.addEventListener("load", () => URL.revokeObjectURL(urlPreview));
-        label.prepend(img);
-    });
-
-    tr.querySelector(".btnRemoverModelo").addEventListener("click", async () => {
-        if (tr.dataset.temUnidades === "1") {
-            const { isConfirmed } = await Swal.fire({
-                title: "Este modelo já existe salvo",
-                text: "Se ele já tiver unidades/estoque cadastradas na aba Estoque do TI Mode, elas ficam órfãs ao remover aqui. Deseja continuar mesmo assim?",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonText: "Remover mesmo assim",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-            });
-            if (!isConfirmed) return;
-        }
-        tr.remove();
-    });
-
-    return tr;
-}
-
-// Trocar só a foto também é alteração — sem isso o salvar cai no
-// "Nenhuma alteração foi detectada" e a foto nunca sobe.
-function existeFotoModeloPendente() {
-    const corpo = document.getElementById("corpo-modelos-equipamento");
-    if (!corpo) return false;
-    return Array.from(corpo.querySelectorAll("tr")).some((linha) => linha._fotoPendente);
-}
-
-// Sobe as fotos escolhidas nas linhas de modelo. Roda depois do POST/PUT do
-// equipamento porque a rota grava o caminho dentro do objeto do modelo no JSONB
-// — o modelo já precisa existir lá. Mesma ideia do almoxarifado, que cria o item
-// e só então envia a foto (public/js/AlmoxarifadoMode.js).
-async function enviarFotosModelosPendentes(idequip) {
-    const corpo = document.getElementById("corpo-modelos-equipamento");
-    if (!corpo || !idequip) return;
-
-    const pendentes = Array.from(corpo.querySelectorAll("tr"))
-        .filter((linha) => linha._fotoPendente);
-
-    for (const linha of pendentes) {
-        const formData = new FormData();
-        formData.append("foto", linha._fotoPendente);
-        try {
-            const resp = await fetchComToken(`/equipamentos/${idequip}/modelos/${linha.dataset.idmodelo}/foto`, {
-                method: "POST",
-                body: formData,
-            });
-            linha.dataset.foto = resp?.foto || linha.dataset.foto;
-            linha._fotoPendente = null;
-        } catch (erro) {
-            console.error("Erro ao enviar a foto do modelo:", erro);
-            throw new Error("Equipamento salvo, mas houve erro ao enviar a foto de um dos modelos.");
-        }
-    }
-}
-
-function renderModelosEquipamento(modelos) {
-    limparModelosEquipamento();
-    const corpo = document.getElementById("corpo-modelos-equipamento");
-    if (!corpo) return;
-    (modelos || []).forEach((modelo) => corpo.appendChild(criarLinhaModeloEquipamento(modelo)));
-}
-
-function coletarModelosEquipamento() {
-    const corpo = document.getElementById("corpo-modelos-equipamento");
-    if (!corpo) return [];
-
-    return Array.from(corpo.querySelectorAll("tr"))
-        .map((linha) => {
-            const marca = linha.querySelector(".input-modelo-marca")?.value.trim();
-            const modelo = linha.querySelector(".input-modelo-modelo")?.value.trim();
-            const qtdeminima = parseInt(linha.querySelector(".input-modelo-qtdeminima")?.value || "0", 10);
-            if (!marca) return null;
-
-            // `foto` precisa voltar no array: o PUT /equipamentos sobrescreve o
-            // JSONB inteiro, então o que não for reenviado aqui é perdido.
-            const item = {
-                id: linha.dataset.idmodelo,
-                marca,
-                modelo,
-                qtdeminima,
-            };
-            if (linha.dataset.foto) item.foto = linha.dataset.foto;
-            return item;
-        })
-        .filter(Boolean);
-}
-
-// ===== Complementos (lista simples de itens acessórios) =====
-
-function limparComplementosEquipamento() {
-    const corpo = document.getElementById("corpo-complementos-equipamento");
-    if (corpo) corpo.innerHTML = "";
-}
-
-function criarLinhaComplementoEquipamento(item = "") {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-        <td><input type="text" class="input-complemento-item uppercase" value="${item}" placeholder="Ex: Mouse"></td>
-        <td><button type="button" class="btnRemoverComplemento equip-rm">✕</button></td>
-    `;
-
-    tr.querySelector(".uppercase").addEventListener("input", function () { this.value = this.value.toUpperCase(); });
-    tr.querySelector(".btnRemoverComplemento").addEventListener("click", () => tr.remove());
-
-    return tr;
-}
-
-function renderComplementosEquipamento(complementos) {
-    limparComplementosEquipamento();
-    const corpo = document.getElementById("corpo-complementos-equipamento");
-    if (!corpo) return;
-    (complementos || []).forEach((item) => corpo.appendChild(criarLinhaComplementoEquipamento(item)));
-}
-
-function coletarComplementosEquipamento() {
-    const corpo = document.getElementById("corpo-complementos-equipamento");
-    if (!corpo) return [];
-
-    return Array.from(corpo.querySelectorAll(".input-complemento-item"))
-        .map((input) => input.value.trim())
-        .filter(Boolean);
-}
-
-document.addEventListener("click", (event) => {
-    if (event.target?.id === "btnAdicionarModelo") {
-        event.preventDefault();
-        const corpo = document.getElementById("corpo-modelos-equipamento");
-        if (corpo) corpo.appendChild(criarLinhaModeloEquipamento());
-    }
-    if (event.target?.id === "btnAdicionarComplemento") {
-        event.preventDefault();
-        const corpo = document.getElementById("corpo-complementos-equipamento");
-        if (corpo) corpo.appendChild(criarLinhaComplementoEquipamento());
-    }
-    if (event.target?.id === "btnAdicionarKitItem") {
-        event.preventDefault();
-        const corpo = document.getElementById("corpo-kit-equipamento");
-        if (corpo) corpo.appendChild(criarLinhaKitEquipamento());
-    }
-});
-
-// ===== Composição do kit (busca equipamentos já cadastrados + quantidade) =====
-
-let contadorLinhaKit = 0;
-
-function limparKitEquipamento() {
-    const corpo = document.getElementById("corpo-kit-equipamento");
-    if (corpo) corpo.innerHTML = "";
-}
-
-function criarLinhaKitEquipamento(item = null) {
-    const tr = document.createElement("tr");
-    tr.dataset.idequip = item?.idequip ?? "";
-    const listaId = `kit-lista-sugestoes-${contadorLinhaKit++}`;
-
-    tr.innerHTML = `
-        <td>
-            <input type="text" class="input-kit-busca uppercase" placeholder="Buscar equipamento..." autocomplete="off" value="${item?.descequip ? String(item.descequip).toUpperCase() : ""}">
-        </td>
-        <td><input type="number" class="input-kit-quantidade" min="1" value="${item?.quantidade || 1}"></td>
-        <td><button type="button" class="btnRemoverKitItem equip-rm">✕</button></td>
-    `;
-
-    const inputBusca = tr.querySelector(".input-kit-busca");
-    // Digitar de novo sem escolher da lista invalida o idequip já selecionado --
-    // evita salvar o kit com um componente que não confere mais com o texto exibido.
-    inputBusca.addEventListener("input", function () {
-        this.value = this.value.toUpperCase();
-        tr.dataset.idequip = "";
-    });
-
-    ligarBuscaComSugestoes(
-        inputBusca,
-        listaId,
-        async (termo) => {
-            const idEquipAtual = document.querySelector("#idEquip")?.value;
-            const equipamentos = await garantirCacheEquipamentosKit();
-            return equipamentos
-                .filter((e) => !e.ehkit && String(e.idequip) !== String(idEquipAtual || ""))
-                .filter((e) => e.descequip?.toLowerCase().includes(termo.toLowerCase()))
-                .slice(0, 20);
-        },
-        (e) => e.descequip,
-        (e) => {
-            inputBusca.value = e.descequip;
-            tr.dataset.idequip = e.idequip;
-        },
-        { mensagemVazia: "Nenhum equipamento encontrado" }
-    );
-
-    tr.querySelector(".btnRemoverKitItem").addEventListener("click", () => tr.remove());
-
-    return tr;
-}
-
-function renderKitEquipamento(lista) {
-    limparKitEquipamento();
-    const corpo = document.getElementById("corpo-kit-equipamento");
-    if (!corpo) return;
-    (lista || []).forEach((item) => corpo.appendChild(criarLinhaKitEquipamento(item)));
-}
-
-function coletarKitEquipamento() {
-    const corpo = document.getElementById("corpo-kit-equipamento");
-    if (!corpo) return [];
-
-    return Array.from(corpo.querySelectorAll("tr"))
-        .map((tr) => {
-            const idequip = tr.dataset.idequip;
-            const descequip = tr.querySelector(".input-kit-busca")?.value.trim();
-            const quantidade = parseInt(tr.querySelector(".input-kit-quantidade")?.value || "1", 10);
-            if (!idequip || !descequip) return null;
-            return { idequip: Number(idequip), descequip, quantidade: quantidade > 0 ? quantidade : 1 };
-        })
-        .filter(Boolean);
 }
 
 function configurarEventosEquipamento() {

@@ -413,6 +413,63 @@
 .ti-swal-modelo-acoes button:disabled { opacity: .5; cursor: not-allowed; transform: none; filter: none; }
 .ti-swal-modelo-detalhe { margin-top: 4px; }
 
+/* Card de "+ Novo modelo" no fim do grid -- mesma moldura dos cards de modelo,
+   só com borda tracejada pra diferenciar de um modelo já existente. */
+.ti-swal-modelo-novo { border-top: 4px dashed var(--border-1); justify-content: center; }
+.ti-swal-modelo-novo .ti-swal-modelo-header { margin-bottom: 0; }
+
+/* Seções extras do Estoque (Complementos / composição do kit / Uso interno) --
+   migraram do cadastro geral de Equipamentos pra cá (ver TIMode.js,
+   montarSwalModelosCategoria/abrirComposicaoKitTI). Fica abaixo do grid de cards,
+   texto alinhado à esquerda (o resto do Swal é centralizado). */
+.ti-swal-secao-extra {
+  text-align: left;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-1);
+}
+.ti-swal-secao-extra h4 { margin: 0 0 4px; font-size: 14px; color: var(--text-1); }
+.ti-swal-hint { font-size: 12px; color: var(--text-2); margin: 0 0 8px; }
+
+.ti-swal-form-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ti-swal-form-inline .swal2-input { margin: 0; flex: 1; min-width: 140px; height: 38px; }
+.ti-swal-form-inline button {
+  border: 1.5px solid var(--primary-color, #942123);
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--primary-color, #942123);
+  color: var(--font-color, #fff);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ti-swal-form-inline button:hover { filter: brightness(1.08); }
+
+.ti-swal-lista-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ti-swal-vazio-inline { font-size: 12px; color: var(--text-2); }
+.ti-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-1);
+  border-radius: 999px;
+  padding: 4px 6px 4px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+}
+.ti-chip-remover {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.ti-chip-remover:hover { color: var(--status-erro-fg, #b50000); }
+
 /* Lista de e-mails de uma área: cards em coluna única, largura 100%, com scroll
    vertical quando passar da altura máxima (em vez do grid multi-coluna dos modelos). */
 .ti-swal-lista-full {
@@ -621,6 +678,15 @@
   font-weight: 600;
   color: var(--text-1);
 }
+/* Variante compacta -- usada dentro do card de modelo (Estoque do TI Mode), que já
+   é centralizado e estreito, então o checkbox grande/em negrito padrão destoava. */
+.ti-swal-check-pequeno {
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.ti-swal-check-pequeno .ios-checkbox { --checkbox-size: 15px; }
 .ti-swal-check .ios-checkbox {
   --checkbox-size: 20px;
   --checkbox-color: #942123;
