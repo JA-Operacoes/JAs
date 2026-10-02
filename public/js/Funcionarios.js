@@ -90,7 +90,8 @@ if (typeof window.funcionarioriginal === "undefined") {
 // conforme a quantidade informada no input #dependentes. Preserva os valores já
 // digitados quando a quantidade aumenta/diminui. `oninput` chama esta função.
 // `dadosIniciais` (opcional) pré-preenche os campos ao carregar um funcionário:
-// array de { nome, nascimento }.
+// array de { nome, nascimento, plano } — plano=false tira o dependente do convênio (continua
+// contando como dependente do IRRF); ausente (cadastro antigo) = no plano.
 window.gerarCamposDependentes = function gerarCamposDependentes(quantidade, dadosIniciais) {
     const container = document.getElementById("dependentesContainer");
     if (!container) return;
@@ -106,14 +107,16 @@ window.gerarCamposDependentes = function gerarCamposDependentes(quantidade, dado
     if (Array.isArray(dadosIniciais)) {
         valores = dadosIniciais.map(d => ({
             nome: d?.nome || "",
-            nasc: (d?.nascimento || "").split("T")[0]
+            nasc: (d?.nascimento || "").split("T")[0],
+            plano: d?.plano !== false
         }));
     } else {
         valores = [];
         container.querySelectorAll(".dependente-item").forEach((item, i) => {
             valores[i] = {
                 nome: item.querySelector(`[name="depNome[]"]`)?.value || "",
-                nasc: item.querySelector(`[name="depNasc[]"]`)?.value || ""
+                nasc: item.querySelector(`[name="depNasc[]"]`)?.value || "",
+                plano: item.querySelector(`[name="depPlano[]"]`)?.checked !== false
             };
         });
     }
@@ -123,31 +126,46 @@ window.gerarCamposDependentes = function gerarCamposDependentes(quantidade, dado
     for (let i = 0; i < qtd; i++) {
         const nome = valores[i]?.nome || "";
         const nasc = valores[i]?.nasc || "";
+        const noPlano = valores[i]?.plano !== false; // dependente novo entra no plano por padrão
 
         const item = document.createElement("div");
         item.className = "form-2colunas dependente-item";
         item.innerHTML = `
             <div class="form2">
-                <input type="text" class="uppercase" name="depNome[]" id="depNome_${i}" value="${nome}" spellcheck="false" style="width:535.5px;">
+                <input type="text" class="uppercase" name="depNome[]" id="depNome_${i}" value="${nome}" spellcheck="false" style="width:390px;">
                 <label for="depNome_${i}">Nome do ${i + 1}º dependente</label>
             </div>
             <div class="form2">
                 <input type="date" name="depNasc[]" id="depNasc_${i}" value="${nasc}">
                 <label for="depNasc_${i}">Dt Nasc.</label>
             </div>
+            <label class="dep-plano-box" title="Desmarque se este dependente NÃO está no convênio do funcionário (ex.: já está no plano do outro responsável). Continua contando como dependente do IRRF." style="display:none; align-items:center; gap:6px; white-space:nowrap;">
+                <input type="checkbox" name="depPlano[]" id="depPlano_${i}" ${noPlano ? "checked" : ""}>
+                No plano de saúde
+            </label>
         `;
         container.appendChild(item);
     }
+    atualizarVisibilidadePlanoDependentes();
 };
 
+// O check "No plano de saúde" de cada dependente só aparece quando o funcionário aderiu ao plano.
+function atualizarVisibilidadePlanoDependentes() {
+    const aderiu = document.getElementById("adesaoPlanoSaude")?.checked === true;
+    document.querySelectorAll("#dependentesContainer .dep-plano-box").forEach((el) => {
+        el.style.display = aderiu ? "flex" : "none";
+    });
+}
+
 // Coleta os dependentes preenchidos no formulário e devolve um array
-// [{ nome, nascimento }] pronto pra virar JSON e ir ao backend.
+// [{ nome, nascimento, plano }] pronto pra virar JSON e ir ao backend.
 window.coletarDependentes = function coletarDependentes() {
     const container = document.getElementById("dependentesContainer");
     if (!container) return [];
     return Array.from(container.querySelectorAll(".dependente-item")).map(item => ({
         nome: (item.querySelector(`[name="depNome[]"]`)?.value || "").toUpperCase().trim(),
-        nascimento: item.querySelector(`[name="depNasc[]"]`)?.value || ""
+        nascimento: item.querySelector(`[name="depNasc[]"]`)?.value || "",
+        plano: item.querySelector(`[name="depPlano[]"]`)?.checked !== false
     }));
 };
 
@@ -208,6 +226,8 @@ function atualizarTipoPlanoSaude() {
     selectPlano.value = "";
     selectTipo.value = "";
   }
+  atualizarVisibilidadePlanoDependentes();
+  if (typeof renderResumoPlanoSaude === "function") renderResumoPlanoSaude();
 }
 
 // Preenche o select de planos (nomeplano) a partir do backend.
@@ -228,6 +248,70 @@ async function carregarPlanosSaude() {
   }
 }
 
+// Faixas (de/ate/valor) de cada tipo carregado, por idtipoplanosaude — alimenta o resumo abaixo.
+const faixasPlanoPorTipo = {};
+// Regra do RH (2026-10-02): titular paga 50% do valor do tipo; cada dependente paga 100%.
+// Mesma regra de PLANO_EMPRESA_PCT_TITULAR em rotaRH.js — mudou lá, muda aqui.
+const PLANO_FUNC_PCT_TITULAR = 0.5;
+
+const fmtReaisPlano = (v) => "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function idadeEm(nascimentoIso, ref) {
+  const m = String(nascimentoIso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  let idade = ref.getFullYear() - Number(m[1]);
+  if (ref.getMonth() + 1 < Number(m[2]) || (ref.getMonth() + 1 === Number(m[2]) && ref.getDate() < Number(m[3]))) idade--;
+  return Math.max(0, idade);
+}
+
+function valorDaFaixaPlano(faixas, idade) {
+  if (idade == null) return null;
+  const f = faixas.find((fx) => (fx.de == null || idade >= fx.de) && (fx.ate == null || idade <= fx.ate));
+  return f ? Number(f.valor) || 0 : null;
+}
+
+// Mostra, abaixo do tipo escolhido, a tabela de valores por faixa etária e quanto ESTE funcionário
+// pagaria (titular 50% + dependentes 100%, pela idade de hoje). Some se não há tipo escolhido.
+function renderResumoPlanoSaude() {
+  const box = document.getElementById("planoSaudeResumo");
+  if (!box) return;
+  const adesao = document.getElementById("adesaoPlanoSaude")?.checked === true;
+  const idTipo = document.getElementById("tipoPlanoSaude")?.value || "";
+  const faixas = faixasPlanoPorTipo[idTipo];
+  if (!adesao || !idTipo || !Array.isArray(faixas) || !faixas.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+
+  const hoje = new Date();
+  const linhasFaixa = faixas.map((f) => {
+    const rotulo = f.de == null ? `até ${f.ate} anos` : f.ate == null ? `${f.de}+ anos` : `${f.de} a ${f.ate} anos`;
+    return `<tr><td>${rotulo}</td><td style="text-align:right;">${fmtReaisPlano(f.valor)}</td></tr>`;
+  }).join("");
+
+  const pessoas = [];
+  const idadeTit = idadeEm(document.getElementById("dataNasc")?.value, hoje);
+  const vTit = valorDaFaixaPlano(faixas, idadeTit);
+  if (vTit != null) pessoas.push({ nome: "Titular", idade: idadeTit, cheio: vTit, paga: Math.round((vTit - Math.round(vTit * (1 - PLANO_FUNC_PCT_TITULAR) * 100) / 100) * 100) / 100 });
+  (window.coletarDependentes ? window.coletarDependentes() : []).forEach((d, i) => {
+    if (d.plano === false) return; // fora do convênio: não entra no desconto
+    const idade = idadeEm(d.nascimento, hoje);
+    const v = valorDaFaixaPlano(faixas, idade);
+    if (v != null) pessoas.push({ nome: d.nome || `Dependente ${i + 1}`, idade, cheio: v, paga: v });
+  });
+  const total = pessoas.reduce((s, p) => s + p.paga, 0);
+  const linhasPessoas = pessoas.map((p) =>
+    `<tr><td>${p.nome} (${p.idade} anos)</td><td style="text-align:right;">${fmtReaisPlano(p.cheio)}</td><td style="text-align:right;"><strong>${fmtReaisPlano(p.paga)}</strong></td></tr>`
+  ).join("");
+
+  box.innerHTML = `
+    <strong>Valores do plano por faixa etária</strong>
+    <table class="plano-saude-tab">${linhasFaixa}</table>
+    ${pessoas.length ? `
+      <strong>Desconto estimado deste funcionário</strong> <small>(titular paga ${Math.round(PLANO_FUNC_PCT_TITULAR * 100)}%, dependentes 100%)</small>
+      <table class="plano-saude-tab"><tr><th></th><th style="text-align:right;">Valor cheio</th><th style="text-align:right;">Funcionário paga</th></tr>${linhasPessoas}
+      <tr><td colspan="2"><strong>Total por mês</strong></td><td style="text-align:right;"><strong>${fmtReaisPlano(total)}</strong></td></tr></table>`
+      : `<small>Informe a data de nascimento (e dos dependentes) para ver o desconto estimado.</small>`}`;
+  box.style.display = "";
+}
+
 // Preenche o select de tipos do plano escolhido; opcionalmente pré-seleciona um id.
 async function carregarTiposPlanoSaude(nomePlano, idSelecionar = null) {
   const selectTipo = document.getElementById("tipoPlanoSaude");
@@ -242,12 +326,14 @@ async function carregarTiposPlanoSaude(nomePlano, idSelecionar = null) {
       opt.value = String(t.idtipoplanosaude);
       opt.textContent = t.nometipo;
       selectTipo.appendChild(opt);
+      faixasPlanoPorTipo[String(t.idtipoplanosaude)] = Array.isArray(t.faixas) ? t.faixas : [];
     });
     if (idSelecionar != null) selectTipo.value = String(idSelecionar);
   } catch (err) {
     console.error("Erro ao carregar tipos do plano:", err);
   }
   atualizarTipoPlanoSaude();
+  renderResumoPlanoSaude();
 }
 
 // ===== Autocomplete de CBO por Função (e vice-versa) =====
@@ -641,6 +727,12 @@ async function verificaFuncionarios() {
     if (selectNomePlanoSaude) {
         selectNomePlanoSaude.addEventListener("change", () => carregarTiposPlanoSaude(selectNomePlanoSaude.value));
     }
+    // Resumo de valores do plano (faixas + desconto estimado): recalcula quando muda o tipo, a
+    // data de nascimento do titular, a quantidade de dependentes ou a data de algum dependente.
+    document.getElementById("tipoPlanoSaude")?.addEventListener("change", renderResumoPlanoSaude);
+    document.getElementById("dataNasc")?.addEventListener("input", renderResumoPlanoSaude);
+    document.getElementById("dependentes")?.addEventListener("input", () => setTimeout(renderResumoPlanoSaude, 0));
+    document.getElementById("dependentesContainer")?.addEventListener("input", renderResumoPlanoSaude);
     carregarPlanosSaude();      // popula o select de planos
     atualizarTipoPlanoSaude();  // estado inicial (habilita/desabilita)
 
@@ -863,6 +955,9 @@ async function verificaFuncionarios() {
                         try { depOriginal = JSON.parse(depOriginal || '[]'); } catch (e) { depOriginal = []; }
                     }
                     if (!Array.isArray(depOriginal)) depOriginal = [];
+                    // Cadastro antigo não tem "plano" por dependente (ausente = no plano) — normaliza
+                    // pra não acusar alteração onde só faltava o campo novo.
+                    depOriginal = depOriginal.map((d) => ({ nome: d?.nome, nascimento: d?.nascimento, plano: d?.plano !== false }));
                     if (JSON.stringify(depOriginal) !== dependentesDados) {
                         houveAlteracao = true;
                     }
@@ -1560,6 +1655,7 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 selectNomePlanoSaude.value = funcionario.nomeplanosaude || '';
             }
             await carregarTiposPlanoSaude(funcionario.nomeplanosaude || '', funcionario.idtipoplanosaude || null);
+            renderResumoPlanoSaude(); // dataNasc/dependentes já preenchidos neste ponto
             atualizarTipoPlanoSaude();
 
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
