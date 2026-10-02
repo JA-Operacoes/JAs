@@ -9072,6 +9072,7 @@ function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca, dataVcto) {
 
     wrapperContas.querySelectorAll(".accordion-item").forEach(item => {
         let temFilhoVisivel = false;
+        let somaVisivel = 0;
 
         item.querySelectorAll(".item-financeiro-linha").forEach(linha => {
             const statusLinha = linha.getAttribute("data-status-filtro");
@@ -9085,10 +9086,24 @@ function aplicarFiltroContas(wrapperContas, statusAlvo, termoBusca, dataVcto) {
 
             const mostrar = bateStatus && bateTexto && bateData;
             linha.style.display = mostrar ? "" : "none";
-            if (mostrar) temFilhoVisivel = true;
+            if (mostrar) {
+                temFilhoVisivel = true;
+                somaVisivel += parseFloat(linha.getAttribute("data-valor")) || 0;
+            }
         });
 
         item.style.display = temFilhoVisivel ? "block" : "none";
+
+        // Total dos vencimentos do dia escolhido, no cabeçalho do grupo (antes do total do grupo).
+        const blocoTotalDia = item.querySelector(".total-venc-filtro");
+        if (blocoTotalDia) {
+            blocoTotalDia.style.display = (dataVcto && temFilhoVisivel) ? "" : "none";
+            if (dataVcto) {
+                blocoTotalDia.querySelector(".total-venc-filtro-label").textContent =
+                    `VENCIMENTOS ${dataVcto.split('-').reverse().join('/')}`;
+                blocoTotalDia.querySelector(".total-venc-filtro-valor").textContent = formatarMoeda(somaVisivel);
+            }
+        }
 
         // Mesmo refinamento por funcionário do filtrarEventosNaTela: só mostra o
         // cabeçalho/total de cada pessoa se sobrou alguma categoria dela visível.
@@ -9320,6 +9335,10 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                 ${subStatusHtml}
             </div>
             <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+                <div class="fin-resumo-item total-venc-filtro" style="display: none; padding-right: 15px; border-right: 2px solid #ddd;">
+                    <span class="total-venc-filtro-label" style="font-size: 12px; color: var(--text-2); display:block;">TOTAL DOS VENCIMENTOS</span>
+                    <strong class="total-venc-filtro-valor" style="font-size: 17px; color: #007bff;"></strong>
+                </div>
                 <div class="fin-resumo-item orcado">
                     <span style="font-size: 12px; color: var(--text-2); display:block;">TOTAL DO GRUPO</span>
                     <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
@@ -9606,7 +9625,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     // pessoas (e vários meses da MESMA pessoa) dividem o grupo "Funcionários"
                                     // inteiro na tela — ver filtrarEventosNaTela.
                                     const funcChave = `${c.idfuncionario_vinculo || c.nome_vinculo || ''}-${mesHolerite}-${anoHolerite}`;
-                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
+                                    const abreLinha = `<tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}" data-valor="${valorLinha || 0}" data-func-chave="${funcChave}" data-print-idfunc="${idFuncBotao}" data-print-mes="${mesHolerite}" data-print-ano="${anoHolerite}" data-print-tipo="${tipoHoleriteLinha}" data-print-pronto="${statusHolerite === 'pago' && temComprovanteHolerite ? '1' : '0'}">`;
                                     // Nome + badge (VENCIDO/HOJE) do funcionário: essa célula é dona do
                                     // rowSpan quando há mais de uma categoria (Salário/13º/Benefícios...) no
                                     // MESMO funcionário/mês (data-func-chave) — cada linha continua com sua
@@ -9667,7 +9686,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                     const celulaNF = htmlAnexoCicloFornecedor(cf, chaveJs, 'notafiscal');
                                     const celulaCompCiclo = htmlAnexoCicloFornecedor(cf, chaveJs, 'comprovante');
                                     return `
-                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha" data-status-filtro="${filterLinha}" data-dtvcto="${vctoISO}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha" data-status-filtro="${filterLinha}" data-dtvcto="${vctoISO}" data-valor="${parseFloat(c.valorTotal || 0)}">
                                         <td style="${estiloVencido}">
                                             ${avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong>
@@ -9685,7 +9704,7 @@ function criarAccordionVinculo(tipo, lista, hoje) {
                                 }
 
                                 return `
-                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}">
+                                    <tr id="linha-pgto-${c.idlancamento}" class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-dtvcto="${vctoISO}" data-valor="${valorLinha || 0}">
                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: var(--text-2); margin-right: 5px;"></i>' : avisoStatus}
                                             <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:var(--text-2);">${c.observacao || c.descricao || ''}</small>
